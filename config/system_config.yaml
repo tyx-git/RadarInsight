@@ -1,0 +1,106 @@
+radar:
+  ip: "192.168.0.100"
+  port: 12345
+  type: "XW/SR215-3200C"
+  track_rate_hz: 2
+  range_max_m: 6000
+  azimuth_fov_deg: 90
+  range_resolution_m: 8.0
+  doppler_resolution_mps: 0.5
+  zero_doppler_idx: 64
+
+capture:
+  save_dir: "data/sessions"
+  log_level: "INFO"
+  async_save: true
+  chunk_size: 100
+
+pro_processing:
+  raw_root: "pro/raw"
+  output_root: "pro/sessions"
+  dataset_root: "data/sessions"
+  range_scale_to_meter: 1000.0
+  use_multires_rd: false
+  doppler_window: 32
+  doppler_windows_to_test: [16, 32, 64]
+  doppler_fft_size: 64
+
+preprocessing:
+  window_size_s: 8.0
+  overlap: 0.5
+  rd_crop_range_win: 32
+  rd_crop_doppler_win: 32
+
+labeling:
+  time_threshold_s: 1.0
+  dist_threshold_m: 20.0
+  speed_threshold_mps: 3.0
+  azimuth_threshold_deg: 5.0
+  radar_yaw_deg: 0.0
+
+training:
+  data_root: "data/sessions"
+  output_dir: "artifacts/checkpoints"
+  batch_size: 4
+  epochs: 30
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  val_ratio: 0.2
+  test_ratio: 0.1
+  random_seed: 42
+  num_workers: 0
+  sequence_length: 24
+  rd_frames: 24
+  rd_height: 64
+  rd_width: 64
+  include_rd: true
+  track_feature_columns:
+    - "range_m"
+    - "azimuth_deg"
+    - "radial_speed_mps"
+    - "snr_db"
+    - "delta_range_m"
+    - "delta_azimuth_deg"
+    - "speed_delta_mps"
+    - "acceleration_mps2"
+    - "turn_rate_degps"
+    - "range_jitter_m"
+    - "snr_delta_db"
+  track_projection_dim: 128
+  tcn_channels:
+    - 128
+    - 128
+    - 256
+  transformer_layers: 3
+  transformer_heads: 4
+  transformer_dropout: 0.1
+  cross_attention_layers: 2
+  cross_attention_heads: 4
+  cross_attention_dropout: 0.1
+  fusion_hidden_size: 256
+  x3d_stem_channels: 24
+  x3d_stage_channels:
+    - 32
+    - 64
+    - 128
+    - 192
+  x3d_stage_depths:
+    - 2
+    - 3
+    - 5
+    - 3
+  x3d_spatial_strides:
+    - 1
+    - 2
+    - 2
+    - 2
+  x3d_temporal_strides:
+    - 1
+    - 1
+    - 2
+    - 2
+  x3d_bottleneck_expansion: 2.25
+  x3d_se_ratio: 0.0625
+  label_smoothing: 0.05
+  track_aux_loss_weight: 0.1
+  rd_aux_loss_weight: 0.3

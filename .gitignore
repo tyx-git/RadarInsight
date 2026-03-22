@@ -1,0 +1,40 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Runtime outputs
+artifacts/*
+!artifacts/README.md
+
+reports/real/*
+!reports/real/README.md
+
+logs/*
+!logs/README.md
+
+# Local datasets and processed sessions
+pro/raw/*
+!pro/raw/README.md
+
+pro/sessions/*
+!pro/sessions/README.md
+
+data/sessions/*
+!data/sessions/README.md
+
+# Future exports
+exports/
+
