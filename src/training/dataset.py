@@ -25,6 +25,7 @@ class ClipRecord:
 @dataclass(slots=True)
 class SessionContext:
     track_frame: pd.DataFrame
+    rd_data_path: Path | None = None
 
 
 class RadarFusionDataset(Dataset):
@@ -76,6 +77,8 @@ class RadarFusionDataset(Dataset):
         unknown_labels = sorted({record.label_name for record in self.samples if record.label_name not in self.label_to_index})
         if unknown_labels:
             raise ValueError(f"Found labels not present in the provided label mapping: {unknown_labels}")
+
+        self.track_feature_center, self.track_feature_scale = self._build_track_feature_stats()
 
     def build_session_index(self) -> dict[str, list[int]]:
         session_to_indices: dict[str, list[int]] = {}
@@ -173,7 +176,8 @@ class RadarFusionDataset(Dataset):
         if not records:
             return None, []
 
-        return SessionContext(track_frame=track_frame), records
+        rd_data_file = session_dir / "radar/rd/rd_data.h5"
+        return SessionContext(track_frame=track_frame, rd_data_path=rd_data_file if rd_data_file.exists() else None), records
 
     @staticmethod
     def _load_jsonl(file_path: Path) -> list[dict[str, Any]]:
@@ -203,12 +207,37 @@ class RadarFusionDataset(Dataset):
         std[std < 1e-6] = 1.0
         return ((array - mean) / std).astype(np.float32)
 
+    def _build_track_feature_stats(self) -> tuple[np.ndarray, np.ndarray]:
+        feature_blocks: list[np.ndarray] = []
+        for context in self.sessions.values():
+            augmented = self._augment_track_features(context.track_frame.copy())
+            for column in self.feature_columns:
+                if column not in augmented.columns:
+                    augmented[column] = 0.0
+            feature_blocks.append(augmented.loc[:, self.feature_columns].to_numpy(dtype=np.float32))
+
+        stacked = np.concatenate(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.feature_columns)), dtype=np.float32)
+        center = np.median(stacked, axis=0, keepdims=True)
+        q25 = np.percentile(stacked, 25, axis=0, keepdims=True)
+        q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
+        scale = q75 - q25
+        fallback = stacked.std(axis=0, keepdims=True)
+        scale[scale < 1e-6] = fallback[scale < 1e-6]
+        scale[scale < 1e-6] = 1.0
+        return center.astype(np.float32), scale.astype(np.float32)
+
+    def _normalize_track_sequence(self, array: np.ndarray) -> np.ndarray:
+        normalized = (array - self.track_feature_center) / self.track_feature_scale
+        normalized = np.clip(normalized, -8.0, 8.0)
+        return normalized.astype(np.float32)
+
     @staticmethod
     def _standardize_channel_first(array: np.ndarray) -> np.ndarray:
-        mean = array.mean(axis=(1, 2, 3), keepdims=True)
-        std = array.std(axis=(1, 2, 3), keepdims=True)
-        std[std < 1e-6] = 1.0
-        return ((array - mean) / std).astype(np.float32)
+        scale = np.percentile(np.abs(array), 95, axis=(1, 2, 3), keepdims=True)
+        scale[scale < 1e-6] = 1.0
+        scaled = array / scale
+        scaled = np.clip(scaled, -8.0, 8.0)
+        return scaled.astype(np.float32)
 
     @staticmethod
     def _resample_frames(array: np.ndarray, target_frames: int) -> np.ndarray:
@@ -247,6 +276,15 @@ class RadarFusionDataset(Dataset):
         return output
 
     @staticmethod
+    def _resize_full_context(array: np.ndarray, target_height: int, target_width: int) -> np.ndarray:
+        if array.shape[1] == target_height and array.shape[2] == target_width:
+            return np.asarray(array, dtype=array.dtype)
+
+        row_indices = np.linspace(0, array.shape[1] - 1, num=target_height).round().astype(int)
+        col_indices = np.linspace(0, array.shape[2] - 1, num=target_width).round().astype(int)
+        return np.asarray(array[:, row_indices][:, :, col_indices], dtype=array.dtype)
+
+    @staticmethod
     def _spatial_mean_3x3(array: np.ndarray) -> np.ndarray:
         padded = np.pad(array, ((0, 0), (1, 1), (1, 1)), mode="edge")
         accumulator = np.zeros_like(array, dtype=np.float32)
@@ -255,11 +293,11 @@ class RadarFusionDataset(Dataset):
                 accumulator += padded[:, row_offset : row_offset + array.shape[1], col_offset : col_offset + array.shape[2]]
         return accumulator / 9.0
 
-    def _build_rd_feature_channels(self, rd_cube: np.ndarray) -> np.ndarray:
-        if rd_cube.ndim == 4:
-            scale_cubes = [rd_cube[scale_index] for scale_index in range(rd_cube.shape[0])]
+    def _build_rd_feature_channels(self, local_rd_cube: np.ndarray, global_rd_cube: np.ndarray | None = None) -> np.ndarray:
+        if local_rd_cube.ndim == 4:
+            scale_cubes = [local_rd_cube[scale_index] for scale_index in range(local_rd_cube.shape[0])]
         else:
-            scale_cubes = [rd_cube]
+            scale_cubes = [local_rd_cube]
 
         magnitude_cubes = [np.abs(scale_cube).astype(np.float32) for scale_cube in scale_cubes]
         log_amplitude_cubes = [np.log1p(magnitude_cube).astype(np.float32) for magnitude_cube in magnitude_cubes]
@@ -294,6 +332,24 @@ class RadarFusionDataset(Dataset):
         local_mean = self._spatial_mean_3x3(mid_log_amplitude)
         local_contrast = mid_log_amplitude - local_mean
 
+        if global_rd_cube is None:
+            global_log_amplitude = np.zeros_like(mid_log_amplitude, dtype=np.float32)
+            global_background_suppressed = np.zeros_like(mid_log_amplitude, dtype=np.float32)
+            global_temporal_difference = np.zeros_like(mid_log_amplitude, dtype=np.float32)
+            global_contrast = np.zeros_like(mid_log_amplitude, dtype=np.float32)
+        else:
+            global_magnitude = np.abs(global_rd_cube).astype(np.float32)
+            global_log_amplitude = np.log1p(global_magnitude).astype(np.float32)
+            global_temporal_difference = np.diff(
+                global_log_amplitude,
+                axis=0,
+                prepend=global_log_amplitude[:1],
+            )
+            global_background = np.median(global_log_amplitude, axis=0, keepdims=True)
+            global_background_suppressed = np.maximum(global_log_amplitude - global_background, 0.0)
+            global_mean = self._spatial_mean_3x3(global_log_amplitude)
+            global_contrast = global_log_amplitude - global_mean
+
         if len(scale_cubes) == 1:
             channels = [
                 real_component,
@@ -302,6 +358,10 @@ class RadarFusionDataset(Dataset):
                 temporal_difference,
                 background_suppressed,
                 local_contrast,
+                global_log_amplitude,
+                global_background_suppressed,
+                global_temporal_difference,
+                global_contrast,
                 phase_difference,
                 coherence,
             ]
@@ -317,6 +377,10 @@ class RadarFusionDataset(Dataset):
                 temporal_difference,
                 background_suppressed,
                 local_contrast,
+                global_log_amplitude,
+                global_background_suppressed,
+                global_temporal_difference,
+                global_contrast,
                 phase_difference,
                 coherence,
             ]
@@ -324,6 +388,41 @@ class RadarFusionDataset(Dataset):
         while len(selected) < self.rd_input_channels:
             selected.append(np.zeros_like(mid_log_amplitude, dtype=np.float32))
         return self._standardize_channel_first(np.stack(selected, axis=0))
+
+    def _load_global_rd_cube(self, record: ClipRecord) -> np.ndarray | None:
+        context = self.sessions[record.session_id]
+        if context.rd_data_path is None or not context.rd_data_path.exists():
+            return None
+
+        track_frame = context.track_frame
+        window = track_frame[
+            (track_frame["track_id"] == record.track_id)
+            & (track_frame["t"] >= record.t0)
+            & (track_frame["t"] < record.t1)
+        ]
+        frame_indices = window["frame_id"].to_numpy(dtype=np.int64)
+
+        with h5py.File(context.rd_data_path, "r") as handle:
+            rd_frames_dataset = handle.get("rd_frames")
+            if not isinstance(rd_frames_dataset, h5py.Dataset):
+                return None
+
+            max_frames = int(rd_frames_dataset.shape[0])
+            if frame_indices.size == 0:
+                clip_center_time = 0.5 * (record.t0 + record.t1)
+                nearest_index = int(np.argmin(np.abs(track_frame["t"].to_numpy(dtype=np.float32) - clip_center_time)))
+                frame_indices = np.asarray([nearest_index], dtype=np.int64)
+            frame_indices = frame_indices[frame_indices < max_frames]
+            if frame_indices.size == 0:
+                return None
+
+            global_rd_cube = np.asarray(rd_frames_dataset[frame_indices])
+
+        if global_rd_cube.ndim == 2:
+            global_rd_cube = global_rd_cube[None, :, :]
+        global_rd_cube = self._resample_frames(global_rd_cube, self.rd_frames)
+        global_rd_cube = self._resize_full_context(global_rd_cube, self.rd_height, self.rd_width)
+        return global_rd_cube
 
     def _load_track_sequence(self, record: ClipRecord) -> np.ndarray:
         track_frame = self.sessions[record.session_id].track_frame
@@ -344,7 +443,7 @@ class RadarFusionDataset(Dataset):
 
         sequence = window.loc[:, self.feature_columns].to_numpy(dtype=np.float32)
         sequence = self._resample_sequence(sequence, self.sequence_length)
-        return self._standardize(sequence)
+        return self._normalize_track_sequence(sequence)
 
     def _load_rd_cube(self, record: ClipRecord) -> np.ndarray:
         if not self.include_rd or not record.has_rd or record.rd_path is None:
@@ -366,7 +465,8 @@ class RadarFusionDataset(Dataset):
         else:
             rd_cube = self._resample_frames(rd_cube, self.rd_frames)
             rd_cube = self._center_crop_or_pad(rd_cube, self.rd_height, self.rd_width)
-        return self._build_rd_feature_channels(rd_cube)
+        global_rd_cube = self._load_global_rd_cube(record)
+        return self._build_rd_feature_channels(rd_cube, global_rd_cube=global_rd_cube)
 
     def __len__(self) -> int:
         return len(self.samples)

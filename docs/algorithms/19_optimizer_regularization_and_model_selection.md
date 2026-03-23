@@ -128,6 +128,5 @@
 - `src/training/trainer.py`
 - `src/training/config.py`
 
-## 初学者最该记住的一句话
 
 训练效果不是只靠“多跑几轮”得来的，而是靠优化器、学习率、正则化和正确的 best checkpoint 选择共同决定的。

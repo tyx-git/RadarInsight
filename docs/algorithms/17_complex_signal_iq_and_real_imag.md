@@ -110,6 +110,4 @@ IQ 可以粗略理解成：
 - `src/prodata/mat_session_builder.py`
 - `src/training/dataset.py`
 
-## 初学者最该记住的一句话
-
 在雷达任务里，复数不是麻烦，而是信息；太早丢掉它，往往会丢掉模型最难重新学回来的那部分结构。

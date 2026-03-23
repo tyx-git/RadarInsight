@@ -21,15 +21,28 @@ pro_processing:
   dataset_root: "data/sessions"
   range_scale_to_meter: 1000.0
   use_multires_rd: false
+  axis_mapping_mode: "calibrated_preferred"
   doppler_window: 32
   doppler_windows_to_test: [16, 32, 64]
   doppler_fft_size: 64
+  range_window_kind: "hann"
+  doppler_window_kind: "hann"
+  clutter_suppression_mode: "median_subtract"
+  micro_motion_alpha: 0.35
 
 preprocessing:
   window_size_s: 8.0
   overlap: 0.5
   rd_crop_range_win: 32
-  rd_crop_doppler_win: 32
+  rd_crop_doppler_win: 16
+  rd_align_smoothing_window: 7
+  rd_align_refine_range_radius: 6
+  rd_align_refine_doppler_radius: 4
+  rd_align_clip_range_margin: 10
+  rd_align_clip_doppler_margin: 5
+  rd_align_peak_guard_ratio: 1.25
+  rd_align_max_range_shift: 4
+  rd_align_max_doppler_shift: 2
 
 labeling:
   time_threshold_s: 1.0
@@ -53,6 +66,7 @@ training:
   rd_frames: 24
   rd_height: 64
   rd_width: 64
+  rd_input_channels: 8
   include_rd: true
   track_feature_columns:
     - "range_m"

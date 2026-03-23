@@ -107,6 +107,5 @@
 - `src/training/trainer.py`
 - `src/training/evaluator.py`
 
-## 初学者最该记住的一句话
 
 真正可信的高精度，不是一次训练跑出高分，而是在新 session 上仍然稳定有效。

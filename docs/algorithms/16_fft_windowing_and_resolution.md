@@ -114,6 +114,5 @@ FFT 可以先理解成：
 - `src/prodata/mat_session_builder.py`
 - `config/system_config.yaml`
 
-## 初学者最该记住的一句话
 
 FFT 不是一个纯数学动作，它会直接决定模型最终看到的雷达谱图质量。

@@ -107,6 +107,5 @@
 - `src/models/cnn_encoder.py`
 - `src/training/dataset.py`
 
-## 初学者最该记住的一句话
 
 CNN 在这个项目里不是单纯“看图片”，而是负责从 RD 时空序列里自动提取对分类最有用的局部微动模式。

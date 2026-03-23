@@ -23,6 +23,48 @@ class DataSlicer:
             track_id = track_id.item()
         return int(str(track_id))
 
+    @staticmethod
+    def _nearest_index(axis_values: np.ndarray, target_value: float) -> int:
+        return int(np.argmin(np.abs(axis_values - float(target_value))))
+
+    @staticmethod
+    def _smooth_indices(indices: list[int], window_size: int = 5) -> list[int]:
+        if not indices:
+            return []
+        if window_size <= 1:
+            return list(indices)
+        radius = window_size // 2
+        smoothed: list[int] = []
+        for index in range(len(indices)):
+            left = max(0, index - radius)
+            right = min(len(indices), index + radius + 1)
+            smoothed.append(int(np.median(indices[left:right])))
+        return smoothed
+
+    @staticmethod
+    def _weighted_peak_index(local_amplitude: np.ndarray, peak_guard_ratio: float) -> tuple[int, int] | None:
+        if local_amplitude.size == 0:
+            return None
+        local_peak_flat_index = int(local_amplitude.argmax())
+        local_peak_index = np.unravel_index(local_peak_flat_index, local_amplitude.shape)
+        local_peak_value = float(local_amplitude[local_peak_index])
+        local_background = float(np.median(local_amplitude))
+        if local_peak_value <= 0:
+            return None
+        if local_peak_value < max(local_background * peak_guard_ratio, 1e-6):
+            return None
+
+        support_threshold = local_peak_value * 0.7
+        support = np.where(local_amplitude >= support_threshold, local_amplitude, 0.0)
+        support_sum = float(support.sum())
+        if support_sum <= 0:
+            return int(local_peak_index[0]), int(local_peak_index[1])
+
+        row_index_grid, col_index_grid = np.indices(local_amplitude.shape)
+        weighted_row = int(round(float((support * row_index_grid).sum() / support_sum)))
+        weighted_col = int(round(float((support * col_index_grid).sum() / support_sum)))
+        return weighted_row, weighted_col
+
     def slice_tracks(self, window_size_s: float = 8.0, overlap: float = 0.5) -> List[Dict[str, Any]]:
         """
         按轨迹 ID (track_id) 将连续轨迹切分为片段。
@@ -83,7 +125,20 @@ class DataSlicer:
         print(f"[*] 生成了 {len(clips)} 个轨迹片段。保存至: {labels_file}")
         return clips
 
-    def slice_rd_clips(self, track_clips: List[Dict[str, Any]], range_win: int = 16, doppler_win: int = 16):
+    def slice_rd_clips(
+        self,
+        track_clips: List[Dict[str, Any]],
+        range_win: int = 16,
+        doppler_win: int = 16,
+        smoothing_window: int = 5,
+        refine_range_radius: int = 6,
+        refine_doppler_radius: int = 6,
+        clip_range_margin: int = 10,
+        clip_doppler_margin: int = 6,
+        peak_guard_ratio: float = 1.2,
+        max_range_shift: int = 4,
+        max_doppler_shift: int = 3,
+    ):
         """
         根据轨迹片段的时间与位置，从 RD 矩阵中裁剪目标局部的子图。
         
@@ -106,73 +161,125 @@ class DataSlicer:
             rd_frame_count = int(rd_frames.shape[0])
             rd_range_bins = int(rd_frames.shape[1])
             rd_doppler_bins = int(rd_frames.shape[2])
-            range_res = float(f_rd.attrs['range_res_m'])
-            doppler_res = float(f_rd.attrs['doppler_res_mps'])
-            zero_doppler_idx = int(f_rd.attrs['zero_doppler_idx'])
+            if 'range_axis_m' in f_rd:
+                range_axis_m = np.asarray(f_rd['range_axis_m'][:], dtype=np.float32)
+            else:
+                range_res = float(f_rd.attrs['range_res_m'])
+                range_axis_m = np.arange(rd_range_bins, dtype=np.float32) * range_res
+            if 'doppler_axis_mps' in f_rd:
+                doppler_axis_mps = np.asarray(f_rd['doppler_axis_mps'][:], dtype=np.float32)
+            else:
+                doppler_res = float(f_rd.attrs['doppler_res_mps'])
+                zero_doppler_idx = int(f_rd.attrs['zero_doppler_idx'])
+                doppler_axis_mps = (np.arange(rd_doppler_bins, dtype=np.float32) - zero_doppler_idx) * doppler_res
             
             df_track = pd.read_csv(self.track_csv)
             
             # 创建 RD Clip 保存文件
             rd_clip_file = self.session_dir / "radar/rd/rd_clips.h5"
+            alignment_file = self.session_dir / "radar/rd/rd_alignment_diagnostics.jsonl"
             with h5py.File(rd_clip_file, 'w') as f_out:
-                for clip in track_clips:
-                    # 获取该时间段内的轨迹点
-                    window_df = df_track[(df_track['track_id'] == clip['track_id']) & 
-                                         (df_track['t'] >= clip['t0']) & 
-                                         (df_track['t'] < clip['t1'])]
-                    
-                    # 为每个样本存储一组 RD 子图序列
-                    sample_rd_seq: list[np.ndarray] = []
-                    for _, row in window_df.iterrows():
-                        frame_idx = int(row['frame_id'])
-                        if frame_idx >= rd_frame_count:
-                            continue
-                        
-                        # 计算目标在 RD 上的坐标索引
-                        r_idx = int(row['range_m'] / range_res)
-                        v_idx = int(zero_doppler_idx + row['radial_speed_mps'] / doppler_res)
-                        
-                        # 确保 r_idx and v_idx within matrix bounds
-                        if r_idx < 0 or r_idx >= rd_range_bins or v_idx < 0 or v_idx >= rd_doppler_bins:
+                with open(alignment_file, 'w', encoding='utf-8') as alignment_handle:
+                    for clip in track_clips:
+                        window_df = df_track[(df_track['track_id'] == clip['track_id']) & 
+                                             (df_track['t'] >= clip['t0']) & 
+                                             (df_track['t'] < clip['t1'])]
+                        sample_rd_seq: list[np.ndarray] = []
+                        predicted_rows: list[pd.Series] = []
+                        predicted_r_indices: list[int] = []
+                        predicted_v_indices: list[int] = []
+                        for _, row in window_df.iterrows():
+                            frame_idx = int(row['frame_id'])
+                            if frame_idx >= rd_frame_count:
+                                continue
+
+                            r_idx = self._nearest_index(range_axis_m, float(row['range_m']))
+                            v_idx = self._nearest_index(doppler_axis_mps, float(row['radial_speed_mps']))
+                            predicted_rows.append(row)
+                            predicted_r_indices.append(r_idx)
+                            predicted_v_indices.append(v_idx)
+
+                        if not predicted_rows:
                             continue
 
-                        # 边界裁剪 (计算在原图中的实际范围)
-                        r_start = r_idx - range_win
-                        r_end = r_idx + range_win
-                        v_start = v_idx - doppler_win
-                        v_end = v_idx + doppler_win
-                        
-                        # 在原图中的有效部分
-                        r_start_valid = max(0, r_start)
-                        r_end_valid = min(rd_range_bins, r_end)
-                        v_start_valid = max(0, v_start)
-                        v_end_valid = min(rd_doppler_bins, v_end)
-                        
-                        # 提取子矩阵
-                        crop_valid = np.asarray(
-                            rd_frames[frame_idx, r_start_valid:r_end_valid, v_start_valid:v_end_valid],
-                            dtype=np.float32,
-                        )
-                        
-                        # 确保裁剪尺寸一致 (处理边缘情况，使目标保持在中心)
-                        target_h, target_w = range_win * 2, doppler_win * 2
-                        pad_crop = np.zeros((target_h, target_w), dtype=crop_valid.dtype)
-                        
-                        # 计算在 pad_crop 中的起始位置
-                        r_offset = r_start_valid - r_start
-                        v_offset = v_start_valid - v_start
-                        
-                        # 填充
-                        h, w = crop_valid.shape
-                        pad_crop[r_offset:r_offset+h, v_offset:v_offset+w] = crop_valid
-                        
-                        sample_rd_seq.append(pad_crop)
-                    
-                    # 保存 RD Clip 序列
-                    if sample_rd_seq:
-                        # 将列表转换为 numpy 数组: (num_frames_in_clip, H, W)
-                        rd_array = np.stack(sample_rd_seq, axis=0)
-                        f_out.create_dataset(f"rd_clip_{clip['sample_id']}", data=rd_array, compression="gzip")
+                        smoothed_r = self._smooth_indices(predicted_r_indices, window_size=smoothing_window)
+                        smoothed_v = self._smooth_indices(predicted_v_indices, window_size=smoothing_window)
+                        clip_center_r = int(np.median(smoothed_r))
+                        clip_center_v = int(np.median(smoothed_v))
+                        clip_alignment_records: list[dict[str, Any]] = []
+
+                        for frame_offset, (row, r_idx, v_idx) in enumerate(zip(predicted_rows, smoothed_r, smoothed_v)):
+                            frame_idx = int(row['frame_id'])
+
+                            r_idx = int(np.clip(r_idx, clip_center_r - clip_range_margin, clip_center_r + clip_range_margin))
+                            v_idx = int(np.clip(v_idx, clip_center_v - clip_doppler_margin, clip_center_v + clip_doppler_margin))
+                            base_r_idx = r_idx
+                            base_v_idx = v_idx
+
+                            refine_r_start = max(0, r_idx - refine_range_radius)
+                            refine_r_end = min(rd_range_bins, r_idx + refine_range_radius + 1)
+                            refine_v_start = max(0, v_idx - refine_doppler_radius)
+                            refine_v_end = min(rd_doppler_bins, v_idx + refine_doppler_radius + 1)
+
+                            local_amplitude = np.abs(
+                                np.asarray(rd_frames[frame_idx, refine_r_start:refine_r_end, refine_v_start:refine_v_end])
+                            )
+                            weighted_peak_index = self._weighted_peak_index(local_amplitude, peak_guard_ratio=peak_guard_ratio)
+                            if weighted_peak_index is not None:
+                                candidate_r_idx = refine_r_start + int(weighted_peak_index[0])
+                                candidate_v_idx = refine_v_start + int(weighted_peak_index[1])
+                                delta_r = int(np.clip(candidate_r_idx - base_r_idx, -max_range_shift, max_range_shift))
+                                delta_v = int(np.clip(candidate_v_idx - base_v_idx, -max_doppler_shift, max_doppler_shift))
+                                r_idx = base_r_idx + delta_r
+                                v_idx = base_v_idx + delta_v
+
+                            r_start = r_idx - range_win
+                            r_end = r_idx + range_win
+                            v_start = v_idx - doppler_win
+                            v_end = v_idx + doppler_win
+                            r_start_valid = max(0, r_start)
+                            r_end_valid = min(rd_range_bins, r_end)
+                            v_start_valid = max(0, v_start)
+                            v_end_valid = min(rd_doppler_bins, v_end)
+                            crop_valid = np.asarray(
+                                rd_frames[frame_idx, r_start_valid:r_end_valid, v_start_valid:v_end_valid],
+                                dtype=rd_frames.dtype,
+                            )
+                            target_h, target_w = range_win * 2, doppler_win * 2
+                            pad_crop = np.zeros((target_h, target_w), dtype=rd_frames.dtype)
+                            r_offset = r_start_valid - r_start
+                            v_offset = v_start_valid - v_start
+                            h, w = crop_valid.shape
+                            pad_crop[r_offset:r_offset+h, v_offset:v_offset+w] = crop_valid
+
+                            sample_rd_seq.append(pad_crop)
+                            clip_alignment_records.append(
+                                {
+                                    "frame_id": frame_idx,
+                                    "predicted_range_idx": int(predicted_r_indices[frame_offset]),
+                                    "predicted_doppler_idx": int(predicted_v_indices[frame_offset]),
+                                    "smoothed_range_idx": int(base_r_idx),
+                                    "smoothed_doppler_idx": int(base_v_idx),
+                                    "refined_range_idx": int(r_idx),
+                                    "refined_doppler_idx": int(v_idx),
+                                    "range_offset_bins": int(r_idx - base_r_idx),
+                                    "doppler_offset_bins": int(v_idx - base_v_idx),
+                                }
+                            )
+
+                        if sample_rd_seq:
+                            rd_array = np.stack(sample_rd_seq, axis=0)
+                            f_out.create_dataset(f"rd_clip_{clip['sample_id']}", data=rd_array, compression="gzip")
+                            alignment_payload = {
+                                "sample_id": clip["sample_id"],
+                                "track_id": int(clip["track_id"]),
+                                "clip_center_range_idx": clip_center_r,
+                                "clip_center_doppler_idx": clip_center_v,
+                                "range_window": int(range_win),
+                                "doppler_window": int(doppler_win),
+                                "frames": clip_alignment_records,
+                            }
+                            alignment_handle.write(json.dumps(alignment_payload, ensure_ascii=False) + "\n")
 
         print(f"[*] RD 片段提取完毕。")
 

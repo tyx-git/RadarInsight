@@ -85,7 +85,7 @@ manage.py prepare-pro
 - `rd_frames: 24`
 - `rd_height: 64`
 - `rd_width: 64`
-- `rd_input_channels: 6`
+- `rd_input_channels: 8`
 
 当前真实数据标签来自文件名，因此是 session 级弱监督标签。它可以训练当前模型，但不能等价视为逐帧精标数据集。
 

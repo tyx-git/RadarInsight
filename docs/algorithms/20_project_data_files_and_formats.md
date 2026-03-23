@@ -144,6 +144,5 @@
 - `src/prodata/mat_session_builder.py`
 - `src/training/dataset.py`
 
-## 初学者最该记住的一句话
 
 项目里同时使用 `CSV + JSONL + HDF5` 不是混乱，而是针对不同数据类型做的合理工程选择。

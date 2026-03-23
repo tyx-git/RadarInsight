@@ -151,6 +151,5 @@ SNR 不是类别标签，但它会影响模型学习难度，因为低 SNR 目�
 - `src/prodata/mat_session_builder.py`
 - `src/training/dataset.py`
 
-## 初学者最该记住的一句话
 
 这个项目不是在“看图片”，而是在利用真实雷达回波中关于距离、速度和微动的信息做目标识别。

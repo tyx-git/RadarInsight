@@ -128,18 +128,229 @@ def build_track_dataframe(tr_path: Path, range_scale_to_meter: float) -> pd.Data
     )
 
 
+def _build_window(length: int, kind: str) -> np.ndarray:
+    normalized = kind.strip().lower()
+    if normalized in {"none", "rect", "rectangular"}:
+        return np.ones(length, dtype=np.float32)
+    if normalized in {"hann", "hanning"}:
+        return np.hanning(length).astype(np.float32)
+    if normalized == "hamming":
+        return np.hamming(length).astype(np.float32)
+    raise ValueError(f"Unsupported FFT window kind: {kind}")
+
+
+def _suppress_static_clutter(range_fft: np.ndarray, mode: str) -> np.ndarray:
+    normalized = mode.strip().lower()
+    if normalized in {"none", "off"}:
+        return range_fft
+    if normalized == "median_subtract":
+        background = np.median(range_fft, axis=1, keepdims=True)
+        return range_fft - background
+    raise ValueError(f"Unsupported clutter suppression mode: {mode}")
+
+
+def _enhance_micro_motion(range_fft: np.ndarray, alpha: float) -> np.ndarray:
+    if alpha <= 0:
+        return range_fft
+    previous = np.concatenate([range_fft[:, :1], range_fft[:, :-1]], axis=1)
+    temporal_residual = range_fft - previous
+    return range_fft + alpha * temporal_residual
+
+
+def _build_range_axis(track_frame: pd.DataFrame, num_bins: int) -> np.ndarray:
+    if num_bins <= 0:
+        return np.zeros(1, dtype=np.float32)
+    if track_frame.empty or "range_m" not in track_frame.columns:
+        return np.arange(num_bins, dtype=np.float32)
+
+    range_values = track_frame["range_m"].to_numpy(dtype=np.float32)
+    q05 = float(np.percentile(range_values, 5))
+    q95 = float(np.percentile(range_values, 95))
+    spread = max(q95 - q05, 1.0)
+    padding = max(80.0, spread * 0.15)
+    range_min = max(0.0, q05 - padding)
+    range_max = max(range_min + 1.0, q95 + padding)
+    step = (range_max - range_min) / max(num_bins - 1, 1)
+    return (range_min + np.arange(num_bins, dtype=np.float32) * step).astype(np.float32)
+
+
+def _build_calibrated_range_axis(
+    num_bins: int,
+    range_resolution_m: float,
+    track_frame: pd.DataFrame | None = None,
+) -> np.ndarray:
+    resolution = max(float(range_resolution_m), 1e-3)
+    if track_frame is None or track_frame.empty or "range_m" not in track_frame.columns:
+        return (np.arange(num_bins, dtype=np.float32) * resolution).astype(np.float32)
+
+    range_values = track_frame["range_m"].to_numpy(dtype=np.float32)
+    q05 = float(np.percentile(range_values, 5))
+    q95 = float(np.percentile(range_values, 95))
+    spread = max(q95 - q05, resolution)
+    padding = max(64.0, spread * 0.2)
+    range_start = max(0.0, q05 - padding)
+    range_start = float(np.floor(range_start / resolution) * resolution)
+    return (range_start + np.arange(num_bins, dtype=np.float32) * resolution).astype(np.float32)
+
+
+def _build_doppler_axis(track_frame: pd.DataFrame, num_bins: int) -> np.ndarray:
+    if num_bins <= 0:
+        return np.zeros(1, dtype=np.float32)
+    if track_frame.empty or "radial_speed_mps" not in track_frame.columns:
+        zero_index = num_bins // 2
+        return (np.arange(num_bins, dtype=np.float32) - zero_index).astype(np.float32)
+
+    speed_values = track_frame["radial_speed_mps"].to_numpy(dtype=np.float32)
+    robust_extent = float(np.percentile(np.abs(speed_values), 98))
+    extent = max(robust_extent * 1.25, 3.0)
+    zero_index = num_bins // 2
+    step = extent / max(zero_index, 1)
+    return ((np.arange(num_bins, dtype=np.float32) - zero_index) * step).astype(np.float32)
+
+
+def _build_calibrated_doppler_axis(
+    num_bins: int,
+    doppler_resolution_mps: float,
+    zero_doppler_idx: int,
+) -> np.ndarray:
+    resolution = max(float(doppler_resolution_mps), 1e-3)
+    safe_zero_index = int(zero_doppler_idx)
+    if safe_zero_index < 0 or safe_zero_index >= num_bins:
+        safe_zero_index = num_bins // 2
+    return ((np.arange(num_bins, dtype=np.float32) - safe_zero_index) * resolution).astype(np.float32)
+
+
+def _coverage_ratio(axis_values: np.ndarray, target_values: np.ndarray, tolerance: float = 0.0) -> float:
+    if axis_values.size == 0 or target_values.size == 0:
+        return 0.0
+    lower_bound = float(axis_values.min()) - float(tolerance)
+    upper_bound = float(axis_values.max()) + float(tolerance)
+    in_range = (target_values >= lower_bound) & (target_values <= upper_bound)
+    return float(np.mean(in_range))
+
+
+def _select_range_axis(
+    track_frame: pd.DataFrame,
+    range_bins: int,
+    range_resolution_m: float,
+    axis_mapping_mode: str,
+) -> tuple[np.ndarray, str]:
+    normalized_mode = axis_mapping_mode.strip().lower()
+    if normalized_mode not in {"robust", "calibrated", "calibrated_preferred"}:
+        raise ValueError(f"Unsupported axis_mapping_mode: {axis_mapping_mode}")
+
+    calibrated_range_axis = _build_calibrated_range_axis(range_bins, range_resolution_m, track_frame=track_frame)
+    if normalized_mode == "calibrated":
+        return calibrated_range_axis, "calibrated_track_offset"
+
+    robust_range_axis = _build_range_axis(track_frame, range_bins)
+    if normalized_mode == "robust":
+        return robust_range_axis, "robust_track_aligned"
+
+    range_values = track_frame["range_m"].to_numpy(dtype=np.float32)
+    for multiplier in (1.0, 2.0, 4.0):
+        candidate_resolution = float(range_resolution_m) * multiplier
+        candidate_axis = _build_calibrated_range_axis(range_bins, candidate_resolution, track_frame=track_frame)
+        candidate_coverage = _coverage_ratio(
+            candidate_axis,
+            range_values,
+            tolerance=max(candidate_resolution, 1e-3),
+        )
+        if candidate_coverage >= 0.95:
+            if multiplier == 1.0:
+                return candidate_axis, "calibrated_track_offset"
+            return candidate_axis, f"adaptive_calibrated_range_x{multiplier:g}"
+    return robust_range_axis, "robust_track_aligned"
+
+
+def _select_doppler_axis(
+    track_frame: pd.DataFrame,
+    doppler_bins: int,
+    doppler_resolution_mps: float,
+    zero_doppler_idx: int,
+    axis_mapping_mode: str,
+) -> tuple[np.ndarray, str]:
+    normalized_mode = axis_mapping_mode.strip().lower()
+    if normalized_mode not in {"robust", "calibrated", "calibrated_preferred"}:
+        raise ValueError(f"Unsupported axis_mapping_mode: {axis_mapping_mode}")
+
+    calibrated_doppler_axis = _build_calibrated_doppler_axis(
+        doppler_bins,
+        doppler_resolution_mps,
+        zero_doppler_idx,
+    )
+    if normalized_mode == "calibrated":
+        return calibrated_doppler_axis, "calibrated_zero_centered"
+
+    robust_doppler_axis = _build_doppler_axis(track_frame, doppler_bins)
+    if normalized_mode == "robust":
+        return robust_doppler_axis, "robust_track_aligned"
+
+    speed_values = track_frame["radial_speed_mps"].to_numpy(dtype=np.float32)
+    for multiplier in (1.0, 1.5, 2.0):
+        candidate_resolution = float(doppler_resolution_mps) * multiplier
+        candidate_axis = _build_calibrated_doppler_axis(
+            doppler_bins,
+            candidate_resolution,
+            zero_doppler_idx,
+        )
+        candidate_coverage = _coverage_ratio(
+            candidate_axis,
+            speed_values,
+            tolerance=max(candidate_resolution, 1e-3),
+        )
+        if candidate_coverage >= 0.95:
+            if multiplier == 1.0:
+                return candidate_axis, "calibrated_zero_centered"
+            return candidate_axis, f"adaptive_calibrated_doppler_x{multiplier:g}"
+    return robust_doppler_axis, "robust_track_aligned"
+
+
+def _select_physical_axes(
+    track_frame: pd.DataFrame,
+    range_bins: int,
+    doppler_bins: int,
+    range_resolution_m: float,
+    doppler_resolution_mps: float,
+    zero_doppler_idx: int,
+    axis_mapping_mode: str,
+) -> tuple[np.ndarray, np.ndarray, str, str, str]:
+    selected_range_axis, range_axis_mode = _select_range_axis(
+        track_frame=track_frame,
+        range_bins=range_bins,
+        range_resolution_m=range_resolution_m,
+        axis_mapping_mode=axis_mapping_mode,
+    )
+    selected_doppler_axis, doppler_axis_mode = _select_doppler_axis(
+        track_frame=track_frame,
+        doppler_bins=doppler_bins,
+        doppler_resolution_mps=doppler_resolution_mps,
+        zero_doppler_idx=zero_doppler_idx,
+        axis_mapping_mode=axis_mapping_mode,
+    )
+    resolved_mode = f"range:{range_axis_mode}|doppler:{doppler_axis_mode}"
+    return selected_range_axis, selected_doppler_axis, resolved_mode, range_axis_mode, doppler_axis_mode
+
+
 def generate_multiscale_rd_frames(
     dpl_matrix: np.ndarray,
     doppler_windows: list[int],
     doppler_fft_size: int,
+    range_window_kind: str,
+    doppler_window_kind: str,
+    clutter_suppression_mode: str,
+    micro_motion_alpha: float,
 ) -> np.ndarray:
     num_range_samples, num_time_steps = dpl_matrix.shape
     if not doppler_windows:
         raise ValueError("doppler_windows must not be empty.")
 
-    range_fft = np.fft.fft(dpl_matrix, axis=0)
+    range_window = _build_window(num_range_samples, range_window_kind).reshape(-1, 1)
+    range_fft = np.fft.fft(dpl_matrix * range_window, axis=0)
     keep_range_bins = range_fft.shape[0] // 2
     range_fft = range_fft[:keep_range_bins, :]
+    range_fft = _suppress_static_clutter(range_fft, clutter_suppression_mode)
+    range_fft = _enhance_micro_motion(range_fft, micro_motion_alpha)
 
     scale_frames: list[np.ndarray] = []
     for doppler_window in doppler_windows:
@@ -148,8 +359,9 @@ def generate_multiscale_rd_frames(
         half_window = doppler_window // 2
         padded = np.pad(range_fft, ((0, 0), (half_window, half_window)), mode="edge")
         rd_frames = np.empty((num_time_steps, keep_range_bins, doppler_fft_size), dtype=np.complex64)
+        doppler_window_values = _build_window(doppler_window, doppler_window_kind).reshape(1, -1)
         for time_index in range(num_time_steps):
-            window = padded[:, time_index : time_index + doppler_window]
+            window = padded[:, time_index : time_index + doppler_window] * doppler_window_values
             doppler_map = np.fft.fftshift(
                 np.fft.fft(window, n=doppler_fft_size, axis=1),
                 axes=1,
@@ -165,17 +377,32 @@ def write_rd_data_h5(
     track_frame: pd.DataFrame,
     doppler_windows: list[int],
     use_multires_rd: bool,
+    range_window_kind: str,
+    doppler_window_kind: str,
+    clutter_suppression_mode: str,
+    micro_motion_alpha: float,
+    axis_mapping_mode: str,
+    range_resolution_m: float,
+    doppler_resolution_mps: float,
+    zero_doppler_idx: int,
 ) -> None:
     if use_multires_rd:
         primary_scale_index = len(doppler_windows) // 2
         primary_rd_frames = rd_frames[primary_scale_index]
     else:
         primary_rd_frames = rd_frames
-    max_range_m = float(track_frame["range_m"].max()) if not track_frame.empty else float(primary_rd_frames.shape[1])
-    max_speed_mps = float(np.max(np.abs(track_frame["radial_speed_mps"].to_numpy()))) if not track_frame.empty else 0.0
-    range_res_m = max(max_range_m / max(primary_rd_frames.shape[1], 1), 1.0)
-    doppler_res_mps = max((2 * max_speed_mps) / max(primary_rd_frames.shape[2], 1), 0.1)
-    zero_doppler_idx = primary_rd_frames.shape[2] // 2
+    range_axis_m, doppler_axis_mps, resolved_axis_mapping_mode, range_axis_mode, doppler_axis_mode = _select_physical_axes(
+        track_frame=track_frame,
+        range_bins=int(primary_rd_frames.shape[1]),
+        doppler_bins=int(primary_rd_frames.shape[2]),
+        range_resolution_m=range_resolution_m,
+        doppler_resolution_mps=doppler_resolution_mps,
+        zero_doppler_idx=zero_doppler_idx,
+        axis_mapping_mode=axis_mapping_mode,
+    )
+    range_res_m = float(np.median(np.diff(range_axis_m))) if len(range_axis_m) > 1 else 1.0
+    doppler_res_mps = float(np.median(np.diff(doppler_axis_mps))) if len(doppler_axis_mps) > 1 else 0.1
+    zero_doppler_idx = int(np.argmin(np.abs(doppler_axis_mps))) if len(doppler_axis_mps) else primary_rd_frames.shape[2] // 2
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with h5py.File(output_path, "w") as handle:
@@ -185,8 +412,17 @@ def write_rd_data_h5(
         handle.attrs["range_res_m"] = range_res_m
         handle.attrs["doppler_res_mps"] = doppler_res_mps
         handle.attrs["zero_doppler_idx"] = zero_doppler_idx
+        handle.create_dataset("range_axis_m", data=range_axis_m, compression="gzip")
+        handle.create_dataset("doppler_axis_mps", data=doppler_axis_mps, compression="gzip")
         handle.attrs["doppler_windows"] = np.asarray(doppler_windows, dtype=np.int32)
         handle.attrs["use_multires_rd"] = int(use_multires_rd)
+        handle.attrs["range_window_kind"] = range_window_kind
+        handle.attrs["doppler_window_kind"] = doppler_window_kind
+        handle.attrs["clutter_suppression_mode"] = clutter_suppression_mode
+        handle.attrs["micro_motion_alpha"] = float(micro_motion_alpha)
+        handle.attrs["axis_mapping_mode"] = resolved_axis_mapping_mode
+        handle.attrs["range_axis_mode"] = range_axis_mode
+        handle.attrs["doppler_axis_mode"] = doppler_axis_mode
 
 
 def write_labels_matched(output_path: Path, label_name: str) -> None:
@@ -261,10 +497,28 @@ def prepare_real_sessions(
     range_scale_to_meter: float,
     track_window_size_s: float,
     track_overlap: float,
+    rd_crop_range_win: int,
+    rd_crop_doppler_win: int,
+    rd_align_smoothing_window: int,
+    rd_align_refine_range_radius: int,
+    rd_align_refine_doppler_radius: int,
     doppler_window: int,
     doppler_windows_to_test: list[int],
     use_multires_rd: bool,
     doppler_fft_size: int,
+    range_window_kind: str,
+    doppler_window_kind: str,
+    clutter_suppression_mode: str,
+    micro_motion_alpha: float,
+    axis_mapping_mode: str,
+    range_resolution_m: float,
+    doppler_resolution_mps: float,
+    zero_doppler_idx: int,
+    rd_align_clip_range_margin: int,
+    rd_align_clip_doppler_margin: int,
+    rd_align_peak_guard_ratio: float,
+    rd_align_max_range_shift: int,
+    rd_align_max_doppler_shift: int,
     session_ids: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     summaries: list[dict[str, Any]] = []
@@ -289,6 +543,10 @@ def prepare_real_sessions(
             dpl_matrix=dpl_matrix,
             doppler_windows=resolved_windows,
             doppler_fft_size=doppler_fft_size,
+            range_window_kind=range_window_kind,
+            doppler_window_kind=doppler_window_kind,
+            clutter_suppression_mode=clutter_suppression_mode,
+            micro_motion_alpha=micro_motion_alpha,
         )
         if not use_multires_rd:
             rd_frames = rd_frames[0]
@@ -302,6 +560,14 @@ def prepare_real_sessions(
             track_frame,
             resolved_windows,
             use_multires_rd,
+            range_window_kind,
+            doppler_window_kind,
+            clutter_suppression_mode,
+            micro_motion_alpha,
+            axis_mapping_mode,
+            range_resolution_m,
+            doppler_resolution_mps,
+            zero_doppler_idx,
         )
         write_meta_session(session_dir / "meta_session.json", pair, track_frame, rd_frames, use_multires_rd)
 
@@ -311,7 +577,19 @@ def prepare_real_sessions(
         slicer = DataSlicer(session_dir)
         track_clips = slicer.slice_tracks(window_size_s=track_window_size_s, overlap=track_overlap)
         write_labels_matched(session_dir / "labels/labels_matched.jsonl", pair.label_name)
-        write_rd_clips(session_dir, track_clips, rd_frames, track_frame, use_multires_rd)
+        slicer.slice_rd_clips(
+            track_clips,
+            range_win=rd_crop_range_win,
+            doppler_win=rd_crop_doppler_win,
+            smoothing_window=rd_align_smoothing_window,
+            refine_range_radius=rd_align_refine_range_radius,
+            refine_doppler_radius=rd_align_refine_doppler_radius,
+            clip_range_margin=rd_align_clip_range_margin,
+            clip_doppler_margin=rd_align_clip_doppler_margin,
+            peak_guard_ratio=rd_align_peak_guard_ratio,
+            max_range_shift=rd_align_max_range_shift,
+            max_doppler_shift=rd_align_max_doppler_shift,
+        )
 
         summaries.append(
             {

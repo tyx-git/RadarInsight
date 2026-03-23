@@ -22,7 +22,7 @@ class TrainingConfig:
     rd_frames: int = 24
     rd_height: int = 64
     rd_width: int = 64
-    rd_input_channels: int = 6
+    rd_input_channels: int = 8
     include_rd: bool = True
     track_feature_columns: tuple[str, ...] = (
         "range_m",

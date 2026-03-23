@@ -109,6 +109,5 @@ Transformer 的核心不是按顺序一步步记，而是直接去看“哪些�
 - `src/training/dataset.py`
 - `src/models/temporal_encoder.py`
 
-## 初学者最该记住的一句话
 
 轨迹分支建模的不是“目标长什么样”，而是“目标这一段时间是怎么动的”。

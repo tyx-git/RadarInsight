@@ -245,3 +245,4 @@ pro/raw/
 - `mdopt.md`
 - `src/training/readme.md`
 - `docs/algorithms/README.md`
+- `docs/algorithms/LinkAll.md`

@@ -106,6 +106,5 @@ RD token 会问：
 - `src/models/temporal_encoder.py`
 - `src/models/fusion_classifier.py`
 
-## 初学者最该记住的一句话
 
 项目里的 Transformer 不负责“替代所有骨干”，而是负责把序列内部关系和跨模态关系建模得更聪明。
