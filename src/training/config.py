@@ -18,7 +18,7 @@ class TrainingConfig:
     class_balance_beta: float = 0.999
     warmup_epochs: int = 2
     max_grad_norm: float = 1.0
-    sequence_length: int = 24
+    sequence_length: int = 16
     rd_frames: int = 24
     rd_height: int = 64
     rd_width: int = 64
@@ -36,6 +36,13 @@ class TrainingConfig:
         "turn_rate_degps",
         "range_jitter_m",
         "snr_delta_db",
+        "clip_range_mean_m",
+        "clip_range_span_m",
+        "clip_speed_mean_mps",
+        "clip_speed_std_mps",
+        "clip_speed_span_mps",
+        "clip_azimuth_std_deg",
+        "clip_snr_mean_db",
     )
     track_projection_dim: int = 128
     tcn_channels: tuple[int, ...] = (128, 128, 256)
@@ -54,8 +61,8 @@ class TrainingConfig:
     x3d_bottleneck_expansion: float = 2.25
     x3d_se_ratio: float = 0.0625
     label_smoothing: float = 0.05
-    track_aux_loss_weight: float = 0.1
-    rd_aux_loss_weight: float = 0.3
+    track_aux_loss_weight: float = 0.25
+    rd_aux_loss_weight: float = 0.15
 
     @classmethod
     def from_dict(cls, values: Mapping[str, Any] | None = None) -> "TrainingConfig":

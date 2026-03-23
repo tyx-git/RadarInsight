@@ -5,6 +5,13 @@ import torch.nn.functional as F
 from torch import nn
 
 
+def _build_temporal_norm(num_channels: int) -> nn.Module:
+    for num_groups in (8, 4, 2):
+        if num_channels % num_groups == 0:
+            return nn.GroupNorm(num_groups=num_groups, num_channels=num_channels)
+    return nn.GroupNorm(num_groups=1, num_channels=num_channels)
+
+
 class ResidualTemporalBlock(nn.Module):
     def __init__(
         self,
@@ -23,7 +30,7 @@ class ResidualTemporalBlock(nn.Module):
             dilation=dilation,
             bias=False,
         )
-        self.norm1 = nn.BatchNorm1d(out_channels)
+        self.norm1 = _build_temporal_norm(out_channels)
         self.conv2 = nn.Conv1d(
             out_channels,
             out_channels,
@@ -32,7 +39,7 @@ class ResidualTemporalBlock(nn.Module):
             dilation=dilation,
             bias=False,
         )
-        self.norm2 = nn.BatchNorm1d(out_channels)
+        self.norm2 = _build_temporal_norm(out_channels)
         self.activation = nn.GELU()
         self.dropout = nn.Dropout(dropout)
         if in_channels != out_channels:

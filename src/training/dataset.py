@@ -80,6 +80,35 @@ class RadarFusionDataset(Dataset):
 
         self.track_feature_center, self.track_feature_scale = self._build_track_feature_stats()
 
+    def set_track_normalization(self, center: np.ndarray, scale: np.ndarray) -> None:
+        self.track_feature_center = np.asarray(center, dtype=np.float32)
+        self.track_feature_scale = np.asarray(scale, dtype=np.float32)
+
+    def get_track_normalization(self) -> tuple[np.ndarray, np.ndarray]:
+        return self.track_feature_center.copy(), self.track_feature_scale.copy()
+
+    def fit_track_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        feature_blocks: list[np.ndarray] = []
+        selected_session_ids = set(session_ids) if session_ids is not None else None
+        for session_id, context in self.sessions.items():
+            if selected_session_ids is not None and session_id not in selected_session_ids:
+                continue
+            augmented = self._augment_track_features(context.track_frame.copy())
+            for column in self.feature_columns:
+                if column not in augmented.columns:
+                    augmented[column] = 0.0
+            feature_blocks.append(augmented.loc[:, self.feature_columns].to_numpy(dtype=np.float32))
+
+        stacked = np.concatenate(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.feature_columns)), dtype=np.float32)
+        center = np.median(stacked, axis=0, keepdims=True)
+        q25 = np.percentile(stacked, 25, axis=0, keepdims=True)
+        q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
+        scale = q75 - q25
+        scale[scale < 1e-3] = 1.0
+        self.track_feature_center = center.astype(np.float32)
+        self.track_feature_scale = scale.astype(np.float32)
+        return self.get_track_normalization()
+
     def build_session_index(self) -> dict[str, list[int]]:
         session_to_indices: dict[str, list[int]] = {}
         for index, record in enumerate(self.samples):
@@ -119,6 +148,27 @@ class RadarFusionDataset(Dataset):
         smoothing_window = max(2, min(5, len(window)))
         rolling_range = window["range_m"].rolling(window=smoothing_window, min_periods=1, center=True).mean()
         window["range_jitter_m"] = window["range_m"] - rolling_range
+
+        clip_range_values = window["range_m"].to_numpy(dtype=np.float32)
+        clip_speed_values = window["radial_speed_mps"].to_numpy(dtype=np.float32)
+        clip_azimuth_values = window["azimuth_deg"].to_numpy(dtype=np.float32)
+        clip_snr_values = window["snr_db"].to_numpy(dtype=np.float32)
+
+        clip_range_mean = float(np.mean(clip_range_values)) if len(clip_range_values) else 0.0
+        clip_range_span = float(np.max(clip_range_values) - np.min(clip_range_values)) if len(clip_range_values) else 0.0
+        clip_speed_mean = float(np.mean(clip_speed_values)) if len(clip_speed_values) else 0.0
+        clip_speed_std = float(np.std(clip_speed_values)) if len(clip_speed_values) else 0.0
+        clip_speed_span = float(np.max(clip_speed_values) - np.min(clip_speed_values)) if len(clip_speed_values) else 0.0
+        clip_azimuth_std = float(np.std(clip_azimuth_values)) if len(clip_azimuth_values) else 0.0
+        clip_snr_mean = float(np.mean(clip_snr_values)) if len(clip_snr_values) else 0.0
+
+        window["clip_range_mean_m"] = clip_range_mean
+        window["clip_range_span_m"] = clip_range_span
+        window["clip_speed_mean_mps"] = clip_speed_mean
+        window["clip_speed_std_mps"] = clip_speed_std
+        window["clip_speed_span_mps"] = clip_speed_span
+        window["clip_azimuth_std_deg"] = clip_azimuth_std
+        window["clip_snr_mean_db"] = clip_snr_mean
         return window
 
     def _resolve_session_dirs(self, session_ids: Sequence[str] | None) -> list[Path]:

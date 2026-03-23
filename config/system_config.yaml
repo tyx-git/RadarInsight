@@ -62,7 +62,7 @@ training:
   test_ratio: 0.1
   random_seed: 42
   num_workers: 0
-  sequence_length: 24
+  sequence_length: 16
   rd_frames: 24
   rd_height: 64
   rd_width: 64
@@ -80,6 +80,13 @@ training:
     - "turn_rate_degps"
     - "range_jitter_m"
     - "snr_delta_db"
+    - "clip_range_mean_m"
+    - "clip_range_span_m"
+    - "clip_speed_mean_mps"
+    - "clip_speed_std_mps"
+    - "clip_speed_span_mps"
+    - "clip_azimuth_std_deg"
+    - "clip_snr_mean_db"
   track_projection_dim: 128
   tcn_channels:
     - 128
@@ -116,5 +123,5 @@ training:
   x3d_bottleneck_expansion: 2.25
   x3d_se_ratio: 0.0625
   label_smoothing: 0.05
-  track_aux_loss_weight: 0.1
-  rd_aux_loss_weight: 0.3
+  track_aux_loss_weight: 0.25
+  rd_aux_loss_weight: 0.15

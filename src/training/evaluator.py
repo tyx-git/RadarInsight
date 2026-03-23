@@ -100,6 +100,13 @@ def run_evaluation(
         feature_columns=config.track_feature_columns,
         include_rd=config.include_rd,
     )
+    track_feature_center = checkpoint.get("track_feature_center")
+    track_feature_scale = checkpoint.get("track_feature_scale")
+    if track_feature_center is not None and track_feature_scale is not None:
+        dataset.set_track_normalization(
+            np.asarray(track_feature_center, dtype=np.float32),
+            np.asarray(track_feature_scale, dtype=np.float32),
+        )
     data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
     model = FusionRadarClassifier(

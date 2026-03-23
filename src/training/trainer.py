@@ -124,6 +124,7 @@ def build_dataloaders(
     )
 
     if len(dataset) == 1:
+        dataset.fit_track_normalization_for_sessions(sorted(dataset.sessions.keys()))
         train_loader = DataLoader(
             dataset,
             batch_size=1,
@@ -140,6 +141,7 @@ def build_dataloaders(
         random_seed=config.random_seed,
         session_ids=list(session_ids) if session_ids is not None else None,
     )
+    dataset.fit_track_normalization_for_sessions(split_map["train"])
 
     train_loader = DataLoader(
         train_dataset,
@@ -267,6 +269,8 @@ def save_training_artifacts(
         "num_samples": len(dataset),
         "num_parameters": num_parameters,
         "session_splits": split_map,
+        "track_feature_center": dataset.track_feature_center.tolist(),
+        "track_feature_scale": dataset.track_feature_scale.tolist(),
     }
 
     with open(metadata_path, "w", encoding="utf-8") as file:
@@ -405,6 +409,8 @@ def run_training(
                     "label_to_index": dataset.label_to_index,
                     "best_macro_f1": best_macro_f1,
                     "num_parameters": num_parameters,
+                    "track_feature_center": dataset.track_feature_center.tolist(),
+                    "track_feature_scale": dataset.track_feature_scale.tolist(),
                 },
                 best_checkpoint,
             )
