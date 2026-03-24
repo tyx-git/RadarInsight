@@ -26,8 +26,6 @@ logs/*
 !logs/README.md
 
 # Local datasets and processed sessions
-pro/raw/*
-!pro/raw/README.md
 
 pro/sessions/*
 !pro/sessions/README.md
