@@ -84,6 +84,7 @@ class FusionRadarClassifier(nn.Module):
     def __init__(
         self,
         track_input_dim: int,
+        track_global_feature_dim: int,
         num_classes: int,
         include_rd: bool = True,
         track_projection_dim: int = 128,
@@ -111,6 +112,7 @@ class FusionRadarClassifier(nn.Module):
 
         self.track_encoder = TrackTemporalEncoder(
             input_dim=track_input_dim,
+            global_feature_dim=track_global_feature_dim,
             projection_dim=track_projection_dim,
             tcn_channels=tcn_channels,
             transformer_layers=transformer_layers,
@@ -153,12 +155,28 @@ class FusionRadarClassifier(nn.Module):
                     for _ in range(cross_attention_layers)
                 ]
             )
+            self.track_reliability_head = nn.Sequential(
+                nn.LayerNorm(fusion_hidden_size),
+                nn.Linear(fusion_hidden_size, fusion_hidden_size // 2),
+                nn.GELU(),
+                nn.Linear(fusion_hidden_size // 2, 1),
+            )
+            self.rd_reliability_head = nn.Sequential(
+                nn.LayerNorm(fusion_hidden_size),
+                nn.Linear(fusion_hidden_size, fusion_hidden_size // 2),
+                nn.GELU(),
+                nn.Linear(fusion_hidden_size // 2, 1),
+            )
+            self.unimodal_logit_residual = nn.Parameter(torch.tensor(0.25))
             classifier_input_dim = fusion_hidden_size * 4
         else:
             self.rd_encoder = None
             self.rd_pool = None
             self.rd_classifier = None
             self.fusion_blocks = nn.ModuleList()
+            self.track_reliability_head = None
+            self.rd_reliability_head = None
+            self.unimodal_logit_residual = None
             classifier_input_dim = fusion_hidden_size
 
         self.classifier = nn.Sequential(
@@ -172,10 +190,11 @@ class FusionRadarClassifier(nn.Module):
     def forward(
         self,
         track_sequence: torch.Tensor,
+        track_global_features: torch.Tensor | None = None,
         rd_cube: torch.Tensor | None = None,
         rd_mask: torch.Tensor | None = None,
     ) -> dict[str, Any]:
-        track_tokens, track_feature = self.track_encoder(track_sequence)
+        track_tokens, track_feature = self.track_encoder(track_sequence, track_global_features)
         track_logits = self.track_classifier(track_feature)
 
         if not self.include_rd:
@@ -205,6 +224,20 @@ class FusionRadarClassifier(nn.Module):
         rd_feature = rd_feature * modality_mask
         rd_logits = rd_classifier(rd_feature)
 
+        track_reliability_head = self.track_reliability_head
+        rd_reliability_head = self.rd_reliability_head
+        if track_reliability_head is None or rd_reliability_head is None:
+            raise RuntimeError("Reliability heads are not initialized for RD fusion.")
+
+        track_reliability = track_reliability_head(track_feature)
+        rd_reliability = rd_reliability_head(rd_feature).masked_fill(modality_mask <= 0.0, -1e4)
+        modality_weights = torch.softmax(
+            torch.cat([track_reliability, rd_reliability], dim=-1),
+            dim=-1,
+        )
+        track_weight = modality_weights[:, :1]
+        rd_weight = modality_weights[:, 1:2] * modality_mask
+
         fused_track_tokens = track_tokens
         fused_rd_tokens = rd_tokens * modality_mask.view(-1, 1, 1)
         for block in self.fusion_blocks:
@@ -212,19 +245,29 @@ class FusionRadarClassifier(nn.Module):
 
         fused_track_feature = self.track_pool(fused_track_tokens)
         fused_rd_feature = rd_pool(fused_rd_tokens) * modality_mask
+        weighted_track_feature = fused_track_feature * track_weight
+        weighted_rd_feature = fused_rd_feature * rd_weight
         fused_feature = torch.cat(
             [
-                fused_track_feature,
-                fused_rd_feature,
-                torch.abs(fused_track_feature - fused_rd_feature),
-                fused_track_feature * fused_rd_feature,
+                weighted_track_feature,
+                weighted_rd_feature,
+                torch.abs(weighted_track_feature - weighted_rd_feature),
+                weighted_track_feature * weighted_rd_feature,
             ],
             dim=-1,
         )
         logits = self.classifier(fused_feature)
 
+        unimodal_logit_residual = self.unimodal_logit_residual
+        if unimodal_logit_residual is not None:
+            logits = logits + unimodal_logit_residual * (
+                track_logits * track_weight + rd_logits * rd_weight
+            )
+
         return {
             "logits": logits,
             "track_logits": track_logits,
             "rd_logits": rd_logits,
+            "track_weight": track_weight,
+            "rd_weight": rd_weight,
         }

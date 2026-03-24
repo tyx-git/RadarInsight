@@ -82,6 +82,7 @@ training:
     - "turn_rate_degps"
     - "range_jitter_m"
     - "snr_delta_db"
+  track_global_feature_columns:
     - "clip_range_mean_m"
     - "clip_range_span_m"
     - "clip_speed_mean_mps"
@@ -90,6 +91,10 @@ training:
     - "clip_abs_speed_mean_mps"
     - "clip_abs_speed_std_mps"
     - "clip_abs_speed_max_mps"
+    - "clip_speed_direction_consistency"
+    - "clip_range_monotonicity"
+    - "clip_abs_acceleration_mean_mps2"
+    - "clip_abs_turn_rate_mean_degps"
     - "clip_azimuth_std_deg"
     - "clip_snr_mean_db"
   track_projection_dim: 128

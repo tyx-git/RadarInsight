@@ -120,11 +120,13 @@ def build_dataloaders(
         rd_width=config.rd_width,
         rd_input_channels=config.rd_input_channels,
         feature_columns=config.track_feature_columns,
+        global_feature_columns=config.track_global_feature_columns,
         include_rd=config.include_rd,
     )
 
     if len(dataset) == 1:
         dataset.fit_track_normalization_for_sessions(sorted(dataset.sessions.keys()))
+        dataset.fit_track_global_normalization_for_sessions(sorted(dataset.sessions.keys()))
         train_loader = DataLoader(
             dataset,
             batch_size=1,
@@ -142,6 +144,7 @@ def build_dataloaders(
         session_ids=list(session_ids) if session_ids is not None else None,
     )
     dataset.fit_track_normalization_for_sessions(split_map["train"])
+    dataset.fit_track_global_normalization_for_sessions(split_map["train"])
 
     train_loader = DataLoader(
         train_dataset,
@@ -220,6 +223,7 @@ def run_epoch(
 
     for batch in data_loader:
         track_features = batch["track_features"].to(device=device, dtype=torch.float32)
+        track_global_features = batch["track_global_features"].to(device=device, dtype=torch.float32)
         rd_features = None
         rd_mask = None
         if config.include_rd:
@@ -231,7 +235,7 @@ def run_epoch(
             optimizer.zero_grad(set_to_none=True)
 
         with torch.set_grad_enabled(training):
-            outputs = model(track_features, rd_features, rd_mask)
+            outputs = model(track_features, track_global_features, rd_features, rd_mask)
             logits, loss = compute_losses(outputs, labels, criterion, config, rd_mask)
             if training:
                 loss.backward()
@@ -271,6 +275,8 @@ def save_training_artifacts(
         "session_splits": split_map,
         "track_feature_center": dataset.track_feature_center.tolist(),
         "track_feature_scale": dataset.track_feature_scale.tolist(),
+        "track_global_center": dataset.track_global_center.tolist(),
+        "track_global_scale": dataset.track_global_scale.tolist(),
     }
 
     with open(metadata_path, "w", encoding="utf-8") as file:
@@ -295,6 +301,7 @@ def run_training(
 
     model = FusionRadarClassifier(
         track_input_dim=config.feature_dim,
+        track_global_feature_dim=config.global_feature_dim,
         num_classes=len(dataset.label_to_index),
         include_rd=config.include_rd,
         track_projection_dim=config.track_projection_dim,
@@ -411,6 +418,8 @@ def run_training(
                     "num_parameters": num_parameters,
                     "track_feature_center": dataset.track_feature_center.tolist(),
                     "track_feature_scale": dataset.track_feature_scale.tolist(),
+                    "track_global_center": dataset.track_global_center.tolist(),
+                    "track_global_scale": dataset.track_global_scale.tolist(),
                 },
                 best_checkpoint,
             )

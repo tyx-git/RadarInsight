@@ -98,6 +98,7 @@ def run_evaluation(
         rd_width=config.rd_width,
         rd_input_channels=config.rd_input_channels,
         feature_columns=config.track_feature_columns,
+        global_feature_columns=config.track_global_feature_columns,
         include_rd=config.include_rd,
     )
     track_feature_center = checkpoint.get("track_feature_center")
@@ -107,10 +108,18 @@ def run_evaluation(
             np.asarray(track_feature_center, dtype=np.float32),
             np.asarray(track_feature_scale, dtype=np.float32),
         )
+    track_global_center = checkpoint.get("track_global_center")
+    track_global_scale = checkpoint.get("track_global_scale")
+    if track_global_center is not None and track_global_scale is not None:
+        dataset.set_track_global_normalization(
+            np.asarray(track_global_center, dtype=np.float32),
+            np.asarray(track_global_scale, dtype=np.float32),
+        )
     data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
     model = FusionRadarClassifier(
         track_input_dim=config.feature_dim,
+        track_global_feature_dim=config.global_feature_dim,
         num_classes=len(label_to_index),
         include_rd=config.include_rd,
         track_projection_dim=config.track_projection_dim,
@@ -143,6 +152,7 @@ def run_evaluation(
     with torch.no_grad():
         for batch in data_loader:
             track_features = batch["track_features"].to(device=resolved_device, dtype=torch.float32)
+            track_global_features = batch["track_global_features"].to(device=resolved_device, dtype=torch.float32)
             rd_features = None
             rd_mask = None
             if config.include_rd:
@@ -150,7 +160,7 @@ def run_evaluation(
                 rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32).view(-1, 1)
             labels = batch["label"].to(device=resolved_device, dtype=torch.long)
 
-            outputs = model(track_features, rd_features, rd_mask)
+            outputs = model(track_features, track_global_features, rd_features, rd_mask)
             logits = outputs["logits"] if isinstance(outputs, dict) else outputs
             loss = criterion(logits, labels)
             predictions = logits.argmax(dim=-1)

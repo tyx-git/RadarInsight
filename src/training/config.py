@@ -38,6 +38,8 @@ class TrainingConfig:
         "turn_rate_degps",
         "range_jitter_m",
         "snr_delta_db",
+    )
+    track_global_feature_columns: tuple[str, ...] = (
         "clip_range_mean_m",
         "clip_range_span_m",
         "clip_speed_mean_mps",
@@ -46,6 +48,10 @@ class TrainingConfig:
         "clip_abs_speed_mean_mps",
         "clip_abs_speed_std_mps",
         "clip_abs_speed_max_mps",
+        "clip_speed_direction_consistency",
+        "clip_range_monotonicity",
+        "clip_abs_acceleration_mean_mps2",
+        "clip_abs_turn_rate_mean_degps",
         "clip_azimuth_std_deg",
         "clip_snr_mean_db",
     )
@@ -74,6 +80,7 @@ class TrainingConfig:
         payload = dict(values or {})
         tuple_fields = {
             "track_feature_columns",
+            "track_global_feature_columns",
             "tcn_channels",
             "x3d_stage_channels",
             "x3d_stage_depths",
@@ -91,6 +98,7 @@ class TrainingConfig:
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["track_feature_columns"] = list(self.track_feature_columns)
+        payload["track_global_feature_columns"] = list(self.track_global_feature_columns)
         payload["tcn_channels"] = list(self.tcn_channels)
         payload["x3d_stage_channels"] = list(self.x3d_stage_channels)
         payload["x3d_stage_depths"] = list(self.x3d_stage_depths)
@@ -101,3 +109,7 @@ class TrainingConfig:
     @property
     def feature_dim(self) -> int:
         return len(self.track_feature_columns)
+
+    @property
+    def global_feature_dim(self) -> int:
+        return len(self.track_global_feature_columns)

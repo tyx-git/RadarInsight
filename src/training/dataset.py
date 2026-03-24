@@ -45,6 +45,7 @@ class RadarFusionDataset(Dataset):
             "radial_speed_mps",
             "snr_db",
         ),
+        global_feature_columns: Sequence[str] = (),
         include_rd: bool = True,
     ):
         self.data_root = Path(data_root)
@@ -54,6 +55,7 @@ class RadarFusionDataset(Dataset):
         self.rd_width = rd_width
         self.rd_input_channels = rd_input_channels
         self.feature_columns = tuple(feature_columns)
+        self.global_feature_columns = tuple(global_feature_columns)
         self.include_rd = include_rd
         self.sessions: dict[str, SessionContext] = {}
         self.samples: list[ClipRecord] = []
@@ -79,6 +81,7 @@ class RadarFusionDataset(Dataset):
             raise ValueError(f"Found labels not present in the provided label mapping: {unknown_labels}")
 
         self.track_feature_center, self.track_feature_scale = self._build_track_feature_stats()
+        self.track_global_center, self.track_global_scale = self._build_track_global_feature_stats()
 
     def set_track_normalization(self, center: np.ndarray, scale: np.ndarray) -> None:
         self.track_feature_center = np.asarray(center, dtype=np.float32)
@@ -86,6 +89,13 @@ class RadarFusionDataset(Dataset):
 
     def get_track_normalization(self) -> tuple[np.ndarray, np.ndarray]:
         return self.track_feature_center.copy(), self.track_feature_scale.copy()
+
+    def set_track_global_normalization(self, center: np.ndarray, scale: np.ndarray) -> None:
+        self.track_global_center = np.asarray(center, dtype=np.float32)
+        self.track_global_scale = np.asarray(scale, dtype=np.float32)
+
+    def get_track_global_normalization(self) -> tuple[np.ndarray, np.ndarray]:
+        return self.track_global_center.copy(), self.track_global_scale.copy()
 
     def fit_track_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
         feature_blocks: list[np.ndarray] = []
@@ -108,6 +118,24 @@ class RadarFusionDataset(Dataset):
         self.track_feature_center = center.astype(np.float32)
         self.track_feature_scale = scale.astype(np.float32)
         return self.get_track_normalization()
+
+    def fit_track_global_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        feature_blocks: list[np.ndarray] = []
+        selected_session_ids = set(session_ids) if session_ids is not None else None
+        for record in self.samples:
+            if selected_session_ids is not None and record.session_id not in selected_session_ids:
+                continue
+            feature_blocks.append(self._extract_track_global_features(record))
+
+        stacked = np.stack(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.global_feature_columns)), dtype=np.float32)
+        center = np.median(stacked, axis=0, keepdims=True)
+        q25 = np.percentile(stacked, 25, axis=0, keepdims=True)
+        q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
+        scale = q75 - q25
+        scale[scale < 1e-3] = 1.0
+        self.track_global_center = center.astype(np.float32)
+        self.track_global_scale = scale.astype(np.float32)
+        return self.get_track_global_normalization()
 
     def build_session_index(self) -> dict[str, list[int]]:
         session_to_indices: dict[str, list[int]] = {}
@@ -165,8 +193,15 @@ class RadarFusionDataset(Dataset):
         clip_abs_speed_mean = float(np.mean(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
         clip_abs_speed_std = float(np.std(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
         clip_abs_speed_max = float(np.max(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
+        clip_speed_direction_consistency = abs(clip_speed_mean) / max(clip_abs_speed_mean, 1e-6)
         clip_azimuth_std = float(np.std(clip_azimuth_values)) if len(clip_azimuth_values) else 0.0
         clip_snr_mean = float(np.mean(clip_snr_values)) if len(clip_snr_values) else 0.0
+        clip_abs_acceleration_mean = float(np.mean(np.abs(window["acceleration_mps2"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
+        clip_abs_turn_rate_mean = float(np.mean(np.abs(window["turn_rate_degps"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
+        delta_range_values = window["delta_range_m"].to_numpy(dtype=np.float32)
+        total_range_travel = float(np.sum(np.abs(delta_range_values))) if len(delta_range_values) else 0.0
+        net_range_change = float(abs(window["range_m"].iloc[-1] - window["range_m"].iloc[0])) if len(window) else 0.0
+        clip_range_monotonicity = net_range_change / max(total_range_travel, 1e-6)
 
         window["clip_range_mean_m"] = clip_range_mean
         window["clip_range_span_m"] = clip_range_span
@@ -176,6 +211,10 @@ class RadarFusionDataset(Dataset):
         window["clip_abs_speed_mean_mps"] = clip_abs_speed_mean
         window["clip_abs_speed_std_mps"] = clip_abs_speed_std
         window["clip_abs_speed_max_mps"] = clip_abs_speed_max
+        window["clip_speed_direction_consistency"] = clip_speed_direction_consistency
+        window["clip_range_monotonicity"] = clip_range_monotonicity
+        window["clip_abs_acceleration_mean_mps2"] = clip_abs_acceleration_mean
+        window["clip_abs_turn_rate_mean_degps"] = clip_abs_turn_rate_mean
         window["clip_azimuth_std_deg"] = clip_azimuth_std
         window["clip_snr_mean_db"] = clip_snr_mean
         return window
@@ -287,6 +326,23 @@ class RadarFusionDataset(Dataset):
 
     def _normalize_track_sequence(self, array: np.ndarray) -> np.ndarray:
         normalized = (array - self.track_feature_center) / self.track_feature_scale
+        normalized = np.clip(normalized, -8.0, 8.0)
+        return normalized.astype(np.float32)
+
+    def _build_track_global_feature_stats(self) -> tuple[np.ndarray, np.ndarray]:
+        feature_blocks: list[np.ndarray] = [self._extract_track_global_features(record) for record in self.samples]
+        stacked = np.stack(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.global_feature_columns)), dtype=np.float32)
+        center = np.median(stacked, axis=0, keepdims=True)
+        q25 = np.percentile(stacked, 25, axis=0, keepdims=True)
+        q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
+        scale = q75 - q25
+        scale[scale < 1e-3] = 1.0
+        return center.astype(np.float32), scale.astype(np.float32)
+
+    def _normalize_track_global_features(self, feature_vector: np.ndarray) -> np.ndarray:
+        if feature_vector.size == 0:
+            return feature_vector.astype(np.float32)
+        normalized = (feature_vector - self.track_global_center.reshape(-1)) / self.track_global_scale.reshape(-1)
         normalized = np.clip(normalized, -8.0, 8.0)
         return normalized.astype(np.float32)
 
@@ -490,7 +546,7 @@ class RadarFusionDataset(Dataset):
         global_rd_cube = self._resize_full_context(global_rd_cube, self.rd_height, self.rd_width)
         return global_rd_cube
 
-    def _load_track_sequence(self, record: ClipRecord) -> np.ndarray:
+    def _build_track_window(self, record: ClipRecord) -> pd.DataFrame:
         track_frame = self.sessions[record.session_id].track_frame
         window = track_frame[
             (track_frame["track_id"] == record.track_id)
@@ -501,7 +557,19 @@ class RadarFusionDataset(Dataset):
         if window.empty:
             window = track_frame[track_frame["track_id"] == record.track_id].copy()
 
-        window = self._augment_track_features(window)
+        return self._augment_track_features(window)
+
+    def _extract_track_global_features(self, record: ClipRecord) -> np.ndarray:
+        if not self.global_feature_columns:
+            return np.zeros((0,), dtype=np.float32)
+        window = self._build_track_window(record)
+        for column in self.global_feature_columns:
+            if column not in window.columns:
+                window[column] = 0.0
+        return window.iloc[0].loc[list(self.global_feature_columns)].to_numpy(dtype=np.float32)
+
+    def _load_track_sequence(self, record: ClipRecord) -> np.ndarray:
+        window = self._build_track_window(record)
 
         for column in self.feature_columns:
             if column not in window.columns:
@@ -510,6 +578,9 @@ class RadarFusionDataset(Dataset):
         sequence = window.loc[:, self.feature_columns].to_numpy(dtype=np.float32)
         sequence = self._resample_sequence(sequence, self.sequence_length)
         return self._normalize_track_sequence(sequence)
+
+    def _load_track_global_features(self, record: ClipRecord) -> np.ndarray:
+        return self._normalize_track_global_features(self._extract_track_global_features(record))
 
     def _load_rd_cube(self, record: ClipRecord) -> np.ndarray:
         if not self.include_rd or not record.has_rd or record.rd_path is None:
@@ -542,6 +613,7 @@ class RadarFusionDataset(Dataset):
         return {
             "sample_id": record.sample_id,
             "track_features": self._load_track_sequence(record),
+            "track_global_features": self._load_track_global_features(record),
             "rd_features": self._load_rd_cube(record),
             "label": np.int64(self.label_to_index[record.label_name]),
             "label_name": record.label_name,

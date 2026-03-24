@@ -58,6 +58,7 @@ class TrackTemporalEncoder(nn.Module):
     def __init__(
         self,
         input_dim: int,
+        global_feature_dim: int = 0,
         projection_dim: int = 128,
         tcn_channels: Sequence[int] = (128, 128, 256),
         transformer_layers: int = 3,
@@ -69,6 +70,7 @@ class TrackTemporalEncoder(nn.Module):
         super().__init__()
         self.output_dim = output_dim
         self.max_sequence_length = max_sequence_length
+        self.global_feature_dim = global_feature_dim
 
         self.input_projection = nn.Sequential(
             nn.Linear(input_dim, projection_dim),
@@ -116,8 +118,26 @@ class TrackTemporalEncoder(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
         )
+        if global_feature_dim > 0:
+            self.global_projection: nn.Module | None = nn.Sequential(
+                nn.Linear(global_feature_dim, output_dim),
+                nn.LayerNorm(output_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+            )
+            self.global_gate: nn.Module | None = nn.Sequential(
+                nn.Linear(output_dim * 2, output_dim),
+                nn.GELU(),
+                nn.Linear(output_dim, output_dim),
+                nn.Sigmoid(),
+            )
+            output_projection_input_dim = output_dim * 3
+        else:
+            self.global_projection = None
+            self.global_gate = None
+            output_projection_input_dim = output_dim * 3
         self.output_projection = nn.Sequential(
-            nn.Linear(output_dim * 3, output_dim),
+            nn.Linear(output_projection_input_dim, output_dim),
             nn.GELU(),
             nn.Dropout(dropout),
         )
@@ -134,7 +154,11 @@ class TrackTemporalEncoder(nn.Module):
         )
         return resized.transpose(1, 2)
 
-    def forward(self, track_sequence: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        track_sequence: torch.Tensor,
+        track_global_features: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         projected = self.input_projection(track_sequence)
         temporal_features = self.temporal_network(projected.transpose(1, 2)).transpose(1, 2)
         position_encoding = self._position_encoding(temporal_features.size(1))
@@ -152,7 +176,20 @@ class TrackTemporalEncoder(nn.Module):
         raw_max = track_sequence.max(dim=1).values
         summary_feature = self.summary_projection(torch.cat([raw_mean, raw_std, raw_min, raw_max], dim=-1))
 
-        pooled_embedding = self.output_projection(
-            torch.cat([sequence_mean, attentive_context, summary_feature], dim=-1)
-        )
+        output_features = [sequence_mean, attentive_context]
+        if self.global_projection is not None and self.global_gate is not None:
+            if track_global_features is None:
+                track_global_features = torch.zeros(
+                    (track_sequence.size(0), self.global_feature_dim),
+                    dtype=track_sequence.dtype,
+                    device=track_sequence.device,
+                )
+            global_feature = self.global_projection(track_global_features)
+            global_gate = self.global_gate(torch.cat([summary_feature, global_feature], dim=-1))
+            merged_summary = summary_feature + global_gate * global_feature
+            output_features.append(merged_summary)
+        else:
+            output_features.append(summary_feature)
+
+        pooled_embedding = self.output_projection(torch.cat(output_features, dim=-1))
         return token_embeddings, pooled_embedding
