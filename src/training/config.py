@@ -22,16 +22,18 @@ class TrainingConfig:
     rd_frames: int = 24
     rd_height: int = 64
     rd_width: int = 64
-    rd_input_channels: int = 8
+    rd_input_channels: int = 10
     include_rd: bool = True
     track_feature_columns: tuple[str, ...] = (
         "range_m",
         "azimuth_deg",
         "radial_speed_mps",
+        "abs_radial_speed_mps",
         "snr_db",
         "delta_range_m",
         "delta_azimuth_deg",
         "speed_delta_mps",
+        "abs_speed_delta_mps",
         "acceleration_mps2",
         "turn_rate_degps",
         "range_jitter_m",
@@ -41,6 +43,9 @@ class TrainingConfig:
         "clip_speed_mean_mps",
         "clip_speed_std_mps",
         "clip_speed_span_mps",
+        "clip_abs_speed_mean_mps",
+        "clip_abs_speed_std_mps",
+        "clip_abs_speed_max_mps",
         "clip_azimuth_std_deg",
         "clip_snr_mean_db",
     )

@@ -246,3 +246,8 @@ pro/raw/
 - `src/training/readme.md`
 - `docs/algorithms/README.md`
 - `docs/algorithms/LinkAll.md`
+- `docs/algorithms/31_generalization_learning_in_this_project.md`
+- `docs/algorithms/32_how_to_judge_real_generalization_improvement.md`
+- `docs/algorithms/33_what_is_a_session_and_why_it_matters.md`
+- `docs/algorithms/34_session_clip_track_sample_label_relationships.md`
+- `docs/algorithms/35_how_to_read_training_history_and_choose_the_next_experiment.md`

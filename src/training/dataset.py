@@ -141,6 +141,8 @@ class RadarFusionDataset(Dataset):
         window["delta_range_m"] = window["range_m"].diff().fillna(0.0)
         window["delta_azimuth_deg"] = window["azimuth_deg"].diff().fillna(0.0)
         window["speed_delta_mps"] = window["radial_speed_mps"].diff().fillna(0.0)
+        window["abs_radial_speed_mps"] = np.abs(window["radial_speed_mps"].to_numpy(dtype=np.float32))
+        window["abs_speed_delta_mps"] = np.abs(window["speed_delta_mps"].to_numpy(dtype=np.float32))
         window["acceleration_mps2"] = window["speed_delta_mps"].to_numpy(dtype=np.float32) / deltas
         window["turn_rate_degps"] = window["delta_azimuth_deg"].to_numpy(dtype=np.float32) / deltas
         window["snr_delta_db"] = window["snr_db"].diff().fillna(0.0)
@@ -159,6 +161,10 @@ class RadarFusionDataset(Dataset):
         clip_speed_mean = float(np.mean(clip_speed_values)) if len(clip_speed_values) else 0.0
         clip_speed_std = float(np.std(clip_speed_values)) if len(clip_speed_values) else 0.0
         clip_speed_span = float(np.max(clip_speed_values) - np.min(clip_speed_values)) if len(clip_speed_values) else 0.0
+        clip_abs_speed_values = np.abs(clip_speed_values)
+        clip_abs_speed_mean = float(np.mean(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
+        clip_abs_speed_std = float(np.std(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
+        clip_abs_speed_max = float(np.max(clip_abs_speed_values)) if len(clip_abs_speed_values) else 0.0
         clip_azimuth_std = float(np.std(clip_azimuth_values)) if len(clip_azimuth_values) else 0.0
         clip_snr_mean = float(np.mean(clip_snr_values)) if len(clip_snr_values) else 0.0
 
@@ -167,6 +173,9 @@ class RadarFusionDataset(Dataset):
         window["clip_speed_mean_mps"] = clip_speed_mean
         window["clip_speed_std_mps"] = clip_speed_std
         window["clip_speed_span_mps"] = clip_speed_span
+        window["clip_abs_speed_mean_mps"] = clip_abs_speed_mean
+        window["clip_abs_speed_std_mps"] = clip_abs_speed_std
+        window["clip_abs_speed_max_mps"] = clip_abs_speed_max
         window["clip_azimuth_std_deg"] = clip_azimuth_std
         window["clip_snr_mean_db"] = clip_snr_mean
         return window
@@ -381,12 +390,14 @@ class RadarFusionDataset(Dataset):
 
         local_mean = self._spatial_mean_3x3(mid_log_amplitude)
         local_contrast = mid_log_amplitude - local_mean
+        local_doppler_symmetric = 0.5 * (mid_log_amplitude + mid_log_amplitude[:, :, ::-1])
 
         if global_rd_cube is None:
             global_log_amplitude = np.zeros_like(mid_log_amplitude, dtype=np.float32)
             global_background_suppressed = np.zeros_like(mid_log_amplitude, dtype=np.float32)
             global_temporal_difference = np.zeros_like(mid_log_amplitude, dtype=np.float32)
             global_contrast = np.zeros_like(mid_log_amplitude, dtype=np.float32)
+            global_doppler_symmetric = np.zeros_like(mid_log_amplitude, dtype=np.float32)
         else:
             global_magnitude = np.abs(global_rd_cube).astype(np.float32)
             global_log_amplitude = np.log1p(global_magnitude).astype(np.float32)
@@ -399,6 +410,7 @@ class RadarFusionDataset(Dataset):
             global_background_suppressed = np.maximum(global_log_amplitude - global_background, 0.0)
             global_mean = self._spatial_mean_3x3(global_log_amplitude)
             global_contrast = global_log_amplitude - global_mean
+            global_doppler_symmetric = 0.5 * (global_log_amplitude + global_log_amplitude[:, :, ::-1])
 
         if len(scale_cubes) == 1:
             channels = [
@@ -408,8 +420,10 @@ class RadarFusionDataset(Dataset):
                 temporal_difference,
                 background_suppressed,
                 local_contrast,
+                local_doppler_symmetric,
                 global_log_amplitude,
                 global_background_suppressed,
+                global_doppler_symmetric,
                 global_temporal_difference,
                 global_contrast,
                 phase_difference,
@@ -427,8 +441,10 @@ class RadarFusionDataset(Dataset):
                 temporal_difference,
                 background_suppressed,
                 local_contrast,
+                local_doppler_symmetric,
                 global_log_amplitude,
                 global_background_suppressed,
+                global_doppler_symmetric,
                 global_temporal_difference,
                 global_contrast,
                 phase_difference,
