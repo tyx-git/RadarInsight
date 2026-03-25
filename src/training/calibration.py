@@ -86,6 +86,7 @@ def _build_model(
         cross_attention_dropout=config.cross_attention_dropout,
         fusion_hidden_size=config.fusion_hidden_size,
         detail_logit_residual_weight=config.detail_logit_residual_weight,
+        detail_cosine_scale=config.detail_cosine_scale,
     ).to(device)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()

@@ -849,3 +849,32 @@
 - **Cons**:
   - The remaining bottleneck has shifted: current recall loss now mainly comes from `RotaryDrone -> FixedWing` confusion.
   - The next step should focus on making intra-aircraft boundaries more balanced, rather than only increasing `FixedWing` recall further.
+
+## Stage 38 - CPU Group Calibration On The New Best Checkpoint
+
+- **Current Stage**: apply validation-driven group logit calibration on top of the new CPU best checkpoint.
+- **Current Problem**:
+  - The cosine detail head already improved intra-coarse separation a lot.
+  - The remaining confusion is still mostly `RotaryDrone -> FixedWing` inside `AircraftTarget`.
+- **Solution**:
+  - Keep the trained backbone unchanged.
+  - Use the validation set to optimize a coarse-group-aware logit bias.
+  - Apply the learned bias only as post-training calibration.
+- **Validation Result**:
+  - Source checkpoint: `artifacts/202603252213-5-4-cpu`
+  - Calibrated artifact: `artifacts/202603252213-5-4-cpu-calibrated`
+  - Independent evaluation after calibration:
+    - `Accuracy = 0.9371`
+    - `Macro F1 = 0.9012`
+    - `Loss = 0.3766`
+  - Learned bias:
+    - `Bird: 0.0`
+    - `FixedWing: -0.9`
+    - `RotaryDrone: +0.9`
+- **Pros**:
+  - CPU-friendly and training-free improvement.
+  - Keeps the current backbone intact and only corrects the remaining intra-group threshold bias.
+  - General enough to extend to future multi-class and multi-subclass settings.
+- **Cons**:
+  - This is still a post-training calibration step, not a replacement for better representation learning.
+  - Future larger datasets still need to verify whether the same bias magnitude remains stable.
