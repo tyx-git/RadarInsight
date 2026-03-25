@@ -57,6 +57,67 @@ def compute_classification_metrics(labels: list[int], predictions: list[int], nu
     }
 
 
+def apply_logit_bias(logits: torch.Tensor, logit_bias: torch.Tensor | None) -> torch.Tensor:
+    if logit_bias is None:
+        return logits
+    return logits + logit_bias.view(1, -1)
+
+
+def _score_logits(labels: np.ndarray, logits: np.ndarray) -> float:
+    predictions = logits.argmax(axis=1).tolist()
+    metrics = compute_classification_metrics(labels.tolist(), predictions, num_classes=logits.shape[1])
+    return float(metrics["macro_f1"])
+
+
+def optimize_group_logit_bias(
+    labels: np.ndarray,
+    logits: np.ndarray,
+    fine_to_coarse_index: np.ndarray,
+    search_values: np.ndarray | None = None,
+    rounds: int = 2,
+) -> np.ndarray:
+    if logits.ndim != 2 or logits.shape[0] == 0:
+        return np.zeros((logits.shape[1] if logits.ndim == 2 else 0,), dtype=np.float32)
+
+    bias = np.zeros((logits.shape[1],), dtype=np.float32)
+    unique_coarse_indices = sorted(set(int(value) for value in fine_to_coarse_index.tolist()))
+    candidate_values = search_values if search_values is not None else np.linspace(-0.8, 0.8, num=17, dtype=np.float32)
+
+    for _ in range(max(rounds, 1)):
+        improved = False
+        for coarse_index in unique_coarse_indices:
+            member_indices = np.flatnonzero(fine_to_coarse_index == coarse_index)
+            if len(member_indices) <= 1:
+                continue
+            for member_index in member_indices:
+                best_delta = 0.0
+                best_score = _score_logits(labels, logits + bias.reshape(1, -1))
+                for delta in candidate_values:
+                    candidate_bias = bias.copy()
+                    candidate_bias[member_index] += float(delta)
+                    redistribute = float(delta) / max(len(member_indices) - 1, 1)
+                    for other_index in member_indices:
+                        if other_index == member_index:
+                            continue
+                        candidate_bias[other_index] -= redistribute
+                    candidate_score = _score_logits(labels, logits + candidate_bias.reshape(1, -1))
+                    if candidate_score > best_score + 1e-8:
+                        best_score = candidate_score
+                        best_delta = float(delta)
+                if abs(best_delta) > 1e-8:
+                    bias[member_index] += best_delta
+                    redistribute = best_delta / max(len(member_indices) - 1, 1)
+                    for other_index in member_indices:
+                        if other_index == member_index:
+                            continue
+                        bias[other_index] -= redistribute
+                    improved = True
+        if not improved:
+            break
+
+    return bias.astype(np.float32)
+
+
 def _resolve_subset_labels(data_source: Any) -> list[int]:
     if isinstance(data_source, Subset):
         parent = data_source.dataset
@@ -171,11 +232,55 @@ def build_dataloaders(
     return dataset, train_loader, val_loader, test_loader, split_map
 
 
+def build_coarse_taxonomy(
+    config: TrainingConfig,
+    ordered_labels: Sequence[str],
+) -> tuple[dict[str, int], torch.Tensor]:
+    coarse_names: list[str] = []
+    fine_to_coarse: list[int] = []
+    coarse_name_to_index: dict[str, int] = {}
+    coarse_label_map = dict(config.coarse_label_map)
+
+    for label in ordered_labels:
+        coarse_name = str(coarse_label_map.get(label, label))
+        if coarse_name not in coarse_name_to_index:
+            coarse_name_to_index[coarse_name] = len(coarse_names)
+            coarse_names.append(coarse_name)
+        fine_to_coarse.append(coarse_name_to_index[coarse_name])
+
+    return coarse_name_to_index, torch.tensor(fine_to_coarse, dtype=torch.long)
+
+
+def _build_detail_boundary_loss(
+    detail_logits: torch.Tensor,
+    labels: torch.Tensor,
+    fine_to_coarse_index: torch.Tensor,
+    margin: float,
+) -> torch.Tensor:
+    if detail_logits.ndim != 2 or detail_logits.size(0) == 0:
+        return detail_logits.new_zeros(())
+
+    coarse_targets = fine_to_coarse_index[labels]
+    class_coarse = fine_to_coarse_index.to(device=detail_logits.device)
+    same_coarse_mask = class_coarse.unsqueeze(0) == coarse_targets.unsqueeze(1)
+    same_coarse_mask.scatter_(1, labels.unsqueeze(1), False)
+    valid_rows = same_coarse_mask.any(dim=1)
+    if not valid_rows.any():
+        return detail_logits.new_zeros(())
+
+    target_logits = detail_logits.gather(1, labels.unsqueeze(1)).squeeze(1)
+    negative_logits = detail_logits.masked_fill(~same_coarse_mask, float('-inf')).max(dim=1).values
+    boundary_loss = torch.relu(float(margin) + negative_logits - target_logits)
+    return boundary_loss[valid_rows].mean()
+
+
 def compute_losses(
     outputs: dict[str, Any] | torch.Tensor,
     labels: torch.Tensor,
     criterion: nn.Module,
+    auxiliary_criterion: nn.Module,
     config: TrainingConfig,
+    fine_to_coarse_index: torch.Tensor,
     rd_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if isinstance(outputs, torch.Tensor):
@@ -198,6 +303,23 @@ def compute_losses(
             if valid_rd.any():
                 loss = loss + config.rd_aux_loss_weight * criterion(rd_logits[valid_rd], labels[valid_rd])
 
+    coarse_targets = fine_to_coarse_index[labels]
+    coarse_logits = outputs.get("coarse_logits")
+    if coarse_logits is not None and config.hierarchical_aux_loss_weight > 0:
+        loss = loss + config.hierarchical_aux_loss_weight * auxiliary_criterion(coarse_logits, coarse_targets)
+
+    detail_logits = outputs.get("detail_logits")
+    if detail_logits is not None and config.detail_aux_loss_weight > 0:
+        loss = loss + config.detail_aux_loss_weight * criterion(detail_logits, labels)
+    if detail_logits is not None and config.detail_boundary_loss_weight > 0:
+        boundary_loss = _build_detail_boundary_loss(
+            detail_logits=detail_logits,
+            labels=labels,
+            fine_to_coarse_index=fine_to_coarse_index,
+            margin=config.detail_boundary_margin,
+        )
+        loss = loss + config.detail_boundary_loss_weight * boundary_loss
+
     return logits, loss
 
 
@@ -205,9 +327,11 @@ def run_epoch(
     model: nn.Module,
     data_loader: DataLoader,
     criterion: nn.Module,
+    auxiliary_criterion: nn.Module,
     device: torch.device,
     config: TrainingConfig,
     num_classes: int,
+    fine_to_coarse_index: torch.Tensor,
     optimizer: torch.optim.Optimizer | None = None,
 ) -> dict[str, float]:
     training = optimizer is not None
@@ -236,7 +360,7 @@ def run_epoch(
 
         with torch.set_grad_enabled(training):
             outputs = model(track_features, track_global_features, rd_features, rd_mask)
-            logits, loss = compute_losses(outputs, labels, criterion, config, rd_mask)
+            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, config, fine_to_coarse_index, rd_mask)
             if training:
                 loss.backward()
                 if config.max_grad_norm > 0:
@@ -262,6 +386,8 @@ def save_training_artifacts(
     history: list[dict[str, Any]],
     num_parameters: int,
     split_map: dict[str, list[str]],
+    coarse_to_index: dict[str, int],
+    fine_to_coarse_index: torch.Tensor,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     metadata_path = output_dir / "training_metadata.json"
@@ -270,6 +396,8 @@ def save_training_artifacts(
     metadata = {
         "config": config.to_dict(),
         "labels": dataset.index_to_label,
+        "coarse_to_index": coarse_to_index,
+        "fine_to_coarse_index": fine_to_coarse_index.tolist(),
         "num_samples": len(dataset),
         "num_parameters": num_parameters,
         "session_splits": split_map,
@@ -298,11 +426,15 @@ def run_training(
 
     dataset, train_loader, val_loader, test_loader, split_map = build_dataloaders(config, session_ids=session_ids)
     resolved_device = torch.device(device or "cpu")
+    ordered_labels = [dataset.index_to_label[index] for index in sorted(dataset.index_to_label)]
+    coarse_to_index, fine_to_coarse_index = build_coarse_taxonomy(config, ordered_labels)
+    fine_to_coarse_index = fine_to_coarse_index.to(resolved_device)
 
     model = FusionRadarClassifier(
         track_input_dim=config.feature_dim,
         track_global_feature_dim=config.global_feature_dim,
         num_classes=len(dataset.label_to_index),
+        num_coarse_classes=len(coarse_to_index),
         include_rd=config.include_rd,
         track_projection_dim=config.track_projection_dim,
         tcn_channels=config.tcn_channels,
@@ -322,6 +454,8 @@ def run_training(
         cross_attention_heads=config.cross_attention_heads,
         cross_attention_dropout=config.cross_attention_dropout,
         fusion_hidden_size=config.fusion_hidden_size,
+        detail_logit_residual_weight=config.detail_logit_residual_weight,
+        detail_cosine_scale=config.detail_cosine_scale,
     ).to(resolved_device)
 
     optimizer = torch.optim.AdamW(
@@ -337,6 +471,7 @@ def run_training(
             beta=config.class_balance_beta,
         ).to(resolved_device)
     criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=config.label_smoothing)
+    auxiliary_criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
     scheduler = build_scheduler(optimizer, epochs=config.epochs, warmup_epochs=config.warmup_epochs)
     output_dir = Path(config.output_dir)
     best_checkpoint = output_dir / "best_fusion_model.pt"
@@ -353,6 +488,8 @@ def run_training(
         f"[*] Session split | train={split_map['train']} | val={split_map['val']} | test={split_map['test']}"
     )
     logger.info(f"[*] Using device: {resolved_device}")
+    logger.info(f"[*] Coarse taxonomy: {coarse_to_index}")
+    logger.info(f"[*] Fine-to-coarse index: {fine_to_coarse_index.detach().cpu().tolist()}")
     logger.info(f"[*] Trainable parameters: {num_parameters:,}")
     if class_weights is not None:
         logger.info(f"[*] Class weights: {class_weights.detach().cpu().tolist()}")
@@ -362,9 +499,11 @@ def run_training(
             model=model,
             data_loader=train_loader,
             criterion=criterion,
+            auxiliary_criterion=auxiliary_criterion,
             device=resolved_device,
             config=config,
             num_classes=len(dataset.label_to_index),
+            fine_to_coarse_index=fine_to_coarse_index,
             optimizer=optimizer,
         )
 
@@ -375,9 +514,11 @@ def run_training(
                 model=model,
                 data_loader=val_loader,
                 criterion=criterion,
+                auxiliary_criterion=auxiliary_criterion,
                 device=resolved_device,
                 config=config,
                 num_classes=len(dataset.label_to_index),
+                fine_to_coarse_index=fine_to_coarse_index,
             )
 
         epoch_record = {
@@ -414,6 +555,8 @@ def run_training(
                     "model_state_dict": model.state_dict(),
                     "config": config.to_dict(),
                     "label_to_index": dataset.label_to_index,
+                    "coarse_to_index": coarse_to_index,
+                    "fine_to_coarse_index": fine_to_coarse_index.detach().cpu().tolist(),
                     "best_macro_f1": best_macro_f1,
                     "num_parameters": num_parameters,
                     "track_feature_center": dataset.track_feature_center.tolist(),
@@ -424,7 +567,7 @@ def run_training(
                 best_checkpoint,
             )
 
-    history_path = save_training_artifacts(output_dir, config, dataset, history, num_parameters, split_map)
+    history_path = save_training_artifacts(output_dir, config, dataset, history, num_parameters, split_map, coarse_to_index, fine_to_coarse_index.detach().cpu())
     manifest = build_session_manifest(data_root=config.data_root, include_rd=config.include_rd, split_map=split_map)
     manifest_path = save_session_manifest(manifest, output_dir)
 
@@ -438,9 +581,11 @@ def run_training(
             model=model,
             data_loader=test_loader,
             criterion=criterion,
+            auxiliary_criterion=auxiliary_criterion,
             device=resolved_device,
             config=config,
             num_classes=len(dataset.label_to_index),
+            fine_to_coarse_index=fine_to_coarse_index,
         )
         logger.info(
             f"[*] Test metrics | loss={test_metrics['loss']:.4f} | acc={test_metrics['accuracy']:.4f} | f1={test_metrics['macro_f1']:.4f}"

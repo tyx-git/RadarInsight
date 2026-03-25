@@ -66,7 +66,7 @@ training:
   rd_frames: 24
   rd_height: 64
   rd_width: 64
-  rd_input_channels: 10
+  rd_input_channels: 12
   include_rd: true
   track_feature_columns:
     - "range_m"
@@ -80,6 +80,8 @@ training:
     - "abs_speed_delta_mps"
     - "acceleration_mps2"
     - "turn_rate_degps"
+    - "jerk_mps3"
+    - "turn_acceleration_degps2"
     - "range_jitter_m"
     - "snr_delta_db"
   track_global_feature_columns:
@@ -95,6 +97,10 @@ training:
     - "clip_range_monotonicity"
     - "clip_abs_acceleration_mean_mps2"
     - "clip_abs_turn_rate_mean_degps"
+    - "clip_abs_jerk_mean_mps3"
+    - "clip_abs_turn_acceleration_mean_degps2"
+    - "clip_range_jitter_std_m"
+    - "clip_speed_zero_crossing_rate"
     - "clip_azimuth_std_deg"
     - "clip_snr_mean_db"
   track_projection_dim: 128
@@ -135,3 +141,13 @@ training:
   label_smoothing: 0.05
   track_aux_loss_weight: 0.25
   rd_aux_loss_weight: 0.15
+  hierarchical_aux_loss_weight: 0.2
+  detail_aux_loss_weight: 0.1
+  detail_boundary_loss_weight: 0.2
+  detail_boundary_margin: 0.2
+  detail_logit_residual_weight: 0.2
+  detail_cosine_scale: 16.0
+  coarse_label_map:
+    Bird: BiologicalTarget
+    FixedWing: AircraftTarget
+    RotaryDrone: AircraftTarget

@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from src.models.fusion_classifier import FusionRadarClassifier
 from src.training.config import TrainingConfig
 from src.training.dataset import RadarFusionDataset
+from src.training.trainer import apply_logit_bias
 
 
 def _compute_classification_metrics(confusion_matrix: np.ndarray, labels: list[str]) -> dict[str, Any]:
@@ -53,6 +54,15 @@ def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
         return None
     with open(manifest_path, "r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def _build_coarse_taxonomy(config: TrainingConfig, ordered_labels: Sequence[str]) -> dict[str, int]:
+    coarse_name_to_index: dict[str, int] = {}
+    for label in ordered_labels:
+        coarse_name = str(config.coarse_label_map.get(label, label))
+        if coarse_name not in coarse_name_to_index:
+            coarse_name_to_index[coarse_name] = len(coarse_name_to_index)
+    return coarse_name_to_index
 
 
 def run_evaluation(
@@ -117,10 +127,15 @@ def run_evaluation(
         )
     data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
+    coarse_to_index = checkpoint.get("coarse_to_index")
+    if not coarse_to_index:
+        coarse_to_index = _build_coarse_taxonomy(config, ordered_labels)
+
     model = FusionRadarClassifier(
         track_input_dim=config.feature_dim,
         track_global_feature_dim=config.global_feature_dim,
         num_classes=len(label_to_index),
+        num_coarse_classes=len(coarse_to_index),
         include_rd=config.include_rd,
         track_projection_dim=config.track_projection_dim,
         tcn_channels=config.tcn_channels,
@@ -140,11 +155,15 @@ def run_evaluation(
         cross_attention_heads=config.cross_attention_heads,
         cross_attention_dropout=config.cross_attention_dropout,
         fusion_hidden_size=config.fusion_hidden_size,
+        detail_logit_residual_weight=config.detail_logit_residual_weight,
+        detail_cosine_scale=config.detail_cosine_scale,
     ).to(resolved_device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
     criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
+    logit_bias = checkpoint.get("logit_bias")
+    resolved_logit_bias = None if logit_bias is None else torch.tensor(logit_bias, dtype=torch.float32, device=resolved_device)
     total_loss = 0.0
     total_samples = 0
     confusion_matrix = np.zeros((len(ordered_labels), len(ordered_labels)), dtype=np.int64)
@@ -162,6 +181,7 @@ def run_evaluation(
 
             outputs = model(track_features, track_global_features, rd_features, rd_mask)
             logits = outputs["logits"] if isinstance(outputs, dict) else outputs
+            logits = apply_logit_bias(logits, resolved_logit_bias)
             loss = criterion(logits, labels)
             predictions = logits.argmax(dim=-1)
 

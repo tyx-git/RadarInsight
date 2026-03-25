@@ -173,6 +173,8 @@ class RadarFusionDataset(Dataset):
         window["abs_speed_delta_mps"] = np.abs(window["speed_delta_mps"].to_numpy(dtype=np.float32))
         window["acceleration_mps2"] = window["speed_delta_mps"].to_numpy(dtype=np.float32) / deltas
         window["turn_rate_degps"] = window["delta_azimuth_deg"].to_numpy(dtype=np.float32) / deltas
+        window["jerk_mps3"] = window["acceleration_mps2"].diff().fillna(0.0).to_numpy(dtype=np.float32) / deltas
+        window["turn_acceleration_degps2"] = window["turn_rate_degps"].diff().fillna(0.0).to_numpy(dtype=np.float32) / deltas
         window["snr_delta_db"] = window["snr_db"].diff().fillna(0.0)
 
         smoothing_window = max(2, min(5, len(window)))
@@ -198,6 +200,14 @@ class RadarFusionDataset(Dataset):
         clip_snr_mean = float(np.mean(clip_snr_values)) if len(clip_snr_values) else 0.0
         clip_abs_acceleration_mean = float(np.mean(np.abs(window["acceleration_mps2"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
         clip_abs_turn_rate_mean = float(np.mean(np.abs(window["turn_rate_degps"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
+        clip_abs_jerk_mean = float(np.mean(np.abs(window["jerk_mps3"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
+        clip_abs_turn_acceleration_mean = float(np.mean(np.abs(window["turn_acceleration_degps2"].to_numpy(dtype=np.float32)))) if len(window) else 0.0
+        clip_range_jitter_std = float(np.std(window["range_jitter_m"].to_numpy(dtype=np.float32))) if len(window) else 0.0
+        if len(clip_speed_values) > 1:
+            speed_signs = np.sign(clip_speed_values)
+            clip_speed_zero_crossing_rate = float(np.mean(speed_signs[1:] * speed_signs[:-1] < 0))
+        else:
+            clip_speed_zero_crossing_rate = 0.0
         delta_range_values = window["delta_range_m"].to_numpy(dtype=np.float32)
         total_range_travel = float(np.sum(np.abs(delta_range_values))) if len(delta_range_values) else 0.0
         net_range_change = float(abs(window["range_m"].iloc[-1] - window["range_m"].iloc[0])) if len(window) else 0.0
@@ -215,6 +225,10 @@ class RadarFusionDataset(Dataset):
         window["clip_range_monotonicity"] = clip_range_monotonicity
         window["clip_abs_acceleration_mean_mps2"] = clip_abs_acceleration_mean
         window["clip_abs_turn_rate_mean_degps"] = clip_abs_turn_rate_mean
+        window["clip_abs_jerk_mean_mps3"] = clip_abs_jerk_mean
+        window["clip_abs_turn_acceleration_mean_degps2"] = clip_abs_turn_acceleration_mean
+        window["clip_range_jitter_std_m"] = clip_range_jitter_std
+        window["clip_speed_zero_crossing_rate"] = clip_speed_zero_crossing_rate
         window["clip_azimuth_std_deg"] = clip_azimuth_std
         window["clip_snr_mean_db"] = clip_snr_mean
         return window
@@ -477,13 +491,13 @@ class RadarFusionDataset(Dataset):
                 background_suppressed,
                 local_contrast,
                 local_doppler_symmetric,
+                phase_difference,
+                coherence,
                 global_log_amplitude,
                 global_background_suppressed,
                 global_doppler_symmetric,
                 global_temporal_difference,
                 global_contrast,
-                phase_difference,
-                coherence,
             ]
         else:
             short_log_amplitude = log_amplitude_cubes[0]
@@ -498,13 +512,13 @@ class RadarFusionDataset(Dataset):
                 background_suppressed,
                 local_contrast,
                 local_doppler_symmetric,
+                phase_difference,
+                coherence,
                 global_log_amplitude,
                 global_background_suppressed,
                 global_doppler_symmetric,
                 global_temporal_difference,
                 global_contrast,
-                phase_difference,
-                coherence,
             ]
         selected = channels[: self.rd_input_channels]
         while len(selected) < self.rd_input_channels:
@@ -538,7 +552,13 @@ class RadarFusionDataset(Dataset):
             if frame_indices.size == 0:
                 return None
 
-            global_rd_cube = np.asarray(rd_frames_dataset[frame_indices])
+            sorted_order = np.argsort(frame_indices, kind="stable")
+            sorted_indices = frame_indices[sorted_order]
+            unique_indices, inverse_indices = np.unique(sorted_indices, return_inverse=True)
+            unique_rd_frames = np.asarray(rd_frames_dataset[unique_indices])
+            sorted_rd_cube = unique_rd_frames[inverse_indices]
+            restore_order = np.argsort(sorted_order, kind="stable")
+            global_rd_cube = sorted_rd_cube[restore_order]
 
         if global_rd_cube.ndim == 2:
             global_rd_cube = global_rd_cube[None, :, :]

@@ -207,6 +207,113 @@ class BackgroundContrastRefiner(nn.Module):
         return self.activation(inputs + refined)
 
 
+class SpectralStructureBranch(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        hidden_channels: int,
+        kernels: Sequence[tuple[int, int, int]],
+        dropout: float,
+    ):
+        super().__init__()
+        self.input_projection = nn.Sequential(
+            nn.Conv3d(channels, hidden_channels, kernel_size=1, bias=False),
+            nn.BatchNorm3d(hidden_channels),
+            nn.SiLU(inplace=True),
+        )
+        layers: list[nn.Module] = []
+        for kernel in kernels:
+            padding = tuple(axis // 2 for axis in kernel)
+            layers.extend(
+                [
+                    nn.Conv3d(
+                        hidden_channels,
+                        hidden_channels,
+                        kernel_size=kernel,
+                        padding=padding,
+                        groups=hidden_channels,
+                        bias=False,
+                    ),
+                    nn.BatchNorm3d(hidden_channels),
+                    nn.SiLU(inplace=True),
+                ]
+            )
+        self.structure_layers = nn.Sequential(*layers)
+        self.output_projection = nn.Sequential(
+            nn.Conv3d(hidden_channels, channels, kernel_size=1, bias=False),
+            nn.BatchNorm3d(channels),
+            nn.Dropout3d(dropout) if dropout > 0 else nn.Identity(),
+        )
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        features = self.input_projection(inputs)
+        features = self.structure_layers(features)
+        return self.output_projection(features)
+
+
+class RotorMicroMotionBranch(SpectralStructureBranch):
+    def __init__(self, channels: int, hidden_channels: int, dropout: float):
+        super().__init__(
+            channels=channels,
+            hidden_channels=hidden_channels,
+            kernels=((5, 1, 3), (3, 1, 7)),
+            dropout=dropout,
+        )
+
+
+class FixedWingStructureBranch(SpectralStructureBranch):
+    def __init__(self, channels: int, hidden_channels: int, dropout: float):
+        super().__init__(
+            channels=channels,
+            hidden_channels=hidden_channels,
+            kernels=((5, 3, 1), (7, 5, 3)),
+            dropout=dropout,
+        )
+
+
+class SpectralStructureEnhancer(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        hidden_channels: int,
+        structure_dim: int,
+        dropout: float,
+    ):
+        super().__init__()
+        self.rotor_branch = RotorMicroMotionBranch(channels=channels, hidden_channels=hidden_channels, dropout=dropout)
+        self.fixedwing_branch = FixedWingStructureBranch(channels=channels, hidden_channels=hidden_channels, dropout=dropout)
+        gate_hidden = max(16, hidden_channels * 4)
+        descriptor_dim = channels * 3
+        self.structure_gate = nn.Sequential(
+            nn.Linear(descriptor_dim, gate_hidden),
+            nn.GELU(),
+            nn.Linear(gate_hidden, 2),
+        )
+        self.structure_projection = nn.Sequential(
+            nn.Linear(descriptor_dim, structure_dim),
+            nn.LayerNorm(structure_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.activation = nn.SiLU(inplace=True)
+
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        rotor_feature = self.rotor_branch(inputs)
+        fixedwing_feature = self.fixedwing_branch(inputs)
+
+        base_descriptor = inputs.mean(dim=(2, 3, 4))
+        rotor_descriptor = rotor_feature.mean(dim=(2, 3, 4))
+        fixedwing_descriptor = fixedwing_feature.mean(dim=(2, 3, 4))
+        structure_descriptor = torch.cat([base_descriptor, rotor_descriptor, fixedwing_descriptor], dim=-1)
+
+        structure_weights = torch.softmax(self.structure_gate(structure_descriptor), dim=-1)
+        rotor_weight = structure_weights[:, :1].view(-1, 1, 1, 1, 1)
+        fixedwing_weight = structure_weights[:, 1:2].view(-1, 1, 1, 1, 1)
+        enhanced = inputs + rotor_weight * rotor_feature + fixedwing_weight * fixedwing_feature
+        structure_embedding = self.structure_projection(structure_descriptor)
+        return self.activation(enhanced), structure_embedding
+
+
 class X3DStem(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -354,19 +461,37 @@ class X3DHead(nn.Module):
             nn.SiLU(inplace=True),
         )
         self.token_norm = nn.LayerNorm(embedding_dim)
+        self.base_projection = nn.Sequential(
+            nn.Linear(embedding_dim * 2, embedding_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.structure_token_projection = nn.Sequential(
+            nn.Linear(embedding_dim, embedding_dim),
+            nn.LayerNorm(embedding_dim),
+        )
         self.global_projection = nn.Sequential(
             nn.Linear(embedding_dim * 2, embedding_dim),
             nn.GELU(),
             nn.Dropout(dropout),
         )
 
-    def forward(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        features: torch.Tensor,
+        structure_embedding: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         projected = self.projection(features)
         temporal_tokens = projected.mean(dim=(-1, -2)).transpose(1, 2)
         token_embeddings = self.token_norm(temporal_tokens)
         temporal_mean = token_embeddings.mean(dim=1)
         temporal_std = token_embeddings.std(dim=1, unbiased=False)
-        pooled_embedding = self.global_projection(torch.cat([temporal_mean, temporal_std], dim=-1))
+        base_embedding = self.base_projection(torch.cat([temporal_mean, temporal_std], dim=-1))
+        if structure_embedding is None:
+            structure_embedding = torch.zeros_like(base_embedding)
+        structure_token = self.structure_token_projection(structure_embedding).unsqueeze(1)
+        token_embeddings = torch.cat([token_embeddings, structure_token], dim=1)
+        pooled_embedding = self.global_projection(torch.cat([base_embedding, structure_embedding], dim=-1))
         return token_embeddings, pooled_embedding
 
 
@@ -410,6 +535,12 @@ class X3DMicroMotionEncoder(nn.Module):
             hidden_channels=max(8, min(16, stem_channels // 2)),
             dropout=dropout,
         )
+        self.spectral_structure_enhancer = SpectralStructureEnhancer(
+            channels=in_channels,
+            hidden_channels=max(8, min(16, stem_channels // 2)),
+            structure_dim=embedding_dim,
+            dropout=dropout,
+        )
         self.stem = X3DStem(in_channels=in_channels, out_channels=stem_channels)
 
         stages: list[nn.Module] = []
@@ -446,10 +577,11 @@ class X3DMicroMotionEncoder(nn.Module):
         features = self.micro_motion_enhancer(features)
         features = self.spectral_axis_refiner(features)
         features = self.background_contrast_refiner(features)
+        features, structure_embedding = self.spectral_structure_enhancer(features)
         features = self.stem(features)
         for stage in self.stages:
             features = stage(features)
-        return self.head(features)
+        return self.head(features, structure_embedding=structure_embedding)
 
 
 RDConvEncoder = X3DMicroMotionEncoder

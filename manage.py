@@ -308,6 +308,40 @@ def cmd_report(args, config):
     logger.info(f"Real report: {real_result['report_dir']}")
     logger.info("=" * 30)
 
+def cmd_calibrate(args, config):
+    try:
+        from src.training.calibration import run_group_calibration
+    except ImportError as exc:
+        logger.error("[!] Calibration dependencies are not available.")
+        logger.error(f"[!] Import error: {exc}")
+        return
+
+    resolved_output_dir = args.output_dir
+    if not resolved_output_dir:
+        checkpoint_path = Path(args.checkpoint)
+        timestamp = datetime.now().strftime('%Y%m%d%H%M')
+        suffix_config = dict(config.get('training', {}))
+        resolved_epochs = int(suffix_config.get('epochs', 5))
+        resolved_batch_size = int(suffix_config.get('batch_size', 4))
+        resolved_device = (args.device or 'cpu').split(':', 1)[0].lower()
+        resolved_output_dir = f"artifacts/{timestamp}-{resolved_epochs}-{resolved_batch_size}-{resolved_device}"
+
+    result = run_group_calibration(
+        checkpoint_path=args.checkpoint,
+        output_dir=resolved_output_dir,
+        data_root=args.data_root,
+        device=args.device,
+    )
+
+    logger.info("=" * 30)
+    logger.info("Calibration Summary")
+    logger.info("=" * 30)
+    logger.info(f"Output dir: {result['output_dir']}")
+    logger.info(f"Bias: {result['bias']}")
+    logger.info(f"Val before: {result['base_val_metrics']}")
+    logger.info(f"Val after: {result['biased_val_metrics']}")
+    logger.info("=" * 30)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="RadarInsight command line interface")
@@ -356,6 +390,12 @@ def build_parser() -> argparse.ArgumentParser:
     report_parser.add_argument("artifact_dir", help="Artifact directory containing training and evaluation outputs")
     report_parser.add_argument("--real-root", dest="real_root", default="reports/real", help="Output root for real reports; final folder name follows the artifact directory name")
 
+    calibrate_parser = subparsers.add_parser("calibrate", help="Calibrate a checkpoint with validation-driven group logit bias")
+    calibrate_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
+    calibrate_parser.add_argument("--output-dir", dest="output_dir", help="Directory for calibrated checkpoint and copied artifacts")
+    calibrate_parser.add_argument("--data-root", dest="data_root", help="Optional dataset root override")
+    calibrate_parser.add_argument("--device", help="Calibration device, for example cpu or cuda")
+
     return parser
 
 
@@ -385,6 +425,8 @@ def main():
         cmd_sessions(args, config)
     elif args.command == "report":
         cmd_report(args, config)
+    elif args.command == "calibrate":
+        cmd_calibrate(args, config)
 
 
 if __name__ == "__main__":

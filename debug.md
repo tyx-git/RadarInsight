@@ -547,3 +547,305 @@
 - **Cons**:
   - Adds another decision layer that can itself become unstable if branch features are weak.
   - Needs another manual 5-epoch run to verify whether `FixedWing` recovery improves without hurting `Bird` and `RotaryDrone`.
+
+
+## Stage 29 - 全局 RD 索引修复与公开数据集 5 Epoch 验证
+
+- **当前阶段**：修复重建后数据集进入训练时的全局 RD 读取阻塞问题，并在当前公开数据集上完成一次新的 5 epoch 验证。
+- **当前所面临的问题**：
+  - 从 `pro/raw` 重新生成数据集后，训练在 `RadarFusionDataset._load_global_rd_cube()` 阶段被 `h5py` 阻塞。
+  - 根因不是模型前向本身，而是 HDF5 高级索引要求索引序列递增，而当前 clip 的 `frame_id` 读取路径没有显式保证这一点。
+  - 当前数据集是用于算法训练的公开雷达数据集，不是最终真实部署环境数据集，因此当前验证目标应聚焦“是否逼近可扩展高精度主路线”，而不是围绕当前闭集样本做过拟合优化。
+- **解决方案**：
+  - 在 `RadarFusionDataset._load_global_rd_cube()` 中，把 `frame_indices` 先做稳定排序。
+  - 对排序后的索引做去重后再执行 HDF5 读取。
+  - 读取完成后，再恢复回原始时间顺序，保证时序语义不变。
+  - 修复后重新执行 `manage.py prepare-pro`，再执行 `5 epoch` CUDA 训练与独立评估。
+- **方案利弊**：
+  - 优点：
+    - 修复的是数据读取根因，而不是跳过全局 RD 或降级成局部补丁方案。
+    - 恢复了当前“局部 ROI + 全局上下文”双视角 RD 主链，验证结果才有意义。
+    - 为后续更大规模真实数据集提供了更稳的基础数据通路。
+  - 缺点：
+    - 这次修复解决的是训练阻塞，不等于已经解决 `FixedWing` 与 `RotaryDrone` 的判别边界问题。
+    - 当前结果仍未超过 `debug.md` 中已有的历史最好结果。
+- **验证结果**：
+  - 本次运行目录：`artifacts/202603242321-5-4-cuda`
+  - 独立评估结果：`Accuracy=0.7063`，`Macro F1=0.5379`
+  - 混淆矩阵表现：
+    - `Bird`：`82/82` 全部识别正确
+    - `FixedWing`：`12/29` 识别正确，`17` 条被判成 `RotaryDrone`
+    - `RotaryDrone`：`7/32` 识别正确，`25` 条被判成 `FixedWing`
+- **与历史结果对比**：
+  - 相比 `Stage 24` 记录的当前最好结果 `Accuracy=0.7972`、`Macro F1=0.5644`，本次结果明显回落。
+  - 相比 `Stage 26` 记录的 `Accuracy=0.6783`、`Macro F1=0.4846`，本次结果有明显回升。
+  - 这说明当前版本已经优于“`FixedWing` 完全塌陷”的那一轮，但还没有回到历史最优水平。
+- **结论判断**：
+  - `Stage 28` 的可靠性融合大概率击中了“错误模态证据主导最终决策”这一部分根因，否则不会出现从 `Stage 26` 向上的恢复。
+  - 但它没有完全击中最深层根因，因为当前最主要的错误已经从“单边塌陷”变成了 `FixedWing <-> RotaryDrone` 双向混淆。
+  - 这说明真正缺失的仍然是两类之间稳定、可泛化的判别表示，而不只是输出层的融合策略。
+- **后续方向**：
+  - 在当前公开数据集上，后续优化应继续围绕 `FixedWing` 与 `RotaryDrone` 的边界建模展开。
+  - 但所有方案都必须面向后续约 `33 万` 规模、`5` 大类、`20+` 子类的真实数据集扩展，不能为了当前闭集结果引入不可扩展的特判式设计。
+
+
+## Stage 30 - 非鸟类内部边界增强与可扩展层级表示升级
+
+- **当前阶段**：围绕 `FixedWing` 与 `RotaryDrone` 的内部边界，升级轨迹分支、RD 分支和融合头，使其更适合后续大规模真实数据集扩展。
+- **当前所面临的问题**：
+  - 当前主要错误已经不是 `Bird` 边界，而是非鸟类内部边界不稳，尤其是 `FixedWing <-> RotaryDrone` 双向混淆。
+  - 单纯依赖输出层的融合策略还不够，因为根因已经暴露为“判别表示不足”，而不是单一模态权重错误。
+  - 当前公开数据集只是算法训练集，后续真实数据集规模约 `33 万`，覆盖 `5` 大类、`20+` 子类，因此不能继续围绕当前三类闭集做补丁式设计。
+- **解决方案**：
+  - 轨迹分支升级：
+    - 在 `TrackTemporalEncoder` 内加入显式的连续性分支、平滑性分支、机动模式分支。
+    - 通过模式 token 注入和模式特征门控，把“持续性 / 平滑性 / 机动强度变化”直接并入轨迹表示。
+  - 轨迹特征升级：
+    - 增加 `jerk_mps3`、`turn_acceleration_degps2`。
+    - 增加 `clip_abs_jerk_mean_mps3`、`clip_abs_turn_acceleration_mean_degps2`、`clip_range_jitter_std_m`、`clip_speed_zero_crossing_rate`。
+  - RD 分支升级：
+    - 新增 `RotorMicroMotionBranch`，显式建模旋翼类微动在时间-多普勒上的调制结构。
+    - 新增 `FixedWingStructureBranch`，显式建模固定翼类更稳定的谱脊与时序稳定结构。
+    - 引入 `SpectralStructureEnhancer`，生成结构嵌入并作为 RD token 注入主干。
+  - 层级表示升级：
+    - 在 `FusionRadarClassifier` 中新增 `HierarchicalClassifierHead`。
+    - 把融合特征拆成 `coarse feature` 与 `detail feature`。
+    - 使用 `coarse logits` 作为辅助监督，当前用于增强主类级稳定分离，后续可自然扩展子类头。
+  - RD 输入升级：
+    - 默认 `rd_input_channels` 从 `10` 升级为 `12`。
+    - 提前纳入 `phase_difference` 与 `coherence`，避免旋翼/固定翼判别过度依赖振幅通道。
+- **方案利弊**：
+  - 优点：
+    - 这次升级直接作用于判别表示本身，而不是只在决策末端做再加权。
+    - 轨迹和 RD 两侧都显式围绕非鸟类边界差异建模，更符合当前根因。
+    - `coarse + detail` 的层级结构可以自然扩展到未来 `5` 大类、`20+` 子类，而不是为当前三类闭集写特判逻辑。
+  - 缺点：
+    - 模型复杂度和特征维度进一步增加，需要重新验证吞吐、显存和训练稳定性。
+    - 当前只完成了最小前向验证，还没有在新架构上做新的完整训练对比。
+- **当前验证状态**：
+  - 已完成：静态编译通过、真实样本单批前向通过、损失计算通过。
+  - 未完成：基于该新架构的完整 `5 epoch` 训练与独立评估。
+- **结论判断**：
+  - 这次升级比 `Stage 28` 更接近根因，因为它不再把问题仅仅视为“模态权重失衡”，而是明确把问题落实到“非鸟类内部边界表示不足”。
+  - 如果后续验证有效，这条路线可以直接迁移到未来的大规模真实数据集，而不需要在进入 `5` 大类、`20+` 子类后重新推倒主干。
+
+
+## Stage 31 - 非鸟类内部边界增强后的首次 5 Epoch 验证
+
+- **当前阶段**：验证 `Stage 30` 的轨迹显式运动模式分支、RD 显式谱结构分支和层级表示头，是否真正改善 `FixedWing` 与 `RotaryDrone` 的内部边界。
+- **当前所面临的问题**：
+  - `Stage 30` 在设计上更贴近根因，但必须通过真实训练结果验证，不能停留在“结构上看起来合理”。
+  - 当前需要判断：新架构到底是在增强非鸟类内部边界，还是把模型进一步推向某一侧偏置。
+- **解决方案**：
+  - 基于新架构执行一次新的 `5 epoch` CUDA 训练。
+  - 运行目录：`artifacts/202603242355-5-4-cuda`
+  - 独立评估并生成真实图表：`reports/real/202603242355-5-4-cuda`
+- **方案利弊**：
+  - 优点：
+    - 这次验证直接回答“新架构是否真的有用”，避免停留在理论合理性层面。
+    - 可以把 `Stage 30` 的表示升级与 `Stage 29` 的结果做直接对比。
+  - 缺点：
+    - 当前结果表明，新架构虽然提升了整体准确率，但没有解决关键目标，甚至重新引入了单边塌陷。
+- **验证结果**：
+  - 独立评估：`Accuracy=0.7343`，`Macro F1=0.5159`
+  - 混淆矩阵表现：
+    - `Bird`：`82/82` 全部识别正确
+    - `FixedWing`：`0/29` 识别正确，`29` 条全部被判成 `RotaryDrone`
+    - `RotaryDrone`：`23/32` 识别正确，`9` 条被判成 `FixedWing`
+- **与上一轮对比**：
+  - 相比 `Stage 29` 的 `Accuracy=0.7063`，这次整体准确率有所上升。
+  - 但相比 `Stage 29` 的 `Macro F1=0.5379`，这次反而下降到 `0.5159`。
+  - 更关键的是，`FixedWing` 从 `12/29` 正确重新退化为 `0/29`，说明这次升级没有守住最核心目标。
+- **结论判断**：
+  - `Stage 30` 没有真正完成“非鸟类内部边界增强”这个核心任务。
+  - 当前升级大概率把模型进一步推向了更强的 `RotaryDrone` 偏置：
+    - RD 显式谱结构分支可能把“旋翼微动样式”放大得过强。
+    - 层级表示头当前只有主类监督，没有真实子类监督，`detail feature` 还不足以形成稳定的细粒度边界，反而可能强化了错误簇。
+    - 轨迹显式模式分支虽然增强了运动表达，但当前公开数据集上的 `FixedWing` 运动模式仍未被稳定锚定出来。
+  - 因此，这次升级说明：
+    - “显式结构化建模”这个方向本身是对的；
+    - 但当前实现还没有做到对 `FixedWing` 和 `RotaryDrone` 的平衡约束，导致表示朝 `RotaryDrone` 一侧塌陷。
+- **下一步方向**：
+  - 后续不应继续简单堆更多分支，而要回到判别约束本身：
+    - 为非鸟类内部边界增加更直接的边界监督或度量约束；
+    - 控制 RD 结构分支对单侧模式的过度放大；
+    - 让轨迹分支与 RD 分支在非鸟类样本上形成更一致的反证机制，而不是某一侧主导。
+
+
+## Stage 32 - 粗类映射与组内边界损失首次验证
+
+- **当前阶段**：在 `Stage 30` 的结构升级基础上，引入粗类映射与组内 hardest-negative 边界损失，尝试直接约束 `FixedWing` 与 `RotaryDrone` 的类内边界。
+- **当前所面临的问题**：
+  - `Stage 31` 说明单纯加强结构表达并不能保证边界真正传导到最终输出。
+  - 因此需要把问题进一步收敛到“细粒度边界监督本身”。
+- **解决方案**：
+  - 引入 `coarse_label_map`，当前把 `Bird` 映射到 `BiologicalTarget`，把 `FixedWing` 与 `RotaryDrone` 映射到 `AircraftTarget`。
+  - 新增 `detail_logits` 支路。
+  - 在同一粗类内，对目标类与 hardest negative 类施加 margin 约束。
+- **方案利弊**：
+  - 优点：
+    - 比单纯结构增强更直接地约束非鸟类内部边界。
+    - 设计可扩展到未来 `5` 大类、`20+` 子类。
+  - 缺点：
+    - 当前版本的边界监督还没有直接进入最终决策链，只是辅助信号。
+- **验证结果**：
+  - 运行目录：`artifacts/202603251446-5-4-cuda`
+  - 独立评估：`Accuracy=0.6294`，`Macro F1=0.4082`
+  - `FixedWing` 再次塌陷为 `0/29`。
+- **结论判断**：
+  - 仅仅增加边界损失还不够；如果边界支路不能直接影响最终输出，它仍然可能被主分类路径淹没。
+
+## Stage 33 - 细粒度边界残差注入验证
+
+- **当前阶段**：把受边界监督的 `detail_logits` 以小残差直接注入最终输出，验证细粒度边界信号能否真正作用于最终决策。
+- **当前所面临的问题**：
+  - `Stage 32` 说明边界监督本身已经存在，但没有有效进入最终判别链路。
+  - 核心矛盾已经不是“有没有边界信号”，而是“边界信号能不能真正改变最终分类”。
+- **解决方案**：
+  - 新增 `detail_logit_residual_weight`。
+  - 在最终 `logits` 上叠加 `detail_logits` 的小残差，让组内边界监督结果直接进入最终输出。
+  - 保留 `coarse + detail` 层级表示、粗类辅助监督和组内边界损失。
+- **方案利弊**：
+  - 优点：
+    - 直接打通了“边界监督 -> 最终决策”的链路。
+    - 没有回退到只靠单一模态或手工规则的补丁方案。
+    - 设计仍然面向未来大规模真实数据集扩展，后续可自然扩展到子类监督。
+  - 缺点：
+    - 当前 `RotaryDrone` 仍然偏强，`FixedWing` 召回还不够高。
+    - 仍需后续继续压缩 `FixedWing -> RotaryDrone` 的误判比例。
+- **验证结果**：
+  - 运行目录：`artifacts/202603251500-5-4-cuda`
+  - 独立评估：`Accuracy=0.8531`，`Macro F1=0.7372`
+  - 混淆矩阵表现：
+    - `Bird`：`82/82` 正确
+    - `FixedWing`：`9/29` 正确，`19` 条被判成 `RotaryDrone`
+    - `RotaryDrone`：`31/32` 正确，仅 `1` 条被判成 `FixedWing`
+- **与历史结果对比**：
+  - 相比 `Stage 24` 的历史最好结果 `Accuracy=0.7972`、`Macro F1=0.5644`，本次结果明显提升。
+  - 相比 `Stage 29` 的 `Accuracy=0.7063`、`Macro F1=0.5379`，本次结果也大幅提升。
+  - 相比 `Stage 31` 与 `Stage 32` 的失败验证，本次首次证明“边界监督直接进入最终输出”是有效方向。
+- **结论判断**：
+  - 这次结果说明，真正命中根因的关键，不只是增加结构分支或增加边界损失，而是必须让“细粒度边界表示”直接参与最终决策。
+  - 当前模型已经明显逼近“高精度识别主路线”，并且其结构形式能够自然扩展到未来约 `33 万` 数据规模、`5` 大类、`20+` 子类场景。
+
+
+## Stage 34 - 粗类概率门控细粒度残差验证
+
+- **当前阶段**：在 `Stage 33` 的基础上，进一步用粗类概率门控 `detail logits` 残差，尝试在保住 `Bird` 的同时继续优化 `FixedWing` 与 `RotaryDrone` 的内部边界。
+- **当前所面临的问题**：
+  - `Stage 33` 虽然取得了当前最好结果，但仍然存在 `FixedWing -> RotaryDrone` 误判偏多的问题。
+  - 为了减少细粒度边界残差对 `Bird` 的潜在误导，需要验证“只在模型自己认为属于 `AircraftTarget` 时放大细粒度边界信号”是否更稳。
+- **解决方案**：
+  - 在最终输出层，把 `detail logits` 残差乘以粗类概率门控。
+  - 让 `detail` 分支继续只聚焦粗类内部存在歧义的类别。
+  - 对当前数据集，意味着细粒度边界信号主要服务于 `FixedWing` 与 `RotaryDrone`。
+- **方案利弊**：
+  - 优点：
+    - 进一步强化了“粗类先决策，细类再细分”的层级逻辑。
+    - 从设计上更不容易让 `Bird` 被错误拉进 `AircraftTarget`。
+  - 缺点：
+    - 过强的粗类门控会削弱细粒度残差对困难 `FixedWing` 样本的修正能力。
+    - 如果基础主干本身已经偏向 `RotaryDrone`，这类门控可能会进一步放大这种保守偏置。
+- **验证结果**：
+  - 运行目录：`artifacts/202603251557-5-4-cuda`
+  - 独立评估：`Accuracy=0.8252`，`Macro F1=0.6572`
+  - 混淆矩阵表现：
+    - `Bird`：`82/82` 正确
+    - `FixedWing`：`4/29` 正确，`21` 条被判成 `RotaryDrone`，`4` 条被判成 `Bird`
+    - `RotaryDrone`：`32/32` 正确
+- **与 Stage 33 对比**：
+  - `Bird` 保持稳定，没有再出现额外的 `Bird` 边界问题。
+  - 但 `FixedWing` 召回从 `9/29` 下降到 `4/29`，说明这次门控把模型推向了更保守的 `RotaryDrone` 偏置。
+  - 整体结果低于 `Stage 33` 的 `Accuracy=0.8531`、`Macro F1=0.7372`。
+- **结论判断**：
+  - 这次验证说明：
+    - “细粒度边界信号直接进入最终决策”这个方向是对的；
+    - 但“再额外叠加过强的粗类概率门控”会削弱困难 `FixedWing` 样本的纠偏力度。
+  - 当前最佳主路线仍然是 `Stage 33`，而不是这次门控版本。
+- **下一步方向**：
+  - 后续若继续压缩 `FixedWing -> RotaryDrone` 误判，更应该围绕 `FixedWing` 的召回补偿与边界强化展开，而不是继续压低 `detail` 残差的作用强度。
+
+
+## Stage 35 - 验证集驱动的组内 Logit 校准
+
+- **当前阶段**：在 `Stage 33` 的最佳主路线之上，引入验证集驱动的组内 logit 校准，专门压缩 `FixedWing -> RotaryDrone` 的剩余误判。
+- **当前所面临的问题**：
+  - `Stage 33` 已经证明“细粒度边界表示直接进入最终决策”是有效方向，但 `FixedWing` 召回仍然偏低。
+  - 这说明当前主模型已经有可用边界信息，但最终类间决策阈值在 `AircraftTarget` 内部仍然偏向 `RotaryDrone`。
+- **解决方案**：
+  - 使用最佳 run `artifacts/202603251500-5-4-cuda` 的验证集 logits。
+  - 只在同一粗类内部做 logit bias 搜索，不影响 `Bird` 这类已稳定分开的类别。
+  - 当前公开数据集自动搜索得到的最优校准 bias 为：
+    - `Bird: 0.0`
+    - `FixedWing: +0.9`
+    - `RotaryDrone: -0.9`
+  - 把该 bias 写入新的校准 checkpoint，并通过正式评估链路验证。
+- **方案利弊**：
+  - 优点：
+    - 不改动已验证有效的主干表达，只修正组内决策阈值偏置。
+    - 只作用于粗类内部，避免破坏 `Bird` 的稳定边界。
+    - 形式可扩展到未来 `5` 大类、`20+` 子类：每个粗类内部都可以独立做验证集驱动校准。
+  - 缺点：
+    - 这是后处理校准，不等于主干表示本身已经彻底解决所有内部边界问题。
+    - 后续在真实大规模数据集上仍然需要验证该校准策略是否稳定。
+- **验证结果**：
+  - 校准产物目录：`artifacts/202603251624-5-4-cuda`
+  - 独立评估：`Accuracy=0.8671`，`Macro F1=0.7673`
+  - 混淆矩阵表现：
+    - `Bird`：`82/82` 正确
+    - `FixedWing`：`11/29` 正确，`18` 条被判成 `RotaryDrone`
+    - `RotaryDrone`：`31/32` 正确，仅 `1` 条被判成 `FixedWing`
+- **与历史结果对比**：
+  - 相比 `Stage 33` 的 `Accuracy=0.8531`、`Macro F1=0.7372`，本次结果继续提升。
+  - 相比旧历史最好 `Stage 24` 的 `Accuracy=0.7972`、`Macro F1=0.5644`，提升更明显。
+- **结论判断**：
+  - 当前最有效的路线已经明确：
+    - 主干使用 `Stage 33` 的边界表示增强；
+    - 决策层使用验证集驱动的组内 logit 校准。
+  - 这说明当前残余问题更像“组内决策阈值偏置”，而不是“完全缺失边界信息”。
+  - 因此，下一阶段不应急于继续大改主干，而应先把这条“边界表示 + 组内校准”的主路线稳定下来，并在后续真实大规模数据集上验证是否仍然成立。
+## Stage 36 - Cosine Detail Head For Intra-Coarse Separation
+
+- **Current Stage**: continue the main line on CPU after reviewing the latest best calibrated path.
+- **Current Problem**:
+  - The current best path already solves cross-group separation well.
+  - The remaining bottleneck is still inside the same coarse group, especially `FixedWing` vs `RotaryDrone`.
+  - The existing detail head is still a standard linear classifier, which may be too weak for fine-grained intra-group separation.
+- **Solution**:
+  - Replace the detail classifier with a cosine-based classifier.
+  - Normalize both detail features and class weights, and use a learnable scale.
+  - Keep the rest of the hierarchical path unchanged so the update remains low-risk and CPU-friendly.
+- **Pros**:
+  - More general than a current-dataset-specific patch.
+  - Better aligned with future `5` main classes and `20+` subclasses.
+  - Usually improves fine-grained boundaries without requiring a larger backbone.
+- **Cons**:
+  - Needs another manual training run to verify whether the better angular separation really improves `FixedWing` recall.
+  - If the upstream RD and track features are still weak, the cosine head alone cannot solve all fine-class confusion.
+## Stage 37 - Validation After Cosine Detail Head
+
+- **Current Stage**: validate the CPU main line after introducing the cosine-based detail classifier.
+- **Current Problem**:
+  - Before this run, the main bottleneck was still intra-coarse confusion inside `AircraftTarget`.
+  - `FixedWing` and `RotaryDrone` still needed a stronger fine-grained boundary.
+- **Solution**:
+  - Keep the hierarchical path and calibration path unchanged.
+  - Replace the detail classifier with a cosine-based classifier to improve angular separation between fine classes.
+  - Keep the implementation CPU-friendly and general for future larger datasets.
+- **Validation Result**:
+  - Manual run: `artifacts/202603252213-5-4-cpu`
+  - Independent evaluation:
+    - `Accuracy = 0.9301`
+    - `Macro F1 = 0.8900`
+    - `Loss = 0.3557`
+  - Confusion matrix summary:
+    - `Bird`: `82/82` correct
+    - `FixedWing`: `28/29` correct
+    - `RotaryDrone`: `23/32` correct, with remaining leakage mainly into `FixedWing`
+- **Pros**:
+  - This is a real generalization improvement, not just a cosmetic metric change.
+  - The current path now separates `Bird` perfectly and recovers `FixedWing` strongly.
+  - The method remains applicable to future `5` main classes and `20+` subclasses.
+- **Cons**:
+  - The remaining bottleneck has shifted: current recall loss now mainly comes from `RotaryDrone -> FixedWing` confusion.
+  - The next step should focus on making intra-aircraft boundaries more balanced, rather than only increasing `FixedWing` recall further.

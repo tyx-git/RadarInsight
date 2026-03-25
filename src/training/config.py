@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Mapping
 
 
@@ -22,7 +22,7 @@ class TrainingConfig:
     rd_frames: int = 24
     rd_height: int = 64
     rd_width: int = 64
-    rd_input_channels: int = 10
+    rd_input_channels: int = 12
     include_rd: bool = True
     track_feature_columns: tuple[str, ...] = (
         "range_m",
@@ -36,6 +36,8 @@ class TrainingConfig:
         "abs_speed_delta_mps",
         "acceleration_mps2",
         "turn_rate_degps",
+        "jerk_mps3",
+        "turn_acceleration_degps2",
         "range_jitter_m",
         "snr_delta_db",
     )
@@ -52,6 +54,10 @@ class TrainingConfig:
         "clip_range_monotonicity",
         "clip_abs_acceleration_mean_mps2",
         "clip_abs_turn_rate_mean_degps",
+        "clip_abs_jerk_mean_mps3",
+        "clip_abs_turn_acceleration_mean_degps2",
+        "clip_range_jitter_std_m",
+        "clip_speed_zero_crossing_rate",
         "clip_azimuth_std_deg",
         "clip_snr_mean_db",
     )
@@ -74,6 +80,19 @@ class TrainingConfig:
     label_smoothing: float = 0.05
     track_aux_loss_weight: float = 0.25
     rd_aux_loss_weight: float = 0.15
+    hierarchical_aux_loss_weight: float = 0.2
+    detail_aux_loss_weight: float = 0.1
+    detail_boundary_loss_weight: float = 0.2
+    detail_boundary_margin: float = 0.2
+    detail_logit_residual_weight: float = 0.2
+    detail_cosine_scale: float = 16.0
+    coarse_label_map: dict[str, str] = field(
+        default_factory=lambda: {
+            "Bird": "BiologicalTarget",
+            "FixedWing": "AircraftTarget",
+            "RotaryDrone": "AircraftTarget",
+        }
+    )
 
     @classmethod
     def from_dict(cls, values: Mapping[str, Any] | None = None) -> "TrainingConfig":

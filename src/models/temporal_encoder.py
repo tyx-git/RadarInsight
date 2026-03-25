@@ -54,6 +54,46 @@ class ResidualTemporalBlock(nn.Module):
         return self.activation(outputs + residual)
 
 
+class TemporalPatternBranch(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        kernel_size: int,
+        dropout: float,
+    ):
+        super().__init__()
+        padding = kernel_size // 2
+        self.input_projection = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+        )
+        self.temporal_network = nn.Sequential(
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=kernel_size, padding=padding, bias=False),
+            _build_temporal_norm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=kernel_size, padding=padding, bias=False),
+            _build_temporal_norm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.attention = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, sequence: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        projected = self.input_projection(sequence)
+        pattern_tokens = self.temporal_network(projected.transpose(1, 2)).transpose(1, 2)
+        attention_scores = self.attention(pattern_tokens).squeeze(-1)
+        attention_weights = torch.softmax(attention_scores, dim=1)
+        pooled_pattern = (attention_weights.unsqueeze(-1) * pattern_tokens).sum(dim=1)
+        return pattern_tokens, pooled_pattern
+
+
 class TrackTemporalEncoder(nn.Module):
     def __init__(
         self,
@@ -118,6 +158,42 @@ class TrackTemporalEncoder(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
         )
+
+        self.continuity_branch = TemporalPatternBranch(
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            kernel_size=5,
+            dropout=dropout,
+        )
+        self.smoothness_branch = TemporalPatternBranch(
+            input_dim=input_dim,
+            hidden_dim=output_dim,
+            kernel_size=5,
+            dropout=dropout,
+        )
+        self.maneuver_branch = TemporalPatternBranch(
+            input_dim=input_dim * 2,
+            hidden_dim=output_dim,
+            kernel_size=3,
+            dropout=dropout,
+        )
+        self.pattern_fusion = nn.Sequential(
+            nn.LayerNorm(output_dim * 3),
+            nn.Linear(output_dim * 3, output_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.pattern_gate = nn.Sequential(
+            nn.Linear(output_dim * 2, output_dim),
+            nn.GELU(),
+            nn.Linear(output_dim, output_dim),
+            nn.Sigmoid(),
+        )
+        self.pattern_token_projection = nn.Sequential(
+            nn.Linear(output_dim, output_dim),
+            nn.LayerNorm(output_dim),
+        )
+
         if global_feature_dim > 0:
             self.global_projection: nn.Module | None = nn.Sequential(
                 nn.Linear(global_feature_dim, output_dim),
@@ -131,13 +207,11 @@ class TrackTemporalEncoder(nn.Module):
                 nn.Linear(output_dim, output_dim),
                 nn.Sigmoid(),
             )
-            output_projection_input_dim = output_dim * 3
         else:
             self.global_projection = None
             self.global_gate = None
-            output_projection_input_dim = output_dim * 3
         self.output_projection = nn.Sequential(
-            nn.Linear(output_projection_input_dim, output_dim),
+            nn.Linear(output_dim * 4, output_dim),
             nn.GELU(),
             nn.Dropout(dropout),
         )
@@ -154,6 +228,16 @@ class TrackTemporalEncoder(nn.Module):
         )
         return resized.transpose(1, 2)
 
+    @staticmethod
+    def _temporal_difference(sequence: torch.Tensor) -> torch.Tensor:
+        previous = torch.cat([sequence[:, :1], sequence[:, :-1]], dim=1)
+        return sequence - previous
+
+    @staticmethod
+    def _smoothed_sequence(sequence: torch.Tensor) -> torch.Tensor:
+        smoothed = F.avg_pool1d(sequence.transpose(1, 2), kernel_size=3, stride=1, padding=1)
+        return smoothed.transpose(1, 2)
+
     def forward(
         self,
         track_sequence: torch.Tensor,
@@ -165,6 +249,22 @@ class TrackTemporalEncoder(nn.Module):
         transformer_output = self.transformer(temporal_features + position_encoding)
 
         token_embeddings = self.token_projection(transformer_output)
+
+        continuity_tokens, continuity_feature = self.continuity_branch(track_sequence)
+        smoothness_source = track_sequence - self._smoothed_sequence(track_sequence)
+        _, smoothness_feature = self.smoothness_branch(smoothness_source)
+        first_difference = self._temporal_difference(track_sequence)
+        second_difference = self._temporal_difference(first_difference)
+        maneuver_source = torch.cat([first_difference, second_difference], dim=-1)
+        maneuver_tokens, maneuver_feature = self.maneuver_branch(maneuver_source)
+
+        pattern_feature = self.pattern_fusion(
+            torch.cat([continuity_feature, smoothness_feature, maneuver_feature], dim=-1)
+        )
+        pattern_token_source = (continuity_tokens.mean(dim=1) + maneuver_tokens.mean(dim=1) + pattern_feature) / 3.0
+        pattern_token = self.pattern_token_projection(pattern_token_source).unsqueeze(1)
+        token_embeddings = torch.cat([token_embeddings, pattern_token], dim=1)
+
         attention_scores = self.attention(token_embeddings).squeeze(-1)
         attention_weights = torch.softmax(attention_scores, dim=1)
         attentive_context = (attention_weights.unsqueeze(-1) * token_embeddings).sum(dim=1)
@@ -176,7 +276,6 @@ class TrackTemporalEncoder(nn.Module):
         raw_max = track_sequence.max(dim=1).values
         summary_feature = self.summary_projection(torch.cat([raw_mean, raw_std, raw_min, raw_max], dim=-1))
 
-        output_features = [sequence_mean, attentive_context]
         if self.global_projection is not None and self.global_gate is not None:
             if track_global_features is None:
                 track_global_features = torch.zeros(
@@ -187,9 +286,13 @@ class TrackTemporalEncoder(nn.Module):
             global_feature = self.global_projection(track_global_features)
             global_gate = self.global_gate(torch.cat([summary_feature, global_feature], dim=-1))
             merged_summary = summary_feature + global_gate * global_feature
-            output_features.append(merged_summary)
         else:
-            output_features.append(summary_feature)
+            merged_summary = summary_feature
 
-        pooled_embedding = self.output_projection(torch.cat(output_features, dim=-1))
+        pattern_gate = self.pattern_gate(torch.cat([merged_summary, pattern_feature], dim=-1))
+        boundary_pattern_feature = pattern_feature + pattern_gate * pattern_feature
+
+        pooled_embedding = self.output_projection(
+            torch.cat([sequence_mean, attentive_context, merged_summary, boundary_pattern_feature], dim=-1)
+        )
         return token_embeddings, pooled_embedding

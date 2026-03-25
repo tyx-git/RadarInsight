@@ -80,12 +80,87 @@ class CrossAttentionFusionBlock(nn.Module):
         return track_tokens, rd_tokens
 
 
+class CosineClassifier(nn.Module):
+    def __init__(self, input_dim: int, num_classes: int, scale: float):
+        super().__init__()
+        self.feature_norm = nn.LayerNorm(input_dim)
+        self.weight = nn.Parameter(torch.empty(num_classes, input_dim))
+        self.log_scale = nn.Parameter(torch.log(torch.tensor(float(scale))))
+        nn.init.xavier_uniform_(self.weight)
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        normalized_features = torch.nn.functional.normalize(self.feature_norm(features), dim=-1)
+        normalized_weight = torch.nn.functional.normalize(self.weight, dim=-1)
+        return torch.exp(self.log_scale) * (normalized_features @ normalized_weight.t())
+
+
+class HierarchicalClassifierHead(nn.Module):
+    def __init__(
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        num_classes: int,
+        num_coarse_classes: int,
+        dropout: float,
+        detail_cosine_scale: float,
+    ):
+        super().__init__()
+        self.coarse_projection = nn.Sequential(
+            nn.LayerNorm(input_dim),
+            nn.Linear(input_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.detail_projection = nn.Sequential(
+            nn.LayerNorm(input_dim),
+            nn.Linear(input_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.detail_gate = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.Sigmoid(),
+        )
+        self.coarse_classifier = nn.Sequential(
+            nn.LayerNorm(hidden_dim),
+            nn.Linear(hidden_dim, num_coarse_classes),
+        )
+        self.detail_classifier = CosineClassifier(
+            input_dim=hidden_dim,
+            num_classes=num_classes,
+            scale=detail_cosine_scale,
+        )
+        self.final_classifier = nn.Sequential(
+            nn.LayerNorm(hidden_dim * 2),
+            nn.Linear(hidden_dim * 2, hidden_dim * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim * 2, num_classes),
+        )
+
+    def forward(
+        self,
+        fused_feature: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        coarse_feature = self.coarse_projection(fused_feature)
+        detail_feature = self.detail_projection(fused_feature)
+        detail_gate = self.detail_gate(torch.cat([coarse_feature, detail_feature], dim=-1))
+        detail_feature = detail_feature + detail_gate * coarse_feature
+        coarse_logits = self.coarse_classifier(coarse_feature)
+        detail_logits = self.detail_classifier(detail_feature)
+        logits = self.final_classifier(torch.cat([coarse_feature, detail_feature], dim=-1))
+        return logits, coarse_logits, detail_logits, coarse_feature, detail_feature
+
+
 class FusionRadarClassifier(nn.Module):
     def __init__(
         self,
         track_input_dim: int,
         track_global_feature_dim: int,
         num_classes: int,
+        num_coarse_classes: int | None = None,
         include_rd: bool = True,
         track_projection_dim: int = 128,
         tcn_channels: Sequence[int] = (128, 128, 256),
@@ -105,10 +180,14 @@ class FusionRadarClassifier(nn.Module):
         cross_attention_heads: int = 4,
         cross_attention_dropout: float = 0.1,
         fusion_hidden_size: int = 256,
+        detail_logit_residual_weight: float = 0.2,
+        detail_cosine_scale: float = 16.0,
     ):
         super().__init__()
         self.include_rd = include_rd
         self.fusion_hidden_size = fusion_hidden_size
+        self.detail_logit_residual_weight = float(detail_logit_residual_weight)
+        resolved_num_coarse_classes = num_classes if num_coarse_classes is None else num_coarse_classes
 
         self.track_encoder = TrackTemporalEncoder(
             input_dim=track_input_dim,
@@ -176,15 +255,16 @@ class FusionRadarClassifier(nn.Module):
             self.fusion_blocks = nn.ModuleList()
             self.track_reliability_head = None
             self.rd_reliability_head = None
-            self.unimodal_logit_residual = None
+            self.unimodal_logit_residual = nn.Parameter(torch.tensor(0.15))
             classifier_input_dim = fusion_hidden_size
 
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(classifier_input_dim),
-            nn.Linear(classifier_input_dim, fusion_hidden_size * 2),
-            nn.GELU(),
-            nn.Dropout(cross_attention_dropout),
-            nn.Linear(fusion_hidden_size * 2, num_classes),
+        self.hierarchical_head = HierarchicalClassifierHead(
+            input_dim=classifier_input_dim,
+            hidden_dim=fusion_hidden_size,
+            num_classes=num_classes,
+            num_coarse_classes=resolved_num_coarse_classes,
+            dropout=cross_attention_dropout,
+            detail_cosine_scale=detail_cosine_scale,
         )
 
     def forward(
@@ -198,10 +278,21 @@ class FusionRadarClassifier(nn.Module):
         track_logits = self.track_classifier(track_feature)
 
         if not self.include_rd:
+            logits, coarse_logits, detail_logits, coarse_feature, detail_feature = self.hierarchical_head(track_feature)
+            unimodal_logit_residual = self.unimodal_logit_residual
+            if unimodal_logit_residual is not None:
+                logits = logits + unimodal_logit_residual * track_logits
+            logits = logits + self.detail_logit_residual_weight * detail_logits
             return {
-                "logits": track_logits,
+                "logits": logits,
                 "track_logits": track_logits,
                 "rd_logits": None,
+                "coarse_logits": coarse_logits,
+                "detail_logits": detail_logits,
+                "coarse_feature": coarse_feature,
+                "detail_feature": detail_feature,
+                "track_weight": torch.ones((track_feature.size(0), 1), dtype=track_feature.dtype, device=track_feature.device),
+                "rd_weight": torch.zeros((track_feature.size(0), 1), dtype=track_feature.dtype, device=track_feature.device),
             }
 
         rd_encoder = self.rd_encoder
@@ -256,18 +347,23 @@ class FusionRadarClassifier(nn.Module):
             ],
             dim=-1,
         )
-        logits = self.classifier(fused_feature)
+        logits, coarse_logits, detail_logits, coarse_feature, detail_feature = self.hierarchical_head(fused_feature)
 
         unimodal_logit_residual = self.unimodal_logit_residual
         if unimodal_logit_residual is not None:
             logits = logits + unimodal_logit_residual * (
                 track_logits * track_weight + rd_logits * rd_weight
             )
+        logits = logits + self.detail_logit_residual_weight * detail_logits
 
         return {
             "logits": logits,
             "track_logits": track_logits,
             "rd_logits": rd_logits,
+            "coarse_logits": coarse_logits,
+            "detail_logits": detail_logits,
+            "coarse_feature": coarse_feature,
+            "detail_feature": detail_feature,
             "track_weight": track_weight,
             "rd_weight": rd_weight,
         }
