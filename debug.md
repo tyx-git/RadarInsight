@@ -862,7 +862,7 @@
   - Apply the learned bias only as post-training calibration.
 - **Validation Result**:
   - Source checkpoint: `artifacts/202603252213-5-4-cpu`
-  - Calibrated artifact: `artifacts/202603252213-5-4-cpu-calibrated`
+  - Calibrated artifact: `artifacts/calibrated/202603252213-5-4-cpu-calibrated`
   - Independent evaluation after calibration:
     - `Accuracy = 0.9371`
     - `Macro F1 = 0.9012`
@@ -878,3 +878,205 @@
 - **Cons**:
   - This is still a post-training calibration step, not a replacement for better representation learning.
   - Future larger datasets still need to verify whether the same bias magnitude remains stable.
+## Stage 39 - Fine-Grained Calibration Becomes The Main Follow-Up Direction
+
+- **Current Stage**: after the calibrated CPU best result, the backbone can temporarily stabilize and the main follow-up direction shifts to fine-grained calibration and intra-group decision balance.
+- **Current Problem**:
+  - The main trunk is already strong enough for the current sample dataset.
+  - The remaining errors are no longer broad class collapses, but mainly residual fine-grained confusion inside the same coarse group.
+- **Solution**:
+  - Standardize calibrated outputs under `artifacts/calibrated/`.
+  - Treat calibration as an explicit stage in the main workflow instead of a one-off side experiment.
+  - Use the current best backbone as the stable base and focus future work on finer decision calibration rather than immediately changing the backbone again.
+- **Pros**:
+  - Keeps the engineering path clean and easier to scale.
+  - Prevents unnecessary backbone churn when the current representation is already strong.
+  - Matches the future direction of larger taxonomies with more subclasses.
+- **Cons**:
+  - Calibration is still downstream of representation learning, so it cannot permanently replace stronger future feature learning if the data distribution changes a lot.
+
+
+## Stage 40 - Excel To TSV Real Track Pipeline
+
+- **Current Stage**: shift the project from the old public-session path toward the newly acquired real Excel dataset.
+- **Current Problem**:
+  - The current real dataset provides track data and manual labels in paired Excel files, not RD cubes.
+  - The old default path still assumes `data/sessions` and an RD-enabled workflow.
+  - Raw vendor export formats should not be read directly by the model stack.
+- **Solution**:
+  - Add a standardized `Excel -> TSV -> data/tsv` pipeline.
+  - Keep `pro/` as the processing and human-review workspace.
+  - Keep `data/` as the training source only.
+  - Preserve the RD route as a future extension, but disable it in the default real-data training path.
+- **Pros**:
+  - The training stack now depends on a normalized schema rather than a vendor-specific export format.
+  - Future radar exports can be supported by adding processors without rewriting the model stack.
+  - This fits the current real dataset, which is track-only.
+- **Cons**:
+  - The old session-based `mat` path and the new TSV path now coexist, so the codebase temporarily contains two ingestion routes.
+  - The track dataset reader still needs a dedicated adapter in the next step before the new TSV route becomes the full default training path.
+
+
+## Stage 41 - TSV Training Adapter For Real Excel Tracks
+
+- **Current Stage**: make the standardized real Excel TSV dataset usable by the training stack without reading raw Excel files directly.
+- **Current Problem**:
+  - The new `prepare-tsv` pipeline can already generate `pro/tsv` and `data/tsv`.
+  - The training stack still expected the old `data/sessions` structure and RD-related files.
+- **Solution**:
+  - Add a dedicated TSV dataset adapter.
+  - Add a TSV-aware session scanner and split builder.
+  - Switch the default training data root to `data/tsv` and disable RD by default for the current real dataset.
+- **Pros**:
+  - The model stack is now insulated from raw Excel parsing.
+  - The current real dataset can enter training through a stable standardized interface.
+  - Future radar exports can be supported by adding processors instead of rewriting the training code.
+- **Cons**:
+  - The codebase still carries the old session/RD path in parallel for future reuse.
+  - The next phase still needs training-side validation on the new TSV route.
+
+
+## Stage 42 - Environment Variable Modality Control
+
+- **Current Stage**: simplify runtime control and make modality selection independent from vendor-specific data paths.
+- **Current Problem**:
+  - RD and track switches were previously scattered across CLI flags and config defaults.
+  - This made the command surface noisy and harder to align with the new real-data route.
+- **Solution**:
+  - Use environment variables as the single runtime control interface for modality switches.
+  - `TRACK=true|false` controls the track branch.
+  - `RD=true|false` controls the RD branch.
+  - Remove redundant CLI flags that duplicated the same modality decisions.
+- **Pros**:
+  - Cleaner command surface.
+  - Easier to switch between track-only, RD-only, and dual-branch modes without changing code.
+  - Fits the new processor-based data architecture better.
+- **Cons**:
+  - Users now need to remember the environment variable layer.
+  - The RD path still remains a future extension for datasets that actually include RD inputs.
+
+
+## Stage 43 - Default Environment Switches Stay Fully Enabled
+
+- **Current Stage**: keep environment-variable control as the runtime interface, but set both modality defaults to enabled.
+- **Current Problem**:
+  - The current real Excel dataset is track-first, yet the project should remain ready for future RD-enabled datasets.
+  - Defaulting RD off would better fit the current data, but would understate the intended long-term dual-branch architecture.
+- **Solution**:
+  - Keep `TRACK=true` and `RD=true` as the global defaults in config.
+  - Document that the current recommended real-data commands still explicitly use `TRACK=true RD=false` for the Excel track route.
+- **Pros**:
+  - Preserves the long-term dual-branch architecture as the default project posture.
+  - Keeps runtime control explicit and flexible.
+- **Cons**:
+  - Current users must still explicitly turn RD off when working with the present Excel-only dataset.
+
+
+## Stage 44 - TSV Track-Only Route Reaches Trainable State
+
+- **Current Stage**: finish the last compatibility fixes so the real Excel TSV route can enter actual training.
+- **Current Problem**:
+  - The TSV route already supported dataset loading and forward passes, but the trainer still carried old session-manager interfaces and old RD assumptions.
+  - The old coarse taxonomy also remained tied to the previous three-class route.
+- **Solution**:
+  - Restore trainer-compatible session-manager wrappers.
+  - Make runtime modality logic consistently follow `TRACK` and `RD` environment variables.
+  - Replace the old three-class coarse taxonomy with a real-label coarse taxonomy for the current TSV dataset.
+  - Reduce RD placeholder overhead for the track-only route.
+- **Pros**:
+  - The real TSV route is now trainable without going back to the old public session dataset.
+  - The training stack remains extensible for future RD-enabled datasets.
+- **Cons**:
+  - The current route is still track-first; RD-specific learning remains deferred until a real RD processor is available.
+
+
+## Stage 45 - Remove Residual Old-Dataset Type Coupling
+
+- **Current Stage**: fix the last runtime blockers exposed when the real TSV route entered actual training.
+- **Current Problem**:
+  - The training stack still contained residual references to `RadarFusionDataset` in type annotations and direct construction paths.
+  - This caused import-time failures when the real TSV route was used.
+- **Solution**:
+  - Remove hard coupling to the old dataset class in trainer, evaluator, and calibration.
+  - Route dataset construction uniformly through the TSV-aware dataset factory.
+  - Keep compatibility wrappers for session manifests and split saving.
+- **Pros**:
+  - The real TSV route can now enter training without import-time failures.
+  - The stack becomes more data-source-agnostic.
+- **Cons**:
+  - The codebase still carries compatibility layers for the older session/RD route until the future RD processor is reintroduced.
+
+
+## Stage 46 - Restore Missing Normalization Interfaces For TSV Training
+
+- **Current Stage**: resolve the last trainer-to-dataset compatibility gap before the first real TSV training run.
+- **Current Problem**:
+  - The TSV dataset already supported loading and forward passes, but the trainer still expected normalization-fit methods from the older dataset implementation.
+  - This caused runtime failures inside `build_dataloaders`.
+- **Solution**:
+  - Add normalization-fit helpers and session indexing to the TSV dataset.
+  - Keep method names aligned with the trainer so the existing training loop can remain stable.
+- **Pros**:
+  - The TSV route now matches the trainer contract and can enter real training.
+  - No extra special-case training path is needed.
+- **Cons**:
+  - The compatibility surface is still larger than a clean-slate TSV-only trainer, but this is acceptable during the transition period.
+
+
+## Stage 47 - Adopt The A-Scheme Coarse Taxonomy For The Real TSV Route
+
+- **Current Stage**: prefer a more stable coarse hierarchy for the current real TSV dataset before moving toward the future 5-main-class business taxonomy.
+- **Current Problem**:
+  - The real TSV dataset currently has 11 fine labels with strong class imbalance.
+  - A direct business-style 5-group taxonomy is attractive long-term, but too coarse for the current sample size and could make intra-group learning unstable.
+- **Solution**:
+  - Switch to the A-scheme coarse taxonomy:
+    - `HumanTarget`
+    - `BirdTarget`
+    - `DroneTarget`
+    - `AircraftTarget`
+    - `SurfaceTarget`
+    - `UnknownTarget`
+    - `NoiseTarget`
+- **Pros**:
+  - Better aligned with the current data reality.
+  - Easier to learn than a too-coarse 5-group hierarchy.
+  - Still compatible with a future move toward 5 main classes and more subclasses.
+- **Cons**:
+  - This is a transitional hierarchy rather than the final business-facing taxonomy.
+
+
+## Stage 48 - Train The Current Real TSV Route On A-Scheme Coarse Labels
+
+- **Current Stage**: prioritize a usable version on the current sample dataset by training directly on the accepted A-scheme coarse targets.
+- **Current Problem**:
+  - The current sample dataset is too sparse and imbalanced for stable 11-subclass training.
+  - A fine-label objective wastes epochs on boundaries that the current sample size cannot support reliably.
+- **Solution**:
+  - Keep fine labels in the TSV data for future expansion.
+  - Switch the current training target to the 7-class A-scheme coarse labels.
+  - Use the existing track-first route to optimize a usable coarse classifier first.
+- **Pros**:
+  - Much more realistic for the current sample dataset.
+  - Keeps the long-term fine-label path intact in the data layer.
+  - Better aligned with the immediate goal of producing a usable version.
+- **Cons**:
+  - Current outputs are coarse classes rather than the final desired fine taxonomy.
+  - Fine-grained subclass learning must return when the larger real dataset arrives.
+
+
+## Stage 49 - Restore The Best Validated TSV Track Baseline
+
+- **Current Stage**: prepare a stable baseline before introducing the graph-based track backbone.
+- **Current Problem**:
+  - The worktree had accumulated multiscale, notes-supervision, larger-backbone, and expert-head experiments that did not beat the best real TSV run.
+  - Continuing from that mixed state would make it hard to judge whether a graph track backbone truly helps.
+- **Solution**:
+  - Restore the validated track backbone behind `artifacts/202603312215-5-4-cpu`.
+  - Revert the default track encoder width/depth and the global feature layout to the best empirically validated TSV baseline.
+  - Keep later compatibility hooks in place, but treat the restored baseline as the clean starting point for the next architecture experiment.
+- **Pros**:
+  - Future graph-track experiments will be compared against a clean, known-good baseline.
+  - Avoids attributing gains or losses to leftover unsuccessful experiments.
+- **Cons**:
+  - Some later exploratory code paths remain in the repository, even though the default baseline no longer depends on them.

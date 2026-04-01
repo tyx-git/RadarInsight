@@ -19,16 +19,30 @@ class TrainingConfig:
     warmup_epochs: int = 2
     max_grad_norm: float = 1.0
     sequence_length: int = 16
+    track_short_length: int = 8
+    track_mid_length: int = 16
+    track_long_length: int = 16
+    track_window_points: int = 24
+    track_window_stride_points: int = 8
+    track_min_window_points: int = 8
     rd_frames: int = 24
     rd_height: int = 64
     rd_width: int = 64
     rd_input_channels: int = 12
+    include_track: bool = True
     include_rd: bool = True
+    label_granularity: str = "coarse"
     track_feature_columns: tuple[str, ...] = (
         "range_m",
         "azimuth_deg",
         "radial_speed_mps",
         "abs_radial_speed_mps",
+        "speed_mps",
+        "height_m",
+        "elevation_deg",
+        "course_deg",
+        "amplitude_db",
+        "noise_db",
         "snr_db",
         "delta_range_m",
         "delta_azimuth_deg",
@@ -40,6 +54,11 @@ class TrainingConfig:
         "turn_acceleration_degps2",
         "range_jitter_m",
         "snr_delta_db",
+        "height_delta_m",
+        "elevation_delta_deg",
+        "course_delta_deg",
+        "amplitude_delta_db",
+        "noise_delta_db",
     )
     track_global_feature_columns: tuple[str, ...] = (
         "clip_range_mean_m",
@@ -54,12 +73,19 @@ class TrainingConfig:
         "clip_range_monotonicity",
         "clip_abs_acceleration_mean_mps2",
         "clip_abs_turn_rate_mean_degps",
-        "clip_abs_jerk_mean_mps3",
-        "clip_abs_turn_acceleration_mean_degps2",
         "clip_range_jitter_std_m",
         "clip_speed_zero_crossing_rate",
         "clip_azimuth_std_deg",
         "clip_snr_mean_db",
+        "clip_height_mean_m",
+        "clip_height_span_m",
+        "clip_elevation_mean_deg",
+        "clip_elevation_std_deg",
+        "clip_course_std_deg",
+        "clip_amplitude_mean_db",
+        "clip_noise_mean_db",
+        "clip_speed_energy_low",
+        "clip_speed_energy_mid",
     )
     track_projection_dim: int = 128
     tcn_channels: tuple[int, ...] = (128, 128, 256)
@@ -86,11 +112,21 @@ class TrainingConfig:
     detail_boundary_margin: float = 0.2
     detail_logit_residual_weight: float = 0.2
     detail_cosine_scale: float = 16.0
+    notes_aux_loss_weight: float = 0.0
+    bird_drone_aux_loss_weight: float = 0.0
     coarse_label_map: dict[str, str] = field(
         default_factory=lambda: {
-            "Bird": "BiologicalTarget",
-            "FixedWing": "AircraftTarget",
-            "RotaryDrone": "AircraftTarget",
+            "human": "HumanTarget",
+            "bird": "BirdTarget",
+            "drone": "DroneTarget",
+            "micro_aircraft": "AircraftTarget",
+            "small_aircraft": "AircraftTarget",
+            "large_aircraft": "AircraftTarget",
+            "vehicle": "SurfaceTarget",
+            "vessel": "SurfaceTarget",
+            "suspected_balloon": "UnknownTarget",
+            "unknown": "UnknownTarget",
+            "clutter": "NoiseTarget",
         }
     )
 

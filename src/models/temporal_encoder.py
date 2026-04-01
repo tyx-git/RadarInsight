@@ -104,12 +104,18 @@ class TrackTemporalEncoder(nn.Module):
         transformer_layers: int = 3,
         attention_heads: int = 4,
         dropout: float = 0.1,
-        max_sequence_length: int = 64,
+        max_sequence_length: int = 16,
+        short_sequence_length: int = 8,
+        mid_sequence_length: int = 16,
+        long_sequence_length: int = 16,
         output_dim: int = 256,
     ):
         super().__init__()
         self.output_dim = output_dim
         self.max_sequence_length = max_sequence_length
+        self.short_sequence_length = short_sequence_length
+        self.mid_sequence_length = mid_sequence_length
+        self.long_sequence_length = long_sequence_length
         self.global_feature_dim = global_feature_dim
 
         self.input_projection = nn.Sequential(
@@ -133,8 +139,6 @@ class TrackTemporalEncoder(nn.Module):
         self.temporal_network = nn.Sequential(*temporal_layers_list)
 
         self.position_embedding = nn.Parameter(torch.zeros(1, max_sequence_length, current_channels))
-        nn.init.normal_(self.position_embedding, mean=0.0, std=0.02)
-
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=current_channels,
             nhead=attention_heads,
@@ -147,16 +151,6 @@ class TrackTemporalEncoder(nn.Module):
         self.token_projection = nn.Sequential(
             nn.Linear(current_channels, output_dim),
             nn.LayerNorm(output_dim),
-        )
-        self.attention = nn.Sequential(
-            nn.Linear(output_dim, output_dim),
-            nn.GELU(),
-            nn.Linear(output_dim, 1),
-        )
-        self.summary_projection = nn.Sequential(
-            nn.Linear(input_dim * 4, output_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
         )
 
         self.continuity_branch = TemporalPatternBranch(
@@ -177,11 +171,11 @@ class TrackTemporalEncoder(nn.Module):
             kernel_size=3,
             dropout=dropout,
         )
+
         self.pattern_fusion = nn.Sequential(
             nn.LayerNorm(output_dim * 3),
             nn.Linear(output_dim * 3, output_dim),
             nn.GELU(),
-            nn.Dropout(dropout),
         )
         self.pattern_gate = nn.Sequential(
             nn.Linear(output_dim * 2, output_dim),
@@ -194,14 +188,22 @@ class TrackTemporalEncoder(nn.Module):
             nn.LayerNorm(output_dim),
         )
 
+        self.attention = nn.Sequential(
+            nn.Linear(output_dim, output_dim),
+            nn.GELU(),
+            nn.Linear(output_dim, 1),
+        )
+        self.summary_projection = nn.Sequential(
+            nn.Linear(input_dim * 4, output_dim),
+            nn.GELU(),
+        )
+
         if global_feature_dim > 0:
-            self.global_projection: nn.Module | None = nn.Sequential(
+            self.global_projection = nn.Sequential(
                 nn.Linear(global_feature_dim, output_dim),
                 nn.LayerNorm(output_dim),
-                nn.GELU(),
-                nn.Dropout(dropout),
             )
-            self.global_gate: nn.Module | None = nn.Sequential(
+            self.global_gate = nn.Sequential(
                 nn.Linear(output_dim * 2, output_dim),
                 nn.GELU(),
                 nn.Linear(output_dim, output_dim),
@@ -210,23 +212,18 @@ class TrackTemporalEncoder(nn.Module):
         else:
             self.global_projection = None
             self.global_gate = None
+
         self.output_projection = nn.Sequential(
             nn.Linear(output_dim * 4, output_dim),
             nn.GELU(),
-            nn.Dropout(dropout),
         )
 
     def _position_encoding(self, sequence_length: int) -> torch.Tensor:
-        if sequence_length <= self.max_sequence_length:
+        if sequence_length <= self.position_embedding.size(1):
             return self.position_embedding[:, :sequence_length]
-
-        resized = F.interpolate(
-            self.position_embedding.transpose(1, 2),
-            size=sequence_length,
-            mode="linear",
-            align_corners=False,
-        )
-        return resized.transpose(1, 2)
+        extra = sequence_length - self.position_embedding.size(1)
+        padding = self.position_embedding[:, -1:].repeat(1, extra, 1)
+        return torch.cat([self.position_embedding, padding], dim=1)
 
     @staticmethod
     def _temporal_difference(sequence: torch.Tensor) -> torch.Tensor:
@@ -242,12 +239,13 @@ class TrackTemporalEncoder(nn.Module):
         self,
         track_sequence: torch.Tensor,
         track_global_features: torch.Tensor | None = None,
+        track_short_sequence: torch.Tensor | None = None,
+        track_long_sequence: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         projected = self.input_projection(track_sequence)
         temporal_features = self.temporal_network(projected.transpose(1, 2)).transpose(1, 2)
         position_encoding = self._position_encoding(temporal_features.size(1))
         transformer_output = self.transformer(temporal_features + position_encoding)
-
         token_embeddings = self.token_projection(transformer_output)
 
         continuity_tokens, continuity_feature = self.continuity_branch(track_sequence)

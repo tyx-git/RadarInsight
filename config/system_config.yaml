@@ -1,35 +1,35 @@
 radar:
-  ip: "192.168.0.100"
+  ip: 192.168.0.100
   port: 12345
-  type: "XW/SR215-3200C"
+  type: XW/SR215-3200C
   track_rate_hz: 2
   range_max_m: 6000
   azimuth_fov_deg: 90
   range_resolution_m: 8.0
   doppler_resolution_mps: 0.5
   zero_doppler_idx: 64
-
 capture:
-  save_dir: "data/sessions"
-  log_level: "INFO"
+  save_dir: data/sessions
+  log_level: INFO
   async_save: true
   chunk_size: 100
-
 pro_processing:
-  raw_root: "pro/raw"
-  output_root: "pro/sessions"
-  dataset_root: "data/sessions"
+  raw_root: pro/raw
+  output_root: pro/sessions
+  dataset_root: data/sessions
   range_scale_to_meter: 1000.0
   use_multires_rd: false
-  axis_mapping_mode: "calibrated_preferred"
+  axis_mapping_mode: calibrated_preferred
   doppler_window: 32
-  doppler_windows_to_test: [16, 32, 64]
+  doppler_windows_to_test:
+  - 16
+  - 32
+  - 64
   doppler_fft_size: 64
-  range_window_kind: "hann"
-  doppler_window_kind: "hann"
-  clutter_suppression_mode: "median_subtract"
+  range_window_kind: hann
+  doppler_window_kind: hann
+  clutter_suppression_mode: median_subtract
   micro_motion_alpha: 0.35
-
 preprocessing:
   window_size_s: 8.0
   overlap: 0.5
@@ -43,17 +43,15 @@ preprocessing:
   rd_align_peak_guard_ratio: 1.25
   rd_align_max_range_shift: 4
   rd_align_max_doppler_shift: 2
-
 labeling:
   time_threshold_s: 1.0
   dist_threshold_m: 20.0
   speed_threshold_mps: 3.0
   azimuth_threshold_deg: 5.0
   radar_yaw_deg: 0.0
-
 training:
-  data_root: "data/sessions"
-  output_dir: "artifacts/checkpoints"
+  data_root: data/tsv
+  output_dir: artifacts/checkpoints
   batch_size: 4
   epochs: 30
   learning_rate: 0.0003
@@ -69,45 +67,73 @@ training:
   rd_input_channels: 12
   include_rd: true
   track_feature_columns:
-    - "range_m"
-    - "azimuth_deg"
-    - "radial_speed_mps"
-    - "abs_radial_speed_mps"
-    - "snr_db"
-    - "delta_range_m"
-    - "delta_azimuth_deg"
-    - "speed_delta_mps"
-    - "abs_speed_delta_mps"
-    - "acceleration_mps2"
-    - "turn_rate_degps"
-    - "jerk_mps3"
-    - "turn_acceleration_degps2"
-    - "range_jitter_m"
-    - "snr_delta_db"
+  - range_m
+  - azimuth_deg
+  - radial_speed_mps
+  - abs_radial_speed_mps
+  - speed_mps
+  - height_m
+  - elevation_deg
+  - course_deg
+  - amplitude_db
+  - noise_db
+  - snr_db
+  - delta_range_m
+  - delta_azimuth_deg
+  - speed_delta_mps
+  - abs_speed_delta_mps
+  - acceleration_mps2
+  - turn_rate_degps
+  - jerk_mps3
+  - turn_acceleration_degps2
+  - range_jitter_m
+  - snr_delta_db
+  - height_delta_m
+  - elevation_delta_deg
+  - course_delta_deg
+  - amplitude_delta_db
+  - noise_delta_db
   track_global_feature_columns:
-    - "clip_range_mean_m"
-    - "clip_range_span_m"
-    - "clip_speed_mean_mps"
-    - "clip_speed_std_mps"
-    - "clip_speed_span_mps"
-    - "clip_abs_speed_mean_mps"
-    - "clip_abs_speed_std_mps"
-    - "clip_abs_speed_max_mps"
-    - "clip_speed_direction_consistency"
-    - "clip_range_monotonicity"
-    - "clip_abs_acceleration_mean_mps2"
-    - "clip_abs_turn_rate_mean_degps"
-    - "clip_abs_jerk_mean_mps3"
-    - "clip_abs_turn_acceleration_mean_degps2"
-    - "clip_range_jitter_std_m"
-    - "clip_speed_zero_crossing_rate"
-    - "clip_azimuth_std_deg"
-    - "clip_snr_mean_db"
+  - clip_range_mean_m
+  - clip_range_span_m
+  - clip_speed_mean_mps
+  - clip_speed_std_mps
+  - clip_speed_span_mps
+  - clip_abs_speed_mean_mps
+  - clip_abs_speed_std_mps
+  - clip_abs_speed_max_mps
+  - clip_speed_direction_consistency
+  - clip_range_monotonicity
+  - clip_abs_acceleration_mean_mps2
+  - clip_abs_turn_rate_mean_degps
+  - clip_abs_jerk_mean_mps3
+  - clip_abs_turn_acceleration_mean_degps2
+  - clip_range_jitter_std_m
+  - clip_speed_zero_crossing_rate
+  - clip_azimuth_std_deg
+  - clip_snr_mean_db
+  - clip_height_mean_m
+  - clip_height_span_m
+  - clip_elevation_mean_deg
+  - clip_elevation_std_deg
+  - clip_course_std_deg
+  - clip_amplitude_mean_db
+  - clip_noise_mean_db
+  - clip_speed_energy_low
+  - clip_speed_energy_mid
+  - clip_speed_energy_low
+  - clip_speed_energy_mid
+  - clip_speed_energy_high
+  - clip_range_energy_low
+  - clip_range_energy_mid
+  - clip_range_energy_high
+  - clip_speed_dominant_frequency_hz
+  - clip_range_dominant_frequency_hz
   track_projection_dim: 128
   tcn_channels:
-    - 128
-    - 128
-    - 256
+  - 128
+  - 128
+  - 256
   transformer_layers: 3
   transformer_heads: 4
   transformer_dropout: 0.1
@@ -117,25 +143,25 @@ training:
   fusion_hidden_size: 256
   x3d_stem_channels: 24
   x3d_stage_channels:
-    - 32
-    - 64
-    - 128
-    - 192
+  - 32
+  - 64
+  - 128
+  - 192
   x3d_stage_depths:
-    - 2
-    - 3
-    - 5
-    - 3
+  - 2
+  - 3
+  - 5
+  - 3
   x3d_spatial_strides:
-    - 1
-    - 2
-    - 2
-    - 2
+  - 1
+  - 2
+  - 2
+  - 2
   x3d_temporal_strides:
-    - 1
-    - 1
-    - 2
-    - 2
+  - 1
+  - 1
+  - 2
+  - 2
   x3d_bottleneck_expansion: 2.25
   x3d_se_ratio: 0.0625
   label_smoothing: 0.05
@@ -148,6 +174,25 @@ training:
   detail_logit_residual_weight: 0.2
   detail_cosine_scale: 16.0
   coarse_label_map:
-    Bird: BiologicalTarget
-    FixedWing: AircraftTarget
-    RotaryDrone: AircraftTarget
+    human: HumanTarget
+    bird: BirdTarget
+    drone: DroneTarget
+    micro_aircraft: AircraftTarget
+    small_aircraft: AircraftTarget
+    large_aircraft: AircraftTarget
+    vehicle: SurfaceTarget
+    vessel: SurfaceTarget
+    suspected_balloon: UnknownTarget
+    unknown: UnknownTarget
+    clutter: NoiseTarget
+  include_track: true
+  label_granularity: coarse
+  track_short_length: 8
+  track_mid_length: 16
+  track_long_length: 16
+  notes_aux_loss_weight: 0.0
+  bird_drone_aux_loss_weight: 0.0
+tsv_processing:
+  raw_root: pro/excel
+  output_root: pro/tsv
+  dataset_root: data/tsv
