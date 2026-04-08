@@ -15,7 +15,9 @@ class TrainingConfig:
     random_seed: int = 42
     num_workers: int = 0
     use_class_balanced_loss: bool = True
-    class_balance_beta: float = 0.999
+    class_balance_beta: float = 0.995
+    use_focal_loss: bool = True
+    focal_gamma: float = 1.25
     warmup_epochs: int = 2
     max_grad_norm: float = 1.0
     sequence_length: int = 16
@@ -32,6 +34,10 @@ class TrainingConfig:
     include_track: bool = True
     include_rd: bool = True
     label_granularity: str = "coarse"
+    track_backbone_type: str = "temporal"
+    use_track_window_mix: bool = True
+    track_window_mix_prob: float = 0.35
+    temporal_2d_branch_channels: int = 96
     track_feature_columns: tuple[str, ...] = (
         "range_m",
         "azimuth_deg",
@@ -114,19 +120,36 @@ class TrainingConfig:
     detail_cosine_scale: float = 16.0
     notes_aux_loss_weight: float = 0.0
     bird_drone_aux_loss_weight: float = 0.0
+    bird_surface_aux_loss_weight: float = 0.25
+    bird_surface_logit_residual_weight: float = 0.2
+    rd_dominant_fusion_bias: float = 0.35
+    rd_unimodal_logit_residual_weight: float = 0.18
+    bird_rd_aux_loss_weight: float = 0.15
+    bird_surface_rd_aux_loss_weight: float = 0.2
+    bird_surface_prototype_loss_weight: float = 0.2
+    bird_surface_prototype_margin: float = 0.35
+    bird_surface_sampling_boost: float = 1.25
+    bird_surface_triplet_loss_weight: float = 0.15
+    bird_surface_triplet_margin: float = 0.4
+    track_router_aux_loss_weight: float = 0.15
+    rd_bird_drone_aux_loss_weight: float = 0.15
+    best_metric_name: str = "val_composite"
+    best_metric_weights: dict[str, float] = field(default_factory=lambda: {"val_macro_f1": 0.7, "val_accuracy": 0.3})
+    early_stopping_patience: int = 6
+    early_stopping_min_delta: float = 0.002
     coarse_label_map: dict[str, str] = field(
         default_factory=lambda: {
             "human": "HumanTarget",
             "bird": "BirdTarget",
             "drone": "DroneTarget",
-            "micro_aircraft": "AircraftTarget",
-            "small_aircraft": "AircraftTarget",
-            "large_aircraft": "AircraftTarget",
-            "vehicle": "SurfaceTarget",
-            "vessel": "SurfaceTarget",
-            "suspected_balloon": "UnknownTarget",
+            "micro_aircraft": "DroneTarget",
+            "small_aircraft": "DroneTarget",
+            "large_aircraft": "DroneTarget",
+            "vehicle": "ShipTarget",
+            "vessel": "ShipTarget",
+            "suspected_balloon": "OtherTarget",
             "unknown": "UnknownTarget",
-            "clutter": "NoiseTarget",
+            "clutter": "OtherTarget",
         }
     )
 

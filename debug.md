@@ -1080,3 +1080,245 @@
   - Avoids attributing gains or losses to leftover unsuccessful experiments.
 - **Cons**:
   - Some later exploratory code paths remain in the repository, even though the default baseline no longer depends on them.
+
+
+## Stage 50 - Add Graph-Based Track Backbone On Top Of The Restored TSV Baseline
+
+- **Current Stage**: introduce a graph-based track backbone after restoring the best validated TSV baseline.
+- **Current Problem**:
+  - The restored temporal track baseline remains the best validated real-data result, but it appears to be approaching its ceiling on the final track-only dataset.
+  - Repeated scaling and auxiliary heads did not consistently beat the best baseline, suggesting that the next useful change should target the track representation itself.
+- **Solution**:
+  - Keep the restored temporal track backbone as the default baseline.
+  - Add a selectable `graph` track backbone that builds a temporal-similarity graph directly from the track sequence and applies graph message passing before classification.
+  - Wire the backbone choice through config so training, evaluation, and calibration can switch between `temporal` and `graph` without changing dataset code.
+- **Pros**:
+  - Provides a new representation family while preserving the validated baseline.
+  - Keeps the TSV track-only pipeline unchanged.
+  - Makes future experiments easier to compare because the backbone switch is explicit.
+- **Cons**:
+  - This is a new experimental branch and has not yet beaten the restored temporal baseline.
+  - Additional graph construction cost may not always translate into better accuracy.
+
+
+## Stage 51 - Centralize Runtime Control Into train.json And Clean Low-Value Artifacts
+
+- **Current Stage**: replace scattered runtime switches with a single JSON control file and remove clearly low-value artifacts.
+- **Current Problem**:
+  - Runtime behavior was spread across YAML defaults, CLI overrides, and environment variables.
+  - The `artifacts` directory accumulated poor runs and temporary evaluation folders that made iteration harder to track.
+- **Solution**:
+  - Introduce `train.json` as the single runtime control file for training, evaluation, calibration, and session inspection.
+  - Route track/RD switches and the track-backbone choice through `train.json`.
+  - Add an artifact cleaner that removes obvious failed runs and temporary evaluation folders while preserving known-good baselines and calibrated outputs.
+- **Pros**:
+  - Easier and more reproducible experimentation.
+  - Cleaner artifact space for future comparisons.
+  - Reduced dependence on ad-hoc environment variable state.
+- **Cons**:
+  - The CLI and docs must now stay aligned with `train.json` semantics.
+  - Care is required to avoid deleting runs that might still be useful for analysis.
+
+
+## Stage 52 - Evaluate The Graph Track Backbone Against The Restored TSV Baseline
+
+- **Current Stage**: compare the new graph-based track backbone against the restored temporal TSV baseline.
+- **Current Problem**:
+  - The temporal baseline is stable but appears close to its ceiling on the final track-only dataset.
+  - A graph-based backbone was introduced to test whether explicit temporal-similarity message passing can improve coarse target discrimination.
+- **Solution**:
+  - Run a controlled comparison using the same TSV data split and the same coarse-label objective.
+  - Keep all runtime controls centralized in `train.json`, switching only `track_backbone_type` between `temporal` and `graph`.
+- **Pros**:
+  - The graph branch trained successfully and confirmed that the new backbone is technically usable.
+  - Parameter count dropped significantly, which may still be useful for future efficiency-constrained deployments.
+- **Cons**:
+  - The graph backbone did not beat the restored temporal baseline on the current final dataset.
+  - The best graph run still underperformed the established best real TSV track-only result, so it remains an experimental branch rather than the new default.
+
+
+## Stage 53 - Add TR-Only Supplemental Sessions From pro/raw/TR
+
+- **Current Stage**: supplement the final track-only dataset with additional TR trajectories from `pro/raw/TR` to improve class balance at the coarse-target level.
+- **Current Problem**:
+  - The original final TSV dataset was highly imbalanced, especially for aircraft and surface-related categories, while some coarse classes remained under-supported.
+  - The user provided additional TR-only `.mat` files whose filenames already contain usable class hints.
+- **Solution**:
+  - Add a dedicated TR-only supplement processor that reads v7.3 MAT files with `h5py`.
+  - Map filename classes into the current token space and sync the resulting TSV sessions into `data/tsv`.
+  - Keep the supplement pipeline separate from the Excel pipeline so future data processors can be added without touching the model path.
+- **Pros**:
+  - The dataset now includes many more sessions and significantly better support for `bird`, `drone`, `large_aircraft`, `vehicle`, and `vessel`.
+  - The supplement processor is reusable for future TR-only batches.
+- **Cons**:
+  - The supplement still does not solve the scarcity of `human`, `clutter`, `small_aircraft`, and `suspected_balloon`.
+  - The first training run after supplementation still did not beat the best validated TSV baseline.
+
+
+## Stage 54 - Merge Suspected Balloon And Clutter Into Other And Rebuild Session Splits
+
+- **Current Stage**: make the coarse target objective more practical and make evaluation less dependent on a single test session.
+- **Current Problem**:
+  - `suspected_balloon` and `clutter` are both extremely low-support edge categories and their separation does not help the current practical objective.
+  - The previous split strategy effectively tied validation and testing to too few sessions, making the final metric overly sensitive to one difficult session.
+- **Solution**:
+  - Merge `suspected_balloon` and `clutter` into a shared coarse target, `OtherTarget`, while keeping `unknown` as `UnknownTarget`.
+  - Replace the old single-session holdout split heuristic with a multi-session greedy split that preserves label coverage while allocating multiple validation and test sessions.
+- **Pros**:
+  - The new coarse objective is more consistent with practical use and better matched to the current data scarcity.
+  - Validation and test metrics should become more stable and more representative of the full dataset.
+- **Cons**:
+  - Results before and after this split change are not directly comparable one-to-one.
+  - Extremely rare classes still remain a structural limitation of the final dataset.
+
+
+## Stage 55 - Try Long-Tail Balancing And Focal Loss Under The Stricter Multi-Session Split
+
+- **Current Stage**: test whether stronger long-tail balancing improves the new stricter evaluation setting.
+- **Current Problem**:
+  - Under the multi-session split, the model collapsed badly and the failure pattern suggested strong class imbalance and coarse-target confusion.
+  - The previous coarse training path had disabled class-balanced loss, which was too weak for the new distribution.
+- **Solution**:
+  - Re-enable class-balanced weighting in coarse training.
+  - Add focal-style cross-entropy to reduce domination by easy majority examples.
+  - Re-run training on the stricter multi-session split.
+- **Pros**:
+  - The validation curve showed some early positive signal and confirmed that the loss redesign is numerically stable.
+  - The approach remains generic and reusable for future long-tail settings.
+- **Cons**:
+  - On the current final dataset and stricter split, the new run still underperformed the earlier baseline and did not solve the generalization gap.
+  - This suggests the main problem is not only long-tail weighting, but also strong session/domain shift between train and test groups.
+
+
+## Stage 56 - Strengthen The Dual-Modal Temporal Backbone With Real Multi-Window Fusion
+
+- **Current Stage**: continue improving the dual-modal final-dataset backbone without replacing the validated temporal route.
+- **Current Problem**:
+  - The restored dual-modal baseline still underfits `BirdTarget` and tends to confuse it with `SurfaceTarget`.
+  - The previous so-called multi-window path did not truly inject short-window and long-window context into the temporal encoder for the session-based dual-modal route.
+  - Training samples remain limited, so naive backbone widening alone is unlikely to be sample-efficient.
+- **Solution**:
+  - Make the session-based dataset emit `track_short_features` and `track_long_features` just like the TSV route.
+  - Upgrade the temporal encoder with a lightweight time-by-feature 2D convolution branch plus explicit short/mid/long context fusion.
+  - Add train-only window-mix augmentation so long-window features become more robust under small-sample conditions.
+- **Pros**:
+  - Increases temporal representation capacity without discarding the validated temporal backbone.
+  - Uses small-sample-friendly augmentation instead of only increasing parameter count.
+  - Preserves compatibility with the current fusion and RD branches.
+- **Cons**:
+  - Adds extra temporal-path complexity and may require retuning of loss balance and learning rate.
+  - The gain is not guaranteed because the current bottleneck may still partly come from split bias and class support.
+
+
+## Stage 57 - Add A Bird-vs-Surface Specialist To The Dual-Modal Fusion Path
+
+- **Current Stage**: target the dominant coarse-class error after strengthening the temporal backbone.
+- **Current Problem**:
+  - The main dual-modal failure mode is still `BirdTarget` collapsing into `SurfaceTarget`.
+  - Generic backbone strengthening improved `AircraftTarget`, but did not recover `BirdTarget`.
+- **Solution**:
+  - Add a dedicated `bird_surface_head` trained only on `BirdTarget` and `SurfaceTarget` samples.
+  - Use its logit both as an auxiliary supervision target and as a lightweight residual correction on the final class logits.
+  - Keep the rest of the architecture unchanged so the experiment remains attributable.
+- **Pros**:
+  - Directly attacks the dominant current error boundary.
+  - Low-intrusion change that preserves the validated dual-modal baseline.
+- **Cons**:
+  - If the root cause is still RD representation instability, the expert head may only partially help.
+  - Adds another task-specific branch that must be watched for overfitting.
+
+
+## Stage 58 - Switch Track Backbone Toward DG-GCN
+
+- Current stage: replace the reinforced temporal default with a DG-GCN-style track backbone.
+- Current problem: the temporal backbone, even after multi-window and 2D temporal-feature convolution upgrades, still failed to recover BirdTarget under the final dual-modal split.
+- Solution: introduce a stronger graph-based track encoder with local adjacency, similarity adjacency, dynamic edge learning, graph message passing, and graph-summary fusion.
+- Pros and cons:
+  - Pros: more suitable for track relation modeling under strong session shift and class-boundary ambiguity.
+  - Cons: graph construction introduces more sensitivity to feature normalization and may require more careful tuning than the simpler temporal baseline.
+
+
+## Stage 59 - Revert Default Track Backbone After DG-GCN Regression
+
+- Current stage: keep DG-GCN as an experimental option but restore the validated temporal backbone as the default route.
+- Current problem: the first DG-GCN production attempt regressed from 67.49% to 30.35% accuracy under the final dual-modal split and failed to recover BirdTarget.
+- Solution: revert the default training route to temporal, preserve DG-GCN behind the backbone switch, and continue optimization from the stable line.
+- Pros and cons:
+  - Pros: avoids wasting training rounds on a regressed default route and keeps a reproducible stable baseline.
+  - Cons: DG-GCN remains unfinished and will need smaller, controlled experiments later.
+
+
+## Stage 60 - Shift Fusion to RD-Dominant and Add Bird-Specialized RD Heads
+
+- Current stage: move the dual-modal route back to RD-first optimization while keeping track as support.
+- Current problem: repeated experiments showed that BirdTarget still collapses, and continued track-backbone upgrades did not solve the boundary.
+- Solution: bias modality fusion toward RD, strengthen the RD unimodal residual path, and add Bird-sensitive RD auxiliary heads, especially for BirdTarget vs SurfaceTarget.
+- Pros and cons:
+  - Pros: better aligned with the historical high-performing route and the future real radar deployment path.
+  - Cons: if RD data quality is inconsistent across sessions, RD-dominant fusion can amplify RD-side noise and requires careful validation.
+
+
+## Stage 61 - Soften RD-First Bias and Move Bird Optimization into RD Representation
+
+- Current stage: keep the RD-first direction but pull back the overly strong RD fusion bias after a large regression.
+- Current problem: hard RD dominance and classifier-level Bird RD experts damaged SurfaceTarget and still failed to recover BirdTarget.
+- Solution: reduce RD fusion bias, reduce RD specialist loss weights, and move Bird-sensitive enhancement into the RD representation path itself.
+- Pros and cons:
+  - Pros: closer to the historical high-performing pattern where strong RD representation came before aggressive fusion bias.
+  - Cons: gains may be slower because the improvement is pushed into representation learning rather than explicit decision-time correction.
+
+
+## Stage 62 - Add Bird-Surface Prototype Constraint on RD Features
+
+- Current stage: move Bird discrimination from logit-level correction into the RD feature space itself.
+- Current problem: BirdTarget remained at zero recall even after a Bird-aware RD branch, which means the Bird cluster was still not stable enough in embedding space.
+- Solution: add a Bird-vs-Surface prototype-style RD feature loss that pulls Bird and Surface samples toward their own prototypes while enlarging inter-class separation.
+- Pros and cons:
+  - Pros: directly shapes the RD embedding space instead of only repairing the final decision layer.
+  - Cons: prototype losses depend on class presence within a batch and can be noisy when Bird samples are sparse.
+
+Stage 63 - Bird/Surface Sampling and Triplet Constraint
+- Problem: Bird sessions remain consistently collapsed into SurfaceTarget even after softer RD-first fusion and prototype loss.
+- Solution: increase Bird/Surface sampling frequency in the training loader and add an RD-feature triplet-style separation loss on Bird vs Surface.
+- Pros: directly attacks the dominant confusion pair at both sample distribution level and feature-space level.
+- Cons: may overfocus on Bird/Surface and still requires validation against overall coarse accuracy.
+
+Stage 64 - Soften Bird Reinforcement and Keep Bird-Aware Validation
+- Problem: strong Bird/Surface sampling plus triplet loss caused overfitting and poor test transfer.
+- Solution: reduce Bird/Surface sampling boost, disable triplet loss by default, and keep validation split explicitly Bird-aware so val remains representative of Bird test sessions.
+- Pros: stabilizes training while preserving Bird coverage in validation.
+- Cons: Bird remains hard and may still require further RD representation work.
+
+Stage 65 - Track Router and RD Air Specialist Backbone
+- Problem: the model still treats all classes through a mostly uniform fusion head, while Track is better at coarse routing and RD is better at hard air-target discrimination.
+- Solution: add a track coarse router (Surface/Aircraft/AmbiguousAir) and an RD bird-drone specialist head, then inject their signals as structured residuals into final logits.
+- Pros: matches the project strategy of Track for easy separation and RD for hard ambiguous air classes.
+- Cons: adds more auxiliary branches and requires validation to avoid new overfitting.
+
+
+## Stage 66 - Data Purification And Label Remap
+- Freeze the current supervised training route to paired TR/RD sessions only under `data/sessions`.
+- Keep `pro/excel` and TSV-derived datasets for review only; do not mix them into the dual-modal main training route.
+- Update coarse labels to `AircraftTarget`, `BirdTarget`, `DroneTarget`, and `ShipTarget`.
+- Normalize filename labels as: Bird -> BirdTarget, Rotary drone -> DroneTarget, Fixed-wing UAV -> DroneTarget, Helicopter -> AircraftTarget, Passenger ship -> ShipTarget, Speedboat -> ShipTarget.
+
+
+## Stage 67 - Balanced Split Weight Tuning
+- Recompute split after data purification and label remap.
+- Adopt a more conservative loss weighting setup for 4-class paired TR/RD training.
+- Set `class_balance_beta=0.995`, `focal_gamma=1.25`, and reduce `bird_surface_sampling_boost` to `1.25` to avoid overweighting Bird/Ship and worsening overfit.
+
+
+## Stage 68 - Early Stopping And Composite Selection
+- Stop using only `val_macro_f1` as the best-checkpoint criterion.
+- Use a composite validation score: `0.7 * val_macro_f1 + 0.3 * val_accuracy`.
+- Add early stopping with `patience=6` and `min_delta=0.002` to reduce overfitting under the new paired-session split.
+
+## Stage 69 - Stabilized Training Schedule For Paired RD/TR
+- Based on the first stable paired TR/RD run, reduced `learning_rate` from `3e-4` to `2e-4` and increased `epochs` from `5` to `12`.
+- Keep composite checkpoint selection and early stopping active so the run can stop near the best validation point instead of overfitting after epoch 2.
+
+## Stage 70 - Paired TR/RD Stable Baseline Improvement
+- Run `202604081748-30-4-cpu` under the purified paired TR/RD setup reached `Accuracy=0.7529`, `Macro F1=0.7494`, `Loss=1.5857`.
+- The stabilized training schedule (`lr=2e-4`, `epochs=12`, composite selection + early stopping) outperformed the previous paired-data baseline and produced a clearly stronger, more reliable reference point.
+- Best validation behavior appeared around epoch 4, and early stopping triggered at epoch 10 before deeper overfitting.

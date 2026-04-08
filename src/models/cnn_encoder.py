@@ -314,6 +314,47 @@ class SpectralStructureEnhancer(nn.Module):
         return self.activation(enhanced), structure_embedding
 
 
+class BirdSensitiveBranch(SpectralStructureBranch):
+    def __init__(self, channels: int, hidden_channels: int, dropout: float):
+        super().__init__(
+            channels=channels,
+            hidden_channels=hidden_channels,
+            kernels=((3, 1, 5), (5, 1, 9)),
+            dropout=dropout,
+        )
+
+
+class BirdAwareSpectralEnhancer(nn.Module):
+    def __init__(self, channels: int, hidden_channels: int, embedding_dim: int, dropout: float):
+        super().__init__()
+        self.bird_branch = BirdSensitiveBranch(channels=channels, hidden_channels=hidden_channels, dropout=dropout)
+        gate_hidden = max(16, hidden_channels * 2)
+        descriptor_dim = channels * 2
+        self.bird_gate = nn.Sequential(
+            nn.Linear(descriptor_dim, gate_hidden),
+            nn.GELU(),
+            nn.Linear(gate_hidden, 1),
+            nn.Sigmoid(),
+        )
+        self.bird_projection = nn.Sequential(
+            nn.Linear(descriptor_dim, embedding_dim),
+            nn.LayerNorm(embedding_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+        )
+        self.activation = nn.SiLU(inplace=True)
+
+    def forward(self, inputs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        bird_feature = self.bird_branch(inputs)
+        base_descriptor = inputs.mean(dim=(2, 3, 4))
+        bird_descriptor = bird_feature.mean(dim=(2, 3, 4))
+        descriptor = torch.cat([base_descriptor, bird_descriptor], dim=-1)
+        bird_weight = self.bird_gate(descriptor).view(-1, 1, 1, 1, 1)
+        enhanced = self.activation(inputs + bird_weight * bird_feature)
+        bird_embedding = self.bird_projection(descriptor)
+        return enhanced, bird_embedding
+
+
 class X3DStem(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -541,6 +582,12 @@ class X3DMicroMotionEncoder(nn.Module):
             structure_dim=embedding_dim,
             dropout=dropout,
         )
+        self.bird_sensitive_enhancer = BirdAwareSpectralEnhancer(
+            channels=in_channels,
+            hidden_channels=max(8, min(16, stem_channels // 2)),
+            embedding_dim=embedding_dim,
+            dropout=dropout,
+        )
         self.stem = X3DStem(in_channels=in_channels, out_channels=stem_channels)
 
         stages: list[nn.Module] = []
@@ -578,6 +625,8 @@ class X3DMicroMotionEncoder(nn.Module):
         features = self.spectral_axis_refiner(features)
         features = self.background_contrast_refiner(features)
         features, structure_embedding = self.spectral_structure_enhancer(features)
+        features, bird_embedding = self.bird_sensitive_enhancer(features)
+        structure_embedding = structure_embedding + 0.5 * bird_embedding
         features = self.stem(features)
         for stage in self.stages:
             features = stage(features)

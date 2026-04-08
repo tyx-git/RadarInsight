@@ -1,13 +1,6 @@
-# Algorithms Guide
-
-这组文档面向第一次接触本项目的同学。目标不是做论文式推导，而是帮助你快速看懂三件事：
-
-- 这个项目从原始 `.mat` 雷达数据到最终分类结果，中间经历了哪些核心算法步骤。
-- 每个算法模块的输入、输出、作用和源码落点分别是什么。
-- 当你要改代码、调模型、查问题时，应该优先看哪些文件。
-
+﻿# 算法文档索引
+这组文档面向第一次接触本项目的读者，目标不是做论文式推导，而是帮助你快速回答三件事：第一，项目从真实雷达 `.mat` 数据到最终分类结果，中间经历了哪些关键算法步骤；第二，每个算法模块的输入、输出、作用和源码落点分别是什么；第三，当你要改代码、调模型、查问题时，应该先看哪些文件。
 ## 建议阅读顺序
-
 1. `docs/algorithms/01_real_data_preparation.md`
 2. `docs/algorithms/02_tr_track_features.md`
 3. `docs/algorithms/03_dpl_to_rd_fft.md`
@@ -43,9 +36,10 @@
 33. `docs/algorithms/33_what_is_a_session_and_why_it_matters.md`
 34. `docs/algorithms/34_session_clip_track_sample_label_relationships.md`
 35. `docs/algorithms/35_how_to_read_training_history_and_choose_the_next_experiment.md`
-
+36. `docs/algorithms/36_current_best_model_full_explanation.md`
+37. `docs/algorithms/37_training_parameters_and_metrics_explained.md`
+38. `docs/algorithms/38_how_202603252213_5_4_cpu_calibrated_model_works.md`
 ## 建议同时打开的源码入口
-
 - `src/prodata/mat_session_builder.py`
 - `src/training/dataset.py`
 - `src/models/cnn_encoder.py`
@@ -54,82 +48,70 @@
 - `src/training/session_manager.py`
 - `src/training/trainer.py`
 - `src/training/evaluator.py`
+- `src/training/calibration.py`
 - `manage.py`
-
-## 你应该先建立的整体认知
-
-先把项目想成一条串起来的流水线：
-
+## 先建立的整体认识
+建议先把项目想成一条连续的数据流水线：
 ```text
 TR.mat / RD.mat(DPL)
-    -> pro/raw
-    -> prepare-pro
-    -> pro/sessions
-    -> data/sessions
-    -> RadarFusionDataset
-    -> Track branch + RD branch
-    -> Cross-Attention fusion
-    -> Classifier
-    -> train / evaluate / report
+-> pro/raw
+-> prepare-pro
+-> pro/sessions
+-> data/sessions
+-> RadarFusionDataset
+-> Track branch + RD branch
+-> Cross-Attention fusion
+-> Hierarchical classifier
+-> Calibration
+-> train / evaluate / report
 ```
-
-如果你只想快速上手，推荐先读完前 4 篇，再读第 14 篇。这样你会先知道数据是怎么来的、RD 是怎么变成可训练张量的，再去看模型结构就会容易很多。
-
-如果你对深度学习或雷达信号处理基础还不熟，可以继续补读：
-
+如果你只想快速上手，优先读前 4 篇，再读第 14 篇和第 36 篇。这样你会先知道数据是怎么来的、RD 是怎么变成可训练张量的、当前最优模型为什么这样设计，然后再回头看代码会轻松很多。
+## 基础补读
+如果你对深度学习或雷达信号处理基础还不熟，建议补读这些文档：
+- 第 10 篇：CNN 基础
+- 第 11 篇：时序神经网络基础
+- 第 12 篇：项目里的 Transformer 骨干
 - 第 15 篇：雷达信号处理基础
 - 第 16 篇：FFT、窗函数和分辨率
-- 第 17 篇：复数信号、IQ 和 `real / imag`
-- 第 18 篇：泛化、过拟合和 session 切分
+- 第 17 篇：复数信号、IQ 与 `real / imag`
+- 第 18 篇：泛化、过拟合与 `session` 切分
 - 第 19 篇：优化器、正则化和模型选择
-- 第 20 篇：项目中的 CSV / JSONL / HDF5 文件格式
-
-## 当前项目最值得注意的事实
-
-- 真实数据训练主路径目前是**单尺度 `DPL -> RD`**。
-- 当前默认 RD 输入是 `10` 通道，既保留局部 ROI，也保留全局上下文与符号不变视角。
-- 轨迹分支已经比较成熟，当前主要优化重点仍然在 RD 微动特征链路。
-- 标签来源于文件名，是 `session` 级弱监督，不是逐帧精标。
-- 当前图表与报告系统只保留真实结果输出到 `reports/real/`。
-
-## 读完这些文档后，你应当能回答的问题
-
-- 为什么这个项目不能只靠轨迹，也不能只靠 RD。
-- 为什么 RD 分支要保留复数信息，而不能只保留幅度图。
-- 为什么轨迹分支用了 `Residual TCN + Transformer` 而不是单纯 `GRU`。
-- 为什么融合层用了双向 `Cross-Attention` 而不是简单拼接。
-- 为什么训练和评估一定要按 `session` 切分，而不是随机打散 clip。
-
-如果你读完后还觉得某一段算法跳跃太快，优先回到第 14 篇，它会把整条链重新串一次。
-
+- 第 20 篇：CSV / JSONL / HDF5 文件格式
+## 当前项目最值得注意的事
+- 当前训练只面向真实环境，不再保留 fake 数据和 fake 报告链路。
+- 当前最优模型已经不是简单双分支拼接，而是“轨迹分支 + RD 分支 + 模态可靠性融合 + 层级分类 + 组内校准”。
+- 当前 RD 主链路既看目标对齐的局部 ROI，也看全局上下文，不再是单一幅度图输入。
+- 当前标签仍然主要来自 `session` 级弱监督，因此看结果时一定要结合混淆矩阵和 `macro_f1`，不要只看 `accuracy`。
+- 当前图表和正式输出只写入 `reports/real/`。
+## 读完后你应该能回答的问题
+- 为什么这个项目不能只靠轨迹，也不能只靠 RD？
+- 为什么 RD 分支要保留复数信息和多通道表示，而不是只保留幅度图？
+- 为什么轨迹分支使用 `Residual TCN + Transformer` 而不是单一 RNN？
+- 为什么融合层要用 `Cross-Attention` 和模态可靠性门控，而不是简单拼接？
+- 为什么分类头要分成粗类和细类？
+- 为什么后面还要做组内校准？
+- 为什么训练和评估必须按 `session` 切分，而不是随机打散 clip？
+如果你读完后仍觉得某一段跳得太快，优先回到第 14 篇，它会重新把整条链从头串一次。
 ## 标注专题补读
-
-- 第 25 篇：当前项目标签从哪里来、为什么它是弱监督
-- 第 26 篇：什么才算高质量数据集、如何做更精准标注
-- 第 27 篇：`CVAT` 在本项目里的定位和使用方式
-- 第 28 篇：项目标注工作流和最佳实践
-
-## 标注落地补读
-
-- 第 29 篇：如何把 RD clip 导出成适合 `CVAT` 的图片序列或视频
-- 第 30 篇：如何设计一份正式的 clip 级标注规范
-
-## 泛化专题补读
-
-- 第 31 篇：当前项目如何进行泛化学习，以及为什么要从数据、表示、训练和评估四层一起约束泛化
-- 第 32 篇：如何判断一次训练是不是**真的**提升了泛化能力，而不是只让某个数字更好看
-
-## Session 专题补读
-
-- 第 33 篇：`session` 主题的简短入口说明
-- 第 34 篇：合并后的完整版，系统讲清 `session / track / clip / sample / label` 的关系，以及训练参数和常见专业名词
-
-## 额外工具文档
-
-- `docs/algorithms/how_to_use_cvat.md`：更细的 `CVAT` 入门操作说明
+- 第 25 篇：当前项目标签从哪里来，为什么属于弱监督
+- 第 26 篇：什么才算高质量数据集，如何做更精准标注
+- 第 27 篇：`CVAT` 在本项目里的定位与使用方式
+- 第 28 篇：项目标注工作流与最佳实践
+- 第 29 篇：如何把 RD clip 导出成适合 `CVAT` 的图片或视频
+- 第 30 篇：如何设计正式的 clip 级标注规范
+- `docs/algorithms/how_to_use_cvat.md`：更细的 `CVAT` 新手操作说明
 - `docs/algorithms/how_to_review_annotations.md`：标注完成后的复核方法
-- `docs/algorithms/LinkAll.md`：从信号采集到 RD / 轨迹进入模型的全链路串联说明
-
+## 泛化专题补读
+- 第 31 篇：当前项目如何做泛化学习
+- 第 32 篇：如何判断一次训练是否真的提升了泛化能力
+## Session 专题补读
+- 第 33 篇：什么是 `session`，为什么它如此重要
+- 第 34 篇：`session / track / clip / sample / label` 的关系，以及这些概念在训练里的作用
 ## 实验分析补读
-
-- 第 35 篇：训练完成后如何阅读 `training_history.json`、`evaluation_report.json`，以及如何决定下一轮实验该改哪里
+- 第 23 篇：如何阅读混淆矩阵
+- 第 24 篇：如何阅读 `artifacts/` 下的各类产物
+- 第 35 篇：训练结束后如何读 `training_history.json`、`evaluation_report.json`，并决定下一轮实验改哪里
+- 第 37 篇：训练参数与指标到底是什么意思
+## 推荐最后阅读的总串联文档
+- `docs/algorithms/LinkAll.md`：从信号采集、数据处理、标注、筛选到 RD 和轨迹进入模型的全链路串联说明
+- `docs/algorithms/36_current_best_model_full_explanation.md`：当前最优模型的完整讲解

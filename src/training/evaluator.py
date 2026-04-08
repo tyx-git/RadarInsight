@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -9,8 +10,15 @@ from torch.utils.data import DataLoader
 
 from src.models.fusion_classifier import FusionRadarClassifier
 from src.training.config import TrainingConfig
-from src.training.dataset import RadarFusionDataset
+from src.training.session_manager import build_dataset
 from src.training.trainer import apply_logit_bias
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def _compute_classification_metrics(confusion_matrix: np.ndarray, labels: list[str]) -> dict[str, Any]:
@@ -48,6 +56,18 @@ def _compute_classification_metrics(confusion_matrix: np.ndarray, labels: list[s
         "per_class": per_class,
     }
 
+
+
+
+def _infer_num_notes_from_checkpoint(checkpoint: dict[str, Any], fallback: int) -> int:
+    explicit = checkpoint.get('num_notes')
+    if explicit is not None:
+        return int(explicit)
+    state_dict = checkpoint.get('model_state_dict', {})
+    notes_weight = state_dict.get('notes_head.weight')
+    if notes_weight is not None:
+        return int(notes_weight.shape[0])
+    return int(fallback)
 
 def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
     if not manifest_path.exists():
@@ -98,19 +118,9 @@ def run_evaluation(
         if test_sessions:
             resolved_session_ids = list(test_sessions)
 
-    dataset = RadarFusionDataset(
-        data_root=config.data_root,
-        session_ids=resolved_session_ids,
-        label_order=ordered_labels,
-        sequence_length=config.sequence_length,
-        rd_frames=config.rd_frames,
-        rd_height=config.rd_height,
-        rd_width=config.rd_width,
-        rd_input_channels=config.rd_input_channels,
-        feature_columns=config.track_feature_columns,
-        global_feature_columns=config.track_global_feature_columns,
-        include_rd=config.include_rd,
-    )
+    config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
+    config.include_rd = _env_flag("RD", bool(config.include_rd))
+    dataset = build_dataset(data_root=config.data_root, config=config, session_ids=resolved_session_ids, label_order=ordered_labels)
     track_feature_center = checkpoint.get("track_feature_center")
     track_feature_scale = checkpoint.get("track_feature_scale")
     if track_feature_center is not None and track_feature_scale is not None:
@@ -136,13 +146,17 @@ def run_evaluation(
         track_global_feature_dim=config.global_feature_dim,
         num_classes=len(label_to_index),
         num_coarse_classes=len(coarse_to_index),
-        include_rd=config.include_rd,
+        include_track=_env_flag("TRACK", bool(getattr(config, "include_track", True))),
+        include_rd=_env_flag("RD", bool(config.include_rd)),
         track_projection_dim=config.track_projection_dim,
         tcn_channels=config.tcn_channels,
         transformer_layers=config.transformer_layers,
         transformer_heads=config.transformer_heads,
         transformer_dropout=config.transformer_dropout,
-        max_sequence_length=config.sequence_length,
+        max_sequence_length=config.track_long_length,
+        short_sequence_length=config.track_short_length,
+        mid_sequence_length=config.track_mid_length,
+        long_sequence_length=config.track_long_length,
         x3d_in_channels=config.rd_input_channels,
         x3d_stem_channels=config.x3d_stem_channels,
         x3d_stage_channels=config.x3d_stage_channels,
@@ -157,8 +171,16 @@ def run_evaluation(
         fusion_hidden_size=config.fusion_hidden_size,
         detail_logit_residual_weight=config.detail_logit_residual_weight,
         detail_cosine_scale=config.detail_cosine_scale,
+        num_notes=_infer_num_notes_from_checkpoint(checkpoint, getattr(dataset, "note_dim", 0)),
+        track_backbone_type=config.track_backbone_type,
+        temporal_2d_branch_channels=getattr(config, "temporal_2d_branch_channels", 96),
+        bird_class_index=dataset.label_to_index.get("BirdTarget"),
+        surface_class_index=dataset.label_to_index.get("ShipTarget"),
+        aircraft_class_index=dataset.label_to_index.get("AircraftTarget"),
+        drone_class_index=dataset.label_to_index.get("DroneTarget"),
+        bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
     ).to(resolved_device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
     model.eval()
 
     criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
@@ -172,6 +194,12 @@ def run_evaluation(
         for batch in data_loader:
             track_features = batch["track_features"].to(device=resolved_device, dtype=torch.float32)
             track_global_features = batch["track_global_features"].to(device=resolved_device, dtype=torch.float32)
+            track_short_features = batch.get("track_short_features")
+            if track_short_features is not None:
+                track_short_features = track_short_features.to(device=resolved_device, dtype=torch.float32)
+            track_long_features = batch.get("track_long_features")
+            if track_long_features is not None:
+                track_long_features = track_long_features.to(device=resolved_device, dtype=torch.float32)
             rd_features = None
             rd_mask = None
             if config.include_rd:
@@ -179,7 +207,7 @@ def run_evaluation(
                 rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32).view(-1, 1)
             labels = batch["label"].to(device=resolved_device, dtype=torch.long)
 
-            outputs = model(track_features, track_global_features, rd_features, rd_mask)
+            outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
             logits = outputs["logits"] if isinstance(outputs, dict) else outputs
             logits = apply_logit_bias(logits, resolved_logit_bias)
             loss = criterion(logits, labels)

@@ -57,6 +57,9 @@ class RadarFusionDataset(Dataset):
         self.feature_columns = tuple(feature_columns)
         self.global_feature_columns = tuple(global_feature_columns)
         self.include_rd = include_rd
+        self.track_short_length = max(4, sequence_length // 2)
+        self.track_long_length = max(sequence_length, sequence_length + max(4, sequence_length // 2))
+        self.window_mix_probability = 0.35
         self.sessions: dict[str, SessionContext] = {}
         self.samples: list[ClipRecord] = []
         discovered_label_names: set[str] = set()
@@ -588,7 +591,7 @@ class RadarFusionDataset(Dataset):
                 window[column] = 0.0
         return window.iloc[0].loc[list(self.global_feature_columns)].to_numpy(dtype=np.float32)
 
-    def _load_track_sequence(self, record: ClipRecord) -> np.ndarray:
+    def _load_track_sequence(self, record: ClipRecord, target_length: int | None = None) -> np.ndarray:
         window = self._build_track_window(record)
 
         for column in self.feature_columns:
@@ -596,7 +599,7 @@ class RadarFusionDataset(Dataset):
                 window[column] = 0.0
 
         sequence = window.loc[:, self.feature_columns].to_numpy(dtype=np.float32)
-        sequence = self._resample_sequence(sequence, self.sequence_length)
+        sequence = self._resample_sequence(sequence, target_length or self.sequence_length)
         return self._normalize_track_sequence(sequence)
 
     def _load_track_global_features(self, record: ClipRecord) -> np.ndarray:
@@ -630,12 +633,29 @@ class RadarFusionDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         record = self.samples[index]
+        track_mid = self._load_track_sequence(record, self.sequence_length)
+        track_short = self._load_track_sequence(record, self.track_short_length)
+        track_long = self._load_track_sequence(record, self.track_long_length)
+        if self.include_rd and np.random.rand() < self.window_mix_probability:
+            mix_weight = float(np.random.uniform(0.35, 0.65))
+            mid_projection = self._resample_sequence(track_mid, self.track_long_length)
+            track_long = (mix_weight * track_long + (1.0 - mix_weight) * mid_projection).astype(np.float32)
+        bird_surface_target = np.float32(
+            1.0 if record.label_name == "BirdTarget" else 0.0 if record.label_name == "ShipTarget" else -1.0
+        )
+        track_router_target = np.int64(
+            0 if record.label_name == "ShipTarget" else 1 if record.label_name == "AircraftTarget" else 2 if record.label_name in {"BirdTarget", "DroneTarget"} else -1
+        )
         return {
             "sample_id": record.sample_id,
-            "track_features": self._load_track_sequence(record),
+            "track_features": track_mid,
+            "track_short_features": track_short,
+            "track_long_features": track_long,
             "track_global_features": self._load_track_global_features(record),
             "rd_features": self._load_rd_cube(record),
             "label": np.int64(self.label_to_index[record.label_name]),
             "label_name": record.label_name,
             "has_rd": np.int64(record.has_rd),
+            "bird_surface_target": bird_surface_target,
+            "track_router_target": track_router_target,
         }

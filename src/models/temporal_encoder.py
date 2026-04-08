@@ -109,6 +109,7 @@ class TrackTemporalEncoder(nn.Module):
         mid_sequence_length: int = 16,
         long_sequence_length: int = 16,
         output_dim: int = 256,
+        temporal_2d_branch_channels: int = 96,
     ):
         super().__init__()
         self.output_dim = output_dim
@@ -117,10 +118,27 @@ class TrackTemporalEncoder(nn.Module):
         self.mid_sequence_length = mid_sequence_length
         self.long_sequence_length = long_sequence_length
         self.global_feature_dim = global_feature_dim
+        self.temporal_2d_branch_channels = temporal_2d_branch_channels
 
         self.input_projection = nn.Sequential(
             nn.Linear(input_dim, projection_dim),
             nn.LayerNorm(projection_dim),
+            nn.GELU(),
+        )
+
+        self.sequence_2d_encoder = nn.Sequential(
+            nn.Conv2d(1, temporal_2d_branch_channels // 2, kernel_size=(5, 3), padding=(2, 1), bias=False),
+            nn.BatchNorm2d(temporal_2d_branch_channels // 2),
+            nn.GELU(),
+            nn.Conv2d(temporal_2d_branch_channels // 2, temporal_2d_branch_channels, kernel_size=(3, 3), padding=1, bias=False),
+            nn.BatchNorm2d(temporal_2d_branch_channels),
+            nn.GELU(),
+            nn.AdaptiveAvgPool2d((4, 4)),
+        )
+        self.sequence_2d_projection = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(temporal_2d_branch_channels * 16, output_dim),
+            nn.LayerNorm(output_dim),
             nn.GELU(),
         )
 
@@ -213,8 +231,24 @@ class TrackTemporalEncoder(nn.Module):
             self.global_projection = None
             self.global_gate = None
 
+        self.short_context_projection = nn.Sequential(
+            nn.Linear(input_dim * 2, output_dim),
+            nn.LayerNorm(output_dim),
+            nn.GELU(),
+        )
+        self.long_context_projection = nn.Sequential(
+            nn.Linear(input_dim * 2, output_dim),
+            nn.LayerNorm(output_dim),
+            nn.GELU(),
+        )
+        self.scale_gate = nn.Sequential(
+            nn.Linear(output_dim * 3, output_dim),
+            nn.GELU(),
+            nn.Linear(output_dim, output_dim * 3),
+            nn.Sigmoid(),
+        )
         self.output_projection = nn.Sequential(
-            nn.Linear(output_dim * 4, output_dim),
+            nn.Linear(output_dim * 7, output_dim),
             nn.GELU(),
         )
 
@@ -290,7 +324,33 @@ class TrackTemporalEncoder(nn.Module):
         pattern_gate = self.pattern_gate(torch.cat([merged_summary, pattern_feature], dim=-1))
         boundary_pattern_feature = pattern_feature + pattern_gate * pattern_feature
 
+        sequence_2d_feature = self.sequence_2d_projection(self.sequence_2d_encoder(track_sequence.unsqueeze(1)))
+
+        if track_short_sequence is None:
+            track_short_sequence = track_sequence[:, : max(1, min(track_sequence.size(1), self.short_sequence_length))]
+        if track_long_sequence is None:
+            track_long_sequence = track_sequence
+        short_mean = track_short_sequence.mean(dim=1)
+        short_std = track_short_sequence.std(dim=1, unbiased=False)
+        long_mean = track_long_sequence.mean(dim=1)
+        long_std = track_long_sequence.std(dim=1, unbiased=False)
+        short_context = self.short_context_projection(torch.cat([short_mean, short_std], dim=-1))
+        long_context = self.long_context_projection(torch.cat([long_mean, long_std], dim=-1))
+        scale_gates = self.scale_gate(torch.cat([boundary_pattern_feature, short_context, long_context], dim=-1))
+        gate_pattern, gate_short, gate_long = torch.chunk(scale_gates, chunks=3, dim=-1)
+        gated_pattern = gate_pattern * boundary_pattern_feature
+        gated_short = gate_short * short_context
+        gated_long = gate_long * long_context
+
         pooled_embedding = self.output_projection(
-            torch.cat([sequence_mean, attentive_context, merged_summary, boundary_pattern_feature], dim=-1)
+            torch.cat([
+                sequence_mean,
+                attentive_context,
+                merged_summary,
+                gated_pattern,
+                sequence_2d_feature,
+                gated_short,
+                gated_long,
+            ], dim=-1)
         )
         return token_embeddings, pooled_embedding

@@ -54,12 +54,15 @@ training:
   output_dir: artifacts/checkpoints
   batch_size: 4
   epochs: 30
-  learning_rate: 0.0003
+  learning_rate: 0.0002
   weight_decay: 0.0001
   val_ratio: 0.2
   test_ratio: 0.1
   random_seed: 42
   num_workers: 0
+  use_focal_loss: true
+  class_balance_beta: 0.995
+  focal_gamma: 1.25
   sequence_length: 16
   rd_frames: 24
   rd_height: 64
@@ -177,21 +180,44 @@ training:
     human: HumanTarget
     bird: BirdTarget
     drone: DroneTarget
-    micro_aircraft: AircraftTarget
-    small_aircraft: AircraftTarget
-    large_aircraft: AircraftTarget
-    vehicle: SurfaceTarget
-    vessel: SurfaceTarget
-    suspected_balloon: UnknownTarget
+    micro_aircraft: DroneTarget
+    small_aircraft: DroneTarget
+    large_aircraft: DroneTarget
+    vehicle: ShipTarget
+    vessel: ShipTarget
+    suspected_balloon: OtherTarget
     unknown: UnknownTarget
-    clutter: NoiseTarget
+    clutter: OtherTarget
   include_track: true
   label_granularity: coarse
+  track_backbone_type: temporal
+  use_track_window_mix: true
+  track_window_mix_prob: 0.35
+  temporal_2d_branch_channels: 96
   track_short_length: 8
   track_mid_length: 16
   track_long_length: 16
   notes_aux_loss_weight: 0.0
   bird_drone_aux_loss_weight: 0.0
+  bird_surface_aux_loss_weight: 0.25
+  bird_surface_logit_residual_weight: 0.2
+  rd_dominant_fusion_bias: 0.35
+  rd_unimodal_logit_residual_weight: 0.18
+  bird_rd_aux_loss_weight: 0.15
+  bird_surface_rd_aux_loss_weight: 0.2
+  bird_surface_prototype_loss_weight: 0.2
+  bird_surface_prototype_margin: 0.35
+  bird_surface_sampling_boost: 1.25
+  bird_surface_triplet_loss_weight: 0.0
+  bird_surface_triplet_margin: 0.4
+  track_router_aux_loss_weight: 0.15
+  rd_bird_drone_aux_loss_weight: 0.15
+  best_metric_name: val_composite
+  best_metric_weights:
+    val_macro_f1: 0.7
+    val_accuracy: 0.3
+  early_stopping_patience: 6
+  early_stopping_min_delta: 0.002
 tsv_processing:
   raw_root: pro/excel
   output_root: pro/tsv

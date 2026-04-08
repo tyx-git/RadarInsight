@@ -14,9 +14,12 @@ from src.qc.integrity_check import DataIntegrityChecker
 
 
 LABEL_NORMALIZATION = {
-    "bird": "Bird",
-    "rotary drone": "RotaryDrone",
-    "fixed-wing uav": "FixedWing",
+    "bird": "BirdTarget",
+    "rotary drone": "DroneTarget",
+    "fixed-wing uav": "DroneTarget",
+    "helicopter": "AircraftTarget",
+    "passenger ship": "ShipTarget",
+    "speedboat": "ShipTarget",
 }
 
 FILE_PATTERN = re.compile(

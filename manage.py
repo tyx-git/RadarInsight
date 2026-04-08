@@ -11,15 +11,78 @@ sys.path.append(os.path.abspath("."))
 
 from src.labeling.truth_matcher import TruthMatcher
 from src.preprocessing.slicer import DataSlicer
+from src.prodata.excel_tsv_builder import prepare_excel_tsv_sessions, sync_tsv_sessions
+from src.prodata.tr_tsv_builder import prepare_tr_tsv_sessions, sync_tr_tsv_sessions
 from src.prodata.mat_session_builder import prepare_real_sessions, sync_prepared_sessions
 from src.qc.integrity_check import DataIntegrityChecker
 from src.utils.logger import logger
+from src.utils.artifact_cleaner import clean_artifacts
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def load_config(config_path: str = "config/system_config.yaml"):
     with open(config_path, "r", encoding="utf-8") as file:
         return yaml.safe_load(file)
 
+
+def load_train_control(control_path: str = "train.json") -> dict:
+    path = Path(control_path)
+    if not path.exists():
+        return {}
+    import json
+    with path.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def cmd_prepare_tsv(args, config):
+    processing_config = dict(config.get("tsv_processing", {}))
+    raw_root = args.raw_root or processing_config.get("raw_root", "pro/excel")
+    output_root = args.output_root or processing_config.get("output_root", "pro/tsv")
+    dataset_root = args.dataset_root or processing_config.get("dataset_root", "data/tsv")
+
+    prepared = prepare_excel_tsv_sessions(
+        raw_root=raw_root,
+        output_root=output_root,
+        session_ids=args.session_ids or None,
+    )
+    copied_sessions = sync_tsv_sessions(
+        processed_root=output_root,
+        dataset_root=dataset_root,
+        session_ids=args.session_ids or None,
+    )
+
+    logger.info("=" * 80)
+    logger.info("[*] Excel-to-TSV preparation complete")
+    logger.info(f"[*] Prepared TSV sessions: {len(prepared)}")
+    logger.info(f"[*] Synced TSV sessions to training root: {len(copied_sessions)}")
+    for item in prepared:
+        logger.info(
+            f"[*] {item.session_id} | tracks={item.num_tracks} | points={item.num_track_points} | "
+            f"labels={','.join(item.labels)} | notes={','.join(item.notes)} | duplicate={item.duplicate_status}"
+        )
+
+
+
+
+def cmd_prepare_tr_tsv(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
+    raw_root = args.raw_root or 'pro/raw/TR'
+    output_root = args.output_root or 'pro/tsv_tr'
+    dataset_root = args.dataset_root or control.get('data_root') or config.get('tsv_processing', {}).get('dataset_root', 'data/tsv')
+    prepared = prepare_tr_tsv_sessions(raw_root=raw_root, output_root=output_root)
+    copied = sync_tr_tsv_sessions(processed_root=output_root, dataset_root=dataset_root)
+    logger.info('=' * 80)
+    logger.info('[*] TR-only supplement preparation complete')
+    logger.info(f'[*] Prepared sessions: {len(prepared)}')
+    logger.info(f'[*] Synced sessions: {len(copied)}')
+    for item in prepared:
+        logger.info(f"[*] {item.session_id} | label={item.label_name} | points={item.num_track_points}")
 
 def cmd_prepare_pro(args, config):
     radar_config = dict(config.get("radar", {}))
@@ -179,6 +242,7 @@ def cmd_process(args, config):
 
 
 def cmd_train(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
     try:
         from src.training.trainer import run_training
     except ImportError as exc:
@@ -189,31 +253,48 @@ def cmd_train(args, config):
 
     training_config = dict(config.get("training", {}))
 
+    training_config["include_track"] = bool(control.get("track", training_config.get("include_track", True)))
+    training_config["include_rd"] = bool(control.get("rd", training_config.get("include_rd", True)))
+    training_config["track_backbone_type"] = str(control.get("track_backbone_type", training_config.get("track_backbone_type", "temporal")))
+    training_config["label_granularity"] = str(control.get("label_granularity", training_config.get("label_granularity", "coarse")))
+
     if args.data_root:
         training_config["data_root"] = args.data_root
+    elif control.get("data_root"):
+        training_config["data_root"] = control.get("data_root")
     if args.output_dir:
         training_config["output_dir"] = args.output_dir
     else:
         resolved_epochs = args.epochs if args.epochs is not None else int(training_config.get("epochs", 30))
         resolved_batch_size = args.batch_size if args.batch_size is not None else int(training_config.get("batch_size", 4))
-        resolved_device = (args.device or "cpu").split(":", 1)[0].lower()
+        resolved_device = (args.device or str(control.get("device", "cpu"))).split(":", 1)[0].lower()
         output_name = f"{datetime.now().strftime('%Y%m%d%H%M')}-{resolved_epochs}-{resolved_batch_size}-{resolved_device}"
         training_config["output_dir"] = f"artifacts/{output_name}"
     if args.epochs is not None:
         training_config["epochs"] = args.epochs
+    elif control.get("epochs") is not None:
+        training_config["epochs"] = control.get("epochs")
     if args.batch_size is not None:
         training_config["batch_size"] = args.batch_size
+    elif control.get("batch_size") is not None:
+        training_config["batch_size"] = control.get("batch_size")
     if args.learning_rate is not None:
         training_config["learning_rate"] = args.learning_rate
+    elif control.get("learning_rate") is not None:
+        training_config["learning_rate"] = control.get("learning_rate")
     if args.num_workers is not None:
         training_config["num_workers"] = args.num_workers
-    if args.include_rd is not None:
-        training_config["include_rd"] = args.include_rd
+    elif control.get("num_workers") is not None:
+        training_config["num_workers"] = control.get("num_workers")
+    if bool(control.get("clean_bad_artifacts", False)):
+        removed = clean_artifacts("artifacts", control.get("artifact_keep", []))
+        if removed:
+            logger.info(f"[*] Removed low-value artifacts: {removed}")
 
     result = run_training(
         config_values=training_config,
         session_ids=args.session_ids or None,
-        device=args.device,
+        device=args.device or control.get("device"),
     )
 
     logger.info("=" * 30)
@@ -231,6 +312,7 @@ def cmd_train(args, config):
 
 
 def cmd_evaluate(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
     try:
         from src.training.evaluator import run_evaluation
     except ImportError as exc:
@@ -239,6 +321,10 @@ def cmd_evaluate(args, config):
         return
 
     training_config = dict(config.get("training", {}))
+    training_config["include_track"] = bool(control.get("track", training_config.get("include_track", True)))
+    training_config["include_rd"] = bool(control.get("rd", training_config.get("include_rd", True)))
+    training_config["track_backbone_type"] = str(control.get("track_backbone_type", training_config.get("track_backbone_type", "temporal")))
+    training_config["label_granularity"] = str(control.get("label_granularity", training_config.get("label_granularity", "coarse")))
     resolved_output_dir = args.output_dir
     if not resolved_output_dir:
         resolved_output_dir = str(Path(args.checkpoint).parent)
@@ -246,9 +332,9 @@ def cmd_evaluate(args, config):
         checkpoint_path=args.checkpoint,
         config_values=training_config,
         session_ids=args.session_ids or None,
-        data_root=args.data_root,
+        data_root=args.data_root or control.get("data_root"),
         output_dir=resolved_output_dir,
-        device=args.device,
+        device=args.device or control.get("device"),
     )
 
     logger.info("=" * 30)
@@ -264,6 +350,7 @@ def cmd_evaluate(args, config):
 
 
 def cmd_sessions(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
     try:
         from src.training.session_manager import count_session_labels, scan_session_directories
     except ImportError as exc:
@@ -271,8 +358,8 @@ def cmd_sessions(args, config):
         logger.error(f"[!] Import error: {exc}")
         return
 
-    data_root = args.data_root or config.get("training", {}).get("data_root", "data/sessions")
-    include_rd = args.include_rd if args.include_rd is not None else config.get("training", {}).get("include_rd", True)
+    data_root = args.data_root or control.get("data_root") or config.get("training", {}).get("data_root", "data/tsv")
+    include_rd = bool(control.get("rd", config.get("training", {}).get("include_rd", True)))
     statuses = scan_session_directories(data_root=data_root, include_rd=include_rd)
     label_distribution = count_session_labels(statuses)
 
@@ -309,6 +396,7 @@ def cmd_report(args, config):
     logger.info("=" * 30)
 
 def cmd_calibrate(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
     try:
         from src.training.calibration import run_group_calibration
     except ImportError as exc:
@@ -319,18 +407,15 @@ def cmd_calibrate(args, config):
     resolved_output_dir = args.output_dir
     if not resolved_output_dir:
         checkpoint_path = Path(args.checkpoint)
-        timestamp = datetime.now().strftime('%Y%m%d%H%M')
-        suffix_config = dict(config.get('training', {}))
-        resolved_epochs = int(suffix_config.get('epochs', 5))
-        resolved_batch_size = int(suffix_config.get('batch_size', 4))
-        resolved_device = (args.device or 'cpu').split(':', 1)[0].lower()
-        resolved_output_dir = f"artifacts/{timestamp}-{resolved_epochs}-{resolved_batch_size}-{resolved_device}"
+        source_name = checkpoint_path.parent.name
+        calibrated_name = source_name if source_name.endswith('-calibrated') else f"{source_name}-calibrated"
+        resolved_output_dir = str(Path('artifacts') / 'calibrated' / calibrated_name)
 
     result = run_group_calibration(
         checkpoint_path=args.checkpoint,
         output_dir=resolved_output_dir,
-        data_root=args.data_root,
-        device=args.device,
+        data_root=args.data_root or control.get("data_root"),
+        device=args.device or control.get("device"),
     )
 
     logger.info("=" * 30)
@@ -349,6 +434,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    prepare_tsv_parser = subparsers.add_parser("prepare-tsv", help="Prepare Excel track annotations into standardized TSV sessions")
+    prepare_tsv_parser.add_argument("session_ids", nargs="*", help="Optional session IDs; defaults to all paired Excel sessions")
+    prepare_tsv_parser.add_argument("--raw-root", dest="raw_root", help="Root folder containing paired bz/tck Excel files")
+    prepare_tsv_parser.add_argument("--output-root", dest="output_root", help="Output folder for processed TSV sessions")
+    prepare_tsv_parser.add_argument("--dataset-root", dest="dataset_root", help="Final TSV dataset root copied for training")
+
+    prepare_tr_parser = subparsers.add_parser("prepare-tr-tsv", help="Prepare TR-only mat sessions into standardized TSV supplements")
+    prepare_tr_parser.add_argument("--raw-root", dest="raw_root", help="Root folder containing TR mat files")
+    prepare_tr_parser.add_argument("--output-root", dest="output_root", help="Output folder for processed TR TSV sessions")
+    prepare_tr_parser.add_argument("--dataset-root", dest="dataset_root", help="Final TSV dataset root copied for training")
+    prepare_tr_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
+
     prepare_parser = subparsers.add_parser("prepare-pro", help="Prepare real TR/RD mat sessions under pro/sessions")
     prepare_parser.add_argument("session_ids", nargs="*", help="Optional session IDs; defaults to all paired raw sessions")
     prepare_parser.add_argument("--raw-root", dest="raw_root", help="Root folder containing pro raw TR and RD mats")
@@ -360,7 +457,7 @@ def build_parser() -> argparse.ArgumentParser:
     process_parser.add_argument("session_id", help="Session identifier")
     process_parser.add_argument("--rd", action="store_true", help="Enable RD clip extraction")
 
-    train_parser = subparsers.add_parser("train", help="Train the X3D-M plus TCN/Transformer classifier")
+    train_parser = subparsers.add_parser("train", help="Train the track/RD classifier; modality switches are controlled by TRACK and RD environment variables")
     train_parser.add_argument("session_ids", nargs="*", help="Optional session IDs; defaults to all session folders")
     train_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
     train_parser.add_argument("--output-dir", dest="output_dir", help="Directory for checkpoints and history")
@@ -369,9 +466,7 @@ def build_parser() -> argparse.ArgumentParser:
     train_parser.add_argument("--learning-rate", dest="learning_rate", type=float, help="Optimizer learning rate")
     train_parser.add_argument("--num-workers", dest="num_workers", type=int, help="DataLoader worker count")
     train_parser.add_argument("--device", help="Training device, for example cpu or cuda")
-    train_parser.add_argument("--include-rd", dest="include_rd", action="store_true", help="Use the RD CNN branch")
-    train_parser.add_argument("--no-rd", dest="include_rd", action="store_false", help="Disable the RD CNN branch")
-    train_parser.set_defaults(include_rd=None)
+    train_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
 
     eval_parser = subparsers.add_parser("evaluate", help="Evaluate a checkpoint on held-out or specified sessions")
     eval_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
@@ -379,12 +474,11 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
     eval_parser.add_argument("--output-dir", dest="output_dir", help="Directory for evaluation outputs")
     eval_parser.add_argument("--device", help="Evaluation device, for example cpu or cuda")
+    eval_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
 
     sessions_parser = subparsers.add_parser("sessions", help="Inspect available sessions for training")
     sessions_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
-    sessions_parser.add_argument("--include-rd", dest="include_rd", action="store_true", help="Require RD clip files")
-    sessions_parser.add_argument("--no-rd", dest="include_rd", action="store_false", help="Ignore RD clip requirements")
-    sessions_parser.set_defaults(include_rd=None)
+    sessions_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
 
     report_parser = subparsers.add_parser("report", help="Generate real visualization reports")
     report_parser.add_argument("artifact_dir", help="Artifact directory containing training and evaluation outputs")
@@ -395,6 +489,7 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate_parser.add_argument("--output-dir", dest="output_dir", help="Directory for calibrated checkpoint and copied artifacts")
     calibrate_parser.add_argument("--data-root", dest="data_root", help="Optional dataset root override")
     calibrate_parser.add_argument("--device", help="Calibration device, for example cpu or cuda")
+    calibrate_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
 
     return parser
 
@@ -413,7 +508,11 @@ def main():
         logger.error(f"[!] Failed to load config file: {exc}")
         return
 
-    if args.command == "prepare-pro":
+    if args.command == "prepare-tsv":
+        cmd_prepare_tsv(args, config)
+    elif args.command == "prepare-tr-tsv":
+        cmd_prepare_tr_tsv(args, config)
+    elif args.command == "prepare-pro":
         cmd_prepare_pro(args, config)
     elif args.command == "process":
         cmd_process(args, config)

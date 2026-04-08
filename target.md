@@ -1,93 +1,38 @@
-# Project Target
+# 项目实践方案
+## 1. 项目背景
+本项目面向甲方真实雷达目标识别场景，当前目标不是继续围绕历史公共样例数据做局部优化，而是围绕甲方最终交付数据构建一条可持续迭代、可工程落地、可继续扩展的高精度识别主线。当前项目已经确认：仅依赖轨迹数据可以形成可训练基线，但想继续逼近高精度目标，尤其是提升鸟类、无人机、飞机等易混淆目标的区分能力，必须把重心转移到 RD 路径。轨迹分支不再承担全部分类责任，而是作为辅助模态保留，用来提供运动学先验、速度层级、航迹稳定性和粗分流信息。
+## 2. 当前总目标
+当前阶段的核心目标不是做一个形式上复杂的模型，而是做一个对甲方真实数据真正有价值的系统。目标分为四层：第一，建立稳定的真实数据主链；第二，建立以 RD 为主、轨迹为辅的识别模型；第三，针对强混淆类别做专项增强；第四，形成一套后续拿到新 RD 数据就能直接接入的工程规范。当前目标精度为 95%，但评估必须基于真实严谨切分，而不是乐观切分或局部测试结果。
+## 3. 当前阶段总原则
+第一，RD 为主，轨迹为辅。第二，先保证方向正确，再追求复杂度提升。第三，保留当前稳定可用的 temporal 轨迹主干，不继续盲目更换轨迹 backbone。第四，重点增强 RD 表示、RD 专项头和 RD 主导融合。第五，所有新能力必须能在现有训练框架内落地，不允许做无法训练、无法评估、无法复现的空方案。第六，后续所有重大结构改动都必须同步更新 debug.md 和 arch.md。
+## 4. 数据主链目标
+当前项目的数据主链应固定为：原始数据进入 pro/raw，在 pro 内完成处理、审核、质检和样本组织，再复制到 data 作为训练来源。pro 只用于处理和人工审查，data 才是训练使用的数据。对于当前阶段，轨迹与 RD 样本应继续保持按 session 组织，保证训练、评估、校准都在统一结构上进行。后续若甲方开始稳定保存 RD 样本，必须优先保障 RD 数据具备以下内容：时间对齐信息、对应轨迹对象标识、range 轴、doppler 轴、是否保留复数值、原始文件来源、session 标识，以及与标签的稳定对齐关系。
+## 5. 模型总路线
+当前项目默认路线应定义为双模态路线：轨迹分支负责粗分流和补充运动学信息，RD 分支负责主要识别能力，特别是对鸟类、无人机、飞机等易混淆空中目标的细粒度判别。默认训练时应开启 TRACK=true 和 RD=true。但在模型设计层面，不能再做平权融合，而应明确规定：RD 是主模态，轨迹是辅助模态。
+## 6. 轨迹分支定位
+轨迹分支当前保留稳定版本的 temporal 主干，主要承担三类作用。第一，提供目标运动模式、速度层级、高度变化、航迹平滑性、机动强度等宏观先验。第二，在融合前提供粗分类倾向，帮助模型快速区分明显不同的目标族群。第三，在 RD 缺失、RD 噪声高、RD 表示不稳定时，为模型提供兜底支持。轨迹分支不再作为当前阶段的主要突破口，不再优先继续更换图主干、SSM 主干或更大 Transformer，除非后续证据明确显示 RD 路径已稳定而轨迹成为新瓶颈。
+## 7. RD 分支定位
+RD 分支是当前阶段的主攻方向。当前项目已有较强的 RD 主干基础，包括微动增强、谱轴精炼、背景与局部对比增强、结构增强和 X3D-M 风格 3D 编码器。这些资产不应推翻，而应继续增强。当前 RD 路径的核心任务有三项：第一，提升 BirdTarget 的可分性；第二，提升 BirdTarget 与 ShipTarget、DroneTarget 的边界稳定性；第三，让 RD 分支真正具备承担融合主导权的能力，而不是靠额外偏置硬推成主导。
+## 8. 融合路线
+当前融合路线应改成“RD 主导、轨迹辅助、软路由增强”而不是简单拼接或过强硬门控。推荐策略如下：第一，轨迹分支先输出 coarse 先验和辅助 logits；第二，RD 分支输出主 logits 与专项 logits；第三，融合层同时接收轨迹特征、RD 特征、轨迹粗分类倾向、RD 专项识别结果；第四，最终分类以 RD 证据为主，但允许轨迹在 RD 不可靠时纠偏。禁止做纯硬路由，即不能简单先让轨迹决定类，再选择是否调用 RD，因为这种方式会导致错误级联。
+## 9. 专项优化方向
+当前最关键的专项优化对象是高混淆类别。优先顺序如下：第一，BirdTarget 与 ShipTarget；第二，BirdTarget 与 DroneTarget；第三，AircraftTarget 与 DroneTarget 的边界稳定性。专项优化应优先落在 RD 路径内部，而不是继续主要靠轨迹专家头做修补。推荐的专项能力包括：Bird-sensitive RD 分支、Bird-vs-Ship RD 专家头、Bird-vs-Drone RD 专家头，以及面向高混淆类的 class-aware fusion 修正。
+## 10. 训练策略
+当前训练策略应遵循以下顺序。第一，默认训练双模态主线。第二，所有新结构先跑短轮次验证趋势，再决定是否作为默认主线。第三，任何主干级调整如果没有超过当前稳定最佳结果，不得直接替换默认路线。第四，严格评估必须始终使用统一切分，不允许为了更高数字回退到更宽松或更容易的测试切分。第五，训练时应优先观察 BirdTarget 的召回率、ShipTarget 的稳定性、以及 BirdTarget 到 ShipTarget 的混淆是否下降。
+## 11. 评估标准
+准确率不是唯一标准，但当前项目的可用标准明确要求准确率达到 95% 以上。与此同时，必须同时观察 macro_f1、混淆矩阵、每类召回率和错误迁移方向。如果某次实验只是把错误从一个类转移到另一个类，而没有整体提升，则不能视为真实进步。对于当前阶段，最重要的评估问题不是整体能否拟合，而是模型是否真正恢复了 BirdTarget，并且没有把 ShipTarget 和 AircraftTarget 一起拉坏。
+## 12. 主干更换规则
+轨迹主干目前默认保留 temporal。dggcn 或其他图主干、SSM 主干、Mamba 类主干都可以继续作为实验分支保留，但未经稳定验证不得设为默认。RD 主干目前不推翻，只做增强。若要更换主干，优先级顺序如下：第一，RD 表示增强；第二，RD 专项头增强；第三，融合策略增强；第四，才考虑再次动轨迹主干。换言之，当前阶段的主干更换主要指 RD 路径强化，而不是继续围绕轨迹主干做大改。
+## 13. 工程实施顺序
+第一步，维持当前稳定的 temporal 轨迹主干。第二步，持续增强 RD 路径。第三步，把 Bird 专项优化逐步下沉到 RD 表征层，而不是只停留在分类头层。第四步，在融合层引入更温和、更可解释的 RD 主导策略。第五步，对所有实验保持独立评估、图表生成和混淆矩阵分析。第六步，只有在新结果真实超过当前最佳后，才允许保存新的精度 Git 记录。
+## 14. 编码风格
+代码标识符、配置键名、日志字段、模型输出键名全部使用英文。中文只用于文档、注释和面向人的说明。中文文件修改统一使用 Python 读写，编码统一为 UTF-8。结构改动时优先保持最小侵入，不做无关重构。所有训练控制应收口到 train.json，避免零散环境变量和命令参数长期漂移。
+## 15. Git 规则
+只有在真实精度提升后才保存新的精度提交。提交描述应明确当前精度，例如 Accuracy 0.9012 MacroF1 0.8654。如果只是结构整理、实验分支接线、文档更新、控制项收口、或者失败实验，不保存精度提交。重大架构调整必须同步更新 debug.md 和 arch.md，并清楚记录：当前阶段、当前问题、解决方案、方案利弊。
+## 16. 当前默认实践
+当前默认实践应理解为：稳定 temporal 轨迹主干 + 强 RD 主干 + 双模态融合 + Bird 专项 RD 优化 + 严格真实切分评估。当前所有后续优化必须围绕这个主线展开，而不是重新回到轨迹-only 主导路线。轨迹-only 路线现在只保留为过渡基线和对照实验，不再是主要目标。
+## 17. 后续立即执行项
+后续应继续围绕以下事项推进。第一，继续增强 RD 表征层对 Bird 的敏感性。第二，继续分析 BirdTarget 与 ShipTarget 的 RD 差异是否已被正确利用。第三，控制 RD 主导程度，避免过强偏置导致整体泛化崩坏。第四，保留实验分支，但默认路线始终保持稳定。第五，每轮训练结束后，优先查看独立评估结果，而不是只看训练日志。第六，若新版本显著提升，就立即保存 Git 并记录到 debug.md。
 
-## Project Background
-
-This project focuses on real radar `.mat` data that has already been processed by the radar signal side. `TR` provides trajectory time-series information. `RD` files contain complex `DPL` data, which is converted into distance-Doppler representations for micro-motion learning.
-
-The project does not directly connect to live radar hardware in the current stage. The stable main path is:
-
-`pro/raw -> prepare-pro -> pro/sessions -> data/sessions -> train / evaluate / report`
-
-The project is intended to run in a GPU training environment, with `cuda` as the main training target. The data responsibilities and engineering rules should remain unchanged across hardware upgrades.
-
-## Core Goals
-
-- Build a high-accuracy recognition framework for real radar data.
-- Keep the design general enough for future datasets with `30k+` samples, `5` main classes, and `20+` subclasses.
-- Continue improving `DPL -> RD` processing, target alignment, trajectory modeling, fusion, and training stability.
-- Avoid overfitting the whole engineering design to the current small sample dataset.
-
-## Current Main Technical Path
-
-- Track branch: `Residual TCN + Transformer`
-- RD branch: aligned local ROI + global context + `X3D-M` style 3D CNN
-- Fusion: bidirectional `Cross-Attention`
-- Data split: strict `session`-level `train / val / test`
-- Reporting: real results only, written into `reports/real/`
-
-## Directory Responsibilities
-
-- `pro/raw/`: raw `.mat` input data
-- `pro/sessions/`: processed intermediate session outputs
-- `data/sessions/`: only dataset root used by training and evaluation
-- `src/`: source code for preprocessing, models, training, and evaluation
-- `docs/algorithms/`: learning and explanation documents
-- `artifacts/`: checkpoints, histories, evaluation outputs
-- `reports/real/`: real charts and plots
-- `debug.md`: iteration log and problem tracking
-
-## Coding Style
-
-- Use `UTF-8` encoding for text files.
-- Use `4` spaces for indentation.
-- Keep type hints, readable names, and small focused functions.
-- Fix root causes instead of adding temporary patches.
-- Avoid meaningless comments and unnecessary complexity.
-- New runtime settings should go into `config/system_config.yaml` and the related config class.
-- Any architecture-level change must also update related documents and `debug.md`.
-
-## Training And Experiment Rules
-
-- Training commands are executed manually by the human operator.
-- After code changes, do static checks first, then minimal forward validation, then manual training.
-- Normal experiments should prefer `5` epochs unless there is a clear reason to go longer.
-- Output directories must use the format `YYYYMMDDHHMM-epochs-batch-device`.
-- Example: `202603232359-5-4-gpu`
-
-## Git Save Rules
-
-- Save Git only when model quality shows a real improvement.
-- Improvement is judged by independent evaluation, mainly:
-  - `Accuracy`
-  - `Macro F1`
-  - whether the confusion matrix becomes more reasonable
-- Commit message format must be:
-  - `Accuracy 0.7972 MacroF1 0.5644`
-- Do not save a new best commit for noisy or partial changes without real generalization improvement.
-
-## Debug Maintenance Rules
-
-- Every meaningful architecture, data pipeline, or training-strategy change must update `debug.md`.
-- Each record should contain at least:
-  - current stage
-  - current problem
-  - solution
-  - pros and cons
-- `debug.md` is the project evolution history and should not skip key iterations.
-
-## GPU Training Environment Rules
-
-- Keep the current project structure unchanged while using a GPU-first training workflow.
-- Keep `cpu` compatibility, but use `cuda` as the default main training target.
-- In the GPU environment, validate first:
-  - CUDA-enabled `torch`
-  - larger batch size stability
-  - mixed precision only if it improves throughput without hurting accuracy
-- Even in the GPU environment, always validate the data path and evaluation path before longer training.
-
-## Collaboration Principles
-
-- Real environment only. No fake data, fake reports, or fake-related code.
-- Optimization priority: real accuracy, generalization, interpretability, and maintainability.
-- If any document conflicts with the real code path, update the document immediately.
-- When the dataset grows, reuse the current main path first and then scale the training strategy and model size step by step.
+????????????????????? `pro/raw` ?????? `TR/RD` ???? `prepare-pro` ????? `data/sessions`?`pro/excel` ????? `pro/tsv`?`data/tsv` ????????????????????????????????????
+?????????`Bird -> BirdTarget`?`Rotary drone -> DroneTarget`?`Fixed-wing UAV -> DroneTarget`?`Helicopter -> AircraftTarget`?`Passenger ship -> ShipTarget`?`Speedboat -> ShipTarget`?????????? `AircraftTarget / BirdTarget / DroneTarget / ShipTarget`?

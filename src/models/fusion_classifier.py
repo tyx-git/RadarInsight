@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from src.models.cnn_encoder import X3DMicroMotionEncoder
+from src.models.graph_temporal_encoder import TrackGraphEncoder
 from src.models.temporal_encoder import TrackTemporalEncoder
 
 
@@ -161,6 +162,7 @@ class FusionRadarClassifier(nn.Module):
         track_global_feature_dim: int,
         num_classes: int,
         num_coarse_classes: int | None = None,
+        include_track: bool = True,
         include_rd: bool = True,
         track_projection_dim: int = 128,
         tcn_channels: Sequence[int] = (128, 128, 256),
@@ -168,6 +170,9 @@ class FusionRadarClassifier(nn.Module):
         transformer_heads: int = 4,
         transformer_dropout: float = 0.1,
         max_sequence_length: int = 64,
+        short_sequence_length: int = 8,
+        mid_sequence_length: int = 16,
+        long_sequence_length: int = 32,
         x3d_in_channels: int = 1,
         x3d_stem_channels: int = 24,
         x3d_stage_channels: Sequence[int] = (32, 64, 128, 192),
@@ -182,24 +187,60 @@ class FusionRadarClassifier(nn.Module):
         fusion_hidden_size: int = 256,
         detail_logit_residual_weight: float = 0.2,
         detail_cosine_scale: float = 16.0,
+        num_notes: int = 0,
+        track_backbone_type: str = "temporal",
+        temporal_2d_branch_channels: int = 96,
+        bird_class_index: int | None = None,
+        surface_class_index: int | None = None,
+        aircraft_class_index: int | None = None,
+        drone_class_index: int | None = None,
+        bird_surface_logit_residual_weight: float = 0.2,
+        rd_dominant_fusion_bias: float = 1.25,
+        rd_unimodal_logit_residual_weight: float = 0.35,
     ):
         super().__init__()
+        self.include_track = include_track
         self.include_rd = include_rd
+        self.num_classes = num_classes
         self.fusion_hidden_size = fusion_hidden_size
         self.detail_logit_residual_weight = float(detail_logit_residual_weight)
+        self.num_notes = int(num_notes)
         resolved_num_coarse_classes = num_classes if num_coarse_classes is None else num_coarse_classes
 
-        self.track_encoder = TrackTemporalEncoder(
-            input_dim=track_input_dim,
-            global_feature_dim=track_global_feature_dim,
-            projection_dim=track_projection_dim,
-            tcn_channels=tcn_channels,
-            transformer_layers=transformer_layers,
-            attention_heads=transformer_heads,
-            dropout=transformer_dropout,
-            max_sequence_length=max_sequence_length,
-            output_dim=fusion_hidden_size,
-        )
+        self.track_backbone_type = str(track_backbone_type).lower()
+        self.bird_class_index = bird_class_index
+        self.surface_class_index = surface_class_index
+        self.aircraft_class_index = aircraft_class_index
+        self.drone_class_index = drone_class_index
+        self.bird_surface_logit_residual_weight = float(bird_surface_logit_residual_weight)
+        self.rd_dominant_fusion_bias = float(rd_dominant_fusion_bias)
+        self.rd_unimodal_logit_residual_weight = float(rd_unimodal_logit_residual_weight)
+        if self.track_backbone_type in {"graph", "dggcn"}:
+            self.track_encoder = TrackGraphEncoder(
+                input_dim=track_input_dim,
+                global_feature_dim=track_global_feature_dim,
+                projection_dim=track_projection_dim,
+                graph_layers=max(3, transformer_layers + 1),
+                dropout=transformer_dropout,
+                output_dim=fusion_hidden_size,
+                temporal_2d_branch_channels=temporal_2d_branch_channels,
+            )
+        else:
+            self.track_encoder = TrackTemporalEncoder(
+                input_dim=track_input_dim,
+                global_feature_dim=track_global_feature_dim,
+                projection_dim=track_projection_dim,
+                tcn_channels=tcn_channels,
+                transformer_layers=transformer_layers,
+                attention_heads=transformer_heads,
+                dropout=transformer_dropout,
+                max_sequence_length=max_sequence_length,
+                short_sequence_length=short_sequence_length,
+                mid_sequence_length=mid_sequence_length,
+                long_sequence_length=long_sequence_length,
+                output_dim=fusion_hidden_size,
+                temporal_2d_branch_channels=temporal_2d_branch_channels,
+            )
         self.track_pool = AttentionPooling(fusion_hidden_size)
         self.track_classifier = nn.Sequential(
             nn.LayerNorm(fusion_hidden_size),
@@ -266,16 +307,33 @@ class FusionRadarClassifier(nn.Module):
             dropout=cross_attention_dropout,
             detail_cosine_scale=detail_cosine_scale,
         )
+        self.notes_head = nn.Linear(classifier_input_dim if include_rd else fusion_hidden_size, num_notes) if num_notes > 0 else None
+        self.track_router_head = nn.Linear(fusion_hidden_size, 3)
+        self.bird_drone_head = nn.Linear(classifier_input_dim if include_rd else fusion_hidden_size, 1)
+        self.bird_surface_head = nn.Linear(classifier_input_dim if include_rd else fusion_hidden_size, 1)
+        self.bird_rd_head = nn.Linear(fusion_hidden_size, 1)
+        self.bird_surface_rd_head = nn.Linear(fusion_hidden_size, 1)
+        self.rd_bird_drone_head = nn.Linear(fusion_hidden_size, 2)
 
     def forward(
         self,
         track_sequence: torch.Tensor,
         track_global_features: torch.Tensor | None = None,
+        track_short_sequence: torch.Tensor | None = None,
+        track_long_sequence: torch.Tensor | None = None,
         rd_cube: torch.Tensor | None = None,
         rd_mask: torch.Tensor | None = None,
     ) -> dict[str, Any]:
-        track_tokens, track_feature = self.track_encoder(track_sequence, track_global_features)
-        track_logits = self.track_classifier(track_feature)
+        if self.include_track:
+            track_tokens, track_feature = self.track_encoder(track_sequence, track_global_features, track_short_sequence, track_long_sequence)
+            track_logits = self.track_classifier(track_feature)
+        else:
+            batch_size = rd_cube.size(0) if rd_cube is not None else track_sequence.size(0)
+            device = rd_cube.device if rd_cube is not None else track_sequence.device
+            dtype = rd_cube.dtype if rd_cube is not None else track_sequence.dtype
+            track_tokens = torch.zeros((batch_size, 1, self.fusion_hidden_size), device=device, dtype=dtype)
+            track_feature = torch.zeros((batch_size, self.fusion_hidden_size), device=device, dtype=dtype)
+            track_logits = torch.zeros((batch_size, self.num_classes), device=device, dtype=dtype)
 
         if not self.include_rd:
             logits, coarse_logits, detail_logits, coarse_feature, detail_feature = self.hierarchical_head(track_feature)
@@ -283,6 +341,14 @@ class FusionRadarClassifier(nn.Module):
             if unimodal_logit_residual is not None:
                 logits = logits + unimodal_logit_residual * track_logits
             logits = logits + self.detail_logit_residual_weight * detail_logits
+            notes_logits = self.notes_head(track_feature) if self.notes_head is not None else None
+            track_router_logits = self.track_router_head(track_feature)
+            bird_drone_logits = self.bird_drone_head(track_feature)
+            bird_surface_logits = self.bird_surface_head(track_feature)
+            if self.bird_class_index is not None and self.surface_class_index is not None:
+                expert_delta = self.bird_surface_logit_residual_weight * bird_surface_logits.view(-1)
+                logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + expert_delta
+                logits[:, self.surface_class_index] = logits[:, self.surface_class_index] - expert_delta
             return {
                 "logits": logits,
                 "track_logits": track_logits,
@@ -291,8 +357,13 @@ class FusionRadarClassifier(nn.Module):
                 "detail_logits": detail_logits,
                 "coarse_feature": coarse_feature,
                 "detail_feature": detail_feature,
-                "track_weight": torch.ones((track_feature.size(0), 1), dtype=track_feature.dtype, device=track_feature.device),
+                "track_weight": torch.full((track_feature.size(0), 1), 1.0 if self.include_track else 0.0, dtype=track_feature.dtype, device=track_feature.device),
                 "rd_weight": torch.zeros((track_feature.size(0), 1), dtype=track_feature.dtype, device=track_feature.device),
+                "notes_logits": notes_logits,
+                "track_router_logits": track_router_logits,
+                "bird_drone_logits": bird_drone_logits,
+                "bird_surface_logits": bird_surface_logits,
+                "rd_bird_drone_logits": None,
             }
 
         rd_encoder = self.rd_encoder
@@ -320,12 +391,13 @@ class FusionRadarClassifier(nn.Module):
         if track_reliability_head is None or rd_reliability_head is None:
             raise RuntimeError("Reliability heads are not initialized for RD fusion.")
 
-        track_reliability = track_reliability_head(track_feature)
+        if self.include_track:
+            track_reliability = track_reliability_head(track_feature)
+        else:
+            track_reliability = track_feature.new_full((track_feature.size(0), 1), -1e4)
         rd_reliability = rd_reliability_head(rd_feature).masked_fill(modality_mask <= 0.0, -1e4)
-        modality_weights = torch.softmax(
-            torch.cat([track_reliability, rd_reliability], dim=-1),
-            dim=-1,
-        )
+        reliability_logits = torch.cat([track_reliability, rd_reliability + self.rd_dominant_fusion_bias], dim=-1)
+        modality_weights = torch.softmax(reliability_logits, dim=-1)
         track_weight = modality_weights[:, :1]
         rd_weight = modality_weights[:, 1:2] * modality_mask
 
@@ -348,13 +420,37 @@ class FusionRadarClassifier(nn.Module):
             dim=-1,
         )
         logits, coarse_logits, detail_logits, coarse_feature, detail_feature = self.hierarchical_head(fused_feature)
+        notes_logits = self.notes_head(fused_feature) if self.notes_head is not None else None
+        track_router_logits = self.track_router_head(track_feature)
+        bird_drone_logits = self.bird_drone_head(fused_feature)
+        bird_surface_logits = self.bird_surface_head(fused_feature)
+        bird_rd_logits = self.bird_rd_head(rd_feature)
+        bird_surface_rd_logits = self.bird_surface_rd_head(rd_feature)
+        rd_bird_drone_logits = self.rd_bird_drone_head(rd_feature)
 
         unimodal_logit_residual = self.unimodal_logit_residual
         if unimodal_logit_residual is not None:
-            logits = logits + unimodal_logit_residual * (
-                track_logits * track_weight + rd_logits * rd_weight
-            )
+            logits = logits + unimodal_logit_residual * track_logits * track_weight
+            logits = logits + self.rd_unimodal_logit_residual_weight * rd_logits * rd_weight
         logits = logits + self.detail_logit_residual_weight * detail_logits
+        router_surface = track_router_logits[:, 0]
+        router_aircraft = track_router_logits[:, 1]
+        router_ambiguous = track_router_logits[:, 2]
+        if self.surface_class_index is not None:
+            logits[:, self.surface_class_index] = logits[:, self.surface_class_index] + 0.08 * router_surface
+        if self.aircraft_class_index is not None:
+            logits[:, self.aircraft_class_index] = logits[:, self.aircraft_class_index] + 0.08 * router_aircraft
+        if self.bird_class_index is not None:
+            logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + 0.04 * router_ambiguous
+        if self.drone_class_index is not None:
+            logits[:, self.drone_class_index] = logits[:, self.drone_class_index] + 0.04 * router_ambiguous
+        if self.bird_class_index is not None and self.surface_class_index is not None:
+            expert_delta = self.bird_surface_logit_residual_weight * bird_surface_logits.view(-1)
+            logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + expert_delta
+            logits[:, self.surface_class_index] = logits[:, self.surface_class_index] - expert_delta
+        if self.bird_class_index is not None and self.drone_class_index is not None:
+            logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + 0.08 * rd_bird_drone_logits[:, 0]
+            logits[:, self.drone_class_index] = logits[:, self.drone_class_index] + 0.08 * rd_bird_drone_logits[:, 1]
 
         return {
             "logits": logits,
@@ -366,4 +462,12 @@ class FusionRadarClassifier(nn.Module):
             "detail_feature": detail_feature,
             "track_weight": track_weight,
             "rd_weight": rd_weight,
+            "notes_logits": notes_logits,
+            "track_router_logits": track_router_logits,
+            "bird_drone_logits": bird_drone_logits,
+            "bird_surface_logits": bird_surface_logits,
+            "bird_rd_logits": bird_rd_logits,
+            "bird_surface_rd_logits": bird_surface_rd_logits,
+            "rd_bird_drone_logits": rd_bird_drone_logits,
+            "rd_feature": rd_feature,
         }

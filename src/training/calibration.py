@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any, Sequence
@@ -9,9 +10,28 @@ from torch.utils.data import DataLoader
 
 from src.models.fusion_classifier import FusionRadarClassifier
 from src.training.config import TrainingConfig
-from src.training.dataset import RadarFusionDataset
+from src.training.session_manager import build_dataset
 from src.training.trainer import build_coarse_taxonomy, compute_classification_metrics, optimize_group_logit_bias
 
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+
+
+def _infer_num_notes_from_checkpoint(checkpoint: dict[str, Any], fallback: int) -> int:
+    explicit = checkpoint.get('num_notes')
+    if explicit is not None:
+        return int(explicit)
+    state_dict = checkpoint.get('model_state_dict', {})
+    notes_weight = state_dict.get('notes_head.weight')
+    if notes_weight is not None:
+        return int(notes_weight.shape[0])
+    return int(fallback)
 
 def _load_json(path: Path) -> dict[str, Any]:
     with open(path, 'r', encoding='utf-8') as file:
@@ -23,20 +43,10 @@ def _build_dataset(
     checkpoint: dict[str, Any],
     ordered_labels: Sequence[str],
     session_ids: Sequence[str],
-) -> RadarFusionDataset:
-    dataset = RadarFusionDataset(
-        data_root=config.data_root,
-        session_ids=session_ids,
-        label_order=ordered_labels,
-        sequence_length=config.sequence_length,
-        rd_frames=config.rd_frames,
-        rd_height=config.rd_height,
-        rd_width=config.rd_width,
-        rd_input_channels=config.rd_input_channels,
-        feature_columns=config.track_feature_columns,
-        global_feature_columns=config.track_global_feature_columns,
-        include_rd=config.include_rd,
-    )
+) -> Any:
+    config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
+    config.include_rd = _env_flag("RD", bool(config.include_rd))
+    dataset = build_dataset(data_root=config.data_root, config=config, session_ids=session_ids, label_order=ordered_labels)
     track_feature_center = checkpoint.get('track_feature_center')
     track_feature_scale = checkpoint.get('track_feature_scale')
     if track_feature_center is not None and track_feature_scale is not None:
@@ -59,6 +69,7 @@ def _build_model(
     checkpoint: dict[str, Any],
     num_classes: int,
     num_coarse_classes: int,
+    num_notes: int,
     device: torch.device,
 ) -> FusionRadarClassifier:
     model = FusionRadarClassifier(
@@ -66,13 +77,17 @@ def _build_model(
         track_global_feature_dim=config.global_feature_dim,
         num_classes=num_classes,
         num_coarse_classes=num_coarse_classes,
-        include_rd=config.include_rd,
+        include_track=_env_flag("TRACK", bool(getattr(config, "include_track", True))),
+        include_rd=_env_flag("RD", bool(config.include_rd)),
         track_projection_dim=config.track_projection_dim,
         tcn_channels=config.tcn_channels,
         transformer_layers=config.transformer_layers,
         transformer_heads=config.transformer_heads,
         transformer_dropout=config.transformer_dropout,
-        max_sequence_length=config.sequence_length,
+        max_sequence_length=config.track_long_length,
+        short_sequence_length=config.track_short_length,
+        mid_sequence_length=config.track_mid_length,
+        long_sequence_length=config.track_long_length,
         x3d_in_channels=config.rd_input_channels,
         x3d_stem_channels=config.x3d_stem_channels,
         x3d_stage_channels=config.x3d_stage_channels,
@@ -87,8 +102,16 @@ def _build_model(
         fusion_hidden_size=config.fusion_hidden_size,
         detail_logit_residual_weight=config.detail_logit_residual_weight,
         detail_cosine_scale=config.detail_cosine_scale,
+        num_notes=_infer_num_notes_from_checkpoint(checkpoint, num_notes),
+        track_backbone_type=config.track_backbone_type,
+        temporal_2d_branch_channels=getattr(config, "temporal_2d_branch_channels", 96),
+        bird_class_index=checkpoint.get("label_to_index", {}).get("BirdTarget"),
+        surface_class_index=checkpoint.get("label_to_index", {}).get("ShipTarget"),
+        aircraft_class_index=checkpoint.get("label_to_index", {}).get("AircraftTarget"),
+        drone_class_index=checkpoint.get("label_to_index", {}).get("DroneTarget"),
+        bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
     ).to(device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
     model.eval()
     return model
 
@@ -110,7 +133,13 @@ def _collect_logits(
             if include_rd:
                 rd_features = batch['rd_features'].to(device=device, dtype=torch.float32)
                 rd_mask = batch['has_rd'].to(device=device, dtype=torch.float32).view(-1, 1)
-            outputs = model(track_features, track_global_features, rd_features, rd_mask)
+            track_short_features = batch.get("track_short_features")
+            if track_short_features is not None:
+                track_short_features = track_short_features.to(device=device, dtype=torch.float32)
+            track_long_features = batch.get("track_long_features")
+            if track_long_features is not None:
+                track_long_features = track_long_features.to(device=device, dtype=torch.float32)
+            outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
             logits_blocks.append(outputs['logits'].detach().cpu().numpy())
             labels.extend(batch['label'].detach().cpu().tolist())
     return np.concatenate(logits_blocks, axis=0), np.asarray(labels, dtype=np.int64)
@@ -153,6 +182,7 @@ def run_group_calibration(
         checkpoint=checkpoint,
         num_classes=len(label_to_index),
         num_coarse_classes=len(coarse_to_index),
+        num_notes=int(checkpoint.get("num_notes", 0)),
         device=resolved_device,
     )
     val_logits, val_labels = _collect_logits(model, val_loader, resolved_device, config.include_rd)

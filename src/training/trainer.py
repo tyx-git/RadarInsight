@@ -1,4 +1,5 @@
 import json
+import os
 import random
 from pathlib import Path
 from typing import Any, Sequence
@@ -6,13 +7,19 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 
 from src.models.fusion_classifier import FusionRadarClassifier
 from src.training.config import TrainingConfig
-from src.training.dataset import RadarFusionDataset
-from src.training.session_manager import build_session_manifest, build_session_subsets, save_session_manifest
+from src.training.session_manager import build_dataset, build_session_manifest, build_session_subsets, save_session_manifest
 from src.utils.logger import logger
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def set_random_seed(seed: int) -> None:
@@ -25,6 +32,27 @@ def set_random_seed(seed: int) -> None:
 
 def count_trainable_parameters(model: nn.Module) -> int:
     return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
+
+
+class FocalCrossEntropyLoss(nn.Module):
+    def __init__(self, weight: torch.Tensor | None = None, gamma: float = 2.0, label_smoothing: float = 0.0):
+        super().__init__()
+        self.register_buffer('weight_tensor', weight if weight is not None else None)
+        self.gamma = float(gamma)
+        self.label_smoothing = float(label_smoothing)
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce = torch.nn.functional.cross_entropy(
+            logits,
+            targets,
+            weight=self.weight_tensor,
+            label_smoothing=self.label_smoothing,
+            reduction='none',
+        )
+        probabilities = torch.softmax(logits, dim=-1)
+        pt = probabilities.gather(1, targets.view(-1, 1)).view(-1).clamp_min(1e-6)
+        focal_factor = (1.0 - pt).pow(self.gamma)
+        return (focal_factor * ce).mean()
 
 
 def compute_classification_metrics(labels: list[int], predictions: list[int], num_classes: int) -> dict[str, float]:
@@ -63,6 +91,45 @@ def apply_logit_bias(logits: torch.Tensor, logit_bias: torch.Tensor | None) -> t
     return logits + logit_bias.view(1, -1)
 
 
+def _score_logits_tuple(labels: np.ndarray, logits: np.ndarray) -> tuple[float, float]:
+    predictions = logits.argmax(axis=1).tolist()
+    metrics = compute_classification_metrics(labels.tolist(), predictions, num_classes=logits.shape[1])
+    return float(metrics["accuracy"]), float(metrics["macro_f1"])
+
+
+def optimize_global_logit_bias(
+    labels: np.ndarray,
+    logits: np.ndarray,
+    search_values: np.ndarray | None = None,
+    rounds: int = 3,
+) -> np.ndarray:
+    if logits.ndim != 2 or logits.shape[0] == 0:
+        return np.zeros((logits.shape[1] if logits.ndim == 2 else 0,), dtype=np.float32)
+
+    bias = np.zeros((logits.shape[1],), dtype=np.float32)
+    candidate_values = search_values if search_values is not None else np.linspace(-1.5, 1.5, num=31, dtype=np.float32)
+
+    for _ in range(max(rounds, 1)):
+        improved = False
+        for class_index in range(logits.shape[1]):
+            best_delta = 0.0
+            best_score = _score_logits_tuple(labels, logits + bias.reshape(1, -1))
+            for delta in candidate_values:
+                candidate_bias = bias.copy()
+                candidate_bias[class_index] += float(delta)
+                candidate_score = _score_logits_tuple(labels, logits + candidate_bias.reshape(1, -1))
+                if candidate_score > best_score:
+                    best_score = candidate_score
+                    best_delta = float(delta)
+            if abs(best_delta) > 1e-8:
+                bias[class_index] += best_delta
+                improved = True
+        if not improved:
+            break
+
+    return bias.astype(np.float32)
+
+
 def _score_logits(labels: np.ndarray, logits: np.ndarray) -> float:
     predictions = logits.argmax(axis=1).tolist()
     metrics = compute_classification_metrics(labels.tolist(), predictions, num_classes=logits.shape[1])
@@ -79,8 +146,12 @@ def optimize_group_logit_bias(
     if logits.ndim != 2 or logits.shape[0] == 0:
         return np.zeros((logits.shape[1] if logits.ndim == 2 else 0,), dtype=np.float32)
 
-    bias = np.zeros((logits.shape[1],), dtype=np.float32)
     unique_coarse_indices = sorted(set(int(value) for value in fine_to_coarse_index.tolist()))
+    group_sizes = [int(np.sum(fine_to_coarse_index == coarse_index)) for coarse_index in unique_coarse_indices]
+    if max(group_sizes, default=0) <= 1:
+        return optimize_global_logit_bias(labels=labels, logits=logits, search_values=search_values, rounds=max(rounds, 2))
+
+    bias = np.zeros((logits.shape[1],), dtype=np.float32)
     candidate_values = search_values if search_values is not None else np.linspace(-0.8, 0.8, num=17, dtype=np.float32)
 
     for _ in range(max(rounds, 1)):
@@ -136,7 +207,12 @@ def build_class_balanced_weights(data_source: Any, num_classes: int, beta: float
     effective_num = 1.0 - np.power(beta, counts)
     effective_num[effective_num <= 0] = 1.0
     weights = (1.0 - beta) / effective_num
-    weights[counts == 0] = 0.0
+    positive_mask = counts > 0
+    if positive_mask.any():
+        fallback_weight = float(np.median(weights[positive_mask]))
+    else:
+        fallback_weight = 1.0
+    weights[~positive_mask] = fallback_weight
     weights = weights / max(weights.sum(), 1e-8) * num_classes
     return torch.tensor(weights, dtype=torch.float32)
 
@@ -171,19 +247,10 @@ def build_scheduler(
 def build_dataloaders(
     config: TrainingConfig,
     session_ids: Sequence[str] | None = None,
-) -> tuple[RadarFusionDataset, DataLoader, DataLoader | None, DataLoader | None, dict[str, list[str]]]:
-    dataset = RadarFusionDataset(
-        data_root=config.data_root,
-        session_ids=session_ids,
-        sequence_length=config.sequence_length,
-        rd_frames=config.rd_frames,
-        rd_height=config.rd_height,
-        rd_width=config.rd_width,
-        rd_input_channels=config.rd_input_channels,
-        feature_columns=config.track_feature_columns,
-        global_feature_columns=config.track_global_feature_columns,
-        include_rd=config.include_rd,
-    )
+) -> tuple[Any, DataLoader, DataLoader | None, DataLoader | None, dict[str, list[str]]]:
+    config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
+    config.include_rd = _env_flag("RD", bool(config.include_rd))
+    dataset = build_dataset(data_root=config.data_root, config=config, session_ids=session_ids)
 
     if len(dataset) == 1:
         dataset.fit_track_normalization_for_sessions(sorted(dataset.sessions.keys()))
@@ -206,13 +273,31 @@ def build_dataloaders(
     )
     dataset.fit_track_normalization_for_sessions(split_map["train"])
     dataset.fit_track_global_normalization_for_sessions(split_map["train"])
+    if hasattr(dataset, "window_mix_probability"):
+        dataset.window_mix_probability = float(getattr(config, "track_window_mix_prob", 0.0)) if bool(getattr(config, "use_track_window_mix", False)) else 0.0
+
+    train_sampler = None
+    train_shuffle = True
+    sampling_boost = float(getattr(config, "bird_surface_sampling_boost", 1.0))
+    if sampling_boost > 1.0 and hasattr(train_dataset, "indices") and hasattr(dataset, "samples"):
+        sample_weights = []
+        for subset_index in train_dataset.indices:
+            sample = dataset.samples[subset_index]
+            label_name = getattr(sample, "label_name", "")
+            weight = sampling_boost if label_name in {"BirdTarget", "ShipTarget"} else 1.0
+            sample_weights.append(weight)
+        train_sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+        train_shuffle = False
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
-        shuffle=True,
+        shuffle=train_shuffle,
+        sampler=train_sampler,
         num_workers=config.num_workers,
     )
+    if hasattr(getattr(val_dataset, "dataset", None), "window_mix_probability"):
+        getattr(val_dataset, "dataset").window_mix_probability = 0.0
     val_loader = None
     if val_dataset is not None:
         val_loader = DataLoader(
@@ -221,6 +306,8 @@ def build_dataloaders(
             shuffle=False,
             num_workers=config.num_workers,
         )
+    if hasattr(getattr(test_dataset, "dataset", None), "window_mix_probability"):
+        getattr(test_dataset, "dataset").window_mix_probability = 0.0
     test_loader = None
     if test_dataset is not None:
         test_loader = DataLoader(
@@ -274,14 +361,77 @@ def _build_detail_boundary_loss(
     return boundary_loss[valid_rows].mean()
 
 
+def _bird_surface_prototype_loss(
+    rd_feature: torch.Tensor | None,
+    bird_surface_target: torch.Tensor | None,
+    margin: float,
+) -> torch.Tensor:
+    if rd_feature is None or bird_surface_target is None or rd_feature.ndim != 2:
+        return rd_feature.new_zeros(()) if isinstance(rd_feature, torch.Tensor) else torch.tensor(0.0)
+    valid_mask = bird_surface_target >= 0.0
+    if valid_mask.sum() < 2:
+        return rd_feature.new_zeros(())
+    valid_feature = rd_feature[valid_mask]
+    valid_target = bird_surface_target[valid_mask]
+    bird_mask = valid_target > 0.5
+    surface_mask = valid_target <= 0.5
+    if bird_mask.sum() == 0 or surface_mask.sum() == 0:
+        return rd_feature.new_zeros(())
+    bird_proto = valid_feature[bird_mask].mean(dim=0, keepdim=True)
+    surface_proto = valid_feature[surface_mask].mean(dim=0, keepdim=True)
+    bird_pos = torch.norm(valid_feature[bird_mask] - bird_proto, dim=-1).mean()
+    surface_pos = torch.norm(valid_feature[surface_mask] - surface_proto, dim=-1).mean()
+    bird_neg = torch.norm(valid_feature[bird_mask] - surface_proto, dim=-1).mean()
+    surface_neg = torch.norm(valid_feature[surface_mask] - bird_proto, dim=-1).mean()
+    separation = torch.relu(float(margin) + bird_pos + surface_pos - bird_neg - surface_neg)
+    compactness = 0.5 * (bird_pos + surface_pos)
+    return compactness + separation
+
+
+def _bird_surface_triplet_loss(
+    rd_feature: torch.Tensor | None,
+    bird_surface_target: torch.Tensor | None,
+    margin: float,
+) -> torch.Tensor:
+    if rd_feature is None or bird_surface_target is None or rd_feature.ndim != 2:
+        return rd_feature.new_zeros(()) if isinstance(rd_feature, torch.Tensor) else torch.tensor(0.0)
+    valid_mask = bird_surface_target >= 0.0
+    if valid_mask.sum() < 2:
+        return rd_feature.new_zeros(())
+    features = torch.nn.functional.normalize(rd_feature[valid_mask], dim=-1)
+    targets = bird_surface_target[valid_mask]
+    bird_mask = targets > 0.5
+    surface_mask = targets <= 0.5
+    if bird_mask.sum() == 0 or surface_mask.sum() == 0:
+        return rd_feature.new_zeros(())
+    bird_features = features[bird_mask]
+    surface_features = features[surface_mask]
+    bird_proto = bird_features.mean(dim=0, keepdim=True)
+    surface_proto = surface_features.mean(dim=0, keepdim=True)
+    bird_positive = 1.0 - (bird_features * bird_proto).sum(dim=-1)
+    bird_negative = 1.0 - (bird_features * surface_proto).sum(dim=-1)
+    surface_positive = 1.0 - (surface_features * surface_proto).sum(dim=-1)
+    surface_negative = 1.0 - (surface_features * bird_proto).sum(dim=-1)
+    bird_triplet = torch.relu(bird_positive - bird_negative + margin)
+    surface_triplet = torch.relu(surface_positive - surface_negative + margin)
+    return torch.cat([bird_triplet, surface_triplet], dim=0).mean()
+
+
 def compute_losses(
     outputs: dict[str, Any] | torch.Tensor,
     labels: torch.Tensor,
     criterion: nn.Module,
     auxiliary_criterion: nn.Module,
+    notes_criterion: nn.Module | None,
+    bird_drone_criterion: nn.Module | None,
+    bird_surface_criterion: nn.Module | None,
     config: TrainingConfig,
     fine_to_coarse_index: torch.Tensor,
     rd_mask: torch.Tensor | None = None,
+    notes_target: torch.Tensor | None = None,
+    bird_drone_target: torch.Tensor | None = None,
+    bird_surface_target: torch.Tensor | None = None,
+    track_router_target: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if isinstance(outputs, torch.Tensor):
         logits = outputs
@@ -295,7 +445,7 @@ def compute_losses(
         loss = loss + config.track_aux_loss_weight * criterion(track_logits, labels)
 
     rd_logits = outputs.get("rd_logits")
-    if config.include_rd and rd_logits is not None and config.rd_aux_loss_weight > 0:
+    if _env_flag("RD", bool(config.include_rd)) and rd_logits is not None and config.rd_aux_loss_weight > 0:
         if rd_mask is None:
             loss = loss + config.rd_aux_loss_weight * criterion(rd_logits, labels)
         else:
@@ -320,6 +470,51 @@ def compute_losses(
         )
         loss = loss + config.detail_boundary_loss_weight * boundary_loss
 
+    notes_logits = outputs.get("notes_logits") if isinstance(outputs, dict) else None
+    if notes_criterion is not None and notes_logits is not None and notes_target is not None and getattr(config, "notes_aux_loss_weight", 0.0) > 0:
+        loss = loss + float(config.notes_aux_loss_weight) * notes_criterion(notes_logits, notes_target)
+    bird_drone_logits = outputs.get("bird_drone_logits") if isinstance(outputs, dict) else None
+    if bird_drone_criterion is not None and bird_drone_logits is not None and bird_drone_target is not None and getattr(config, "bird_drone_aux_loss_weight", 0.0) > 0:
+        valid_mask = bird_drone_target >= 0.0
+        if valid_mask.any():
+            loss = loss + float(config.bird_drone_aux_loss_weight) * bird_drone_criterion(bird_drone_logits.view(-1)[valid_mask], bird_drone_target[valid_mask])
+    bird_surface_logits = outputs.get("bird_surface_logits") if isinstance(outputs, dict) else None
+    if bird_surface_criterion is not None and bird_surface_logits is not None and bird_surface_target is not None and getattr(config, "bird_surface_aux_loss_weight", 0.0) > 0:
+        valid_mask = bird_surface_target >= 0.0
+        if valid_mask.any():
+            loss = loss + float(config.bird_surface_aux_loss_weight) * bird_surface_criterion(bird_surface_logits.view(-1)[valid_mask], bird_surface_target[valid_mask])
+
+    track_router_logits = outputs.get("track_router_logits") if isinstance(outputs, dict) else None
+    if track_router_logits is not None and track_router_target is not None and getattr(config, "track_router_aux_loss_weight", 0.0) > 0:
+        valid_mask = track_router_target >= 0
+        if valid_mask.any():
+            router_loss = auxiliary_criterion(track_router_logits[valid_mask], track_router_target[valid_mask])
+            loss = loss + float(getattr(config, "track_router_aux_loss_weight", 0.0)) * router_loss
+
+    rd_bird_drone_logits = outputs.get("rd_bird_drone_logits") if isinstance(outputs, dict) else None
+    if rd_bird_drone_logits is not None and bird_drone_target is not None and getattr(config, "rd_bird_drone_aux_loss_weight", 0.0) > 0:
+        valid_mask = bird_drone_target >= 0.0
+        if valid_mask.any():
+            bird_drone_targets_long = bird_drone_target[valid_mask].long()
+            rd_specialist_loss = auxiliary_criterion(rd_bird_drone_logits[valid_mask], bird_drone_targets_long)
+            loss = loss + float(getattr(config, "rd_bird_drone_aux_loss_weight", 0.0)) * rd_specialist_loss
+
+    rd_feature = outputs.get("rd_feature") if isinstance(outputs, dict) else None
+    if getattr(config, "bird_surface_prototype_loss_weight", 0.0) > 0:
+        prototype_loss = _bird_surface_prototype_loss(
+            rd_feature=rd_feature,
+            bird_surface_target=bird_surface_target,
+            margin=float(getattr(config, "bird_surface_prototype_margin", 0.35)),
+        )
+        loss = loss + float(getattr(config, "bird_surface_prototype_loss_weight", 0.0)) * prototype_loss
+
+    if getattr(config, "bird_surface_triplet_loss_weight", 0.0) > 0:
+        triplet_loss = _bird_surface_triplet_loss(
+            rd_feature=rd_feature,
+            bird_surface_target=bird_surface_target,
+            margin=float(getattr(config, "bird_surface_triplet_margin", 0.4)),
+        )
+        loss = loss + float(getattr(config, "bird_surface_triplet_loss_weight", 0.0)) * triplet_loss
     return logits, loss
 
 
@@ -328,6 +523,9 @@ def run_epoch(
     data_loader: DataLoader,
     criterion: nn.Module,
     auxiliary_criterion: nn.Module,
+    notes_criterion: nn.Module | None,
+    bird_drone_criterion: nn.Module | None,
+    bird_surface_criterion: nn.Module | None,
     device: torch.device,
     config: TrainingConfig,
     num_classes: int,
@@ -348,9 +546,27 @@ def run_epoch(
     for batch in data_loader:
         track_features = batch["track_features"].to(device=device, dtype=torch.float32)
         track_global_features = batch["track_global_features"].to(device=device, dtype=torch.float32)
+        track_short_features = batch.get("track_short_features")
+        if track_short_features is not None:
+            track_short_features = track_short_features.to(device=device, dtype=torch.float32)
+        track_long_features = batch.get("track_long_features")
+        if track_long_features is not None:
+            track_long_features = track_long_features.to(device=device, dtype=torch.float32)
+        notes_target = batch.get("notes_target")
+        if notes_target is not None:
+            notes_target = notes_target.to(device=device, dtype=torch.float32)
+        bird_drone_target = batch.get("bird_drone_target")
+        if bird_drone_target is not None:
+            bird_drone_target = bird_drone_target.to(device=device, dtype=torch.float32)
+        bird_surface_target = batch.get("bird_surface_target")
+        if bird_surface_target is not None:
+            bird_surface_target = bird_surface_target.to(device=device, dtype=torch.float32)
+        track_router_target = batch.get("track_router_target")
+        if track_router_target is not None:
+            track_router_target = track_router_target.to(device=device, dtype=torch.long)
         rd_features = None
         rd_mask = None
-        if config.include_rd:
+        if _env_flag("RD", bool(config.include_rd)):
             rd_features = batch["rd_features"].to(device=device, dtype=torch.float32)
             rd_mask = batch["has_rd"].to(device=device, dtype=torch.float32).view(-1, 1)
         labels = batch["label"].to(device=device, dtype=torch.long)
@@ -359,8 +575,8 @@ def run_epoch(
             optimizer.zero_grad(set_to_none=True)
 
         with torch.set_grad_enabled(training):
-            outputs = model(track_features, track_global_features, rd_features, rd_mask)
-            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, config, fine_to_coarse_index, rd_mask)
+            outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
+            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, rd_mask, notes_target, bird_drone_target, bird_surface_target)
             if training:
                 loss.backward()
                 if config.max_grad_norm > 0:
@@ -379,10 +595,23 @@ def run_epoch(
     return metrics
 
 
+
+
+def _compute_selection_metric(config: TrainingConfig, val_metrics: dict[str, float]) -> float:
+    metric_name = str(getattr(config, "best_metric_name", "val_composite"))
+    if metric_name == "val_macro_f1":
+        return float(val_metrics.get("macro_f1", 0.0))
+    if metric_name == "val_accuracy":
+        return float(val_metrics.get("accuracy", 0.0))
+    weights = getattr(config, "best_metric_weights", {"val_macro_f1": 0.7, "val_accuracy": 0.3})
+    w_f1 = float(weights.get("val_macro_f1", 0.7))
+    w_acc = float(weights.get("val_accuracy", 0.3))
+    return w_f1 * float(val_metrics.get("macro_f1", 0.0)) + w_acc * float(val_metrics.get("accuracy", 0.0))
+
 def save_training_artifacts(
     output_dir: Path,
     config: TrainingConfig,
-    dataset: RadarFusionDataset,
+    dataset: Any,
     history: list[dict[str, Any]],
     num_parameters: int,
     split_map: dict[str, list[str]],
@@ -405,6 +634,7 @@ def save_training_artifacts(
         "track_feature_scale": dataset.track_feature_scale.tolist(),
         "track_global_center": dataset.track_global_center.tolist(),
         "track_global_scale": dataset.track_global_scale.tolist(),
+        "num_notes": getattr(dataset, "note_dim", 0),
     }
 
     with open(metadata_path, "w", encoding="utf-8") as file:
@@ -427,6 +657,12 @@ def run_training(
     dataset, train_loader, val_loader, test_loader, split_map = build_dataloaders(config, session_ids=session_ids)
     resolved_device = torch.device(device or "cpu")
     ordered_labels = [dataset.index_to_label[index] for index in sorted(dataset.index_to_label)]
+    coarse_training_mode = str(getattr(config, 'label_granularity', 'fine')).lower() == 'coarse'
+    if coarse_training_mode:
+        config.hierarchical_aux_loss_weight = 0.0
+        config.detail_aux_loss_weight = 0.0
+        config.detail_boundary_loss_weight = 0.0
+
     coarse_to_index, fine_to_coarse_index = build_coarse_taxonomy(config, ordered_labels)
     fine_to_coarse_index = fine_to_coarse_index.to(resolved_device)
 
@@ -435,13 +671,17 @@ def run_training(
         track_global_feature_dim=config.global_feature_dim,
         num_classes=len(dataset.label_to_index),
         num_coarse_classes=len(coarse_to_index),
-        include_rd=config.include_rd,
+        include_track=_env_flag("TRACK", bool(getattr(config, "include_track", True))),
+        include_rd=_env_flag("RD", bool(config.include_rd)),
         track_projection_dim=config.track_projection_dim,
         tcn_channels=config.tcn_channels,
         transformer_layers=config.transformer_layers,
         transformer_heads=config.transformer_heads,
         transformer_dropout=config.transformer_dropout,
-        max_sequence_length=config.sequence_length,
+        max_sequence_length=config.track_long_length,
+        short_sequence_length=config.track_short_length,
+        mid_sequence_length=config.track_mid_length,
+        long_sequence_length=config.track_long_length,
         x3d_in_channels=config.rd_input_channels,
         x3d_stem_channels=config.x3d_stem_channels,
         x3d_stage_channels=config.x3d_stage_channels,
@@ -456,6 +696,14 @@ def run_training(
         fusion_hidden_size=config.fusion_hidden_size,
         detail_logit_residual_weight=config.detail_logit_residual_weight,
         detail_cosine_scale=config.detail_cosine_scale,
+        num_notes=getattr(dataset, "note_dim", 0),
+        track_backbone_type=config.track_backbone_type,
+        temporal_2d_branch_channels=getattr(config, "temporal_2d_branch_channels", 96),
+        bird_class_index=dataset.label_to_index.get("BirdTarget"),
+        surface_class_index=dataset.label_to_index.get("ShipTarget"),
+        aircraft_class_index=dataset.label_to_index.get("AircraftTarget"),
+        drone_class_index=dataset.label_to_index.get("DroneTarget"),
+        bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
     ).to(resolved_device)
 
     optimizer = torch.optim.AdamW(
@@ -470,12 +718,20 @@ def run_training(
             num_classes=len(dataset.label_to_index),
             beta=config.class_balance_beta,
         ).to(resolved_device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=config.label_smoothing)
+    if getattr(config, 'use_focal_loss', False):
+        criterion = FocalCrossEntropyLoss(weight=class_weights, gamma=float(getattr(config, 'focal_gamma', 2.0)), label_smoothing=config.label_smoothing)
+    else:
+        criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=config.label_smoothing)
     auxiliary_criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
+    notes_criterion = nn.BCEWithLogitsLoss() if getattr(dataset, "note_dim", 0) > 0 else None
+    bird_drone_criterion = nn.BCEWithLogitsLoss()
+    bird_surface_criterion = nn.BCEWithLogitsLoss()
     scheduler = build_scheduler(optimizer, epochs=config.epochs, warmup_epochs=config.warmup_epochs)
     output_dir = Path(config.output_dir)
     best_checkpoint = output_dir / "best_fusion_model.pt"
     best_macro_f1 = -1.0
+    best_selection_metric = float("-inf")
+    stale_epochs = 0
     history: list[dict[str, Any]] = []
     num_parameters = count_trainable_parameters(model)
 
@@ -500,6 +756,9 @@ def run_training(
             data_loader=train_loader,
             criterion=criterion,
             auxiliary_criterion=auxiliary_criterion,
+            notes_criterion=notes_criterion,
+            bird_drone_criterion=bird_drone_criterion,
+            bird_surface_criterion=bird_surface_criterion,
             device=resolved_device,
             config=config,
             num_classes=len(dataset.label_to_index),
@@ -515,6 +774,9 @@ def run_training(
                 data_loader=val_loader,
                 criterion=criterion,
                 auxiliary_criterion=auxiliary_criterion,
+                notes_criterion=notes_criterion,
+                bird_drone_criterion=bird_drone_criterion,
+            bird_surface_criterion=bird_surface_criterion,
                 device=resolved_device,
                 config=config,
                 num_classes=len(dataset.label_to_index),
@@ -530,6 +792,7 @@ def run_training(
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
             "learning_rate": optimizer.param_groups[0]["lr"],
+            "val_selection_metric": _compute_selection_metric(config, val_metrics),
         }
         history.append(epoch_record)
 
@@ -547,8 +810,13 @@ def run_training(
         if scheduler is not None:
             scheduler.step()
 
+        selection_metric = _compute_selection_metric(config, val_metrics)
         if val_metrics["macro_f1"] >= best_macro_f1:
             best_macro_f1 = val_metrics["macro_f1"]
+
+        if selection_metric > best_selection_metric + float(getattr(config, "early_stopping_min_delta", 0.0)):
+            best_selection_metric = selection_metric
+            stale_epochs = 0
             output_dir.mkdir(parents=True, exist_ok=True)
             torch.save(
                 {
@@ -558,17 +826,25 @@ def run_training(
                     "coarse_to_index": coarse_to_index,
                     "fine_to_coarse_index": fine_to_coarse_index.detach().cpu().tolist(),
                     "best_macro_f1": best_macro_f1,
+                    "best_selection_metric": best_selection_metric,
                     "num_parameters": num_parameters,
                     "track_feature_center": dataset.track_feature_center.tolist(),
                     "track_feature_scale": dataset.track_feature_scale.tolist(),
                     "track_global_center": dataset.track_global_center.tolist(),
                     "track_global_scale": dataset.track_global_scale.tolist(),
+                    "num_notes": getattr(dataset, "note_dim", 0),
                 },
                 best_checkpoint,
             )
+        else:
+            stale_epochs += 1
+
+        if stale_epochs >= int(getattr(config, "early_stopping_patience", 999999)):
+            logger.info(f"[*] Early stopping triggered at epoch {epoch:03d} | stale_epochs={stale_epochs}")
+            break
 
     history_path = save_training_artifacts(output_dir, config, dataset, history, num_parameters, split_map, coarse_to_index, fine_to_coarse_index.detach().cpu())
-    manifest = build_session_manifest(data_root=config.data_root, include_rd=config.include_rd, split_map=split_map)
+    manifest = build_session_manifest(data_root=config.data_root, include_rd=_env_flag("RD", bool(config.include_rd)), split_map=split_map)
     manifest_path = save_session_manifest(manifest, output_dir)
 
     if best_checkpoint.exists():
@@ -582,6 +858,9 @@ def run_training(
             data_loader=test_loader,
             criterion=criterion,
             auxiliary_criterion=auxiliary_criterion,
+            notes_criterion=notes_criterion,
+            bird_drone_criterion=bird_drone_criterion,
+            bird_surface_criterion=bird_surface_criterion,
             device=resolved_device,
             config=config,
             num_classes=len(dataset.label_to_index),
