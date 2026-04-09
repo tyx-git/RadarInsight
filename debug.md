@@ -1322,3 +1322,21 @@ Stage 65 - Track Router and RD Air Specialist Backbone
 - Run `202604081748-30-4-cpu` under the purified paired TR/RD setup reached `Accuracy=0.7529`, `Macro F1=0.7494`, `Loss=1.5857`.
 - The stabilized training schedule (`lr=2e-4`, `epochs=12`, composite selection + early stopping) outperformed the previous paired-data baseline and produced a clearly stronger, more reliable reference point.
 - Best validation behavior appeared around epoch 4, and early stopping triggered at epoch 10 before deeper overfitting.
+
+## Stage 71 - Ship Specialist RD Heads
+- Added RD specialist heads for `ShipTarget vs DroneTarget` and `ShipTarget vs BirdTarget` on top of the current stable dual-modal baseline.
+- This change is intentionally incremental: keep the temporal track backbone stable and improve the main remaining confusion boundary through RD-side specialist supervision and light logit residuals.
+
+## Stage 72 - Weaken Ship Specialists
+- Keep `rd_ship_drone_head` and `rd_ship_bird_head` as auxiliary RD supervision only.
+- Reduce `rd_ship_drone_aux_loss_weight` to `0.06`.
+- Reduce `rd_ship_bird_aux_loss_weight` to `0.06`.
+- Disable direct Ship specialist residual injection with `ship_specialist_logit_residual_weight = 0.0`.
+- Rationale: preserve Ship-specific RD representation learning without disturbing the stable global 4-class decision boundary.
+
+## Stage 73 - Stable Paired TR/RD Improvement
+- Run `202604090918-30-4-cpu` improved the purified paired-data baseline.
+- Independent evaluation: `Accuracy = 0.7691`, `Macro F1 = 0.7907`, `Loss = 1.5229`.
+- This exceeds commit `505888d` (`Accuracy = 0.7529`, `Macro F1 = 0.7494`).
+- Current default weak Ship-specialist setup is more effective than the stronger residual version.
+- Main remaining error source should be checked from the new confusion matrix, but overall paired TR/RD pipeline is now clearly stronger and more stable.

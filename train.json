@@ -34,6 +34,9 @@
   "bird_surface_triplet_margin": 0.4,
   "track_router_aux_loss_weight": 0.15,
   "rd_bird_drone_aux_loss_weight": 0.15,
+  "rd_ship_drone_aux_loss_weight": 0.06,
+  "rd_ship_bird_aux_loss_weight": 0.06,
+  "ship_specialist_logit_residual_weight": 0.0,
   "best_metric_name": "val_composite",
   "best_metric_weights": {
     "val_macro_f1": 0.7,

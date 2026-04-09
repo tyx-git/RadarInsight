@@ -133,6 +133,9 @@ class TrainingConfig:
     bird_surface_triplet_margin: float = 0.4
     track_router_aux_loss_weight: float = 0.15
     rd_bird_drone_aux_loss_weight: float = 0.15
+    rd_ship_drone_aux_loss_weight: float = 0.06
+    rd_ship_bird_aux_loss_weight: float = 0.06
+    ship_specialist_logit_residual_weight: float = 0.0
     best_metric_name: str = "val_composite"
     best_metric_weights: dict[str, float] = field(default_factory=lambda: {"val_macro_f1": 0.7, "val_accuracy": 0.3})
     early_stopping_patience: int = 6

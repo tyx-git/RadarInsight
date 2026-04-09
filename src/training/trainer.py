@@ -432,6 +432,8 @@ def compute_losses(
     bird_drone_target: torch.Tensor | None = None,
     bird_surface_target: torch.Tensor | None = None,
     track_router_target: torch.Tensor | None = None,
+    ship_drone_target: torch.Tensor | None = None,
+    ship_bird_target: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if isinstance(outputs, torch.Tensor):
         logits = outputs
@@ -499,6 +501,22 @@ def compute_losses(
             rd_specialist_loss = auxiliary_criterion(rd_bird_drone_logits[valid_mask], bird_drone_targets_long)
             loss = loss + float(getattr(config, "rd_bird_drone_aux_loss_weight", 0.0)) * rd_specialist_loss
 
+    rd_ship_drone_logits = outputs.get("rd_ship_drone_logits") if isinstance(outputs, dict) else None
+    if rd_ship_drone_logits is not None and ship_drone_target is not None and getattr(config, "rd_ship_drone_aux_loss_weight", 0.0) > 0:
+        valid_mask = ship_drone_target >= 0.0
+        if valid_mask.any():
+            ship_drone_targets_long = ship_drone_target[valid_mask].long()
+            ship_drone_loss = auxiliary_criterion(rd_ship_drone_logits[valid_mask], ship_drone_targets_long)
+            loss = loss + float(getattr(config, "rd_ship_drone_aux_loss_weight", 0.0)) * ship_drone_loss
+
+    rd_ship_bird_logits = outputs.get("rd_ship_bird_logits") if isinstance(outputs, dict) else None
+    if rd_ship_bird_logits is not None and ship_bird_target is not None and getattr(config, "rd_ship_bird_aux_loss_weight", 0.0) > 0:
+        valid_mask = ship_bird_target >= 0.0
+        if valid_mask.any():
+            ship_bird_targets_long = ship_bird_target[valid_mask].long()
+            ship_bird_loss = auxiliary_criterion(rd_ship_bird_logits[valid_mask], ship_bird_targets_long)
+            loss = loss + float(getattr(config, "rd_ship_bird_aux_loss_weight", 0.0)) * ship_bird_loss
+
     rd_feature = outputs.get("rd_feature") if isinstance(outputs, dict) else None
     if getattr(config, "bird_surface_prototype_loss_weight", 0.0) > 0:
         prototype_loss = _bird_surface_prototype_loss(
@@ -564,6 +582,12 @@ def run_epoch(
         track_router_target = batch.get("track_router_target")
         if track_router_target is not None:
             track_router_target = track_router_target.to(device=device, dtype=torch.long)
+        ship_drone_target = batch.get("ship_drone_target")
+        if ship_drone_target is not None:
+            ship_drone_target = ship_drone_target.to(device=device, dtype=torch.float32)
+        ship_bird_target = batch.get("ship_bird_target")
+        if ship_bird_target is not None:
+            ship_bird_target = ship_bird_target.to(device=device, dtype=torch.float32)
         rd_features = None
         rd_mask = None
         if _env_flag("RD", bool(config.include_rd)):
@@ -576,7 +600,7 @@ def run_epoch(
 
         with torch.set_grad_enabled(training):
             outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
-            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, rd_mask, notes_target, bird_drone_target, bird_surface_target)
+            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, rd_mask, notes_target, bird_drone_target, bird_surface_target, track_router_target, ship_drone_target, ship_bird_target)
             if training:
                 loss.backward()
                 if config.max_grad_norm > 0:
@@ -704,6 +728,7 @@ def run_training(
         aircraft_class_index=dataset.label_to_index.get("AircraftTarget"),
         drone_class_index=dataset.label_to_index.get("DroneTarget"),
         bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
+        ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.08)),
     ).to(resolved_device)
 
     optimizer = torch.optim.AdamW(

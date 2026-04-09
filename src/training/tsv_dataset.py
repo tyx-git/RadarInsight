@@ -493,5 +493,7 @@ class TrackOnlyTsvDataset(Dataset):
             'notes_target': self._build_note_target(record),
             'bird_drone_target': np.float32(1.0 if record.label_name == 'BirdTarget' else 0.0 if record.label_name == 'DroneTarget' else -1.0),
             'bird_surface_target': np.float32(1.0 if record.label_name == 'BirdTarget' else 0.0 if record.label_name == 'ShipTarget' else -1.0),
+            'ship_drone_target': np.float32(1.0 if record.label_name == 'ShipTarget' else 0.0 if record.label_name == 'DroneTarget' else -1.0),
+            'ship_bird_target': np.float32(1.0 if record.label_name == 'ShipTarget' else 0.0 if record.label_name == 'BirdTarget' else -1.0),
             'track_router_target': np.int64(0 if record.label_name == 'ShipTarget' else 1 if record.label_name == 'AircraftTarget' else 2 if record.label_name in {'BirdTarget', 'DroneTarget'} else -1),
         }

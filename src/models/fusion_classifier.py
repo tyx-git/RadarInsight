@@ -195,6 +195,7 @@ class FusionRadarClassifier(nn.Module):
         aircraft_class_index: int | None = None,
         drone_class_index: int | None = None,
         bird_surface_logit_residual_weight: float = 0.2,
+        ship_specialist_logit_residual_weight: float = 0.08,
         rd_dominant_fusion_bias: float = 1.25,
         rd_unimodal_logit_residual_weight: float = 0.35,
     ):
@@ -213,6 +214,7 @@ class FusionRadarClassifier(nn.Module):
         self.aircraft_class_index = aircraft_class_index
         self.drone_class_index = drone_class_index
         self.bird_surface_logit_residual_weight = float(bird_surface_logit_residual_weight)
+        self.ship_specialist_logit_residual_weight = float(ship_specialist_logit_residual_weight)
         self.rd_dominant_fusion_bias = float(rd_dominant_fusion_bias)
         self.rd_unimodal_logit_residual_weight = float(rd_unimodal_logit_residual_weight)
         if self.track_backbone_type in {"graph", "dggcn"}:
@@ -314,6 +316,8 @@ class FusionRadarClassifier(nn.Module):
         self.bird_rd_head = nn.Linear(fusion_hidden_size, 1)
         self.bird_surface_rd_head = nn.Linear(fusion_hidden_size, 1)
         self.rd_bird_drone_head = nn.Linear(fusion_hidden_size, 2)
+        self.rd_ship_drone_head = nn.Linear(fusion_hidden_size, 2)
+        self.rd_ship_bird_head = nn.Linear(fusion_hidden_size, 2)
 
     def forward(
         self,
@@ -427,6 +431,8 @@ class FusionRadarClassifier(nn.Module):
         bird_rd_logits = self.bird_rd_head(rd_feature)
         bird_surface_rd_logits = self.bird_surface_rd_head(rd_feature)
         rd_bird_drone_logits = self.rd_bird_drone_head(rd_feature)
+        rd_ship_drone_logits = self.rd_ship_drone_head(rd_feature)
+        rd_ship_bird_logits = self.rd_ship_bird_head(rd_feature)
 
         unimodal_logit_residual = self.unimodal_logit_residual
         if unimodal_logit_residual is not None:
@@ -451,6 +457,12 @@ class FusionRadarClassifier(nn.Module):
         if self.bird_class_index is not None and self.drone_class_index is not None:
             logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + 0.08 * rd_bird_drone_logits[:, 0]
             logits[:, self.drone_class_index] = logits[:, self.drone_class_index] + 0.08 * rd_bird_drone_logits[:, 1]
+        if self.surface_class_index is not None and self.drone_class_index is not None:
+            logits[:, self.surface_class_index] = logits[:, self.surface_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_drone_logits[:, 0]
+            logits[:, self.drone_class_index] = logits[:, self.drone_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_drone_logits[:, 1]
+        if self.surface_class_index is not None and self.bird_class_index is not None:
+            logits[:, self.surface_class_index] = logits[:, self.surface_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_bird_logits[:, 0]
+            logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_bird_logits[:, 1]
 
         return {
             "logits": logits,
@@ -469,5 +481,7 @@ class FusionRadarClassifier(nn.Module):
             "bird_rd_logits": bird_rd_logits,
             "bird_surface_rd_logits": bird_surface_rd_logits,
             "rd_bird_drone_logits": rd_bird_drone_logits,
+            "rd_ship_drone_logits": rd_ship_drone_logits,
+            "rd_ship_bird_logits": rd_ship_bird_logits,
             "rd_feature": rd_feature,
         }
