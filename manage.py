@@ -7,6 +7,8 @@ from pathlib import Path
 
 import yaml
 
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 sys.path.append(os.path.abspath("."))
 
 from src.labeling.truth_matcher import TruthMatcher
@@ -38,6 +40,46 @@ def load_train_control(control_path: str = "train.json") -> dict:
     import json
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def merge_train_control(training_config: dict, control: dict) -> dict:
+    merged = dict(training_config)
+    for key, value in control.items():
+        if key in {"track", "rd"}:
+            continue
+        merged[key] = value
+    merged["include_track"] = bool(control.get("track", merged.get("include_track", True)))
+    merged["include_rd"] = bool(control.get("rd", merged.get("include_rd", True)))
+    merged["track_backbone_type"] = str(control.get("track_backbone_type", merged.get("track_backbone_type", "temporal")))
+    merged["label_granularity"] = str(control.get("label_granularity", merged.get("label_granularity", "coarse")))
+    return merged
+
+
+def apply_eval_runtime_overrides(training_config: dict, control: dict) -> tuple[dict, dict]:
+    resolved = dict(training_config)
+    applied: dict[str, object] = {}
+    if not bool(control.get("eval_fusion_override_enabled", False)):
+        return resolved, applied
+
+    override_map = {
+        "eval_rd_dominant_fusion_bias": "rd_dominant_fusion_bias",
+        "eval_rd_unimodal_logit_residual_weight": "rd_unimodal_logit_residual_weight",
+        "eval_min_rd_fusion_weight": "min_rd_fusion_weight",
+        "eval_ambiguous_rd_fusion_boost": "ambiguous_rd_fusion_boost",
+        "eval_surface_rd_fusion_boost": "surface_rd_fusion_boost",
+        "eval_use_weighted_fusion_feature": "use_weighted_fusion_feature",
+        "eval_rd_fusion_curriculum_enabled": "rd_fusion_curriculum_enabled",
+        "eval_rd_fusion_curriculum_start_epoch": "rd_fusion_curriculum_start_epoch",
+        "eval_rd_fusion_curriculum_full_epoch": "rd_fusion_curriculum_full_epoch",
+        "eval_min_rd_fusion_weight_start": "min_rd_fusion_weight_start",
+        "eval_ambiguous_rd_fusion_boost_start": "ambiguous_rd_fusion_boost_start",
+        "eval_surface_rd_fusion_boost_start": "surface_rd_fusion_boost_start",
+    }
+    for source_key, target_key in override_map.items():
+        if source_key in control:
+            resolved[target_key] = control[source_key]
+            applied[target_key] = control[source_key]
+    return resolved, applied
 
 
 def cmd_prepare_tsv(args, config):
@@ -251,41 +293,26 @@ def cmd_train(args, config):
         logger.error(f"[!] Import error: {exc}")
         return
 
-    training_config = dict(config.get("training", {}))
-
-    training_config["include_track"] = bool(control.get("track", training_config.get("include_track", True)))
-    training_config["include_rd"] = bool(control.get("rd", training_config.get("include_rd", True)))
-    training_config["track_backbone_type"] = str(control.get("track_backbone_type", training_config.get("track_backbone_type", "temporal")))
-    training_config["label_granularity"] = str(control.get("label_granularity", training_config.get("label_granularity", "coarse")))
+    training_config = merge_train_control(dict(config.get("training", {})), control)
 
     if args.data_root:
         training_config["data_root"] = args.data_root
-    elif control.get("data_root"):
-        training_config["data_root"] = control.get("data_root")
+    if args.epochs is not None:
+        training_config["epochs"] = args.epochs
+    if args.batch_size is not None:
+        training_config["batch_size"] = args.batch_size
+    if args.learning_rate is not None:
+        training_config["learning_rate"] = args.learning_rate
+    if args.num_workers is not None:
+        training_config["num_workers"] = args.num_workers
     if args.output_dir:
         training_config["output_dir"] = args.output_dir
     else:
-        resolved_epochs = args.epochs if args.epochs is not None else int(training_config.get("epochs", 30))
-        resolved_batch_size = args.batch_size if args.batch_size is not None else int(training_config.get("batch_size", 4))
+        resolved_epochs = int(training_config.get("epochs", 30))
+        resolved_batch_size = int(training_config.get("batch_size", 4))
         resolved_device = (args.device or str(control.get("device", "cpu"))).split(":", 1)[0].lower()
         output_name = f"{datetime.now().strftime('%Y%m%d%H%M')}-{resolved_epochs}-{resolved_batch_size}-{resolved_device}"
         training_config["output_dir"] = f"artifacts/{output_name}"
-    if args.epochs is not None:
-        training_config["epochs"] = args.epochs
-    elif control.get("epochs") is not None:
-        training_config["epochs"] = control.get("epochs")
-    if args.batch_size is not None:
-        training_config["batch_size"] = args.batch_size
-    elif control.get("batch_size") is not None:
-        training_config["batch_size"] = control.get("batch_size")
-    if args.learning_rate is not None:
-        training_config["learning_rate"] = args.learning_rate
-    elif control.get("learning_rate") is not None:
-        training_config["learning_rate"] = control.get("learning_rate")
-    if args.num_workers is not None:
-        training_config["num_workers"] = args.num_workers
-    elif control.get("num_workers") is not None:
-        training_config["num_workers"] = control.get("num_workers")
     if bool(control.get("clean_bad_artifacts", False)):
         removed = clean_artifacts("artifacts", control.get("artifact_keep", []))
         if removed:
@@ -320,11 +347,8 @@ def cmd_evaluate(args, config):
         logger.error(f"[!] Import error: {exc}")
         return
 
-    training_config = dict(config.get("training", {}))
-    training_config["include_track"] = bool(control.get("track", training_config.get("include_track", True)))
-    training_config["include_rd"] = bool(control.get("rd", training_config.get("include_rd", True)))
-    training_config["track_backbone_type"] = str(control.get("track_backbone_type", training_config.get("track_backbone_type", "temporal")))
-    training_config["label_granularity"] = str(control.get("label_granularity", training_config.get("label_granularity", "coarse")))
+    training_config = merge_train_control(dict(config.get("training", {})), control)
+    training_config, applied_overrides = apply_eval_runtime_overrides(training_config, control)
     resolved_output_dir = args.output_dir
     if not resolved_output_dir:
         resolved_output_dir = str(Path(args.checkpoint).parent)
@@ -345,7 +369,144 @@ def cmd_evaluate(args, config):
     logger.info(f"Loss: {result['loss']:.4f}")
     logger.info(f"Accuracy: {result['accuracy']:.4f}")
     logger.info(f"Macro F1: {result['macro_f1']:.4f}")
+    if applied_overrides:
+        logger.info(f"Eval overrides: {applied_overrides}")
     logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_session_infer(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
+    try:
+        from src.training.evaluator import run_session_inference
+    except ImportError as exc:
+        logger.error("[!] Session inference dependencies are not available.")
+        logger.error(f"[!] Import error: {exc}")
+        return
+
+    training_config = merge_train_control(dict(config.get("training", {})), control)
+    training_config, applied_overrides = apply_eval_runtime_overrides(training_config, control)
+    resolved_output_dir = args.output_dir
+    if not resolved_output_dir:
+        resolved_output_dir = str(Path(args.checkpoint).parent)
+    result = run_session_inference(
+        checkpoint_path=args.checkpoint,
+        config_values=training_config,
+        session_ids=args.session_ids or None,
+        data_root=args.data_root or control.get("data_root"),
+        output_dir=resolved_output_dir,
+        device=args.device or control.get("device"),
+    )
+
+    session_level = result["session_level"]
+    logger.info("=" * 30)
+    logger.info("Session Inference Summary")
+    logger.info("=" * 30)
+    logger.info(f"Sessions: {result['evaluated_sessions']}")
+    logger.info(f"Clip accuracy: {result['clip_level']['accuracy']:.4f}")
+    logger.info(f"Clip macro F1: {result['clip_level']['macro_f1']:.4f}")
+    logger.info(f"Session accuracy: {session_level['accuracy']:.4f}")
+    logger.info(f"Session macro F1: {session_level['macro_f1']:.4f}")
+    if applied_overrides:
+        logger.info(f"Eval overrides: {applied_overrides}")
+    logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_session_diagnose(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
+    try:
+        from src.training.evaluator import run_session_diagnosis
+    except ImportError as exc:
+        logger.error("[!] Session diagnosis dependencies are not available.")
+        logger.error(f"[!] Import error: {exc}")
+        return
+
+    training_config = merge_train_control(dict(config.get("training", {})), control)
+    training_config, applied_overrides = apply_eval_runtime_overrides(training_config, control)
+    resolved_output_dir = args.output_dir
+    if not resolved_output_dir:
+        resolved_output_dir = str(Path(args.checkpoint).parent)
+    result = run_session_diagnosis(
+        checkpoint_path=args.checkpoint,
+        config_values=training_config,
+        session_ids=args.session_ids or None,
+        data_root=args.data_root or control.get("data_root"),
+        output_dir=resolved_output_dir,
+        device=args.device or control.get("device"),
+    )
+
+    logger.info("=" * 30)
+    logger.info("Session Diagnosis Summary")
+    logger.info("=" * 30)
+    logger.info(f"Sessions: {result['evaluated_sessions']}")
+    logger.info(f"Clip rows: {result['num_clips']}")
+    logger.info(f"Session rows: {result['num_sessions']}")
+    logger.info(f"Session CSV: {result['session_csv_path']}")
+    logger.info(f"Clip CSV: {result['clip_csv_path']}")
+    if applied_overrides:
+        logger.info(f"Eval overrides: {applied_overrides}")
+    logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_mine_hard_sessions(args, config):
+    control = load_train_control(getattr(args, "train_control", "train.json"))
+    try:
+        from src.training.evaluator import run_hard_session_mining
+    except ImportError as exc:
+        logger.error("[!] Hard-session mining dependencies are not available.")
+        logger.error(f"[!] Import error: {exc}")
+        return
+
+    training_config = merge_train_control(dict(config.get("training", {})), control)
+    training_config, applied_overrides = apply_eval_runtime_overrides(training_config, control)
+    resolved_output_dir = args.output_dir
+    if not resolved_output_dir:
+        resolved_output_dir = str(Path(args.checkpoint).parent / "hard_session_mining")
+    result = run_hard_session_mining(
+        checkpoint_path=args.checkpoint,
+        config_values=training_config,
+        session_ids=args.session_ids or None,
+        data_root=args.data_root or control.get("data_root"),
+        output_dir=resolved_output_dir,
+        device=args.device or control.get("device"),
+        top_k=args.top_k,
+        min_error_clips=args.min_error_clips,
+    )
+
+    logger.info("=" * 30)
+    logger.info("Hard Session Mining Summary")
+    logger.info("=" * 30)
+    logger.info(f"Top K: {args.top_k}")
+    logger.info(f"Selected sessions: {[row['session_id'] for row in result['selected_sessions']]}")
+    if applied_overrides:
+        logger.info(f"Eval overrides: {applied_overrides}")
+    logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_build_curated_manifest(args, config):
+    try:
+        from src.training.curated_manifest import build_curated_manifest_from_spans_csv
+    except ImportError as exc:
+        logger.error("[!] Curated manifest builder dependencies are not available.")
+        logger.error(f"[!] Import error: {exc}")
+        return
+
+    output_path = args.output or str(Path(args.source_csv).with_suffix(".manifest.json"))
+    result_path = build_curated_manifest_from_spans_csv(
+        source_csv=args.source_csv,
+        output_path=output_path,
+        true_label=args.true_label,
+        predicted_label=args.predicted_label,
+        min_clips=args.min_clips,
+    )
+    logger.info("=" * 30)
+    logger.info("Curated Manifest Summary")
+    logger.info("=" * 30)
+    logger.info(f"Source CSV: {args.source_csv}")
+    logger.info(f"Manifest file: {result_path}")
     logger.info("=" * 30)
 
 
@@ -476,6 +637,39 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--device", help="Evaluation device, for example cpu or cuda")
     eval_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
 
+    session_infer_parser = subparsers.add_parser("session-infer", help="Run clip-level evaluation and session-level aggregated inference")
+    session_infer_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
+    session_infer_parser.add_argument("session_ids", nargs="*", help="Optional explicit session IDs to evaluate")
+    session_infer_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
+    session_infer_parser.add_argument("--output-dir", dest="output_dir", help="Directory for inference outputs")
+    session_infer_parser.add_argument("--device", help="Inference device, for example cpu or cuda")
+    session_infer_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
+
+    session_diagnose_parser = subparsers.add_parser("session-diagnose", help="Export clip-level and session-level diagnosis files for selected sessions")
+    session_diagnose_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
+    session_diagnose_parser.add_argument("session_ids", nargs="*", help="Optional explicit session IDs to diagnose")
+    session_diagnose_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
+    session_diagnose_parser.add_argument("--output-dir", dest="output_dir", help="Directory for diagnosis outputs")
+    session_diagnose_parser.add_argument("--device", help="Diagnosis device, for example cpu or cuda")
+    session_diagnose_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
+
+    mine_hard_sessions_parser = subparsers.add_parser("mine-hard-sessions", help="Automatically mine the hardest sessions and export focused diagnosis files")
+    mine_hard_sessions_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
+    mine_hard_sessions_parser.add_argument("session_ids", nargs="*", help="Optional explicit session IDs to rank instead of using the default evaluation split")
+    mine_hard_sessions_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
+    mine_hard_sessions_parser.add_argument("--output-dir", dest="output_dir", help="Directory for mining outputs")
+    mine_hard_sessions_parser.add_argument("--device", help="Mining device, for example cpu or cuda")
+    mine_hard_sessions_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
+    mine_hard_sessions_parser.add_argument("--top-k", dest="top_k", type=int, default=3, help="Number of hardest sessions to export")
+    mine_hard_sessions_parser.add_argument("--min-error-clips", dest="min_error_clips", type=int, default=1, help="Minimum error clips required for a session to be selected")
+
+    curated_manifest_parser = subparsers.add_parser("build-curated-manifest", help="Build a curated optimization manifest from suspicious span CSV files")
+    curated_manifest_parser.add_argument("source_csv", help="Path to a suspicious spans CSV file")
+    curated_manifest_parser.add_argument("--output", dest="output", help="Output manifest JSON path")
+    curated_manifest_parser.add_argument("--true-label", dest="true_label", help="Optional true label filter")
+    curated_manifest_parser.add_argument("--predicted-label", dest="predicted_label", help="Optional predicted label filter")
+    curated_manifest_parser.add_argument("--min-clips", dest="min_clips", type=int, default=1, help="Minimum number of clips per span")
+
     sessions_parser = subparsers.add_parser("sessions", help="Inspect available sessions for training")
     sessions_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
     sessions_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
@@ -520,6 +714,14 @@ def main():
         cmd_train(args, config)
     elif args.command == "evaluate":
         cmd_evaluate(args, config)
+    elif args.command == "session-infer":
+        cmd_session_infer(args, config)
+    elif args.command == "session-diagnose":
+        cmd_session_diagnose(args, config)
+    elif args.command == "mine-hard-sessions":
+        cmd_mine_hard_sessions(args, config)
+    elif args.command == "build-curated-manifest":
+        cmd_build_curated_manifest(args, config)
     elif args.command == "sessions":
         cmd_sessions(args, config)
     elif args.command == "report":

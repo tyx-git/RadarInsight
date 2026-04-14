@@ -87,3 +87,22 @@ The active training route now only uses paired TR/RD sessions under `data/sessio
 
 ## Current Coarse Labels
 The current coarse labels are `AircraftTarget`, `BirdTarget`, `DroneTarget`, and `ShipTarget`. File-name source labels are normalized as follows: `Bird -> BirdTarget`, `Rotary drone -> DroneTarget`, `Fixed-wing UAV -> DroneTarget`, `Helicopter -> AircraftTarget`, `Passenger ship -> ShipTarget`, `Speedboat -> ShipTarget`.
+
+## Ship Specialist RD Heads
+The current stable baseline now adds two RD-side specialist heads: `Ship vs Drone` and `Ship vs Bird`. The goal is to reduce the strongest remaining confusion after Bird recovery, without replacing the main backbone again.
+
+## Session-Level Inference
+
+The evaluation stack now supports session-level aggregated inference on top of clip-level predictions. During evaluation, clip logits that share the same session prefix are averaged to produce a session prediction, and both clip-level and session-level metrics are exported. This does not change training yet, but it provides the correct measurement scaffold for future bag-level or multi-instance session training.
+
+## Session Diagnosis And Hard-Session Mining
+
+The tooling layer now supports clip-level diagnosis export for selected sessions and automatic hard-session mining. This makes it possible to export the worst sessions, inspect clip-level logits and specialist outputs, and focus future data review or loss shaping on a small number of dominant failure sessions.
+
+## Anti-Collapse Fusion
+
+The fusion stack now supports anti-collapse RD rescue logic so the RD branch cannot be ignored completely at evaluation time. However, current experiments show that forcing this behavior during full retraining is less stable than keeping the historical weighted-fusion training path. The preferred route is therefore train-time stability first, evaluation-time anti-collapse second.
+
+## Session-Grouped Training Scaffold
+
+The training stack now also supports an optional session-grouped batching mode plus a session-logit auxiliary loss. In this mode, a training batch is formed from clips of the same session, and the mean batch logits are supervised with the session label. This is an intermediate step toward future full bag-level session training while preserving compatibility with the current clip-based model.

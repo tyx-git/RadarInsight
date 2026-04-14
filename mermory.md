@@ -1,0 +1,84 @@
+# Project Memory
+
+- Current official training source: paired `TR/RD` only from `pro/raw`, generated into `data/sessions`.
+- `pro/excel` is preserved for review only and does not enter current supervised dual-modal training.
+- Current coarse labels:
+  - `AircraftTarget`
+  - `BirdTarget`
+  - `DroneTarget`
+  - `ShipTarget`
+- Label mapping:
+  - `Bird -> BirdTarget`
+  - `Rotary drone -> DroneTarget`
+  - `Fixed-wing UAV -> DroneTarget`
+  - `Helicopter -> AircraftTarget`
+  - `Passenger ship -> ShipTarget`
+  - `Speedboat -> ShipTarget`
+- Current paired sessions: `77` (`TR=77`, `RD=77`, fully paired).
+- Current official split:
+  - train sessions: `54`
+  - val sessions: `15`
+  - test sessions: `8`
+- Current mainline model:
+  - track backbone: `temporal`
+  - RD backbone: `X3D-M style 3D CNN`
+  - fusion: reliability-weighted dynamic multimodal fusion
+- Track role: coarse routing and motion prior.
+- RD role: hard boundary discrimination.
+- Current active specialist heads:
+  - `Bird vs Drone`
+  - `Bird vs Ship`
+  - `Ship vs Drone`
+  - `Ship vs Bird`
+  - `Ship vs Air`
+- Current weak-Ship-specialist policy:
+  - keep specialist heads as auxiliary supervision
+  - avoid strong direct residual injection into final logits
+- Current best confirmed run under purified paired-data protocol:
+  - `artifacts/202604141227-12-4-cuda`
+  - independent evaluation under the current anti-collapse fusion code: `Accuracy = 0.8529`, `Macro F1 = 0.8645`
+  - session-level evaluation remains about `Accuracy = 0.8750`, `Macro F1 = 0.8810`
+  - this run currently provides the strongest overall Macro F1 while keeping the session-level result stable
+- Current training policy:
+  - `class_balance_beta = 0.995`
+  - `focal_gamma = 1.25`
+  - `epochs = 12`
+  - `learning_rate = 0.0002`
+  - `batch_size = 4`
+  - `random_seed = 42`
+  - practical deterministic training is now enabled in the default control file
+  - default training now stays close to the historically stable weighted-fusion route
+  - early stopping enabled
+  - best checkpoint selected by `0.7 * val_macro_f1 + 0.3 * val_accuracy`
+- Current main unresolved error source:
+  - `ShipTarget -> DroneTarget`
+  - `BirdTarget -> ShipTarget`
+
+- Latest comparison note:
+  - `artifacts/202604141227-12-4-cuda` now edges out the previous strong branch on Macro F1 (`0.8645` vs `0.8446`) while keeping session accuracy unchanged at `0.8750`
+  - `ShipTarget -> DroneTarget` drops to `34`, while `BirdTarget -> ShipTarget` remains the secondary error source at `38`
+  - the current preferred reference checkpoint is now `artifacts/202604141227-12-4-cuda`
+- Current evaluation capability:
+  - `manage.py evaluate` now exports both clip-level metrics and a `session_level` aggregated report into `evaluation_report.json`
+  - `manage.py session-infer` now exports `session_inference_report.json` for combined clip/session inference review
+  - `manage.py session-diagnose` now exports clip-level and session-level diagnosis CSV/JSON files for selected sessions
+  - `manage.py mine-hard-sessions` now automatically ranks the worst sessions and exports focused diagnosis files
+  - current best checkpoint reaches about `0.875` session-level accuracy on the held-out test sessions via simple mean-logit aggregation
+
+- Current fusion diagnosis:
+  - the previous fusion path had severe modality collapse, with `track_weight` near `1.0` and `rd_weight` near `0.0` on test data
+  - offline re-evaluation showed that anti-collapse fusion helps evaluation significantly on the historical best checkpoint
+  - full retraining with train-time anti-collapse was unstable under the current data scale
+  - the current preferred route is: keep training close to the historical stable fusion path, then apply anti-collapse fusion overrides at evaluation and inference time only
+
+- Session-grouped training note:
+  - an initial trial with `session_grouped_batches = true` and `session_logit_loss_weight = 0.12` regressed badly
+  - run `artifacts/202604110024-12-4-cuda` dropped to about `Accuracy = 0.7088`, `Macro F1 = 0.7205`
+  - session-level inference on that run also regressed to about `0.625` session accuracy
+  - conclusion: naive session-grouped batching plus direct mean-logit supervision is not a safe path as the current default training route
+- Current hardware note on this laptop:
+  - the current environment can use CUDA successfully
+  - recent official best runs use `--device cuda`
+- Migration rule:
+  - keep `pro/raw`, `pro/excel`, `data/sessions`, source code, config, docs, and current best artifacts
+  - old `TSV` pipeline outputs are legacy and can be removed for migration if not needed

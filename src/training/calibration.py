@@ -12,6 +12,7 @@ from src.models.fusion_classifier import FusionRadarClassifier
 from src.training.config import TrainingConfig
 from src.training.session_manager import build_dataset
 from src.training.trainer import build_coarse_taxonomy, compute_classification_metrics, optimize_group_logit_bias
+from src.utils.checkpoint import load_checkpoint
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -110,6 +111,13 @@ def _build_model(
         aircraft_class_index=checkpoint.get("label_to_index", {}).get("AircraftTarget"),
         drone_class_index=checkpoint.get("label_to_index", {}).get("DroneTarget"),
         bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
+        ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.0)),
+        rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
+        rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
+        min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),
+        ambiguous_rd_fusion_boost=float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+        surface_rd_fusion_boost=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+        use_weighted_fusion_feature=bool(getattr(config, "use_weighted_fusion_feature", False)),
     ).to(device)
     model.load_state_dict(checkpoint['model_state_dict'], strict=False)
     model.eval()
@@ -145,6 +153,57 @@ def _collect_logits(
     return np.concatenate(logits_blocks, axis=0), np.asarray(labels, dtype=np.int64)
 
 
+def _apply_pairwise_bias(
+    logits: np.ndarray,
+    pair_indices: tuple[int, int],
+    pair_bias: tuple[float, float],
+    gate_threshold: float,
+) -> np.ndarray:
+    adjusted = logits.copy()
+    probabilities = torch.softmax(torch.tensor(logits, dtype=torch.float32), dim=-1).numpy()
+    pair_mask = (probabilities[:, pair_indices[0]] + probabilities[:, pair_indices[1]]) >= float(gate_threshold)
+    if pair_mask.any():
+        adjusted[pair_mask, pair_indices[0]] += float(pair_bias[0])
+        adjusted[pair_mask, pair_indices[1]] += float(pair_bias[1])
+    return adjusted
+
+
+def _score_macro_f1(labels: np.ndarray, logits: np.ndarray) -> float:
+    predictions = logits.argmax(axis=1).tolist()
+    metrics = compute_classification_metrics(labels.tolist(), predictions, num_classes=logits.shape[1])
+    return float(metrics['macro_f1'])
+
+
+def optimize_pairwise_logit_bias(
+    labels: np.ndarray,
+    logits: np.ndarray,
+    pair_indices: tuple[int, int],
+    gate_threshold: float = 0.55,
+    search_values: np.ndarray | None = None,
+) -> dict[str, Any]:
+    candidate_values = search_values if search_values is not None else np.linspace(-0.6, 0.6, num=25, dtype=np.float32)
+    best_bias = (0.0, 0.0)
+    best_score = _score_macro_f1(labels, logits)
+    for first_delta in candidate_values:
+        for second_delta in candidate_values:
+            adjusted = _apply_pairwise_bias(
+                logits=logits,
+                pair_indices=pair_indices,
+                pair_bias=(float(first_delta), float(second_delta)),
+                gate_threshold=gate_threshold,
+            )
+            score = _score_macro_f1(labels, adjusted)
+            if score > best_score:
+                best_score = score
+                best_bias = (float(first_delta), float(second_delta))
+    return {
+        'pair_indices': [int(pair_indices[0]), int(pair_indices[1])],
+        'pair_bias': [float(best_bias[0]), float(best_bias[1])],
+        'gate_threshold': float(gate_threshold),
+        'macro_f1': float(best_score),
+    }
+
+
 def run_group_calibration(
     checkpoint_path: str,
     output_dir: str,
@@ -157,7 +216,7 @@ def run_group_calibration(
     target_artifact_dir.mkdir(parents=True, exist_ok=True)
 
     resolved_device = torch.device(device or 'cpu')
-    checkpoint = torch.load(source_checkpoint_path, map_location=resolved_device)
+    checkpoint = load_checkpoint(source_checkpoint_path, map_location=resolved_device)
     config = TrainingConfig.from_dict(checkpoint.get('config', {}))
     if data_root is not None:
         config = TrainingConfig.from_dict({**config.to_dict(), 'data_root': data_root})
@@ -203,6 +262,26 @@ def run_group_calibration(
         num_classes=len(label_to_index),
     )
 
+    pair_calibration: dict[str, Any] = {}
+    ship_index = int(label_to_index.get('ShipTarget', -1))
+    drone_index = int(label_to_index.get('DroneTarget', -1))
+    bird_index = int(label_to_index.get('BirdTarget', -1))
+    base_biased_logits = val_logits + logit_bias.reshape(1, -1)
+    if ship_index >= 0 and drone_index >= 0:
+        pair_calibration['ship_drone'] = optimize_pairwise_logit_bias(
+            labels=val_labels,
+            logits=base_biased_logits,
+            pair_indices=(ship_index, drone_index),
+            gate_threshold=0.55,
+        )
+    if bird_index >= 0 and ship_index >= 0:
+        pair_calibration['bird_ship'] = optimize_pairwise_logit_bias(
+            labels=val_labels,
+            logits=base_biased_logits,
+            pair_indices=(bird_index, ship_index),
+            gate_threshold=0.55,
+        )
+
     for filename in ['training_history.json', 'training_metadata.json', 'training_session_manifest.json']:
         source_path = source_artifact_dir / filename
         if source_path.exists():
@@ -217,6 +296,7 @@ def run_group_calibration(
         'bias': logit_bias.tolist(),
         'base_val_metrics': base_val_metrics,
         'biased_val_metrics': biased_val_metrics,
+        'pair_calibration': pair_calibration,
     }
     torch.save(checkpoint, target_artifact_dir / 'best_fusion_model.pt')
 
@@ -236,6 +316,7 @@ def run_group_calibration(
         'bias': logit_bias.tolist(),
         'base_val_metrics': base_val_metrics,
         'biased_val_metrics': biased_val_metrics,
+        'pair_calibration': pair_calibration,
     }
     with open(target_artifact_dir / 'calibration_report.json', 'w', encoding='utf-8') as file:
         json.dump(calibration_report, file, indent=2, ensure_ascii=False)

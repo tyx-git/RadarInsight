@@ -628,9 +628,16 @@ class X3DMicroMotionEncoder(nn.Module):
         features, bird_embedding = self.bird_sensitive_enhancer(features)
         structure_embedding = structure_embedding + 0.5 * bird_embedding
         features = self.stem(features)
-        for stage in self.stages:
+        local_ship_feature_map = None
+        for stage_index, stage in enumerate(self.stages):
             features = stage(features)
-        return self.head(features, structure_embedding=structure_embedding)
+            if stage_index == max(0, len(self.stages) - 2):
+                local_ship_feature_map = features
+        token_embeddings, pooled_embedding = self.head(features, structure_embedding=structure_embedding)
+        if local_ship_feature_map is None:
+            local_ship_feature_map = features
+        local_ship_feature = local_ship_feature_map.mean(dim=(2, 3, 4))
+        return token_embeddings, pooled_embedding, local_ship_feature
 
 
 RDConvEncoder = X3DMicroMotionEncoder

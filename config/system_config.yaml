@@ -215,6 +215,7 @@ training:
   rd_ship_drone_aux_loss_weight: 0.06
   rd_ship_bird_aux_loss_weight: 0.06
   ship_specialist_logit_residual_weight: 0.0
+  rd_ship_air_aux_loss_weight: 0.04
   best_metric_name: val_composite
   best_metric_weights:
     val_macro_f1: 0.7

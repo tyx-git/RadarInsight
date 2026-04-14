@@ -59,6 +59,7 @@ class TrackOnlyTsvDataset(Dataset):
         self.index_to_label: dict[int, str] = {}
         self.note_to_index: dict[str, int] = {}
         self.index_to_note: dict[int, str] = {}
+        self.track_global_feature_cache: dict[str, np.ndarray] = {}
 
         self._load_sessions(session_ids=session_ids)
         self._build_label_index()
@@ -419,11 +420,27 @@ class TrackOnlyTsvDataset(Dataset):
         return self._augment_track_features(window)
 
     def _extract_track_global_features(self, record: TsvClipRecord) -> np.ndarray:
+        cached = self.track_global_feature_cache.get(record.sample_id)
+        if cached is not None:
+            return cached.copy()
         window = self._build_track_window(record)
+        if window.empty:
+            feature_vector = np.zeros((len(self.global_feature_columns),), dtype=np.float32)
+            self.track_global_feature_cache[record.sample_id] = feature_vector
+            return feature_vector.copy()
         for column in self.global_feature_columns:
             if column not in window.columns:
                 window[column] = 0.0
-        return window.iloc[0].loc[list(self.global_feature_columns)].to_numpy(dtype=np.float32)
+        first_row = window.iloc[0]
+        values: list[float] = []
+        for column in self.global_feature_columns:
+            value = first_row.get(column, 0.0)
+            if hasattr(value, "iloc"):
+                value = value.iloc[0]
+            values.append(float(value))
+        feature_vector = np.asarray(values, dtype=np.float32)
+        self.track_global_feature_cache[record.sample_id] = feature_vector
+        return feature_vector.copy()
 
     def _build_track_feature_stats(self) -> tuple[np.ndarray, np.ndarray]:
         sequences = [self._build_track_window(record).loc[:, self.feature_columns].to_numpy(dtype=np.float32) for record in self.samples]
@@ -480,20 +497,41 @@ class TrackOnlyTsvDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         record = self.samples[index]
+        raw_global_features = self._extract_track_global_features(record)
+        global_features = self._normalize_track_global_features(raw_global_features)
+        global_feature_lookup = {name: idx for idx, name in enumerate(self.global_feature_columns)}
+        clip_speed_mean = float(raw_global_features[global_feature_lookup['clip_speed_mean_mps']]) if 'clip_speed_mean_mps' in global_feature_lookup else 0.0
+        clip_speed_direction_consistency = float(raw_global_features[global_feature_lookup['clip_speed_direction_consistency']]) if 'clip_speed_direction_consistency' in global_feature_lookup else 0.0
+        clip_range_monotonicity = float(raw_global_features[global_feature_lookup['clip_range_monotonicity']]) if 'clip_range_monotonicity' in global_feature_lookup else 0.0
+        clip_snr_mean = float(raw_global_features[global_feature_lookup['clip_snr_mean_db']]) if 'clip_snr_mean_db' in global_feature_lookup else 0.0
+        suspicious_ship_hard_pattern = np.float32(
+            1.0
+            if (
+                record.label_name == 'ShipTarget'
+                and clip_speed_mean >= 6.0
+                and clip_speed_direction_consistency >= 0.78
+                and clip_range_monotonicity >= 0.68
+                and clip_snr_mean <= 14.0
+            )
+            else 0.0
+        )
         return {
             'sample_id': record.sample_id,
             'track_features': self._load_track_sequence(record, self.track_mid_length),
             'track_short_features': self._load_track_sequence(record, self.track_short_length),
             'track_long_features': self._load_track_sequence(record, self.track_long_length),
-            'track_global_features': self._load_track_global_features(record),
+            'track_global_features': global_features,
             'rd_features': np.zeros((1, 1, 1, 1), dtype=np.float32),
             'label': np.int64(self.label_to_index[record.label_name]),
             'label_name': record.label_name,
             'has_rd': np.int64(0),
             'notes_target': self._build_note_target(record),
+            'bird_rd_target': np.float32(1.0 if record.label_name == 'BirdTarget' else 0.0 if record.label_name in {'AircraftTarget', 'DroneTarget', 'ShipTarget'} else -1.0),
             'bird_drone_target': np.float32(1.0 if record.label_name == 'BirdTarget' else 0.0 if record.label_name == 'DroneTarget' else -1.0),
             'bird_surface_target': np.float32(1.0 if record.label_name == 'BirdTarget' else 0.0 if record.label_name == 'ShipTarget' else -1.0),
             'ship_drone_target': np.float32(1.0 if record.label_name == 'ShipTarget' else 0.0 if record.label_name == 'DroneTarget' else -1.0),
             'ship_bird_target': np.float32(1.0 if record.label_name == 'ShipTarget' else 0.0 if record.label_name == 'BirdTarget' else -1.0),
+            'ship_air_target': np.float32(1.0 if record.label_name == 'ShipTarget' else 0.0 if record.label_name in {'AircraftTarget', 'BirdTarget', 'DroneTarget'} else -1.0),
             'track_router_target': np.int64(0 if record.label_name == 'ShipTarget' else 1 if record.label_name == 'AircraftTarget' else 2 if record.label_name in {'BirdTarget', 'DroneTarget'} else -1),
+            'suspicious_ship_hard_pattern': suspicious_ship_hard_pattern,
         }

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import random
 from pathlib import Path
@@ -10,8 +11,10 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 
 from src.models.fusion_classifier import FusionRadarClassifier
+from src.training.curated_manifest import build_manifest_mask, load_curated_clip_manifest
 from src.training.config import TrainingConfig
 from src.training.session_manager import build_dataset, build_session_manifest, build_session_subsets, save_session_manifest
+from src.utils.checkpoint import load_checkpoint
 from src.utils.logger import logger
 
 
@@ -22,12 +25,135 @@ def _env_flag(name: str, default: bool) -> bool:
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
-def set_random_seed(seed: int) -> None:
+def set_random_seed(seed: int, deterministic: bool = False) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        if hasattr(torch.backends, "cudnn"):
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            if hasattr(torch.backends.cudnn, "allow_tf32"):
+                torch.backends.cudnn.allow_tf32 = False
+        if hasattr(torch.backends, "cuda"):
+            if hasattr(torch.backends.cuda, "matmul") and hasattr(torch.backends.cuda.matmul, "allow_tf32"):
+                torch.backends.cuda.matmul.allow_tf32 = False
+            if hasattr(torch.backends.cuda, "enable_flash_sdp"):
+                torch.backends.cuda.enable_flash_sdp(False)
+            if hasattr(torch.backends.cuda, "enable_mem_efficient_sdp"):
+                torch.backends.cuda.enable_mem_efficient_sdp(False)
+            if hasattr(torch.backends.cuda, "enable_math_sdp"):
+                torch.backends.cuda.enable_math_sdp(True)
+    else:
+        if hasattr(torch.backends, "cudnn"):
+            torch.backends.cudnn.benchmark = True
+
+
+def _seed_worker(worker_id: int) -> None:
+    worker_seed = torch.initial_seed() % (2 ** 32)
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
+def _build_track_global_feature_lookup(dataset) -> dict[str, int]:
+    columns = tuple(getattr(dataset, "global_feature_columns", ()))
+    return {str(name): index for index, name in enumerate(columns)}
+
+
+def _is_suspicious_ship_pattern(dataset, sample, config: TrainingConfig) -> bool:
+    if getattr(sample, "label_name", "") != "ShipTarget":
+        return False
+    suspicious_session_ids = {str(item) for item in getattr(config, "suspicious_ship_session_ids", ())}
+    session_id = str(getattr(sample, "session_id", ""))
+    if suspicious_session_ids and session_id in suspicious_session_ids:
+        return True
+    extract_features = getattr(dataset, "_extract_track_global_features", None)
+    if extract_features is None:
+        return False
+    feature_lookup = _build_track_global_feature_lookup(dataset)
+    if not feature_lookup:
+        return False
+    try:
+        feature_vector = np.asarray(extract_features(sample), dtype=np.float32)
+    except Exception:
+        return False
+    speed_mean_threshold = float(getattr(config, "suspicious_ship_speed_mean_threshold", 0.0))
+    direction_consistency_threshold = float(getattr(config, "suspicious_ship_direction_consistency_threshold", 0.0))
+    surface_bias_threshold = float(getattr(config, "suspicious_ship_surface_bias_threshold", 0.0))
+    snr_mean_threshold = float(getattr(config, "suspicious_ship_snr_mean_threshold", 0.0))
+
+    def feature(name: str, default: float = 0.0) -> float:
+        index = feature_lookup.get(name)
+        if index is None or index >= feature_vector.shape[0]:
+            return default
+        return float(feature_vector[index])
+
+    clip_speed_mean = abs(feature("clip_speed_mean_mps"))
+    clip_speed_direction_consistency = feature("clip_speed_direction_consistency")
+    clip_range_monotonicity = feature("clip_range_monotonicity")
+    clip_snr_mean = feature("clip_snr_mean_db")
+
+    return (
+        clip_speed_mean >= speed_mean_threshold
+        and clip_speed_direction_consistency >= direction_consistency_threshold
+        and clip_range_monotonicity >= surface_bias_threshold
+        and clip_snr_mean <= snr_mean_threshold
+    )
+
+
+def _build_pair_margin_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    positive_index: int | None,
+    negative_index: int | None,
+    positive_labels: set[int],
+    negative_labels: set[int],
+    margin: float,
+) -> torch.Tensor:
+    if positive_index is None or negative_index is None or logits.ndim != 2 or logits.size(0) == 0:
+        return logits.new_zeros(())
+    positive_mask = torch.zeros_like(labels, dtype=torch.bool)
+    negative_mask = torch.zeros_like(labels, dtype=torch.bool)
+    for value in positive_labels:
+        positive_mask |= labels == int(value)
+    for value in negative_labels:
+        negative_mask |= labels == int(value)
+    valid_mask = positive_mask | negative_mask
+    if not valid_mask.any():
+        return logits.new_zeros(())
+    signed_target = torch.where(positive_mask[valid_mask], 1.0, -1.0).to(logits.dtype)
+    pair_margin = logits[valid_mask, positive_index] - logits[valid_mask, negative_index]
+    return torch.relu(float(margin) - signed_target * pair_margin).mean()
+
+
+def _build_masked_pair_margin_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    sample_mask: torch.Tensor | None,
+    positive_index: int | None,
+    negative_index: int | None,
+    positive_labels: set[int],
+    negative_labels: set[int],
+    margin: float,
+) -> torch.Tensor:
+    if sample_mask is None:
+        return _build_pair_margin_loss(logits, labels, positive_index, negative_index, positive_labels, negative_labels, margin)
+    if positive_index is None or negative_index is None or logits.ndim != 2 or logits.size(0) == 0:
+        return logits.new_zeros(())
+    positive_mask = torch.zeros_like(labels, dtype=torch.bool)
+    negative_mask = torch.zeros_like(labels, dtype=torch.bool)
+    for value in positive_labels:
+        positive_mask |= labels == int(value)
+    for value in negative_labels:
+        negative_mask |= labels == int(value)
+    valid_mask = (positive_mask | negative_mask) & (sample_mask.view(-1) > 0.5)
+    if not valid_mask.any():
+        return logits.new_zeros(())
+    signed_target = torch.where(positive_mask[valid_mask], 1.0, -1.0).to(logits.dtype)
+    pair_margin = logits[valid_mask, positive_index] - logits[valid_mask, negative_index]
+    return torch.relu(float(margin) - signed_target * pair_margin).mean()
 
 
 def count_trainable_parameters(model: nn.Module) -> int:
@@ -227,21 +353,132 @@ def build_scheduler(
 
     warmup_epochs = max(0, min(warmup_epochs, epochs - 1))
     cosine_epochs = max(epochs - warmup_epochs, 1)
-    cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cosine_epochs)
-    if warmup_epochs == 0:
-        return cosine
 
-    warmup = torch.optim.lr_scheduler.LinearLR(
-        optimizer,
-        start_factor=0.2,
-        end_factor=1.0,
-        total_iters=warmup_epochs,
-    )
-    return torch.optim.lr_scheduler.SequentialLR(
-        optimizer,
-        schedulers=[warmup, cosine],
-        milestones=[warmup_epochs],
-    )
+    def lr_lambda(epoch_index: int) -> float:
+        if warmup_epochs > 0 and epoch_index < warmup_epochs:
+            return 0.2 + 0.8 * (float(epoch_index) / float(warmup_epochs))
+        cosine_index = max(epoch_index - warmup_epochs, 0)
+        progress = float(cosine_index) / float(cosine_epochs)
+        progress = min(max(progress, 0.0), 1.0)
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
+
+    return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+
+def _linear_warm_schedule(epoch: int, start_epoch: int, full_epoch: int, start_value: float, target_value: float) -> float:
+    if epoch < start_epoch:
+        return float(start_value)
+    if full_epoch <= start_epoch:
+        return float(target_value)
+    if epoch >= full_epoch:
+        return float(target_value)
+    progress = float(epoch - start_epoch) / float(full_epoch - start_epoch)
+    return float(start_value + progress * (target_value - start_value))
+
+
+def _resolve_epoch_fusion_controls(config: TrainingConfig, epoch: int) -> dict[str, float]:
+    if not bool(getattr(config, "rd_fusion_curriculum_enabled", False)):
+        return {
+            "min_rd_fusion_weight": float(getattr(config, "min_rd_fusion_weight", 0.15)),
+            "ambiguous_rd_fusion_boost": float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+            "surface_rd_fusion_boost": float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+        }
+
+    start_epoch = int(getattr(config, "rd_fusion_curriculum_start_epoch", 3))
+    full_epoch = int(getattr(config, "rd_fusion_curriculum_full_epoch", 6))
+    return {
+        "min_rd_fusion_weight": _linear_warm_schedule(
+            epoch=epoch,
+            start_epoch=start_epoch,
+            full_epoch=full_epoch,
+            start_value=float(getattr(config, "min_rd_fusion_weight_start", 0.0)),
+            target_value=float(getattr(config, "min_rd_fusion_weight", 0.15)),
+        ),
+        "ambiguous_rd_fusion_boost": _linear_warm_schedule(
+            epoch=epoch,
+            start_epoch=start_epoch,
+            full_epoch=full_epoch,
+            start_value=float(getattr(config, "ambiguous_rd_fusion_boost_start", 0.0)),
+            target_value=float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+        ),
+        "surface_rd_fusion_boost": _linear_warm_schedule(
+            epoch=epoch,
+            start_epoch=start_epoch,
+            full_epoch=full_epoch,
+            start_value=float(getattr(config, "surface_rd_fusion_boost_start", 0.0)),
+            target_value=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+        ),
+    }
+
+
+def _derive_session_id(sample_id: str) -> str:
+    parts = str(sample_id).split("_")
+    if len(parts) >= 3:
+        return "_".join(parts[:-2])
+    return str(sample_id)
+
+
+class SessionGroupedBatchSampler:
+    def __init__(self, subset: Subset, batch_size: int, shuffle: bool = True):
+        self.subset = subset
+        self.batch_size = max(int(batch_size), 1)
+        self.shuffle = shuffle
+        dataset = subset.dataset
+        session_to_positions: dict[str, list[int]] = {}
+        for position, dataset_index in enumerate(subset.indices):
+            sample = dataset.samples[dataset_index]
+            session_to_positions.setdefault(str(sample.session_id), []).append(int(position))
+        self.session_to_indices = session_to_positions
+
+    def __iter__(self):
+        session_items = list(self.session_to_indices.items())
+        if self.shuffle:
+            random.shuffle(session_items)
+        batches: list[list[int]] = []
+        for _, indices in session_items:
+            resolved_indices = list(indices)
+            if self.shuffle:
+                random.shuffle(resolved_indices)
+            for start in range(0, len(resolved_indices), self.batch_size):
+                batch = resolved_indices[start:start + self.batch_size]
+                if batch:
+                    batches.append(batch)
+        if self.shuffle:
+            random.shuffle(batches)
+        for batch in batches:
+            yield batch
+
+    def __len__(self) -> int:
+        total = 0
+        for indices in self.session_to_indices.values():
+            total += (len(indices) + self.batch_size - 1) // self.batch_size
+        return total
+
+
+def _build_session_logit_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    sample_ids: Sequence[str],
+    criterion: nn.Module,
+) -> torch.Tensor:
+    if logits.ndim != 2 or logits.size(0) == 0:
+        return logits.new_zeros(())
+
+    session_to_positions: dict[str, list[int]] = {}
+    for position, sample_id in enumerate(sample_ids):
+        session_to_positions.setdefault(_derive_session_id(str(sample_id)), []).append(position)
+
+    if not session_to_positions:
+        return logits.new_zeros(())
+
+    aggregated_logits: list[torch.Tensor] = []
+    aggregated_labels: list[torch.Tensor] = []
+    for positions in session_to_positions.values():
+        index_tensor = torch.as_tensor(positions, dtype=torch.long, device=logits.device)
+        aggregated_logits.append(logits.index_select(0, index_tensor).mean(dim=0))
+        aggregated_labels.append(labels[index_tensor[0]])
+
+    return criterion(torch.stack(aggregated_logits, dim=0), torch.stack(aggregated_labels, dim=0))
 
 
 def build_dataloaders(
@@ -251,6 +488,8 @@ def build_dataloaders(
     config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
     config.include_rd = _env_flag("RD", bool(config.include_rd))
     dataset = build_dataset(data_root=config.data_root, config=config, session_ids=session_ids)
+    data_loader_generator = torch.Generator()
+    data_loader_generator.manual_seed(int(config.random_seed))
 
     if len(dataset) == 1:
         dataset.fit_track_normalization_for_sessions(sorted(dataset.sessions.keys()))
@@ -260,6 +499,8 @@ def build_dataloaders(
             batch_size=1,
             shuffle=True,
             num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
         )
         split_map = {"train": sorted(dataset.sessions.keys()), "val": [], "test": []}
         return dataset, train_loader, None, None, split_map
@@ -275,29 +516,80 @@ def build_dataloaders(
     dataset.fit_track_global_normalization_for_sessions(split_map["train"])
     if hasattr(dataset, "window_mix_probability"):
         dataset.window_mix_probability = float(getattr(config, "track_window_mix_prob", 0.0)) if bool(getattr(config, "use_track_window_mix", False)) else 0.0
+    if hasattr(dataset, "set_window_mix_enabled_indices"):
+        dataset.set_window_mix_enabled_indices(getattr(train_dataset, "indices", None))
 
     train_sampler = None
+    train_batch_sampler = None
     train_shuffle = True
     sampling_boost = float(getattr(config, "bird_surface_sampling_boost", 1.0))
-    if sampling_boost > 1.0 and hasattr(train_dataset, "indices") and hasattr(dataset, "samples"):
+    hard_ship_session_sampling_boost = float(getattr(config, "hard_ship_session_sampling_boost", 1.0))
+    hard_ship_session_ids = {str(item) for item in getattr(config, "hard_ship_session_ids", ())}
+    hard_bird_session_sampling_boost = float(getattr(config, "hard_bird_session_sampling_boost", 1.0))
+    hard_bird_session_ids = {str(item) for item in getattr(config, "hard_bird_session_ids", ())}
+    suspicious_ship_downweight_enabled = bool(getattr(config, "suspicious_ship_downweight_enabled", False))
+    suspicious_ship_downweight_factor = float(getattr(config, "suspicious_ship_downweight_factor", 1.0))
+    session_grouped_batches = bool(getattr(config, "session_grouped_batches", False))
+    if session_grouped_batches and isinstance(train_dataset, Subset) and hasattr(dataset, "samples"):
+        train_batch_sampler = SessionGroupedBatchSampler(train_dataset, batch_size=config.batch_size, shuffle=True)
+        train_shuffle = False
+        train_sampler = None
+    elif (
+        sampling_boost > 1.0
+        or (hard_ship_session_sampling_boost > 1.0 and hard_ship_session_ids)
+        or (hard_bird_session_sampling_boost > 1.0 and hard_bird_session_ids)
+        or (suspicious_ship_downweight_enabled and suspicious_ship_downweight_factor < 1.0)
+        or bool(getattr(config, "confusion_pair_sampling_enabled", False))
+    ) and hasattr(train_dataset, "indices") and hasattr(dataset, "samples"):
+        confusion_pair_sampling_enabled = bool(getattr(config, "confusion_pair_sampling_enabled", False))
+        confusion_pair_sampling_boost = float(getattr(config, "confusion_pair_sampling_boost", 1.0))
+        confusion_pair_bird_ship_session_ids = {str(item) for item in getattr(config, "confusion_pair_bird_ship_session_ids", ())}
+        confusion_pair_ship_drone_session_ids = {str(item) for item in getattr(config, "confusion_pair_ship_drone_session_ids", ())}
         sample_weights = []
         for subset_index in train_dataset.indices:
             sample = dataset.samples[subset_index]
             label_name = getattr(sample, "label_name", "")
+            session_id = str(getattr(sample, "session_id", ""))
             weight = sampling_boost if label_name in {"BirdTarget", "ShipTarget"} else 1.0
+            if hard_ship_session_ids and session_id in hard_ship_session_ids:
+                weight *= hard_ship_session_sampling_boost
+            if hard_bird_session_ids and session_id in hard_bird_session_ids:
+                weight *= hard_bird_session_sampling_boost
+            if suspicious_ship_downweight_enabled and suspicious_ship_downweight_factor < 1.0:
+                if _is_suspicious_ship_pattern(dataset, sample, config):
+                    weight *= suspicious_ship_downweight_factor
+            if confusion_pair_sampling_enabled and confusion_pair_sampling_boost > 1.0:
+                if label_name in {"BirdTarget", "ShipTarget"} and session_id in confusion_pair_bird_ship_session_ids:
+                    weight *= confusion_pair_sampling_boost
+                if label_name in {"ShipTarget", "DroneTarget"} and session_id in confusion_pair_ship_drone_session_ids:
+                    weight *= confusion_pair_sampling_boost
             sample_weights.append(weight)
-        train_sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+        train_sampler = WeightedRandomSampler(
+            sample_weights,
+            num_samples=len(sample_weights),
+            replacement=True,
+            generator=data_loader_generator,
+        )
         train_shuffle = False
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.batch_size,
-        shuffle=train_shuffle,
-        sampler=train_sampler,
-        num_workers=config.num_workers,
-    )
-    if hasattr(getattr(val_dataset, "dataset", None), "window_mix_probability"):
-        getattr(val_dataset, "dataset").window_mix_probability = 0.0
+    if train_batch_sampler is not None:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_sampler=train_batch_sampler,
+            num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=config.batch_size,
+            shuffle=train_shuffle,
+            sampler=train_sampler,
+            num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
+        )
     val_loader = None
     if val_dataset is not None:
         val_loader = DataLoader(
@@ -305,9 +597,9 @@ def build_dataloaders(
             batch_size=config.batch_size,
             shuffle=False,
             num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
         )
-    if hasattr(getattr(test_dataset, "dataset", None), "window_mix_probability"):
-        getattr(test_dataset, "dataset").window_mix_probability = 0.0
     test_loader = None
     if test_dataset is not None:
         test_loader = DataLoader(
@@ -315,6 +607,8 @@ def build_dataloaders(
             batch_size=config.batch_size,
             shuffle=False,
             num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
         )
     return dataset, train_loader, val_loader, test_loader, split_map
 
@@ -347,6 +641,14 @@ def _build_detail_boundary_loss(
     if detail_logits.ndim != 2 or detail_logits.size(0) == 0:
         return detail_logits.new_zeros(())
 
+    if not torch.is_tensor(fine_to_coarse_index):
+        fine_to_coarse_index = torch.as_tensor(fine_to_coarse_index, dtype=torch.long, device=labels.device)
+    else:
+        fine_to_coarse_index = fine_to_coarse_index.to(device=labels.device, dtype=torch.long)
+    if not torch.is_tensor(fine_to_coarse_index):
+        fine_to_coarse_index = torch.as_tensor(fine_to_coarse_index, dtype=torch.long, device=labels.device)
+    else:
+        fine_to_coarse_index = fine_to_coarse_index.to(device=labels.device, dtype=torch.long)
     coarse_targets = fine_to_coarse_index[labels]
     class_coarse = fine_to_coarse_index.to(device=detail_logits.device)
     same_coarse_mask = class_coarse.unsqueeze(0) == coarse_targets.unsqueeze(1)
@@ -427,13 +729,19 @@ def compute_losses(
     bird_surface_criterion: nn.Module | None,
     config: TrainingConfig,
     fine_to_coarse_index: torch.Tensor,
+    label_to_index: dict[str, int] | None = None,
     rd_mask: torch.Tensor | None = None,
     notes_target: torch.Tensor | None = None,
+    bird_rd_target: torch.Tensor | None = None,
     bird_drone_target: torch.Tensor | None = None,
     bird_surface_target: torch.Tensor | None = None,
     track_router_target: torch.Tensor | None = None,
     ship_drone_target: torch.Tensor | None = None,
     ship_bird_target: torch.Tensor | None = None,
+    ship_air_target: torch.Tensor | None = None,
+    suspicious_ship_hard_pattern: torch.Tensor | None = None,
+    curated_ship_drone_mask: torch.Tensor | None = None,
+    curated_bird_ship_mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     if isinstance(outputs, torch.Tensor):
         logits = outputs
@@ -455,6 +763,10 @@ def compute_losses(
             if valid_rd.any():
                 loss = loss + config.rd_aux_loss_weight * criterion(rd_logits[valid_rd], labels[valid_rd])
 
+    if not torch.is_tensor(fine_to_coarse_index):
+        fine_to_coarse_index = torch.as_tensor(fine_to_coarse_index, dtype=torch.long, device=labels.device)
+    else:
+        fine_to_coarse_index = fine_to_coarse_index.to(device=labels.device, dtype=torch.long)
     coarse_targets = fine_to_coarse_index[labels]
     coarse_logits = outputs.get("coarse_logits")
     if coarse_logits is not None and config.hierarchical_aux_loss_weight > 0:
@@ -485,6 +797,22 @@ def compute_losses(
         valid_mask = bird_surface_target >= 0.0
         if valid_mask.any():
             loss = loss + float(config.bird_surface_aux_loss_weight) * bird_surface_criterion(bird_surface_logits.view(-1)[valid_mask], bird_surface_target[valid_mask])
+
+    bird_rd_logits = outputs.get("bird_rd_logits") if isinstance(outputs, dict) else None
+    if bird_surface_criterion is not None and bird_rd_logits is not None and bird_rd_target is not None and getattr(config, "bird_rd_aux_loss_weight", 0.0) > 0:
+        valid_mask = bird_rd_target >= 0.0
+        if rd_mask is not None:
+            valid_mask = valid_mask & (rd_mask.view(-1) > 0.5)
+        if valid_mask.any():
+            loss = loss + float(getattr(config, "bird_rd_aux_loss_weight", 0.0)) * bird_surface_criterion(bird_rd_logits.view(-1)[valid_mask], bird_rd_target[valid_mask])
+
+    bird_surface_rd_logits = outputs.get("bird_surface_rd_logits") if isinstance(outputs, dict) else None
+    if bird_surface_criterion is not None and bird_surface_rd_logits is not None and bird_surface_target is not None and getattr(config, "bird_surface_rd_aux_loss_weight", 0.0) > 0:
+        valid_mask = bird_surface_target >= 0.0
+        if rd_mask is not None:
+            valid_mask = valid_mask & (rd_mask.view(-1) > 0.5)
+        if valid_mask.any():
+            loss = loss + float(getattr(config, "bird_surface_rd_aux_loss_weight", 0.0)) * bird_surface_criterion(bird_surface_rd_logits.view(-1)[valid_mask], bird_surface_target[valid_mask])
 
     track_router_logits = outputs.get("track_router_logits") if isinstance(outputs, dict) else None
     if track_router_logits is not None and track_router_target is not None and getattr(config, "track_router_aux_loss_weight", 0.0) > 0:
@@ -517,6 +845,32 @@ def compute_losses(
             ship_bird_loss = auxiliary_criterion(rd_ship_bird_logits[valid_mask], ship_bird_targets_long)
             loss = loss + float(getattr(config, "rd_ship_bird_aux_loss_weight", 0.0)) * ship_bird_loss
 
+    rd_ship_air_logits = outputs.get("rd_ship_air_logits") if isinstance(outputs, dict) else None
+    if rd_ship_air_logits is not None and ship_air_target is not None and getattr(config, "rd_ship_air_aux_loss_weight", 0.0) > 0:
+        valid_mask = ship_air_target >= 0.0
+        if valid_mask.any():
+            ship_air_targets_long = ship_air_target[valid_mask].long()
+            ship_air_loss = auxiliary_criterion(rd_ship_air_logits[valid_mask], ship_air_targets_long)
+            loss = loss + float(getattr(config, "rd_ship_air_aux_loss_weight", 0.0)) * ship_air_loss
+
+    ship_drone_handler_logits = outputs.get("ship_drone_handler_logits") if isinstance(outputs, dict) else None
+    ship_drone_handler_weight = float(getattr(config, "confusion_ship_drone_handler_weight", 0.0) or getattr(config, "confusion_pair_handler_weight", 0.0))
+    if ship_drone_handler_logits is not None and ship_drone_target is not None and ship_drone_handler_weight > 0:
+        valid_mask = ship_drone_target >= 0.0
+        if valid_mask.any():
+            handler_targets = ship_drone_target[valid_mask].long()
+            handler_loss = auxiliary_criterion(ship_drone_handler_logits[valid_mask], handler_targets)
+            loss = loss + 0.5 * ship_drone_handler_weight * handler_loss
+
+    bird_ship_handler_logits = outputs.get("bird_ship_handler_logits") if isinstance(outputs, dict) else None
+    bird_ship_handler_weight = float(getattr(config, "confusion_bird_ship_handler_weight", 0.0) or getattr(config, "confusion_pair_handler_weight", 0.0))
+    if bird_ship_handler_logits is not None and ship_bird_target is not None and bird_ship_handler_weight > 0:
+        valid_mask = ship_bird_target >= 0.0
+        if valid_mask.any():
+            handler_targets = 1 - ship_bird_target[valid_mask].long()
+            handler_loss = auxiliary_criterion(bird_ship_handler_logits[valid_mask], handler_targets)
+            loss = loss + 0.5 * bird_ship_handler_weight * handler_loss
+
     rd_feature = outputs.get("rd_feature") if isinstance(outputs, dict) else None
     if getattr(config, "bird_surface_prototype_loss_weight", 0.0) > 0:
         prototype_loss = _bird_surface_prototype_loss(
@@ -533,6 +887,79 @@ def compute_losses(
             margin=float(getattr(config, "bird_surface_triplet_margin", 0.4)),
         )
         loss = loss + float(getattr(config, "bird_surface_triplet_loss_weight", 0.0)) * triplet_loss
+
+    label_lookup = {str(name): int(index) for name, index in (label_to_index or {}).items()}
+    bird_index = label_lookup.get("BirdTarget")
+    drone_index = label_lookup.get("DroneTarget")
+    ship_index = label_lookup.get("ShipTarget")
+
+    ship_drone_margin_loss_weight = float(getattr(config, "ship_drone_margin_loss_weight", 0.0))
+    if ship_drone_margin_loss_weight > 0 and ship_index is not None and drone_index is not None:
+        ship_drone_margin_loss = _build_pair_margin_loss(
+            logits=logits,
+            labels=labels,
+            positive_index=ship_index,
+            negative_index=drone_index,
+            positive_labels={ship_index},
+            negative_labels={drone_index},
+            margin=float(getattr(config, "ship_drone_margin", 0.25)),
+        )
+        loss = loss + ship_drone_margin_loss_weight * ship_drone_margin_loss
+
+    conditional_ship_drone_margin_weight = float(getattr(config, "conditional_ship_drone_margin_weight", 0.0))
+    if bool(getattr(config, "conditional_ship_drone_margin_enabled", False)) and conditional_ship_drone_margin_weight > 0 and ship_index is not None and drone_index is not None:
+        conditional_ship_drone_margin_loss = _build_masked_pair_margin_loss(
+            logits=logits,
+            labels=labels,
+            sample_mask=suspicious_ship_hard_pattern,
+            positive_index=ship_index,
+            negative_index=drone_index,
+            positive_labels={ship_index},
+            negative_labels={drone_index},
+            margin=float(getattr(config, "conditional_ship_drone_margin", 0.15)),
+        )
+        loss = loss + conditional_ship_drone_margin_weight * conditional_ship_drone_margin_loss
+
+    curated_ship_drone_margin_weight = float(getattr(config, "curated_ship_drone_margin_weight", 0.0))
+    if bool(getattr(config, "curated_ship_drone_margin_enabled", False)) and curated_ship_drone_margin_weight > 0 and ship_index is not None and drone_index is not None:
+        curated_ship_drone_margin_loss = _build_masked_pair_margin_loss(
+            logits=logits,
+            labels=labels,
+            sample_mask=curated_ship_drone_mask,
+            positive_index=ship_index,
+            negative_index=drone_index,
+            positive_labels={ship_index},
+            negative_labels={drone_index},
+            margin=float(getattr(config, "curated_ship_drone_margin", 0.15)),
+        )
+        loss = loss + curated_ship_drone_margin_weight * curated_ship_drone_margin_loss
+
+    curated_bird_ship_margin_weight = float(getattr(config, "curated_bird_ship_margin_weight", 0.0))
+    if bool(getattr(config, "curated_bird_ship_margin_enabled", False)) and curated_bird_ship_margin_weight > 0 and bird_index is not None and ship_index is not None:
+        curated_bird_ship_margin_loss = _build_masked_pair_margin_loss(
+            logits=logits,
+            labels=labels,
+            sample_mask=curated_bird_ship_mask,
+            positive_index=bird_index,
+            negative_index=ship_index,
+            positive_labels={bird_index},
+            negative_labels={ship_index},
+            margin=float(getattr(config, "curated_bird_ship_margin", 0.15)),
+        )
+        loss = loss + curated_bird_ship_margin_weight * curated_bird_ship_margin_loss
+
+    bird_ship_margin_loss_weight = float(getattr(config, "bird_ship_margin_loss_weight", 0.0))
+    if bird_ship_margin_loss_weight > 0 and bird_index is not None and ship_index is not None:
+        bird_ship_margin_loss = _build_pair_margin_loss(
+            logits=logits,
+            labels=labels,
+            positive_index=bird_index,
+            negative_index=ship_index,
+            positive_labels={bird_index},
+            negative_labels={ship_index},
+            margin=float(getattr(config, "bird_ship_margin", 0.25)),
+        )
+        loss = loss + bird_ship_margin_loss_weight * bird_ship_margin_loss
     return logits, loss
 
 
@@ -548,6 +975,9 @@ def run_epoch(
     config: TrainingConfig,
     num_classes: int,
     fine_to_coarse_index: torch.Tensor,
+    label_to_index: dict[str, int],
+    curated_ship_drone_manifest = None,
+    curated_bird_ship_manifest = None,
     optimizer: torch.optim.Optimizer | None = None,
 ) -> dict[str, float]:
     training = optimizer is not None
@@ -562,6 +992,7 @@ def run_epoch(
     all_predictions: list[int] = []
 
     for batch in data_loader:
+        sample_ids = [str(item) for item in batch["sample_id"]]
         track_features = batch["track_features"].to(device=device, dtype=torch.float32)
         track_global_features = batch["track_global_features"].to(device=device, dtype=torch.float32)
         track_short_features = batch.get("track_short_features")
@@ -573,6 +1004,9 @@ def run_epoch(
         notes_target = batch.get("notes_target")
         if notes_target is not None:
             notes_target = notes_target.to(device=device, dtype=torch.float32)
+        bird_rd_target = batch.get("bird_rd_target")
+        if bird_rd_target is not None:
+            bird_rd_target = bird_rd_target.to(device=device, dtype=torch.float32)
         bird_drone_target = batch.get("bird_drone_target")
         if bird_drone_target is not None:
             bird_drone_target = bird_drone_target.to(device=device, dtype=torch.float32)
@@ -588,6 +1022,26 @@ def run_epoch(
         ship_bird_target = batch.get("ship_bird_target")
         if ship_bird_target is not None:
             ship_bird_target = ship_bird_target.to(device=device, dtype=torch.float32)
+        ship_air_target = batch.get("ship_air_target")
+        if ship_air_target is not None:
+            ship_air_target = ship_air_target.to(device=device, dtype=torch.float32)
+        suspicious_ship_hard_pattern = batch.get("suspicious_ship_hard_pattern")
+        if suspicious_ship_hard_pattern is not None:
+            suspicious_ship_hard_pattern = suspicious_ship_hard_pattern.to(device=device, dtype=torch.float32)
+        curated_ship_drone_mask = None
+        if curated_ship_drone_manifest is not None:
+            curated_ship_drone_mask = torch.tensor(
+                build_manifest_mask(sample_ids, curated_ship_drone_manifest),
+                device=device,
+                dtype=torch.float32,
+            )
+        curated_bird_ship_mask = None
+        if curated_bird_ship_manifest is not None:
+            curated_bird_ship_mask = torch.tensor(
+                build_manifest_mask(sample_ids, curated_bird_ship_manifest),
+                device=device,
+                dtype=torch.float32,
+            )
         rd_features = None
         rd_mask = None
         if _env_flag("RD", bool(config.include_rd)):
@@ -600,12 +1054,16 @@ def run_epoch(
 
         with torch.set_grad_enabled(training):
             outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
-            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, rd_mask, notes_target, bird_drone_target, bird_surface_target, track_router_target, ship_drone_target, ship_bird_target)
+            logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, label_to_index, rd_mask, notes_target, bird_rd_target, bird_drone_target, bird_surface_target, track_router_target, ship_drone_target, ship_bird_target, ship_air_target, suspicious_ship_hard_pattern, curated_ship_drone_mask, curated_bird_ship_mask)
+            session_logit_loss_weight = float(getattr(config, "session_logit_loss_weight", 0.0))
+            if session_logit_loss_weight > 0:
+                session_loss = _build_session_logit_loss(logits, labels, sample_ids, criterion)
+                loss = loss + session_logit_loss_weight * session_loss
             if training:
                 loss.backward()
                 if config.max_grad_norm > 0:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
-                optimizer.step()
+                    optimizer.step()
 
         predictions = logits.argmax(dim=-1)
         batch_size = labels.size(0)
@@ -676,9 +1134,11 @@ def run_training(
     device: str | None = None,
 ) -> dict[str, Any]:
     config = TrainingConfig.from_dict(config_values)
-    set_random_seed(config.random_seed)
+    set_random_seed(config.random_seed, deterministic=bool(getattr(config, "deterministic", False)))
 
     dataset, train_loader, val_loader, test_loader, split_map = build_dataloaders(config, session_ids=session_ids)
+    curated_ship_drone_manifest = load_curated_clip_manifest(getattr(config, "curated_ship_drone_manifest_path", ""))
+    curated_bird_ship_manifest = load_curated_clip_manifest(getattr(config, "curated_bird_ship_manifest_path", ""))
     resolved_device = torch.device(device or "cpu")
     ordered_labels = [dataset.index_to_label[index] for index in sorted(dataset.index_to_label)]
     coarse_training_mode = str(getattr(config, 'label_granularity', 'fine')).lower() == 'coarse'
@@ -729,6 +1189,19 @@ def run_training(
         drone_class_index=dataset.label_to_index.get("DroneTarget"),
         bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
         ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.08)),
+        confusion_pair_handler_enabled=bool(getattr(config, "confusion_pair_handler_enabled", False)),
+        confusion_pair_handler_hidden_dim=int(getattr(config, "confusion_pair_handler_hidden_dim", 64)),
+        confusion_pair_handler_dropout=float(getattr(config, "confusion_pair_handler_dropout", 0.1)),
+        confusion_pair_handler_weight=float(getattr(config, "confusion_pair_handler_weight", 0.0)),
+        confusion_pair_handler_gate_threshold=float(getattr(config, "confusion_pair_handler_gate_threshold", 0.55)),
+        confusion_ship_drone_handler_weight=float(getattr(config, "confusion_ship_drone_handler_weight", 0.0)),
+        confusion_bird_ship_handler_weight=float(getattr(config, "confusion_bird_ship_handler_weight", 0.0)),
+        rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
+        rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
+        min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),
+        ambiguous_rd_fusion_boost=float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+        surface_rd_fusion_boost=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+        use_weighted_fusion_feature=bool(getattr(config, "use_weighted_fusion_feature", False)),
     ).to(resolved_device)
 
     optimizer = torch.optim.AdamW(
@@ -756,6 +1229,7 @@ def run_training(
     best_checkpoint = output_dir / "best_fusion_model.pt"
     best_macro_f1 = -1.0
     best_selection_metric = float("-inf")
+    best_epoch = 0
     stale_epochs = 0
     history: list[dict[str, Any]] = []
     num_parameters = count_trainable_parameters(model)
@@ -776,6 +1250,15 @@ def run_training(
         logger.info(f"[*] Class weights: {class_weights.detach().cpu().tolist()}")
 
     for epoch in range(1, config.epochs + 1):
+        if hasattr(model, "set_runtime_fusion_controls"):
+            fusion_controls = _resolve_epoch_fusion_controls(config, epoch)
+            model.set_runtime_fusion_controls(**fusion_controls)
+        else:
+            fusion_controls = {
+                "min_rd_fusion_weight": float(getattr(config, "min_rd_fusion_weight", 0.15)),
+                "ambiguous_rd_fusion_boost": float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+                "surface_rd_fusion_boost": float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+            }
         train_metrics = run_epoch(
             model=model,
             data_loader=train_loader,
@@ -788,6 +1271,9 @@ def run_training(
             config=config,
             num_classes=len(dataset.label_to_index),
             fine_to_coarse_index=fine_to_coarse_index,
+            label_to_index=dataset.label_to_index,
+            curated_ship_drone_manifest=curated_ship_drone_manifest,
+            curated_bird_ship_manifest=curated_bird_ship_manifest,
             optimizer=optimizer,
         )
 
@@ -806,6 +1292,9 @@ def run_training(
                 config=config,
                 num_classes=len(dataset.label_to_index),
                 fine_to_coarse_index=fine_to_coarse_index,
+                label_to_index=dataset.label_to_index,
+                curated_ship_drone_manifest=curated_ship_drone_manifest,
+                curated_bird_ship_manifest=curated_bird_ship_manifest,
             )
 
         epoch_record = {
@@ -817,6 +1306,9 @@ def run_training(
             "val_accuracy": val_metrics["accuracy"],
             "val_macro_f1": val_metrics["macro_f1"],
             "learning_rate": optimizer.param_groups[0]["lr"],
+            "min_rd_fusion_weight": fusion_controls["min_rd_fusion_weight"],
+            "ambiguous_rd_fusion_boost": fusion_controls["ambiguous_rd_fusion_boost"],
+            "surface_rd_fusion_boost": fusion_controls["surface_rd_fusion_boost"],
             "val_selection_metric": _compute_selection_metric(config, val_metrics),
         }
         history.append(epoch_record)
@@ -829,7 +1321,10 @@ def run_training(
             f"val_loss={val_metrics['loss']:.4f} | "
             f"val_acc={val_metrics['accuracy']:.4f} | "
             f"val_f1={val_metrics['macro_f1']:.4f} | "
-            f"lr={optimizer.param_groups[0]['lr']:.6f}"
+            f"lr={optimizer.param_groups[0]['lr']:.6f} | "
+            f"rd_floor={fusion_controls['min_rd_fusion_weight']:.3f} | "
+            f"rd_amb={fusion_controls['ambiguous_rd_fusion_boost']:.3f} | "
+            f"rd_surface={fusion_controls['surface_rd_fusion_boost']:.3f}"
         )
 
         if scheduler is not None:
@@ -841,6 +1336,7 @@ def run_training(
 
         if selection_metric > best_selection_metric + float(getattr(config, "early_stopping_min_delta", 0.0)):
             best_selection_metric = selection_metric
+            best_epoch = epoch
             stale_epochs = 0
             output_dir.mkdir(parents=True, exist_ok=True)
             torch.save(
@@ -850,6 +1346,7 @@ def run_training(
                     "label_to_index": dataset.label_to_index,
                     "coarse_to_index": coarse_to_index,
                     "fine_to_coarse_index": fine_to_coarse_index.detach().cpu().tolist(),
+                    "best_epoch": best_epoch,
                     "best_macro_f1": best_macro_f1,
                     "best_selection_metric": best_selection_metric,
                     "num_parameters": num_parameters,
@@ -861,8 +1358,17 @@ def run_training(
                 },
                 best_checkpoint,
             )
+            logger.info(
+                f"[*] New best checkpoint | epoch={epoch:03d} | "
+                f"selection={selection_metric:.4f} | stale_epochs={stale_epochs}"
+            )
         else:
             stale_epochs += 1
+            logger.info(
+                f"[*] Early-stop monitor | epoch={epoch:03d} | "
+                f"selection={selection_metric:.4f} | best_epoch={best_epoch:03d} | "
+                f"best_selection={best_selection_metric:.4f} | stale_epochs={stale_epochs}"
+            )
 
         if stale_epochs >= int(getattr(config, "early_stopping_patience", 999999)):
             logger.info(f"[*] Early stopping triggered at epoch {epoch:03d} | stale_epochs={stale_epochs}")
@@ -873,7 +1379,7 @@ def run_training(
     manifest_path = save_session_manifest(manifest, output_dir)
 
     if best_checkpoint.exists():
-        checkpoint_payload = torch.load(best_checkpoint, map_location=resolved_device)
+        checkpoint_payload = load_checkpoint(best_checkpoint, map_location=resolved_device)
         model.load_state_dict(checkpoint_payload["model_state_dict"])
 
     test_metrics = None
@@ -890,6 +1396,9 @@ def run_training(
             config=config,
             num_classes=len(dataset.label_to_index),
             fine_to_coarse_index=fine_to_coarse_index,
+            label_to_index=dataset.label_to_index,
+            curated_ship_drone_manifest=curated_ship_drone_manifest,
+            curated_bird_ship_manifest=curated_bird_ship_manifest,
         )
         logger.info(
             f"[*] Test metrics | loss={test_metrics['loss']:.4f} | acc={test_metrics['accuracy']:.4f} | f1={test_metrics['macro_f1']:.4f}"
@@ -902,6 +1411,7 @@ def run_training(
         "num_samples": len(dataset),
         "labels": dataset.index_to_label,
         "num_parameters": num_parameters,
+        "best_epoch": best_epoch,
         "session_splits": split_map,
         "test_metrics": test_metrics,
     }

@@ -13,6 +13,7 @@ class TrainingConfig:
     val_ratio: float = 0.2
     test_ratio: float = 0.1
     random_seed: int = 42
+    deterministic: bool = True
     num_workers: int = 0
     use_class_balanced_loss: bool = True
     class_balance_beta: float = 0.995
@@ -124,18 +125,72 @@ class TrainingConfig:
     bird_surface_logit_residual_weight: float = 0.2
     rd_dominant_fusion_bias: float = 0.35
     rd_unimodal_logit_residual_weight: float = 0.18
+    min_rd_fusion_weight: float = 0.15
+    ambiguous_rd_fusion_boost: float = 0.15
+    surface_rd_fusion_boost: float = 0.1
+    use_weighted_fusion_feature: bool = False
+    rd_fusion_curriculum_enabled: bool = True
+    rd_fusion_curriculum_start_epoch: int = 3
+    rd_fusion_curriculum_full_epoch: int = 6
+    min_rd_fusion_weight_start: float = 0.0
+    ambiguous_rd_fusion_boost_start: float = 0.0
+    surface_rd_fusion_boost_start: float = 0.0
     bird_rd_aux_loss_weight: float = 0.15
     bird_surface_rd_aux_loss_weight: float = 0.2
     bird_surface_prototype_loss_weight: float = 0.2
     bird_surface_prototype_margin: float = 0.35
     bird_surface_sampling_boost: float = 1.25
+    hard_ship_session_sampling_boost: float = 1.0
+    hard_ship_session_ids: tuple[str, ...] = ()
+    hard_bird_session_sampling_boost: float = 1.0
+    hard_bird_session_ids: tuple[str, ...] = ()
+    suspicious_ship_downweight_enabled: bool = False
+    suspicious_ship_downweight_factor: float = 1.0
+    suspicious_ship_session_ids: tuple[str, ...] = ()
+    suspicious_ship_speed_mean_threshold: float = 0.0
+    suspicious_ship_direction_consistency_threshold: float = 0.0
+    suspicious_ship_surface_bias_threshold: float = 0.0
+    suspicious_ship_snr_mean_threshold: float = 0.0
+    confusion_pair_sampling_enabled: bool = False
+    confusion_pair_sampling_boost: float = 1.0
+    confusion_pair_bird_ship_session_ids: tuple[str, ...] = ()
+    confusion_pair_ship_drone_session_ids: tuple[str, ...] = ()
+    ship_drone_margin_loss_weight: float = 0.0
+    ship_drone_margin: float = 0.0
+    bird_ship_margin_loss_weight: float = 0.0
+    bird_ship_margin: float = 0.0
+    conditional_ship_drone_margin_enabled: bool = False
+    conditional_ship_drone_margin_weight: float = 0.0
+    conditional_ship_drone_margin: float = 0.0
+    conditional_ship_drone_session_ids: tuple[str, ...] = ()
+    conditional_ship_abs_speed_mean_threshold: float = 0.0
+    conditional_ship_range_monotonicity_min: float = 0.0
+    conditional_ship_snr_mean_min: float = 0.0
+    curated_ship_drone_manifest_path: str = ""
+    curated_ship_drone_margin_enabled: bool = False
+    curated_ship_drone_margin_weight: float = 0.0
+    curated_ship_drone_margin: float = 0.0
+    curated_bird_ship_manifest_path: str = ""
+    curated_bird_ship_margin_enabled: bool = False
+    curated_bird_ship_margin_weight: float = 0.0
+    curated_bird_ship_margin: float = 0.0
+    confusion_pair_handler_enabled: bool = False
+    confusion_pair_handler_hidden_dim: int = 64
+    confusion_pair_handler_dropout: float = 0.1
+    confusion_pair_handler_weight: float = 0.0
+    confusion_pair_handler_gate_threshold: float = 0.55
+    confusion_ship_drone_handler_weight: float = 0.0
+    confusion_bird_ship_handler_weight: float = 0.0
     bird_surface_triplet_loss_weight: float = 0.15
     bird_surface_triplet_margin: float = 0.4
+    session_grouped_batches: bool = False
+    session_logit_loss_weight: float = 0.0
     track_router_aux_loss_weight: float = 0.15
     rd_bird_drone_aux_loss_weight: float = 0.15
     rd_ship_drone_aux_loss_weight: float = 0.06
     rd_ship_bird_aux_loss_weight: float = 0.06
     ship_specialist_logit_residual_weight: float = 0.0
+    rd_ship_air_aux_loss_weight: float = 0.04
     best_metric_name: str = "val_composite"
     best_metric_weights: dict[str, float] = field(default_factory=lambda: {"val_macro_f1": 0.7, "val_accuracy": 0.3})
     early_stopping_patience: int = 6
@@ -167,6 +222,12 @@ class TrainingConfig:
             "x3d_stage_depths",
             "x3d_spatial_strides",
             "x3d_temporal_strides",
+            "hard_ship_session_ids",
+            "hard_bird_session_ids",
+            "suspicious_ship_session_ids",
+            "confusion_pair_bird_ship_session_ids",
+            "confusion_pair_ship_drone_session_ids",
+            "conditional_ship_drone_session_ids",
         }
         for field_name in tuple_fields:
             if field_name in payload:

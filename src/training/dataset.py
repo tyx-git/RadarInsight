@@ -47,6 +47,7 @@ class RadarFusionDataset(Dataset):
         ),
         global_feature_columns: Sequence[str] = (),
         include_rd: bool = True,
+        conditional_ship_drone_session_ids: Sequence[str] = (),
     ):
         self.data_root = Path(data_root)
         self.sequence_length = sequence_length
@@ -57,9 +58,12 @@ class RadarFusionDataset(Dataset):
         self.feature_columns = tuple(feature_columns)
         self.global_feature_columns = tuple(global_feature_columns)
         self.include_rd = include_rd
+        self.conditional_ship_drone_session_ids = {str(item) for item in conditional_ship_drone_session_ids}
         self.track_short_length = max(4, sequence_length // 2)
         self.track_long_length = max(sequence_length, sequence_length + max(4, sequence_length // 2))
         self.window_mix_probability = 0.35
+        self.window_mix_enabled_indices: set[int] | None = None
+        self.track_global_feature_cache: dict[str, np.ndarray] = {}
         self.sessions: dict[str, SessionContext] = {}
         self.samples: list[ClipRecord] = []
         discovered_label_names: set[str] = set()
@@ -99,6 +103,12 @@ class RadarFusionDataset(Dataset):
 
     def get_track_global_normalization(self) -> tuple[np.ndarray, np.ndarray]:
         return self.track_global_center.copy(), self.track_global_scale.copy()
+
+    def set_window_mix_enabled_indices(self, indices: Sequence[int] | None) -> None:
+        if indices is None:
+            self.window_mix_enabled_indices = None
+            return
+        self.window_mix_enabled_indices = {int(index) for index in indices}
 
     def fit_track_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
         feature_blocks: list[np.ndarray] = []
@@ -585,11 +595,27 @@ class RadarFusionDataset(Dataset):
     def _extract_track_global_features(self, record: ClipRecord) -> np.ndarray:
         if not self.global_feature_columns:
             return np.zeros((0,), dtype=np.float32)
+        cached = self.track_global_feature_cache.get(record.sample_id)
+        if cached is not None:
+            return cached.copy()
         window = self._build_track_window(record)
+        if window.empty:
+            feature_vector = np.zeros((len(self.global_feature_columns),), dtype=np.float32)
+            self.track_global_feature_cache[record.sample_id] = feature_vector
+            return feature_vector.copy()
         for column in self.global_feature_columns:
             if column not in window.columns:
                 window[column] = 0.0
-        return window.iloc[0].loc[list(self.global_feature_columns)].to_numpy(dtype=np.float32)
+        first_row = window.iloc[0]
+        values: list[float] = []
+        for column in self.global_feature_columns:
+            value = first_row.get(column, 0.0)
+            if hasattr(value, "iloc"):
+                value = value.iloc[0]
+            values.append(float(value))
+        feature_vector = np.asarray(values, dtype=np.float32)
+        self.track_global_feature_cache[record.sample_id] = feature_vector
+        return feature_vector.copy()
 
     def _load_track_sequence(self, record: ClipRecord, target_length: int | None = None) -> np.ndarray:
         window = self._build_track_window(record)
@@ -636,12 +662,16 @@ class RadarFusionDataset(Dataset):
         track_mid = self._load_track_sequence(record, self.sequence_length)
         track_short = self._load_track_sequence(record, self.track_short_length)
         track_long = self._load_track_sequence(record, self.track_long_length)
-        if self.include_rd and np.random.rand() < self.window_mix_probability:
+        mix_enabled = self.window_mix_enabled_indices is None or index in self.window_mix_enabled_indices
+        if self.include_rd and mix_enabled and np.random.rand() < self.window_mix_probability:
             mix_weight = float(np.random.uniform(0.35, 0.65))
             mid_projection = self._resample_sequence(track_mid, self.track_long_length)
             track_long = (mix_weight * track_long + (1.0 - mix_weight) * mid_projection).astype(np.float32)
         bird_surface_target = np.float32(
             1.0 if record.label_name == "BirdTarget" else 0.0 if record.label_name == "ShipTarget" else -1.0
+        )
+        bird_rd_target = np.float32(
+            1.0 if record.label_name == "BirdTarget" else 0.0 if record.label_name in {"AircraftTarget", "DroneTarget", "ShipTarget"} else -1.0
         )
         ship_drone_target = np.float32(
             1.0 if record.label_name == "ShipTarget" else 0.0 if record.label_name == "DroneTarget" else -1.0
@@ -649,21 +679,50 @@ class RadarFusionDataset(Dataset):
         ship_bird_target = np.float32(
             1.0 if record.label_name == "ShipTarget" else 0.0 if record.label_name == "BirdTarget" else -1.0
         )
+        ship_air_target = np.float32(
+            1.0 if record.label_name == "ShipTarget" else 0.0 if record.label_name in {"AircraftTarget", "BirdTarget", "DroneTarget"} else -1.0
+        )
         track_router_target = np.int64(
             0 if record.label_name == "ShipTarget" else 1 if record.label_name == "AircraftTarget" else 2 if record.label_name in {"BirdTarget", "DroneTarget"} else -1
+        )
+        raw_global_features = self._extract_track_global_features(record)
+        global_features = self._normalize_track_global_features(raw_global_features)
+        global_feature_lookup = {name: idx for idx, name in enumerate(self.global_feature_columns)}
+        clip_speed_mean = float(raw_global_features[global_feature_lookup["clip_speed_mean_mps"]]) if "clip_speed_mean_mps" in global_feature_lookup else 0.0
+        clip_speed_direction_consistency = float(raw_global_features[global_feature_lookup["clip_speed_direction_consistency"]]) if "clip_speed_direction_consistency" in global_feature_lookup else 0.0
+        clip_range_monotonicity = float(raw_global_features[global_feature_lookup["clip_range_monotonicity"]]) if "clip_range_monotonicity" in global_feature_lookup else 0.0
+        clip_snr_mean = float(raw_global_features[global_feature_lookup["clip_snr_mean_db"]]) if "clip_snr_mean_db" in global_feature_lookup else 0.0
+        suspicious_ship_hard_pattern = np.float32(
+            1.0
+            if (
+                record.label_name == "ShipTarget"
+                and (
+                    record.session_id in self.conditional_ship_drone_session_ids
+                    or (
+                        abs(clip_speed_mean) >= 3.0
+                        and clip_speed_direction_consistency >= 0.95
+                        and clip_range_monotonicity <= 0.9
+                        and clip_snr_mean >= 45.0
+                    )
+                )
+            )
+            else 0.0
         )
         return {
             "sample_id": record.sample_id,
             "track_features": track_mid,
             "track_short_features": track_short,
             "track_long_features": track_long,
-            "track_global_features": self._load_track_global_features(record),
+            "track_global_features": global_features,
             "rd_features": self._load_rd_cube(record),
             "label": np.int64(self.label_to_index[record.label_name]),
             "label_name": record.label_name,
             "has_rd": np.int64(record.has_rd),
+            "bird_rd_target": bird_rd_target,
             "bird_surface_target": bird_surface_target,
             "ship_drone_target": ship_drone_target,
             "ship_bird_target": ship_bird_target,
+            "ship_air_target": ship_air_target,
             "track_router_target": track_router_target,
+            "suspicious_ship_hard_pattern": suspicious_ship_hard_pattern,
         }

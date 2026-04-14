@@ -162,6 +162,21 @@ def build_real_report(artifact_dir: str, report_root: str = "reports/real") -> d
             report_dir / "overall_metrics.png",
             title="Real Evaluation Overall Metrics",
         )
+        session_level = evaluation.get("session_level")
+        if session_level is not None:
+            session_confusion_matrix = np.asarray(session_level["confusion_matrix"], dtype=np.int64)
+            _plot_confusion_matrix(session_confusion_matrix, labels, report_dir / "session_confusion_matrix.png", title="Session-Level Evaluation Confusion Matrix")
+            _plot_per_class_metric(session_level["per_class"], report_dir / "session_per_class_metrics.png", title="Session-Level Evaluation Per-Class Metrics")
+            _plot_overall_metrics(
+                {
+                    "Accuracy": float(session_level.get("accuracy", 0.0)),
+                    "Macro F1": float(session_level.get("macro_f1", 0.0)),
+                    "Macro Recall": float(session_level.get("macro_recall", 0.0)),
+                    "Macro Prec": float(session_level.get("macro_precision", 0.0)),
+                },
+                report_dir / "session_overall_metrics.png",
+                title="Session-Level Overall Metrics",
+            )
 
     result = {
         "report_dir": str(report_dir),
@@ -171,4 +186,8 @@ def build_real_report(artifact_dir: str, report_root: str = "reports/real") -> d
         result["confusion_matrix"] = str(report_dir / "confusion_matrix.png")
         result["per_class_metrics"] = str(report_dir / "per_class_metrics.png")
         result["overall_metrics"] = str(report_dir / "overall_metrics.png")
+        if evaluation.get("session_level") is not None:
+            result["session_confusion_matrix"] = str(report_dir / "session_confusion_matrix.png")
+            result["session_per_class_metrics"] = str(report_dir / "session_per_class_metrics.png")
+            result["session_overall_metrics"] = str(report_dir / "session_overall_metrics.png")
     return result

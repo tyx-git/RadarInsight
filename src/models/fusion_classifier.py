@@ -196,8 +196,19 @@ class FusionRadarClassifier(nn.Module):
         drone_class_index: int | None = None,
         bird_surface_logit_residual_weight: float = 0.2,
         ship_specialist_logit_residual_weight: float = 0.08,
+        confusion_pair_handler_enabled: bool = False,
+        confusion_pair_handler_hidden_dim: int = 64,
+        confusion_pair_handler_dropout: float = 0.1,
+        confusion_pair_handler_weight: float = 0.0,
+        confusion_pair_handler_gate_threshold: float = 0.55,
+        confusion_ship_drone_handler_weight: float = 0.0,
+        confusion_bird_ship_handler_weight: float = 0.0,
         rd_dominant_fusion_bias: float = 1.25,
         rd_unimodal_logit_residual_weight: float = 0.35,
+        min_rd_fusion_weight: float = 0.15,
+        ambiguous_rd_fusion_boost: float = 0.15,
+        surface_rd_fusion_boost: float = 0.1,
+        use_weighted_fusion_feature: bool = False,
     ):
         super().__init__()
         self.include_track = include_track
@@ -215,8 +226,17 @@ class FusionRadarClassifier(nn.Module):
         self.drone_class_index = drone_class_index
         self.bird_surface_logit_residual_weight = float(bird_surface_logit_residual_weight)
         self.ship_specialist_logit_residual_weight = float(ship_specialist_logit_residual_weight)
+        self.confusion_pair_handler_enabled = bool(confusion_pair_handler_enabled)
+        self.confusion_pair_handler_weight = float(confusion_pair_handler_weight)
+        self.confusion_pair_handler_gate_threshold = float(confusion_pair_handler_gate_threshold)
+        self.confusion_ship_drone_handler_weight = float(confusion_ship_drone_handler_weight)
+        self.confusion_bird_ship_handler_weight = float(confusion_bird_ship_handler_weight)
         self.rd_dominant_fusion_bias = float(rd_dominant_fusion_bias)
         self.rd_unimodal_logit_residual_weight = float(rd_unimodal_logit_residual_weight)
+        self.min_rd_fusion_weight = float(min_rd_fusion_weight)
+        self.ambiguous_rd_fusion_boost = float(ambiguous_rd_fusion_boost)
+        self.surface_rd_fusion_boost = float(surface_rd_fusion_boost)
+        self.use_weighted_fusion_feature = bool(use_weighted_fusion_feature)
         if self.track_backbone_type in {"graph", "dggcn"}:
             self.track_encoder = TrackGraphEncoder(
                 input_dim=track_input_dim,
@@ -316,8 +336,46 @@ class FusionRadarClassifier(nn.Module):
         self.bird_rd_head = nn.Linear(fusion_hidden_size, 1)
         self.bird_surface_rd_head = nn.Linear(fusion_hidden_size, 1)
         self.rd_bird_drone_head = nn.Linear(fusion_hidden_size, 2)
+        self.rd_local_ship_projection = nn.Sequential(
+            nn.LayerNorm(max(8, fusion_hidden_size // 2)),
+            nn.Linear(max(8, fusion_hidden_size // 2), fusion_hidden_size),
+            nn.GELU(),
+        )
         self.rd_ship_drone_head = nn.Linear(fusion_hidden_size, 2)
         self.rd_ship_bird_head = nn.Linear(fusion_hidden_size, 2)
+        self.rd_ship_air_head = nn.Linear(fusion_hidden_size, 2)
+        if self.confusion_pair_handler_enabled:
+            pair_input_dim = fusion_hidden_size * 3
+            self.ship_drone_handler = nn.Sequential(
+                nn.LayerNorm(pair_input_dim),
+                nn.Linear(pair_input_dim, confusion_pair_handler_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(confusion_pair_handler_dropout),
+                nn.Linear(confusion_pair_handler_hidden_dim, 2),
+            )
+            self.bird_ship_handler = nn.Sequential(
+                nn.LayerNorm(pair_input_dim),
+                nn.Linear(pair_input_dim, confusion_pair_handler_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(confusion_pair_handler_dropout),
+                nn.Linear(confusion_pair_handler_hidden_dim, 2),
+            )
+        else:
+            self.ship_drone_handler = None
+            self.bird_ship_handler = None
+
+    def set_runtime_fusion_controls(
+        self,
+        min_rd_fusion_weight: float | None = None,
+        ambiguous_rd_fusion_boost: float | None = None,
+        surface_rd_fusion_boost: float | None = None,
+    ) -> None:
+        if min_rd_fusion_weight is not None:
+            self.min_rd_fusion_weight = float(min_rd_fusion_weight)
+        if ambiguous_rd_fusion_boost is not None:
+            self.ambiguous_rd_fusion_boost = float(ambiguous_rd_fusion_boost)
+        if surface_rd_fusion_boost is not None:
+            self.surface_rd_fusion_boost = float(surface_rd_fusion_boost)
 
     def forward(
         self,
@@ -385,9 +443,10 @@ class FusionRadarClassifier(nn.Module):
             rd_tokens = track_tokens.new_zeros((track_tokens.size(0), 1, self.fusion_hidden_size))
             rd_feature = track_feature.new_zeros((track_feature.size(0), self.fusion_hidden_size))
         else:
-            rd_tokens, rd_feature = rd_encoder(rd_cube)
+            rd_tokens, rd_feature, rd_local_feature = rd_encoder(rd_cube)
 
         rd_feature = rd_feature * modality_mask
+        rd_local_feature = rd_local_feature * modality_mask
         rd_logits = rd_classifier(rd_feature)
 
         track_reliability_head = self.track_reliability_head
@@ -402,8 +461,25 @@ class FusionRadarClassifier(nn.Module):
         rd_reliability = rd_reliability_head(rd_feature).masked_fill(modality_mask <= 0.0, -1e4)
         reliability_logits = torch.cat([track_reliability, rd_reliability + self.rd_dominant_fusion_bias], dim=-1)
         modality_weights = torch.softmax(reliability_logits, dim=-1)
-        track_weight = modality_weights[:, :1]
-        rd_weight = modality_weights[:, 1:2] * modality_mask
+        raw_track_weight = modality_weights[:, :1]
+        raw_rd_weight = modality_weights[:, 1:2] * modality_mask
+
+        track_router_logits = self.track_router_head(track_feature)
+        track_router_prob = torch.softmax(track_router_logits, dim=-1)
+        router_surface = track_router_prob[:, 0:1]
+        router_ambiguous = track_router_prob[:, 2:3]
+
+        rd_floor = (
+            float(self.min_rd_fusion_weight)
+            + float(self.ambiguous_rd_fusion_boost) * router_ambiguous
+            + float(self.surface_rd_fusion_boost) * router_surface
+        ) * modality_mask
+        rd_floor = rd_floor.clamp_min(0.0).clamp_max(0.45)
+        rd_weight = torch.maximum(raw_rd_weight, rd_floor) * modality_mask
+        track_weight = raw_track_weight
+        weight_sum = (track_weight + rd_weight).clamp_min(1e-6)
+        track_weight = track_weight / weight_sum
+        rd_weight = rd_weight / weight_sum * modality_mask
 
         fused_track_tokens = track_tokens
         fused_rd_tokens = rd_tokens * modality_mask.view(-1, 1, 1)
@@ -412,8 +488,12 @@ class FusionRadarClassifier(nn.Module):
 
         fused_track_feature = self.track_pool(fused_track_tokens)
         fused_rd_feature = rd_pool(fused_rd_tokens) * modality_mask
-        weighted_track_feature = fused_track_feature * track_weight
-        weighted_rd_feature = fused_rd_feature * rd_weight
+        if self.use_weighted_fusion_feature:
+            weighted_track_feature = fused_track_feature * track_weight
+            weighted_rd_feature = fused_rd_feature * rd_weight
+        else:
+            weighted_track_feature = fused_track_feature
+            weighted_rd_feature = fused_rd_feature
         fused_feature = torch.cat(
             [
                 weighted_track_feature,
@@ -425,14 +505,15 @@ class FusionRadarClassifier(nn.Module):
         )
         logits, coarse_logits, detail_logits, coarse_feature, detail_feature = self.hierarchical_head(fused_feature)
         notes_logits = self.notes_head(fused_feature) if self.notes_head is not None else None
-        track_router_logits = self.track_router_head(track_feature)
         bird_drone_logits = self.bird_drone_head(fused_feature)
         bird_surface_logits = self.bird_surface_head(fused_feature)
         bird_rd_logits = self.bird_rd_head(rd_feature)
         bird_surface_rd_logits = self.bird_surface_rd_head(rd_feature)
         rd_bird_drone_logits = self.rd_bird_drone_head(rd_feature)
-        rd_ship_drone_logits = self.rd_ship_drone_head(rd_feature)
-        rd_ship_bird_logits = self.rd_ship_bird_head(rd_feature)
+        rd_local_ship_feature = self.rd_local_ship_projection(rd_local_feature)
+        rd_ship_drone_logits = self.rd_ship_drone_head(rd_local_ship_feature)
+        rd_ship_bird_logits = self.rd_ship_bird_head(rd_local_ship_feature)
+        rd_ship_air_logits = self.rd_ship_air_head(rd_local_ship_feature)
 
         unimodal_logit_residual = self.unimodal_logit_residual
         if unimodal_logit_residual is not None:
@@ -464,6 +545,26 @@ class FusionRadarClassifier(nn.Module):
             logits[:, self.surface_class_index] = logits[:, self.surface_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_bird_logits[:, 0]
             logits[:, self.bird_class_index] = logits[:, self.bird_class_index] + self.ship_specialist_logit_residual_weight * rd_ship_bird_logits[:, 1]
 
+        ship_drone_handler_logits = None
+        bird_ship_handler_logits = None
+        if self.confusion_pair_handler_enabled and self.ship_drone_handler is not None and self.bird_ship_handler is not None:
+            pair_feature = torch.cat([track_feature, rd_feature, rd_local_ship_feature], dim=-1)
+            ship_drone_handler_logits = self.ship_drone_handler(pair_feature)
+            bird_ship_handler_logits = self.bird_ship_handler(pair_feature)
+            class_probabilities = torch.softmax(logits, dim=-1)
+            if self.surface_class_index is not None and self.drone_class_index is not None:
+                ship_drone_gate = (class_probabilities[:, self.surface_class_index] + class_probabilities[:, self.drone_class_index]) >= self.confusion_pair_handler_gate_threshold
+                if ship_drone_gate.any():
+                    ship_drone_weight = self.confusion_ship_drone_handler_weight if self.confusion_ship_drone_handler_weight > 0 else self.confusion_pair_handler_weight
+                    logits[ship_drone_gate, self.surface_class_index] = logits[ship_drone_gate, self.surface_class_index] + ship_drone_weight * ship_drone_handler_logits[ship_drone_gate, 0]
+                    logits[ship_drone_gate, self.drone_class_index] = logits[ship_drone_gate, self.drone_class_index] + ship_drone_weight * ship_drone_handler_logits[ship_drone_gate, 1]
+            if self.bird_class_index is not None and self.surface_class_index is not None:
+                bird_ship_gate = (class_probabilities[:, self.bird_class_index] + class_probabilities[:, self.surface_class_index]) >= self.confusion_pair_handler_gate_threshold
+                if bird_ship_gate.any():
+                    bird_ship_weight = self.confusion_bird_ship_handler_weight if self.confusion_bird_ship_handler_weight > 0 else self.confusion_pair_handler_weight
+                    logits[bird_ship_gate, self.bird_class_index] = logits[bird_ship_gate, self.bird_class_index] + bird_ship_weight * bird_ship_handler_logits[bird_ship_gate, 0]
+                    logits[bird_ship_gate, self.surface_class_index] = logits[bird_ship_gate, self.surface_class_index] + bird_ship_weight * bird_ship_handler_logits[bird_ship_gate, 1]
+
         return {
             "logits": logits,
             "track_logits": track_logits,
@@ -483,5 +584,10 @@ class FusionRadarClassifier(nn.Module):
             "rd_bird_drone_logits": rd_bird_drone_logits,
             "rd_ship_drone_logits": rd_ship_drone_logits,
             "rd_ship_bird_logits": rd_ship_bird_logits,
+            "rd_ship_air_logits": rd_ship_air_logits,
+            "ship_drone_handler_logits": ship_drone_handler_logits,
+            "bird_ship_handler_logits": bird_ship_handler_logits,
             "rd_feature": rd_feature,
+            "rd_local_feature": rd_local_feature,
+            "rd_local_ship_feature": rd_local_ship_feature,
         }

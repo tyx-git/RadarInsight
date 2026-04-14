@@ -268,6 +268,7 @@ def build_dataset(data_root: str, config, session_ids=None, label_order=None):
         feature_columns=config.track_feature_columns,
         global_feature_columns=config.track_global_feature_columns,
         include_rd=config.include_rd,
+        conditional_ship_drone_session_ids=getattr(config, 'conditional_ship_drone_session_ids', ()),
     )
 
 
