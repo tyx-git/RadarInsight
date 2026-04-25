@@ -1,0 +1,1388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.3 20210610//EN" "JATS-journalpublishing1-3.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3" xml:lang="en">
+  <front>
+    <journal-meta>
+      <journal-id journal-id-type="publisher-id">electronics</journal-id>
+      <journal-title-group>
+        <journal-title>Electronics</journal-title>
+        <abbrev-journal-title abbrev-type="publisher">Electronics</abbrev-journal-title>
+        <abbrev-journal-title abbrev-type="pubmed">Electronics</abbrev-journal-title>
+      </journal-title-group>
+      <issn pub-type="epub">2079-9292</issn>
+      <publisher>
+        <publisher-name>MDPI</publisher-name>
+      </publisher>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="doi">10.3390/electronics14244831</article-id>
+      <article-id pub-id-type="publisher-id">electronics-14-04831</article-id>
+      <article-categories>
+        <subj-group>
+          <subject>Article</subject>
+        </subj-group>
+      </article-categories>
+      <title-group>
+        <article-title>A Lightweight CNN-Based Method for Micro-Doppler Feature-Based UAV Detection and Classification</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <contrib-id contrib-id-type="orcid" authenticated="true">https://orcid.org/0009-0003-9153-6555</contrib-id>
+          <name>
+            <surname>Zhang</surname>
+            <given-names>Luyan</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Conceptualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/conceptualization/">Conceptualization</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Methodology" vocab-term-identifier="https://credit.niso.org/contributor-roles/methodology/">Methodology</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Software" vocab-term-identifier="https://credit.niso.org/contributor-roles/software/">Software</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; original draft" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-original-draft/">Writing &#x2013; original draft</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; review &amp; editing" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-review-editing/">Writing &#x2013; review &amp; editing</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Investigation" vocab-term-identifier="https://credit.niso.org/contributor-roles/investigation/">Investigation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Resources" vocab-term-identifier="https://credit.niso.org/contributor-roles/resources/">Resources</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Formal analysis" vocab-term-identifier="https://credit.niso.org/contributor-roles/formal-analysis/">Formal analysis</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Visualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/visualization/">Visualization</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Data curation" vocab-term-identifier="https://credit.niso.org/contributor-roles/data-curation/">Data curation</role>
+          <xref rid="af1-electronics-14-04831" ref-type="aff">1</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <contrib-id contrib-id-type="orcid" authenticated="true">https://orcid.org/0000-0001-5722-8362</contrib-id>
+          <name>
+            <surname>Tu</surname>
+            <given-names>Gangyi</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Project administration" vocab-term-identifier="https://credit.niso.org/contributor-roles/project-administration/">Project administration</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Funding acquisition" vocab-term-identifier="https://credit.niso.org/contributor-roles/funding-acquisition/">Funding acquisition</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Supervision" vocab-term-identifier="https://credit.niso.org/contributor-roles/supervision/">Supervision</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Data curation" vocab-term-identifier="https://credit.niso.org/contributor-roles/data-curation/">Data curation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Resources" vocab-term-identifier="https://credit.niso.org/contributor-roles/resources/">Resources</role>
+          <xref rid="af1-electronics-14-04831" ref-type="aff">1</xref>
+          <xref rid="c1-electronics-14-04831" ref-type="corresp">*</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <name>
+            <surname>Xu</surname>
+            <given-names>Yike</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <xref rid="af1-electronics-14-04831" ref-type="aff">1</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <contrib-id contrib-id-type="orcid" authenticated="true">https://orcid.org/0009-0001-5796-7357</contrib-id>
+          <name>
+            <surname>Zhou</surname>
+            <given-names>Xujia</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <xref rid="af2-electronics-14-04831" ref-type="aff">2</xref>
+        </contrib>
+      </contrib-group>
+      <contrib-group>
+        <contrib contrib-type="editor">
+          <name>
+            <surname>Cardillo</surname>
+            <given-names>Emanuele</given-names>
+          </name>
+          <role>Academic Editor</role>
+        </contrib>
+      </contrib-group>
+      <aff id="af1-electronics-14-04831"><label>1</label>School of Electronics and Information Engineering, Nanjing University of Information Science and Technology, Nanjing 210044, China; <email>202383270189@nuist.edu.cn</email> (L.Z.); <email>202383270294@nuist.edu.cn</email> (Y.X.)</aff>
+      <aff id="af2-electronics-14-04831"><label>2</label>Changwang School of Honors, Nanjing University of Information Science and Technology, Nanjing 210044, China; <email>202283330014@nuist.edu.cn</email></aff>
+      <author-notes>
+        <corresp id="c1-electronics-14-04831"><label>*</label>Correspondence: <email>tugangyi@nuist.edu.cn</email></corresp>
+      </author-notes>
+      <pub-date pub-type="epub">
+        <day>08</day>
+        <month>12</month>
+        <year>2025</year>
+      </pub-date>
+      <pub-date pub-type="collection">
+        <month>12</month>
+        <year>2025</year>
+      </pub-date>
+      <volume>14</volume>
+      <issue>24</issue>
+      <elocation-id>4831</elocation-id>
+      <history>
+        <date date-type="received">
+          <day>12</day>
+          <month>10</month>
+          <year>2025</year>
+        </date>
+        <date date-type="rev-recd">
+          <day>01</day>
+          <month>12</month>
+          <year>2025</year>
+        </date>
+        <date date-type="accepted">
+          <day>04</day>
+          <month>12</month>
+          <year>2025</year>
+        </date>
+      </history>
+      <permissions>
+        <copyright-statement>&#xA9; 2025 by the authors.</copyright-statement>
+        <copyright-year>2025</copyright-year>
+        <license license-type="open-access">
+          <license-p>Licensee MDPI, Basel, Switzerland. This article is an open access article distributed under the terms and conditions of the Creative Commons Attribution (CC BY) license (<ext-link ext-link-type="uri" xlink:href="https://creativecommons.org/licenses/by/4.0/">https://creativecommons.org/licenses/by/4.0/</ext-link>).</license-p>
+        </license>
+      </permissions>
+      <abstract>
+        <p>To address the high computational cost and significant resource consumption of radar Doppler-based target recognition, which limits its application in real-time embedded systems, this paper proposes a lightweight CNN (Convolutional Neural Network) approach for radar target identification. The proposed approach builds a deep convolutional neural network using range-Doppler maps, and leverages data collected by frequency-modulated continuous wave (FMCW) radar from targets such as drones, vehicles, and pedestrians. This method enables efficient object detection and classification across a wide range of scenarios. To improve the performance of the proposed model, this study incorporates a coordinate attention mechanism within the convolutional neural network. This mechanism fine-tunes the network&#x2019;s focus by dynamically adjusting the weights of different feature channels and spatial regions, allowing it to concentrate on the most informative areas. Experimental results show that the foundational architecture of the proposed deep learning model, RangDopplerNet Type-1, effectively captures micro-Doppler features from range-Doppler maps across diverse targets. This capability enables precise detection and classification, with the model achieving an impressive average recognition accuracy of 96.71%. The enhanced network architecture, RangeDopplerNet Type-2, reached an average accuracy of 98.08%, while retaining a compact footprint of only 403 KB. Compared with standard lightweight models such as MobileNetV2, the proposed architecture reduces model size by 97.04%. This demonstrates that, while improving accuracy, the proposed architecture also significantly reduces both computational and storage overhead.The deep learning model introduced in this study is specifically tailored for deployment on resource-constrained platforms, including mobile and embedded systems. It provides an efficient and practical approach for development of miniaturized low-power devices.</p>
+      </abstract>
+      <kwd-group>
+        <kwd>range-Doppler radar</kwd>
+        <kwd>UAV detection</kwd>
+        <kwd>target recognition</kwd>
+        <kwd>lightweight convolutional neural network</kwd>
+        <kwd>coordinate attention mechanism</kwd>
+      </kwd-group>
+      <funding-group>
+        <award-group>
+          <funding-source>The Startup Foundation for Introducing Talent of NUIST</funding-source>
+          <award-id>2022r073</award-id>
+        </award-group>
+        <award-group>
+          <funding-source>Joint Fund of the Ministry of Education for Equipment Pre-Research (Innovative Teams)</funding-source>
+          <award-id>8091B042319</award-id>
+        </award-group>
+        <award-group>
+          <funding-source>173 Plan Project</funding-source>
+          <award-id>2021-JCJQ-JJ-0277</award-id>
+        </award-group>
+        <funding-statement>This research was funded by The Startup Foundation for Introducing Talent of NUIST (Grant No. 2022r073), Joint Fund of the Ministry of Education for Equipment Pre-Research (Innovative Teams) (Grant No. 8091B042319) and 173 Plan Project (Grant No. 2021-JCJQ-JJ-0277).</funding-statement>
+      </funding-group>
+    </article-meta>
+  </front>
+  <body>
+    <sec sec-type="intro" id="sec1-electronics-14-04831">
+      <title>1. Introduction</title>
+      <p>In recent years, the rapid growth of the consumer drone market has made the surveillance of low-altitude, non-cooperative targets&#x2014;such as drones&#x2014;increasingly challenging [<xref ref-type="bibr" rid="B1-electronics-14-04831">1</xref>,<xref ref-type="bibr" rid="B2-electronics-14-04831">2</xref>,<xref ref-type="bibr" rid="B3-electronics-14-04831">3</xref>]. This trend poses significant threats to low-altitude security in urban environments.</p>
+      <p>In urban environments, the absence of comprehensive regulatory frameworks has contributed to a rise in unauthorized drone operations&#x2014;commonly referred to as &#x201C;black flights&#x201D;&#x2014;which have caused airspace disruptions, personal injuries, and significant socio-economic damage. Conventional monitoring approaches are proving increasingly insufficient to address the evolving challenges of urban security management.</p>
+      <p>Current technologies struggle to effectively monitor &#x201C;low, slow, and small&#x201D; aerial targets, such as drones and tethered balloons, posing significant challenges to low-altitude surveillance. These limitations highlight an urgent need for more accurate and efficient solutions to safeguard public spaces and critical infrastructure [<xref ref-type="bibr" rid="B4-electronics-14-04831">4</xref>,<xref ref-type="bibr" rid="B5-electronics-14-04831">5</xref>].</p>
+      <p>Drone detection technologies generally fall into four main categories. The first is radar-based detection, which offers accurate long-range tracking and identification capabilities. The second involves signal analysis, where systems monitor the communication links between drones and their remote controllers. The third category is visual surveillance, using cameras to detect, classify, and follow drone movements. Lastly, acoustic detection identifies drones by analyzing the unique sound patterns generated by their propellers.</p>
+      <p>Dumitrescu et al. [<xref ref-type="bibr" rid="B6-electronics-14-04831">6</xref>] introduced an acoustic-based system for drone detection and localization, utilizing a spiral array of MEMS (Micro-Electro-Mechanical Systems) microphones to capture audio signals. These signals are then processed using machine learning algorithms, enabling accurate identification and classification of drone targets.</p>
+      <p>However, acoustic-based drone detection systems are highly sensitive to factors such as distance and environmental conditions, which can substantially compromise their accuracy and reliability.</p>
+      <p>Aydin and Singha [<xref ref-type="bibr" rid="B7-electronics-14-04831">7</xref>] developed a vision-based drone monitoring system utilizing the widely adopted YOLOv5 computer vision algorithm. By incorporating pre-trained weights and applying data augmentation strategies, the system achieves efficient detection and tracking of drones. However, the complexity and variability of background environments present substantial challenges to visual accuracy. Drones often blend seamlessly into their surroundings, making it difficult to differentiate them from natural objects or other visual elements.</p>
+      <p>Allahham et al. [<xref ref-type="bibr" rid="B8-electronics-14-04831">8</xref>] proposed a drone detection and identification system utilizing radio frequency (RF) sensing. The system identifies drones by analyzing the communication signals exchanged with their remote controllers. However, its performance may be constrained in scenarios where drones operate autonomously along pre-programmed GPS paths, involving minimal RF interaction with ground control stations.</p>
+      <p>In recent years, radar micro-Doppler signatures and lightweight convolutional neural networks (CNNs) have gained significant attention across a variety of applications. In [<xref ref-type="bibr" rid="B9-electronics-14-04831">9</xref>], Han et al. proposed enhancing drone detection by overlaying multiple Range-Doppler (RD) images, thereby improving the visibility of drone signatures and effectively suppressing noise to boost detection robustness. In [<xref ref-type="bibr" rid="B10-electronics-14-04831">10</xref>], Sadeghi et al. introduced a novel approach that replaces traditional batch normalization (BN) layers in CNNs with whitening layers, which not only standardize but also decorrelate feature activations, leading to improved feature learning. In [<xref ref-type="bibr" rid="B11-electronics-14-04831">11</xref>], Li et al. employed a Mobile Vision Transformer (MobileViT) to classify radar-derived speech signal images, achieving a balance between high accuracy and low computational cost&#x2014;making the method well-suited for edge devices. In [<xref ref-type="bibr" rid="B12-electronics-14-04831">12</xref>], Li et al. presented RadarTCN, a lightweight model that combines 2D convolution for spatial feature extraction with 3D temporal convolutional networks (TCNs) for modeling temporal dynamics. By avoiding resource-intensive 3D convolutions and multi-view inputs, RadarTCN significantly reduces memory consumption and processing overhead. Lastly, in [<xref ref-type="bibr" rid="B13-electronics-14-04831">13</xref>], Xu et al. proposed a compressed and optimized version of ConvNeXt-Tiny, incorporating a multi-scale feature fusion module to enhance fine-grained feature extraction. Their CNNA model demonstrates high classification accuracy while maintaining low computational complexity.</p>
+      <p>Roldan  et al. [<xref ref-type="bibr" rid="B14-electronics-14-04831">14</xref>] proposed a drone identification and classification system that leverages micro-Doppler features extracted from radar signals. Micro-Doppler refers to subtle frequency shifts caused by rapid oscillations or rotations of moving components&#x2014;such as drone propellers or human limbs&#x2014;during motion. Because different objects (e.g., vehicles, drones, pedestrians) exhibit unique movement patterns, their micro-Doppler signatures also differ. Through spectral analysis of radar echoes, these signatures can be visualized as distinct frequency components and modulation patterns in spectrograms. Such features offer rich information for target recognition, enabling precise classification through detailed signal interpretation.</p>
+      <p>Through a series of comprehensive and controlled experimental trials, Ignacio et al. developed the RDRD (Real Doppler RAD-DAR) dataset, consisting of more than 17,000 range-Doppler radar samples encompassing drones, vehicles, and pedestrians.Based on this open-source RDRD range-Doppler radar dataset, this study proposes two fully convolutional neural network architectures to investigate drone target recognition and classification.</p>
+      <p>This paper first presents the architecture of the proposed deep learning model, RangeDopplerNet. It then introduces the data acquisition and signal processing methods used in the RDRD dataset, followed by a description of the preprocessing techniques and the performance evaluation metrics adopted in this study. Subsequently, experimental results are provided and analyzed. Finally, the research is summarized, and key conclusions are drawn.</p>
+    </sec>
+    <sec id="sec2-electronics-14-04831">
+      <title>2. RangDopplerNet Model&#xA0;Architecture</title>
+      <p>To effectively classify the range-Doppler matrices derived from the test targets, this paper introduces a fully convolutional neural network. The detailed architecture of the proposed model is presented in <xref ref-type="table" rid="electronics-14-04831-t001">Table 1</xref>.</p>
+      <p>As shown in <xref ref-type="table" rid="electronics-14-04831-t001">Table 1</xref>, the RangeDopplerNet Type-1 network is built on a deep convolutional architecture with two main modules: feature extraction and classification. The extraction module uses three convolutional layers with 3 &#xD7; 3 kernels (32, 32, and 64 channels), each followed by batch normalization and ReLU. These layers progressively transform raw micro-Doppler inputs into higher-level semantic features, capturing target distance, velocity, and motion dynamics while downsampling to reduce complexity and avoid overfitting. The resulting feature map (2 &#xD7; 8 &#xD7; 64) encodes essential spatial and velocity information. This is passed to the classification module, which consists of three fully connected layers. The first flattens and reduces dimensionality, the second models complex feature interactions, and the third outputs class probabilities. Together, this layered design enables the network to learn discriminative target representations efficiently, moving from raw signals to meaningful categories in a bottom-up fashion.</p>
+      <p>Traditional convolution operations are limited by fixed-size receptive fields and depend exclusively on local interactions via sliding windows, which restrict the model&#x2019;s capability to adaptively emphasize important regions. To address this bottleneck observed in the Type-1 model under complex conditions and to further improve overall system performance, we integrate a Coordinate Attention [<xref ref-type="bibr" rid="B15-electronics-14-04831">15</xref>] module into the network architecture. This enhancement effectively addresses the limitations of traditional convolutional networks by reinforcing the integration of spatial positional information with channel-specific feature representations. <xref ref-type="fig" rid="electronics-14-04831-f001">Figure 1</xref> presents the Type-2 model with the incorporated Coordinate Attention module.</p>
+      <p>The coordinate attention mechanism captures the three-dimensional interaction between spatial coordinates (H &#xD7; W) and feature channels (C), forming a dual-attention framework that integrates both spatial and channel-level information. This mechanism generates a two-dimensional attention map that adaptively reweights each position within the original feature map. By incorporating this approach, the model enhances its ability to recognize fine-grained local features&#x2014;such as subtle texture variations&#x2014;while also improving its comprehension of broader contextual patterns. The resulting architecture, empowered by coordinate attention, is referred to as the RangeDopplerNet Type-2 network.</p>
+      <p><xref ref-type="fig" rid="electronics-14-04831-f002">Figure 2</xref> illustrates the architecture of the Coordinate Attention (CA) module, an advanced attention mechanism designed to enhance the feature representation capabilities of deep learning models through spatial coordinate encoding. The core concept of CA lies in embedding positional information directly into channel attention, while simultaneously modeling long-range dependencies across both spatial and channel dimensions.</p>
+      <p>The working principle of the coordinate attention mechanism is as [<xref ref-type="bibr" rid="B15-electronics-14-04831">15</xref>]:<list list-type="order"><list-item><label>1.</label><p>Decomposing channel attention into direction-aware feature encoding</p><p>By applying 1D pooling, the output feature map is aggregated separately along the horizontal (X-axis) and vertical (Y-axis) directions to generate two direction-aware feature vectors. For example: horizontal pooling (X Avg Pool) extracts vertical features of each channel into a tensor with shape C &#xD7; 1 &#xD7; W; vertical pooling (Y Avg Pool) extracts horizontal features of each channel into a tensor with shape C &#xD7; H &#xD7; 1.</p><p>Assume the output feature map of the convolutional layer can be expressed as a C &#xD7; H &#xD7; W tensor, where C stands for the number of channels, H stands for the height and W stands for the width of the feature map. The horizontal and vertical pooling can be expressed as:<disp-formula id="FD1-electronics-14-04831"><label>(1)</label><mml:math id="mm1" display="block"><mml:semantics><mml:mrow><mml:msubsup><mml:mover accent="true"><mml:mi>z</mml:mi><mml:mo>&#xAF;</mml:mo></mml:mover><mml:mi>c</mml:mi><mml:mi>H</mml:mi></mml:msubsup><mml:mrow><mml:mo>(</mml:mo><mml:mi>h</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mn>1</mml:mn><mml:mi>W</mml:mi></mml:mfrac></mml:mstyle><mml:munderover><mml:mo>&#x2211;</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow><mml:mrow><mml:mi>W</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:munderover><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>h</mml:mi><mml:mo>,</mml:mo><mml:mi>i</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></disp-formula><disp-formula id="FD2-electronics-14-04831"><label>(2)</label><mml:math id="mm2" display="block"><mml:semantics><mml:mrow><mml:msubsup><mml:mover accent="true"><mml:mi>z</mml:mi><mml:mo>&#xAF;</mml:mo></mml:mover><mml:mi>c</mml:mi><mml:mi>W</mml:mi></mml:msubsup><mml:mrow><mml:mo>(</mml:mo><mml:mi>w</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mn>1</mml:mn><mml:mi>W</mml:mi></mml:mfrac></mml:mstyle><mml:munderover><mml:mo>&#x2211;</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow><mml:mrow><mml:mi>W</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:munderover><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>w</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm3"><mml:semantics><mml:msubsup><mml:mover accent="true"><mml:mi>z</mml:mi><mml:mo>&#xAF;</mml:mo></mml:mover><mml:mi>c</mml:mi><mml:mi>W</mml:mi></mml:msubsup></mml:semantics></mml:math></inline-formula> is the horizontal pooling result of the c-th channel; Variable h stands for the h-th row; 1/W stands for the average over W elements; <inline-formula><mml:math id="mm4"><mml:semantics><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>h</mml:mi><mml:mo>,</mml:mo><mml:mi>i</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula> stands for the value at h-th row, i-th column and c-th channel, respectively. Similarly, <inline-formula><mml:math id="mm5"><mml:semantics><mml:msubsup><mml:mover accent="true"><mml:mi>z</mml:mi><mml:mo>&#xAF;</mml:mo></mml:mover><mml:mi>c</mml:mi><mml:mi>W</mml:mi></mml:msubsup></mml:semantics></mml:math></inline-formula> stands for the vertical pooling result of the c-th channel; Variable w stands for the w-th column; 1/H stands for the average over H elements; <inline-formula><mml:math id="mm6"><mml:semantics><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>w</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula> stands for the value at j-th row, w-th column and c-th channel, respectively.</p></list-item><list-item><label>2.</label><p>Cross-Directional Feature Fusion and Encoding [<xref ref-type="bibr" rid="B16-electronics-14-04831">16</xref>]</p><p>After 1D pooling, we obtain a feature representation along the width direction, denoted as <inline-formula><mml:math id="mm7"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>h</mml:mi></mml:msubsup><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>H</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></inline-formula>, with a tensor shape of <inline-formula><mml:math id="mm8"><mml:semantics><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>H</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>. Similarly, pooling along the height direction yields <inline-formula><mml:math id="mm9"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>w</mml:mi></mml:msubsup><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mi>W</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></inline-formula>, shaped as <inline-formula><mml:math id="mm10"><mml:semantics><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mi>W</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>. These two directional feature vectors are then concatenated to form a unified feature tensor of shape <inline-formula><mml:math id="mm11"><mml:semantics><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mo>(</mml:mo><mml:mi>H</mml:mi><mml:mo>+</mml:mo><mml:mi>W</mml:mi><mml:mo>)</mml:mo><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>. It is combined through a shared 1 &#xD7; 1 convolutional layer for nonlinear transformation and channel compression. The above-mentioned operation can be expressed as:<disp-formula id="FD3-electronics-14-04831"><label>(3)</label><mml:math id="mm12" display="block"><mml:semantics><mml:mrow><mml:msub><mml:mi>Z</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>Concat</mml:mi><mml:mfenced separators="" open="(" close=")"><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>h</mml:mi></mml:msubsup><mml:mo>,</mml:mo><mml:msup><mml:mrow><mml:mo>(</mml:mo><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>w</mml:mi></mml:msubsup><mml:mo>)</mml:mo></mml:mrow><mml:mo>&#x22A4;</mml:mo></mml:msup></mml:mfenced><mml:mo>,</mml:mo><mml:mspace width="1.em"/><mml:msub><mml:mi>Z</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mo>(</mml:mo><mml:mi>H</mml:mi><mml:mo>+</mml:mo><mml:mi>W</mml:mi><mml:mo>)</mml:mo><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></disp-formula><disp-formula id="FD4-electronics-14-04831"><label>(4)</label><mml:math id="mm13" display="block"><mml:semantics><mml:mrow><mml:mi>f</mml:mi><mml:mo>=</mml:mo><mml:mi>&#x3C3;</mml:mi><mml:mfenced separators="" open="(" close=")"><mml:msub><mml:mi>Conv</mml:mi><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:msub><mml:mi>Z</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mo>)</mml:mo></mml:mrow></mml:mfenced><mml:mo>,</mml:mo><mml:mspace width="1.em"/><mml:mi>f</mml:mi><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:msup><mml:mi>C</mml:mi><mml:mo>&#x2032;</mml:mo></mml:msup><mml:mo>&#xD7;</mml:mo><mml:mrow><mml:mo>(</mml:mo><mml:mi>H</mml:mi><mml:mo>+</mml:mo><mml:mi>W</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm14"><mml:semantics><mml:mrow><mml:mi>Concat</mml:mi><mml:mo>(</mml:mo><mml:mo>&#xB7;</mml:mo><mml:mo>)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> stands for the concatenation operation along the spatial dimension. <inline-formula><mml:math id="mm15"><mml:semantics><mml:msup><mml:mrow><mml:mo>(</mml:mo><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>w</mml:mi></mml:msubsup><mml:mo>)</mml:mo></mml:mrow><mml:mo>&#x22A4;</mml:mo></mml:msup></mml:semantics></mml:math></inline-formula> stands for the transpose of <inline-formula><mml:math id="mm16"><mml:semantics><mml:msubsup><mml:mi>Z</mml:mi><mml:mi>c</mml:mi><mml:mi>w</mml:mi></mml:msubsup></mml:semantics></mml:math></inline-formula>. <inline-formula><mml:math id="mm17"><mml:semantics><mml:mrow><mml:msub><mml:mi>Conv</mml:mi><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mo>&#xB7;</mml:mo><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula> stands for the <inline-formula><mml:math id="mm18"><mml:semantics><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula> convolution. <inline-formula><mml:math id="mm19"><mml:semantics><mml:mrow><mml:mi>&#x3C3;</mml:mi><mml:mo>(</mml:mo><mml:mo>&#xB7;</mml:mo><mml:mo>)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> stands for the non-linear activation function. f denotes the intermediate feature. And <inline-formula><mml:math id="mm20"><mml:semantics><mml:msup><mml:mi>C</mml:mi><mml:mo>&#x2032;</mml:mo></mml:msup></mml:semantics></mml:math></inline-formula> is the number of channels after the channel compression.</p></list-item><list-item><label>3.</label><p>Attention Map Construction and Feature Recalibration [<xref ref-type="bibr" rid="B17-electronics-14-04831">17</xref>,<xref ref-type="bibr" rid="B18-electronics-14-04831">18</xref>]:</p><p>The intermediate feature f can be split along the horizontal and vertical dimensions into <inline-formula><mml:math id="mm21"><mml:semantics><mml:msup><mml:mi>f</mml:mi><mml:mi>h</mml:mi></mml:msup></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm22"><mml:semantics><mml:msup><mml:mi>f</mml:mi><mml:mi>w</mml:mi></mml:msup></mml:semantics></mml:math></inline-formula>, respectively. Two separate <inline-formula><mml:math id="mm23"><mml:semantics><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula> convolution, are applied to generate the corresponding attention weights along the horizontal and vertical directions. This operation can be expressed as:<disp-formula id="FD5-electronics-14-04831"><label>(5)</label><mml:math id="mm24" display="block"><mml:semantics><mml:mrow><mml:msup><mml:mi>g</mml:mi><mml:mi>h</mml:mi></mml:msup><mml:mo>=</mml:mo><mml:mi>&#x3C3;</mml:mi><mml:mfenced separators="" open="(" close=")"><mml:msub><mml:mi>F</mml:mi><mml:mi>h</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:msup><mml:mi>f</mml:mi><mml:mi>h</mml:mi></mml:msup><mml:mo>)</mml:mo></mml:mrow></mml:mfenced></mml:mrow></mml:semantics></mml:math></disp-formula><disp-formula id="FD6-electronics-14-04831"><label>(6)</label><mml:math id="mm25" display="block"><mml:semantics><mml:mrow><mml:msup><mml:mi>g</mml:mi><mml:mi>w</mml:mi></mml:msup><mml:mo>=</mml:mo><mml:mi>&#x3C3;</mml:mi><mml:mfenced separators="" open="(" close=")"><mml:msub><mml:mi>F</mml:mi><mml:mi>w</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:msup><mml:mi>f</mml:mi><mml:mi>w</mml:mi></mml:msup><mml:mo>)</mml:mo></mml:mrow></mml:mfenced></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm26"><mml:semantics><mml:msub><mml:mi>F</mml:mi><mml:mi>h</mml:mi></mml:msub></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm27"><mml:semantics><mml:msub><mml:mi>F</mml:mi><mml:mi>w</mml:mi></mml:msub></mml:semantics></mml:math></inline-formula> stands for <inline-formula><mml:math id="mm28"><mml:semantics><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula> convolution, they are used to transform <inline-formula><mml:math id="mm29"><mml:semantics><mml:msup><mml:mi>f</mml:mi><mml:mi>h</mml:mi></mml:msup></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm30"><mml:semantics><mml:msup><mml:mi>f</mml:mi><mml:mi>w</mml:mi></mml:msup></mml:semantics></mml:math></inline-formula> back to C channels (same channel number as input) and generate attention map along height (denote as <inline-formula><mml:math id="mm31"><mml:semantics><mml:mrow><mml:msup><mml:mi>g</mml:mi><mml:mi>w</mml:mi></mml:msup><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn><mml:mo>&#xD7;</mml:mo><mml:mi>W</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></inline-formula>) and width (denote as <inline-formula><mml:math id="mm32"><mml:semantics><mml:mrow><mml:msup><mml:mi>g</mml:mi><mml:mi>h</mml:mi></mml:msup><mml:mo>&#x2208;</mml:mo><mml:msup><mml:mi mathvariant="double-struck">R</mml:mi><mml:mrow><mml:mi>C</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>W</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:semantics></mml:math></inline-formula>) direction.</p><p>Finally, the computed attention weights are applied to the original feature map through element-wise multiplication, producing a refined feature map of dimensions C &#xD7; H &#xD7; W that emphasizes critical regions more effectively. This operation can be expressed as:<disp-formula id="FD7-electronics-14-04831"><label>(7)</label><mml:math id="mm33" display="block"><mml:semantics><mml:mrow><mml:msub><mml:mi>y</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>&#xD7;</mml:mo><mml:msubsup><mml:mi>g</mml:mi><mml:mi>c</mml:mi><mml:mi>h</mml:mi></mml:msubsup><mml:mrow><mml:mo>(</mml:mo><mml:mi>i</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>&#xD7;</mml:mo><mml:msubsup><mml:mi>g</mml:mi><mml:mi>c</mml:mi><mml:mi>w</mml:mi></mml:msubsup><mml:mrow><mml:mo>(</mml:mo><mml:mi>j</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm34"><mml:semantics><mml:mrow><mml:msub><mml:mi>y</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula> denotes the new feature map after applying coordinate attention, while <inline-formula><mml:math id="mm35"><mml:semantics><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mrow><mml:mo>(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula> represents the original feature map. It is evident that the dimension of the feature map remains unchanged after introducing coordinate attention, while the local details within the feature map are selectively enhanced.</p></list-item></list></p>
+      <p>During the development of the RangeDopplerNet Type-2 architecture, we explored various embedding strategies to integrate the Coordinate Attention (CA) module at different depths throughout the network. Specifically, the CA module was applied to the outputs of the initial convolutional layer (Conv1), the intermediate layer (Conv2), and the deeper layer (Conv3), with performance evaluated using the RDRD dataset. Experimental findings indicate that embedding the CA module after Conv3 delivers the highest validation accuracy. This suggests that deeper layers capture more abstract semantic features and exhibit stronger inter-channel dependencies, which the CA module effectively enhances to improve representational power. As shown in <xref ref-type="fig" rid="electronics-14-04831-f003">Figure 3</xref>, the final RangeDopplerNet Type-2 architecture incorporates the CA module directly after Conv3, enabling dynamic reweighting of feature maps and enhancing the model&#x2019;s directional sensitivity to fine-grained details such as edges and textures.</p>
+    </sec>
+    <sec id="sec3-electronics-14-04831">
+      <title>3. Experimental&#xA0;Data</title>
+      <p>The RDRD dataset was constructed using a frequency-modulated continuous wave (FMCW) radar system operating at 8.75 GHz with a maximum bandwidth of 500 MHz. This system is built upon the RAD-DAR (Digital Array Receiver) architecture introduced by Duque et al. [<xref ref-type="bibr" rid="B19-electronics-14-04831">19</xref>], incorporating a single transmitting antenna and eight receiving antennas. Each receiving antenna consists of eight elements, collectively forming a 64-element 8 &#xD7; 8 array. Leveraging digital beamforming, the system can simultaneously generate multiple receive beams, eliminating the need for mechanical scanning. This design ensures an optimal trade-off between dwell time and target refresh rate, enabling high-performance detection of small radar cross-section and slow-moving targets such as drones.</p>
+      <p><xref ref-type="table" rid="electronics-14-04831-t002">Table 2</xref> presents the main parameters of the radar system.</p>
+      <p>Analysis of the motion characteristics of three target types&#x2014;vehicles, drones, and pedestrians&#x2014;reveals significant differences in their micro-Doppler signatures. Specifically, these differences manifest as follows:<list list-type="order"><list-item><p>Drone Target Characteristics: Drones generally possess a low radar cross-section (RCS), which leads to diminished echo signal strength. Due to their compact design and small physical footprint, the reflected radar energy is confined to a limited set of range cells. Additionally, their micro-Doppler signatures typically exhibit a stable and tightly clustered distribution, reflecting consistent motion patterns from rotating components such as propellers.</p></list-item><list-item><p>Vehicle Target Characteristics: Vehicles generally possess a high radar cross-section (RCS) owing to their substantial physical size, leading to significant energy dispersion across multiple range cells. Due to their rigid construction and absence of moving parts with relative motion, the resulting Doppler energy distribution tends to be concentrated and stable, reflecting consistent velocity profiles.</p></list-item><list-item><p>Pedestrian Target Characteristics: Pedestrians generally produce moderate echo signal strength. Their distinctive micro-Doppler signatures stem from gait-induced motion, characterized by relative movement between body parts&#x2014;most notably, the arms swinging at a higher frequency than the torso. Leg movements exhibit cyclical acceleration and deceleration patterns. Consequently, the Doppler energy is broadly dispersed, capturing the intricate and dynamic nature of human walking behavior.</p></list-item></list></p>
+      <p>Micro-Doppler features of a target are typically extracted through spectral analysis of radar echo signals. One widely adopted technique is the Range-Doppler Map (RDM), which simultaneously captures both range and velocity information. This approach offers a detailed representation of the target&#x2019;s motion dynamics, making it especially effective for the identification and classification of moving objects.</p>
+      <p>The computation of a range-Doppler map (RDM) involves a structured sequence of radar signal processing operations. Echoes of frequency-modulated continuous wave (FMCW) transmissions are first acquired, providing raw information on target range and velocity. These signals are subsequently demodulated into beat signals, which encode motion parameters essential for downstream analysis. A dual fast Fourier transform (FFT) framework is then applied: the first FFT along the fast-time axis yields range profiles, while the second FFT along the slow-time axis extracts Doppler frequency components, enabling estimation of radial velocity. The resulting two-dimensional frequency-domain representation is visualized as an RDM, with distance cells mapped to the vertical axis, Doppler frequencies to the horizontal axis, and pixel intensity corresponding to signal power expressed in dBm.</p>
+      <p><xref ref-type="fig" rid="electronics-14-04831-f003">Figure 3</xref> presents a simulated range-Doppler map containing three distinct targets. The range and radial velocities of these targets are as follows: Target A (60 m, &#x2013;8 m/s), Target B (45 m, 10 m/s), and Target C (30 m, 15 m/s). As shown in the figure, three bright spots appear on the range-Doppler map, each corresponding to the specific range and velocity of the respective targets. A negative velocity indicates that the target is moving toward the radar, while a positive velocity signifies motion away from the radar.</p>
+      <p>The Constant False Alarm Rate (CFAR) detector [<xref ref-type="bibr" rid="B20-electronics-14-04831">20</xref>,<xref ref-type="bibr" rid="B21-electronics-14-04831">21</xref>] is utilized to process the range-Doppler matrix, offering adaptive thresholding based on ambient noise levels. By dynamically adjusting its detection threshold, CFAR reliably identifies targets even in environments with significant noise or interference, thereby improving detection robustness. The original range-Doppler matrix, sized 4092 &#xD7; 512, is refined through CFAR processing and cropped to a focused 11 &#xD7; 61 matrix that isolates the target of interest. This matrix is then fed into the proposed light-weight convolutional neural network (CNN), which autonomously extracts critical spectral features&#x2014;such as micro-Doppler modulation patterns and energy distribution characteristics&#x2014;via its convolutional kernels. This approach eliminates the need for manual time-frequency feature engineering and enhances overall classification performance.</p>
+    </sec>
+    <sec id="sec4-electronics-14-04831">
+      <title>4. Model&#xA0;Training</title>
+      <sec id="sec4dot1-electronics-14-04831">
+        <title>4.1. Training Parameter&#xA0;Settings</title>
+        <p>This study utilizes the open-source RDRD database to train and evaluate the network. The original dataset contains a total of 17,485 distance-Doppler matrices, categorized into three classes: vehicles, drones, and pedestrians. Specifically, there are 5720 vehicle samples, 5065 drone samples, and 6700 pedestrian samples. The sample sizes across the three categories are relatively balanced, so there is no issue of class imbalance.</p>
+        <p>The dataset is divided into two parts: a training set (80%) and a validation set (20%). The validation set consists of 3497 samples, including 1143 vehicle samples, 986 drone samples, and 1368 pedestrian samples.</p>
+        <p>In this experiment, both the training and validation datasets were processed with a batch size of 128. A complete pass through the training dataset is referred to as one epoch, and the network was trained for a total of 30 epochs. The model was optimized using the stochastic gradient descent (SGD) algorithm, with a momentum of 0.9 and an initial learning rate of 0.01. The learning rate was decayed to 10% of its original value every 15 epochs. The training was conducted in an Anaconda environment using the PyTorch 2.7 deep learning framework. To accelerate the convergence of the gradient descent algorithm and prevent issues such as vanishing or exploding gradients during training, the input data was normalized. The data was scaled to follow a distribution with a mean of 0 and a standard deviation of 1. The normalization was performed using the formula: <inline-formula><mml:math id="mm36"><mml:semantics><mml:mrow><mml:msup><mml:mi>x</mml:mi><mml:mo>&#x2032;</mml:mo></mml:msup><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>x</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mi>&#x3BC;</mml:mi></mml:mrow><mml:msub><mml:mi>&#x3C3;</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></inline-formula> where <inline-formula><mml:math id="mm37"><mml:semantics><mml:mi>&#x3BC;</mml:mi></mml:semantics></mml:math></inline-formula> represents the mean of the training dataset and <inline-formula><mml:math id="mm38"><mml:semantics><mml:msub><mml:mi>&#x3C3;</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:semantics></mml:math></inline-formula> denotes its standard deviation. Based on calculations, the mean and standard deviation used in this study were <inline-formula><mml:math id="mm39"><mml:semantics><mml:mrow><mml:mi>&#x3BC;</mml:mi><mml:mo>=</mml:mo><mml:mo>&#x2212;</mml:mo><mml:mn>111.95</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm40"><mml:semantics><mml:mrow><mml:msub><mml:mi>&#x3C3;</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>=</mml:mo><mml:mn>8.45</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>, respectively.</p>
+      </sec>
+      <sec id="sec4dot2-electronics-14-04831">
+        <title>4.2. Evaluation&#xA0;Metrics</title>
+        <p>The primary metrics used to evaluate the performance of object detection models include precision, recall, and the F1 score [<xref ref-type="bibr" rid="B22-electronics-14-04831">22</xref>]. To compute these metrics, we first define the key components of the confusion matrix. TP (True Positive): The number of samples correctly predicted as positive. TN (True Negative): The number of samples correctly predicted as negative. FP (False Positive): The number of samples incorrectly predicted as positive when the true label is negative. FN (False Negative): The number of samples incorrectly predicted as negative when the true label is positive.</p>
+        <p>Precision is defined as follows: <disp-formula id="FD8-electronics-14-04831"><label>(8)</label><mml:math id="mm41" display="block"><mml:semantics><mml:mrow><mml:mi>P</mml:mi><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>T</mml:mi><mml:mi>P</mml:mi></mml:mrow><mml:mrow><mml:mi>T</mml:mi><mml:mi>P</mml:mi><mml:mo>+</mml:mo><mml:mi>F</mml:mi><mml:mi>P</mml:mi></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></disp-formula></p>
+        <p>Precision quantifies the proportion of true positive predictions among all instances the model classified as positive. Its value spans from 0 to 1, with higher scores indicating greater accuracy in identifying relevant positive cases.</p>
+        <p>Recall is defined as follows: <disp-formula id="FD9-electronics-14-04831"><label>(9)</label><mml:math id="mm42" display="block"><mml:semantics><mml:mrow><mml:mi>R</mml:mi><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>T</mml:mi><mml:mi>P</mml:mi></mml:mrow><mml:mrow><mml:mi>T</mml:mi><mml:mi>P</mml:mi><mml:mo>+</mml:mo><mml:mi>F</mml:mi><mml:mi>N</mml:mi></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></disp-formula></p>
+        <p>Recall, also referred to as sensitivity, quantifies the proportion of true positive instances that the classifier successfully identifies out of all actual positive cases. It ranges from 0 to 1, with higher values reflecting a greater ability to detect relevant positive samples.</p>
+        <p>F1 Score represents the harmonic mean of precision and recall, offering a balanced metric that captures a model&#x2019;s overall classification performance.</p>
+        <p>F1 score can be defined as follows:<disp-formula id="FD10-electronics-14-04831"><label>(10)</label><mml:math id="mm43" display="block"><mml:semantics><mml:mrow><mml:mi>F</mml:mi><mml:mn>1</mml:mn><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mn>2</mml:mn><mml:mi>P</mml:mi><mml:mi>R</mml:mi></mml:mrow><mml:mrow><mml:mi>P</mml:mi><mml:mo>+</mml:mo><mml:mi>R</mml:mi></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></disp-formula></p>
+      </sec>
+    </sec>
+    <sec sec-type="results" id="sec5-electronics-14-04831">
+      <title>5. Results and&#xA0;Analysis</title>
+      <sec id="sec5dot1-electronics-14-04831">
+        <title>5.1. Experimental&#xA0;Results</title>
+        <p>To assess the performance of the proposed model, two well-established lightweight convolutional neural networks&#x2014;MobileNetV1 and SqueezeNext&#x2014;were selected as baseline references. Notably, both architectures are configured to accept input dimensions of 224 &#xD7; 224, while the original dataset used in this study consists of matrices sized 6 &#xD7; 11. To ensure compatibility with these networks, the input data was resized to 224 &#xD7; 224 using PyTorch&#x2019;s built-in resize function prior to training and evaluation. MobileNetV1 and SqueezeNext exhibit relatively high model complexity, which is disproportionate to the size of the training dataset and may lead to overfitting. To mitigate this issue, we applied data augmentation techniques to the input samples, including random rotation, cropping, and horizontal flipping. These methods enhance the diversity of the training data and improve the model&#x2019;s generalization capability.</p>
+        <p><xref ref-type="fig" rid="electronics-14-04831-f004">Figure 4</xref> and <xref ref-type="fig" rid="electronics-14-04831-f005">Figure 5</xref> illustrate the loss curves of the four models on the training dataset and validation dataset, respectively. <xref ref-type="fig" rid="electronics-14-04831-f006">Figure 6</xref> and <xref ref-type="fig" rid="electronics-14-04831-f007">Figure 7</xref> illustrate the accuracy curves of the four models on the training dataset and validation dataset, respectively. As shown, the Type-2 model&#x2014;enhanced with the coordinate attention mechanism&#x2014;demonstrates slightly better performance than Type-1 in both loss reduction and accuracy. MobileNetV1 and SqueezeNext exhibit comparable performance to Type-1; however, their model sizes are significantly larger, at 12.6 MB and 2.6 MB respectively, compared to just 400 KB for Type-2. Additionally, a noticeable rise in accuracy is observed at epoch 16 in <xref ref-type="fig" rid="electronics-14-04831-f005">Figure 5</xref>, which corresponds to a scheduled reduction in learning rate from 0.01 to 0.001. This adjustment facilitates model convergence and stabilizes training.</p>
+        <p><xref ref-type="fig" rid="electronics-14-04831-f007">Figure 7</xref> compares the validation accuracy of four different models. When the learning rate is relatively high (0.01), all four networks converge rapidly but exhibit significant fluctuations. As the learning rate is reduced to 0.001 (after 15 iterations), the models begin to stabilize. The peak validation accuracies of RangDopplerNet Type-1 and Type-2 are 96.71% and 98.08%, respectively. This 1.37 percentage point improvement in Type-2 demonstrates the effectiveness of incorporating the coordinate attention mechanism in enhancing model performance.</p>
+        <p><xref ref-type="fig" rid="electronics-14-04831-f008">Figure 8</xref> and <xref ref-type="fig" rid="electronics-14-04831-f009">Figure 9</xref> show the confusion matrices for RangDopplerNet Type-1 and Type-2, respectively [<xref ref-type="bibr" rid="B23-electronics-14-04831">23</xref>]. In each matrix, rows correspond to the true class labels, while columns represent the predicted labels. To facilitate understanding, <xref ref-type="fig" rid="electronics-14-04831-f007">Figure 7</xref> is used as an illustrative example. The second row represents samples with a true label of UAV, totaling 986 instances. Among them, 952 were correctly classified as UAVs, while 30 were misclassified as vehicles and 4 as pedestrians.</p>
+        <p>The second column of the matrix shows all samples predicted as UAVs. RangDopplerNet Type-1 classified 1020 samples under this category, of which 952 were true UAVs, while 64 were actually vehicles and 4 were pedestrians. Based on Equation (<xref ref-type="disp-formula" rid="FD7-electronics-14-04831">7</xref>), the precision for UAV classification is calculated as 952 &#xF7; 1020 = 93.3%. According to Equation (<xref ref-type="disp-formula" rid="FD8-electronics-14-04831">8</xref>), the recall is 952 &#xF7; 986 = 96.55%. Using Equation (<xref ref-type="disp-formula" rid="FD9-electronics-14-04831">9</xref>), the resulting F1 score for UAV classification is 94.92%.</p>
+        <p>The overall accuracy of RangDopplerNet Type-1 is determined by dividing the total number of correctly classified samples by the total number of samples: 3382 &#xF7; 3497 = 96.71%.</p>
+        <p>A comparison of the first rows in <xref ref-type="fig" rid="electronics-14-04831-f008">Figure 8</xref> and <xref ref-type="fig" rid="electronics-14-04831-f009">Figure 9</xref> highlights a marked improvement in vehicle classification performance following the integration of the coordinate attention mechanism in RangDopplerNet Type-2.</p>
+        <p>Specifically, the number of vehicle samples misclassified as UAVs decreased from 64 to 40, and those misclassified as pedestrians dropped from 7 to 3. As a result, correctly identified vehicle samples increased from 1072 to 1100. Based on Equation (<xref ref-type="disp-formula" rid="FD8-electronics-14-04831">8</xref>), this corresponds to a recall rate of 1100 &#xF7; 1143 = 96.24%. According to the first column in <xref ref-type="fig" rid="electronics-14-04831-f008">Figure 8</xref>, the model predicted 1117 samples as vehicles, of which 1100 were accurate, yielding a precision of 1100 &#xF7; 1117 = 98.48%. These metrics collectively demonstrate that RangDopplerNet Type-2 delivers significant gains over Type-1 in terms of precision, recall, and F1 score for vehicle classification [<xref ref-type="bibr" rid="B24-electronics-14-04831">24</xref>].</p>
+        <p><xref ref-type="fig" rid="electronics-14-04831-f010">Figure 10</xref> presents the result of the ablation study on the placement of the CA module. Specifically, Loc1, Loc2, and Loc3 correspond to applying the CA module to the outputs of Conv1, Conv2, and Conv3, respectively. The Y-axis represents the validation accuracy achieved under each configuration. Among the three, Loc3 yields the highest validation accuracy. Furthermore, the results suggest a clear trend: placing the CA module at deeper layers leads to improved performance. A plausible explanation is that deeper layers such as Conv3 capture high-level semantic features that are more pertinent to the classification task. Applying the CA module at these stages allows it to refine representations that are more predictive, thereby improving the model&#x2019;s focus on critical spatial and channel dimensions. <xref ref-type="table" rid="electronics-14-04831-t003">Table 3</xref> summarizes the ablation study results. Loc2 exhibits lower FLOPs compared to Loc1 due to its smaller feature map dimensions. The reduced spatial resolution directly decreases computational requirements. Conversely, Loc3 achieves the highest accuracy despite marginally increased computational complexity. This outcome arises from Loc3&#x2019;s 64-output-channel configuration, which introduces additional parameter interactions while maintaining compact spatial dimensions. The trade-off between channel depth and spatial resolution demonstrates how architectural choices impact both efficiency and performance. Based on this observation, we adopt the configuration where the CA module is applied to the output of Conv3.</p>
+        <p>To evaluate the impact of network architecture design, we compared the performance of the proposed model under two configurations: 1, Convolutional Kernel Size: Testing with a larger kernel (7 &#xD7; 7) versus the baseline (3 &#xD7; 3). 2, Channel Expansion: Doubling the number of output channels in Layer 2 and Layer 3. The experimental results are summarized in <xref ref-type="table" rid="electronics-14-04831-t004">Table 4</xref>, which highlights the trade-offs between accuracy, computational efficiency, and model complexity. It can be observed that, larger kernel size (7 &#xD7; 7) achieves better performance (98.23% vs. 98.08%) due to enhanced spatial feature extraction from broader receptive fields. However, its number of parameters almost doubled compare with the baseline, while its computational complexity surged by 3.5 times compare with the baseline (FLOPs increase from 1.24 M to 4.43 M), primarily due to increased kernel operations. For channel expansion configuration. The model size almost tripled (from 101 k to 375 k) and the computational complexity doubled (FLOPs increase from 1.24 M to 2.48 M) while its performance slightly dropped to 98.03%. It shows that excessive channel scaling (e.g., doubling channels in all layers) amplifies parameter redundancy, leading to overfitting on small datasets.</p>
+        <p><xref ref-type="table" rid="electronics-14-04831-t005">Table 5</xref> presents a detailed comparison of the confusion matrix results for the two neural network models. According to the F1 scores, RangDopplerNet Type-2 achieved 97.53% accuracy in the vehicle category, surpassing Type-1 by 2.28 points. In the UAV category, Type-2 outperformed Type-1 by 1.97 points. The pedestrian category showed a smaller gain of 0.33 points, which can be attributed to the distinct and easily identifiable characteristics of pedestrians&#x2014;allowing both models to achieve consistently high recognition performance.</p>
+        <p>To offer a thorough comparison between the two network architectures, <xref ref-type="table" rid="electronics-14-04831-t005">Table 5</xref> presents a side-by-side analysis of their parameter counts and validation performance. To evaluate model complexity, we examine the number of parameters across different architectures, computed using the Torchsummary library. Additionally, to assess the generalization capability and overall effectiveness of the proposed model, this study adopts the architecture introduced by Ignacio et al. as a benchmark. It is worth highlighting that both experimental setups utilized the same publicly available real-world Doppler radar dataset&#x2014;RDRD (Real Doppler RADAR). This dataset offers a comprehensive collection of radar echo signals along with annotated data from actual scenarios, establishing itself as a vital benchmark in Doppler radar target analysis research.</p>
+        <p>To more intuitively demonstrate the parameter scale differences among the models, NasNetMobile is selected as the baseline model (denoted as 100%), and the parameter sizes of the other models are expressed as relative percentages. The results are shown in <xref ref-type="table" rid="electronics-14-04831-t006">Table 6</xref>. It can be observed that the RangDopplerNet Type-1 retains only 2.29% of the parameters of the baseline model. Furthermore, based on RangDopplerNet Type-1, the RangDopplerNet Type-2 not only reduces the parameter size to 2.37% (the proposed architecture reduces model size by 97.04%), but also improves the average accuracy to 98.08%, indicating that the proposed structural modifications effectively reduce model complexity while enhancing recognition performance.</p>
+        <p>As shown in <xref ref-type="table" rid="electronics-14-04831-t006">Table 6</xref>, the proposed RangDopplerNet model contains significantly fewer parameters compared to classical architectures such as NasNetMobile and MobileNetV2. Notably, the Type-2 variant of RangDopplerNet has only 101,419 parameters&#x2014;approximately 3% of MobileNetV2 and just 2.65% of DopplerNet. Despite its compact size, the model delivers performance that is largely comparable to these more complex deep learning networks. Its accuracy is only 0.86 percentage points lower than MobileNetV2, and just 1.4 points below the best-performing DopplerNet.</p>
+        <p>Compared to the RangDopplerNet Type-1 model, the Type-2 variant achieves a 1.37 point improvement in average accuracy, while its number of parameters increases by only 3.5%. This indicates that RangDopplerNet Type-2 strikes an effective balance between performance and complexity. With its high efficiency and favorable trade-off between accuracy and resource consumption, it is particularly well-suited for deployment on resource-constrained embedded systems.</p>
+      </sec>
+      <sec id="sec5dot2-electronics-14-04831">
+        <title>5.2. Limitations and&#xA0;Prospects</title>
+        <p>Despite achieving promising recognition performance, this study has notable constraints: 1, Runtime and Power Metrics on Embedded Devices: Current evaluations lack runtime and power consumption measurements on embedded platforms (e.g., Jetson, ARM). These metrics are critical for real-world UAV detection applications where energy efficiency and computational constraints are paramount. 2, Generalization in Multi-Class Scenarios: The model&#x2019;s robustness in scenarios with coexisting multi-class targets (e.g., mixed UAVs and ground objects) remains underexplored. This limitation stems from dataset constraints and project timelines, which restricted the generation of large-scale multi-class synthetic data. To address these limitations and enhance practical applicability, we propose the following steps in our future work: 1, Embedded Platform Evaluation: Deploy the model on edge devices (e.g., NVIDIA Jetson, ARM Cortex-M) to quantify inference speed, power efficiency, and resource utilization. Additionally, we aim to assess the robustness of the model under varying signal conditions, including different levels of noise, clutter, and interference, which are critical factors for operational UAV detection. 2, Multi-Class Generalization Enhancement: (a) Construct or simulate datasets with diverse multi-class coexistence scenes. (b) Explore domain adaptation and data augmentation strategies to enhance generalization. (c) Benchmark the proposed model against such scenarios to provide a more rigorous evaluation.</p>
+      </sec>
+    </sec>
+    <sec sec-type="conclusions" id="sec6-electronics-14-04831">
+      <title>6. Conclusions</title>
+      <p>This study is based on the open-source real-world radar dataset RDRD (Real Doppler RAD-DAR) and it explores the application of deep learning in the detection and identification of unmanned aerial vehicles (UAVs). To meet the real-time signal processing requirements of embedded systems, a lightweight deep learning model is proposed and further optimized. Experimental results demonstrate that the light-weight CNN model developed in this work features a low parameter count and minimal computational overhead, making it highly suitable for deployment on resource-constrained embedded platforms. The proposed model maintains a compact footprint of only 403 KB, corresponding to just 2.37% of the parameters of the classical NasNetMobile network, while achieving an impressive average accuracy of 98.08% across three target categories: vehicles, UAVs, and pedestrians. In the experiments, the enhanced model not only maintains or improves the average accuracy but also significantly reduces the number of parameters. This indicates that the proposed network architecture not only enhances recognition performance but also substantially lowers computational and storage demands, providing a feasible solution for deploying UAV detection models in resource-constrained environments.</p>
+    </sec>
+  </body>
+  <back>
+    <notes>
+      <title>Author Contributions</title>
+      <p>Conceptualization, L.Z. and G.T.; methodology, L.Z.; software, L.Z.; formal analysis, L.Z.; investigation, L.Z.; resources, G.T.; data curation, L.Z.; writing&#x2014;original draft preparation, L.Z.; writing&#x2014;review and editing, G.T.; supervision, G.T.; project administration, G.T.; validation, X.Z. and Y.X. All authors have read and agreed to the published version of the manuscript.</p>
+    </notes>
+    <notes>
+      <title>Data Availability Statement</title>
+      <p>The datasets presented in this study are openly available. The datasets were downloaded from the following website: <uri>https://www.kaggle.com/datasets/iroldan/real-dopler-raddar-database</uri> accessed on 12 May 2025.</p>
+    </notes>
+    <notes notes-type="COI-statement">
+      <title>Conflicts of Interest</title>
+      <p>The authors declare no conflicts of interest.</p>
+    </notes>
+    <ref-list>
+      <title>References</title>
+      <ref id="B1-electronics-14-04831">
+        <label>1.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Sun</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Wandelt</surname>
+              <given-names>S.</given-names>
+            </name>
+          </person-group>
+          <article-title>LAERACE: Taking the policy fast-track towards low-altitude economy</article-title>
+          <source>J. Air Transp. Res. Soc.</source>
+          <year>2025</year>
+          <volume>4</volume>
+          <fpage>100058</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.jatrs.2025.100058</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B2-electronics-14-04831">
+        <label>2.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Shakhatreh</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Sawalmeh</surname>
+              <given-names>A.H.</given-names>
+            </name>
+            <name>
+              <surname>Al-Fuqaha</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Dou</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Almaita</surname>
+              <given-names>E.</given-names>
+            </name>
+            <name>
+              <surname>Khalil</surname>
+              <given-names>I.</given-names>
+            </name>
+            <name>
+              <surname>Othman</surname>
+              <given-names>N.S.</given-names>
+            </name>
+            <name>
+              <surname>Khreishah</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Guizani</surname>
+              <given-names>M.</given-names>
+            </name>
+          </person-group>
+          <article-title>Unmanned Aerial Vehicles (UAVs): A Survey on Civil Applications and Key Research Challenges</article-title>
+          <source>IEEE Access</source>
+          <year>2019</year>
+          <volume>7</volume>
+          <fpage>48572</fpage>
+          <lpage>48634</lpage>
+          <pub-id pub-id-type="doi">10.1109/ACCESS.2019.2909530</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B3-electronics-14-04831">
+        <label>3.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Khan</surname>
+              <given-names>M.A.</given-names>
+            </name>
+            <name>
+              <surname>Menouar</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Eldeeb</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Abu-Dayya</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Salim</surname>
+              <given-names>F.D.</given-names>
+            </name>
+          </person-group>
+          <article-title>On the Detection of Unauthorized Drones&#x2014;Techniques and Future Perspectives: A Review</article-title>
+          <source>IEEE Sens. J.</source>
+          <year>2022</year>
+          <volume>22</volume>
+          <fpage>11439</fpage>
+          <lpage>11455</lpage>
+          <pub-id pub-id-type="doi">10.1109/JSEN.2022.3171293</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B4-electronics-14-04831">
+        <label>4.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Wang</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Current Status and Development of Low-Slow-Small Target Surveillance Technology</article-title>
+          <source>Radar Sci. Technol.</source>
+          <year>2020</year>
+          <volume>18</volume>
+          <fpage>5</fpage>
+        </element-citation>
+      </ref>
+      <ref id="B5-electronics-14-04831">
+        <label>5.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Tang</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Ma</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Qu</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Mao</surname>
+              <given-names>X.</given-names>
+            </name>
+          </person-group>
+          <article-title>UAV Detection with Passive Radar: Algorithms, Applications, and Challenges</article-title>
+          <source>Drones</source>
+          <year>2025</year>
+          <volume>9</volume>
+          <elocation-id>76</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/drones9010076</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B6-electronics-14-04831">
+        <label>6.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Dumitrescu</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Minea</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Costea</surname>
+              <given-names>I.M.</given-names>
+            </name>
+            <name>
+              <surname>Cosmin Chiva</surname>
+              <given-names>I.</given-names>
+            </name>
+            <name>
+              <surname>Semenescu</surname>
+              <given-names>A.</given-names>
+            </name>
+          </person-group>
+          <article-title>Development of an Acoustic System for UAV Detection</article-title>
+          <source>Sensors</source>
+          <year>2020</year>
+          <volume>20</volume>
+          <elocation-id>4870</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/s20174870</pub-id>
+          <pub-id pub-id-type="pmid">32872231</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B7-electronics-14-04831">
+        <label>7.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Aydin</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Singha</surname>
+              <given-names>S.</given-names>
+            </name>
+          </person-group>
+          <article-title>Drone Detection Using YOLOv5</article-title>
+          <source>Eng</source>
+          <year>2023</year>
+          <volume>4</volume>
+          <fpage>416</fpage>
+          <lpage>433</lpage>
+          <pub-id pub-id-type="doi">10.3390/eng4010025</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B8-electronics-14-04831">
+        <label>8.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Allahham</surname>
+              <given-names>M.S.</given-names>
+            </name>
+            <name>
+              <surname>Khattab</surname>
+              <given-names>T.</given-names>
+            </name>
+            <name>
+              <surname>Mohamed</surname>
+              <given-names>A.</given-names>
+            </name>
+          </person-group>
+          <article-title>Deep Learning for RF-Based Drone Detection and Identification: A Multi-Channel 1-D Convolutional Neural Networks Approach</article-title>
+          <source>Proceedings of the 2020 IEEE International Conference on Informatics, IoT, and Enabling Technologies (ICIoT)</source>
+          <conf-loc>Doha, Qatar</conf-loc>
+          <conf-date>2&#x2013;5 February 2020</conf-date>
+          <fpage>112</fpage>
+          <lpage>117</lpage>
+          <pub-id pub-id-type="doi">10.1109/ICIoT48696.2020.9089657</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B9-electronics-14-04831">
+        <label>9.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Han</surname>
+              <given-names>S.K.</given-names>
+            </name>
+            <name>
+              <surname>Lee</surname>
+              <given-names>J.H.</given-names>
+            </name>
+            <name>
+              <surname>Jung</surname>
+              <given-names>Y.H.</given-names>
+            </name>
+          </person-group>
+          <article-title>Convolutional Neural Network-Based Drone Detection and Classification Using Overlaid Frequency-Modulated Continuous-Wave (FMCW) Range&#x2013;Doppler Images</article-title>
+          <source>Sensors</source>
+          <year>2024</year>
+          <volume>24</volume>
+          <elocation-id>5805</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/s24175805</pub-id>
+          <pub-id pub-id-type="pmid">39275716</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B10-electronics-14-04831">
+        <label>10.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Sadeghi Adl</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Ahmad</surname>
+              <given-names>F.</given-names>
+            </name>
+          </person-group>
+          <article-title>Whitening-Aided Learning from Radar Micro-Doppler Signatures for Human Activity Recognition</article-title>
+          <source>Sensors</source>
+          <year>2023</year>
+          <volume>23</volume>
+          <elocation-id>7486</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/s23177486</pub-id>
+          <pub-id pub-id-type="pmid">37687942</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B11-electronics-14-04831">
+        <label>11.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Li</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Geng</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Gao</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Ding</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>N.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Doppler Radar-Based Human Speech Recognition Using Mobile Vision Transformer</article-title>
+          <source>Electronics</source>
+          <year>2023</year>
+          <volume>12</volume>
+          <elocation-id>2874</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/electronics12132874</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B12-electronics-14-04831">
+        <label>12.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Li</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Jing</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Z.</given-names>
+            </name>
+          </person-group>
+          <article-title>RadarTCN: Lightweight Online Classification Network for Automotive Radar Targets Based on TCN</article-title>
+          <source>Sensors</source>
+          <year>2024</year>
+          <volume>24</volume>
+          <elocation-id>2813</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/s24092813</pub-id>
+          <pub-id pub-id-type="pmid">38732919</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B13-electronics-14-04831">
+        <label>13.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Xu</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Gao</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Zhai</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Gao</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Zhou</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>A CNNA-Based Lightweight Multi-Scale Tomato Pest and Disease Classification Method</article-title>
+          <source>Sustainability</source>
+          <year>2023</year>
+          <volume>15</volume>
+          <elocation-id>8813</elocation-id>
+          <pub-id pub-id-type="doi">10.3390/su15118813</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B14-electronics-14-04831">
+        <label>14.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Roldan</surname>
+              <given-names>I.</given-names>
+            </name>
+            <name>
+              <surname>del Blanco</surname>
+              <given-names>C.R.</given-names>
+            </name>
+            <name>
+              <surname>Duque de Quevedo</surname>
+              <given-names>&#xC1;.</given-names>
+            </name>
+            <name>
+              <surname>Iba&#xF1;ez Urzaiz</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Gismero Menoyo</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Asensio L&#xF3;pez</surname>
+              <given-names>A.</given-names>
+            </name>
+            <name>
+              <surname>Berj&#xF3;n</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Jaureguizar</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Garc&#xED;a</surname>
+              <given-names>N.</given-names>
+            </name>
+          </person-group>
+          <article-title>DopplerNet: A convolutional neural network for recognising targets in real scenarios using a persistent range&#x2013;Doppler radar</article-title>
+          <source>IET Radar Sonar Navig.</source>
+          <year>2020</year>
+          <volume>14</volume>
+          <fpage>593</fpage>
+          <lpage>600</lpage>
+          <pub-id pub-id-type="doi">10.1049/iet-rsn.2019.0307</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B15-electronics-14-04831">
+        <label>15.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Hou</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Zhou</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Feng</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Coordinate Attention for Efficient Mobile Network Design</article-title>
+          <source>Proceedings of the 2021 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)</source>
+          <conf-loc>Nashville, TN, USA</conf-loc>
+          <conf-date>20&#x2013;25 June 2021</conf-date>
+          <fpage>13708</fpage>
+          <lpage>13717</lpage>
+          <pub-id pub-id-type="doi">10.1109/CVPR46437.2021.01350</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B16-electronics-14-04831">
+        <label>16.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Wang</surname>
+              <given-names>W.</given-names>
+            </name>
+            <name>
+              <surname>Yao</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Lin</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Cai</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>He</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>W.</given-names>
+            </name>
+          </person-group>
+          <article-title>CrossFormer: A Versatile Vision Transformer Hinging on Cross-scale Attention</article-title>
+          <source>arXiv</source>
+          <year>2021</year>
+          <pub-id pub-id-type="arxiv">2108.00154</pub-id>
+          <pub-id pub-id-type="doi">10.1109/TPAMI.2023.3341806</pub-id>
+          <pub-id pub-id-type="pmid">38113150</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B17-electronics-14-04831">
+        <label>17.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Bahdanau</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Cho</surname>
+              <given-names>K.</given-names>
+            </name>
+            <name>
+              <surname>Bengio</surname>
+              <given-names>Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Neural Machine Translation by Jointly Learning to Align and Translate</article-title>
+          <source>arXiv</source>
+          <year>2016</year>
+          <pub-id pub-id-type="doi">10.48550/arXiv.1409.0473</pub-id>
+          <pub-id pub-id-type="arxiv">1409.0473</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B18-electronics-14-04831">
+        <label>18.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Hu</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Shen</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Sun</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Squeeze-and-Excitation Networks</article-title>
+          <source>Proceedings of the 2018 IEEE/CVF Conference on Computer Vision and Pattern Recognition</source>
+          <conf-loc>Salt Lake City, UT, USA</conf-loc>
+          <conf-date>18&#x2013;23 June 2018</conf-date>
+          <fpage>7132</fpage>
+          <lpage>7141</lpage>
+          <pub-id pub-id-type="doi">10.1109/CVPR.2018.00745</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B19-electronics-14-04831">
+        <label>19.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Duque de Quevedo</surname>
+              <given-names>&#xC1;.</given-names>
+            </name>
+            <name>
+              <surname>Iba&#xF1;ez Urzaiz</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Gismero Menoyo</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Asensio L&#xF3;pez</surname>
+              <given-names>A.</given-names>
+            </name>
+          </person-group>
+          <article-title>Drone detection and radar-cross-section measurements by RAD-DAR</article-title>
+          <source>IET Radar Sonar Navig.</source>
+          <year>2019</year>
+          <volume>13</volume>
+          <fpage>1437</fpage>
+          <lpage>1447</lpage>
+          <pub-id pub-id-type="doi">10.1049/iet-rsn.2018.5646</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B20-electronics-14-04831">
+        <label>20.</label>
+        <element-citation publication-type="book">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Minkler</surname>
+              <given-names>G.</given-names>
+            </name>
+            <name>
+              <surname>Minkler</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <source>Cfar: The Principles of Automatic Radar Detection in Clutter</source>
+          <publisher-name>Magellan Book Company</publisher-name>
+          <publisher-loc>Bamberg, Germany</publisher-loc>
+          <year>1990</year>
+        </element-citation>
+      </ref>
+      <ref id="B21-electronics-14-04831">
+        <label>21.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Cao</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Song</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>X.</given-names>
+            </name>
+          </person-group>
+          <article-title>Compressed Sensing-Based Multitarget CFAR Detection Algorithm for FMCW Radar</article-title>
+          <source>IEEE Trans. Geosci. Remote Sens.</source>
+          <year>2021</year>
+          <volume>59</volume>
+          <fpage>9160</fpage>
+          <lpage>9172</lpage>
+          <pub-id pub-id-type="doi">10.1109/TGRS.2021.3054961</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B22-electronics-14-04831">
+        <label>22.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>LeCun</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Bengio</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Hinton</surname>
+              <given-names>G.</given-names>
+            </name>
+          </person-group>
+          <article-title>Deep Learning</article-title>
+          <source>Nature</source>
+          <year>2015</year>
+          <volume>521</volume>
+          <fpage>436</fpage>
+          <lpage>444</lpage>
+          <pub-id pub-id-type="doi">10.1038/nature14539</pub-id>
+          <pub-id pub-id-type="pmid">26017442</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B23-electronics-14-04831">
+        <label>23.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Swaminathan</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Tantri</surname>
+              <given-names>B.R.</given-names>
+            </name>
+          </person-group>
+          <article-title>Confusion Matrix-Based Performance Evaluation Metrics</article-title>
+          <source>Afr. J. Biomed. Res.</source>
+          <year>2024</year>
+          <volume>27</volume>
+          <fpage>4023</fpage>
+          <lpage>4031</lpage>
+          <pub-id pub-id-type="doi">10.53555/AJBR.v27i4S.4345</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B24-electronics-14-04831">
+        <label>24.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Powers</surname>
+              <given-names>D.M.W.</given-names>
+            </name>
+          </person-group>
+          <article-title>Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation</article-title>
+          <source>arXiv</source>
+          <year>2020</year>
+          <pub-id pub-id-type="doi">10.48550/arXiv.2010.16061</pub-id>
+          <pub-id pub-id-type="arxiv">2010.16061</pub-id>
+        </element-citation>
+      </ref>
+    </ref-list>
+    <sec sec-type="display-objects">
+      <title>Figures and Tables</title>
+      <fig id="electronics-14-04831-f001" position="float">
+        <label>Figure 1</label>
+        <caption>
+          <p>RangDopplerNet Type-2 Architecture.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g001.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f002" position="float">
+        <label>Figure 2</label>
+        <caption>
+          <p>Coordinate Attention Module Structure.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g002.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f003" position="float">
+        <label>Figure 3</label>
+        <caption>
+          <p>Doppler Map (simulation).</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g003.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f004" position="float">
+        <label>Figure 4</label>
+        <caption>
+          <p>Training loss curve.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g004.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f005" position="float">
+        <label>Figure 5</label>
+        <caption>
+          <p>Validation loss curve.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g005.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f006" position="float">
+        <label>Figure 6</label>
+        <caption>
+          <p>Training accuracy curve.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g006.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f007" position="float">
+        <label>Figure 7</label>
+        <caption>
+          <p>Validation accuracy curve.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g007.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f008" position="float">
+        <label>Figure 8</label>
+        <caption>
+          <p>Confusion matrix of RangeDopplerNet Type-1.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g008.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f009" position="float">
+        <label>Figure 9</label>
+        <caption>
+          <p>Confusion matrix of RangeDopplerNet Type-2.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g009.tif"/>
+      </fig>
+      <fig id="electronics-14-04831-f010" position="float">
+        <label>Figure 10</label>
+        <caption>
+          <p>Result of ablation study on the placement of CA module.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="electronics-14-04831-g010.tif"/>
+      </fig>
+      <table-wrap id="electronics-14-04831-t001" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t001_Table 1</object-id>
+        <label>Table 1</label>
+        <caption>
+          <p>Parameters of RangDopplerNet Type-1.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Number of Layers</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Stride</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Padding</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Types</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Filter Shape</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Output Size</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">1</td>
+              <td align="center" valign="middle">2</td>
+              <td align="center" valign="middle">1</td>
+              <td align="center" valign="middle">Convolutional Layer</td>
+              <td align="center" valign="middle">3 &#xD7; 3</td>
+              <td align="center" valign="middle">6 &#xD7; 31 &#xD7; 32</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">2</td>
+              <td align="center" valign="middle">2</td>
+              <td align="center" valign="middle">1</td>
+              <td align="center" valign="middle">Convolutional Layer</td>
+              <td align="center" valign="middle">3 &#xD7; 3</td>
+              <td align="center" valign="middle">3 &#xD7; 16 &#xD7; 32</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">3</td>
+              <td align="center" valign="middle">2</td>
+              <td align="center" valign="middle">1</td>
+              <td align="center" valign="middle">Convolutional Layer</td>
+              <td align="center" valign="middle">3 &#xD7; 3</td>
+              <td align="center" valign="middle">2 &#xD7; 8 &#xD7; 64</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">4</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">Fully Connected Layer</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">64</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">5</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">Fully Connected Layer</td>
+              <td align="center" valign="middle">-</td>
+              <td align="center" valign="middle">64</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">6</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">-</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">-</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Fully Connected Layer</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">-</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3</td>
+            </tr>
+          </tbody>
+        </table>
+        <table-wrap-foot>
+          <fn>
+            <p>Note: Filter size such as 3 &#xD7; 3 represents the length and width of convolution kernel. The output size is 6 &#xD7; 31 &#xD7; 32, where 6 &#xD7; 31 represents the length and width of the feature map, 32 is the number of output channels.</p>
+          </fn>
+        </table-wrap-foot>
+      </table-wrap>
+      <table-wrap id="electronics-14-04831-t002" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t002_Table 2</object-id>
+        <label>Table 2</label>
+        <caption>
+          <p>Parameters of Radar System.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Name of the Parameter</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">Radar frequency</td>
+              <td align="center" valign="middle">8.75 GHz (X Band)</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Bandwidth</td>
+              <td align="center" valign="middle">500&#xA0;MHz</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Range Resolution (<inline-formula><mml:math id="mm44"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>R</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>)</td>
+              <td align="center" valign="middle">0.878&#xA0;m</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Number of range bin (<inline-formula><mml:math id="mm45"><mml:semantics><mml:msub><mml:mi>N</mml:mi><mml:mi>r</mml:mi></mml:msub></mml:semantics></mml:math></inline-formula>)</td>
+              <td align="center" valign="middle">4096</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Maximum unambiguous range (<italic>R</italic>)</td>
+              <td align="center" valign="middle">3.596&#xA0;km</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Doppler Resolution</td>
+              <td align="center" valign="middle">0.34 km/h</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Number of integrated ramps</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">512</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="electronics-14-04831-t003" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t003_Table 3</object-id>
+        <label>Table 3</label>
+        <caption>
+          <p>Summarize of Ablation Study Results.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Location of CA Module</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Training Accuracy (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Valid Accuracy (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">FLOPs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">Loc1</td>
+              <td align="center" valign="middle">97.04</td>
+              <td align="center" valign="middle">96.60</td>
+              <td align="center" valign="middle">1.15 M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Loc2</td>
+              <td align="center" valign="middle">98.06</td>
+              <td align="center" valign="middle">97.28</td>
+              <td align="center" valign="middle">0.93 M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Loc3</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">99.24</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">98.08</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">1.24 M</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="electronics-14-04831-t004" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t004_Table 4</object-id>
+        <label>Table 4</label>
+        <caption>
+          <p>Summarize of network architecture study.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">
+                Network Architecture
+              </th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Training Accuracy (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Valid Accuracy (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Number of Parameters</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">FLOPs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">
+                Convolutional Kernel Size (3 &#xD7; 3)
+              </td>
+              <td align="center" valign="middle">99.24</td>
+              <td align="center" valign="middle">98.08</td>
+              <td align="center" valign="middle">101,419</td>
+              <td align="center" valign="middle">1.24&#xA0;M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Convolutional Kernel Size (7 &#xD7; 7)</td>
+              <td align="center" valign="middle">99.76</td>
+              <td align="center" valign="middle">98.23</td>
+              <td align="center" valign="middle">223,867</td>
+              <td align="center" valign="middle">4.43&#xA0;M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Channel Expansion</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">99.64</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">98.03</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">375,195</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">2.48&#xA0;M</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="electronics-14-04831-t005" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t005_Table 5</object-id>
+        <label>Table 5</label>
+        <caption>
+          <p>Performance comparison on confusion matrix.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Network Type</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Sample Category</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Recall (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">F1 Score (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Accuracy (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-1</td>
+              <td align="center" valign="middle">Vehicle</td>
+              <td align="center" valign="middle">93.79</td>
+              <td align="center" valign="middle">95.25</td>
+              <td align="center" valign="middle">96.75</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-2</td>
+              <td align="center" valign="middle">Vehicle</td>
+              <td align="center" valign="middle">96.24</td>
+              <td align="center" valign="middle">97.53</td>
+              <td align="center" valign="middle">98.48</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-1</td>
+              <td align="center" valign="middle">Unmanned Aerial Vehicle</td>
+              <td align="center" valign="middle">96.55</td>
+              <td align="center" valign="middle">94.92</td>
+              <td align="center" valign="middle">93.33</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-2</td>
+              <td align="center" valign="middle">Unmanned Aerial Vehicle</td>
+              <td align="center" valign="middle">98.07</td>
+              <td align="center" valign="middle">96.89</td>
+              <td align="center" valign="middle">95.74</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-1</td>
+              <td align="center" valign="middle">Pedestrian</td>
+              <td align="center" valign="middle">99.27</td>
+              <td align="center" valign="middle">99.23</td>
+              <td align="center" valign="middle">99.20</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">RangDopplerNet Type-2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Pedestrian</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">99.63</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">99.56</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">99.49</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="electronics-14-04831-t006" position="float">
+        <object-id pub-id-type="pii">electronics-14-04831-t006_Table 6</object-id>
+        <label>Table 6</label>
+        <caption>
+          <p>Comparison of number of parameters.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Model Type</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Average Accuracy (%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Number of Parameters</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">Relative Parameter Ratio&#xA0;(%)</th>
+              <th align="center" valign="middle" style="border-bottom:solid thin;border-top:solid thin">FLOPs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">NasNetMobile</td>
+              <td align="center" valign="middle">97.69</td>
+              <td align="center" valign="middle">4,272,887</td>
+              <td align="center" valign="middle">100</td>
+              <td align="center" valign="middle">-</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">DopplerNet</td>
+              <td align="center" valign="middle">99.48</td>
+              <td align="center" valign="middle">3,818,755</td>
+              <td align="center" valign="middle">89.37</td>
+              <td align="center" valign="middle">-</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">MobileNetV2</td>
+              <td align="center" valign="middle">98.94</td>
+              <td align="center" valign="middle">3,325,043</td>
+              <td align="center" valign="middle">77.82</td>
+              <td align="center" valign="middle">-</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">MobileNetV1</td>
+              <td align="center" valign="middle">96.83</td>
+              <td align="center" valign="middle">3,209,475</td>
+              <td align="center" valign="middle">75.11</td>
+              <td align="center" valign="middle">580.7&#xA0;M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">SqueezeNext</td>
+              <td align="center" valign="middle">96.78</td>
+              <td align="center" valign="middle">589,171</td>
+              <td align="center" valign="middle">13.8</td>
+              <td align="center" valign="middle">225.7&#xA0;M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">RangDopplerNet Type-1</td>
+              <td align="center" valign="middle">96.71</td>
+              <td align="center" valign="middle">98,019</td>
+              <td align="center" valign="middle">2.29</td>
+              <td align="center" valign="middle">0.87&#xA0;M</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">RangDopplerNet Type-2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">98.08</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">101,419</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">2.37</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">1.24&#xA0;M</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <fn-group>
+      <fn>
+        <p><bold>Disclaimer/Publisher&#x2019;s Note:</bold> The statements, opinions and data contained in all publications are solely those of the individual author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to people or property resulting from any ideas, methods, instructions or products referred to in the content.</p>
+      </fn>
+    </fn-group>
+  </back>
+</article>

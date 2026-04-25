@@ -894,3 +894,806 @@
   - stronger unified confusion-pair handler layers
   - reviewed-span BirdTarget-vs-ShipTarget margin as a default branch
 
+## Stage 101 - Aggressive ShipTarget-vs-DroneTarget Refiner Tower
+- After repeated instability from broad pair handlers and reviewed-span BirdTarget-vs-ShipTarget interventions, the next aggressive structural branch is narrowed to a dedicated `ShipTarget-vs-DroneTarget` refiner.
+- The new refiner is a second-stage two-class tower over pair-relevant fused features:
+  - `fused_track_feature`
+  - `fused_rd_feature`
+  - `rd_local_ship_feature`
+  - `abs(fused_track_feature - fused_rd_feature)`
+- The refiner has two roles:
+  - auxiliary two-class supervision on ShipTarget-vs-DroneTarget samples
+  - gated residual logit correction only when the current sample is already in the ShipTarget/DroneTarget candidate region
+- Initial aggressive defaults:
+  - `ship_drone_refiner_enabled = true`
+  - `ship_drone_refiner_aux_loss_weight = 0.08`
+  - `ship_drone_refiner_logit_weight = 0.12`
+  - `ship_drone_refiner_gate_threshold = 0.62`
+- All previously unstable confusion-pair handler branches remain disabled in this refiner experiment.
+
+## Stage 102 - Aggressive ShipTarget-vs-DroneTarget Refiner Regressed
+- Run analyzed: `artifacts/202604141756-12-4-cuda`
+- Evaluation with current eval-time fusion override dropped to approximately:
+  - `clip accuracy = 0.7735`
+  - `clip macro_f1 = 0.7962`
+  - `session accuracy = 0.8750`
+- Main failure pattern:
+  - `ShipTarget -> DroneTarget = 77`
+  - `ShipTarget -> BirdTarget = 45`
+  - `BirdTarget -> ShipTarget = 31`
+- Interpretation:
+  - the dedicated ShipTarget-vs-DroneTarget refiner was still too aggressive at the current data scale
+  - it destabilized the broader ShipTarget manifold instead of selectively repairing the hardest ship-hard session
+- Updated recommendation:
+  - do not keep the aggressive ShipTarget-vs-DroneTarget refiner enabled by default
+  - restore the safer reference branch centered on the light ShipTarget-vs-DroneTarget margin-only setup
+
+## Stage 103 - Mainline Switched To True Session/Bag-Level Training
+- The project now begins the requested transition from clip-level supervision to true session/bag-level training.
+- A new `SessionBagDataset` groups clips by session and returns one bag per session.
+- A new `SessionBagRadarClassifier` wraps the existing clip model and adds:
+  - clip embedding extraction from `coarse_feature + detail_feature`
+  - masked attention pooling over clip embeddings
+  - a dedicated session classifier head
+- The main training objective is now session-level cross-entropy, with an optional lightweight clip-level auxiliary term.
+- The old `session_grouped_batches + mean logits` scaffold remains available for reference but is no longer the intended main route.
+- Initial session-bag defaults:
+  - `use_session_bag_training = true`
+  - `session_bag_max_clips = 32`
+  - `session_loss_weight = 1.0`
+  - `clip_loss_weight = 0.15`
+- This is the first true architectural shift of the project toward bag-level learning instead of clip-level learning.
+
+## Stage 104 - Session-Level Stability Pass And Config Audit
+- The first session-bag mainline exposed two immediate instability sources:
+  - random clip selection inside each session bag
+  - extremely small effective batch size on an 8 GB GPU
+- The training stack was updated to make these controls explicit and actually effective:
+  - `gradient_accumulation_steps`
+  - `session_bag_shuffle`
+  - `session_bag_sort_by_length`
+- The session-bag dataset now supports deterministic session ordering by bag length.
+- The training loop now supports gradient accumulation for both clip-level and session-level branches.
+- `manage.py` output directory naming now uses `session_bag_batch_size` when session-bag training is enabled, so artifact names no longer misleadingly reflect the old clip batch size.
+- `train.json` was cleaned to remove or disable several stale or misleading entries for the current session mainline:
+  - removed the old clip-only `batch_size` entry from the control file
+  - removed old artifact cleanup settings from the default training control
+  - removed unused conditional-heuristic thresholds that no longer participate in training
+  - disabled `session_bag_random_sampling` by default for reproducibility-first experiments
+- New default stability-oriented session settings:
+  - `session_bag_batch_size = 1`
+  - `session_bag_max_clips = 8`
+  - `session_bag_random_sampling = false`
+  - `session_bag_shuffle = true`
+  - `session_bag_sort_by_length = true`
+  - `gradient_accumulation_steps = 4`
+- The current intent is to reduce run-to-run variance first, before introducing stronger session specialists or larger bag encoders.
+
+## Stage 105 - Session-Level Runs Became Reproducible But Validation Overestimates Test
+- Two consecutive session-bag runs produced highly similar results after the stability pass.
+- This is expected because the session-level route is now intentionally much more deterministic:
+  - fixed random seed
+  - deterministic training mode
+  - `num_workers = 0`
+  - `session_bag_random_sampling = false`
+  - `session_bag_sort_by_length = true`
+  - `session_bag_batch_size = 1`
+  - `gradient_accumulation_steps = 4`
+- Similarity across runs is therefore not evidence of a frozen model by itself. It mainly indicates that training noise was reduced.
+- The more important finding is that the model can now converge repeatedly to a similar solution that still generalizes poorly to the tiny held-out test split.
+- Example session-bag runs:
+  - `artifacts/202604150022-12-1-cuda`
+  - `artifacts/202604150035-12-1-cuda`
+- In the second run, the best validation composite appeared at epoch 5 with approximately:
+  - `val_accuracy = 0.9333`
+  - `val_macro_f1 = 0.9000`
+  - `val_selection_metric = 0.9100`
+- Later epochs deteriorated, so early stopping correctly tracked stale epochs and kept epoch 5 as the best checkpoint.
+- The final poor test result does not mean early stopping failed. It means the validation split substantially overestimated test generalization for that run.
+- Root cause:
+  - the session-level dataset is still extremely small
+  - the validation split contains only a small number of sessions
+  - the test split contains only 8 sessions, so every single misclassified session changes accuracy by 0.125
+- Current interpretation:
+  - the session-bag training path is now more reproducible
+  - but the selected session-level checkpoint is still not trustworthy enough as a strong generalization winner
+  - the next focus should remain session-level stability and evaluation robustness rather than celebrating a single high validation point
+
+## Stage 106 - Processing Code Migrated Toward `pro/`
+- The repository structure was updated to align with the rule that raw data processing belongs under `pro/`.
+- A new local package layout now exists:
+  - `pro/preprocessing/`
+  - `pro/processing/`
+- Core processing modules were copied into `pro/` and `manage.py` now imports processing entry points from `pro.*` rather than from `src.*`.
+- Compatibility re-exports were left in `src/preprocessing/__init__.py` and `src/prodata/__init__.py` so the rest of the repository does not break immediately.
+- The intended long-term boundary is now explicit:
+  - `pro/` for source parsing and session preparation
+  - `data/` for standardized training sessions only
+
+## Stage 107 - Started `CQ-08` Python Ingestion Pipeline
+- A new `CQ-08` ingestion module was introduced at `pro/processing/cq08_session_builder.py`.
+- The module already supports:
+  - discovery of one-to-one aligned raw echo, point-track, and track files
+  - source label mapping
+  - GBK track and point-track loading
+  - normalized session naming
+  - standardized session export scaffold
+  - `prepare-cq08` CLI entry in `manage.py`
+- Confirmed source facts:
+  - current `CQ-08` payload in the workspace contains `1550` aligned groups
+  - labels map to:
+    - `DroneTarget`
+    - `BirdTarget`
+    - `BalloonTarget`
+    - `ClutterTarget`
+    - `OtherTarget`
+- Important parser finding:
+  - the provided `RDMapParser.m` does not yet match the current `.dat` frame layout one-to-one
+  - the raw `.dat` files are little-endian and start with `0xFA55FA55`, but the downstream body parsing assumptions from the old MATLAB script do not yet cleanly recover valid frames
+- Practical implication:
+  - the standardized ingestion scaffold is now in place
+  - but the raw-echo binary parser still needs one more decoding pass before full RD session export can be considered complete
+
+## Stage 108 - `RDMapParser.m` Enhanced For Debug And Rich `.mat` Export
+- The MATLAB helper at `pro/23/RDMapParser.m` was updated to emit richer debugging output and more useful `.mat` payloads.
+- The save directory was changed from a hard-coded external drive path to a source-root-local folder:
+  - `selectedDir/MAT_Result`
+- Each saved `.mat` file now includes:
+  - `data_proc_MTD_result`
+  - `data_proc_MTD_result_db`
+  - `data_out`
+  - `para`
+  - `Vr`
+  - `Range_plot`
+  - `label`
+  - `index_trackPointNo`
+  - `Amp_max_range`
+  - `Amp_max_Vr`
+  - `debug_info`
+- The script now also prints a structured debug block with the most important parser outputs:
+  - frequency
+  - CPI count
+  - PRT number
+  - PRT duration
+  - data length
+  - `size(data_out)`
+  - the first few `Track_No_info` values
+  - a small `data_out` preview
+- This change is intended to accelerate Python-side reverse engineering of the `CQ-08` raw `.dat` body layout and provide a temporary `.mat`-based bridge if needed.
+
+## Stage 109 - Re-Audit Of The Sample `CQ-08` `.mat`
+- The provided sample `.mat` is usable as an intermediate bridge, but it is not yet the fully upgraded export format from the latest MATLAB script revision.
+- Confirmed available fields in the sample:
+  - `data_out`
+  - `data_proc_MTD_result`
+  - `data_proc_MTD_result_db`
+  - `para`
+  - `Range_plot`
+  - `Vr`
+  - `label`
+  - `index_trackPointNo`
+  - `Amp_max_range`
+  - `Amp_max_Vr`
+  - `debug_info`
+- Confirmed missing top-level fields that the updated script is now expected to export on future runs:
+  - `track_No`
+  - `target_type`
+  - `timestamp_text`
+- Important note:
+  - the sample still contains enough signal information for Python-side investigation because `data_out`, `data_proc_MTD_result`, and `para` are all present
+  - however, future exports should be regenerated with the latest MATLAB script so the richer metadata becomes available directly at top level
+- Roadmap implication:
+  - a denoise and alignment layer remains justified for raw-source ingestion under `pro/`
+  - it should be implemented as preprocessing capability, not as a training-time patch
+
+## Stage 110 - Session-Bag Evaluation Tooling Now Supports Session Checkpoints
+- The evaluation pipeline was extended so session-bag checkpoints no longer depend on the old clip-only path.
+- `run_evaluation(...)` now:
+  - builds a bag dataset when `use_session_bag_training = true`
+  - wraps the clip model in `SessionBagRadarClassifier`
+  - evaluates `session_logits` directly
+  - exports `session_attention_report.csv` when attention weights are available
+- This addresses one of the highest-priority roadmap gaps: session checkpoints can now be evaluated through the same tooling stack instead of only through the training summary.
+- A smoke test on `artifacts/202604150035-12-1-cuda/best_fusion_model.pt` succeeded and produced:
+  - evaluation output on CPU
+  - session-level metrics
+  - session attention CSV export
+
+## Stage 111 - Session Aggregator Upgraded Beyond Single Attention Pooling
+- The session-bag mainline no longer relies on a single projection plus one attention pooling layer only.
+- The session model was upgraded to:
+  - project clip embeddings into a dedicated bag hidden space
+  - optionally add learned positional encoding
+  - run multiple masked self-attention encoder blocks over the bag
+  - pool the encoded clip embeddings with masked attention pooling
+  - classify from the resulting session embedding
+- New configuration controls were added:
+  - `session_bag_encoder_layers`
+  - `session_bag_attention_heads`
+  - `session_bag_use_positional_encoding`
+- The new encoder passed a local forward smoke test on a real training batch.
+- This directly implements the next roadmap step of strengthening the session aggregator without yet jumping to a much heavier architecture.
+
+## Stage 112 - Session-Level Auxiliary Heads Introduced
+- The session-bag mainline no longer upgrades only the main classifier to session-level supervision.
+- New session-level auxiliary heads were added on top of the pooled session embedding:
+  - `session_track_router_head`
+  - `session_ship_drone_head`
+  - `session_ship_bird_head`
+  - `session_bird_surface_head`
+- The session training branch now supports light auxiliary supervision on these heads.
+- Initial conservative default weights were enabled in `train.json` so the project can begin testing true session-level specialist supervision without overwhelming the main session classification loss.
+- A CPU smoke pass through `run_epoch(...)` succeeded with the new session auxiliary heads enabled.
+
+## Stage 113 - Kaggle Cars/People Source Audited
+- The `pro/Kaggle/` directory contains a paper closely related to the project target domain and two data classes: `Cars` and `People`.
+- The paper confirms the source is a range-Doppler recognition dataset for `car`, `person`, and `drone` scenarios.
+- The local `Cars/` and `People/` folders appear usable as RD-only session-like sources:
+  - each class contains multiple subdirectories
+  - each subdirectory contains ordered CSV frames
+  - each CSV is a fixed-size numeric array of approximately `11 x 61`
+- Integration decision:
+  - keep these data as `CarTarget` and `PeopleTarget`
+  - treat them as RD-only sessions rather than forcing them into the paired track+RD assumption
+  - defer ingestion until the session-level pipeline fully supports optional-modality training
+
+## Stage 114 - Session Mainline Still Collapses Bird Sessions Despite Stronger Aggregator And Session Aux Heads
+- Two newer session-bag runs were analyzed:
+  - `artifacts/202604151541-12-1-cuda`
+  - `artifacts/202604151555-12-1-cuda`
+- The second run looked different in the raw training summary, but a full evaluation pass showed both checkpoints converge to the same effective test confusion pattern.
+- Both evaluated to approximately:
+  - `accuracy = 0.625`
+  - `macro_f1 = 0.5208`
+- The confusion pattern is the same for both:
+  - `AircraftTarget`: correct
+  - `DroneTarget`: correct
+  - `ShipTarget`: 3 correct, 1 predicted as `DroneTarget`
+  - `BirdTarget`: both bird sessions wrong, split across `AircraftTarget` and `ShipTarget`
+- Interpretation:
+  - the newer session-level aggregator and session-level auxiliary heads are functioning technically
+  - but the current tiny session split still allows the model to learn a stable but bad solution where Bird sessions collapse
+  - the issue is no longer random instability only; it is now a stable but poor generalization basin
+- Practical implication:
+  - future work should not only strengthen the session encoder further
+  - it must also improve session-level selection, class balance, and possibly Bird-focused session evidence modeling
+
+## Stage 115 - Session Mainline Reset Toward A Cleaner Objective
+- After the stronger session encoder and session-level auxiliary heads were introduced, repeated runs still converged to a stable but poor Bird collapse.
+- A corrective pass was applied to make the session objective cleaner and less side-effect-prone:
+  - reduced `clip_loss_weight`
+  - reduced `session_track_router_aux_loss_weight`
+  - reduced `session_ship_drone_aux_loss_weight`
+  - disabled `session_ship_bird_aux_loss_weight`
+  - disabled `session_bird_surface_aux_loss_weight`
+- In addition, checkpoint selection was made more conservative by introducing validation floor constraints:
+  - `best_metric_min_val_accuracy`
+  - `best_metric_min_val_macro_f1`
+- This is intended to stop the training loop from promoting visually impressive but poorly balanced session solutions too easily on the tiny validation split.
+
+## Stage 116 - Fixed A Critical Session Training Selection Failure Mode
+- A critical issue was discovered in the session-level route:
+  - if all validation epochs failed the newly introduced selection floor, no `best_fusion_model.pt` was saved at all
+  - the training summary could still print a best-checkpoint path even though the file did not exist
+- The trainer now always saves a `last_fusion_model.pt` fallback checkpoint each epoch.
+- If no epoch satisfies the validation floor, the training loop now explicitly falls back to the last checkpoint instead of silently proceeding without a real saved best model.
+- The selection floor was also relaxed from an over-strict initial setting to a more practical one for the tiny validation split.
+- This fix is important because otherwise session-level experiments could appear worse or behave inconsistently simply due to checkpoint selection failure rather than model quality alone.
+
+
+
+## Stage 117 - Session Mainline Deep Audit
+
+### Findings
+- Session bag training itself was not collapsing to single-clip bags.
+- `SessionBagDataset` was correctly building multi-clip bags with up to `session_bag_max_clips = 8` clips per session.
+- The earlier `num_clips = 1` readings came from evaluator/reporting code that still interpreted session bag outputs using old clip-level assumptions.
+
+### Confirmed Training-Side Behavior
+- Train split bags: typically `8` clips per session.
+- Test split bags: all `8` test sessions also carried `8` clips each under the current deterministic bag sampler.
+
+### Bugs Found
+1. `run_evaluation(...)` in bag mode was previously misrouted through diagnosis-style reporting logic, contaminating the return structure.
+2. Session-level predictions in bag mode were being re-aggregated as if each bag were a single clip record, which produced misleading `num_clips = 1` outputs.
+3. `run_session_diagnosis(...)` was still using clip-only assumptions and had to be upgraded for session-bag checkpoints.
+
+### Fixes Applied
+- `src/models/session_bag_classifier.py`
+  - Exposes clip-level auxiliary tensors from the wrapped clip model:
+    - `clip_track_weight`
+    - `clip_rd_weight`
+    - `clip_track_router_logits`
+    - `clip_rd_ship_drone_logits`
+    - `clip_rd_ship_bird_logits`
+    - `clip_rd_ship_air_logits`
+    - `clip_bird_surface_logits`
+    - `clip_bird_rd_logits`
+    - `clip_bird_surface_rd_logits`
+- `src/training/evaluator.py`
+  - Restored `run_evaluation(...)` to return the standard evaluation payload in bag mode.
+  - Fixed bag-mode session predictions to report the real number of clips in each bag.
+  - Added a dedicated `_run_session_diagnosis_bag(...)` path.
+  - `run_session_diagnosis(...)` now dispatches to the bag-aware diagnosis path when `use_session_bag_training = true`.
+
+### Rechecked Result
+- For `artifacts/202604151700-12-1-cuda`:
+  - true session accuracy remains `0.5000`
+  - session diagnosis now reports `64` clip rows across `8` sessions
+  - this confirms the earlier `num_clips = 1` interpretation was a reporting bug, not a bag-construction bug
+
+### Remaining Structural Concerns
+- Session mainline is now technically stable, but it is learning a poor decision basin.
+- Current failure pattern is no longer ?single-clip bags?, but rather session-level class bias:
+  - `ShipTarget` is still weak
+  - `AircraftTarget` can collapse toward `DroneTarget`
+- Many legacy clip-branch settings still remain in `train.json`; most of them are inactive under `use_session_bag_training = true` and should be cleaned later.
+
+
+## Stage 118 - Session Mainline Config Cleanup
+
+### Goal
+Clean `train.json` so it reflects the current session-level mainline instead of carrying legacy clip-branch experiment flags.
+
+### What Was Removed
+Removed inactive or deprecated clip-branch experiment settings from `train.json`, including:
+- hard-session sampling boosts
+- suspicious-ship downweight heuristics
+- confusion-pair samplers
+- pair margin branches
+- conditional margin branches
+- curated clip manifest branches
+- confusion-pair handler branches
+- ship-drone refiner branches
+- bird prototype / triplet branches
+
+### What Remains Active In The Current Session Mainline
+- core optimization and reproducibility
+- clip-model backbone / fusion settings still used inside the bag wrapper
+- eval-time fusion override settings
+- session-bag encoder settings
+- session-level auxiliary head weights
+- best-checkpoint selection floors and early stopping settings
+
+### Important Note
+Many clip-model fusion parameters remain active even under session-bag training because the session model wraps the clip model and reuses its backbone and fusion path for every clip in the bag.
+
+
+## Stage 119 - Session Mainline Bias Stabilization
+
+### Motivation
+After fixing the bag evaluation and diagnosis path, the main issue is no longer bag construction. The true failure mode is session-level class bias:
+- `ShipTarget` is under-recognized
+- `AircraftTarget` can drift toward `DroneTarget`
+- session attention looked overly position-driven across sessions
+
+### Changes
+- Disabled positional encoding in the session bag encoder by default:
+  - `session_bag_use_positional_encoding = false`
+- Enabled session-level class-balanced bag sampling:
+  - `session_bag_class_balanced_sampling = true`
+- Removed clip-level loss from the current mainline:
+  - `clip_loss_weight = 0.0`
+- Added a light attention-entropy regularizer:
+  - `session_attention_entropy_loss_weight = 0.01`
+
+### Rationale
+- learned positional encoding was encouraging near-fixed clip position weighting under deterministic bag sampling
+- balanced bag sampling should reduce session-class prior bias, especially for `AircraftTarget` and `ShipTarget`
+- clip-level auxiliary pressure was still pulling the session model back toward clip-style shortcuts
+- a light entropy regularizer should discourage pathological attention collapse without forcing uniform weights too aggressively
+
+### Validation
+- config parses correctly
+- session bag dataloaders still build correctly
+- first training batch remains `(batch=1, clips=8)`
+
+
+## Stage 120 - Session Mainline Logic Cleanup
+
+### Cleanup Performed
+Removed obsolete session-related experimental logic that no longer belongs to the active mainline:
+- removed `session_grouped_batches`
+- removed `session_logit_loss_weight`
+- removed `SessionGroupedBatchSampler`
+- removed `_build_session_logit_loss(...)`
+- removed `_derive_session_id(...)` helper from `trainer.py`
+
+### Why
+These were remnants from an older failed attempt that grouped clip batches by session and added a mean-logit session loss on top of the clip pipeline. The current mainline now uses a real session bag model, so that old path only added maintenance noise.
+
+### Result
+- `train.json` no longer needs to carry these obsolete settings
+- `trainer.py` is cleaner and easier to reason about for the current session-only route
+- dataloader smoke test still succeeds with session bags of shape `(batch=1, clips=8)`
+
+
+## Stage 121 - Hybrid Session Pooling
+
+### Motivation
+The current session mainline was still relying too much on a single attention-pooled summary, which risked making the session representation fragile and overly dependent on one aggregation path.
+
+### Change
+The session bag classifier now uses hybrid pooling:
+- attention-pooled session embedding
+- masked mean pooling over encoded clip embeddings
+- masked standard-deviation pooling over encoded clip embeddings
+
+These are concatenated and projected back into the final session hidden space before classification.
+
+### Why
+This gives the session head access to:
+- focused evidence (`attention pooling`)
+- global central tendency (`mean pooling`)
+- intra-session variability (`std pooling`)
+
+The goal is to reduce brittle dependence on a single pooled vector and make session predictions more robust for hard classes such as `ShipTarget`.
+
+### Config
+- `session_bag_use_stat_pooling = true`
+
+
+## Stage 122 - Session metric mismatch root cause and fix
+- Found a major consistency issue in the session mainline: the `Test metrics` logged at the end of training could diverge sharply from a later `manage.py evaluate` run on the same checkpoint.
+- Root cause: runtime fusion controls were applied epoch-by-epoch during training, but they were not persisted inside the checkpoint payload. As a result:
+  - end-of-training test used the loaded best model weights together with the in-memory runtime fusion state left from the final epoch;
+  - `evaluate` rebuilt a fresh model from checkpoint weights and therefore used default fusion controls instead.
+- This created two different inference conditions for what looked like the same checkpoint.
+- Fix applied:
+  - `trainer.py` now stores `runtime_fusion_controls` inside both `best_fusion_model.pt` and `last_fusion_model.pt`.
+  - `trainer.py` restores `runtime_fusion_controls` immediately after reloading the checkpoint for the final test pass.
+  - `evaluator.py` restores `runtime_fusion_controls` after loading a checkpoint, so standalone evaluation matches training-end testing semantics.
+- Impact: future session-mainline comparisons should be much more trustworthy, and `Test metrics` vs `evaluate` should no longer diverge just because runtime fusion controls were lost.
+
+
+## Stage 123 - Session-mainline evaluation semantics corrected
+- Investigated a remaining mismatch where training-end `Test metrics` and standalone `manage.py evaluate` still differed on the same session checkpoint even after runtime fusion controls were persisted.
+- Root cause: `manage.py evaluate` still applied clip-era eval-time fusion overrides by default because `eval_fusion_override_enabled = true` in `train.json`.
+- For the session mainline, these eval-time RD fusion overrides are not part of the intended default test semantics and were distorting comparison:
+  - with eval override enabled, `artifacts/202604152015-12-1-cuda/last_fusion_model.pt` evaluated to `accuracy=0.5`, `macro_f1=0.4167`;
+  - with eval override disabled, the same checkpoint evaluated to `accuracy=0.625`, `macro_f1=0.45`, which matches the training-end `Test metrics`.
+- Decision: disable `eval_fusion_override_enabled` in `train.json` for the session mainline so training-end testing and standalone evaluation use the same semantics.
+- Interpretation: current session mainline should now be compared under pure session-bag inference, without legacy clip-mainline eval overrides.
+
+
+## Stage 124 - Bird/Drone and Bird/Ship session-level boundary reinforcement
+- Based on the corrected session-mainline evaluation semantics, the dominant remaining session-level errors shifted from global Ship collapse to local boundary confusion:
+  - `BirdTarget -> ShipTarget`
+  - `DroneTarget -> BirdTarget`
+- Added a new session-level auxiliary head in `SessionBagRadarClassifier`:
+  - `session_bird_drone_head`
+- Wired the new bag-level supervision path in `trainer.py` using the already existing `bird_drone_target` carried by the dataset and bag collate pipeline.
+- Adjusted default session auxiliary weights in `train.json` to target the current confusion structure more directly:
+  - `session_ship_drone_aux_loss_weight = 0.015`
+  - `session_ship_bird_aux_loss_weight = 0.01`
+  - `session_bird_drone_aux_loss_weight = 0.02`
+  - `session_bird_surface_aux_loss_weight = 0.0`
+- Rationale:
+  - preserve the recent recovery of `ShipTarget`
+  - add a light session-level constraint that separates `Bird` from `Drone`
+  - reintroduce a very light `Bird/Ship` session constraint without reactivating the previously harmful clip-era broad pair logic.
+
+
+## Stage 125 - Session-level Bird/Drone auxiliary regression and rollback
+- Tested a new session-level `Bird/Drone` auxiliary head and corresponding bag-level loss to address the remaining confusion pairs:
+  - `BirdTarget -> ShipTarget`
+  - `DroneTarget -> BirdTarget`
+- Result on `artifacts/202604161029-12-1-cuda` was a regression:
+  - `accuracy = 0.375`
+  - `macro_f1 = 0.3333`
+- Correct session-level confusion after unified evaluation semantics:
+  - `AircraftTarget -> AircraftTarget`
+  - `DroneTarget -> AircraftTarget`
+  - `BirdTarget -> DroneTarget` for both Bird sessions
+  - `ShipTarget -> DroneTarget` for 2 of 4 Ship sessions
+- Interpretation:
+  - the added session-level `Bird/Drone` auxiliary constraint pulled the bag encoder toward a Drone-heavy basin,
+  - damaging both Bird and Ship boundaries.
+- Action taken:
+  - rolled back to a safer session auxiliary profile in `train.json`
+  - disabled:
+    - `session_bird_drone_aux_loss_weight`
+    - `session_ship_bird_aux_loss_weight`
+  - retained only a light:
+    - `session_ship_drone_aux_loss_weight = 0.015`
+- Conclusion:
+  - direct session-level pair supervision for `Bird/Drone` is currently too aggressive for this small-data regime.
+  - safer progress likely requires either more data or a less intrusive recurrent session encoder rather than more pairwise auxiliary heads.
+
+
+## Stage 126 - First implementation of adaptive track-like completion for Carrada
+- Started the first concrete implementation of the adaptive `track-like` completion idea from `mmm`.
+- Added a reusable schema module:
+  - `pro/processing/track_like_schema.py`
+- Added a first Carrada pseudo-track builder:
+  - `pro/processing/carrada_pseudotrack_builder.py`
+- Added CLI support:
+  - `manage.py prepare-carrada-pseudotrack`
+- Current builder behavior:
+  - scans Carrada sequences
+  - reads `labels.json` and `centroid_tracking_cluster_jensen_shannon.json`
+  - derives a first `pseudo-track` representation from RD/cluster temporal data
+  - writes:
+    - `radar/track/track_data.csv`
+    - `pseudo_track_manifest.json`
+- First smoke test succeeded on:
+  - `2019-09-16-12-52-12`
+- Output was created under:
+  - `pro/processed/carrada_pseudotrack_sessions_smoke/2019-09-16-12-52-12`
+  - and synced to:
+  - `data/sessions_carrada_smoke/2019-09-16-12-52-12`
+- Important note:
+  - this is a first-stage pseudo-track, not yet a full final unified session ingestion for Carrada
+  - the current output is intentionally `track-like`, not a claim of true physical native track recovery
+- Value of this stage:
+  - proves that the `tr + rd` mainline can be preserved even for RD-only sources through preprocessing
+  - establishes the first working bridge for later Carrada integration without changing the core session model semantics.
+
+
+## Stage 127 - Static risk fixes for Carrada standard-session builder
+- Continued Carrada integration without launching another heavy full build.
+- Fixed a critical semantic issue in `carrada_session_builder.py`:
+  - pseudo-track `t` had been written using raw large ADC timestamps,
+  - which broke QC and slicing assumptions expecting relative seconds.
+- Added timestamp normalization so Carrada pseudo-track time is converted to relative second-scale time before session packaging.
+- Fixed a concrete file-output bug:
+  - `_write_labels_matched(...)` now actually writes `labels/labels_matched.jsonl`.
+- Reduced the default Carrada slicing window from `8.0s` to `2.0s` to better fit shorter instance-active segments.
+- Current state:
+  - Carrada pseudo-track extraction works,
+  - Carrada standard-session builder is implemented,
+  - static code path now compiles cleanly,
+  - heavy full build should be run manually by the user.
+
+
+## Stage 128 - Default mixed-window sub-session generation for Carrada
+- Kept the earlier mixed-window idea and promoted it into the Carrada preprocessing path.
+- Carrada is no longer limited to one fixed sub-session window.
+- Added configurable mixed window specs for Carrada sub-session generation.
+- Current default mixed window policy:
+  - `128:64`
+  - `64:32`
+  - `192:96`
+- Both `manage.py prepare-carrada` and `pro.py prepare-carrada` now support:
+  - `--sub-session-window-specs`
+- If the user does not provide custom specs, the default mixed-window policy is used.
+- Static estimate with the current high-confidence Carrada subset:
+  - old fixed-window nonempty training units: about `110`
+  - new mixed-window nonempty training units: about `252`
+- Interpretation:
+  - mixed windows do not solve the broader coverage ceiling (still limited by the 82 high-confidence parent instances),
+  - but they significantly increase usable session-level training units without changing the mainline `tr + rd` assumption.
+
+
+## Stage 129 - Unified session schema document added
+- Added a formal schema document at `docs/session_schema.md`.
+- The document defines the canonical session directory layout and required files for all future data sources.
+- It clarifies the central long-term rule:
+  - unify the **session data format**
+  - do not force all sources to share identical physical origin semantics
+  - preserve provenance explicitly through fields such as `source_name`, `track_source`, and `has_native_track`
+- The document also records the current Carrada and CQ-08 mapping assumptions and the standard `tr + rd` compatibility contract.
+
+
+## Stage 130 - Sessions-only unified root workflow
+- Updated the session unification workflow so the long-term data layout can converge to a single canonical root: `data/sessions`.
+- Added `rebuild_sessions_root(...)` to `pro/processing/session_unifier.py`.
+- New behavior:
+  - merge multiple standardized session roots into a temporary rebuild root
+  - atomically replace the final target root (default: `data/sessions`)
+  - optionally delete old source roots after successful rebuild
+- Updated `pro.py unify-sessions` accordingly:
+  - default final root is now `data/sessions`
+  - supports automatic cleanup of old roots via `--clean-old-roots`
+- This matches the intended long-term rule: the project should expose a single canonical `sessions` root for training.
+
+
+## Stage 131 - 7-class group-aware split and balanced bucket fill
+- Integrated source/group metadata into `SessionStatus`:
+  - `source_name`
+  - `group_id`
+- For Carrada sessions, `group_id` is now derived from:
+  - `sequence_id + parent_instance_id`
+- This guarantees that all sub-sessions from the same Carrada parent instance remain in the same split.
+- Verified:
+  - `carrada_group_violations = 0`
+- Upgraded the split heuristic from plain group-aware splitting to a more label-balanced bucket fill strategy.
+- Compared with the previous group-aware-only version, the new split is much healthier:
+  - validation now covers all 7 classes
+  - test also covers all 7 classes
+  - test is no longer dominated almost entirely by `PeopleTarget`
+- Current smoke-test label distribution after the new split heuristic:
+  - train: `Car 82, People 95, Cyclist 9, Drone 21, Aircraft 4, Ship 14, Bird 11`
+  - val: all 7 classes covered
+  - test: all 7 classes covered
+- This means the unified 7-class data root is now much closer to actual training readiness.
+
+
+## Stage 132 - First 7-class training-ready configuration
+- Added a dedicated 7-class control file: `train_7cls.json`.
+- Purpose:
+  - keep the current 4-class `train.json` untouched
+  - provide a clean starting point for the unified 7-class dataset root
+- Current 7-class baseline design choices:
+  - `data_root = data/sessions`
+  - session-only training (`clip_loss_weight = 0.0`)
+  - no pair-specific session auxiliary heads at startup
+  - no eval-time fusion override
+  - source-aware + class-aware session-bag sampling enabled
+  - class-only session-bag sampling disabled
+- Smoke test confirms that the 7-class dataset builds correctly from the unified `data/sessions` root.
+- Current unified label map seen by the loader:
+  - `AircraftTarget`
+  - `BirdTarget`
+  - `CarTarget`
+  - `CyclistTarget`
+  - `DroneTarget`
+  - `PeopleTarget`
+  - `ShipTarget`
+- This means the unified data root has now crossed from preprocessing-only state into actual training-ready state.
+
+
+## Stage 133 - CQ-08 MAT sessionization by batch and index-based alignment
+- Confirmed that `CQ-08/MAT` can be treated as a session source using:
+  - one `batch_no` = one session
+- Verified globally:
+  - no mixed-label batches
+  - approximately 1549 valid batches after one damaged batch was discarded upstream
+- Added `pro/processing/cq08_mat_session_builder.py` and `pro.py prepare-cq08-mat`.
+- Initial naive `min_len(track, rd)` truncation was too coarse.
+- Audited batch `104` and confirmed that `index_trackPointNo` is a valid alignment key from MAT frames to track/point rows.
+- Upgraded the builder to:
+  - read `index_trackPointNo` per MAT file
+  - expand track and point rows according to MAT-frame alignment indices
+  - retain the canonical RD shape only and drop incompatible outlier MAT frames
+- Batch `104` smoke result after alignment upgrade:
+  - input MAT files: `92`
+  - retained canonical-shape MAT files: `88`
+  - dropped incompatible MAT files: `4`
+  - aligned track rows: `88`
+  - aligned point rows: `88`
+  - generated track clips: `12`
+  - QC status: `PASS`
+- This is a strong signal that the MAT route is now much more viable than the earlier raw-dat route for CQ-08 ingestion.
+
+
+## Stage 134 - Multi-batch CQ-08 MAT smoke audit
+- Expanded CQ-08 MAT smoke from a single Drone batch to a multi-label set:
+  - `272` -> `DroneTarget`
+  - `1301` -> `BirdTarget`
+  - `3134` -> `OtherTarget`
+  - `3160` -> `ClutterTarget`
+  - `4153` -> `BalloonTarget`
+- All 5 smoke sessions completed successfully into standard session format.
+- Each smoke session produced:
+  - `meta_session.json`
+  - `labels_matched.jsonl`
+  - `labels_trackclip.jsonl`
+  - `track_data.csv`
+  - `rd_data.h5`
+  - `rd_clips.h5`
+  - `qc_report.json`
+- All 5 smoke sessions passed QC.
+- This strongly suggests that the `CQ-08/MAT -> standard session` route is viable for full-batch preprocessing.
+- The MAT ingestion path is now in a better state than the old raw-dat path because batch-level sessionization and `index_trackPointNo` alignment are both working.
+
+## Stage 135 - åˆ†é˜¶æ®µ10ç±»è®­ç»ƒæ–¹æ¡ˆè½æ–‡æ¡£
+- Added a staged 10-class training plan to `target.md` in Chinese.
+- The plan is not a vague roadmap; it defines:
+  - single-source baselines
+  - pairwise source combinations
+  - final 10-class unified training
+  - fixed evaluation protocol
+  - key confusion chains to monitor
+- The purpose is to identify whether the main degradation comes from `CQ-08`, `Carrada`, or only from their interaction under unified training.
+
+## Stage 136 - ç¬¬ä¸€é˜¶æ®µå®éªŒæ¸…å•è½åœ°
+- Added `docs/phase1_experiments.md`.
+- Added source-specific session id lists under `artifacts/phase1_lists/` for:
+  - `LegacySession`
+  - `CQ-08-MAT`
+  - `Carrada`
+- The first phase now has a concrete execution plan instead of only a conceptual split.
+
+## Stage 137 - ç¬¬äºŒé˜¶æ®µå®éªŒæ¸…å•è½åœ°
+- Added `docs/phase2_experiments.md`.
+- Added pairwise source session id lists under `artifacts/phase2_lists/` for:
+  - `Legacy + CQ-08`
+  - `Legacy + Carrada`
+  - `CQ-08 + Carrada`
+- The second phase now directly targets cross-source conflict diagnosis.
+
+## Stage 138 - CQ-08 µ×²ãËÙ¶ÈÓïÒåĞŞ¸´
+- During deeper bottom-level audit, found that `CQ-08` sessions were still carrying a semantic mismatch in `track_data.csv`:
+  - `radial_speed_mps` had effectively been inherited from track-side total speed semantics instead of point-side Doppler speed semantics.
+- Verified raw CQ-08 column meanings:
+  - track file includes `È«ËÙ¶È`
+  - point file includes `¶àÆÕÀÕËÙ¶È`
+- For unified radar session training, `radial_speed_mps` should be aligned with the point-side Doppler measurement, not the track-side total speed magnitude.
+- Updated `pro/processing/cq08_session_builder.py` so `_aggregate_point_snr_to_track(...)` now also merges point Doppler speed and overwrites:
+  - `radial_speed_mps <- point-side Doppler speed`
+- Reused this corrected aggregation logic for MAT-based CQ-08 sessions and rewrote all existing unified-root `cq08mat_*` sessions in place:
+  - updated `911` CQ-08 sessions under `data/sessions`
+- Cleared stale caches after repair:
+  - `dataset_track_stats_cache.json`
+  - `dataset_clip_index_cache.json`
+  - `session_scan_cache.json`
+  - `session_split_cache.json`
+- Implication:
+  - Any previous CQ-08-involving experiment before this repair likely mixed incompatible speed semantics across sources.
+  - `Legacy + Carrada` experiments remain unaffected by this specific CQ-08 speed fix.
+
+## Stage 139 - ÑµÁ·²à°´À´Ô´¹ì¼£¹éÒ»»¯
+- After repairing CQ-08 `snr_db` and `radial_speed_mps`, a deeper audit still showed strong source signatures in absolute track geometry:
+  - `range_m`
+  - `azimuth_deg`
+  - `elevation_deg`
+- To reduce source leakage through raw track coordinates, upgraded training-time track normalization from a single global normalization to source-wise normalization.
+- Implemented in `src/training/dataset.py`:
+  - track sequence normalization now supports per-source `center/scale`
+  - track global feature normalization now supports per-source `center/scale`
+  - `ClipRecord` and `SessionContext` now carry `source_name`
+- Implemented checkpoint propagation:
+  - training now saves `track_feature_by_source`
+  - training now saves `track_global_by_source`
+  - evaluator and calibration now restore these source-wise statistics when present
+- Added cache-key versioning for dataset stats:
+  - `normalization_mode = by_source_v1`
+- Cleared stale caches after switching normalization mode.
+- Implication:
+  - all previous experiments were still using a single global track normalization across sources.
+  - next reruns are the first ones that will test true source-wise track normalization.
+
+## Stage 140 - CQ-08 BirdTarget ·ÖÍ°ÂäµØ
+- Implemented a reusable CQ-08 Bird bucketing utility:
+  - `pro/processing/cq08_bird_bucket_builder.py`
+  - `pro.py bucket-cq08-bird`
+- The utility buckets CQ-08 Bird sessions using current session-level track statistics:
+  - `high_dynamic`
+  - `low_speed_high_elev`
+  - `low_speed_low_elev`
+  - `mixed_mid`
+- Generated formal outputs:
+  - `artifacts/cq08_bird_buckets.csv`
+  - `artifacts/cq08_bird_bucket_summary.json`
+- Current bucket counts for `CQ-08 BirdTarget` (`152` sessions):
+  - `high_dynamic = 33`
+  - `low_speed_high_elev = 26`
+  - `low_speed_low_elev = 11`
+  - `mixed_mid = 82`
+- This confirms that `CQ-08 BirdTarget` is not a compact class but a heterogeneous union of multiple motion/geometry subtypes.
+- This also explains why current test-time Bird confusion fans out to:
+  - `OtherTarget`
+  - `BalloonTarget`
+  - `ClutterTarget`
+  - and occasionally `DroneTarget`
+- Next training discussion should be based on these explicit Bird buckets rather than treating CQ-08 Bird as a single homogeneous class.
+
+## Stage 141 - È«±êÇ©´óÀà+×ÓÀà½Ó¿Ú´òÍ¨
+- Added a unified label-interface builder:
+  - `pro/processing/label_interface_builder.py`
+  - `pro.py build-label-interface`
+- The interface now writes both:
+  - `label_coarse`
+  - `label_detail`
+  into every `meta_session.json` under `data/sessions`
+- Current policy:
+  - for labels without known fine subclasses, `label_detail == label_coarse`
+  - for `CQ-08 BirdTarget`, `label_detail` is expanded into bucketed subclasses:
+    - `BirdTarget__HighDynamic`
+    - `BirdTarget__LowSpeedHighElev`
+    - `BirdTarget__LowSpeedLowElev`
+    - `BirdTarget__MixedMid`
+- Updated training dataset to support `label_granularity` directly for standard session roots:
+  - `coarse` -> uses `label_coarse`
+  - `detail` -> uses `label_detail`
+- Updated coarse taxonomy folding logic so any detail label of the form:
+  - `Xxx__Subtype`
+  is automatically folded back to:
+  - `Xxx`
+- Verified current behavior:
+  - `label_granularity = coarse` -> `10` labels
+  - `label_granularity = detail` -> `14` labels
+- This means the pipeline now supports:
+  - training / inference with full detailed labels
+  - final reporting folded back to major coarse labels

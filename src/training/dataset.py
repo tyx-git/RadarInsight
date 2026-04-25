@@ -15,6 +15,7 @@ class ClipRecord:
     sample_id: str
     track_id: int
     label_name: str
+    source_name: str
     t0: float
     t1: float
     rd_key: str
@@ -24,16 +25,31 @@ class ClipRecord:
 
 @dataclass(slots=True)
 class SessionContext:
-    track_frame: pd.DataFrame
+    track_csv_path: Path
     rd_data_path: Path | None = None
+    source_name: str = 'Unknown'
+    track_frame: pd.DataFrame | None = None
 
 
 class RadarFusionDataset(Dataset):
+    DATASET_INDEX_CACHE_FILENAME = 'dataset_clip_index_cache.json'
+    DATASET_STATS_CACHE_FILENAME = 'dataset_track_stats_cache.json'
+
+    @staticmethod
+    def _sanitize_rd_array(array: np.ndarray) -> np.ndarray:
+        array = np.asarray(array)
+        if np.iscomplexobj(array):
+            real = np.nan_to_num(np.asarray(array.real, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+            imag = np.nan_to_num(np.asarray(array.imag, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+            return (real + 1j * imag).astype(np.complex64)
+        return np.nan_to_num(np.asarray(array, dtype=np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+
     def __init__(
         self,
         data_root: str,
         session_ids: Sequence[str] | None = None,
         label_order: Sequence[str] | None = None,
+        label_granularity: str = 'coarse',
         sequence_length: int = 16,
         rd_frames: int = 16,
         rd_height: int = 32,
@@ -50,6 +66,7 @@ class RadarFusionDataset(Dataset):
         conditional_ship_drone_session_ids: Sequence[str] = (),
     ):
         self.data_root = Path(data_root)
+        self.label_granularity = str(label_granularity).lower()
         self.sequence_length = sequence_length
         self.rd_frames = rd_frames
         self.rd_height = rd_height
@@ -67,6 +84,10 @@ class RadarFusionDataset(Dataset):
         self.sessions: dict[str, SessionContext] = {}
         self.samples: list[ClipRecord] = []
         discovered_label_names: set[str] = set()
+        self._dataset_index_cache_path = self.data_root / self.DATASET_INDEX_CACHE_FILENAME
+        self._dataset_index_cache = self._load_dataset_index_cache()
+        self._dataset_index_cache_dirty = False
+        self._dataset_stats_cache_path = self.data_root / self.DATASET_STATS_CACHE_FILENAME
 
         for session_dir in self._resolve_session_dirs(session_ids):
             context, records = self._load_session(session_dir)
@@ -87,22 +108,87 @@ class RadarFusionDataset(Dataset):
         if unknown_labels:
             raise ValueError(f"Found labels not present in the provided label mapping: {unknown_labels}")
 
-        self.track_feature_center, self.track_feature_scale = self._build_track_feature_stats()
-        self.track_global_center, self.track_global_scale = self._build_track_global_feature_stats()
+        if self._dataset_index_cache_dirty:
+            self._save_dataset_index_cache()
 
-    def set_track_normalization(self, center: np.ndarray, scale: np.ndarray) -> None:
+        self.track_feature_center = np.zeros((1, len(self.feature_columns)), dtype=np.float32)
+        self.track_feature_scale = np.ones((1, len(self.feature_columns)), dtype=np.float32)
+        self.track_global_center = np.zeros((1, len(self.global_feature_columns)), dtype=np.float32)
+        self.track_global_scale = np.ones((1, len(self.global_feature_columns)), dtype=np.float32)
+        self.track_feature_center_by_source: dict[str, np.ndarray] = {}
+        self.track_feature_scale_by_source: dict[str, np.ndarray] = {}
+        self.track_global_center_by_source: dict[str, np.ndarray] = {}
+        self.track_global_scale_by_source: dict[str, np.ndarray] = {}
+
+    def set_track_normalization(
+        self,
+        center: np.ndarray,
+        scale: np.ndarray,
+        by_source: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
         self.track_feature_center = np.asarray(center, dtype=np.float32)
         self.track_feature_scale = np.asarray(scale, dtype=np.float32)
+        self.track_feature_center_by_source = {}
+        self.track_feature_scale_by_source = {}
+        if isinstance(by_source, dict):
+            for source_name, payload in by_source.items():
+                if not isinstance(payload, dict):
+                    continue
+                source_center = np.asarray(payload.get('center', []), dtype=np.float32)
+                source_scale = np.asarray(payload.get('scale', []), dtype=np.float32)
+                if source_center.size == len(self.feature_columns) and source_scale.size == len(self.feature_columns):
+                    self.track_feature_center_by_source[str(source_name)] = source_center.reshape(1, -1)
+                    self.track_feature_scale_by_source[str(source_name)] = source_scale.reshape(1, -1)
 
     def get_track_normalization(self) -> tuple[np.ndarray, np.ndarray]:
         return self.track_feature_center.copy(), self.track_feature_scale.copy()
 
-    def set_track_global_normalization(self, center: np.ndarray, scale: np.ndarray) -> None:
+    def get_track_normalization_by_source(self) -> dict[str, dict[str, list[float]]]:
+        payload: dict[str, dict[str, list[float]]] = {}
+        for source_name, center in self.track_feature_center_by_source.items():
+            scale = self.track_feature_scale_by_source.get(source_name)
+            if scale is None:
+                continue
+            payload[str(source_name)] = {
+                'center': center.reshape(-1).tolist(),
+                'scale': scale.reshape(-1).tolist(),
+            }
+        return payload
+
+    def set_track_global_normalization(
+        self,
+        center: np.ndarray,
+        scale: np.ndarray,
+        by_source: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
         self.track_global_center = np.asarray(center, dtype=np.float32)
         self.track_global_scale = np.asarray(scale, dtype=np.float32)
+        self.track_global_center_by_source = {}
+        self.track_global_scale_by_source = {}
+        if isinstance(by_source, dict):
+            for source_name, payload in by_source.items():
+                if not isinstance(payload, dict):
+                    continue
+                source_center = np.asarray(payload.get('center', []), dtype=np.float32)
+                source_scale = np.asarray(payload.get('scale', []), dtype=np.float32)
+                if source_center.size == len(self.global_feature_columns) and source_scale.size == len(self.global_feature_columns):
+                    self.track_global_center_by_source[str(source_name)] = source_center.reshape(1, -1)
+                    self.track_global_scale_by_source[str(source_name)] = source_scale.reshape(1, -1)
 
     def get_track_global_normalization(self) -> tuple[np.ndarray, np.ndarray]:
         return self.track_global_center.copy(), self.track_global_scale.copy()
+
+    def get_track_global_normalization_by_source(self) -> dict[str, dict[str, list[float]]]:
+        payload: dict[str, dict[str, list[float]]] = {}
+        for source_name, center in self.track_global_center_by_source.items():
+            scale = self.track_global_scale_by_source.get(source_name)
+            if scale is None:
+                continue
+            payload[str(source_name)] = {
+                'center': center.reshape(-1).tolist(),
+                'scale': scale.reshape(-1).tolist(),
+            }
+        return payload
 
     def set_window_mix_enabled_indices(self, indices: Sequence[int] | None) -> None:
         if indices is None:
@@ -110,17 +196,85 @@ class RadarFusionDataset(Dataset):
             return
         self.window_mix_enabled_indices = {int(index) for index in indices}
 
+    def _load_dataset_index_cache(self) -> dict[str, Any]:
+        if not self._dataset_index_cache_path.exists():
+            return {'version': 1, 'sessions': {}}
+        try:
+            payload = json.loads(self._dataset_index_cache_path.read_text(encoding='utf-8'))
+        except Exception:
+            return {'version': 1, 'sessions': {}}
+        sessions_payload = payload.get('sessions')
+        if not isinstance(sessions_payload, dict):
+            return {'version': 1, 'sessions': {}}
+        return {'version': 1, 'sessions': sessions_payload}
+
+    def _save_dataset_index_cache(self) -> None:
+        payload = {'version': 1, 'sessions': self._dataset_index_cache.get('sessions', {})}
+        self._dataset_index_cache_path.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
+
+    def _load_dataset_stats_cache(self) -> dict[str, Any]:
+        if not self._dataset_stats_cache_path.exists():
+            return {'entries': {}}
+        try:
+            payload = json.loads(self._dataset_stats_cache_path.read_text(encoding='utf-8'))
+        except Exception:
+            return {'entries': {}}
+        if not isinstance(payload, dict):
+            return {'entries': {}}
+        entries = payload.get('entries')
+        if not isinstance(entries, dict):
+            return {'entries': {}}
+        return {'entries': entries}
+
+    def _save_dataset_stats_cache(self, payload: dict[str, Any]) -> None:
+        self._dataset_stats_cache_path.write_text(json.dumps(payload, ensure_ascii=False), encoding='utf-8')
+
+    @staticmethod
+    def _build_session_fingerprint(track_csv: Path, track_clip_file: Path, matched_file: Path, rd_clip_file: Path) -> str:
+        parts: list[str] = []
+        for path in (track_csv, track_clip_file, matched_file, rd_clip_file):
+            if path.exists():
+                stat = path.stat()
+                parts.append(f'{path.name}:{stat.st_size}:{stat.st_mtime_ns}')
+            else:
+                parts.append(f'{path.name}:missing')
+        return '|'.join(parts)
+
+    def _get_track_frame(self, session_id: str) -> pd.DataFrame:
+        context = self.sessions[session_id]
+        if context.track_frame is None:
+            context.track_frame = pd.read_csv(context.track_csv_path).sort_values('t')
+        return context.track_frame
+
     def fit_track_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        cache_key = {
+            'kind': 'track_feature',
+            'sessions': list(session_ids) if session_ids is not None else '__all__',
+            'columns': list(self.feature_columns),
+            'normalization_mode': 'by_source_v1',
+        }
+        cache_payload = self._load_dataset_stats_cache()
+        cache_entry = cache_payload.get('entries', {}).get('track_feature', {})
+        if cache_entry.get('cache_key') == cache_key:
+            center = np.asarray(cache_entry.get('center', []), dtype=np.float32)
+            scale = np.asarray(cache_entry.get('scale', []), dtype=np.float32)
+            if center.size == len(self.feature_columns) and scale.size == len(self.feature_columns):
+                self.set_track_normalization(center.reshape(1, -1), scale.reshape(1, -1), by_source=cache_entry.get('by_source'))
+                return self.get_track_normalization()
+
         feature_blocks: list[np.ndarray] = []
+        feature_blocks_by_source: dict[str, list[np.ndarray]] = {}
         selected_session_ids = set(session_ids) if session_ids is not None else None
         for session_id, context in self.sessions.items():
             if selected_session_ids is not None and session_id not in selected_session_ids:
                 continue
-            augmented = self._augment_track_features(context.track_frame.copy())
+            augmented = self._augment_track_features(self._get_track_frame(session_id).copy())
             for column in self.feature_columns:
                 if column not in augmented.columns:
                     augmented[column] = 0.0
-            feature_blocks.append(augmented.loc[:, self.feature_columns].to_numpy(dtype=np.float32))
+            values = augmented.loc[:, self.feature_columns].to_numpy(dtype=np.float32)
+            feature_blocks.append(values)
+            feature_blocks_by_source.setdefault(str(context.source_name), []).append(values)
 
         stacked = np.concatenate(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.feature_columns)), dtype=np.float32)
         center = np.median(stacked, axis=0, keepdims=True)
@@ -128,17 +282,53 @@ class RadarFusionDataset(Dataset):
         q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
         scale = q75 - q25
         scale[scale < 1e-3] = 1.0
-        self.track_feature_center = center.astype(np.float32)
-        self.track_feature_scale = scale.astype(np.float32)
+        by_source_payload: dict[str, dict[str, list[float]]] = {}
+        for source_name, blocks in feature_blocks_by_source.items():
+            source_stacked = np.concatenate(blocks, axis=0) if blocks else np.zeros((1, len(self.feature_columns)), dtype=np.float32)
+            source_center = np.median(source_stacked, axis=0, keepdims=True)
+            source_q25 = np.percentile(source_stacked, 25, axis=0, keepdims=True)
+            source_q75 = np.percentile(source_stacked, 75, axis=0, keepdims=True)
+            source_scale = source_q75 - source_q25
+            source_scale[source_scale < 1e-3] = 1.0
+            by_source_payload[str(source_name)] = {
+                'center': source_center.reshape(-1).astype(np.float32).tolist(),
+                'scale': source_scale.reshape(-1).astype(np.float32).tolist(),
+            }
+        self.set_track_normalization(center.astype(np.float32), scale.astype(np.float32), by_source=by_source_payload)
+        cache_payload.setdefault('entries', {})['track_feature'] = {
+            'cache_key': cache_key,
+            'center': self.track_feature_center.reshape(-1).tolist(),
+            'scale': self.track_feature_scale.reshape(-1).tolist(),
+            'by_source': by_source_payload,
+        }
+        self._save_dataset_stats_cache(cache_payload)
         return self.get_track_normalization()
 
     def fit_track_global_normalization_for_sessions(self, session_ids: Sequence[str] | None = None) -> tuple[np.ndarray, np.ndarray]:
+        cache_key = {
+            'kind': 'track_global_feature',
+            'sessions': list(session_ids) if session_ids is not None else '__all__',
+            'columns': list(self.global_feature_columns),
+            'normalization_mode': 'by_source_v1',
+        }
+        cache_payload = self._load_dataset_stats_cache()
+        cache_entry = cache_payload.get('entries', {}).get('track_global_feature', {})
+        if cache_entry.get('cache_key') == cache_key:
+            center = np.asarray(cache_entry.get('center', []), dtype=np.float32)
+            scale = np.asarray(cache_entry.get('scale', []), dtype=np.float32)
+            if center.size == len(self.global_feature_columns) and scale.size == len(self.global_feature_columns):
+                self.set_track_global_normalization(center.reshape(1, -1), scale.reshape(1, -1), by_source=cache_entry.get('by_source'))
+                return self.get_track_global_normalization()
+
         feature_blocks: list[np.ndarray] = []
+        feature_blocks_by_source: dict[str, list[np.ndarray]] = {}
         selected_session_ids = set(session_ids) if session_ids is not None else None
         for record in self.samples:
             if selected_session_ids is not None and record.session_id not in selected_session_ids:
                 continue
-            feature_blocks.append(self._extract_track_global_features(record))
+            values = self._extract_track_global_features(record)
+            feature_blocks.append(values)
+            feature_blocks_by_source.setdefault(str(record.source_name), []).append(values)
 
         stacked = np.stack(feature_blocks, axis=0) if feature_blocks else np.zeros((1, len(self.global_feature_columns)), dtype=np.float32)
         center = np.median(stacked, axis=0, keepdims=True)
@@ -146,8 +336,26 @@ class RadarFusionDataset(Dataset):
         q75 = np.percentile(stacked, 75, axis=0, keepdims=True)
         scale = q75 - q25
         scale[scale < 1e-3] = 1.0
-        self.track_global_center = center.astype(np.float32)
-        self.track_global_scale = scale.astype(np.float32)
+        by_source_payload: dict[str, dict[str, list[float]]] = {}
+        for source_name, blocks in feature_blocks_by_source.items():
+            source_stacked = np.stack(blocks, axis=0) if blocks else np.zeros((1, len(self.global_feature_columns)), dtype=np.float32)
+            source_center = np.median(source_stacked, axis=0, keepdims=True)
+            source_q25 = np.percentile(source_stacked, 25, axis=0, keepdims=True)
+            source_q75 = np.percentile(source_stacked, 75, axis=0, keepdims=True)
+            source_scale = source_q75 - source_q25
+            source_scale[source_scale < 1e-3] = 1.0
+            by_source_payload[str(source_name)] = {
+                'center': source_center.reshape(-1).astype(np.float32).tolist(),
+                'scale': source_scale.reshape(-1).astype(np.float32).tolist(),
+            }
+        self.set_track_global_normalization(center.astype(np.float32), scale.astype(np.float32), by_source=by_source_payload)
+        cache_payload.setdefault('entries', {})['track_global_feature'] = {
+            'cache_key': cache_key,
+            'center': self.track_global_center.reshape(-1).tolist(),
+            'scale': self.track_global_scale.reshape(-1).tolist(),
+            'by_source': by_source_payload,
+        }
+        self._save_dataset_stats_cache(cache_payload)
         return self.get_track_global_normalization()
 
     def build_session_index(self) -> dict[str, list[int]]:
@@ -257,52 +465,109 @@ class RadarFusionDataset(Dataset):
         track_clip_file = session_dir / "labels/labels_trackclip.jsonl"
         matched_file = session_dir / "labels/labels_matched.jsonl"
         rd_clip_file = session_dir / "radar/rd/rd_clips.h5"
+        meta_file = session_dir / "meta_session.json"
 
         if not track_csv.exists() or not track_clip_file.exists() or not matched_file.exists():
             return None, []
 
-        track_frame = pd.read_csv(track_csv).sort_values("t")
-        label_by_track = {
-            int(item["track_id"]): str(item["label_main"])
-            for item in self._load_jsonl(matched_file)
-            if "track_id" in item and "label_main" in item
-        }
-        if not label_by_track:
-            return None, []
-
-        available_rd_keys: set[str] = set()
-        if self.include_rd and rd_clip_file.exists():
-            with h5py.File(rd_clip_file, "r") as handle:
-                available_rd_keys = set(handle.keys())
-
+        fingerprint = self._build_session_fingerprint(track_csv, track_clip_file, matched_file, rd_clip_file)
+        source_name = 'Unknown'
+        session_label_name = None
+        if meta_file.exists():
+            try:
+                meta_payload = json.loads(meta_file.read_text(encoding='utf-8'))
+                source_name = str(meta_payload.get('source_name') or meta_payload.get('source') or 'Unknown')
+                if self.label_granularity == 'detail':
+                    session_label_name = str(meta_payload.get('label_detail') or meta_payload.get('label_name') or meta_payload.get('label_main') or '')
+                else:
+                    session_label_name = str(meta_payload.get('label_coarse') or meta_payload.get('label_name') or meta_payload.get('label_main') or '')
+            except Exception:
+                source_name = 'Unknown'
+                session_label_name = None
+        cached_session = self._dataset_index_cache.get('sessions', {}).get(session_dir.name)
         records: list[ClipRecord] = []
-        for clip in self._load_jsonl(track_clip_file):
-            track_id = int(clip["track_id"])
-            label_name = label_by_track.get(track_id)
-            if label_name is None:
-                continue
-
-            rd_key = f"rd_clip_{clip['sample_id']}"
-            has_rd = self.include_rd and rd_key in available_rd_keys
-            records.append(
-                ClipRecord(
-                    session_id=session_dir.name,
-                    sample_id=str(clip["sample_id"]),
-                    track_id=track_id,
-                    label_name=label_name,
-                    t0=float(clip["t0"]),
-                    t1=float(clip["t1"]),
-                    rd_key=rd_key,
-                    rd_path=rd_clip_file if rd_clip_file.exists() else None,
-                    has_rd=has_rd,
+        if isinstance(cached_session, dict) and cached_session.get('fingerprint') == fingerprint:
+            for item in cached_session.get('records', []):
+                cached_label_name = str(item.get('label_name', ''))
+                if session_label_name:
+                    coarse_like = str(cached_label_name).split('__', 1)[0]
+                    desired_coarse = str(session_label_name).split('__', 1)[0]
+                    if coarse_like == desired_coarse:
+                        cached_label_name = str(session_label_name)
+                records.append(
+                    ClipRecord(
+                        session_id=session_dir.name,
+                        sample_id=str(item['sample_id']),
+                        track_id=int(item['track_id']),
+                        label_name=cached_label_name,
+                        source_name=str(item.get('source_name', source_name)),
+                        t0=float(item['t0']),
+                        t1=float(item['t1']),
+                        rd_key=f"rd_clip_{item['sample_id']}",
+                        rd_path=rd_clip_file if rd_clip_file.exists() else None,
+                        has_rd=bool(item['has_rd']),
+                    )
                 )
-            )
+        else:
+            label_by_track = {
+                int(item["track_id"]): str(session_label_name or item["label_main"])
+                for item in self._load_jsonl(matched_file)
+                if "track_id" in item and "label_main" in item
+            }
+            if not label_by_track:
+                return None, []
+
+            available_rd_keys: set[str] = set()
+            if self.include_rd and rd_clip_file.exists():
+                with h5py.File(rd_clip_file, "r") as handle:
+                    available_rd_keys = set(handle.keys())
+
+            cache_records: list[dict[str, Any]] = []
+            for clip in self._load_jsonl(track_clip_file):
+                track_id = int(clip["track_id"])
+                label_name = label_by_track.get(track_id)
+                if label_name is None:
+                    continue
+
+                sample_id = str(clip["sample_id"])
+                rd_key = f"rd_clip_{sample_id}"
+                has_rd = self.include_rd and rd_key in available_rd_keys
+                records.append(
+                    ClipRecord(
+                        session_id=session_dir.name,
+                        sample_id=sample_id,
+                        track_id=track_id,
+                        label_name=label_name,
+                        source_name=source_name,
+                        t0=float(clip["t0"]),
+                        t1=float(clip["t1"]),
+                        rd_key=rd_key,
+                        rd_path=rd_clip_file if rd_clip_file.exists() else None,
+                        has_rd=has_rd,
+                    )
+                )
+                cache_records.append(
+                    {
+                        'sample_id': sample_id,
+                        'track_id': int(track_id),
+                        'label_name': label_name,
+                        'source_name': source_name,
+                        't0': float(clip['t0']),
+                        't1': float(clip['t1']),
+                        'has_rd': bool(has_rd),
+                    }
+                )
+            self._dataset_index_cache.setdefault('sessions', {})[session_dir.name] = {
+                'fingerprint': fingerprint,
+                'records': cache_records,
+            }
+            self._dataset_index_cache_dirty = True
 
         if not records:
             return None, []
 
         rd_data_file = session_dir / "radar/rd/rd_data.h5"
-        return SessionContext(track_frame=track_frame, rd_data_path=rd_data_file if rd_data_file.exists() else None), records
+        return SessionContext(track_csv_path=track_csv, rd_data_path=rd_data_file if rd_data_file.exists() else None, source_name=source_name), records
 
     @staticmethod
     def _load_jsonl(file_path: Path) -> list[dict[str, Any]]:
@@ -351,8 +616,13 @@ class RadarFusionDataset(Dataset):
         scale[scale < 1e-6] = 1.0
         return center.astype(np.float32), scale.astype(np.float32)
 
-    def _normalize_track_sequence(self, array: np.ndarray) -> np.ndarray:
-        normalized = (array - self.track_feature_center) / self.track_feature_scale
+    def _normalize_track_sequence(self, array: np.ndarray, source_name: str | None = None) -> np.ndarray:
+        center = self.track_feature_center
+        scale = self.track_feature_scale
+        if source_name is not None and source_name in self.track_feature_center_by_source and source_name in self.track_feature_scale_by_source:
+            center = self.track_feature_center_by_source[source_name]
+            scale = self.track_feature_scale_by_source[source_name]
+        normalized = (array - center) / scale
         normalized = np.clip(normalized, -8.0, 8.0)
         return normalized.astype(np.float32)
 
@@ -366,10 +636,15 @@ class RadarFusionDataset(Dataset):
         scale[scale < 1e-3] = 1.0
         return center.astype(np.float32), scale.astype(np.float32)
 
-    def _normalize_track_global_features(self, feature_vector: np.ndarray) -> np.ndarray:
+    def _normalize_track_global_features(self, feature_vector: np.ndarray, source_name: str | None = None) -> np.ndarray:
         if feature_vector.size == 0:
             return feature_vector.astype(np.float32)
-        normalized = (feature_vector - self.track_global_center.reshape(-1)) / self.track_global_scale.reshape(-1)
+        center = self.track_global_center.reshape(-1)
+        scale = self.track_global_scale.reshape(-1)
+        if source_name is not None and source_name in self.track_global_center_by_source and source_name in self.track_global_scale_by_source:
+            center = self.track_global_center_by_source[source_name].reshape(-1)
+            scale = self.track_global_scale_by_source[source_name].reshape(-1)
+        normalized = (feature_vector - center) / scale
         normalized = np.clip(normalized, -8.0, 8.0)
         return normalized.astype(np.float32)
 
@@ -543,7 +818,7 @@ class RadarFusionDataset(Dataset):
         if context.rd_data_path is None or not context.rd_data_path.exists():
             return None
 
-        track_frame = context.track_frame
+        track_frame = self._get_track_frame(record.session_id)
         window = track_frame[
             (track_frame["track_id"] == record.track_id)
             & (track_frame["t"] >= record.t0)
@@ -568,7 +843,7 @@ class RadarFusionDataset(Dataset):
             sorted_order = np.argsort(frame_indices, kind="stable")
             sorted_indices = frame_indices[sorted_order]
             unique_indices, inverse_indices = np.unique(sorted_indices, return_inverse=True)
-            unique_rd_frames = np.asarray(rd_frames_dataset[unique_indices])
+            unique_rd_frames = self._sanitize_rd_array(np.asarray(rd_frames_dataset[unique_indices]))
             sorted_rd_cube = unique_rd_frames[inverse_indices]
             restore_order = np.argsort(sorted_order, kind="stable")
             global_rd_cube = sorted_rd_cube[restore_order]
@@ -580,7 +855,7 @@ class RadarFusionDataset(Dataset):
         return global_rd_cube
 
     def _build_track_window(self, record: ClipRecord) -> pd.DataFrame:
-        track_frame = self.sessions[record.session_id].track_frame
+        track_frame = self._get_track_frame(record.session_id)
         window = track_frame[
             (track_frame["track_id"] == record.track_id)
             & (track_frame["t"] >= record.t0)
@@ -626,7 +901,7 @@ class RadarFusionDataset(Dataset):
 
         sequence = window.loc[:, self.feature_columns].to_numpy(dtype=np.float32)
         sequence = self._resample_sequence(sequence, target_length or self.sequence_length)
-        return self._normalize_track_sequence(sequence)
+        return self._normalize_track_sequence(sequence, source_name=record.source_name)
 
     def _load_track_global_features(self, record: ClipRecord) -> np.ndarray:
         return self._normalize_track_global_features(self._extract_track_global_features(record))
@@ -636,7 +911,7 @@ class RadarFusionDataset(Dataset):
             return np.zeros((self.rd_input_channels, self.rd_frames, self.rd_height, self.rd_width), dtype=np.float32)
 
         with h5py.File(record.rd_path, "r") as handle:
-            rd_cube = np.asarray(handle[record.rd_key][:])
+            rd_cube = self._sanitize_rd_array(np.asarray(handle[record.rd_key][:]))
 
         if rd_cube.ndim == 2:
             rd_cube = rd_cube[None, :, :]
@@ -686,7 +961,7 @@ class RadarFusionDataset(Dataset):
             0 if record.label_name == "ShipTarget" else 1 if record.label_name == "AircraftTarget" else 2 if record.label_name in {"BirdTarget", "DroneTarget"} else -1
         )
         raw_global_features = self._extract_track_global_features(record)
-        global_features = self._normalize_track_global_features(raw_global_features)
+        global_features = self._normalize_track_global_features(raw_global_features, source_name=record.source_name)
         global_feature_lookup = {name: idx for idx, name in enumerate(self.global_feature_columns)}
         clip_speed_mean = float(raw_global_features[global_feature_lookup["clip_speed_mean_mps"]]) if "clip_speed_mean_mps" in global_feature_lookup else 0.0
         clip_speed_direction_consistency = float(raw_global_features[global_feature_lookup["clip_speed_direction_consistency"]]) if "clip_speed_direction_consistency" in global_feature_lookup else 0.0
@@ -717,6 +992,7 @@ class RadarFusionDataset(Dataset):
             "rd_features": self._load_rd_cube(record),
             "label": np.int64(self.label_to_index[record.label_name]),
             "label_name": record.label_name,
+            "source_name": record.source_name,
             "has_rd": np.int64(record.has_rd),
             "bird_rd_target": bird_rd_target,
             "bird_surface_target": bird_surface_target,

@@ -1,0 +1,25 @@
+# RadarInsight CUDA environment package list
+# Usage on NVIDIA machine:
+# 1) python -m venv .venv
+# 2) .\.venv\Scripts\python.exe -m pip install --upgrade pip
+# 3) .\.venv\Scripts\python.exe -m pip install -r cuda.txt
+#
+# Notes:
+# - This file targets NVIDIA CUDA 12.1 wheels for PyTorch.
+# - If your target machine uses a different CUDA-compatible wheel set,
+#   adjust the --extra-index-url line or reinstall torch separately.
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+numpy>=1.24.0,<3.0
+pandas>=2.0.0,<3.0
+h5py>=3.8.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+pyyaml>=6.0
+opencv-python>=4.7.0
+tqdm>=4.65.0
+openpyxl>=3.1.0
+
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+torchaudio==2.5.1+cu121

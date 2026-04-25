@@ -11,6 +11,8 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 
 from src.models.fusion_classifier import FusionRadarClassifier
+from src.models.session_bag_classifier import SessionBagRadarClassifier
+from src.training.session_bag import SessionBagDataset, session_bag_collate_fn
 from src.training.curated_manifest import build_manifest_mask, load_curated_clip_manifest
 from src.training.config import TrainingConfig
 from src.training.session_manager import build_dataset, build_session_manifest, build_session_subsets, save_session_manifest
@@ -319,10 +321,16 @@ def _resolve_subset_labels(data_source: Any) -> list[int]:
     if isinstance(data_source, Subset):
         parent = data_source.dataset
         indices = data_source.indices
-        return [parent.label_to_index[parent.samples[index].label_name] for index in indices]
+        if hasattr(parent, "samples") and hasattr(parent, "label_to_index"):
+            return [parent.label_to_index[parent.samples[index].label_name] for index in indices]
+        if hasattr(parent, "base_dataset") and hasattr(parent, "session_ids"):
+            return [int(parent[index]["label"]) for index in indices]
 
-    if isinstance(data_source, RadarFusionDataset):
+    if hasattr(data_source, "samples") and hasattr(data_source, "label_to_index"):
         return [data_source.label_to_index[sample.label_name] for sample in data_source.samples]
+
+    if hasattr(data_source, "session_ids") and hasattr(data_source, "__getitem__"):
+        return [int(data_source[index]["label"]) for index in range(len(data_source))]
 
     raise TypeError("Unsupported dataset type for label extraction.")
 
@@ -411,76 +419,6 @@ def _resolve_epoch_fusion_controls(config: TrainingConfig, epoch: int) -> dict[s
     }
 
 
-def _derive_session_id(sample_id: str) -> str:
-    parts = str(sample_id).split("_")
-    if len(parts) >= 3:
-        return "_".join(parts[:-2])
-    return str(sample_id)
-
-
-class SessionGroupedBatchSampler:
-    def __init__(self, subset: Subset, batch_size: int, shuffle: bool = True):
-        self.subset = subset
-        self.batch_size = max(int(batch_size), 1)
-        self.shuffle = shuffle
-        dataset = subset.dataset
-        session_to_positions: dict[str, list[int]] = {}
-        for position, dataset_index in enumerate(subset.indices):
-            sample = dataset.samples[dataset_index]
-            session_to_positions.setdefault(str(sample.session_id), []).append(int(position))
-        self.session_to_indices = session_to_positions
-
-    def __iter__(self):
-        session_items = list(self.session_to_indices.items())
-        if self.shuffle:
-            random.shuffle(session_items)
-        batches: list[list[int]] = []
-        for _, indices in session_items:
-            resolved_indices = list(indices)
-            if self.shuffle:
-                random.shuffle(resolved_indices)
-            for start in range(0, len(resolved_indices), self.batch_size):
-                batch = resolved_indices[start:start + self.batch_size]
-                if batch:
-                    batches.append(batch)
-        if self.shuffle:
-            random.shuffle(batches)
-        for batch in batches:
-            yield batch
-
-    def __len__(self) -> int:
-        total = 0
-        for indices in self.session_to_indices.values():
-            total += (len(indices) + self.batch_size - 1) // self.batch_size
-        return total
-
-
-def _build_session_logit_loss(
-    logits: torch.Tensor,
-    labels: torch.Tensor,
-    sample_ids: Sequence[str],
-    criterion: nn.Module,
-) -> torch.Tensor:
-    if logits.ndim != 2 or logits.size(0) == 0:
-        return logits.new_zeros(())
-
-    session_to_positions: dict[str, list[int]] = {}
-    for position, sample_id in enumerate(sample_ids):
-        session_to_positions.setdefault(_derive_session_id(str(sample_id)), []).append(position)
-
-    if not session_to_positions:
-        return logits.new_zeros(())
-
-    aggregated_logits: list[torch.Tensor] = []
-    aggregated_labels: list[torch.Tensor] = []
-    for positions in session_to_positions.values():
-        index_tensor = torch.as_tensor(positions, dtype=torch.long, device=logits.device)
-        aggregated_logits.append(logits.index_select(0, index_tensor).mean(dim=0))
-        aggregated_labels.append(labels[index_tensor[0]])
-
-    return criterion(torch.stack(aggregated_logits, dim=0), torch.stack(aggregated_labels, dim=0))
-
-
 def build_dataloaders(
     config: TrainingConfig,
     session_ids: Sequence[str] | None = None,
@@ -519,6 +457,106 @@ def build_dataloaders(
     if hasattr(dataset, "set_window_mix_enabled_indices"):
         dataset.set_window_mix_enabled_indices(getattr(train_dataset, "indices", None))
 
+    if bool(getattr(config, "use_session_bag_training", False)):
+        bag_batch_size = max(1, int(getattr(config, 'session_bag_batch_size', 1)))
+        bag_shuffle = bool(getattr(config, 'session_bag_shuffle', True))
+        bag_sort_by_length = bool(getattr(config, 'session_bag_sort_by_length', True))
+        train_bag_dataset = SessionBagDataset(
+            base_dataset=dataset,
+            indices=getattr(train_dataset, 'indices', []),
+            max_clips=int(getattr(config, 'session_bag_max_clips', 32)),
+            random_sampling=bool(getattr(config, 'session_bag_random_sampling', True)),
+            sort_by_length=bag_sort_by_length,
+        )
+        val_bag_dataset = None if val_dataset is None else SessionBagDataset(
+            base_dataset=dataset,
+            indices=getattr(val_dataset, 'indices', []),
+            max_clips=int(getattr(config, 'session_bag_max_clips', 32)),
+            random_sampling=False,
+            sort_by_length=bag_sort_by_length,
+        )
+        test_bag_dataset = None if test_dataset is None else SessionBagDataset(
+            base_dataset=dataset,
+            indices=getattr(test_dataset, 'indices', []),
+            max_clips=int(getattr(config, 'session_bag_max_clips', 32)),
+            random_sampling=False,
+            sort_by_length=bag_sort_by_length,
+        )
+        train_bag_sampler = None
+        if len(train_bag_dataset) > 0:
+            if bool(getattr(config, 'session_bag_source_class_balanced_sampling', False)):
+                session_bag_labels = [int(train_bag_dataset[index]["label"]) for index in range(len(train_bag_dataset))]
+                session_bag_sources = [str(train_bag_dataset[index]["source_name"]) for index in range(len(train_bag_dataset))]
+                source_counts: dict[str, int] = {}
+                class_counts = np.bincount(session_bag_labels, minlength=len(dataset.label_to_index)).astype(np.float64)
+                for source_name in session_bag_sources:
+                    source_counts[source_name] = source_counts.get(source_name, 0) + 1
+                source_temperature = max(1e-6, float(getattr(config, 'session_bag_source_balance_temperature', 1.0)))
+                class_temperature = max(1e-6, float(getattr(config, 'session_bag_class_balance_temperature', 0.5)))
+                people_cyclist_boost = max(1.0, float(getattr(config, 'session_bag_people_cyclist_sampling_boost', 1.0)))
+                bird_clutter_other_boost = max(1.0, float(getattr(config, 'session_bag_bird_clutter_other_sampling_boost', 1.0)))
+                sample_weights = []
+                for label_value, source_name in zip(session_bag_labels, session_bag_sources):
+                    source_count = max(float(source_counts.get(source_name, 1)), 1.0)
+                    class_count = max(float(class_counts[int(label_value)]), 1.0)
+                    source_weight = 1.0 / (source_count ** source_temperature)
+                    class_weight = 1.0 / (class_count ** class_temperature)
+                    label_name = dataset.index_to_label.get(int(label_value), '')
+                    boost = 1.0
+                    if source_name == 'Carrada' and label_name in {'PeopleTarget', 'CyclistTarget'}:
+                        boost *= people_cyclist_boost
+                    if source_name == 'CQ-08-MAT' and label_name in {'BirdTarget', 'ClutterTarget', 'OtherTarget'}:
+                        boost *= bird_clutter_other_boost
+                    sample_weights.append(source_weight * class_weight * boost)
+                train_bag_sampler = WeightedRandomSampler(
+                    weights=torch.tensor(sample_weights, dtype=torch.double),
+                    num_samples=len(sample_weights),
+                    replacement=True,
+                )
+                bag_shuffle = False
+            elif bool(getattr(config, 'session_bag_class_balanced_sampling', False)):
+                session_bag_labels = [int(train_bag_dataset[index]["label"]) for index in range(len(train_bag_dataset))]
+                label_counts = np.bincount(session_bag_labels, minlength=len(dataset.label_to_index)).astype(np.float64)
+                sample_weights = []
+                for label_value in session_bag_labels:
+                    count = max(float(label_counts[int(label_value)]), 1.0)
+                    sample_weights.append(1.0 / count)
+                train_bag_sampler = WeightedRandomSampler(
+                    weights=torch.tensor(sample_weights, dtype=torch.double),
+                    num_samples=len(sample_weights),
+                    replacement=True,
+                )
+                bag_shuffle = False
+        train_loader = DataLoader(
+            train_bag_dataset,
+            batch_size=bag_batch_size,
+            shuffle=bag_shuffle if train_bag_sampler is None else False,
+            sampler=train_bag_sampler,
+            num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
+            collate_fn=session_bag_collate_fn,
+        )
+        val_loader = None if val_bag_dataset is None else DataLoader(
+            val_bag_dataset,
+            batch_size=bag_batch_size,
+            shuffle=False,
+            num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
+            collate_fn=session_bag_collate_fn,
+        )
+        test_loader = None if test_bag_dataset is None else DataLoader(
+            test_bag_dataset,
+            batch_size=bag_batch_size,
+            shuffle=False,
+            num_workers=config.num_workers,
+            worker_init_fn=_seed_worker,
+            generator=data_loader_generator,
+            collate_fn=session_bag_collate_fn,
+        )
+        return dataset, train_loader, val_loader, test_loader, split_map
+
     train_sampler = None
     train_batch_sampler = None
     train_shuffle = True
@@ -529,12 +567,7 @@ def build_dataloaders(
     hard_bird_session_ids = {str(item) for item in getattr(config, "hard_bird_session_ids", ())}
     suspicious_ship_downweight_enabled = bool(getattr(config, "suspicious_ship_downweight_enabled", False))
     suspicious_ship_downweight_factor = float(getattr(config, "suspicious_ship_downweight_factor", 1.0))
-    session_grouped_batches = bool(getattr(config, "session_grouped_batches", False))
-    if session_grouped_batches and isinstance(train_dataset, Subset) and hasattr(dataset, "samples"):
-        train_batch_sampler = SessionGroupedBatchSampler(train_dataset, batch_size=config.batch_size, shuffle=True)
-        train_shuffle = False
-        train_sampler = None
-    elif (
+    if (
         sampling_boost > 1.0
         or (hard_ship_session_sampling_boost > 1.0 and hard_ship_session_ids)
         or (hard_bird_session_sampling_boost > 1.0 and hard_bird_session_ids)
@@ -624,6 +657,8 @@ def build_coarse_taxonomy(
 
     for label in ordered_labels:
         coarse_name = str(coarse_label_map.get(label, label))
+        if '__' in str(label):
+            coarse_name = str(label).split('__', 1)[0]
         if coarse_name not in coarse_name_to_index:
             coarse_name_to_index[coarse_name] = len(coarse_names)
             coarse_names.append(coarse_name)
@@ -871,6 +906,15 @@ def compute_losses(
             handler_loss = auxiliary_criterion(bird_ship_handler_logits[valid_mask], handler_targets)
             loss = loss + 0.5 * bird_ship_handler_weight * handler_loss
 
+    ship_drone_refiner_logits = outputs.get("ship_drone_refiner_logits") if isinstance(outputs, dict) else None
+    ship_drone_refiner_aux_loss_weight = float(getattr(config, "ship_drone_refiner_aux_loss_weight", 0.0))
+    if ship_drone_refiner_logits is not None and ship_drone_target is not None and ship_drone_refiner_aux_loss_weight > 0:
+        valid_mask = ship_drone_target >= 0.0
+        if valid_mask.any():
+            refiner_targets = ship_drone_target[valid_mask].long()
+            refiner_loss = auxiliary_criterion(ship_drone_refiner_logits[valid_mask], refiner_targets)
+            loss = loss + ship_drone_refiner_aux_loss_weight * refiner_loss
+
     rd_feature = outputs.get("rd_feature") if isinstance(outputs, dict) else None
     if getattr(config, "bird_surface_prototype_loss_weight", 0.0) > 0:
         prototype_loss = _bird_surface_prototype_loss(
@@ -981,6 +1025,7 @@ def run_epoch(
     optimizer: torch.optim.Optimizer | None = None,
 ) -> dict[str, float]:
     training = optimizer is not None
+    accumulation_steps = max(1, int(getattr(config, "gradient_accumulation_steps", 1)))
     if training:
         model.train()
     else:
@@ -991,7 +1036,153 @@ def run_epoch(
     all_labels: list[int] = []
     all_predictions: list[int] = []
 
-    for batch in data_loader:
+    if training:
+        optimizer.zero_grad(set_to_none=True)
+
+    for batch_index, batch in enumerate(data_loader, start=1):
+        if bool(getattr(config, "use_session_bag_training", False)):
+            clip_mask = batch["clip_mask"].to(device=device, dtype=torch.float32)
+            track_features = batch["track_features"].to(device=device, dtype=torch.float32)
+            track_global_features = batch["track_global_features"].to(device=device, dtype=torch.float32)
+            track_short_features = batch.get("track_short_features")
+            if track_short_features is not None:
+                track_short_features = track_short_features.to(device=device, dtype=torch.float32)
+            track_long_features = batch.get("track_long_features")
+            if track_long_features is not None:
+                track_long_features = track_long_features.to(device=device, dtype=torch.float32)
+            rd_features = None
+            rd_mask = None
+            if _env_flag("RD", bool(config.include_rd)):
+                rd_features = batch["rd_features"].to(device=device, dtype=torch.float32)
+                rd_mask = batch["has_rd"].to(device=device, dtype=torch.float32)
+            labels = batch["label"].to(device=device, dtype=torch.long)
+            bird_drone_target = batch.get("bird_drone_target")
+            if bird_drone_target is not None:
+                bird_drone_target = bird_drone_target.to(device=device, dtype=torch.float32)
+            bird_surface_target = batch.get("bird_surface_target")
+            if bird_surface_target is not None:
+                bird_surface_target = bird_surface_target.to(device=device, dtype=torch.float32)
+            track_router_target = batch.get("track_router_target")
+            if track_router_target is not None:
+                track_router_target = track_router_target.to(device=device, dtype=torch.long)
+            ship_drone_target = batch.get("ship_drone_target")
+            if ship_drone_target is not None:
+                ship_drone_target = ship_drone_target.to(device=device, dtype=torch.float32)
+            ship_bird_target = batch.get("ship_bird_target")
+            if ship_bird_target is not None:
+                ship_bird_target = ship_bird_target.to(device=device, dtype=torch.float32)
+
+            with torch.set_grad_enabled(training):
+                outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask, clip_mask)
+                session_logits = outputs["session_logits"]
+                loss = float(getattr(config, "session_loss_weight", 1.0)) * criterion(session_logits, labels)
+                clip_logits = outputs.get("clip_logits")
+                clip_loss_weight = float(getattr(config, "clip_loss_weight", 0.0))
+                if clip_loss_weight > 0 and clip_logits is not None:
+                    repeated_labels = labels.unsqueeze(1).expand(-1, clip_logits.size(1)).reshape(-1)
+                    flat_clip_logits = clip_logits.reshape(-1, clip_logits.size(-1))
+                    flat_clip_mask = clip_mask.reshape(-1) > 0.5
+                    if flat_clip_mask.any():
+                        loss = loss + clip_loss_weight * criterion(flat_clip_logits[flat_clip_mask], repeated_labels[flat_clip_mask])
+
+                attention_weights = outputs.get("session_attention_weights")
+                attention_entropy_loss_weight = float(getattr(config, "session_attention_entropy_loss_weight", 0.0))
+                if attention_weights is not None and attention_entropy_loss_weight > 0:
+                    safe_weights = attention_weights.clamp_min(1e-8)
+                    entropy = -(safe_weights * safe_weights.log()).sum(dim=1)
+                    valid_counts = clip_mask.sum(dim=1).clamp_min(1.0)
+                    max_entropy = valid_counts.log()
+                    normalized_entropy = entropy / max_entropy.clamp_min(1e-6)
+                    loss = loss - attention_entropy_loss_weight * normalized_entropy.mean()
+
+                session_track_router_logits = outputs.get("session_track_router_logits")
+                session_track_router_weight = float(getattr(config, "session_track_router_aux_loss_weight", 0.0))
+                if session_track_router_logits is not None and track_router_target is not None and session_track_router_weight > 0:
+                    valid_mask = track_router_target >= 0
+                    if valid_mask.any():
+                        router_loss = auxiliary_criterion(session_track_router_logits[valid_mask], track_router_target[valid_mask])
+                        loss = loss + session_track_router_weight * router_loss
+
+                session_ship_drone_logits = outputs.get("session_ship_drone_logits")
+                session_ship_drone_weight = float(getattr(config, "session_ship_drone_aux_loss_weight", 0.0))
+                if session_ship_drone_logits is not None and ship_drone_target is not None and session_ship_drone_weight > 0:
+                    valid_mask = ship_drone_target >= 0.0
+                    if valid_mask.any():
+                        ship_drone_loss = auxiliary_criterion(session_ship_drone_logits[valid_mask], ship_drone_target[valid_mask].long())
+                        loss = loss + session_ship_drone_weight * ship_drone_loss
+
+                session_ship_bird_logits = outputs.get("session_ship_bird_logits")
+                session_ship_bird_weight = float(getattr(config, "session_ship_bird_aux_loss_weight", 0.0))
+                if session_ship_bird_logits is not None and ship_bird_target is not None and session_ship_bird_weight > 0:
+                    valid_mask = ship_bird_target >= 0.0
+                    if valid_mask.any():
+                        ship_bird_loss = auxiliary_criterion(session_ship_bird_logits[valid_mask], ship_bird_target[valid_mask].long())
+                        loss = loss + session_ship_bird_weight * ship_bird_loss
+
+                session_bird_drone_logits = outputs.get("session_bird_drone_logits")
+                session_bird_drone_weight = float(getattr(config, "session_bird_drone_aux_loss_weight", 0.0))
+                if session_bird_drone_logits is not None and bird_drone_target is not None and session_bird_drone_weight > 0:
+                    valid_mask = bird_drone_target >= 0.0
+                    if valid_mask.any():
+                        bird_drone_loss = auxiliary_criterion(session_bird_drone_logits[valid_mask], bird_drone_target[valid_mask].long())
+                        loss = loss + session_bird_drone_weight * bird_drone_loss
+
+                session_bird_surface_logits = outputs.get("session_bird_surface_logits")
+                session_bird_surface_weight = float(getattr(config, "session_bird_surface_aux_loss_weight", 0.0))
+                if session_bird_surface_logits is not None and bird_surface_target is not None and session_bird_surface_weight > 0:
+                    valid_mask = bird_surface_target >= 0.0
+                    if valid_mask.any():
+                        bird_surface_loss = bird_surface_criterion(session_bird_surface_logits[valid_mask], bird_surface_target[valid_mask])
+                        loss = loss + session_bird_surface_weight * bird_surface_loss
+
+                session_people_cyclist_logits = outputs.get("session_people_cyclist_logits")
+                session_people_cyclist_weight = float(getattr(config, "session_people_cyclist_aux_loss_weight", 0.0))
+                if session_people_cyclist_logits is not None and session_people_cyclist_weight > 0:
+                    people_index = label_to_index.get("PeopleTarget")
+                    cyclist_index = label_to_index.get("CyclistTarget")
+                    if people_index is not None and cyclist_index is not None:
+                        valid_mask = (labels == people_index) | (labels == cyclist_index)
+                        if valid_mask.any():
+                            pair_target = (labels[valid_mask] == cyclist_index).long()
+                            people_cyclist_loss = auxiliary_criterion(session_people_cyclist_logits[valid_mask], pair_target)
+                            loss = loss + session_people_cyclist_weight * people_cyclist_loss
+
+                session_bird_clutter_other_logits = outputs.get("session_bird_clutter_other_logits")
+                session_bird_clutter_other_weight = float(getattr(config, "session_bird_clutter_other_aux_loss_weight", 0.0))
+                if session_bird_clutter_other_logits is not None and session_bird_clutter_other_weight > 0:
+                    bird_index = label_to_index.get("BirdTarget")
+                    clutter_index = label_to_index.get("ClutterTarget")
+                    other_index = label_to_index.get("OtherTarget")
+                    if bird_index is not None and clutter_index is not None and other_index is not None:
+                        valid_mask = (labels == bird_index) | (labels == clutter_index) | (labels == other_index)
+                        if valid_mask.any():
+                            subset_labels = labels[valid_mask]
+                            remapped = torch.full_like(subset_labels, fill_value=0)
+                            remapped[subset_labels == bird_index] = 0
+                            remapped[subset_labels == clutter_index] = 1
+                            remapped[subset_labels == other_index] = 2
+                            bird_clutter_other_loss = auxiliary_criterion(session_bird_clutter_other_logits[valid_mask], remapped)
+                            loss = loss + session_bird_clutter_other_weight * bird_clutter_other_loss
+
+                logits = session_logits
+                if training:
+                    scaled_loss = loss / accumulation_steps
+                    scaled_loss.backward()
+                    should_step = (batch_index % accumulation_steps == 0) or (batch_index == len(data_loader))
+                    if should_step:
+                        if config.max_grad_norm > 0:
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
+                        optimizer.step()
+                        optimizer.zero_grad(set_to_none=True)
+
+            predictions = logits.argmax(dim=-1)
+            batch_size = labels.size(0)
+            total_loss += loss.item() * batch_size
+            total_samples += batch_size
+            all_labels.extend(labels.detach().cpu().tolist())
+            all_predictions.extend(predictions.detach().cpu().tolist())
+            continue
+
         sample_ids = [str(item) for item in batch["sample_id"]]
         track_features = batch["track_features"].to(device=device, dtype=torch.float32)
         track_global_features = batch["track_global_features"].to(device=device, dtype=torch.float32)
@@ -1049,21 +1240,18 @@ def run_epoch(
             rd_mask = batch["has_rd"].to(device=device, dtype=torch.float32).view(-1, 1)
         labels = batch["label"].to(device=device, dtype=torch.long)
 
-        if training:
-            optimizer.zero_grad(set_to_none=True)
-
         with torch.set_grad_enabled(training):
             outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
             logits, loss = compute_losses(outputs, labels, criterion, auxiliary_criterion, notes_criterion, bird_drone_criterion, bird_surface_criterion, config, fine_to_coarse_index, label_to_index, rd_mask, notes_target, bird_rd_target, bird_drone_target, bird_surface_target, track_router_target, ship_drone_target, ship_bird_target, ship_air_target, suspicious_ship_hard_pattern, curated_ship_drone_mask, curated_bird_ship_mask)
-            session_logit_loss_weight = float(getattr(config, "session_logit_loss_weight", 0.0))
-            if session_logit_loss_weight > 0:
-                session_loss = _build_session_logit_loss(logits, labels, sample_ids, criterion)
-                loss = loss + session_logit_loss_weight * session_loss
             if training:
-                loss.backward()
-                if config.max_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
+                scaled_loss = loss / accumulation_steps
+                scaled_loss.backward()
+                should_step = (batch_index % accumulation_steps == 0) or (batch_index == len(data_loader))
+                if should_step:
+                    if config.max_grad_norm > 0:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_grad_norm)
                     optimizer.step()
+                    optimizer.zero_grad(set_to_none=True)
 
         predictions = logits.argmax(dim=-1)
         batch_size = labels.size(0)
@@ -1080,6 +1268,12 @@ def run_epoch(
 
 
 def _compute_selection_metric(config: TrainingConfig, val_metrics: dict[str, float]) -> float:
+    min_val_accuracy = float(getattr(config, "best_metric_min_val_accuracy", 0.0))
+    min_val_macro_f1 = float(getattr(config, "best_metric_min_val_macro_f1", 0.0))
+    if float(val_metrics.get("accuracy", 0.0)) < min_val_accuracy:
+        return float("-inf")
+    if float(val_metrics.get("macro_f1", 0.0)) < min_val_macro_f1:
+        return float("-inf")
     metric_name = str(getattr(config, "best_metric_name", "val_composite"))
     if metric_name == "val_macro_f1":
         return float(val_metrics.get("macro_f1", 0.0))
@@ -1114,8 +1308,10 @@ def save_training_artifacts(
         "session_splits": split_map,
         "track_feature_center": dataset.track_feature_center.tolist(),
         "track_feature_scale": dataset.track_feature_scale.tolist(),
+        "track_feature_by_source": dataset.get_track_normalization_by_source(),
         "track_global_center": dataset.track_global_center.tolist(),
         "track_global_scale": dataset.track_global_scale.tolist(),
+        "track_global_by_source": dataset.get_track_global_normalization_by_source(),
         "num_notes": getattr(dataset, "note_dim", 0),
     }
 
@@ -1150,7 +1346,7 @@ def run_training(
     coarse_to_index, fine_to_coarse_index = build_coarse_taxonomy(config, ordered_labels)
     fine_to_coarse_index = fine_to_coarse_index.to(resolved_device)
 
-    model = FusionRadarClassifier(
+    clip_model = FusionRadarClassifier(
         track_input_dim=config.feature_dim,
         track_global_feature_dim=config.global_feature_dim,
         num_classes=len(dataset.label_to_index),
@@ -1196,6 +1392,11 @@ def run_training(
         confusion_pair_handler_gate_threshold=float(getattr(config, "confusion_pair_handler_gate_threshold", 0.55)),
         confusion_ship_drone_handler_weight=float(getattr(config, "confusion_ship_drone_handler_weight", 0.0)),
         confusion_bird_ship_handler_weight=float(getattr(config, "confusion_bird_ship_handler_weight", 0.0)),
+        ship_drone_refiner_enabled=bool(getattr(config, "ship_drone_refiner_enabled", False)),
+        ship_drone_refiner_hidden_dim=int(getattr(config, "ship_drone_refiner_hidden_dim", 128)),
+        ship_drone_refiner_dropout=float(getattr(config, "ship_drone_refiner_dropout", 0.1)),
+        ship_drone_refiner_logit_weight=float(getattr(config, "ship_drone_refiner_logit_weight", 0.0)),
+        ship_drone_refiner_gate_threshold=float(getattr(config, "ship_drone_refiner_gate_threshold", 0.6)),
         rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
         rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
         min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),
@@ -1203,6 +1404,21 @@ def run_training(
         surface_rd_fusion_boost=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
         use_weighted_fusion_feature=bool(getattr(config, "use_weighted_fusion_feature", False)),
     ).to(resolved_device)
+
+    if bool(getattr(config, "use_session_bag_training", False)):
+        model = SessionBagRadarClassifier(
+            clip_model=clip_model,
+            num_classes=len(dataset.label_to_index),
+            embedding_dim=config.fusion_hidden_size * 2,
+            bag_hidden_dim=int(getattr(config, "session_bag_hidden_dim", config.fusion_hidden_size)),
+            dropout=float(getattr(config, "session_bag_dropout", 0.1)),
+            encoder_layers=int(getattr(config, "session_bag_encoder_layers", 2)),
+            attention_heads=int(getattr(config, "session_bag_attention_heads", 4)),
+            use_positional_encoding=bool(getattr(config, "session_bag_use_positional_encoding", True)),
+            use_stat_pooling=bool(getattr(config, "session_bag_use_stat_pooling", True)),
+        ).to(resolved_device)
+    else:
+        model = clip_model
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -1231,6 +1447,7 @@ def run_training(
     best_selection_metric = float("-inf")
     best_epoch = 0
     stale_epochs = 0
+    fallback_checkpoint = output_dir / "last_fusion_model.pt"
     history: list[dict[str, Any]] = []
     num_parameters = count_trainable_parameters(model)
 
@@ -1239,6 +1456,16 @@ def run_training(
         f"validation samples: {0 if val_loader is None else len(val_loader.dataset)}, "
         f"classes: {dataset.index_to_label}"
     )
+    if bool(getattr(config, "use_session_bag_training", False)):
+        logger.info(
+            "[*] Session bag mode | "
+            f"bag_batch_size={int(getattr(config, 'session_bag_batch_size', 1))} | "
+            f"max_clips={int(getattr(config, 'session_bag_max_clips', 32))} | "
+            f"random_sampling={bool(getattr(config, 'session_bag_random_sampling', True))} | "
+            f"shuffle={bool(getattr(config, 'session_bag_shuffle', True))} | "
+            f"sort_by_length={bool(getattr(config, 'session_bag_sort_by_length', True))} | "
+            f"grad_accum={max(1, int(getattr(config, 'gradient_accumulation_steps', 1)))}"
+        )
     logger.info(
         f"[*] Session split | train={split_map['train']} | val={split_map['val']} | test={split_map['test']}"
     )
@@ -1330,6 +1557,30 @@ def run_training(
         if scheduler is not None:
             scheduler.step()
 
+        output_dir.mkdir(parents=True, exist_ok=True)
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "config": config.to_dict(),
+                "label_to_index": dataset.label_to_index,
+                "coarse_to_index": coarse_to_index,
+                "fine_to_coarse_index": fine_to_coarse_index.detach().cpu().tolist(),
+                "best_epoch": best_epoch,
+                "best_macro_f1": best_macro_f1,
+                "best_selection_metric": best_selection_metric,
+                "num_parameters": num_parameters,
+                "track_feature_center": dataset.track_feature_center.tolist(),
+                "track_feature_scale": dataset.track_feature_scale.tolist(),
+                "track_feature_by_source": dataset.get_track_normalization_by_source(),
+                "track_global_center": dataset.track_global_center.tolist(),
+                "track_global_scale": dataset.track_global_scale.tolist(),
+                "track_global_by_source": dataset.get_track_global_normalization_by_source(),
+                "num_notes": getattr(dataset, "note_dim", 0),
+                "runtime_fusion_controls": fusion_controls,
+            },
+            fallback_checkpoint,
+        )
+
         selection_metric = _compute_selection_metric(config, val_metrics)
         if val_metrics["macro_f1"] >= best_macro_f1:
             best_macro_f1 = val_metrics["macro_f1"]
@@ -1352,9 +1603,12 @@ def run_training(
                     "num_parameters": num_parameters,
                     "track_feature_center": dataset.track_feature_center.tolist(),
                     "track_feature_scale": dataset.track_feature_scale.tolist(),
+                    "track_feature_by_source": dataset.get_track_normalization_by_source(),
                     "track_global_center": dataset.track_global_center.tolist(),
                     "track_global_scale": dataset.track_global_scale.tolist(),
+                    "track_global_by_source": dataset.get_track_global_normalization_by_source(),
                     "num_notes": getattr(dataset, "note_dim", 0),
+                    "runtime_fusion_controls": fusion_controls,
                 },
                 best_checkpoint,
             )
@@ -1378,9 +1632,16 @@ def run_training(
     manifest = build_session_manifest(data_root=config.data_root, include_rd=_env_flag("RD", bool(config.include_rd)), split_map=split_map)
     manifest_path = save_session_manifest(manifest, output_dir)
 
+    if not best_checkpoint.exists() and fallback_checkpoint.exists():
+        logger.info("[*] No checkpoint satisfied the selection floor; falling back to the last epoch checkpoint.")
+        best_checkpoint = fallback_checkpoint
+
     if best_checkpoint.exists():
         checkpoint_payload = load_checkpoint(best_checkpoint, map_location=resolved_device)
         model.load_state_dict(checkpoint_payload["model_state_dict"])
+        runtime_fusion_controls = checkpoint_payload.get("runtime_fusion_controls")
+        if runtime_fusion_controls and hasattr(model, "set_runtime_fusion_controls"):
+            model.set_runtime_fusion_controls(**runtime_fusion_controls)
 
     test_metrics = None
     if test_loader is not None:

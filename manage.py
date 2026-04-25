@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import json
+import shutil
 from datetime import datetime
 import os
 import sys
@@ -12,10 +14,13 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 sys.path.append(os.path.abspath("."))
 
 from src.labeling.truth_matcher import TruthMatcher
-from src.preprocessing.slicer import DataSlicer
-from src.prodata.excel_tsv_builder import prepare_excel_tsv_sessions, sync_tsv_sessions
-from src.prodata.tr_tsv_builder import prepare_tr_tsv_sessions, sync_tr_tsv_sessions
-from src.prodata.mat_session_builder import prepare_real_sessions, sync_prepared_sessions
+from pro.preprocessing.slicer import DataSlicer
+from pro.processing.excel_tsv_builder import prepare_excel_tsv_sessions, sync_tsv_sessions
+from pro.processing.tr_tsv_builder import prepare_tr_tsv_sessions, sync_tr_tsv_sessions
+from pro.processing.mat_session_builder import prepare_real_sessions, sync_prepared_sessions
+from pro.processing.cq08_session_builder import prepare_cq08_sessions, sync_cq08_sessions
+from pro.processing.carrada_pseudotrack_builder import build_carrada_pseudo_tracks, sync_carrada_pseudo_track_sessions
+from pro.processing.carrada_session_builder import prepare_carrada_sessions, sync_carrada_sessions
 from src.qc.integrity_check import DataIntegrityChecker
 from src.utils.logger import logger
 from src.utils.artifact_cleaner import clean_artifacts
@@ -38,7 +43,7 @@ def load_train_control(control_path: str = "train.json") -> dict:
     if not path.exists():
         return {}
     import json
-    with path.open("r", encoding="utf-8") as file:
+    with path.open("r", encoding="utf-8-sig") as file:
         return json.load(file)
 
 
@@ -309,7 +314,12 @@ def cmd_train(args, config):
         training_config["output_dir"] = args.output_dir
     else:
         resolved_epochs = int(training_config.get("epochs", 30))
-        resolved_batch_size = int(training_config.get("batch_size", 4))
+        resolved_batch_size = int(
+            training_config.get(
+                "session_bag_batch_size" if bool(training_config.get("use_session_bag_training", False)) else "batch_size",
+                1 if bool(training_config.get("use_session_bag_training", False)) else 4,
+            )
+        )
         resolved_device = (args.device or str(control.get("device", "cpu"))).split(":", 1)[0].lower()
         output_name = f"{datetime.now().strftime('%Y%m%d%H%M')}-{resolved_epochs}-{resolved_batch_size}-{resolved_device}"
         training_config["output_dir"] = f"artifacts/{output_name}"
@@ -318,9 +328,25 @@ def cmd_train(args, config):
         if removed:
             logger.info(f"[*] Removed low-value artifacts: {removed}")
 
+    resolved_session_ids = list(args.session_ids or [])
+    session_id_file = getattr(args, 'session_id_file', None)
+    if session_id_file:
+        session_file_path = Path(session_id_file)
+        if not session_file_path.exists():
+            logger.error(f"[!] Session id file not found: {session_id_file}")
+            return
+        try:
+            payload = json.loads(session_file_path.read_text(encoding='utf-8'))
+            if not isinstance(payload, list):
+                raise ValueError('session id file must contain a JSON array')
+            resolved_session_ids.extend(str(item) for item in payload)
+        except Exception as exc:
+            logger.error(f"[!] Failed to read session id file: {exc}")
+            return
+
     result = run_training(
         config_values=training_config,
-        session_ids=args.session_ids or None,
+        session_ids=resolved_session_ids or None,
         device=args.device or control.get("device"),
     )
 
@@ -352,10 +378,26 @@ def cmd_evaluate(args, config):
     resolved_output_dir = args.output_dir
     if not resolved_output_dir:
         resolved_output_dir = str(Path(args.checkpoint).parent)
+    resolved_session_ids = list(args.session_ids or [])
+    session_id_file = getattr(args, 'session_id_file', None)
+    if session_id_file:
+        session_file_path = Path(session_id_file)
+        if not session_file_path.exists():
+            logger.error(f"[!] Session id file not found: {session_id_file}")
+            return
+        try:
+            payload = json.loads(session_file_path.read_text(encoding='utf-8'))
+            if not isinstance(payload, list):
+                raise ValueError('session id file must contain a JSON array')
+            resolved_session_ids.extend(str(item) for item in payload)
+        except Exception as exc:
+            logger.error(f"[!] Failed to read session id file: {exc}")
+            return
+
     result = run_evaluation(
         checkpoint_path=args.checkpoint,
         config_values=training_config,
-        session_ids=args.session_ids or None,
+        session_ids=resolved_session_ids or None,
         data_root=args.data_root or control.get("data_root"),
         output_dir=resolved_output_dir,
         device=args.device or control.get("device"),
@@ -372,6 +414,50 @@ def cmd_evaluate(args, config):
     if applied_overrides:
         logger.info(f"Eval overrides: {applied_overrides}")
     logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_prepare_cq08(args, config):
+    processing_config = dict(config.get("pro_processing", {}))
+    preprocessing_config = dict(config.get("preprocessing", {}))
+    raw_root = args.raw_root or "pro/23/CQ-08"
+    output_root = args.output_root or "pro/sessions_cq08"
+    dataset_root = args.dataset_root or processing_config.get("dataset_root", "data/sessions")
+
+    summaries = prepare_cq08_sessions(
+        source_root=raw_root,
+        output_root=output_root,
+        session_ids=args.session_ids or None,
+        track_window_size_s=float(preprocessing_config.get("window_size_s", 8.0)),
+        track_overlap=float(preprocessing_config.get("overlap", 0.5)),
+        rd_crop_range_win=int(preprocessing_config.get("rd_crop_range_win", 16)),
+        rd_crop_doppler_win=int(preprocessing_config.get("rd_crop_doppler_win", 16)),
+        rd_align_smoothing_window=int(preprocessing_config.get("rd_align_smoothing_window", 5)),
+        rd_align_refine_range_radius=int(preprocessing_config.get("rd_align_refine_range_radius", 4)),
+        rd_align_refine_doppler_radius=int(preprocessing_config.get("rd_align_refine_doppler_radius", 4)),
+        rd_align_clip_range_margin=int(preprocessing_config.get("rd_align_clip_range_margin", 8)),
+        rd_align_clip_doppler_margin=int(preprocessing_config.get("rd_align_clip_doppler_margin", 5)),
+        rd_align_peak_guard_ratio=float(preprocessing_config.get("rd_align_peak_guard_ratio", 1.2)),
+        rd_align_max_range_shift=int(preprocessing_config.get("rd_align_max_range_shift", 4)),
+        rd_align_max_doppler_shift=int(preprocessing_config.get("rd_align_max_doppler_shift", 3)),
+    )
+    copied_sessions = sync_cq08_sessions(
+        processed_root=output_root,
+        dataset_root=dataset_root,
+        session_ids=args.session_ids or None,
+    )
+
+    logger.info("=" * 30)
+    logger.info("CQ-08 Preparation Summary")
+    logger.info("=" * 30)
+    logger.info(f"Prepared sessions: {len(summaries)}")
+    logger.info(f"Copied sessions to dataset root: {copied_sessions}")
+    for summary in summaries[:20]:
+        logger.info(
+            f"- {summary['session_id']} | label={summary['label']} | track_rows={summary['num_track_rows']} | "
+            f"point_rows={summary['num_point_rows']} | track_clips={summary['num_track_clips']} | "
+            f"rd_shape={summary['rd_shape']} | qc={summary['qc_status']}"
+        )
     logger.info("=" * 30)
 
 
@@ -483,6 +569,76 @@ def cmd_mine_hard_sessions(args, config):
     if applied_overrides:
         logger.info(f"Eval overrides: {applied_overrides}")
     logger.info(f"Report file: {result['report_path']}")
+    logger.info("=" * 30)
+
+
+def cmd_prepare_carrada_pseudotrack(args, config):
+    processing_config = dict(config.get("carrada_processing", {}))
+    raw_root = args.raw_root or processing_config.get("raw_root", "pro/Carrada")
+    output_root = args.output_root or processing_config.get("output_root", "pro/processed/carrada_pseudotrack_sessions")
+    dataset_root = args.dataset_root or processing_config.get("dataset_root", "data/sessions")
+
+    prepared = build_carrada_pseudo_tracks(
+        carrada_root=raw_root,
+        output_root=output_root,
+        sequence_ids=args.sequence_ids or None,
+    )
+    copied_sessions = sync_carrada_pseudo_track_sessions(
+        processed_root=output_root,
+        dataset_root=dataset_root,
+        sequence_ids=args.sequence_ids or None,
+    )
+
+    logger.info("=" * 30)
+    logger.info("Carrada Pseudo-Track Summary")
+    logger.info("=" * 30)
+    logger.info(f"Prepared sessions: {len(prepared)}")
+    logger.info(f"Copied sessions: {len(copied_sessions)}")
+    logger.info(f"Processed root: {output_root}")
+    logger.info(f"Dataset root: {dataset_root}")
+    logger.info("=" * 30)
+
+
+def cmd_prepare_carrada(args, config):
+    processing_config = dict(config.get("carrada_processing", {}))
+    raw_root = args.raw_root or processing_config.get("raw_root", "pro/Carrada")
+    output_root = args.output_root or processing_config.get("output_root", "pro/processed/carrada_sessions")
+    dataset_root = args.dataset_root or processing_config.get("dataset_root", "data/sessions_carrada")
+    frame_margin = int(args.frame_margin if args.frame_margin is not None else processing_config.get("frame_margin", 5))
+    sub_session_window_specs = args.sub_session_window_specs or processing_config.get("sub_session_window_specs", ['128:64', '64:32', '192:96'])
+    clean_outputs = bool(args.clean_outputs or processing_config.get("clean_outputs", False))
+
+    if clean_outputs:
+        output_path = Path(output_root)
+        dataset_path = Path(dataset_root)
+        if output_path.exists():
+            shutil.rmtree(output_path)
+        if dataset_path.exists():
+            shutil.rmtree(dataset_path)
+        logger.info(f"[*] Cleared previous Carrada outputs: {output_root}")
+        logger.info(f"[*] Cleared previous Carrada dataset sync: {dataset_root}")
+
+    prepared = prepare_carrada_sessions(
+        carrada_root=raw_root,
+        output_root=output_root,
+        sequence_ids=args.sequence_ids or None,
+        frame_margin=frame_margin,
+        sub_session_window_specs=sub_session_window_specs,
+    )
+    copied_sessions = sync_carrada_sessions(
+        processed_root=output_root,
+        dataset_root=dataset_root,
+        session_ids=args.session_ids or None,
+        sequence_ids=args.sequence_ids or None,
+    )
+
+    logger.info("=" * 30)
+    logger.info("Carrada Session Summary")
+    logger.info("=" * 30)
+    logger.info(f"Prepared sessions: {len(prepared)}")
+    logger.info(f"Copied sessions: {len(copied_sessions)}")
+    logger.info(f"Processed root: {output_root}")
+    logger.info(f"Dataset root: {dataset_root}")
     logger.info("=" * 30)
 
 
@@ -614,12 +770,19 @@ def build_parser() -> argparse.ArgumentParser:
     prepare_parser.add_argument("--dataset-root", dest="dataset_root", help="Final standardized dataset root copied for training")
     prepare_parser.add_argument("--multires-rd", dest="multires_rd", action="store_true", help="Enable the toTest multiresolution DPL-to-RD branch")
 
+    prepare_cq08_parser = subparsers.add_parser("prepare-cq08", help="Prepare CQ-08 raw echo, point-track, and track files into standardized sessions")
+    prepare_cq08_parser.add_argument("session_ids", nargs="*", help="Optional session IDs; defaults to all discovered CQ-08 sessions")
+    prepare_cq08_parser.add_argument("--raw-root", dest="raw_root", help="Root folder containing CQ-08 source directories")
+    prepare_cq08_parser.add_argument("--output-root", dest="output_root", help="Output folder for prepared CQ-08 sessions")
+    prepare_cq08_parser.add_argument("--dataset-root", dest="dataset_root", help="Final standardized dataset root copied for training")
+
     process_parser = subparsers.add_parser("process", help="Run QC, slicing, and matching")
     process_parser.add_argument("session_id", help="Session identifier")
     process_parser.add_argument("--rd", action="store_true", help="Enable RD clip extraction")
 
     train_parser = subparsers.add_parser("train", help="Train the track/RD classifier; modality switches are controlled by TRACK and RD environment variables")
     train_parser.add_argument("session_ids", nargs="*", help="Optional session IDs; defaults to all session folders")
+    train_parser.add_argument("--session-id-file", dest="session_id_file", help="JSON file containing an array of session IDs")
     train_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
     train_parser.add_argument("--output-dir", dest="output_dir", help="Directory for checkpoints and history")
     train_parser.add_argument("--epochs", type=int, help="Number of training epochs")
@@ -632,6 +795,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser = subparsers.add_parser("evaluate", help="Evaluate a checkpoint on held-out or specified sessions")
     eval_parser.add_argument("checkpoint", help="Path to a saved checkpoint file")
     eval_parser.add_argument("session_ids", nargs="*", help="Optional explicit session IDs to evaluate")
+    eval_parser.add_argument("--session-id-file", dest="session_id_file", help="JSON file containing an array of session IDs")
     eval_parser.add_argument("--data-root", dest="data_root", help="Root folder containing session directories")
     eval_parser.add_argument("--output-dir", dest="output_dir", help="Directory for evaluation outputs")
     eval_parser.add_argument("--device", help="Evaluation device, for example cpu or cuda")
@@ -662,6 +826,22 @@ def build_parser() -> argparse.ArgumentParser:
     mine_hard_sessions_parser.add_argument("--train-control", dest="train_control", default="train.json", help="Unified training control JSON file")
     mine_hard_sessions_parser.add_argument("--top-k", dest="top_k", type=int, default=3, help="Number of hardest sessions to export")
     mine_hard_sessions_parser.add_argument("--min-error-clips", dest="min_error_clips", type=int, default=1, help="Minimum error clips required for a session to be selected")
+
+    carrada_parser = subparsers.add_parser("prepare-carrada-pseudotrack", help="Build pseudo-track sessions from Carrada RD-only sequences")
+    carrada_parser.add_argument("--raw-root", default=None, help="Carrada root directory")
+    carrada_parser.add_argument("--output-root", default=None, help="Processed Carrada pseudo-track session root")
+    carrada_parser.add_argument("--dataset-root", default=None, help="Destination dataset root for synced sessions")
+    carrada_parser.add_argument("--sequence-ids", nargs="*", default=None, help="Optional Carrada sequence ids to process")
+
+    carrada_full_parser = subparsers.add_parser("prepare-carrada", help="Build standard Carrada sessions with pseudo-track + RD")
+    carrada_full_parser.add_argument("--raw-root", default=None, help="Carrada root directory")
+    carrada_full_parser.add_argument("--output-root", default=None, help="Processed Carrada session root")
+    carrada_full_parser.add_argument("--dataset-root", default=None, help="Destination dataset root for synced sessions")
+    carrada_full_parser.add_argument("--sequence-ids", nargs="*", default=None, help="Optional Carrada sequence ids to process")
+    carrada_full_parser.add_argument("--session-ids", nargs="*", default=None, help="Optional prepared session ids to sync")
+    carrada_full_parser.add_argument("--frame-margin", type=int, default=None, help="Frame margin added on both sides of each instance active span")
+    carrada_full_parser.add_argument("--sub-session-window-specs", nargs='*', default=None, help="Carrada mixed window specs, e.g. 128:64 64:32 192:96")
+    carrada_full_parser.add_argument("--clean-outputs", action="store_true", help="Delete previous processed and synced Carrada outputs before rebuild")
 
     curated_manifest_parser = subparsers.add_parser("build-curated-manifest", help="Build a curated optimization manifest from suspicious span CSV files")
     curated_manifest_parser.add_argument("source_csv", help="Path to a suspicious spans CSV file")
@@ -708,6 +888,8 @@ def main():
         cmd_prepare_tr_tsv(args, config)
     elif args.command == "prepare-pro":
         cmd_prepare_pro(args, config)
+    elif args.command == "prepare-cq08":
+        cmd_prepare_cq08(args, config)
     elif args.command == "process":
         cmd_process(args, config)
     elif args.command == "train":
@@ -720,6 +902,10 @@ def main():
         cmd_session_diagnose(args, config)
     elif args.command == "mine-hard-sessions":
         cmd_mine_hard_sessions(args, config)
+    elif args.command == "prepare-carrada-pseudotrack":
+        cmd_prepare_carrada_pseudotrack(args, config)
+    elif args.command == "prepare-carrada":
+        cmd_prepare_carrada(args, config)
     elif args.command == "build-curated-manifest":
         cmd_build_curated_manifest(args, config)
     elif args.command == "sessions":

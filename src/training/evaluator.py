@@ -10,8 +10,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.models.fusion_classifier import FusionRadarClassifier
+from src.models.session_bag_classifier import SessionBagRadarClassifier
 from src.training.config import TrainingConfig
 from src.training.session_manager import build_dataset
+from src.training.session_bag import SessionBagDataset, session_bag_collate_fn
 from src.training.trainer import apply_logit_bias
 from src.utils.checkpoint import load_checkpoint
 
@@ -81,6 +83,141 @@ def _compute_classification_metrics(confusion_matrix: np.ndarray, labels: list[s
         "macro_f1": f1_sum / class_count,
         "per_class": per_class,
     }
+
+
+def _build_eval_dataset_and_loader(
+    config: TrainingConfig,
+    checkpoint: dict[str, Any],
+    ordered_labels: list[str],
+    resolved_session_ids: Sequence[str] | None,
+) -> tuple[Any, DataLoader]:
+    dataset = build_dataset(data_root=config.data_root, config=config, session_ids=resolved_session_ids, label_order=ordered_labels)
+    track_feature_center = checkpoint.get("track_feature_center")
+    track_feature_scale = checkpoint.get("track_feature_scale")
+    if track_feature_center is not None and track_feature_scale is not None:
+        dataset.set_track_normalization(
+            np.asarray(track_feature_center, dtype=np.float32),
+            np.asarray(track_feature_scale, dtype=np.float32),
+            by_source=checkpoint.get("track_feature_by_source"),
+        )
+    track_global_center = checkpoint.get("track_global_center")
+    track_global_scale = checkpoint.get("track_global_scale")
+    if track_global_center is not None and track_global_scale is not None:
+        dataset.set_track_global_normalization(
+            np.asarray(track_global_center, dtype=np.float32),
+            np.asarray(track_global_scale, dtype=np.float32),
+            by_source=checkpoint.get("track_global_by_source"),
+        )
+
+    resolved_num_workers = int(getattr(config, "num_workers", 0))
+    if os.name == "nt" and resolved_num_workers > 0:
+        resolved_num_workers = 0
+
+    if bool(getattr(config, "use_session_bag_training", False)):
+        all_indices = list(range(len(dataset)))
+        bag_dataset = SessionBagDataset(
+            base_dataset=dataset,
+            indices=all_indices,
+            max_clips=int(getattr(config, "session_bag_max_clips", 32)),
+            random_sampling=False,
+            sort_by_length=bool(getattr(config, "session_bag_sort_by_length", True)),
+        )
+        loader = DataLoader(
+            bag_dataset,
+            batch_size=max(1, int(getattr(config, "session_bag_batch_size", 1))),
+            shuffle=False,
+            num_workers=resolved_num_workers,
+            collate_fn=session_bag_collate_fn,
+        )
+        return dataset, loader
+
+    loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, num_workers=resolved_num_workers)
+    return dataset, loader
+
+
+def _build_eval_model(
+    config: TrainingConfig,
+    dataset: Any,
+    checkpoint: dict[str, Any],
+) -> nn.Module:
+    coarse_to_index = checkpoint.get("coarse_to_index")
+    if not coarse_to_index:
+        coarse_to_index = _build_coarse_taxonomy(config, list(dataset.label_to_index.keys()))
+
+    clip_model = FusionRadarClassifier(
+        track_input_dim=config.feature_dim,
+        track_global_feature_dim=config.global_feature_dim,
+        num_classes=len(dataset.label_to_index),
+        num_coarse_classes=len(coarse_to_index),
+        include_track=_env_flag("TRACK", bool(getattr(config, "include_track", True))),
+        include_rd=_env_flag("RD", bool(config.include_rd)),
+        track_projection_dim=config.track_projection_dim,
+        tcn_channels=config.tcn_channels,
+        transformer_layers=config.transformer_layers,
+        transformer_heads=config.transformer_heads,
+        transformer_dropout=config.transformer_dropout,
+        max_sequence_length=config.track_long_length,
+        short_sequence_length=config.track_short_length,
+        mid_sequence_length=config.track_mid_length,
+        long_sequence_length=config.track_long_length,
+        x3d_in_channels=config.rd_input_channels,
+        x3d_stem_channels=config.x3d_stem_channels,
+        x3d_stage_channels=config.x3d_stage_channels,
+        x3d_stage_depths=config.x3d_stage_depths,
+        x3d_spatial_strides=config.x3d_spatial_strides,
+        x3d_temporal_strides=config.x3d_temporal_strides,
+        x3d_bottleneck_expansion=config.x3d_bottleneck_expansion,
+        x3d_se_ratio=config.x3d_se_ratio,
+        cross_attention_layers=config.cross_attention_layers,
+        cross_attention_heads=config.cross_attention_heads,
+        cross_attention_dropout=config.cross_attention_dropout,
+        fusion_hidden_size=config.fusion_hidden_size,
+        detail_logit_residual_weight=config.detail_logit_residual_weight,
+        detail_cosine_scale=config.detail_cosine_scale,
+        num_notes=_infer_num_notes_from_checkpoint(checkpoint, getattr(dataset, "note_dim", 0)),
+        track_backbone_type=config.track_backbone_type,
+        temporal_2d_branch_channels=getattr(config, "temporal_2d_branch_channels", 96),
+        bird_class_index=dataset.label_to_index.get("BirdTarget"),
+        surface_class_index=dataset.label_to_index.get("ShipTarget"),
+        aircraft_class_index=dataset.label_to_index.get("AircraftTarget"),
+        drone_class_index=dataset.label_to_index.get("DroneTarget"),
+        bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
+        ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.0)),
+        confusion_pair_handler_enabled=bool(getattr(config, "confusion_pair_handler_enabled", False)),
+        confusion_pair_handler_hidden_dim=int(getattr(config, "confusion_pair_handler_hidden_dim", 64)),
+        confusion_pair_handler_dropout=float(getattr(config, "confusion_pair_handler_dropout", 0.1)),
+        confusion_pair_handler_weight=float(getattr(config, "confusion_pair_handler_weight", 0.0)),
+        confusion_pair_handler_gate_threshold=float(getattr(config, "confusion_pair_handler_gate_threshold", 0.55)),
+        confusion_ship_drone_handler_weight=float(getattr(config, "confusion_ship_drone_handler_weight", 0.0)),
+        confusion_bird_ship_handler_weight=float(getattr(config, "confusion_bird_ship_handler_weight", 0.0)),
+        ship_drone_refiner_enabled=bool(getattr(config, "ship_drone_refiner_enabled", False)),
+        ship_drone_refiner_hidden_dim=int(getattr(config, "ship_drone_refiner_hidden_dim", 128)),
+        ship_drone_refiner_dropout=float(getattr(config, "ship_drone_refiner_dropout", 0.1)),
+        ship_drone_refiner_logit_weight=float(getattr(config, "ship_drone_refiner_logit_weight", 0.0)),
+        ship_drone_refiner_gate_threshold=float(getattr(config, "ship_drone_refiner_gate_threshold", 0.6)),
+        rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
+        rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
+        min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),
+        ambiguous_rd_fusion_boost=float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
+        surface_rd_fusion_boost=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
+        use_weighted_fusion_feature=bool(getattr(config, "use_weighted_fusion_feature", False)),
+    )
+
+    if bool(getattr(config, "use_session_bag_training", False)):
+        model = SessionBagRadarClassifier(
+            clip_model=clip_model,
+            num_classes=len(dataset.label_to_index),
+            embedding_dim=config.fusion_hidden_size * 2,
+            bag_hidden_dim=int(getattr(config, "session_bag_hidden_dim", config.fusion_hidden_size)),
+            dropout=float(getattr(config, "session_bag_dropout", 0.1)),
+            encoder_layers=int(getattr(config, "session_bag_encoder_layers", 2)),
+            attention_heads=int(getattr(config, "session_bag_attention_heads", 4)),
+            use_positional_encoding=bool(getattr(config, "session_bag_use_positional_encoding", True)),
+            use_stat_pooling=bool(getattr(config, "session_bag_use_stat_pooling", True)),
+        )
+    else:
+        model = clip_model
+    return model
 
 
 def _derive_session_id(sample_id: str) -> str:
@@ -396,77 +533,13 @@ def run_evaluation(
 
     config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
     config.include_rd = _env_flag("RD", bool(config.include_rd))
-    dataset = build_dataset(data_root=config.data_root, config=config, session_ids=resolved_session_ids, label_order=ordered_labels)
-    track_feature_center = checkpoint.get("track_feature_center")
-    track_feature_scale = checkpoint.get("track_feature_scale")
-    if track_feature_center is not None and track_feature_scale is not None:
-        dataset.set_track_normalization(
-            np.asarray(track_feature_center, dtype=np.float32),
-            np.asarray(track_feature_scale, dtype=np.float32),
-        )
-    track_global_center = checkpoint.get("track_global_center")
-    track_global_scale = checkpoint.get("track_global_scale")
-    if track_global_center is not None and track_global_scale is not None:
-        dataset.set_track_global_normalization(
-            np.asarray(track_global_center, dtype=np.float32),
-            np.asarray(track_global_scale, dtype=np.float32),
-        )
-    resolved_num_workers = int(getattr(config, "num_workers", 0))
-    if os.name == "nt" and resolved_num_workers > 0:
-        resolved_num_workers = 0
-    data_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=False, num_workers=resolved_num_workers)
+    dataset, data_loader = _build_eval_dataset_and_loader(config, checkpoint, ordered_labels, resolved_session_ids)
 
-    coarse_to_index = checkpoint.get("coarse_to_index")
-    if not coarse_to_index:
-        coarse_to_index = _build_coarse_taxonomy(config, ordered_labels)
-
-    model = FusionRadarClassifier(
-        track_input_dim=config.feature_dim,
-        track_global_feature_dim=config.global_feature_dim,
-        num_classes=len(label_to_index),
-        num_coarse_classes=len(coarse_to_index),
-        include_track=_env_flag("TRACK", bool(getattr(config, "include_track", True))),
-        include_rd=_env_flag("RD", bool(config.include_rd)),
-        track_projection_dim=config.track_projection_dim,
-        tcn_channels=config.tcn_channels,
-        transformer_layers=config.transformer_layers,
-        transformer_heads=config.transformer_heads,
-        transformer_dropout=config.transformer_dropout,
-        max_sequence_length=config.track_long_length,
-        short_sequence_length=config.track_short_length,
-        mid_sequence_length=config.track_mid_length,
-        long_sequence_length=config.track_long_length,
-        x3d_in_channels=config.rd_input_channels,
-        x3d_stem_channels=config.x3d_stem_channels,
-        x3d_stage_channels=config.x3d_stage_channels,
-        x3d_stage_depths=config.x3d_stage_depths,
-        x3d_spatial_strides=config.x3d_spatial_strides,
-        x3d_temporal_strides=config.x3d_temporal_strides,
-        x3d_bottleneck_expansion=config.x3d_bottleneck_expansion,
-        x3d_se_ratio=config.x3d_se_ratio,
-        cross_attention_layers=config.cross_attention_layers,
-        cross_attention_heads=config.cross_attention_heads,
-        cross_attention_dropout=config.cross_attention_dropout,
-        fusion_hidden_size=config.fusion_hidden_size,
-        detail_logit_residual_weight=config.detail_logit_residual_weight,
-        detail_cosine_scale=config.detail_cosine_scale,
-        num_notes=_infer_num_notes_from_checkpoint(checkpoint, getattr(dataset, "note_dim", 0)),
-        track_backbone_type=config.track_backbone_type,
-        temporal_2d_branch_channels=getattr(config, "temporal_2d_branch_channels", 96),
-        bird_class_index=dataset.label_to_index.get("BirdTarget"),
-        surface_class_index=dataset.label_to_index.get("ShipTarget"),
-        aircraft_class_index=dataset.label_to_index.get("AircraftTarget"),
-        drone_class_index=dataset.label_to_index.get("DroneTarget"),
-        bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
-        ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.0)),
-        rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
-        rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
-        min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),
-        ambiguous_rd_fusion_boost=float(getattr(config, "ambiguous_rd_fusion_boost", 0.15)),
-        surface_rd_fusion_boost=float(getattr(config, "surface_rd_fusion_boost", 0.1)),
-        use_weighted_fusion_feature=bool(getattr(config, "use_weighted_fusion_feature", False)),
-    ).to(resolved_device)
+    model = _build_eval_model(config, dataset, checkpoint).to(resolved_device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    runtime_fusion_controls = checkpoint.get("runtime_fusion_controls")
+    if runtime_fusion_controls and hasattr(model, "set_runtime_fusion_controls"):
+        model.set_runtime_fusion_controls(**runtime_fusion_controls)
     model.eval()
 
     criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
@@ -482,6 +555,8 @@ def run_evaluation(
     collected_sample_ids: list[str] = []
     collected_labels: list[int] = []
     collected_logits: list[np.ndarray] = []
+    session_attention_rows: list[dict[str, Any]] = []
+    session_clip_counts: dict[str, int] = {}
 
     with torch.no_grad():
         for batch in data_loader:
@@ -495,13 +570,40 @@ def run_evaluation(
                 track_long_features = track_long_features.to(device=resolved_device, dtype=torch.float32)
             rd_features = None
             rd_mask = None
+            clip_mask = None
+            if bool(getattr(config, "use_session_bag_training", False)):
+                clip_mask = batch["clip_mask"].to(device=resolved_device, dtype=torch.float32)
             if config.include_rd:
                 rd_features = batch["rd_features"].to(device=resolved_device, dtype=torch.float32)
-                rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32).view(-1, 1)
+                if bool(getattr(config, "use_session_bag_training", False)):
+                    rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32)
+                else:
+                    rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32).view(-1, 1)
             labels = batch["label"].to(device=resolved_device, dtype=torch.long)
 
-            outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
-            logits = outputs["logits"] if isinstance(outputs, dict) else outputs
+            if bool(getattr(config, "use_session_bag_training", False)):
+                outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask, clip_mask)
+                logits = outputs["session_logits"]
+                attention_weights = outputs.get("session_attention_weights")
+                clip_sample_ids_batch = batch.get("clip_sample_ids", [])
+                if attention_weights is not None:
+                    attention_cpu = attention_weights.detach().cpu().numpy()
+                    mask_cpu = clip_mask.detach().cpu().numpy()
+                    for row_index, session_id in enumerate(batch["sample_id"]):
+                        clip_ids = clip_sample_ids_batch[row_index] if row_index < len(clip_sample_ids_batch) else []
+                        session_clip_counts[str(session_id)] = int(len(clip_ids))
+                        for clip_index, clip_id in enumerate(clip_ids):
+                            if clip_index >= attention_cpu.shape[1] or mask_cpu[row_index, clip_index] <= 0.5:
+                                continue
+                            session_attention_rows.append({
+                                "session_id": str(session_id),
+                                "clip_sample_id": str(clip_id),
+                                "attention_weight": float(attention_cpu[row_index, clip_index]),
+                                "clip_count": int(len(clip_ids)),
+                            })
+            else:
+                outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask)
+                logits = outputs["logits"] if isinstance(outputs, dict) else outputs
             logits = apply_logit_bias(logits, resolved_logit_bias)
             logits = _apply_pairwise_calibration(logits, pair_calibration)
             loss = criterion(logits, labels)
@@ -518,18 +620,50 @@ def run_evaluation(
             collected_logits.extend(logits.detach().cpu().numpy())
 
     metrics = _compute_classification_metrics(confusion_matrix, ordered_labels)
-    session_metrics = _build_session_level_report(
-        sample_ids=collected_sample_ids,
-        labels=collected_labels,
-        logits_list=collected_logits,
-        ordered_labels=ordered_labels,
-    )
-    session_peak_metrics = _build_peak_weighted_session_level_report(
-        sample_ids=collected_sample_ids,
-        labels=collected_labels,
-        logits_list=collected_logits,
-        ordered_labels=ordered_labels,
-    )
+    if bool(getattr(config, "use_session_bag_training", False)):
+        session_predictions: list[dict[str, Any]] = []
+        clip_sample_ids_sequence = []
+        if 'clip_sample_ids_batch' in locals():
+            pass
+        session_metrics = {
+            "num_sessions": total_samples,
+            "aggregation": "session_bag_logits",
+            "confusion_matrix": confusion_matrix.tolist(),
+            "predictions": [],
+            "accuracy": metrics["accuracy"],
+            "macro_precision": metrics["macro_precision"],
+            "macro_recall": metrics["macro_recall"],
+            "macro_f1": metrics["macro_f1"],
+            "per_class": metrics["per_class"],
+        }
+        session_peak_metrics = dict(session_metrics)
+        session_peak_metrics["aggregation"] = "session_bag_logits"
+        session_peak_metrics["top_ratio"] = 1.0
+    else:
+        session_metrics = _build_session_level_report(
+            sample_ids=collected_sample_ids,
+            labels=collected_labels,
+            logits_list=collected_logits,
+            ordered_labels=ordered_labels,
+        )
+        session_peak_metrics = _build_peak_weighted_session_level_report(
+            sample_ids=collected_sample_ids,
+            labels=collected_labels,
+            logits_list=collected_logits,
+            ordered_labels=ordered_labels,
+        )
+    if bool(getattr(config, "use_session_bag_training", False)):
+        session_predictions = []
+        for sample_id, label_index, logit_row in zip(collected_sample_ids, collected_labels, collected_logits):
+            session_predictions.append({
+                "session_id": str(sample_id),
+                "true_label": ordered_labels[int(label_index)],
+                "predicted_label": ordered_labels[int(np.argmax(logit_row))],
+                "num_clips": int(session_clip_counts.get(str(sample_id), 1)),
+            })
+        session_metrics["predictions"] = session_predictions
+        session_peak_metrics["predictions"] = session_predictions
+
     result = {
         "checkpoint_path": checkpoint_path,
         "evaluated_sessions": resolved_session_ids,
@@ -547,6 +681,11 @@ def run_evaluation(
     report_path = export_dir / "evaluation_report.json"
     with open(report_path, "w", encoding="utf-8") as file:
         json.dump(result, file, indent=2, ensure_ascii=False)
+
+    if session_attention_rows:
+        attention_path = export_dir / "session_attention_report.csv"
+        _write_csv_rows(attention_path, session_attention_rows)
+        result["session_attention_report_path"] = str(attention_path)
 
     result["report_path"] = str(report_path)
     return result
@@ -594,6 +733,234 @@ def run_session_inference(
     return session_result
 
 
+def _run_session_diagnosis_bag(
+    checkpoint_path: str,
+    config: TrainingConfig,
+    checkpoint: dict[str, Any],
+    ordered_labels: list[str],
+    resolved_session_ids: Sequence[str] | None,
+    output_dir: str | None,
+    resolved_device: torch.device,
+) -> dict[str, Any]:
+    dataset, data_loader = _build_eval_dataset_and_loader(config, checkpoint, ordered_labels, resolved_session_ids)
+    model = _build_eval_model(config, dataset, checkpoint)
+    model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    model.to(resolved_device)
+    model.eval()
+
+    clip_rows: list[dict[str, Any]] = []
+    session_prediction_rows: list[dict[str, Any]] = []
+    confusion_matrix = np.zeros((len(ordered_labels), len(ordered_labels)), dtype=np.int64)
+
+    with torch.no_grad():
+        for batch in data_loader:
+            track_features = batch["track_features"].to(device=resolved_device, dtype=torch.float32)
+            track_global_features = batch["track_global_features"].to(device=resolved_device, dtype=torch.float32)
+            track_short_features = batch.get("track_short_features")
+            if track_short_features is not None:
+                track_short_features = track_short_features.to(device=resolved_device, dtype=torch.float32)
+            track_long_features = batch.get("track_long_features")
+            if track_long_features is not None:
+                track_long_features = track_long_features.to(device=resolved_device, dtype=torch.float32)
+            clip_mask = batch["clip_mask"].to(device=resolved_device, dtype=torch.float32)
+            rd_features = None
+            rd_mask = None
+            if config.include_rd:
+                rd_features = batch["rd_features"].to(device=resolved_device, dtype=torch.float32)
+                rd_mask = batch["has_rd"].to(device=resolved_device, dtype=torch.float32)
+            labels = batch["label"].to(device=resolved_device, dtype=torch.long)
+
+            outputs = model(track_features, track_global_features, track_short_features, track_long_features, rd_features, rd_mask, clip_mask)
+            session_logits = outputs["session_logits"]
+            session_prob = torch.softmax(session_logits, dim=-1)
+            session_pred = session_logits.argmax(dim=-1)
+
+            clip_logits = outputs.get("clip_logits")
+            clip_prob = None if clip_logits is None else torch.softmax(clip_logits, dim=-1)
+            attention = outputs.get("session_attention_weights")
+            clip_track_weight = outputs.get("clip_track_weight")
+            clip_rd_weight = outputs.get("clip_rd_weight")
+            clip_track_router_logits = outputs.get("clip_track_router_logits")
+            clip_track_router_prob = None if clip_track_router_logits is None else torch.softmax(clip_track_router_logits, dim=-1)
+            clip_rd_ship_drone_logits = outputs.get("clip_rd_ship_drone_logits")
+            clip_rd_ship_drone_prob = None if clip_rd_ship_drone_logits is None else torch.softmax(clip_rd_ship_drone_logits, dim=-1)
+            clip_rd_ship_bird_logits = outputs.get("clip_rd_ship_bird_logits")
+            clip_rd_ship_bird_prob = None if clip_rd_ship_bird_logits is None else torch.softmax(clip_rd_ship_bird_logits, dim=-1)
+            clip_rd_ship_air_logits = outputs.get("clip_rd_ship_air_logits")
+            clip_rd_ship_air_prob = None if clip_rd_ship_air_logits is None else torch.softmax(clip_rd_ship_air_logits, dim=-1)
+            clip_bird_surface_logits = outputs.get("clip_bird_surface_logits")
+            clip_bird_surface_prob = None if clip_bird_surface_logits is None else torch.sigmoid(clip_bird_surface_logits)
+            clip_bird_rd_logits = outputs.get("clip_bird_rd_logits")
+            clip_bird_rd_prob = None if clip_bird_rd_logits is None else torch.sigmoid(clip_bird_rd_logits)
+            clip_bird_surface_rd_logits = outputs.get("clip_bird_surface_rd_logits")
+            clip_bird_surface_rd_prob = None if clip_bird_surface_rd_logits is None else torch.sigmoid(clip_bird_surface_rd_logits)
+
+            session_pred_cpu = session_pred.detach().cpu().numpy()
+            labels_cpu = labels.detach().cpu().numpy()
+            clip_prob_cpu = None if clip_prob is None else clip_prob.detach().cpu().numpy()
+            clip_logits_cpu = None if clip_logits is None else clip_logits.detach().cpu().numpy()
+            clip_mask_cpu = clip_mask.detach().cpu().numpy()
+            attention_cpu = None if attention is None else attention.detach().cpu().numpy()
+
+            for row_index, session_id in enumerate(batch["sample_id"]):
+                session_id_text = str(session_id)
+                true_idx = int(labels_cpu[row_index])
+                pred_idx = int(session_pred_cpu[row_index])
+                confusion_matrix[true_idx, pred_idx] += 1
+                clip_ids = batch.get("clip_sample_ids", [])[row_index] if row_index < len(batch.get("clip_sample_ids", [])) else []
+                session_prediction_rows.append({
+                    "session_id": session_id_text,
+                    "true_label": ordered_labels[true_idx],
+                    "predicted_label": ordered_labels[pred_idx],
+                    "num_clips": int(len(clip_ids)),
+                })
+                if clip_prob_cpu is None or clip_logits_cpu is None:
+                    continue
+                for clip_index, clip_id in enumerate(clip_ids):
+                    if clip_index >= clip_prob_cpu.shape[1] or clip_mask_cpu[row_index, clip_index] <= 0.5:
+                        continue
+                    sample_id_text = str(clip_id)
+                    clip_session_id, track_token, clip_token = _split_sample_id(sample_id_text)
+                    probability_row = clip_prob_cpu[row_index, clip_index]
+                    sorted_indices = np.argsort(-probability_row)
+                    top1_index = int(sorted_indices[0])
+                    top2_index = int(sorted_indices[1]) if len(sorted_indices) > 1 else top1_index
+                    clip_pred_index = int(np.argmax(probability_row))
+                    clip_row = {
+                        "session_id": clip_session_id,
+                        "sample_id": sample_id_text,
+                        "track_token": track_token,
+                        "clip_token": clip_token,
+                        "true_label": ordered_labels[true_idx],
+                        "predicted_label": ordered_labels[clip_pred_index],
+                        "session_predicted_label": ordered_labels[pred_idx],
+                        "top1_label": ordered_labels[top1_index],
+                        "top1_prob": float(probability_row[top1_index]),
+                        "top2_label": ordered_labels[top2_index],
+                        "top2_prob": float(probability_row[top2_index]),
+                        "margin_top1_top2": float(probability_row[top1_index] - probability_row[top2_index]),
+                        "attention_weight": None if attention_cpu is None else float(attention_cpu[row_index, clip_index]),
+                        "track_weight": None if clip_track_weight is None else float(clip_track_weight[row_index, clip_index].detach().cpu().view(-1)[0]),
+                        "rd_weight": None if clip_rd_weight is None else float(clip_rd_weight[row_index, clip_index].detach().cpu().view(-1)[0]),
+                        "router_surface_prob": None if clip_track_router_prob is None else float(clip_track_router_prob[row_index, clip_index, 0].detach().cpu()),
+                        "router_aircraft_prob": None if clip_track_router_prob is None else float(clip_track_router_prob[row_index, clip_index, 1].detach().cpu()),
+                        "router_ambiguous_prob": None if clip_track_router_prob is None else float(clip_track_router_prob[row_index, clip_index, 2].detach().cpu()),
+                        "ship_drone_ship_prob": None if clip_rd_ship_drone_prob is None else float(clip_rd_ship_drone_prob[row_index, clip_index, 1].detach().cpu()),
+                        "ship_bird_ship_prob": None if clip_rd_ship_bird_prob is None else float(clip_rd_ship_bird_prob[row_index, clip_index, 1].detach().cpu()),
+                        "ship_air_ship_prob": None if clip_rd_ship_air_prob is None else float(clip_rd_ship_air_prob[row_index, clip_index, 1].detach().cpu()),
+                        "bird_surface_prob": None if clip_bird_surface_prob is None else float(clip_bird_surface_prob[row_index, clip_index].detach().cpu()),
+                        "bird_rd_prob": None if clip_bird_rd_prob is None else float(clip_bird_rd_prob[row_index, clip_index].detach().cpu()),
+                        "bird_surface_rd_prob": None if clip_bird_surface_rd_prob is None else float(clip_bird_surface_rd_prob[row_index, clip_index].detach().cpu()),
+                    }
+                    for class_index, label_name in enumerate(ordered_labels):
+                        clip_row[f"prob_{label_name}"] = float(probability_row[class_index])
+                        clip_row[f"logit_{label_name}"] = float(clip_logits_cpu[row_index, clip_index, class_index])
+                    clip_rows.append(clip_row)
+
+    metrics = _compute_classification_metrics(confusion_matrix, ordered_labels)
+    session_summary_map: dict[str, dict[str, Any]] = {}
+    for clip_row in clip_rows:
+        session_id = str(clip_row["session_id"])
+        entry = session_summary_map.get(session_id)
+        if entry is None:
+            entry = {
+                "session_id": session_id,
+                "true_label": clip_row["true_label"],
+                "session_predicted_label": clip_row["session_predicted_label"],
+                "num_clips": 0,
+                "num_correct": 0,
+                "pred_counts": {label_name: 0 for label_name in ordered_labels},
+                "prob_sums": {label_name: 0.0 for label_name in ordered_labels},
+                "margin_sum": 0.0,
+            }
+            session_summary_map[session_id] = entry
+        entry["num_clips"] += 1
+        entry["num_correct"] += int(clip_row["true_label"] == clip_row["predicted_label"])
+        entry["pred_counts"][str(clip_row["predicted_label"])] += 1
+        for label_name in ordered_labels:
+            entry["prob_sums"][label_name] += float(clip_row[f"prob_{label_name}"])
+        entry["margin_sum"] += float(clip_row["margin_top1_top2"])
+
+    for row in session_prediction_rows:
+        session_id = str(row["session_id"])
+        if session_id not in session_summary_map:
+            session_summary_map[session_id] = {
+                "session_id": session_id,
+                "true_label": row["true_label"],
+                "session_predicted_label": row["predicted_label"],
+                "num_clips": int(row.get("num_clips", 0)),
+                "num_correct": 0,
+                "pred_counts": {label_name: 0 for label_name in ordered_labels},
+                "prob_sums": {label_name: 0.0 for label_name in ordered_labels},
+                "margin_sum": 0.0,
+            }
+
+    session_summary_rows = []
+    for session_id, entry in session_summary_map.items():
+        num_clips = max(int(entry["num_clips"]), 1)
+        mean_probs = {label_name: entry["prob_sums"][label_name] / num_clips for label_name in ordered_labels}
+        clip_vote_label = max(entry["pred_counts"].items(), key=lambda item: item[1])[0] if any(entry["pred_counts"].values()) else entry["session_predicted_label"]
+        summary_row = {
+            "session_id": session_id,
+            "true_label": entry["true_label"],
+            "session_predicted_label": entry["session_predicted_label"],
+            "num_clips": int(entry["num_clips"]),
+            "num_correct_clips": int(entry["num_correct"]),
+            "num_error_clips": max(int(entry["num_clips"]) - int(entry["num_correct"]), 0),
+            "clip_accuracy": float(entry["num_correct"] / num_clips),
+            "clip_vote_label": clip_vote_label,
+            "mean_logit_label": max(mean_probs.items(), key=lambda item: item[1])[0] if any(entry["prob_sums"].values()) else entry["session_predicted_label"],
+            "mean_margin_top1_top2": float(entry["margin_sum"] / num_clips),
+        }
+        for label_name in ordered_labels:
+            summary_row[f"pred_count_{label_name}"] = int(entry["pred_counts"][label_name])
+            summary_row[f"mean_prob_{label_name}"] = float(mean_probs[label_name])
+        session_summary_rows.append(summary_row)
+
+    session_summary_rows.sort(key=lambda item: (item["clip_accuracy"], item["num_error_clips"], item["session_id"]))
+    session_metrics = {
+        "num_sessions": int(len(session_prediction_rows)),
+        "aggregation": "session_bag_logits",
+        "confusion_matrix": confusion_matrix.tolist(),
+        "predictions": session_prediction_rows,
+        "accuracy": metrics["accuracy"],
+        "macro_precision": metrics["macro_precision"],
+        "macro_recall": metrics["macro_recall"],
+        "macro_f1": metrics["macro_f1"],
+        "per_class": metrics["per_class"],
+    }
+    session_peak_metrics = dict(session_metrics)
+    session_peak_metrics["aggregation"] = "session_bag_logits"
+    session_peak_metrics["top_ratio"] = 1.0
+
+    export_dir = Path(output_dir) if output_dir is not None else Path(checkpoint_path).parent
+    export_dir.mkdir(parents=True, exist_ok=True)
+    clip_csv_path = export_dir / "session_clip_predictions.csv"
+    session_csv_path = export_dir / "session_summary.csv"
+    report_path = export_dir / "session_diagnosis_report.json"
+    _write_csv_rows(clip_csv_path, clip_rows)
+    _write_csv_rows(session_csv_path, session_summary_rows)
+
+    diagnosis_result = {
+        "checkpoint_path": checkpoint_path,
+        "evaluated_sessions": resolved_session_ids,
+        "labels": ordered_labels,
+        "num_clips": len(clip_rows),
+        "num_sessions": len(session_summary_rows),
+        "session_level": session_metrics,
+        "session_level_peak": session_peak_metrics,
+        "session_summaries": session_summary_rows,
+        "hardest_sessions": session_summary_rows[: min(10, len(session_summary_rows))],
+        "clip_csv_path": str(clip_csv_path),
+        "session_csv_path": str(session_csv_path),
+    }
+    with report_path.open("w", encoding="utf-8") as file:
+        json.dump(diagnosis_result, file, indent=2, ensure_ascii=False)
+    diagnosis_result["report_path"] = str(report_path)
+    return diagnosis_result
+
+
+
 def run_session_diagnosis(
     checkpoint_path: str,
     config_values: dict[str, Any] | None = None,
@@ -629,6 +996,16 @@ def run_session_diagnosis(
 
     config.include_track = _env_flag("TRACK", bool(getattr(config, "include_track", True)))
     config.include_rd = _env_flag("RD", bool(config.include_rd))
+    if bool(getattr(config, "use_session_bag_training", False)):
+        return _run_session_diagnosis_bag(
+            checkpoint_path=checkpoint_path,
+            config=config,
+            checkpoint=checkpoint,
+            ordered_labels=ordered_labels,
+            resolved_session_ids=resolved_session_ids,
+            output_dir=output_dir,
+            resolved_device=resolved_device,
+        )
     dataset = build_dataset(data_root=config.data_root, config=config, session_ids=resolved_session_ids, label_order=ordered_labels)
     track_feature_center = checkpoint.get("track_feature_center")
     track_feature_scale = checkpoint.get("track_feature_scale")

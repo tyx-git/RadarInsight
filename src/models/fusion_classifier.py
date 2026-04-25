@@ -203,6 +203,11 @@ class FusionRadarClassifier(nn.Module):
         confusion_pair_handler_gate_threshold: float = 0.55,
         confusion_ship_drone_handler_weight: float = 0.0,
         confusion_bird_ship_handler_weight: float = 0.0,
+        ship_drone_refiner_enabled: bool = False,
+        ship_drone_refiner_hidden_dim: int = 128,
+        ship_drone_refiner_dropout: float = 0.1,
+        ship_drone_refiner_logit_weight: float = 0.0,
+        ship_drone_refiner_gate_threshold: float = 0.6,
         rd_dominant_fusion_bias: float = 1.25,
         rd_unimodal_logit_residual_weight: float = 0.35,
         min_rd_fusion_weight: float = 0.15,
@@ -231,6 +236,9 @@ class FusionRadarClassifier(nn.Module):
         self.confusion_pair_handler_gate_threshold = float(confusion_pair_handler_gate_threshold)
         self.confusion_ship_drone_handler_weight = float(confusion_ship_drone_handler_weight)
         self.confusion_bird_ship_handler_weight = float(confusion_bird_ship_handler_weight)
+        self.ship_drone_refiner_enabled = bool(ship_drone_refiner_enabled)
+        self.ship_drone_refiner_logit_weight = float(ship_drone_refiner_logit_weight)
+        self.ship_drone_refiner_gate_threshold = float(ship_drone_refiner_gate_threshold)
         self.rd_dominant_fusion_bias = float(rd_dominant_fusion_bias)
         self.rd_unimodal_logit_residual_weight = float(rd_unimodal_logit_residual_weight)
         self.min_rd_fusion_weight = float(min_rd_fusion_weight)
@@ -363,6 +371,20 @@ class FusionRadarClassifier(nn.Module):
         else:
             self.ship_drone_handler = None
             self.bird_ship_handler = None
+        ship_drone_refiner_input_dim = fusion_hidden_size * 4
+        if self.ship_drone_refiner_enabled:
+            self.ship_drone_refiner = nn.Sequential(
+                nn.LayerNorm(ship_drone_refiner_input_dim),
+                nn.Linear(ship_drone_refiner_input_dim, ship_drone_refiner_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(ship_drone_refiner_dropout),
+                nn.Linear(ship_drone_refiner_hidden_dim, ship_drone_refiner_hidden_dim),
+                nn.GELU(),
+                nn.Dropout(ship_drone_refiner_dropout),
+                nn.Linear(ship_drone_refiner_hidden_dim, 2),
+            )
+        else:
+            self.ship_drone_refiner = None
 
     def set_runtime_fusion_controls(
         self,
@@ -547,6 +569,7 @@ class FusionRadarClassifier(nn.Module):
 
         ship_drone_handler_logits = None
         bird_ship_handler_logits = None
+        ship_drone_refiner_logits = None
         if self.confusion_pair_handler_enabled and self.ship_drone_handler is not None and self.bird_ship_handler is not None:
             pair_feature = torch.cat([track_feature, rd_feature, rd_local_ship_feature], dim=-1)
             ship_drone_handler_logits = self.ship_drone_handler(pair_feature)
@@ -564,6 +587,15 @@ class FusionRadarClassifier(nn.Module):
                     bird_ship_weight = self.confusion_bird_ship_handler_weight if self.confusion_bird_ship_handler_weight > 0 else self.confusion_pair_handler_weight
                     logits[bird_ship_gate, self.bird_class_index] = logits[bird_ship_gate, self.bird_class_index] + bird_ship_weight * bird_ship_handler_logits[bird_ship_gate, 0]
                     logits[bird_ship_gate, self.surface_class_index] = logits[bird_ship_gate, self.surface_class_index] + bird_ship_weight * bird_ship_handler_logits[bird_ship_gate, 1]
+
+        if self.ship_drone_refiner_enabled and self.ship_drone_refiner is not None and self.surface_class_index is not None and self.drone_class_index is not None:
+            refiner_feature = torch.cat([fused_track_feature, fused_rd_feature, rd_local_ship_feature, torch.abs(fused_track_feature - fused_rd_feature)], dim=-1)
+            ship_drone_refiner_logits = self.ship_drone_refiner(refiner_feature)
+            class_probabilities = torch.softmax(logits, dim=-1)
+            ship_drone_gate = (class_probabilities[:, self.surface_class_index] + class_probabilities[:, self.drone_class_index]) >= self.ship_drone_refiner_gate_threshold
+            if ship_drone_gate.any():
+                logits[ship_drone_gate, self.surface_class_index] = logits[ship_drone_gate, self.surface_class_index] + self.ship_drone_refiner_logit_weight * ship_drone_refiner_logits[ship_drone_gate, 0]
+                logits[ship_drone_gate, self.drone_class_index] = logits[ship_drone_gate, self.drone_class_index] + self.ship_drone_refiner_logit_weight * ship_drone_refiner_logits[ship_drone_gate, 1]
 
         return {
             "logits": logits,
@@ -587,6 +619,7 @@ class FusionRadarClassifier(nn.Module):
             "rd_ship_air_logits": rd_ship_air_logits,
             "ship_drone_handler_logits": ship_drone_handler_logits,
             "bird_ship_handler_logits": bird_ship_handler_logits,
+            "ship_drone_refiner_logits": ship_drone_refiner_logits,
             "rd_feature": rd_feature,
             "rd_local_feature": rd_local_feature,
             "rd_local_ship_feature": rd_local_ship_feature,

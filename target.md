@@ -1,38 +1,579 @@
-# 项目实践方案
-## 1. 项目背景
-本项目面向甲方真实雷达目标识别场景，当前目标不是继续围绕历史公共样例数据做局部优化，而是围绕甲方最终交付数据构建一条可持续迭代、可工程落地、可继续扩展的高精度识别主线。当前项目已经确认：仅依赖轨迹数据可以形成可训练基线，但想继续逼近高精度目标，尤其是提升鸟类、无人机、飞机等易混淆目标的区分能力，必须把重心转移到 RD 路径。轨迹分支不再承担全部分类责任，而是作为辅助模态保留，用来提供运动学先验、速度层级、航迹稳定性和粗分流信息。
-## 2. 当前总目标
-当前阶段的核心目标不是做一个形式上复杂的模型，而是做一个对甲方真实数据真正有价值的系统。目标分为四层：第一，建立稳定的真实数据主链；第二，建立以 RD 为主、轨迹为辅的识别模型；第三，针对强混淆类别做专项增强；第四，形成一套后续拿到新 RD 数据就能直接接入的工程规范。当前目标精度为 95%，但评估必须基于真实严谨切分，而不是乐观切分或局部测试结果。
-## 3. 当前阶段总原则
-第一，RD 为主，轨迹为辅。第二，先保证方向正确，再追求复杂度提升。第三，保留当前稳定可用的 temporal 轨迹主干，不继续盲目更换轨迹 backbone。第四，重点增强 RD 表示、RD 专项头和 RD 主导融合。第五，所有新能力必须能在现有训练框架内落地，不允许做无法训练、无法评估、无法复现的空方案。第六，后续所有重大结构改动都必须同步更新 debug.md 和 arch.md。
-## 4. 数据主链目标
-当前项目的数据主链应固定为：原始数据进入 pro/raw，在 pro 内完成处理、审核、质检和样本组织，再复制到 data 作为训练来源。pro 只用于处理和人工审查，data 才是训练使用的数据。对于当前阶段，轨迹与 RD 样本应继续保持按 session 组织，保证训练、评估、校准都在统一结构上进行。后续若甲方开始稳定保存 RD 样本，必须优先保障 RD 数据具备以下内容：时间对齐信息、对应轨迹对象标识、range 轴、doppler 轴、是否保留复数值、原始文件来源、session 标识，以及与标签的稳定对齐关系。
-## 5. 模型总路线
-当前项目默认路线应定义为双模态路线：轨迹分支负责粗分流和补充运动学信息，RD 分支负责主要识别能力，特别是对鸟类、无人机、飞机等易混淆空中目标的细粒度判别。默认训练时应开启 TRACK=true 和 RD=true。但在模型设计层面，不能再做平权融合，而应明确规定：RD 是主模态，轨迹是辅助模态。
-## 6. 轨迹分支定位
-轨迹分支当前保留稳定版本的 temporal 主干，主要承担三类作用。第一，提供目标运动模式、速度层级、高度变化、航迹平滑性、机动强度等宏观先验。第二，在融合前提供粗分类倾向，帮助模型快速区分明显不同的目标族群。第三，在 RD 缺失、RD 噪声高、RD 表示不稳定时，为模型提供兜底支持。轨迹分支不再作为当前阶段的主要突破口，不再优先继续更换图主干、SSM 主干或更大 Transformer，除非后续证据明确显示 RD 路径已稳定而轨迹成为新瓶颈。
-## 7. RD 分支定位
-RD 分支是当前阶段的主攻方向。当前项目已有较强的 RD 主干基础，包括微动增强、谱轴精炼、背景与局部对比增强、结构增强和 X3D-M 风格 3D 编码器。这些资产不应推翻，而应继续增强。当前 RD 路径的核心任务有三项：第一，提升 BirdTarget 的可分性；第二，提升 BirdTarget 与 ShipTarget、DroneTarget 的边界稳定性；第三，让 RD 分支真正具备承担融合主导权的能力，而不是靠额外偏置硬推成主导。
-## 8. 融合路线
-当前融合路线应改成“RD 主导、轨迹辅助、软路由增强”而不是简单拼接或过强硬门控。推荐策略如下：第一，轨迹分支先输出 coarse 先验和辅助 logits；第二，RD 分支输出主 logits 与专项 logits；第三，融合层同时接收轨迹特征、RD 特征、轨迹粗分类倾向、RD 专项识别结果；第四，最终分类以 RD 证据为主，但允许轨迹在 RD 不可靠时纠偏。禁止做纯硬路由，即不能简单先让轨迹决定类，再选择是否调用 RD，因为这种方式会导致错误级联。
-## 9. 专项优化方向
-当前最关键的专项优化对象是高混淆类别。优先顺序如下：第一，BirdTarget 与 ShipTarget；第二，BirdTarget 与 DroneTarget；第三，AircraftTarget 与 DroneTarget 的边界稳定性。专项优化应优先落在 RD 路径内部，而不是继续主要靠轨迹专家头做修补。推荐的专项能力包括：Bird-sensitive RD 分支、Bird-vs-Ship RD 专家头、Bird-vs-Drone RD 专家头，以及面向高混淆类的 class-aware fusion 修正。
-## 10. 训练策略
-当前训练策略应遵循以下顺序。第一，默认训练双模态主线。第二，所有新结构先跑短轮次验证趋势，再决定是否作为默认主线。第三，任何主干级调整如果没有超过当前稳定最佳结果，不得直接替换默认路线。第四，严格评估必须始终使用统一切分，不允许为了更高数字回退到更宽松或更容易的测试切分。第五，训练时应优先观察 BirdTarget 的召回率、ShipTarget 的稳定性、以及 BirdTarget 到 ShipTarget 的混淆是否下降。
-## 11. 评估标准
-准确率不是唯一标准，但当前项目的可用标准明确要求准确率达到 95% 以上。与此同时，必须同时观察 macro_f1、混淆矩阵、每类召回率和错误迁移方向。如果某次实验只是把错误从一个类转移到另一个类，而没有整体提升，则不能视为真实进步。对于当前阶段，最重要的评估问题不是整体能否拟合，而是模型是否真正恢复了 BirdTarget，并且没有把 ShipTarget 和 AircraftTarget 一起拉坏。
-## 12. 主干更换规则
-轨迹主干目前默认保留 temporal。dggcn 或其他图主干、SSM 主干、Mamba 类主干都可以继续作为实验分支保留，但未经稳定验证不得设为默认。RD 主干目前不推翻，只做增强。若要更换主干，优先级顺序如下：第一，RD 表示增强；第二，RD 专项头增强；第三，融合策略增强；第四，才考虑再次动轨迹主干。换言之，当前阶段的主干更换主要指 RD 路径强化，而不是继续围绕轨迹主干做大改。
-## 13. 工程实施顺序
-第一步，维持当前稳定的 temporal 轨迹主干。第二步，持续增强 RD 路径。第三步，把 Bird 专项优化逐步下沉到 RD 表征层，而不是只停留在分类头层。第四步，在融合层引入更温和、更可解释的 RD 主导策略。第五步，对所有实验保持独立评估、图表生成和混淆矩阵分析。第六步，只有在新结果真实超过当前最佳后，才允许保存新的精度 Git 记录。
-## 14. 编码风格
-代码标识符、配置键名、日志字段、模型输出键名全部使用英文。中文只用于文档、注释和面向人的说明。中文文件修改统一使用 Python 读写，编码统一为 UTF-8。结构改动时优先保持最小侵入，不做无关重构。所有训练控制应收口到 train.json，避免零散环境变量和命令参数长期漂移。
-## 15. Git 规则
-只有在真实精度提升后才保存新的精度提交。提交描述应明确当前精度，例如 Accuracy 0.9012 MacroF1 0.8654。如果只是结构整理、实验分支接线、文档更新、控制项收口、或者失败实验，不保存精度提交。重大架构调整必须同步更新 debug.md 和 arch.md，并清楚记录：当前阶段、当前问题、解决方案、方案利弊。
-## 16. 当前默认实践
-当前默认实践应理解为：稳定 temporal 轨迹主干 + 强 RD 主干 + 双模态融合 + Bird 专项 RD 优化 + 严格真实切分评估。当前所有后续优化必须围绕这个主线展开，而不是重新回到轨迹-only 主导路线。轨迹-only 路线现在只保留为过渡基线和对照实验，不再是主要目标。
-## 17. 后续立即执行项
-后续应继续围绕以下事项推进。第一，继续增强 RD 表征层对 Bird 的敏感性。第二，继续分析 BirdTarget 与 ShipTarget 的 RD 差异是否已被正确利用。第三，控制 RD 主导程度，避免过强偏置导致整体泛化崩坏。第四，保留实验分支，但默认路线始终保持稳定。第五，每轮训练结束后，优先查看独立评估结果，而不是只看训练日志。第六，若新版本显著提升，就立即保存 Git 并记录到 debug.md。
+# RadarInsight Target Roadmap
 
-????????????????????? `pro/raw` ?????? `TR/RD` ???? `prepare-pro` ????? `data/sessions`?`pro/excel` ????? `pro/tsv`?`data/tsv` ????????????????????????????????????
-?????????`Bird -> BirdTarget`?`Rotary drone -> DroneTarget`?`Fixed-wing UAV -> DroneTarget`?`Helicopter -> AircraftTarget`?`Passenger ship -> ShipTarget`?`Speedboat -> ShipTarget`?????????? `AircraftTarget / BirdTarget / DroneTarget / ShipTarget`?
+## 1. Mission
+
+The project now formally shifts from a clip-centric optimization loop to a session-centric recognition system.
+The highest-priority objective is no longer to squeeze small gains from clip-level decision rules, but to build a stable session-level training and inference stack that can scale to the future paired dataset expansion.
+
+The long-term target remains high-accuracy radar target recognition under real deployment constraints:
+
+- high classification accuracy
+- stable generalization across hard sessions
+- support for real-time or near-real-time inference
+- smooth scaling from the current paired dataset to the future approximately 4000 paired sessions
+
+## 2. Current Ground Truth
+
+The project has already established several important facts.
+
+- The current strongest validated reference before the session-level transition is `artifacts/202604141227-12-4-cuda`.
+- The current bottlenecks are not uniformly distributed across all classes.
+- The dominant hard confusion pairs are:
+  - `ShipTarget -> DroneTarget`
+  - `BirdTarget -> ShipTarget`
+- Errors naturally cluster by session and by long suspicious spans, not just by isolated clips.
+- Many aggressive clip-level fixes were tested and rejected as unstable defaults, including broad hard sampling, heuristic conditional gating, generic confusion handlers, and several pairwise correction layers.
+- A true session-level training backbone is a more structurally correct direction than continuing to overfit clip-level patches.
+
+## 3. Strategic Shift
+
+From this point forward, the project should be optimized around the following first-principles assumption:
+
+**The radar target label is fundamentally a session property, while clips are only partial evidence.**
+
+This means:
+
+- the training unit should be a session bag, not a single clip
+- the main prediction target should be a session label
+- clip-level outputs should become supporting evidence rather than the final decision authority
+- hard confusion handling should operate on session evidence and pair-specific evidence, not broad global biasing
+
+## 4. Mainline Architecture Direction
+
+### 4.1 Core Model Direction
+
+The mainline architecture should continue evolving toward this shape:
+
+1. clip encoder stage
+   - track encoder
+   - RD encoder
+   - clip-level fusion encoder
+   - clip embedding output
+
+2. session bag stage
+   - one session is represented as a bag of clip embeddings
+   - masked attention pooling or set-based aggregation produces a session embedding
+   - session classifier predicts the final class
+
+3. session specialist stage
+   - session-level pairwise experts for the hardest confusion pairs
+   - session-level router or reliability features only as supporting evidence
+
+4. deployment stage
+   - support full-session inference
+   - support prefix-session inference for real-time use
+   - support confidence-driven early decision
+
+### 4.2 What Should No Longer Be the Mainline
+
+The following directions should not remain the default optimization route:
+
+- broad hard-example oversampling
+- global logit bias as a permanent fix
+- heuristic feature-threshold conditional correction
+- clip-only confusion handlers with strong residual intervention
+- training strategies that improve a single confusion pair while destabilizing the overall manifold
+
+These branches may remain as experimental tools, but not as the default route.
+
+## 5. Immediate Engineering Priorities
+
+### Priority 1: Stabilize Session-Level Training
+
+The session-level mainline has been wired in, but it is not yet stable enough. The next engineering work should focus on stability before chasing additional peak accuracy.
+
+Required actions:
+
+- reduce training variance caused by random bag sampling
+- add deterministic or semi-deterministic bag construction for early experiments
+- add gradient accumulation to simulate a larger effective batch without exceeding 8 GB GPU memory
+- standardize bag length handling and masked attention normalization
+- expose session attention weights for debugging and error replay
+- ensure evaluation, calibration, and diagnosis fully support session-bag checkpoints
+
+Success criteria:
+
+- repeated training runs should not fluctuate wildly across large ranges
+- session-level metrics should be reproducible within a reasonably narrow band
+- session-level checkpoints must be evaluable through the same tooling as clip-level checkpoints
+
+### Priority 2: Upgrade the Session Aggregator
+
+A future target aggregator branch should explicitly include recurrent sequence models as first-class options, not only set/attention pooling.
+
+- target future variants:
+  - `BiGRU + attention pooling`
+  - `BiLSTM + attention pooling`
+  - hybrid `recurrent encoder + lightweight transformer refinement`
+
+Rationale:
+
+- ordered clip sequences carry real temporal information
+- small-to-medium radar session datasets may favor the stronger inductive bias of recurrent encoders
+- recurrent session encoders may be more stable than pure attention encoders before the large-scale paired dataset arrives
+- this branch should be treated as an explicit future mainline candidate, not a one-off experiment
+
+The current attention-pooling bag model is only the first stable version. The next upgrade path should be:
+
+1. masked attention pooling baseline
+2. multi-head session attention pooling
+3. lightweight set encoder or Set Transformer block
+4. optional temporal bag encoder for ordered clip sequences
+
+The guiding principle is to let the model learn which clips are trustworthy without forcing every clip to carry the session label equally.
+
+### Priority 3: Make Session-Level Specialists Real
+
+The main classifier should not be the only session-level head. The auxiliary heads should also be lifted from clip-only supervision to session-level supervision.
+
+Needed session-level specialists:
+
+- `ShipTarget vs DroneTarget` session expert
+- `BirdTarget vs ShipTarget` session expert
+- session-level surface or airborne routing cue if it remains useful
+
+The correct pattern is:
+
+- keep clip-level specialists as evidence generators
+- aggregate specialist evidence at the session level
+- train session-level specialist heads on top of pooled features
+
+### Priority 4: Prepare for Streaming and Real-Time Inference
+
+Session-level training does not need to imply full-session latency at deployment time.
+
+The intended real-time strategy should be:
+
+- train on full or partial session bags
+- infer on prefix bags in streaming mode
+- maintain an updated session embedding as new clips arrive
+- emit early predictions when confidence is high enough
+
+Required deployment features:
+
+- prefix-session inference
+- sliding-window bag inference
+- confidence thresholding
+- optional early exit
+
+This keeps session-level semantics while staying compatible with real-time constraints.
+
+## 6. Data Strategy for the Future 4000 Paired Sessions
+
+The planned paired dataset expansion is likely the single biggest opportunity for real performance growth.
+
+If the project reaches approximately 4000 paired sessions with matched track and RD data, the following become much more viable:
+
+- stronger session-level encoders
+- pair-specific metric learning
+- contrastive session embedding objectives
+- more reliable specialist heads
+- domain generalization and shift-robust training
+- more aggressive attention-based bag models
+
+The future data pipeline should be designed now for that scale.
+
+Required data-pipeline principles:
+
+- lazy loading rather than eager loading
+- session index manifests stored separately from heavy tensors
+- RD data read on demand
+- track data read on demand
+- caching only metadata and compact manifests in memory
+- support for partial sharding and future distributed training if needed
+
+The future dataset format must preserve:
+
+- stable `session_id`
+- stable mapping between track data and RD data
+- exact label alignment
+- timestamp or ordering needed for prefix or streaming inference
+
+## 6.0 Data Processing Boundary
+
+The repository must maintain a hard boundary between data processing and model training.
+
+- `pro/` is the only project area intended for raw-source parsing, source normalization, QC, slicing, and dataset preparation.
+- `data/` is the training-consumption area and should contain only standardized session data copied from processed outputs.
+- Raw-source-specific parsing code should live under `pro/`, not under the core training package.
+- Training code should assume `data/` already contains standardized sessions and should not depend on source-specific preprocessing details.
+
+## 6.1 Immediate New-Source Ingestion Plan
+
+The newly introduced `CQ-08` source establishes a second-generation ingestion requirement.
+
+Current confirmed facts about `CQ-08`:
+
+- it currently contributes `1550` paired data groups, not `4260`
+- every group contains:
+  - raw radar echo data (`.dat`)
+  - point-track text data
+  - filtered track text data
+- the three folders are one-to-one aligned by track identifier and label
+- raw echo data is pulse-compressed complex data, not just a derived image product
+
+This source should not be force-fitted into the legacy four-class route.
+Instead, it should become the first standardized raw-source ingestion branch for the future larger session-level system.
+
+## 6.2 Unified Label Mapping Direction
+
+The label system must now be treated as a scalable unified taxonomy rather than a fixed four-class taxonomy.
+
+For the `CQ-08` source, the currently confirmed mapping is:
+
+- `1` -> `DroneTarget`
+- `2` -> `DroneTarget`
+- `3` -> `BirdTarget`
+- `4` -> `BalloonTarget`
+- `5` -> `ClutterTarget`
+- `6` -> `OtherTarget`
+
+This mapping should be encoded explicitly in the ingestion pipeline and in dataset manifests.
+
+## 6.3 Optional-Modality Principle
+
+The legacy dataset and the new `CQ-08` source do not expose identical modalities.
+
+- legacy sessions provide track and RD, but no point-track modality
+- `CQ-08` provides track, raw echo, and point-track data
+
+Therefore the correct unification rule is not to force all sources to have the same modalities.
+Instead, the system should use a unified session schema with optional modalities.
+
+Every standardized session should support:
+
+- `track_sequence`
+- `rd_tensor`
+- `point_sequence` or `point_features`
+- `has_track`
+- `has_rd`
+- `has_points`
+
+This means point-track data should be treated as an optional modality, not a mandatory requirement.
+
+## 6.4 Role of Point-Track Data
+
+Point-track data is useful and should be retained, but not as the primary mandatory backbone for all sources.
+
+Its near-term role should be:
+
+- auxiliary evidence branch
+- session quality signal
+- RD crop and alignment support
+- reliability or ambiguity cue
+
+Its long-term role may evolve into:
+
+- point-set or point-sequence encoder
+- session-level multi-modal branch
+
+The first implementation should stay conservative:
+
+- use point-track data as optional aggregated features
+- use `has_points` masks for missing-modality handling
+- do not make point-track data mandatory for training legacy sessions
+
+## 6.5 Standardized Storage Policy
+
+The project should preserve three logical data layers:
+
+1. raw source layer
+   - keep original `.dat` files as the immutable source of truth
+
+2. parser or processing layer
+   - parse raw echo, point-track, and filtered track files into normalized intermediate structures
+
+3. training layer
+   - store standardized session-aligned training data in a session container format such as `h5`
+
+The training layer should not depend on thousands of loose intermediate arrays.
+The recommended persistent training format remains session-organized container storage.
+
+## 6.6 Immediate Engineering Work For `CQ-08`
+
+- a staged denoise and alignment layer should be planned for real-world raw echo sources
+  - denoise should remain configurable and source-aware
+  - alignment should explicitly handle track-to-RD synchronization and target-centered crop refinement
+  - these should be treated as preprocessing-layer capabilities under `pro/`, not as ad-hoc fixes inside the training loop
+
+The next ingestion milestone for the new source should include:
+
+- a Python rewrite of the MATLAB raw-echo parser
+- a deterministic loader for GBK-encoded point-track and track text files
+- a source-specific manifest builder
+- a standardized session export path from:
+  - raw echo
+  - point-track data
+  - filtered track data
+  - mapped label name
+
+The end result should be a source-normalized session manifest and session container output that can be consumed by the session-level training mainline.
+
+## 6.7 Kaggle DopplerNet-Derived Session Source
+
+A second auxiliary source is available under `pro/Kaggle/`, accompanied by the paper `DopplerNet: a convolutional neural network for recognising targets in real scenarios using a persistent range-Doppler radar`.
+
+Current confirmed properties:
+
+- `Cars/` and `People/` contain session-like folders
+- each folder contains ordered CSV files
+- each CSV is a fixed-size numeric array with shape approximately `11 x 61`
+- this source appears to be RD-only and does not provide track data
+
+Integration decision:
+
+- this source is usable
+- it should be treated as an RD-only auxiliary source
+- its labels can be kept as:
+  - `CarTarget`
+  - `PeopleTarget`
+- it should not be forced into a track+RD paired-source assumption
+
+Engineering rule:
+
+- the unified session schema must support optional track modality
+- Kaggle sessions should be ingested as:
+  - `has_rd = true`
+  - `has_track = false`
+  - `has_points = false`
+
+Training strategy:
+
+- this source should be used only after the session-level pipeline fully supports optional-modality training
+- it is most appropriate for multi-source session training, auxiliary pretraining, or RD-specialist training rather than for the old paired-only route
+
+## 7. Generalization Hypothesis
+
+The project should proceed under the following working hypothesis:
+
+**Session-level training is more likely than clip-level training to generalize under real target variability, provided enough paired sessions are available.**
+
+Reasoning:
+
+- the label belongs to the session, not to every individual clip equally
+- hardest errors already cluster by session and by continuous spans
+- clip-level training overweights local noise and accidental short-term patterns
+- session-level training can learn persistent motion and RD evidence across time
+
+This hypothesis still needs large-scale validation once the expanded paired dataset arrives.
+
+## 8. Short-Term Experimental Protocol
+
+Until the large dataset arrives, all session-level work should follow a strict protocol.
+
+### Stage A: Stability First
+
+- fixed seed
+- fixed bag construction policy
+- conservative bag size
+- conservative bag batch size
+- gradient accumulation if needed
+
+### Stage B: Baseline Session Mainline
+
+- main session classification loss
+- light clip auxiliary loss only if it improves stability
+- no aggressive confusion handler by default
+
+### Stage C: Session Pairwise Specialists
+
+- add session-level `Ship/Drone` expert first
+- only after that is stable, add session-level `Bird/Ship` expert
+
+### Stage D: Real-Time Session Inference
+
+- prefix-bag evaluation
+- confidence curve analysis
+- early-exit experiments
+
+## 9. Explicit Near-Term Roadmap
+
+### Phase 1: Make Session Training Stable
+
+- finish debugging the current session bag pipeline
+- make evaluation fully compatible with session checkpoints
+- reduce run-to-run variance
+- document stable training settings for 8 GB GPU
+
+### Phase 2: Make Session Training Useful
+
+- add session-level specialist heads
+- lift the most useful auxiliary heads from clip supervision to session supervision
+- add attention inspection and session replay tools
+- compare full-session and prefix-session behavior
+
+### Phase 3: Prepare for Scale
+
+- redesign data loading for thousands of sessions
+- make manifests first-class training inputs
+- support large-scale lazy session loading
+
+### Phase 4: Push for Accuracy
+
+- only after stability and scale are ready
+- test stronger session encoders
+- test metric learning on session embeddings
+- test pair-specific reranking or specialist calibration on session outputs
+
+## 10. Current Non-Negotiable Rules
+
+- `debug.md` must be updated for every major structural change and every failed experiment with diagnostic value.
+- `arch.md` must be updated whenever the architecture materially changes.
+- New defaults should only be promoted after repeatable improvement, not after a single lucky run.
+- The session-level route is now the official long-term direction.
+- Clip-level-only optimization is no longer the strategic mainline.
+
+## 11. Final Working Decision
+
+The project now commits to the following long-term engineering decision:
+
+**Build a scalable session-level radar recognition system first, then use the future large paired dataset to unlock the next accuracy tier.**
+
+In practice this means:
+
+- optimize session-level learning stability now
+- keep the current strongest checkpoint as the comparison anchor
+- treat future data expansion as the enabler for the next major leap in accuracy
+- stop relying on fragile clip-level fixes as the primary growth mechanism
+
+## 12. 分阶段10类训练方案
+
+### 12.1 目标
+
+当前10类主线的首要目标不是一次性冲到最高分，而是先定位：
+
+- 到底是哪一个数据来源在拖低整体表现
+- 到底是哪一组来源组合会引发明显退化
+- 到底是数据源本身难学，还是多源混合后才出现冲突
+
+当前三类来源为：
+
+- `LegacySession`
+  - `AircraftTarget`
+  - `BirdTarget`
+  - `DroneTarget`
+  - `ShipTarget`
+- `CQ-08-MAT`
+  - `BirdTarget`
+  - `DroneTarget`
+  - `BalloonTarget`
+  - `ClutterTarget`
+  - `OtherTarget`
+- `Carrada`
+  - `CarTarget`
+  - `PeopleTarget`
+  - `CyclistTarget`
+
+### 12.2 固定评估协议
+
+所有阶段都必须固定以下评估口径：
+
+- `Legacy-only`
+- `CQ-08-only`
+- `Carrada-only`
+- `overall unified`
+
+每轮统一记录：
+
+- `accuracy`
+- `macro_f1`
+- confusion matrix
+- 关键错误链
+
+关键错误链至少包括：
+
+- `PeopleTarget -> CyclistTarget`
+- `CyclistTarget -> PeopleTarget`
+- `BirdTarget -> OtherTarget`
+- `ClutterTarget -> BirdTarget`
+- `ClutterTarget -> OtherTarget`
+
+### 12.3 阶段划分
+
+#### Phase A：单源基线
+
+先分别训练并评估：
+
+1. `Legacy-only`
+2. `CQ-08-only`
+3. `Carrada-only`
+
+目的：
+
+- 判断每个来源单独是否可学
+- 排除“来源本身就学不动”的情况
+
+#### Phase B：两两组合
+
+在单源基线后，依次训练并评估：
+
+1. `Legacy + CQ-08`
+2. `Legacy + Carrada`
+3. `CQ-08 + Carrada`
+
+目的：
+
+- 判断是哪一对来源一混就出问题
+- 判断 source shift 和标签空间冲突主要来自哪一侧
+
+#### Phase C：完整10类联合训练
+
+只有在前两阶段明确了主要冲突来源后，才进入完整 `10-class` 联合训练。
+
+当前统一10类为：
+
+- `AircraftTarget`
+- `BirdTarget`
+- `DroneTarget`
+- `ShipTarget`
+- `BalloonTarget`
+- `ClutterTarget`
+- `OtherTarget`
+- `CarTarget`
+- `PeopleTarget`
+- `CyclistTarget`
+
+### 12.4 当前推荐顺序
+
+现阶段推荐顺序如下：
+
+1. `Legacy-only`
+2. `CQ-08-only`
+3. `Carrada-only`
+4. `Legacy + CQ-08`
+5. `Legacy + Carrada`
+6. `CQ-08 + Carrada`
+7. `All 10`
+
+这套顺序的目标不是最省时间，而是最快定位：
+
+- `CQ-08` 是否是主要扰动源
+- `Carrada` 是否是主要扰动源
+- 是哪一对来源最不兼容
+
+### 12.5 训练原则
+
+所有阶段统一遵守：
+
+- 继续使用 `session-only` 主线
+- `clip_loss_weight = 0`
+- 默认关闭不稳定的专项 `session auxiliary heads`
+- 保留：
+  - `source-aware split`
+  - `group-aware split`
+  - `source-aware + class-aware sampler`
+- 不随意更换主干和评估协议，避免阶段之间不可比较
+
+### 12.6 判断标准
+
+只有当某个新增来源满足以下条件，才允许继续进入下一阶段：
+
+- 原来源主指标不发生明显崩坏
+- 新来源指标显著高于随机水平
+- 关键混淆链没有出现灾难性恶化
+
+建议观察规则：
+
+- 若加入某来源后，原来源 `macro_f1` 大幅下降，则该来源为高风险扰动源
+- 若某来源单独可学，但一混合即退化，则主要问题在 cross-source conflict
+- 若某来源单独都学不稳，则先处理该来源内部问题，不进入更大联合训练

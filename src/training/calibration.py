@@ -54,6 +54,7 @@ def _build_dataset(
         dataset.set_track_normalization(
             np.asarray(track_feature_center, dtype=np.float32),
             np.asarray(track_feature_scale, dtype=np.float32),
+            by_source=checkpoint.get('track_feature_by_source'),
         )
     track_global_center = checkpoint.get('track_global_center')
     track_global_scale = checkpoint.get('track_global_scale')
@@ -61,6 +62,7 @@ def _build_dataset(
         dataset.set_track_global_normalization(
             np.asarray(track_global_center, dtype=np.float32),
             np.asarray(track_global_scale, dtype=np.float32),
+            by_source=checkpoint.get('track_global_by_source'),
         )
     return dataset
 
@@ -112,6 +114,18 @@ def _build_model(
         drone_class_index=checkpoint.get("label_to_index", {}).get("DroneTarget"),
         bird_surface_logit_residual_weight=float(getattr(config, "bird_surface_logit_residual_weight", 0.2)),
         ship_specialist_logit_residual_weight=float(getattr(config, "ship_specialist_logit_residual_weight", 0.0)),
+        confusion_pair_handler_enabled=bool(getattr(config, "confusion_pair_handler_enabled", False)),
+        confusion_pair_handler_hidden_dim=int(getattr(config, "confusion_pair_handler_hidden_dim", 64)),
+        confusion_pair_handler_dropout=float(getattr(config, "confusion_pair_handler_dropout", 0.1)),
+        confusion_pair_handler_weight=float(getattr(config, "confusion_pair_handler_weight", 0.0)),
+        confusion_pair_handler_gate_threshold=float(getattr(config, "confusion_pair_handler_gate_threshold", 0.55)),
+        confusion_ship_drone_handler_weight=float(getattr(config, "confusion_ship_drone_handler_weight", 0.0)),
+        confusion_bird_ship_handler_weight=float(getattr(config, "confusion_bird_ship_handler_weight", 0.0)),
+        ship_drone_refiner_enabled=bool(getattr(config, "ship_drone_refiner_enabled", False)),
+        ship_drone_refiner_hidden_dim=int(getattr(config, "ship_drone_refiner_hidden_dim", 128)),
+        ship_drone_refiner_dropout=float(getattr(config, "ship_drone_refiner_dropout", 0.1)),
+        ship_drone_refiner_logit_weight=float(getattr(config, "ship_drone_refiner_logit_weight", 0.0)),
+        ship_drone_refiner_gate_threshold=float(getattr(config, "ship_drone_refiner_gate_threshold", 0.6)),
         rd_dominant_fusion_bias=float(getattr(config, "rd_dominant_fusion_bias", 0.35)),
         rd_unimodal_logit_residual_weight=float(getattr(config, "rd_unimodal_logit_residual_weight", 0.18)),
         min_rd_fusion_weight=float(getattr(config, "min_rd_fusion_weight", 0.15)),

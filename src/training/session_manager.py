@@ -13,6 +13,8 @@ from src.training.dataset import RadarFusionDataset
 from src.training.tsv_dataset import TrackOnlyTsvDataset
 
 scan_statuses: list[SessionStatus] = []
+SCAN_CACHE_FILENAME = 'session_scan_cache.json'
+SPLIT_CACHE_FILENAME = 'session_split_cache.json'
 
 
 @dataclass(slots=True)
@@ -26,6 +28,8 @@ class SessionStatus:
     num_track_clips: int
     num_matched_tracks: int
     labels: list[str]
+    source_name: str = 'Unknown'
+    group_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -87,6 +91,8 @@ def _scan_tsv_directories(data_root: str) -> list[SessionStatus]:
                 num_track_clips=num_tracks,
                 num_matched_tracks=num_tracks,
                 labels=labels,
+                source_name='TSVSession',
+                group_id=session_dir.name,
             )
         )
     return statuses
@@ -101,12 +107,39 @@ def scan_session_directories(data_root: str, include_rd: bool = True) -> list[Se
     if not root.exists():
         return []
 
+    cache_path = root / SCAN_CACHE_FILENAME
+    if cache_path.exists():
+        try:
+            payload = json.loads(cache_path.read_text(encoding='utf-8'))
+            cached_include_rd = bool(payload.get('include_rd', True))
+            if cached_include_rd == bool(include_rd):
+                cached_statuses = payload.get('statuses', [])
+                if isinstance(cached_statuses, list) and cached_statuses:
+                    return [SessionStatus(**item) for item in cached_statuses]
+        except Exception:
+            pass
+
     statuses: list[SessionStatus] = []
     for session_dir in sorted(path for path in root.iterdir() if path.is_dir()):
         track_csv = session_dir / 'radar/track/track_data.csv'
         track_clip_file = session_dir / 'labels/labels_trackclip.jsonl'
         matched_file = session_dir / 'labels/labels_matched.jsonl'
         rd_clip_file = session_dir / 'radar/rd/rd_clips.h5'
+        meta_file = session_dir / 'meta_session.json'
+
+        meta = {}
+        if meta_file.exists():
+            try:
+                meta = json.loads(meta_file.read_text(encoding='utf-8'))
+            except Exception:
+                meta = {}
+        source_name = str(meta.get('source_name') or meta.get('source') or 'Unknown')
+        parent_instance_id = meta.get('parent_instance_id') or meta.get('instance_id')
+        sequence_id = meta.get('sequence_id')
+        if source_name == 'Carrada' and parent_instance_id is not None and sequence_id is not None:
+            group_id = f"Carrada::{sequence_id}::{parent_instance_id}"
+        else:
+            group_id = session_dir.name
 
         track_clips = _load_jsonl(track_clip_file) if track_clip_file.exists() else []
         matched_items = _load_jsonl(matched_file) if matched_file.exists() else []
@@ -127,10 +160,88 @@ def scan_session_directories(data_root: str, include_rd: bool = True) -> list[Se
                 num_track_clips=len(track_clips),
                 num_matched_tracks=len(matched_items),
                 labels=labels,
+                source_name=source_name,
+                group_id=group_id,
             )
         )
+
+    try:
+        cache_payload = {
+            'include_rd': bool(include_rd),
+            'statuses': [asdict(item) for item in statuses],
+        }
+        cache_path.write_text(json.dumps(cache_payload, ensure_ascii=False), encoding='utf-8')
+    except Exception:
+        pass
     return statuses
 
+
+
+def _split_group_pool(group_ids, group_to_sessions, group_sample_counts, status_map, val_ratio, test_ratio, random_seed):
+    group_ids = list(group_ids)
+    if not group_ids:
+        return [], [], []
+
+    random.Random(random_seed).shuffle(group_ids)
+
+    def label_of_group(group_id: str) -> str:
+        labels = []
+        for sid in group_to_sessions[group_id]:
+            status = status_map.get(sid)
+            if status is not None:
+                labels.extend(list(status.labels))
+        return labels[0] if labels else 'Unknown'
+
+    label_to_groups: dict[str, list[str]] = {}
+    for group_id in group_ids:
+        label_to_groups.setdefault(label_of_group(group_id), []).append(group_id)
+
+    for label_groups in label_to_groups.values():
+        label_groups.sort(key=lambda gid: group_sample_counts[gid], reverse=True)
+
+    train_groups: list[str] = []
+    val_groups: list[str] = []
+    test_groups: list[str] = []
+
+    def split_label_groups(groups_for_label: list[str]) -> tuple[list[str], list[str], list[str]]:
+        count = len(groups_for_label)
+        if count == 1:
+            return groups_for_label[:], [], []
+        if count == 2:
+            if val_ratio >= test_ratio:
+                return [groups_for_label[0]], [groups_for_label[1]], []
+            return [groups_for_label[0]], [], [groups_for_label[1]]
+
+        desired_val = int(round(count * val_ratio)) if val_ratio > 0 else 0
+        desired_test = int(round(count * test_ratio)) if test_ratio > 0 else 0
+        if val_ratio > 0:
+            desired_val = max(1, desired_val)
+        if test_ratio > 0:
+            desired_test = max(1, desired_test)
+
+        max_allocatable = count - 1
+        while desired_val + desired_test > max_allocatable:
+            if desired_test >= desired_val and desired_test > 0:
+                desired_test -= 1
+            elif desired_val > 0:
+                desired_val -= 1
+            else:
+                break
+
+        train_count = max(1, count - desired_val - desired_test)
+        train = groups_for_label[:train_count]
+        val = groups_for_label[train_count:train_count + desired_val]
+        test = groups_for_label[train_count + desired_val:train_count + desired_val + desired_test]
+        return train, val, test
+
+    for label in sorted(label_to_groups.keys()):
+        groups_for_label = label_to_groups[label]
+        train_part, val_part, test_part = split_label_groups(groups_for_label)
+        train_groups.extend(train_part)
+        val_groups.extend(val_part)
+        test_groups.extend(test_part)
+
+    return train_groups, val_groups, test_groups
 
 
 def _greedy_session_split(session_to_indices, val_ratio, test_ratio, random_seed):
@@ -138,116 +249,44 @@ def _greedy_session_split(session_to_indices, val_ratio, test_ratio, random_seed
     if not sessions:
         return [], [], []
 
-    sample_counts = {session_id: len(indices) for session_id, indices in sessions}
-    session_ids = [session_id for session_id, _ in sessions]
-    if len(session_ids) <= 3:
-        if len(session_ids) == 1:
-            return session_ids, [], []
-        if len(session_ids) == 2:
-            return [session_ids[0]], [session_ids[1]], []
-        return [session_ids[0]], [session_ids[1]], [session_ids[2]]
-
-    rng = random.Random(random_seed)
     status_map = {status.session_id: status for status in scan_statuses}
+    group_to_sessions: dict[str, list[str]] = {}
+    sample_counts = {session_id: len(indices) for session_id, indices in sessions}
 
-    def label_of(session_id: str) -> str:
-        labels = list(status_map.get(session_id, SessionStatus(session_id, False, False, False, False, False, 0, 0, [])).labels)
-        return labels[0] if labels else 'Unknown'
+    for session_id, _ in sessions:
+        status = status_map.get(session_id)
+        group_id = status.group_id if status is not None and status.group_id is not None else session_id
+        group_to_sessions.setdefault(group_id, []).append(session_id)
 
-    label_to_sessions: dict[str, list[str]] = {}
-    for session_id in session_ids:
-        label_to_sessions.setdefault(label_of(session_id), []).append(session_id)
+    group_sample_counts = {gid: sum(sample_counts[sid] for sid in sids) for gid, sids in group_to_sessions.items()}
 
-    for label_sessions in label_to_sessions.values():
-        label_sessions.sort(key=lambda sid: sample_counts[sid], reverse=True)
+    source_to_groups: dict[str, list[str]] = {}
+    for group_id, session_ids in group_to_sessions.items():
+        first_session = session_ids[0]
+        status = status_map.get(first_session)
+        source_name = status.source_name if status is not None else 'Unknown'
+        source_to_groups.setdefault(source_name, []).append(group_id)
 
-    total_sessions = len(session_ids)
-    desired_val_sessions = max(1, int(round(total_sessions * val_ratio))) if val_ratio > 0 else 0
-    desired_test_sessions = max(1, int(round(total_sessions * test_ratio))) if test_ratio > 0 else 0
+    train_groups: list[str] = []
+    val_groups: list[str] = []
+    test_groups: list[str] = []
+    for source_name, source_groups in sorted(source_to_groups.items()):
+        source_train, source_val, source_test = _split_group_pool(
+            group_ids=source_groups,
+            group_to_sessions=group_to_sessions,
+            group_sample_counts=group_sample_counts,
+            status_map=status_map,
+            val_ratio=val_ratio,
+            test_ratio=test_ratio,
+            random_seed=random_seed,
+        )
+        train_groups.extend(source_train)
+        val_groups.extend(source_val)
+        test_groups.extend(source_test)
 
-    classes = sorted(label_to_sessions.keys())
-    base_test = {label: 1 if len(label_to_sessions[label]) >= 3 and desired_test_sessions > 0 else 0 for label in classes}
-    base_val = {label: 1 if len(label_to_sessions[label]) >= 3 and desired_val_sessions > 0 else 0 for label in classes}
-
-    test_sessions: list[str] = []
-    val_sessions: list[str] = []
-    used: set[str] = set()
-
-    def pop_session(label: str, prefer_large: bool = True) -> str | None:
-        candidates = [sid for sid in label_to_sessions.get(label, []) if sid not in used]
-        if not candidates:
-            return None
-        candidates.sort(key=lambda sid: sample_counts[sid], reverse=prefer_large)
-        return candidates[0]
-
-    for label, count in base_test.items():
-        for _ in range(count):
-            sid = pop_session(label, prefer_large=True)
-            if sid is not None:
-                test_sessions.append(sid)
-                used.add(sid)
-
-    for label, count in base_val.items():
-        for _ in range(count):
-            sid = pop_session(label, prefer_large=False)
-            if sid is not None:
-                val_sessions.append(sid)
-                used.add(sid)
-
-    remaining = [sid for sid in session_ids if sid not in used]
-
-    def fill_bucket(bucket: list[str], target_count: int, prefer_large: bool):
-        nonlocal remaining
-        while len(bucket) < target_count and remaining:
-            remaining.sort(key=lambda sid: sample_counts[sid], reverse=prefer_large)
-            sid = remaining.pop(0)
-            bucket.append(sid)
-
-    fill_bucket(test_sessions, desired_test_sessions, True)
-    fill_bucket(val_sessions, desired_val_sessions, False)
-
-    train_sessions = [sid for sid in session_ids if sid not in set(test_sessions) | set(val_sessions)]
-
-    def covers_all_major_labels(session_list: list[str]) -> bool:
-        labels = {label_of(sid) for sid in session_list}
-        required = {label for label, sessions_for_label in label_to_sessions.items() if len(sessions_for_label) >= 2}
-        return required.issubset(labels)
-
-    if not covers_all_major_labels(val_sessions):
-        for label, sessions_for_label in label_to_sessions.items():
-            if len(sessions_for_label) < 2:
-                continue
-            if label in {label_of(sid) for sid in val_sessions}:
-                continue
-            candidate = next((sid for sid in train_sessions if label_of(sid) == label), None)
-            if candidate is None:
-                continue
-            swap_out = min(val_sessions, key=lambda sid: sample_counts[sid]) if val_sessions else None
-            if swap_out is not None:
-                val_sessions.remove(swap_out)
-                train_sessions.append(swap_out)
-            train_sessions.remove(candidate)
-            val_sessions.append(candidate)
-
-    if not covers_all_major_labels(test_sessions):
-        for label, sessions_for_label in label_to_sessions.items():
-            if len(sessions_for_label) < 2:
-                continue
-            if label in {label_of(sid) for sid in test_sessions}:
-                continue
-            candidate = next((sid for sid in train_sessions if label_of(sid) == label), None)
-            if candidate is None:
-                continue
-            swap_out = min(test_sessions, key=lambda sid: sample_counts[sid]) if test_sessions else None
-            if swap_out is not None:
-                test_sessions.remove(swap_out)
-                train_sessions.append(swap_out)
-            train_sessions.remove(candidate)
-            test_sessions.append(candidate)
-
-    train_sessions.sort()
-    val_sessions.sort()
-    test_sessions.sort()
+    train_sessions = sorted([sid for gid in train_groups for sid in group_to_sessions[gid]])
+    val_sessions = sorted([sid for gid in val_groups for sid in group_to_sessions[gid]])
+    test_sessions = sorted([sid for gid in test_groups for sid in group_to_sessions[gid]])
     return train_sessions, val_sessions, test_sessions
 
 
@@ -260,6 +299,7 @@ def build_dataset(data_root: str, config, session_ids=None, label_order=None):
         data_root=data_root,
         session_ids=session_ids,
         label_order=label_order,
+        label_granularity=getattr(config, 'label_granularity', 'coarse'),
         sequence_length=config.sequence_length,
         rd_frames=config.rd_frames,
         rd_height=config.rd_height,
@@ -274,6 +314,31 @@ def build_dataset(data_root: str, config, session_ids=None, label_order=None):
 
 
 def build_session_split_manifest(dataset, statuses, config) -> SessionSplitManifest:
+    data_root = Path(getattr(dataset, 'data_root', ''))
+    cache_path = data_root / SPLIT_CACHE_FILENAME if str(data_root) else None
+    selected_session_ids = sorted({sample.session_id for sample in getattr(dataset, 'samples', [])})
+    cache_key = {
+        'val_ratio': float(config.val_ratio),
+        'test_ratio': float(config.test_ratio),
+        'random_seed': int(config.random_seed),
+        'selected_session_ids': selected_session_ids,
+        'ready_sessions': sorted(status.session_id for status in statuses if status.ready_for_training),
+        'group_ids': sorted(f'{status.session_id}:{status.group_id}:{status.source_name}:{"|".join(status.labels)}' for status in statuses),
+    }
+    if cache_path is not None and cache_path.exists():
+        try:
+            payload = json.loads(cache_path.read_text(encoding='utf-8'))
+            if payload.get('cache_key') == cache_key:
+                manifest_payload = payload.get('manifest', {})
+                return SessionSplitManifest(
+                    train_sessions=list(manifest_payload.get('train_sessions', [])),
+                    val_sessions=list(manifest_payload.get('val_sessions', [])),
+                    test_sessions=list(manifest_payload.get('test_sessions', [])),
+                    session_statuses=statuses,
+                )
+        except Exception:
+            pass
+
     global scan_statuses
     scan_statuses = list(statuses)
     ready_ids = {status.session_id for status in statuses if status.ready_for_training}
@@ -287,7 +352,21 @@ def build_session_split_manifest(dataset, statuses, config) -> SessionSplitManif
         test_ratio=config.test_ratio,
         random_seed=config.random_seed,
     )
-    return SessionSplitManifest(train_sessions=train_sessions, val_sessions=val_sessions, test_sessions=test_sessions, session_statuses=statuses)
+    manifest = SessionSplitManifest(train_sessions=train_sessions, val_sessions=val_sessions, test_sessions=test_sessions, session_statuses=statuses)
+    if cache_path is not None:
+        try:
+            cache_payload = {
+                'cache_key': cache_key,
+                'manifest': {
+                    'train_sessions': manifest.train_sessions,
+                    'val_sessions': manifest.val_sessions,
+                    'test_sessions': manifest.test_sessions,
+                },
+            }
+            cache_path.write_text(json.dumps(cache_payload, ensure_ascii=False), encoding='utf-8')
+        except Exception:
+            pass
+    return manifest
 
 
 

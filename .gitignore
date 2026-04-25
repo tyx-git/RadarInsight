@@ -22,6 +22,7 @@ artifacts/*
 reports/real/*
 !reports/real/README.md
 
+pro/
 logs/*
 !logs/README.md
 
