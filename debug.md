@@ -1,0 +1,247 @@
+# debug
+
+## 2026-04-25
+- 初始化新的架构变更跟踪文件。
+- 当前项目根目录已重构为：
+  - `OriData/`：原始数据集
+  - `data/`：处理后的数据集
+  - `artifacts/`：模型与训练产物
+  - `reports/`：模型报告
+  - `src/core/`：核心代码
+  - `src/process/`：原始数据处理代码
+  - `src/visual/`：可视化代码
+- 后续所有涉及目录结构、模块职责、主流程入口调整的变更，都记录在此文件中。
+- 方案进一步收敛：新增根目录 `target.md`，当前项目只使用：
+  - `OriData/raw/TR`
+  - `OriData/raw/RD`
+  - `OriData/excel` 中的轨迹数据
+- 暂停此前多源统一、扩类、复杂联合训练相关路线。
+- 在 `src/process/` 下新增第一版处理脚手架：
+  - `raw_excel_manifest.py`
+  - `build_manifests.py`
+- 第一阶段输出写入 `data/manifests/`，用于沉淀：
+  - `raw/TR + raw/RD` 配对清单
+  - `excel/tck + excel/bz` 配对清单
+- 读取 `OriData/excel` 下 MATLAB 脚本后，已确认 Excel 轨迹字段语义主要对应：
+  - 方位、距离、径向速度、仰角、高度、幅度、航向、速度、噪声、批次号等
+- 已将这些字段含义写入 `excel_track_manifest.json`。
+- 新增第一版统一轨迹 schema：
+  - `src/process/schema.py`
+- 新增第一版标准化导出器：
+  - `src/process/standardize_tracks.py`
+- 目标是先把：
+  - `OriData/raw/TR`
+  - `OriData/excel/tck`
+ 统一导出到 `data/processed/`，形成可继续使用的轨迹表。
+- 将 `excel` 标准化导出的粒度从“整份时间戳文件”修正为“`timestamp + batch_id` 单元”。
+- 当前 `data/processed/` 已不再只是分散 CSV，而是形成了稳定数据集结构：
+  - `raw_tracks/`
+  - `excel_tracks/`
+  - `raw_track_index.csv`
+  - `excel_track_index.csv`
+  - `track_index.csv`
+  - `summary.json`
+- 当前处理后样本总量：
+  - `raw_tr_rd = 77`
+  - `excel_track = 588`
+  - `total = 665`
+- 在 `src/core/` 下新增第一版读取接口：
+  - `processed_dataset.py`
+  - 负责从 `data/processed/track_index.csv` 读取样本索引并按 `sample_id` 加载标准化轨迹表
+- 当前标签层已升级为“双字段”：
+  - `label_name_raw`：保留原始标签
+  - `label_name`：统一后的标准标签
+- 当前统一标签已经覆盖：
+  - `AircraftTarget`
+  - `BirdTarget`
+  - `DroneTarget`
+  - `ShipTarget`
+  - `CarTarget`
+  - `PeopleTarget`
+  - `BalloonTarget`
+  - `ClutterTarget`
+  - `UnknownTarget`
+- 当前仍保留少量需要后续单独处理的样本：
+  - `MixedLabel`
+- 当前已新增训练可用性筛选层：
+  - `track_index_with_flags.csv`
+  - `trainable_track_index.csv`
+  - `trainable_summary.json`
+- 当前默认训练可用规则：
+  - 排除 `MixedLabel`
+  - 排除 `UnknownTarget`
+  - 排除 `record_count < 2`
+  - 排除 `time_seconds_max - time_seconds_min <= 0`
+- 当前训练可用样本数：
+  - `626 / 665`
+- 已补齐 `raw/RD` 处理支路：
+  - `src/process/standardize_rd.py`
+  - 输出 `data/processed/raw_rd/` 与 `raw_rd_index.csv`
+- 已新增处理总入口：
+  - `src/process/build_all_processed.py`
+  - 当前可以一键重建：
+    - `data/manifests/`
+    - `data/processed/raw_tracks`
+    - `data/processed/excel_tracks`
+    - `data/processed/raw_rd`
+    - 统一索引与训练可用索引
+- 当前 `data/processed/pipeline_summary.json` 已能汇总：
+  - manifest
+  - tracks
+  - raw rd
+  - trainable
+- 已开始搭建 `src/core` 第一版骨架：
+  - `labels.py`
+  - `features.py`
+  - `samples.py`
+  - `dataset.py`
+  - `split.py`
+- 当前 `src/core` 已支持：
+  - 从 `data/processed/trainable_track_index.csv` 读取训练可用样本
+  - 输出统一样本对象
+  - 进行基础分层 train/val/test 切分
+- 已继续补齐训练数据加载骨架：
+  - `encoding.py`
+  - `torch_dataset.py`
+  - `collate.py`
+  - `dataloaders.py`
+- 当前已验证：
+  - 可从 `626` 个训练可用样本构建 PyTorch 数据集
+  - 可完成基础分层切分
+  - 可输出带 padding 和 mask 的 batch
+- 已继续补齐第一版可训练 baseline：
+  - `models.py`
+  - `metrics.py`
+  - `train_config.py`
+  - `trainer.py`
+  - `train_baseline.py`
+- 当前 baseline 采用：
+  - GRU 序列分类器
+  - 10维轨迹特征输入
+  - 基础交叉熵训练
+  - checkpoint / history / split manifest 输出到 `artifacts/`
+## 2026-04-25 架构补齐：对照 main.md 完成 core 分层骨架
+- 对照 `main.md` 审查当前架构后，确认此前 `src/core` 只有“处理后数据读取 + GRU baseline”，缺少总架构里明确要求的以下层次：
+  - 轨迹建模层
+  - 物理特征层
+  - 深度门控路由层
+  - 多专家层
+  - 系统级推理编排层
+- 本次补齐的文件：
+  - `src/core/physical.py`
+  - `src/core/trajectory.py`
+  - `src/core/router.py`
+  - `src/core/experts.py`
+  - `src/core/system.py`
+  - `src/core/architecture.py`
+- 当前这些新增模块的定位：
+  - 先补齐与 `main.md` 对齐的代码骨架与可导入接口
+  - 不直接替换现有 `GRUSequenceClassifier` baseline
+  - 让后续可以在现有 `data/processed` 与 dataloader 基础上继续演进到：
+    - 双通道轨迹表征
+    - 任务导向门控路由
+    - 多专家并行分类
+- 当前已完成的对齐：
+  - `physical.py`：补了显式物理特征提取
+  - `trajectory.py`：补了 Transformer 轨迹编码器和深度+物理融合表征构建器
+  - `router.py`：补了门控路由 MLP 骨架
+  - `experts.py`：补了低空可疑目标 / 常规空中目标 / 高空规则过滤 / 地面目标专家骨架
+  - `system.py`：补了统一系统前向编排入口
+  - `architecture.py`：把总架构中的 route 规格显式化
+- 当前仍然只是“架构骨架”，尚未完成的部分：
+  - 物理特征与 `main.md` 15维定义还不是一一完全等价，只是第一版可运行近似
+  - 路由监督、专家监督、联合损失、按需激活逻辑尚未接入训练循环
+  - RD 精分分支尚未真正实现，仅保留了未来对齐位置
+- 轻量验证结果：
+  - 新增文件已通过 `py_compile`
+  - 新增模块可正常导入，不与现有 baseline 冲突
+## 2026-04-25 第一版系统训练入口落地
+- 在不推翻现有 baseline 的前提下，已把“第一版可训练系统”接起来：
+  - `src/core/system_config.py`
+  - `src/core/system_metrics.py`
+  - `src/core/system_trainer.py`
+  - `src/core/train_system.py`
+- 同时为了让系统训练真正吃到 `main.md` 所要求的“轨迹深度特征 + 物理特征 + 路由标签”，补了：
+  - `torch_dataset.py`：新增 `physical_features`、`route_name`、`route_index`
+  - `collate.py`：新增 `physical_features` 和 `route_labels` batch 组织
+- 当前 route 规则是第一版近似映射：
+  - `Drone/Bird/Balloon/Clutter -> low_altitude_suspect`
+  - `Aircraft -> conventional_air`
+  - `People/Car/Ship -> ground_target`
+  - 其余 -> high_altitude_filter`
+- 当前系统训练做的是：
+  - 共享轨迹表征
+  - 路由监督
+  - 专家分支输出
+  - 映射回当前 8 类统一标签空间做分类监督
+- 还没做的部分：
+  - RD 精分分支
+  - 任务导向按需激活
+  - 更细的专家标签体系
+  - 联合损失的完整版本
+- smoke 结果：
+  - 系统前向已通过
+  - `artifacts/system_v1_smoke` 已成功产出 checkpoint / history / split manifest / summary
+  - 1 epoch CPU smoke test metrics:
+    - `accuracy ≈ 0.4842`
+    - `macro_f1 ≈ 0.2237`
+    - `route_accuracy ≈ 0.7684`
+## 2026-04-25 系统级详细评估报告补齐
+- 为了支撑后续反复调参与向 95% 准确率收敛，已在 `system_trainer.py` 中补齐详细测试报告输出。
+- 当前系统训练完成后，除原有：
+  - `best_model.pt`
+  - `training_history.json`
+  - `training_split_manifest.json`
+  - `training_summary.json`
+  之外，还会新增：
+  - `evaluation_report.json`
+- `evaluation_report.json` 当前包含：
+  - 总体 summary
+  - 分类 confusion matrix
+  - per-class precision / recall / f1 / support
+  - route confusion matrix
+  - per-route support / recall
+  - 按 source 的分类准确率
+  - 每个测试样本的预测明细（真实类、预测类、真实路由、预测路由、是否分类正确、是否路由正确）
+- 这一步的目标是把后续训练从“只看 accuracy”升级成“能定位具体哪类、哪路由、哪来源在拖后腿”。
+## 2026-04-25 中文实验报告链打通
+- 在保留 `artifacts/.../evaluation_report.json` 原始结构化评估结果的同时，新增：
+  - `src/core/reporting.py`
+- 当前系统训练结束后会自动把评估结果同步写到：
+  - `reports/real/<experiment_name>.json`
+  - `reports/real/<experiment_name>.md`
+- markdown 报告当前包含：
+  - 总体指标
+  - 训练产物路径
+  - 各类别指标表
+  - 主要混淆对
+  - 路由表现
+  - 按来源统计
+  - 典型错分样本前20条
+- 这样后续每轮实验既保留机器可读 JSON，也保留人工可读中文报告，便于长期对比与逼近 95% 准确率目标。
+## 2026-04-25 系统训练稳定性与 RD 接入修复
+- 针对 `system_v1` 后期出现 `loss=NaN` 的问题，已先做第一轮稳定性修复：
+  - 在 `system_trainer.py` 中加入 `clip_grad_norm_`
+  - 把非有限 `loss` 检查前移到 `backward()` 之前
+- 同时查明并修复了“RD 没进训练链”的问题：
+  - 之前 `src/process/standardize_rd.py` 只生成了 `raw_rd` 摘要索引，没有真正进入 `src/core` 训练前向
+  - 现在新增 `src/core/rd.py`
+  - `TorchTrackDataset` / `collate.py` 已支持 `rd_features`
+  - `RadarClassificationSystem` 现在会把 RD 摘要特征映射到一个轻量 RD 支路，并与轨迹融合特征拼接后送入专家
+- 当前 RD 接入是第一版轻量实现：
+  - 使用的是 `raw_rd` 的摘要特征（`frame_energy_mean/max/min`）
+  - 不是完整 RD 图时序编码器
+  - 其作用是先把 RD 真正接进训练闭环，而不是直接实现 `main.md` 里的最终精分支
+- smoke 验证结果：
+  - batch 中已存在 `rd_features`
+  - 模型前向已实际消费 `rd_features`
+  - `artifacts/system_v1_rd_smoke` 已可完成 1 epoch smoke 训练
+## 2026-04-25 训练产物与报告按时间戳归档
+- 新增：
+  - `src/core/run_paths.py`
+- baseline 与 system 训练链现在统一按时间戳创建输出目录：
+  - `artifacts/<timestamp>/<experiment_name>/`
+- 中文报告同步按时间戳写入：
+  - `reports/real/<timestamp>/<experiment_name>.md`
+  - `reports/real/<timestamp>/<experiment_name>.json`
+- 这样每轮模型、checkpoint、history、summary、中文报告都不会互相覆盖，便于长期对照和回溯。

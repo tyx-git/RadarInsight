@@ -1,2 +1,39 @@
 # process
 这里放处理 OriData 内原始数据集的代码。
+## 当前已建立
+- `raw_excel_manifest.py`
+  - 扫描 `OriData/raw/TR` 与 `OriData/raw/RD`
+  - 扫描 `OriData/excel` 中的 `tck/bz` 配对
+  - 写入 Excel 字段语义
+  - 输出基础清单到 `data/manifests/`
+- `schema.py`
+  - 定义第一版统一轨迹字段
+- `standardize_tracks.py`
+  - 将 `raw/TR` 与 `excel/tck` 统一导出到 `data/processed/`
+  - `raw` 侧按 `TR+RD` 配对导出
+  - `excel` 侧按 `timestamp + batch_id` 粒度导出
+  - 保留原始标签 `label_name_raw`
+  - 输出统一标签 `label_name`
+  - 生成统一索引：
+    - `data/processed/raw_track_index.csv`
+    - `data/processed/excel_track_index.csv`
+    - `data/processed/track_index.csv`
+- `build_training_index.py`
+  - 基于 `track_index.csv` 生成训练可用性标记
+  - 输出：
+    - `data/processed/track_index_with_flags.csv`
+    - `data/processed/trainable_track_index.csv`
+    - `data/processed/trainable_summary.json`
+- `standardize_rd.py`
+  - 对 `OriData/raw/RD` 生成轻量标准化摘要
+  - 输出：
+    - `data/processed/raw_rd/`
+    - `data/processed/raw_rd_index.csv`
+    - `data/processed/raw_rd_summary.json`
+- `build_all_processed.py`
+  - 一键重建当前主线的数据处理结果：
+    - manifests
+    - tracks
+    - raw rd summary
+    - trainable index
+    - `data/processed/pipeline_summary.json`

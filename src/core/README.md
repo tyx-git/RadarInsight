@@ -1,2 +1,75 @@
 # core
 核心代码放在这里。
+## 当前已建立
+- `processed_dataset.py`
+  - 读取 `data/processed/track_index.csv`
+  - 提供处理后轨迹样本索引访问
+  - 提供按 `sample_id` 加载单个标准化轨迹表的接口
+  - 同时支持：
+    - `label_name_raw`
+    - `label_name`
+  - 支持 `trainable_only=True`
+    - 直接读取 `data/processed/trainable_track_index.csv`
+- `labels.py`
+  - 定义当前标准标签表
+- `features.py`
+  - 定义当前轨迹特征列与元信息列
+- `samples.py`
+  - 定义单个轨迹样本对象
+- `dataset.py`
+  - 提供面向训练输入的 `TrackDataset`
+- `split.py`
+  - 提供基础分层切分器 `stratified_split`
+- `encoding.py`
+  - 负责轨迹序列数值清洗与特征矩阵编码
+- `torch_dataset.py`
+  - 提供面向 PyTorch 的样本数据集
+- `collate.py`
+  - 提供 batch padding / mask 组织逻辑
+- `dataloaders.py`
+  - 提供从 `data/processed/trainable_track_index.csv` 到 dataloader 的一键构建入口
+- `models.py`
+  - 当前提供第一版 GRU 序列分类 baseline
+- `metrics.py`
+  - 当前提供基础分类指标
+- `train_config.py`
+  - baseline 训练配置
+- `trainer.py`
+  - baseline 训练循环、验证、测试和 checkpoint 保存
+- `train_baseline.py`
+  - baseline 训练命令行入口
+## 对齐 `main.md` 后补齐的架构骨架
+- `physical.py`
+  - 从标准化轨迹表中提取显式物理特征
+  - 对应 `main.md` 中“双通道轨迹表征”的物理特征支路
+- `trajectory.py`
+  - 提供 Transformer 轨迹编码器和表征构建器
+  - 对应 `main.md` 中“深度时序特征 + 显式物理特征融合”
+- `router.py`
+  - 提供深度门控路由网络骨架
+  - 对应 `main.md` 中“深度门控路由网络”
+- `experts.py`
+  - 提供低空可疑目标、常规空中目标、地面目标、高空规则过滤专家骨架
+  - 对应 `main.md` 中“四专家协同”
+- `system.py`
+  - 提供轨迹建模、路由和专家的统一系统编排入口
+  - 对应 `main.md` 中“三级级联总体架构”
+- `architecture.py`
+  - 提供当前系统级架构规格定义
+  - 用于把代码层和 `main.md` 的总架构约束显式对齐
+- `system_config.py`
+  - 第一版系统级训练配置
+- `system_metrics.py`
+  - 第一版系统级分类+路由指标
+- `system_trainer.py`
+  - 第一版 route-aware 多专家训练循环
+- `train_system.py`
+  - 第一版系统训练入口
+- `reporting.py`
+  - 将系统训练的 `evaluation_report.json` 转成中文 markdown 报告
+  - 自动写入 `reports/real/`
+- `run_paths.py`
+  - 统一生成按时间戳归档的训练产物目录
+  - 当前训练产物会写到：
+    - `artifacts/<timestamp>/<experiment_name>/`
+    - `reports/real/<timestamp>/<experiment_name>.md|json`

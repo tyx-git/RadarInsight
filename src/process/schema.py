@@ -1,0 +1,45 @@
+from __future__ import annotations
+
+TRACK_SCHEMA_COLUMNS = [
+    "source_name",
+    "record_id",
+    "pair_id",
+    "timestamp",
+    "frame_index",
+    "time_raw",
+    "time_seconds",
+    "azimuth_deg",
+    "range_m",
+    "radial_speed_mps",
+    "elevation_deg",
+    "height_m",
+    "amplitude_db",
+    "snr_db",
+    "course_deg",
+    "speed_mps",
+    "latitude",
+    "longitude",
+    "batch_id",
+    "label_name_raw",
+    "label_name",
+    "label_id",
+    "note_text",
+]
+
+
+TRACK_INDEX_COLUMNS = [
+    "dataset_name",
+    "source_name",
+    "sample_id",
+    "sample_kind",
+    "timestamp",
+    "batch_id",
+    "label_name_raw",
+    "label_name",
+    "record_count",
+    "time_seconds_min",
+    "time_seconds_max",
+    "csv_path",
+    "rd_path",
+    "rd_summary_csv_path",
+]
