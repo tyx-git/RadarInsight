@@ -1,46 +1,23 @@
-# Virtual environments
+.history/
 .venv/
-venv/
-
-# Python cache
 __pycache__/
-**/__pycache__/
 *.py[cod]
-.pytest_cache/
-.mypy_cache/
-
-# OS / editor files
-.DS_Store
+*.pyo
+*.pyd
+*.log
+*.tmp
+*.temp
 Thumbs.db
-.vscode/
+.DS_Store
 .idea/
-
-# Runtime outputs
-artifacts/*
-!artifacts/README.md
-
-reports/real/*
-!reports/real/README.md
-
-pro/
-logs/*
-!logs/README.md
-
-# Local datasets and processed sessions
-
-pro/sessions/*
-!pro/sessions/README.md
-
-pro/tsv/*
-!pro/tsv/README.md
-
-data/sessions/*
-!data/sessions/README.md
-
-data/tsv/*
-!data/tsv/README.md
-
-# Future exports
-exports/
-
-AGENTS.md
+.vscode/
+artifacts/
+data/
+docs/
+needtosettle/
+reports/
+tests/
+tools/
+logs/
+OriData/
+.history/
