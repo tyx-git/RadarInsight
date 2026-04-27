@@ -9,7 +9,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
+from .device import resolve_cuda_device
 from .forwardlayer.dataset import TrackDataset
+from .forwardlayer.labels import DEFAULT_VOCAB
 from .physical import PHYSICAL_FEATURE_COLUMNS
 from .reporting import write_real_experiment_report
 from .router import ROUTE_NAMES, DeepGatingRouter
@@ -41,22 +43,7 @@ def set_seed(seed: int) -> None:
 
 
 def resolve_device(requested_device: str) -> tuple[torch.device, dict[str, object]]:
-    cuda_available = bool(torch.cuda.is_available())
-    if requested_device == "cuda" and cuda_available:
-        device = torch.device("cuda")
-    elif requested_device == "cuda" and not cuda_available:
-        device = torch.device("cpu")
-    else:
-        device = torch.device(requested_device)
-    info: dict[str, object] = {
-        "requested_device": requested_device,
-        "resolved_device": str(device),
-        "cuda_available": cuda_available,
-        "cuda_device_count": int(torch.cuda.device_count()) if cuda_available else 0,
-    }
-    if cuda_available:
-        info["cuda_device_name"] = torch.cuda.get_device_name(0)
-    return device, info
+    return resolve_cuda_device(requested_device)
 
 
 class RouterSampleDataset(Dataset):
@@ -79,7 +66,7 @@ class RouterSampleDataset(Dataset):
     def __len__(self) -> int:
         return len(self.frame)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, int, str, str]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, int, int, str, str]:
         row = self.frame.iloc[index]
         item = self.torch_dataset[index]
         if item.sample_id != str(row["sample_id"]):
@@ -88,6 +75,7 @@ class RouterSampleDataset(Dataset):
         return (
             item.physical_features,
             TRAINABLE_ROUTE_NAMES.index(route_name),
+            item.label_index,
             str(row["sample_id"]),
             route_name,
         )
@@ -96,9 +84,10 @@ class RouterSampleDataset(Dataset):
 def _collate_router(items):
     physical_features = torch.stack([item[0] for item in items], dim=0).float()
     labels = torch.tensor([item[1] for item in items], dtype=torch.long)
-    sample_ids = [item[2] for item in items]
-    route_names = [item[3] for item in items]
-    return physical_features, labels, sample_ids, route_names
+    coarse_labels = torch.tensor([item[2] for item in items], dtype=torch.long)
+    sample_ids = [item[3] for item in items]
+    route_names = [item[4] for item in items]
+    return physical_features, labels, coarse_labels, sample_ids, route_names
 
 
 def _count_trainable_parameters(model: nn.Module) -> int:
@@ -176,6 +165,7 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     route_weights = _build_route_weights(train_ds).to(device)
     criterion = nn.CrossEntropyLoss(weight=None if config.balanced_sampling else route_weights)
+    coarse_criterion = nn.CrossEntropyLoss()
 
     print(f"[*] Using device: {device}")
     print(f"[*] Trainable parameters: {_count_trainable_parameters(model):,}")
@@ -188,13 +178,16 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
         sample_ids_all = []
         route_names_all = []
         override_all = []
-        for physical_features, labels, sample_ids, route_names in loader:
+        for physical_features, labels, coarse_labels, sample_ids, route_names in loader:
             physical_features = physical_features.to(device)
             labels = labels.to(device)
+            coarse_labels = coarse_labels.to(device)
             with torch.set_grad_enabled(train):
                 output = model(physical_features, rule_features=physical_features)
                 logits = output.network_logits[:, TRAINABLE_ROUTE_INDICES]
-                loss = criterion(logits, labels)
+                route_loss = criterion(logits, labels)
+                coarse_loss = coarse_criterion(output.coarse_logits, coarse_labels)
+                loss = route_loss + config.coarse_loss_weight * coarse_loss
                 if train:
                     optimizer.zero_grad()
                     loss.backward()
@@ -242,6 +235,7 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
                     "model_state_dict": model.state_dict(),
                     "config": config.__dict__,
                     "trainable_route_names": TRAINABLE_ROUTE_NAMES,
+                    "coarse_label_names": DEFAULT_VOCAB.labels,
                     "balanced_sampling": bool(config.balanced_sampling),
                 },
                 best_path,
@@ -326,6 +320,8 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
         "trainable_parameters": _count_trainable_parameters(model),
         "route_weights": route_weights.detach().cpu().tolist(),
         "balanced_sampling": bool(config.balanced_sampling),
+        "coarse_loss_weight": config.coarse_loss_weight,
+        "coarse_label_names": DEFAULT_VOCAB.labels,
         "class_weights_enabled": not bool(config.balanced_sampling),
         "max_grad_norm": config.max_grad_norm,
     }

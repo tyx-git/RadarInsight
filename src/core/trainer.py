@@ -9,8 +9,9 @@ import numpy as np
 import torch
 from torch import nn
 
-from .dataloaders import build_dataloaders
-from .labels import DEFAULT_VOCAB
+from .device import resolve_cuda_device
+from .forwardlayer.dataloaders import build_dataloaders
+from .forwardlayer.labels import DEFAULT_VOCAB
 from .metrics import compute_classification_metrics
 from .models import GRUSequenceClassifier
 from .run_paths import prepare_run_output_dir
@@ -61,7 +62,7 @@ def train_baseline(config: TrainConfig) -> dict[str, object]:
     set_seed(config.seed)
     run_paths = prepare_run_output_dir(config.output_dir)
     output_dir = run_paths.output_dir
-    device = torch.device(config.device if config.device == "cpu" or torch.cuda.is_available() else "cpu")
+    device, device_info = resolve_cuda_device(config.device)
 
     loaders = build_dataloaders(
         data_root=config.data_root,
@@ -123,6 +124,7 @@ def train_baseline(config: TrainConfig) -> dict[str, object]:
         "test_metrics": test_metrics,
         "run_timestamp": run_paths.timestamp_label,
         "experiment_name": run_paths.experiment_name,
+        "device": device_info,
     }
     (output_dir / "training_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary

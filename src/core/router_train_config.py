@@ -13,6 +13,7 @@ class RouterTrainConfig:
     learning_rate: float = 3e-4
     weight_decay: float = 1e-4
     balanced_sampling: bool = True
+    coarse_loss_weight: float = 0.3
     max_grad_norm: float = 1.0
     seed: int = 42
     device: str = "cuda"

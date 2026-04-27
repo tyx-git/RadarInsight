@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from .device import resolve_cuda_device
 from .experts import LOW_ALTITUDE_CLASSES, LowAltitudeSuspectExpert
 from .expert1_config import Expert1TrainConfig
 from .expert1_data import LOW_ALTITUDE_GLOBAL_TO_LOCAL, build_expert1_dataloaders
@@ -28,22 +29,7 @@ def set_seed(seed: int) -> None:
 
 
 def resolve_device(requested_device: str) -> tuple[torch.device, dict[str, object]]:
-    cuda_available = bool(torch.cuda.is_available())
-    if requested_device == "cuda" and cuda_available:
-        device = torch.device("cuda")
-    elif requested_device == "cuda" and not cuda_available:
-        device = torch.device("cpu")
-    else:
-        device = torch.device(requested_device)
-    info: dict[str, object] = {
-        "requested_device": requested_device,
-        "resolved_device": str(device),
-        "cuda_available": cuda_available,
-        "cuda_device_count": int(torch.cuda.device_count()) if cuda_available else 0,
-    }
-    if cuda_available:
-        info["cuda_device_name"] = torch.cuda.get_device_name(0)
-    return device, info
+    return resolve_cuda_device(requested_device)
 
 
 def _count_trainable_parameters(model: nn.Module) -> int:

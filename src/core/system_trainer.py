@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from .device import resolve_cuda_device
 from .forwardlayer.dataloaders import build_dataloaders
 from .forwardlayer.dataset import TrackDataset
 from .forwardlayer.labels import DEFAULT_VOCAB
@@ -30,22 +31,7 @@ def set_seed(seed: int) -> None:
 
 
 def resolve_device(requested_device: str) -> tuple[torch.device, dict[str, object]]:
-    cuda_available = bool(torch.cuda.is_available())
-    if requested_device == "cuda" and cuda_available:
-        device = torch.device("cuda")
-    elif requested_device == "cuda" and not cuda_available:
-        device = torch.device("cpu")
-    else:
-        device = torch.device(requested_device)
-    info: dict[str, object] = {
-        "requested_device": requested_device,
-        "resolved_device": str(device),
-        "cuda_available": cuda_available,
-        "cuda_device_count": int(torch.cuda.device_count()) if cuda_available else 0,
-    }
-    if cuda_available:
-        info["cuda_device_name"] = torch.cuda.get_device_name(0)
-    return device, info
+    return resolve_cuda_device(requested_device)
 
 
 def _count_trainable_parameters(model: nn.Module) -> int:
@@ -419,7 +405,7 @@ def _project_to_global_logits(
             topk_indices = route_weights.topk(k=topk_count, dim=-1).indices
             topk_mask = torch.zeros_like(route_weights, dtype=torch.bool)
             topk_mask.scatter_(1, topk_indices, True)
-            route_weights = torch.where(topk_mask, route_weights, torch.full_like(route_weights, 1e-3))
+            route_weights = torch.where(topk_mask, route_weights, torch.zeros_like(route_weights))
             route_weights = route_weights / route_weights.sum(dim=-1, keepdim=True).clamp_min(1e-6)
             route_log_weights = torch.log(route_weights.clamp_min(1e-6))
         else:
