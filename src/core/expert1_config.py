@@ -32,6 +32,7 @@ class Expert1TrainConfig:
     enable_reject_in_eval: bool = False
     stage1_traj_only_epochs: int = 12
     stage2_ramp_epochs: int = 6
+    prefer_stage2_checkpoint: bool = True
     sequence_encoder_lr_multiplier: float = 0.1
     pretrained_track_checkpoint: str = ""
     freeze_track_encoder_epochs: int = 0

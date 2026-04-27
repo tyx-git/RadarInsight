@@ -21,8 +21,8 @@ class SystemTrainConfig:
     expert1_checkpoint: str = ""
     expert2_checkpoint: str = ""
     expert4_checkpoint: str = ""
-    fusion_mode: str = "hard_route"
-    freeze_router: bool = True
+    fusion_mode: str = "ungated"
+    freeze_router: bool = False
     freeze_track_encoder_epochs: int = 0
     freeze_non_router_in_warmup: bool = True
     stage_warmup_epochs: int = 0

@@ -68,6 +68,7 @@
     "freeze_track_encoder_epochs": 0,
     "stage1_traj_only_epochs": 1,
     "stage2_ramp_epochs": 1,
+    "prefer_stage2_checkpoint": true,
     "rd_activation_threshold": 0.8,
     "rd_sample_boost": 1.2,
     "raw_source_boost": 2.0,
@@ -105,7 +106,7 @@
   },
     "system": {
     "output_dir": "artifacts/system_config_smoke",
-    "epochs": 2,
+    "epochs": 3,
     "batch_size": 8,
     "learning_rate": 0.0001,
     "weight_decay": 0.0001,
@@ -115,15 +116,15 @@
     "sequence_encoder_lr_multiplier": 0.1,
     "pretrained_track_checkpoint": "",
     "pretrained_router_checkpoint": "artifacts/20260427-205242/router_v1/best_model.pt",
-    "expert1_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+    "expert1_checkpoint": "artifacts\\20260427-213349\\expert1_config_smoke\\best_model.pt",
     "expert2_checkpoint": "artifacts/20260427-203506/expert2_config_smoke/best_model.pt",
     "expert4_checkpoint": "artifacts/20260427-203647/expert4_config_smoke/best_model.pt",
     "freeze_track_encoder_epochs": 1,
-    "fusion_mode": "hard_route",
-    "freeze_router": true,
+    "fusion_mode": "ungated",
+    "freeze_router": false,
     "stage_warmup_epochs": 0,
     "stage_expert_warmup_epochs": 0,
-    "stage_joint_epochs": 1,
+    "stage_joint_epochs": 2,
     "joint_loss_ramp_epochs": 2,
     "freeze_non_router_in_warmup": true,
     "freeze_non_low_altitude_in_expert_warmup": true,
@@ -157,7 +158,7 @@
     "checkpoint_policy": {
       "pretrained_track_checkpoint": "",
       "pretrained_router_checkpoint": "artifacts/20260427-205242/router_v1/best_model.pt",
-      "expert1_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+      "expert1_checkpoint": "artifacts\\20260427-213349\\expert1_config_smoke\\best_model.pt",
       "expert2_checkpoint": "artifacts/20260427-203506/expert2_config_smoke/best_model.pt",
       "expert4_checkpoint": "artifacts/20260427-203647/expert4_config_smoke/best_model.pt",
       "shared_encoder_priority": [
@@ -178,7 +179,7 @@
     "learning_rate": 0.0002,
     "source_normalization": true,
     "train_representation_builder": false,
-    "shared_representation_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+    "shared_representation_checkpoint": "artifacts\\20260427-213349\\expert1_config_smoke\\best_model.pt",
     "negative_classes": [
       "DroneTarget",
       "BirdTarget",
@@ -197,7 +198,7 @@
     "learning_rate": 0.0002,
     "source_normalization": true,
     "train_representation_builder": false,
-    "shared_representation_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt"
+    "shared_representation_checkpoint": "artifacts\\20260427-213349\\expert1_config_smoke\\best_model.pt"
   },
   "recommended_commands": {
     "pretrain_track": ".\\.venv\\Scripts\\python.exe -m src.core.train_pretrain_track --config config/config.json",

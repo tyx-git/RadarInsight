@@ -269,6 +269,12 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "macro_precision": metrics["macro_precision"],
         "macro_recall": metrics["macro_recall"],
         "macro_f1": metrics["macro_f1"],
+        "traj_accuracy": metrics.get("traj_accuracy", 0.0),
+        "traj_macro_f1": metrics.get("traj_macro_f1", 0.0),
+        "rd_accuracy": metrics.get("rd_accuracy", 0.0),
+        "rd_macro_f1": metrics.get("rd_macro_f1", 0.0),
+        "rd_activation_rate": metrics.get("rd_activation_rate", 0.0),
+        "rd_activation_rate_on_rd": metrics.get("rd_activation_rate_on_rd", 0.0),
         "skipped_non_finite_batches": metrics["skipped_non_finite_batches"],
         "has_valid_batches": metrics["has_valid_batches"],
     }
@@ -301,11 +307,14 @@ def _run_epoch(
     rd_proj.train(mode=train)
     model.train(mode=train)
     logits_all: list[torch.Tensor] = []
+    traj_logits_all: list[torch.Tensor] = []
+    rd_logits_all: list[torch.Tensor] = []
     labels_all: list[torch.Tensor] = []
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
     label_names_all: list[str] = []
     has_rd_all: list[bool] = []
+    rd_activated_all: list[bool] = []
     loss_values: list[float] = []
     skipped_non_finite_batches = 0
 
@@ -438,11 +447,14 @@ def _run_epoch(
 
         loss_values.append(float(loss.detach().cpu().item()))
         logits_all.append(output.logits.detach().cpu())
+        traj_logits_all.append(output.traj_logits.detach().cpu())
+        rd_logits_all.append(output.rd_logits.detach().cpu())
         labels_all.append(labels.detach().cpu())
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
         has_rd_all.extend([bool(x) for x in batch.rd_is_multimodal.tolist()])
+        rd_activated_all.extend([bool(x) for x in output.rd_activated.detach().cpu().tolist()])
 
     if not logits_all:
         return {
@@ -459,25 +471,47 @@ def _run_epoch(
             "source_names": source_names_all,
             "label_names": label_names_all,
             "has_rd": has_rd_all,
+            "rd_activated": rd_activated_all,
         }
 
     logits_cat = torch.cat(logits_all, dim=0)
+    traj_logits_cat = torch.cat(traj_logits_all, dim=0)
+    rd_logits_cat = torch.cat(rd_logits_all, dim=0)
     labels_cat = torch.cat(labels_all, dim=0)
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    traj_metrics = compute_classification_metrics(traj_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    rd_metrics = compute_classification_metrics(rd_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    has_rd_tensor = torch.tensor(has_rd_all, dtype=torch.bool)
+    rd_activated_tensor = torch.tensor(rd_activated_all, dtype=torch.bool)
+    rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
+    rd_activation_rate_on_rd = (
+        float(rd_activated_tensor[has_rd_tensor].float().mean().item())
+        if bool(has_rd_tensor.any())
+        else 0.0
+    )
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
         "accuracy": metrics.accuracy,
         "macro_precision": metrics.macro_precision,
         "macro_recall": metrics.macro_recall,
         "macro_f1": metrics.macro_f1,
+        "traj_accuracy": traj_metrics.accuracy,
+        "traj_macro_f1": traj_metrics.macro_f1,
+        "rd_accuracy": rd_metrics.accuracy,
+        "rd_macro_f1": rd_metrics.macro_f1,
+        "rd_activation_rate": rd_activation_rate,
+        "rd_activation_rate_on_rd": rd_activation_rate_on_rd,
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
         "logits": logits_cat,
+        "traj_logits": traj_logits_cat,
+        "rd_logits": rd_logits_cat,
         "labels": labels_cat,
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
         "has_rd": has_rd_all,
+        "rd_activated": rd_activated_all,
     }
 
 
@@ -535,8 +569,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
 
     history: list[dict[str, object]] = []
     best_val = -1.0
+    best_stage2_val = -1.0
     best_path = run_paths.output_dir / "best_model.pt"
     best_epoch = -1
+    best_selection_reason = "macro_f1"
 
     for epoch in range(1, config.epochs + 1):
         stage2_enabled = epoch > config.stage1_traj_only_epochs
@@ -562,9 +598,19 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             f"train_loss={train_metrics['loss']:.4f} "
             f"val_f1={val_metrics['macro_f1']:.4f}"
         )
-        if val_metrics["macro_f1"] > best_val:
+        can_replace_best = False
+        selection_reason = "macro_f1"
+        if stage2_enabled and config.prefer_stage2_checkpoint:
+            if val_metrics["macro_f1"] > best_stage2_val:
+                best_stage2_val = float(val_metrics["macro_f1"])
+                can_replace_best = True
+                selection_reason = "stage2_macro_f1"
+        elif val_metrics["macro_f1"] > best_val:
+            can_replace_best = True
+        if can_replace_best:
             best_val = float(val_metrics["macro_f1"])
             best_epoch = epoch
+            best_selection_reason = selection_reason
             torch.save(
                 {
                     "representation_builder_state_dict": representation_builder.state_dict(),
@@ -705,6 +751,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "macro_precision": test_metrics["macro_precision"],
             "macro_recall": test_metrics["macro_recall"],
             "macro_f1": test_metrics["macro_f1"],
+            "traj_accuracy": test_metrics["traj_accuracy"],
+            "traj_macro_f1": test_metrics["traj_macro_f1"],
+            "rd_accuracy": test_metrics["rd_accuracy"],
+            "rd_macro_f1": test_metrics["rd_macro_f1"],
+            "rd_activation_rate": test_metrics["rd_activation_rate"],
+            "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
             "has_valid_batches": test_metrics["has_valid_batches"],
         },
@@ -719,6 +771,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_activation_threshold": config.rd_activation_threshold,
         "source_normalization": bool(config.source_normalization),
         "source_feature_stats_saved": bool(source_feature_stats is not None),
+        "prefer_stage2_checkpoint": bool(config.prefer_stage2_checkpoint),
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "pretrained_track_checkpoint": config.pretrained_track_checkpoint,
         "pretrained_track_info": pretrained_track_info,
@@ -734,6 +787,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "test": _rd_coverage(loaders.test_loader),
         },
         "best_epoch": best_epoch,
+        "best_selection_reason": best_selection_reason,
     }
     summary_path = run_paths.output_dir / "training_summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -398,9 +398,14 @@ def _project_to_global_logits(
 ) -> torch.Tensor:
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
-    if fusion_mode not in {"hard_route", "soft_log_weighted"}:
+    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted"}:
         raise ValueError(f"unsupported fusion_mode: {fusion_mode}")
-    if fusion_mode == "soft_log_weighted":
+    if fusion_mode == "ungated":
+        low_gate = torch.zeros((batch_labels.shape[0], 1), dtype=torch.float32, device=device)
+        conventional_gate = torch.zeros_like(low_gate)
+        high_gate = torch.zeros_like(low_gate)
+        ground_gate = torch.zeros_like(low_gate)
+    elif fusion_mode == "soft_log_weighted":
         route_log_weights = torch.log(system_output.routing.route_weights.clamp_min(1e-6))
         low_gate = route_log_weights[:, ROUTE_NAMES.index("low_altitude_suspect")].unsqueeze(-1)
         conventional_gate = route_log_weights[:, ROUTE_NAMES.index("conventional_air")].unsqueeze(-1)
@@ -520,7 +525,7 @@ def _stage_loss_scales(stage_name: str, config: SystemTrainConfig, stage_epoch: 
     if stage_name == "joint":
         ramp = 1.0
         if stage_epoch is not None and config.joint_loss_ramp_epochs > 0:
-            ramp = min(1.0, max(0.0, (stage_epoch - 1) / float(config.joint_loss_ramp_epochs)))
+            ramp = min(1.0, max(0.0, stage_epoch / float(config.joint_loss_ramp_epochs)))
         return {
             "route": 1.0,
             "low_aux": ramp,
@@ -530,7 +535,7 @@ def _stage_loss_scales(stage_name: str, config: SystemTrainConfig, stage_epoch: 
         }
     ramp = 1.0
     if stage_name == "finetune" and stage_epoch is not None and config.joint_loss_ramp_epochs > 0:
-        ramp = min(1.0, max(0.0, (stage_epoch - 1) / float(config.joint_loss_ramp_epochs)))
+        ramp = min(1.0, max(0.0, stage_epoch / float(config.joint_loss_ramp_epochs)))
     return {
         "route": config.stage_finetune_route_loss_scale,
         "low_aux": config.stage_finetune_low_altitude_aux_scale * ramp,
@@ -1075,7 +1080,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         config.skip_non_finite_batch,
         config,
         stage_name="finetune",
-        stage_epoch=config.joint_loss_ramp_epochs + 1,
+        stage_epoch=max(1, config.joint_loss_ramp_epochs),
         source_feature_stats=source_feature_stats,
     )
     evaluation_report = _build_evaluation_report(test_metrics)

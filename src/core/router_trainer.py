@@ -175,7 +175,7 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
     model = DeepGatingRouter(input_dim=len(PHYSICAL_FEATURE_COLUMNS)).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     route_weights = _build_route_weights(train_ds).to(device)
-    criterion = nn.CrossEntropyLoss(weight=route_weights)
+    criterion = nn.CrossEntropyLoss(weight=None if config.balanced_sampling else route_weights)
 
     print(f"[*] Using device: {device}")
     print(f"[*] Trainable parameters: {_count_trainable_parameters(model):,}")
@@ -326,6 +326,7 @@ def train_router_v1(config: RouterTrainConfig) -> dict[str, object]:
         "trainable_parameters": _count_trainable_parameters(model),
         "route_weights": route_weights.detach().cpu().tolist(),
         "balanced_sampling": bool(config.balanced_sampling),
+        "class_weights_enabled": not bool(config.balanced_sampling),
         "max_grad_norm": config.max_grad_norm,
     }
     summary_path = run_paths.output_dir / "training_summary.json"
