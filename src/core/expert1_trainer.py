@@ -273,6 +273,15 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "traj_macro_f1": metrics.get("traj_macro_f1", 0.0),
         "rd_accuracy": metrics.get("rd_accuracy", 0.0),
         "rd_macro_f1": metrics.get("rd_macro_f1", 0.0),
+        "rd_accuracy_on_rd": metrics.get("rd_accuracy_on_rd", 0.0),
+        "rd_macro_f1_on_rd": metrics.get("rd_macro_f1_on_rd", 0.0),
+        "rd_drone_bird_recall_mean": metrics.get("rd_drone_bird_recall_mean", 0.0),
+        "rd_unknown_clutter_recall_mean": metrics.get("rd_unknown_clutter_recall_mean", 0.0),
+        "rd_drone_as_bird_rate": metrics.get("rd_drone_as_bird_rate", 0.0),
+        "rd_bird_as_drone_rate": metrics.get("rd_bird_as_drone_rate", 0.0),
+        "selection_score": metrics.get("selection_score", 0.0),
+        "selection_eligible": metrics.get("selection_eligible", False),
+        "selection_components": metrics.get("selection_components", {}),
         "rd_activation_rate": metrics.get("rd_activation_rate", 0.0),
         "rd_activation_rate_on_rd": metrics.get("rd_activation_rate_on_rd", 0.0),
         "skipped_non_finite_batches": metrics["skipped_non_finite_batches"],
@@ -287,6 +296,94 @@ def _stage2_scale(epoch: int, config: Expert1TrainConfig) -> float:
         return 1.0
     offset = epoch - config.stage1_traj_only_epochs
     return float(min(1.0, max(0.0, offset / float(config.stage2_ramp_epochs))))
+
+
+def _per_class_recall_dict(logits: torch.Tensor, labels: torch.Tensor, class_names: list[str]) -> dict[str, float]:
+    if logits.numel() == 0 or labels.numel() == 0:
+        return {label_name: 0.0 for label_name in class_names}
+    preds = logits.argmax(dim=-1)
+    recalls: dict[str, float] = {}
+    for idx, label_name in enumerate(class_names):
+        mask = labels == idx
+        recalls[label_name] = float((preds[mask] == idx).float().mean().item()) if bool(mask.any()) else 0.0
+    return recalls
+
+
+def _drone_bird_metrics(logits: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
+    drone_idx = LOW_ALTITUDE_CLASSES.index("DroneTarget")
+    bird_idx = LOW_ALTITUDE_CLASSES.index("BirdTarget")
+    preds = logits.argmax(dim=-1) if logits.numel() else torch.empty((0,), dtype=torch.long)
+    drone_mask = labels == drone_idx
+    bird_mask = labels == bird_idx
+    drone_support = int(drone_mask.sum().item())
+    bird_support = int(bird_mask.sum().item())
+    drone_recall = float((preds[drone_mask] == drone_idx).float().mean().item()) if drone_support else 0.0
+    bird_recall = float((preds[bird_mask] == bird_idx).float().mean().item()) if bird_support else 0.0
+    drone_as_bird = int(((preds == bird_idx) & drone_mask).sum().item()) if preds.numel() else 0
+    bird_as_drone = int(((preds == drone_idx) & bird_mask).sum().item()) if preds.numel() else 0
+    return {
+        "drone_recall": drone_recall,
+        "bird_recall": bird_recall,
+        "drone_bird_recall_mean": 0.5 * (drone_recall + bird_recall) if (drone_support or bird_support) else 0.0,
+        "drone_as_bird_count": drone_as_bird,
+        "bird_as_drone_count": bird_as_drone,
+        "drone_as_bird_rate": drone_as_bird / drone_support if drone_support else 0.0,
+        "bird_as_drone_rate": bird_as_drone / bird_support if bird_support else 0.0,
+    }
+
+
+def _expert1_diagnostics(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    prefix: str,
+    mask: torch.Tensor | None = None,
+) -> dict[str, object]:
+    if mask is not None:
+        logits = logits[mask]
+        labels = labels[mask]
+    if logits.numel() == 0 or labels.numel() == 0:
+        return {
+            f"{prefix}_per_class_recall": {label_name: 0.0 for label_name in LOW_ALTITUDE_CLASSES},
+            f"{prefix}_drone_bird": _drone_bird_metrics(logits, labels),
+            f"{prefix}_unknown_clutter_recall_mean": 0.0,
+        }
+    recalls = _per_class_recall_dict(logits, labels, LOW_ALTITUDE_CLASSES)
+    unknown_clutter = 0.5 * (
+        recalls.get("UnknownTarget", 0.0)
+        + recalls.get("ClutterTarget", 0.0)
+    )
+    return {
+        f"{prefix}_per_class_recall": recalls,
+        f"{prefix}_drone_bird": _drone_bird_metrics(logits, labels),
+        f"{prefix}_unknown_clutter_recall_mean": unknown_clutter,
+    }
+
+
+def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainConfig, stage2_enabled: bool) -> tuple[float, bool, dict[str, float]]:
+    rd_macro = float(metrics.get("rd_macro_f1_on_rd", metrics.get("rd_macro_f1", 0.0)))
+    drone_bird = float(metrics.get("rd_drone_bird_recall_mean", 0.0))
+    unknown_clutter = float(metrics.get("rd_unknown_clutter_recall_mean", 0.0))
+    final_macro = float(metrics.get("macro_f1", 0.0))
+    traj_macro = float(metrics.get("traj_macro_f1", 0.0))
+    score = (
+        final_macro
+        + 0.45 * rd_macro
+        + 0.25 * drone_bird
+        + 0.20 * unknown_clutter
+        + 0.10 * traj_macro
+    )
+    eligible = bool(stage2_enabled) if config.prefer_stage2_checkpoint else True
+    if stage2_enabled:
+        eligible = eligible and rd_macro >= config.min_rd_macro_f1_for_best
+        eligible = eligible and drone_bird >= config.min_drone_bird_rd_recall_for_best
+        eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
+    return score, eligible, {
+        "final_macro_f1": final_macro,
+        "traj_macro_f1": traj_macro,
+        "rd_macro_f1_on_rd": rd_macro,
+        "rd_drone_bird_recall_mean": drone_bird,
+        "rd_unknown_clutter_recall_mean": unknown_clutter,
+    }
 
 
 def _run_epoch(
@@ -355,10 +452,10 @@ def _run_epoch(
             else:
                 rd_summary = rd_features.mean(dim=1)
             rd_embedding = rd_proj(rd_summary)
-            fused_input = torch.cat([rep.fused_features, rd_embedding], dim=-1)
             output = model(
-                fused_input,
+                rep.fused_features,
                 rd_features=rd_features,
+                rd_context=rd_embedding,
                 low_altitude_targets=labels if train else None,
                 rd_is_multimodal=rd_is_multimodal,
                 rd_padding_mask=rd_padding_mask,
@@ -483,12 +580,24 @@ def _run_epoch(
     rd_metrics = compute_classification_metrics(rd_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     has_rd_tensor = torch.tensor(has_rd_all, dtype=torch.bool)
     rd_activated_tensor = torch.tensor(rd_activated_all, dtype=torch.bool)
+    rd_metrics_on_rd = (
+        compute_classification_metrics(rd_logits_cat[has_rd_tensor], labels_cat[has_rd_tensor], num_classes=len(LOW_ALTITUDE_CLASSES))
+        if bool(has_rd_tensor.any())
+        else None
+    )
+    diagnostics: dict[str, object] = {}
+    diagnostics.update(_expert1_diagnostics(logits_cat, labels_cat, "final"))
+    diagnostics.update(_expert1_diagnostics(traj_logits_cat, labels_cat, "traj"))
+    diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd"))
+    diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd_on_rd", mask=has_rd_tensor))
     rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
     rd_activation_rate_on_rd = (
         float(rd_activated_tensor[has_rd_tensor].float().mean().item())
         if bool(has_rd_tensor.any())
         else 0.0
     )
+    rd_drone_bird = diagnostics["rd_on_rd_drone_bird"]
+    rd_unknown_clutter = float(diagnostics["rd_on_rd_unknown_clutter_recall_mean"])
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
         "accuracy": metrics.accuracy,
@@ -499,6 +608,20 @@ def _run_epoch(
         "traj_macro_f1": traj_metrics.macro_f1,
         "rd_accuracy": rd_metrics.accuracy,
         "rd_macro_f1": rd_metrics.macro_f1,
+        "rd_accuracy_on_rd": rd_metrics_on_rd.accuracy if rd_metrics_on_rd is not None else 0.0,
+        "rd_macro_f1_on_rd": rd_metrics_on_rd.macro_f1 if rd_metrics_on_rd is not None else 0.0,
+        "rd_per_class_recall": diagnostics["rd_per_class_recall"],
+        "rd_per_class_recall_on_rd": diagnostics["rd_on_rd_per_class_recall"],
+        "rd_drone_bird": rd_drone_bird,
+        "rd_drone_bird_recall_mean": float(rd_drone_bird["drone_bird_recall_mean"]),
+        "rd_unknown_clutter_recall_mean": rd_unknown_clutter,
+        "rd_drone_as_bird_rate": float(rd_drone_bird["drone_as_bird_rate"]),
+        "rd_bird_as_drone_rate": float(rd_drone_bird["bird_as_drone_rate"]),
+        "traj_per_class_recall": diagnostics["traj_per_class_recall"],
+        "traj_drone_bird": diagnostics["traj_drone_bird"],
+        "final_per_class_recall": diagnostics["final_per_class_recall"],
+        "final_drone_bird": diagnostics["final_drone_bird"],
+        "final_unknown_clutter_recall_mean": diagnostics["final_unknown_clutter_recall_mean"],
         "rd_activation_rate": rd_activation_rate,
         "rd_activation_rate_on_rd": rd_activation_rate_on_rd,
         "skipped_non_finite_batches": skipped_non_finite_batches,
@@ -545,7 +668,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         nn.LayerNorm(rd_dim),
     ).to(device)
     model = LowAltitudeSuspectExpert(
-        input_dim=128 + 32 + rd_dim,
+        input_dim=128 + 32,
+        rd_input_dim=4,
+        rd_context_dim=rd_dim,
+        use_rd_patch_cnn=config.use_rd_patch_cnn,
         dropout=config.dropout,
         cosface_scale=config.cosface_scale,
         cosface_margin=config.cosface_margin,
@@ -569,10 +695,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
 
     history: list[dict[str, object]] = []
     best_val = -1.0
-    best_stage2_val = -1.0
     best_path = run_paths.output_dir / "best_model.pt"
     best_epoch = -1
-    best_selection_reason = "macro_f1"
+    best_selection_reason = "selection_score"
+    best_selection_components: dict[str, float] = {}
 
     for epoch in range(1, config.epochs + 1):
         stage2_enabled = epoch > config.stage1_traj_only_epochs
@@ -582,6 +708,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         if not train_metrics["has_valid_batches"]:
             break
         val_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.val_loader, criterion, optimizer, device, False, config, stage2_enabled, stage2_scale, source_feature_stats)
+        val_selection_score, val_selection_eligible, val_selection_components = _expert1_selection_score(
+            val_metrics,
+            config,
+            stage2_enabled=stage2_enabled,
+        )
+        val_metrics["selection_score"] = val_selection_score
+        val_metrics["selection_eligible"] = val_selection_eligible
+        val_metrics["selection_components"] = val_selection_components
         history.append(
             {
                 "epoch": epoch,
@@ -598,19 +732,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             f"train_loss={train_metrics['loss']:.4f} "
             f"val_f1={val_metrics['macro_f1']:.4f}"
         )
-        can_replace_best = False
-        selection_reason = "macro_f1"
-        if stage2_enabled and config.prefer_stage2_checkpoint:
-            if val_metrics["macro_f1"] > best_stage2_val:
-                best_stage2_val = float(val_metrics["macro_f1"])
-                can_replace_best = True
-                selection_reason = "stage2_macro_f1"
-        elif val_metrics["macro_f1"] > best_val:
-            can_replace_best = True
+        can_replace_best = val_selection_eligible and val_selection_score > best_val
+        selection_reason = "stage2_rd_composite" if stage2_enabled else "traj_composite"
         if can_replace_best:
-            best_val = float(val_metrics["macro_f1"])
+            best_val = float(val_selection_score)
             best_epoch = epoch
             best_selection_reason = selection_reason
+            best_selection_components = val_selection_components
             torch.save(
                 {
                     "representation_builder_state_dict": representation_builder.state_dict(),
@@ -622,6 +750,25 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 },
                 best_path,
             )
+
+    if best_epoch < 0 and history:
+        fallback = max(history, key=lambda item: float(item["val"].get("selection_score", item["val"].get("macro_f1", 0.0))))
+        best_epoch = int(fallback["epoch"])
+        best_val = float(fallback["val"].get("selection_score", fallback["val"].get("macro_f1", 0.0)))
+        best_selection_components = dict(fallback["val"].get("selection_components", {}))
+        best_selection_reason = "fallback_no_rd_quality_checkpoint"
+        torch.save(
+            {
+                "representation_builder_state_dict": representation_builder.state_dict(),
+                "rd_proj_state_dict": rd_proj.state_dict(),
+                "model_state_dict": model.state_dict(),
+                "config": config.__dict__,
+                "labels": LOW_ALTITUDE_CLASSES,
+                "source_feature_stats": source_feature_stats,
+                "warning": "no validation epoch passed RD quality gates; checkpoint saved only to keep the run reproducible",
+            },
+            best_path,
+        )
 
     if best_path.exists():
         state = torch.load(best_path, map_location=device, weights_only=True)
@@ -649,6 +796,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "macro_precision": test_metrics["macro_precision"],
             "macro_recall": test_metrics["macro_recall"],
             "macro_f1": test_metrics["macro_f1"],
+            "traj_accuracy": test_metrics["traj_accuracy"],
+            "traj_macro_f1": test_metrics["traj_macro_f1"],
+            "rd_accuracy": test_metrics["rd_accuracy"],
+            "rd_macro_f1": test_metrics["rd_macro_f1"],
+            "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
+            "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
+            "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"],
+            "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
         },
@@ -692,6 +848,31 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             for source_name in sorted(set(test_metrics["source_names"]))
         },
         "by_rd_presence": {},
+        "branch_metrics": {
+            "final": {
+                "accuracy": test_metrics["accuracy"],
+                "macro_f1": test_metrics["macro_f1"],
+                "per_class_recall": test_metrics["final_per_class_recall"],
+                "drone_bird": test_metrics["final_drone_bird"],
+                "unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
+            },
+            "trajectory": {
+                "accuracy": test_metrics["traj_accuracy"],
+                "macro_f1": test_metrics["traj_macro_f1"],
+                "per_class_recall": test_metrics["traj_per_class_recall"],
+                "drone_bird": test_metrics["traj_drone_bird"],
+            },
+            "rd": {
+                "accuracy": test_metrics["rd_accuracy"],
+                "macro_f1": test_metrics["rd_macro_f1"],
+                "accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
+                "macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
+                "per_class_recall": test_metrics["rd_per_class_recall"],
+                "per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
+                "drone_bird": test_metrics["rd_drone_bird"],
+                "unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            },
+        },
         "device": device_info,
         "predictions": [
             {
@@ -699,6 +880,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "source_name": src,
                 "label_name_true": true_label,
                 "label_name_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["logits"][idx].argmax().item())],
+                "label_name_traj_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["traj_logits"][idx].argmax().item())],
+                "label_name_rd_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["rd_logits"][idx].argmax().item())],
                 "route_name_true": "low_altitude_suspect",
                 "route_name_pred": "low_altitude_suspect",
                 "is_correct": LOW_ALTITUDE_CLASSES[int(test_metrics["logits"][idx].argmax().item())] == true_label,
@@ -755,6 +938,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "traj_macro_f1": test_metrics["traj_macro_f1"],
             "rd_accuracy": test_metrics["rd_accuracy"],
             "rd_macro_f1": test_metrics["rd_macro_f1"],
+            "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
+            "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
+            "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"],
+            "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            "rd_per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
+            "rd_drone_bird": test_metrics["rd_drone_bird"],
+            "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "rd_activation_rate": test_metrics["rd_activation_rate"],
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
@@ -787,7 +977,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "test": _rd_coverage(loaders.test_loader),
         },
         "best_epoch": best_epoch,
+        "best_selection_score": best_val,
         "best_selection_reason": best_selection_reason,
+        "best_selection_components": best_selection_components,
+        "rd_quality_gate": {
+            "min_rd_macro_f1_for_best": config.min_rd_macro_f1_for_best,
+            "min_drone_bird_rd_recall_for_best": config.min_drone_bird_rd_recall_for_best,
+            "min_unknown_clutter_rd_recall_for_best": config.min_unknown_clutter_rd_recall_for_best,
+        },
     }
     summary_path = run_paths.output_dir / "training_summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

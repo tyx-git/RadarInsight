@@ -187,6 +187,31 @@ def _load_submodule_checkpoint(submodule: nn.Module, checkpoint_path: str, devic
     }
 
 
+def _load_compatible_state_dict(submodule: nn.Module, state_dict: dict[str, torch.Tensor]) -> dict[str, object]:
+    current_state = submodule.state_dict()
+    compatible_state = {
+        key: value
+        for key, value in state_dict.items()
+        if key in current_state and tuple(value.shape) == tuple(current_state[key].shape)
+    }
+    skipped_shape_mismatch = {
+        key: {
+            "checkpoint_shape": list(value.shape),
+            "model_shape": list(current_state[key].shape),
+        }
+        for key, value in state_dict.items()
+        if key in current_state and tuple(value.shape) != tuple(current_state[key].shape)
+    }
+    unexpected_keys = [key for key in state_dict if key not in current_state]
+    missing, unexpected = submodule.load_state_dict(compatible_state, strict=False)
+    return {
+        "loaded_keys": len(compatible_state),
+        "missing_keys": list(missing),
+        "unexpected_keys": sorted(set(unexpected_keys + list(unexpected))),
+        "skipped_shape_mismatch": skipped_shape_mismatch,
+    }
+
+
 def _load_expert_bundle(
     model: nn.Module,
     checkpoint_path: str,
@@ -225,32 +250,14 @@ def _load_expert1_bundle(model: nn.Module, checkpoint_path: str, device: torch.d
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     info: dict[str, object] = {"expert_name": "expert1_v1"}
     if "representation_builder_state_dict" in checkpoint:
-        rb_missing, rb_unexpected = model.representation_builder.load_state_dict(
+        info["representation_builder"] = _load_compatible_state_dict(
+            model.representation_builder,
             checkpoint["representation_builder_state_dict"],
-            strict=False,
         )
-        info["representation_builder"] = {
-            "loaded_keys": len(checkpoint["representation_builder_state_dict"]),
-            "missing_keys": list(rb_missing),
-            "unexpected_keys": list(rb_unexpected),
-        }
     if "rd_proj_state_dict" in checkpoint:
-        rd_missing, rd_unexpected = model.rd_proj.load_state_dict(
-            checkpoint["rd_proj_state_dict"],
-            strict=False,
-        )
-        info["rd_proj"] = {
-            "loaded_keys": len(checkpoint["rd_proj_state_dict"]),
-            "missing_keys": list(rd_missing),
-            "unexpected_keys": list(rd_unexpected),
-        }
+        info["rd_proj"] = _load_compatible_state_dict(model.rd_proj, checkpoint["rd_proj_state_dict"])
     model_key = checkpoint.get("model_state_dict", {})
-    missing, unexpected = model.low_altitude_expert.load_state_dict(model_key, strict=False)
-    info["expert_module"] = {
-        "loaded_keys": len(model_key),
-        "missing_keys": list(missing),
-        "unexpected_keys": list(unexpected),
-    }
+    info["expert_module"] = _load_compatible_state_dict(model.low_altitude_expert, model_key)
     return info
 
 
@@ -398,15 +405,25 @@ def _project_to_global_logits(
 ) -> torch.Tensor:
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
-    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted"}:
+    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2"}:
         raise ValueError(f"unsupported fusion_mode: {fusion_mode}")
     if fusion_mode == "ungated":
         low_gate = torch.zeros((batch_labels.shape[0], 1), dtype=torch.float32, device=device)
         conventional_gate = torch.zeros_like(low_gate)
         high_gate = torch.zeros_like(low_gate)
         ground_gate = torch.zeros_like(low_gate)
-    elif fusion_mode == "soft_log_weighted":
-        route_log_weights = torch.log(system_output.routing.route_weights.clamp_min(1e-6))
+    elif fusion_mode in {"soft_log_weighted", "soft_top2"}:
+        if fusion_mode == "soft_top2":
+            route_weights = system_output.routing.route_weights
+            topk_count = min(2, route_weights.shape[-1])
+            topk_indices = route_weights.topk(k=topk_count, dim=-1).indices
+            topk_mask = torch.zeros_like(route_weights, dtype=torch.bool)
+            topk_mask.scatter_(1, topk_indices, True)
+            route_weights = torch.where(topk_mask, route_weights, torch.full_like(route_weights, 0.25))
+            route_weights = route_weights / route_weights.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+            route_log_weights = torch.log(route_weights.clamp_min(1e-6))
+        else:
+            route_log_weights = torch.log(system_output.routing.route_weights.clamp_min(1e-6))
         low_gate = route_log_weights[:, ROUTE_NAMES.index("low_altitude_suspect")].unsqueeze(-1)
         conventional_gate = route_log_weights[:, ROUTE_NAMES.index("conventional_air")].unsqueeze(-1)
         high_gate = route_log_weights[:, ROUTE_NAMES.index("high_altitude_filter")].unsqueeze(-1)
@@ -741,6 +758,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             "skipped_non_finite_batches": skipped_non_finite_batches,
             "has_valid_batches": False,
             "loss_components": {},
+            "critical_metrics": {},
         }
 
     class_logits_cat = torch.cat(class_logits_all, dim=0)
@@ -753,6 +771,12 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         route_logits=route_logits_cat,
         route_labels=route_labels_cat,
         num_classes=len(DEFAULT_VOCAB.labels),
+    )
+    critical_metrics = _critical_metric_summary(
+        class_logits_cat,
+        class_labels_cat,
+        route_logits_cat,
+        route_labels_cat,
     )
     return {
         "loss": float(sum(loss_values) / len(loss_values)),
@@ -772,6 +796,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         "route_names": route_names_all,
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
+        "critical_metrics": critical_metrics,
         "loss_components": {
             "class_loss": float(sum(class_loss_values) / len(class_loss_values)),
             "route_loss": float(sum(route_loss_values) / len(route_loss_values)),
@@ -805,9 +830,14 @@ def _metric_summary(epoch_metrics: dict[str, object]) -> dict[str, float]:
         "macro_f1": float(epoch_metrics["macro_f1"]),
         "route_accuracy": float(epoch_metrics["route_accuracy"]),
         "route_macro_recall": float(epoch_metrics.get("route_macro_recall", 0.0)),
+        "selection_score": float(epoch_metrics.get("selection_score", 0.0)),
         "skipped_non_finite_batches": int(epoch_metrics.get("skipped_non_finite_batches", 0)),
         "has_valid_batches": bool(epoch_metrics.get("has_valid_batches", True)),
     }
+    if epoch_metrics.get("critical_metrics"):
+        summary["critical_metrics"] = epoch_metrics["critical_metrics"]
+    if epoch_metrics.get("selection_components"):
+        summary["selection_components"] = epoch_metrics["selection_components"]
     if epoch_metrics.get("loss_components"):
         summary["loss_components"] = epoch_metrics["loss_components"]
     return summary
@@ -870,6 +900,144 @@ def _source_report(
     return report
 
 
+def _label_recall(class_logits: torch.Tensor, class_labels: torch.Tensor, label_name: str) -> float:
+    label_idx = DEFAULT_VOCAB.label_to_index[label_name]
+    mask = class_labels == label_idx
+    if not bool(mask.any()):
+        return 0.0
+    preds = class_logits.argmax(dim=-1)
+    return float((preds[mask] == label_idx).float().mean().item())
+
+
+def _low_altitude_report(class_logits: torch.Tensor, class_labels: torch.Tensor) -> dict[str, object]:
+    low_indices = [
+        DEFAULT_VOCAB.label_to_index[label_name]
+        for label_name in LOW_ALTITUDE_CLASSES
+    ]
+    low_mask = torch.zeros_like(class_labels, dtype=torch.bool)
+    for label_idx in low_indices:
+        low_mask |= class_labels == label_idx
+    if not bool(low_mask.any()):
+        return {
+            "support": 0,
+            "macro_f1": 0.0,
+            "accuracy": 0.0,
+            "per_class_recall": {label_name: 0.0 for label_name in LOW_ALTITUDE_CLASSES},
+            "drone_bird": {
+                "drone_recall": 0.0,
+                "bird_recall": 0.0,
+                "drone_bird_recall_mean": 0.0,
+                "drone_as_bird_count": 0,
+                "bird_as_drone_count": 0,
+                "drone_as_bird_rate": 0.0,
+                "bird_as_drone_rate": 0.0,
+            },
+            "unknown_clutter_recall_mean": 0.0,
+        }
+    local_logits = class_logits[low_mask][:, low_indices]
+    local_labels = class_labels[low_mask].clone()
+    for local_idx, global_idx in enumerate(low_indices):
+        local_labels[class_labels[low_mask] == global_idx] = local_idx
+    low_metrics = compute_system_metrics(
+        class_logits=local_logits,
+        class_labels=local_labels,
+        route_logits=torch.zeros((local_logits.shape[0], 1)),
+        route_labels=torch.zeros((local_logits.shape[0],), dtype=torch.long),
+        num_classes=len(LOW_ALTITUDE_CLASSES),
+    ).classification
+    preds = local_logits.argmax(dim=-1)
+    recalls: dict[str, float] = {}
+    for local_idx, label_name in enumerate(LOW_ALTITUDE_CLASSES):
+        mask = local_labels == local_idx
+        recalls[label_name] = float((preds[mask] == local_idx).float().mean().item()) if bool(mask.any()) else 0.0
+    drone_idx = LOW_ALTITUDE_CLASSES.index("DroneTarget")
+    bird_idx = LOW_ALTITUDE_CLASSES.index("BirdTarget")
+    drone_mask = local_labels == drone_idx
+    bird_mask = local_labels == bird_idx
+    drone_support = int(drone_mask.sum().item())
+    bird_support = int(bird_mask.sum().item())
+    drone_as_bird = int(((preds == bird_idx) & drone_mask).sum().item())
+    bird_as_drone = int(((preds == drone_idx) & bird_mask).sum().item())
+    drone_bird = {
+        "drone_recall": recalls["DroneTarget"],
+        "bird_recall": recalls["BirdTarget"],
+        "drone_bird_recall_mean": 0.5 * (recalls["DroneTarget"] + recalls["BirdTarget"]) if (drone_support or bird_support) else 0.0,
+        "drone_as_bird_count": drone_as_bird,
+        "bird_as_drone_count": bird_as_drone,
+        "drone_as_bird_rate": drone_as_bird / drone_support if drone_support else 0.0,
+        "bird_as_drone_rate": bird_as_drone / bird_support if bird_support else 0.0,
+    }
+    unknown_clutter = 0.5 * (recalls["UnknownTarget"] + recalls["ClutterTarget"])
+    return {
+        "support": int(low_mask.sum().item()),
+        "macro_f1": low_metrics.macro_f1,
+        "accuracy": low_metrics.accuracy,
+        "per_class_recall": recalls,
+        "drone_bird": drone_bird,
+        "unknown_clutter_recall_mean": unknown_clutter,
+    }
+
+
+def _critical_metric_summary(
+    class_logits: torch.Tensor,
+    class_labels: torch.Tensor,
+    route_logits: torch.Tensor,
+    route_labels: torch.Tensor,
+) -> dict[str, object]:
+    route = _route_report(route_logits, route_labels)
+    per_route_recall = {
+        item["route_name"]: item["recall"]
+        for item in route["per_route"]
+    }
+    low = _low_altitude_report(class_logits, class_labels)
+    return {
+        "route_macro_recall": route["macro_recall"],
+        "per_route_recall": per_route_recall,
+        "ground_route_recall": per_route_recall.get("ground_target", 0.0),
+        "expert1_low_altitude_macro_f1": low["macro_f1"],
+        "expert1_low_altitude_accuracy": low["accuracy"],
+        "low_altitude_per_class_recall": low["per_class_recall"],
+        "drone_bird": low["drone_bird"],
+        "unknown_recall": low["per_class_recall"].get("UnknownTarget", 0.0),
+        "clutter_recall": low["per_class_recall"].get("ClutterTarget", 0.0),
+        "unknown_clutter_recall_mean": low["unknown_clutter_recall_mean"],
+    }
+
+
+def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, dict[str, float]]:
+    critical = epoch_metrics.get("critical_metrics", {})
+    macro_f1 = float(epoch_metrics.get("macro_f1", 0.0))
+    route_macro = float(critical.get("route_macro_recall", epoch_metrics.get("route_macro_recall", 0.0)))
+    low_macro = float(critical.get("expert1_low_altitude_macro_f1", 0.0))
+    unknown_recall = float(critical.get("unknown_recall", 0.0))
+    clutter_recall = float(critical.get("clutter_recall", 0.0))
+    ground_route = float(critical.get("ground_route_recall", 0.0))
+    drone_bird = float(critical.get("drone_bird", {}).get("drone_bird_recall_mean", 0.0))
+    score = (
+        macro_f1
+        + 0.20 * route_macro
+        + 0.25 * low_macro
+        + 0.15 * drone_bird
+        + 0.10 * (unknown_recall + clutter_recall)
+        + 0.10 * ground_route
+    )
+    if ground_route == 0.0:
+        score -= 0.10
+    if unknown_recall == 0.0:
+        score -= 0.05
+    if clutter_recall == 0.0:
+        score -= 0.05
+    return score, {
+        "macro_f1": macro_f1,
+        "route_macro_recall": route_macro,
+        "expert1_low_altitude_macro_f1": low_macro,
+        "drone_bird_recall_mean": drone_bird,
+        "unknown_recall": unknown_recall,
+        "clutter_recall": clutter_recall,
+        "ground_route_recall": ground_route,
+    }
+
+
 def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, object]]:
     class_logits = epoch_metrics["class_logits"]
     route_logits = epoch_metrics["route_logits"]
@@ -903,6 +1071,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
     route_labels = epoch_metrics["route_labels"]
     per_class = compute_per_class_metrics(class_logits, class_labels, DEFAULT_VOCAB.labels)
     confusion = compute_confusion_matrix(class_logits, class_labels, len(DEFAULT_VOCAB.labels))
+    critical_metrics = _critical_metric_summary(class_logits, class_labels, route_logits, route_labels)
     return {
         "summary": _metric_summary(epoch_metrics),
         "label_names": DEFAULT_VOCAB.labels,
@@ -918,6 +1087,8 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
             for item in per_class
         ],
         "route": _route_report(route_logits, route_labels),
+        "critical_metrics": critical_metrics,
+        "expert1_low_altitude": _low_altitude_report(class_logits, class_labels),
         "by_source": _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
         "predictions": _prediction_records(epoch_metrics),
     }
@@ -945,6 +1116,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_altitude_cosface_margin=config.low_altitude_cosface_margin,
         low_altitude_reject_threshold=config.low_altitude_reject_threshold,
         low_altitude_rd_activation_threshold=config.low_altitude_rd_activation_threshold,
+        low_altitude_use_rd_patch_cnn=config.low_altitude_use_rd_patch_cnn,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None
@@ -1041,6 +1213,9 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         )
         train_metrics = _run_epoch(model, loaders.train_loader, class_criterion, route_criterion, low_criterion, optimizer, device, True, config.skip_non_finite_batch, config, stage_name=stage_name, stage_epoch=stage_epoch, source_feature_stats=source_feature_stats)
         val_metrics = _run_epoch(model, loaders.val_loader, class_criterion, route_criterion, low_criterion, optimizer, device, False, config.skip_non_finite_batch, config, stage_name=stage_name, stage_epoch=stage_epoch, source_feature_stats=source_feature_stats)
+        selection_score, selection_components = _system_selection_score(val_metrics)
+        val_metrics["selection_score"] = selection_score
+        val_metrics["selection_components"] = selection_components
         record = {
             "epoch": epoch,
             "stage": stage_name,
@@ -1050,8 +1225,8 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         history.append(record)
         if not train_metrics.get("has_valid_batches", True) or not val_metrics.get("has_valid_batches", True):
             break
-        if val_metrics["macro_f1"] > best_metric:
-            best_metric = val_metrics["macro_f1"]
+        if selection_score > best_metric:
+            best_metric = selection_score
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
@@ -1083,6 +1258,9 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         stage_epoch=max(1, config.joint_loss_ramp_epochs),
         source_feature_stats=source_feature_stats,
     )
+    test_selection_score, test_selection_components = _system_selection_score(test_metrics)
+    test_metrics["selection_score"] = test_selection_score
+    test_metrics["selection_components"] = test_selection_components
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
 
@@ -1129,6 +1307,9 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "expert4_info": expert4_info,
         "fusion_mode": config.fusion_mode,
         "freeze_router": bool(config.freeze_router),
+        "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
+        "best_selection_score": best_metric,
+        "best_selection_policy": "macro_f1 + route/low-altitude/Drone-Bird/Unknown-Clutter/Ground penalties",
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "sequence_encoder_grad_clip_norm": config.sequence_encoder_grad_clip_norm,

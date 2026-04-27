@@ -33,6 +33,10 @@ class Expert1TrainConfig:
     stage1_traj_only_epochs: int = 12
     stage2_ramp_epochs: int = 6
     prefer_stage2_checkpoint: bool = True
+    use_rd_patch_cnn: bool = True
+    min_rd_macro_f1_for_best: float = 0.05
+    min_drone_bird_rd_recall_for_best: float = 0.05
+    min_unknown_clutter_rd_recall_for_best: float = 0.0
     sequence_encoder_lr_multiplier: float = 0.1
     pretrained_track_checkpoint: str = ""
     freeze_track_encoder_epochs: int = 0
