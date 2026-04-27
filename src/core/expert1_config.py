@@ -14,6 +14,11 @@ class Expert1TrainConfig:
     weight_decay: float = 1e-4
     dropout: float = 0.1
     low_altitude_aux_weight: float = 0.5
+    low_altitude_traj_aux_ratio: float = 0.35
+    low_altitude_rd_aux_ratio: float = 0.65
+    low_altitude_rd_hard_aux_weight: float = 0.5
+    low_altitude_rd_focal_gamma: float = 1.5
+    low_altitude_rd_binary_aux_weight: float = 0.4
     low_altitude_mutual_weight: float = 1.0
     low_altitude_contrastive_weight: float = 0.2
     low_altitude_temperature: float = 0.1
@@ -26,6 +31,7 @@ class Expert1TrainConfig:
     excel_source_boost: float = 2.0
     cq08_source_boost: float = 1.0
     unknown_sample_boost: float = 1.0
+    clutter_sample_boost: float = 2.0
     source_normalization: bool = True
     unknown_loss_weight: float = 1.0
     enable_reject_in_train: bool = False
@@ -34,9 +40,12 @@ class Expert1TrainConfig:
     stage2_ramp_epochs: int = 6
     prefer_stage2_checkpoint: bool = True
     use_rd_patch_cnn: bool = True
-    min_rd_macro_f1_for_best: float = 0.05
-    min_drone_bird_rd_recall_for_best: float = 0.05
-    min_unknown_clutter_rd_recall_for_best: float = 0.0
+    min_rd_macro_f1_for_best: float = 0.22
+    min_drone_bird_rd_recall_for_best: float = 0.30
+    min_unknown_clutter_rd_recall_for_best: float = 0.10
+    min_rare_rd_recall_for_best: float = 0.05
+    require_final_not_worse_than_traj: bool = True
+    max_final_traj_f1_drop: float = 0.02
     sequence_encoder_lr_multiplier: float = 0.1
     pretrained_track_checkpoint: str = ""
     freeze_track_encoder_epochs: int = 0

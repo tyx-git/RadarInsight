@@ -419,7 +419,7 @@ def _project_to_global_logits(
             topk_indices = route_weights.topk(k=topk_count, dim=-1).indices
             topk_mask = torch.zeros_like(route_weights, dtype=torch.bool)
             topk_mask.scatter_(1, topk_indices, True)
-            route_weights = torch.where(topk_mask, route_weights, torch.full_like(route_weights, 0.25))
+            route_weights = torch.where(topk_mask, route_weights, torch.full_like(route_weights, 1e-3))
             route_weights = route_weights / route_weights.sum(dim=-1, keepdim=True).clamp_min(1e-6)
             route_log_weights = torch.log(route_weights.clamp_min(1e-6))
         else:
@@ -581,8 +581,10 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             features = _apply_source_feature_norm(features, batch.source_names, source_feature_stats)
         physical = batch.physical_features.to(device)
         rd_features = batch.rd_features.to(device)
+        rd_patch_features = batch.rd_patch_features.to(device)
         rd_is_multimodal = batch.rd_is_multimodal.to(device)
         rd_padding_mask = batch.rd_padding_mask.to(device)
+        rd_patch_padding_mask = batch.rd_patch_padding_mask.to(device)
         labels = batch.labels.to(device)
         route_labels = batch.route_labels.to(device)
         padding_mask = batch.padding_mask.to(device)
@@ -592,10 +594,12 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                 features,
                 physical,
                 rd_features=rd_features,
+                rd_patch_features=rd_patch_features,
                 low_altitude_targets=low_targets if train else None,
                 rd_is_multimodal=rd_is_multimodal,
                 padding_mask=padding_mask,
                 rd_padding_mask=rd_padding_mask,
+                rd_patch_padding_mask=rd_patch_padding_mask,
                 enable_low_altitude_reject=(
                     config.enable_low_altitude_reject_in_train
                     if train

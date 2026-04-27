@@ -54,6 +54,8 @@ class LowAltitudeFusionOutput:
     rd_cosine: torch.Tensor
     traj_logits: torch.Tensor
     rd_logits: torch.Tensor
+    rd_unknown_logits: torch.Tensor
+    rd_clutter_logits: torch.Tensor
     logits: torch.Tensor
     fusion_weights: torch.Tensor
     rd_activated: torch.Tensor
@@ -130,6 +132,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         self,
         input_dim: int,
         rd_input_dim: int = 4,
+        rd_patch_input_dim: int = 2,
         rd_context_dim: int = 0,
         use_rd_patch_cnn: bool = True,
         hidden_dim: int = 512,
@@ -138,15 +141,18 @@ class LowAltitudeSuspectExpert(nn.Module):
         cosface_margin: float = 0.2,
         reject_threshold: float = 0.35,
         rd_activation_threshold: float = 0.8,
+        rd_binary_logit_scale: float = 0.75,
     ) -> None:
         super().__init__()
         self.rd_activation_threshold = rd_activation_threshold
         self.reject_threshold = reject_threshold
+        self.rd_binary_logit_scale = rd_binary_logit_scale
         self.rd_model_dim = 512
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
         self.rd_patch_dim = 64 if use_rd_patch_cnn else 0
+        self.rd_patch_input_dim = int(max(1, rd_patch_input_dim))
         self.traj_backbone = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.GELU(),
@@ -219,7 +225,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             self.rd_context_proj = None
         if use_rd_patch_cnn:
             self.rd_patch_cnn = nn.Sequential(
-                nn.Conv2d(rd_input_dim, 16, kernel_size=3, padding=1),
+                nn.Conv2d(self.rd_patch_input_dim, 16, kernel_size=3, padding=1),
                 nn.GELU(),
                 nn.Conv2d(16, 32, kernel_size=3, padding=1),
                 nn.GELU(),
@@ -229,8 +235,10 @@ class LowAltitudeSuspectExpert(nn.Module):
                 nn.GELU(),
                 nn.LayerNorm(self.rd_patch_dim),
             )
+            self.rd_patch_temporal_pool = TemporalAttentionPool(self.rd_patch_dim, hidden_dim=64)
         else:
             self.rd_patch_cnn = None
+            self.rd_patch_temporal_pool = None
         self.rd_backbone = nn.Sequential(
             nn.Linear(self.rd_model_dim + self.rd_stats_dim + self.rd_context_hidden_dim + self.rd_patch_dim, 512),
             nn.GELU(),
@@ -246,11 +254,16 @@ class LowAltitudeSuspectExpert(nn.Module):
             scale=cosface_scale,
             margin=cosface_margin,
         )
+        self.rd_unknown_head = nn.Linear(512, 2)
+        self.rd_clutter_head = nn.Linear(512, 2)
         self.fusion_gate = nn.Sequential(
             nn.Linear(len(LOW_ALTITUDE_CLASSES) * 2, 64),
             nn.GELU(),
             nn.Linear(64, 2),
         )
+        nn.init.zeros_(self.fusion_gate[-1].weight)
+        with torch.no_grad():
+            self.fusion_gate[-1].bias.copy_(torch.tensor([1.5, -1.5], dtype=self.fusion_gate[-1].bias.dtype))
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
@@ -298,8 +311,54 @@ class LowAltitudeSuspectExpert(nn.Module):
             return torch.zeros((rd_features.shape[0], 0), dtype=rd_features.dtype, device=rd_features.device)
         patch_input = torch.nan_to_num(rd_features, nan=0.0, posinf=0.0, neginf=0.0)
         if rd_padding_mask is not None:
-            patch_input = patch_input.masked_fill(rd_padding_mask.unsqueeze(-1).unsqueeze(-1), 0.0)
-        patch_input = patch_input.permute(0, 3, 1, 2).contiguous()
+            while rd_padding_mask.shape[1] != patch_input.shape[1]:
+                if rd_padding_mask.shape[1] > patch_input.shape[1]:
+                    rd_padding_mask = rd_padding_mask[:, : patch_input.shape[1]]
+                else:
+                    pad = torch.ones(
+                        (rd_padding_mask.shape[0], patch_input.shape[1] - rd_padding_mask.shape[1]),
+                        dtype=rd_padding_mask.dtype,
+                        device=rd_padding_mask.device,
+                    )
+                    rd_padding_mask = torch.cat([rd_padding_mask, pad], dim=1)
+            patch_input = patch_input.masked_fill(rd_padding_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0)
+        if patch_input.ndim == 5:
+            batch_size, time_steps, range_bins, doppler_bins, channels = patch_input.shape
+            frames = patch_input.reshape(batch_size * time_steps, range_bins, doppler_bins, channels)
+            frames = frames.permute(0, 3, 1, 2).contiguous()
+            if frames.shape[1] > self.rd_patch_input_dim:
+                frames = frames[:, : self.rd_patch_input_dim]
+            elif frames.shape[1] < self.rd_patch_input_dim:
+                pad = frames.new_zeros(
+                    (
+                        frames.shape[0],
+                        self.rd_patch_input_dim - frames.shape[1],
+                        frames.shape[2],
+                        frames.shape[3],
+                    )
+                )
+                frames = torch.cat([frames, pad], dim=1)
+            encoded_chunks = [self.rd_patch_cnn(chunk) for chunk in frames.split(64, dim=0)]
+            frame_features = torch.cat(encoded_chunks, dim=0).view(batch_size, time_steps, self.rd_patch_dim)
+            if self.rd_patch_temporal_pool is None:
+                return frame_features.mean(dim=1)
+            return self.rd_patch_temporal_pool(frame_features, padding_mask=rd_padding_mask)
+        elif patch_input.ndim == 4:
+            patch_input = patch_input.permute(0, 3, 1, 2).contiguous()
+        else:
+            raise ValueError("rd patch features must be [B,T,R,D,C] or [B,T,R,C]")
+        if patch_input.shape[1] > self.rd_patch_input_dim:
+            patch_input = patch_input[:, : self.rd_patch_input_dim]
+        elif patch_input.shape[1] < self.rd_patch_input_dim:
+            pad = patch_input.new_zeros(
+                (
+                    patch_input.shape[0],
+                    self.rd_patch_input_dim - patch_input.shape[1],
+                    patch_input.shape[2],
+                    patch_input.shape[3],
+                )
+            )
+            patch_input = torch.cat([patch_input, pad], dim=1)
         return self.rd_patch_cnn(patch_input)
 
     def _apply_reject(self, logits: torch.Tensor, cosine: torch.Tensor, activated: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -315,10 +374,12 @@ class LowAltitudeSuspectExpert(nn.Module):
         self,
         traj_input: torch.Tensor,
         rd_features: torch.Tensor,
+        rd_patch_features: torch.Tensor | None = None,
         rd_context: torch.Tensor | None = None,
         low_altitude_targets: torch.Tensor | None = None,
         rd_is_multimodal: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_patch_padding_mask: torch.Tensor | None = None,
         enable_reject: bool = True,
     ) -> LowAltitudeFusionOutput:
         traj_features = self.traj_backbone(traj_input)
@@ -331,20 +392,41 @@ class LowAltitudeSuspectExpert(nn.Module):
         )
         if rd_features.ndim == 4:
             rd_encoded, rd_stats = self._encode_rd(rd_features, rd_padding_mask=rd_padding_mask)
-            rd_patch = self._encode_rd_patch(rd_features, rd_padding_mask=rd_padding_mask)
+            patch_source = rd_patch_features if rd_patch_features is not None else rd_features
+            patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
+            rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
+            rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
+            rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
+            unknown_delta = rd_unknown_logits[:, 1] - rd_unknown_logits[:, 0]
+            clutter_delta = rd_clutter_logits[:, 1] - rd_clutter_logits[:, 0]
+            rd_logits = rd_logits.clone()
+            rd_logits[:, LOW_ALTITUDE_CLASSES.index("UnknownTarget")] = (
+                rd_logits[:, LOW_ALTITUDE_CLASSES.index("UnknownTarget")]
+                + self.rd_binary_logit_scale * unknown_delta
+            )
+            rd_logits[:, LOW_ALTITUDE_CLASSES.index("ClutterTarget")] = (
+                rd_logits[:, LOW_ALTITUDE_CLASSES.index("ClutterTarget")]
+                + self.rd_binary_logit_scale * clutter_delta
+            )
             if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
                 no_rd = ~rd_is_multimodal.bool()
                 if no_rd.any():
-                    rd_logits = torch.where(no_rd.unsqueeze(-1), traj_logits.detach(), rd_logits)
-                    rd_cosine = torch.where(no_rd.unsqueeze(-1), traj_cosine.detach(), rd_cosine)
+                    neutral_logits = torch.zeros_like(rd_logits)
+                    neutral_cosine = torch.zeros_like(rd_cosine)
+                    rd_logits = torch.where(no_rd.unsqueeze(-1), neutral_logits, rd_logits)
+                    rd_cosine = torch.where(no_rd.unsqueeze(-1), neutral_cosine, rd_cosine)
+                    rd_unknown_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_logits), rd_unknown_logits)
+                    rd_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_logits), rd_clutter_logits)
         else:
             rd_encoded = traj_input.new_zeros((traj_input.shape[0], self.rd_model_dim))
             rd_stats = traj_input.new_zeros((traj_input.shape[0], self.rd_stats_dim))
             rd_patch = traj_input.new_zeros((traj_input.shape[0], self.rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
+            rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
+            rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
 
         traj_probs = torch.softmax(traj_logits, dim=-1)
         rd_probs = torch.softmax(rd_logits, dim=-1)
@@ -378,6 +460,8 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_cosine=rd_cosine,
             traj_logits=traj_logits,
             rd_logits=rd_logits,
+            rd_unknown_logits=rd_unknown_logits,
+            rd_clutter_logits=rd_clutter_logits,
             logits=final_logits,
             fusion_weights=fusion_weights,
             rd_activated=rd_activated,

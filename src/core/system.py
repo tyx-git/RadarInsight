@@ -40,6 +40,7 @@ class RadarClassificationSystem(nn.Module):
         low_altitude_reject_threshold: float = 0.35,
         low_altitude_rd_activation_threshold: float = 0.8,
         low_altitude_use_rd_patch_cnn: bool = True,
+        low_altitude_rd_patch_input_dim: int = 3,
     ) -> None:
         super().__init__()
         rd_dim = 16
@@ -61,6 +62,7 @@ class RadarClassificationSystem(nn.Module):
         self.low_altitude_expert = LowAltitudeSuspectExpert(
             input_dim=fused_dim,
             rd_input_dim=4,
+            rd_patch_input_dim=low_altitude_rd_patch_input_dim,
             rd_context_dim=rd_dim,
             dropout=dropout,
             cosface_scale=low_altitude_cosface_scale,
@@ -78,10 +80,12 @@ class RadarClassificationSystem(nn.Module):
         sequence_features: torch.Tensor,
         physical_features: torch.Tensor,
         rd_features: torch.Tensor | None = None,
+        rd_patch_features: torch.Tensor | None = None,
         low_altitude_targets: torch.Tensor | None = None,
         rd_is_multimodal: torch.Tensor | None = None,
         padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_patch_padding_mask: torch.Tensor | None = None,
         enable_low_altitude_reject: bool = True,
     ) -> RadarSystemOutput:
         representation = self.representation_builder(
@@ -117,10 +121,12 @@ class RadarClassificationSystem(nn.Module):
         low_altitude = self.low_altitude_expert(
             representation.fused_features,
             rd_features=rd_features,
+            rd_patch_features=rd_patch_features,
             rd_context=rd_embedding,
             low_altitude_targets=low_altitude_targets,
             rd_is_multimodal=rd_is_multimodal,
             rd_padding_mask=rd_padding_mask,
+            rd_patch_padding_mask=rd_patch_padding_mask,
             enable_reject=enable_low_altitude_reject,
         )
         conventional_air = self.conventional_air_expert(

@@ -33,7 +33,7 @@
     "epochs": 8,
     "batch_size": 16,
     "learning_rate": 0.0003,
-      "weight_decay": 0.0001,
+    "weight_decay": 0.0001,
     "model_dim": 128,
     "dropout": 0.1,
     "mask_ratio": 0.15,
@@ -44,11 +44,11 @@
   "router": {
     "output_dir": "artifacts/router_v1",
     "epochs": 3,
-      "batch_size": 32,
-      "learning_rate": 0.0003,
-      "weight_decay": 0.0001,
-      "balanced_sampling": true,
-      "max_grad_norm": 1.0,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "balanced_sampling": true,
+    "max_grad_norm": 1.0,
     "input": "17_dim_explicit_physical_features",
     "selection_metric": "macro_route_recall",
     "notes": [
@@ -58,7 +58,7 @@
   },
   "expert1": {
     "output_dir": "artifacts/expert1_config_smoke",
-    "epochs": 2,
+    "epochs": 4,
     "batch_size": 8,
     "learning_rate": 0.0002,
     "weight_decay": 0.0001,
@@ -70,15 +70,24 @@
     "stage2_ramp_epochs": 1,
     "prefer_stage2_checkpoint": true,
     "use_rd_patch_cnn": true,
-    "min_rd_macro_f1_for_best": 0.05,
-    "min_drone_bird_rd_recall_for_best": 0.05,
-    "min_unknown_clutter_rd_recall_for_best": 0.0,
+    "low_altitude_traj_aux_ratio": 0.35,
+    "low_altitude_rd_aux_ratio": 0.65,
+    "low_altitude_rd_hard_aux_weight": 0.5,
+    "low_altitude_rd_focal_gamma": 1.5,
+    "low_altitude_rd_binary_aux_weight": 0.4,
+    "min_rd_macro_f1_for_best": 0.22,
+    "min_drone_bird_rd_recall_for_best": 0.3,
+    "min_unknown_clutter_rd_recall_for_best": 0.1,
+    "min_rare_rd_recall_for_best": 0.05,
+    "require_final_not_worse_than_traj": true,
+    "max_final_traj_f1_drop": 0.02,
     "rd_activation_threshold": 0.8,
     "rd_sample_boost": 1.2,
     "raw_source_boost": 2.0,
     "excel_source_boost": 2.0,
     "cq08_source_boost": 1.0,
     "unknown_sample_boost": 1.7,
+    "clutter_sample_boost": 2.0,
     "unknown_loss_weight": 0.8,
     "low_altitude_aux_weight": 0.5,
     "low_altitude_mutual_weight": 1.0,
@@ -108,7 +117,7 @@
       }
     }
   },
-    "system": {
+  "system": {
     "output_dir": "artifacts/system_config_smoke",
     "epochs": 3,
     "batch_size": 8,
@@ -174,7 +183,8 @@
       "do_not_override_shared_encoder_from": [
         "expert2_checkpoint",
         "expert4_checkpoint"
-      ]
+      ],
+      "latest_rejected_expert1_probe": "artifacts\\20260427-225253\\expert1_config_smoke\\fallback_model.pt"
     }
   },
   "expert2": {

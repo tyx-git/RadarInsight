@@ -107,6 +107,24 @@ def _build_class_weights(loader) -> torch.Tensor:
     return torch.clamp(weights, min=0.25, max=2.0)
 
 
+def _build_rd_class_weights(loader) -> torch.Tensor:
+    counts = torch.zeros((len(LOW_ALTITUDE_CLASSES),), dtype=torch.float32)
+    for batch in loader:
+        has_rd = batch.rd_is_multimodal.bool()
+        if not bool(has_rd.any()):
+            continue
+        local_labels = torch.tensor(
+            [LOW_ALTITUDE_GLOBAL_TO_LOCAL[int(label)] for label in batch.labels.tolist()],
+            dtype=torch.long,
+        )
+        bincount = torch.bincount(local_labels[has_rd], minlength=len(LOW_ALTITUDE_CLASSES)).to(torch.float32)
+        counts += bincount
+    counts = torch.clamp(counts, min=1.0)
+    weights = torch.rsqrt(counts)
+    weights = weights / weights.mean()
+    return torch.clamp(weights, min=0.5, max=3.0)
+
+
 def _fit_source_feature_stats(loader) -> dict[str, dict[str, torch.Tensor]]:
     buckets: dict[str, list[torch.Tensor]] = {}
     for batch in loader:
@@ -255,6 +273,28 @@ def _weighted_ce_loss(
     return (per_sample * weights).mean()
 
 
+def _masked_weighted_ce_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    class_weights: torch.Tensor,
+    unknown_index: int,
+    unknown_weight: float,
+    focal_gamma: float = 0.0,
+) -> torch.Tensor:
+    per_sample = torch.nn.functional.cross_entropy(
+        logits,
+        labels,
+        weight=class_weights,
+        reduction="none",
+    )
+    if focal_gamma > 0.0:
+        probs = torch.softmax(logits, dim=-1).gather(1, labels.unsqueeze(1)).squeeze(1).clamp(1e-6, 1.0)
+        per_sample = per_sample * (1.0 - probs).pow(focal_gamma)
+    weights = torch.ones_like(per_sample)
+    weights = torch.where(labels == unknown_index, torch.full_like(weights, unknown_weight), weights)
+    return (per_sample * weights).mean()
+
+
 def _rel(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
@@ -365,24 +405,40 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_clutter = float(metrics.get("rd_unknown_clutter_recall_mean", 0.0))
     final_macro = float(metrics.get("macro_f1", 0.0))
     traj_macro = float(metrics.get("traj_macro_f1", 0.0))
+    final_delta = final_macro - traj_macro
+    rd_recall = dict(metrics.get("rd_per_class_recall_on_rd", {}))
+    balloon_recall = float(rd_recall.get("BalloonTarget", 0.0))
+    clutter_recall = float(rd_recall.get("ClutterTarget", 0.0))
+    unknown_recall = float(rd_recall.get("UnknownTarget", 0.0))
+    min_rare_rd_recall = min(balloon_recall, clutter_recall, unknown_recall)
     score = (
         final_macro
-        + 0.45 * rd_macro
-        + 0.25 * drone_bird
-        + 0.20 * unknown_clutter
-        + 0.10 * traj_macro
+        + 0.70 * rd_macro
+        + 0.35 * drone_bird
+        + 0.35 * unknown_clutter
+        + 0.25 * min_rare_rd_recall
+        + 0.15 * traj_macro
+        + 0.25 * final_delta
     )
     eligible = bool(stage2_enabled) if config.prefer_stage2_checkpoint else True
     if stage2_enabled:
         eligible = eligible and rd_macro >= config.min_rd_macro_f1_for_best
         eligible = eligible and drone_bird >= config.min_drone_bird_rd_recall_for_best
         eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
+        eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
+        if config.require_final_not_worse_than_traj:
+            eligible = eligible and final_delta >= -config.max_final_traj_f1_drop
     return score, eligible, {
         "final_macro_f1": final_macro,
         "traj_macro_f1": traj_macro,
+        "final_minus_traj_macro_f1": final_delta,
         "rd_macro_f1_on_rd": rd_macro,
         "rd_drone_bird_recall_mean": drone_bird,
         "rd_unknown_clutter_recall_mean": unknown_clutter,
+        "rd_balloon_recall": balloon_recall,
+        "rd_clutter_recall": clutter_recall,
+        "rd_unknown_recall": unknown_recall,
+        "rd_min_rare_recall": min_rare_rd_recall,
     }
 
 
@@ -398,6 +454,7 @@ def _run_epoch(
     config: Expert1TrainConfig,
     stage2_enabled: bool,
     stage2_scale: float,
+    rd_class_weights: torch.Tensor,
     source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None,
 ) -> dict[str, object]:
     representation_builder.train(mode=train)
@@ -421,8 +478,10 @@ def _run_epoch(
             features = _apply_source_feature_norm(features, batch.source_names, source_feature_stats)
         physical = batch.physical_features.to(device)
         rd_features = batch.rd_features.to(device)
+        rd_patch_features = batch.rd_patch_features.to(device)
         rd_is_multimodal = batch.rd_is_multimodal.to(device)
         rd_padding_mask = batch.rd_padding_mask.to(device)
+        rd_patch_padding_mask = batch.rd_patch_padding_mask.to(device)
         labels = torch.tensor(
             [LOW_ALTITUDE_GLOBAL_TO_LOCAL[int(label)] for label in batch.labels.tolist()],
             dtype=torch.long,
@@ -455,10 +514,12 @@ def _run_epoch(
             output = model(
                 rep.fused_features,
                 rd_features=rd_features,
+                rd_patch_features=rd_patch_features,
                 rd_context=rd_embedding,
                 low_altitude_targets=labels if train else None,
                 rd_is_multimodal=rd_is_multimodal,
                 rd_padding_mask=rd_padding_mask,
+                rd_patch_padding_mask=rd_patch_padding_mask,
                 enable_reject=(config.enable_reject_in_train if train else config.enable_reject_in_eval) and stage2_enabled,
             )
             unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
@@ -478,14 +539,53 @@ def _run_epoch(
             )
             has_rd_mask = rd_is_multimodal.bool()
             if stage2_enabled and has_rd_mask.any():
-                rd_aux = _weighted_ce_loss(
-                    criterion,
+                rd_aux = _masked_weighted_ce_loss(
                     output.rd_logits[has_rd_mask],
                     labels[has_rd_mask],
+                    rd_class_weights.to(device),
                     unknown_index=unknown_index,
                     unknown_weight=config.unknown_loss_weight,
+                    focal_gamma=config.low_altitude_rd_focal_gamma,
                 )
-                aux_loss = 0.5 * (aux_loss + rd_aux)
+                hard_rd_labels = {
+                    LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
+                    LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+                    LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+                }
+                hard_rd_mask = has_rd_mask & torch.isin(
+                    labels,
+                    torch.tensor(sorted(hard_rd_labels), dtype=torch.long, device=device),
+                )
+                if hard_rd_mask.any():
+                    hard_rd_aux = _masked_weighted_ce_loss(
+                        output.rd_logits[hard_rd_mask],
+                        labels[hard_rd_mask],
+                        rd_class_weights.to(device),
+                        unknown_index=unknown_index,
+                        unknown_weight=max(config.unknown_loss_weight, 1.0),
+                        focal_gamma=config.low_altitude_rd_focal_gamma,
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_hard_aux_weight * hard_rd_aux
+                unknown_binary_targets = (labels[has_rd_mask] == unknown_index).long()
+                clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
+                clutter_binary_targets = (labels[has_rd_mask] == clutter_index).long()
+                unknown_binary_loss = torch.nn.functional.cross_entropy(
+                    output.rd_unknown_logits[has_rd_mask],
+                    unknown_binary_targets,
+                    weight=torch.tensor([1.0, 3.0], dtype=torch.float32, device=device),
+                )
+                clutter_binary_loss = torch.nn.functional.cross_entropy(
+                    output.rd_clutter_logits[has_rd_mask],
+                    clutter_binary_targets,
+                    weight=torch.tensor([1.0, 4.0], dtype=torch.float32, device=device),
+                )
+                rd_aux = rd_aux + config.low_altitude_rd_binary_aux_weight * (
+                    unknown_binary_loss + clutter_binary_loss
+                )
+                aux_loss = (
+                    config.low_altitude_traj_aux_ratio * aux_loss
+                    + config.low_altitude_rd_aux_ratio * rd_aux
+                )
                 mutual_loss = _symmetric_kl(
                     output.traj_logits[has_rd_mask],
                     output.rd_logits[has_rd_mask],
@@ -652,6 +752,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         excel_source_boost=config.excel_source_boost,
         cq08_source_boost=config.cq08_source_boost,
         unknown_sample_boost=config.unknown_sample_boost,
+        clutter_sample_boost=config.clutter_sample_boost,
     )
     representation_builder = TrackRepresentationBuilder(
         sequence_input_dim=10,
@@ -670,6 +771,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     model = LowAltitudeSuspectExpert(
         input_dim=128 + 32,
         rd_input_dim=4,
+        rd_patch_input_dim=3,
         rd_context_dim=rd_dim,
         use_rd_patch_cnn=config.use_rd_patch_cnn,
         dropout=config.dropout,
@@ -686,6 +788,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             device,
         )
     class_weights = _build_class_weights(loaders.train_loader).to(device)
+    rd_class_weights = _build_rd_class_weights(loaders.train_loader).to(device)
     source_feature_stats = _fit_source_feature_stats(loaders.train_loader) if config.source_normalization else None
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = _build_optimizer(representation_builder, rd_proj, model, config)
@@ -704,10 +807,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         stage2_enabled = epoch > config.stage1_traj_only_epochs
         stage2_scale = _stage2_scale(epoch, config)
         _set_track_encoder_trainable(representation_builder, epoch > config.freeze_track_encoder_epochs)
-        train_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.train_loader, criterion, optimizer, device, True, config, stage2_enabled, stage2_scale, source_feature_stats)
+        train_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.train_loader, criterion, optimizer, device, True, config, stage2_enabled, stage2_scale, rd_class_weights, source_feature_stats)
         if not train_metrics["has_valid_batches"]:
             break
-        val_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.val_loader, criterion, optimizer, device, False, config, stage2_enabled, stage2_scale, source_feature_stats)
+        val_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.val_loader, criterion, optimizer, device, False, config, stage2_enabled, stage2_scale, rd_class_weights, source_feature_stats)
         val_selection_score, val_selection_eligible, val_selection_components = _expert1_selection_score(
             val_metrics,
             config,
@@ -757,6 +860,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         best_val = float(fallback["val"].get("selection_score", fallback["val"].get("macro_f1", 0.0)))
         best_selection_components = dict(fallback["val"].get("selection_components", {}))
         best_selection_reason = "fallback_no_rd_quality_checkpoint"
+        best_path = run_paths.output_dir / "fallback_model.pt"
         torch.save(
             {
                 "representation_builder_state_dict": representation_builder.state_dict(),
@@ -775,7 +879,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         representation_builder.load_state_dict(state["representation_builder_state_dict"])
         rd_proj.load_state_dict(state["rd_proj_state_dict"])
         model.load_state_dict(state["model_state_dict"])
-    test_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.test_loader, criterion, optimizer, device, False, config, True, 1.0, source_feature_stats)
+    test_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.test_loader, criterion, optimizer, device, False, config, True, 1.0, rd_class_weights, source_feature_stats)
 
     history_path = run_paths.output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -956,6 +1060,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "taxonomy": {label: idx for idx, label in enumerate(LOW_ALTITUDE_CLASSES)},
         "trainable_parameters": _count_trainable_parameters(representation_builder) + _count_trainable_parameters(rd_proj) + _count_trainable_parameters(model),
         "class_weights": class_weights.detach().cpu().tolist(),
+        "rd_class_weights": rd_class_weights.detach().cpu().tolist(),
         "unknown_loss_weight": config.unknown_loss_weight,
         "unknown_sample_boost": config.unknown_sample_boost,
         "rd_activation_threshold": config.rd_activation_threshold,
@@ -965,6 +1070,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "pretrained_track_checkpoint": config.pretrained_track_checkpoint,
         "pretrained_track_info": pretrained_track_info,
+        "use_rd_patch_cnn": bool(config.use_rd_patch_cnn),
+        "low_altitude_traj_aux_ratio": config.low_altitude_traj_aux_ratio,
+        "low_altitude_rd_aux_ratio": config.low_altitude_rd_aux_ratio,
+        "low_altitude_rd_hard_aux_weight": config.low_altitude_rd_hard_aux_weight,
+        "low_altitude_rd_focal_gamma": config.low_altitude_rd_focal_gamma,
+        "low_altitude_rd_binary_aux_weight": config.low_altitude_rd_binary_aux_weight,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "split_sizes": {
             "train": len(loaders.split.train_ids),
@@ -984,6 +1095,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_rd_macro_f1_for_best": config.min_rd_macro_f1_for_best,
             "min_drone_bird_rd_recall_for_best": config.min_drone_bird_rd_recall_for_best,
             "min_unknown_clutter_rd_recall_for_best": config.min_unknown_clutter_rd_recall_for_best,
+            "min_rare_rd_recall_for_best": config.min_rare_rd_recall_for_best,
+            "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),
+            "max_final_traj_f1_drop": config.max_final_traj_f1_drop,
         },
     }
     summary_path = run_paths.output_dir / "training_summary.json"
