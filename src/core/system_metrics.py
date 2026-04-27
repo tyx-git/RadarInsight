@@ -11,6 +11,7 @@ from .metrics import ClassificationMetrics, compute_classification_metrics
 class SystemMetrics:
     classification: ClassificationMetrics
     route_accuracy: float
+    route_macro_recall: float
 
 
 @dataclass(frozen=True)
@@ -73,4 +74,15 @@ def compute_system_metrics(
     classification = compute_classification_metrics(class_logits, class_labels, num_classes=num_classes)
     route_preds = route_logits.argmax(dim=-1)
     route_accuracy = float((route_preds == route_labels).float().mean().item())
-    return SystemMetrics(classification=classification, route_accuracy=route_accuracy)
+    recalls: list[float] = []
+    for route_idx in range(route_logits.shape[-1]):
+        route_mask = route_labels == route_idx
+        if not bool(route_mask.any()):
+            continue
+        recalls.append(float((route_preds[route_mask] == route_idx).float().mean().item()))
+    route_macro_recall = float(sum(recalls) / len(recalls)) if recalls else 0.0
+    return SystemMetrics(
+        classification=classification,
+        route_accuracy=route_accuracy,
+        route_macro_recall=route_macro_recall,
+    )

@@ -1,0 +1,211 @@
+{
+  "project": {
+    "name": "RadarInsight",
+    "data_root": "data",
+    "device": "cuda",
+    "num_workers": 0,
+    "seed": 42,
+    "target": {
+      "primary_metric": "low_altitude_drone_bird_accuracy",
+      "primary_goal": 0.95,
+      "selection_metric": "macro_f1",
+      "notes": [
+        "低空核心任务优先优化 DroneTarget / BirdTarget / BalloonTarget / ClutterTarget / UnknownTarget。",
+        "system 总准确率会被 CQ08 大样本主导，必须同时查看 per_class、by_source、route per_route。",
+        "Unknown 拒识阈值先关闭硬规则，单独完成阈值校准后再打开。"
+      ]
+    }
+  },
+  "data": {
+    "processed_root": "data/processed",
+    "system_index": "system_trainable_track_index.csv",
+    "expert1_index": "expert1_track_index.csv",
+    "cq08_grouped_split": "data/manifests/cq08_grouped_split.json",
+    "split_policy": "grouped_cq08_plus_stratified_other",
+    "forbidden": [
+      "RD frame-level random split",
+      "test-time label-dependent logits",
+      "hard Unknown reject before threshold calibration"
+    ]
+  },
+  "pretrain_track": {
+    "output_dir": "artifacts/pretrain_track",
+    "epochs": 8,
+    "batch_size": 16,
+    "learning_rate": 0.0003,
+      "weight_decay": 0.0001,
+    "model_dim": 128,
+    "dropout": 0.1,
+    "mask_ratio": 0.15,
+    "contrastive_temperature": 0.1,
+    "mtm_loss_weight": 1.0,
+    "contrastive_loss_weight": 0.2
+  },
+  "router": {
+    "output_dir": "artifacts/router_v1",
+    "epochs": 3,
+      "batch_size": 32,
+      "learning_rate": 0.0003,
+      "weight_decay": 0.0001,
+      "balanced_sampling": true,
+      "max_grad_norm": 1.0,
+    "input": "17_dim_explicit_physical_features",
+    "selection_metric": "macro_route_recall",
+    "notes": [
+      "不要只看 route_accuracy；low_altitude 样本占比过高，route_accuracy 容易虚高。",
+      "router checkpoint 应完整加载到 system.router，pretrained_router_info 不能有 skipped_shape_mismatch。"
+    ]
+  },
+  "expert1": {
+    "output_dir": "artifacts/expert1_config_smoke",
+    "epochs": 2,
+    "batch_size": 8,
+    "learning_rate": 0.0002,
+    "weight_decay": 0.0001,
+    "dropout": 0.1,
+    "source_normalization": true,
+    "sequence_encoder_lr_multiplier": 0.1,
+    "freeze_track_encoder_epochs": 0,
+    "stage1_traj_only_epochs": 1,
+    "stage2_ramp_epochs": 1,
+    "rd_activation_threshold": 0.8,
+    "rd_sample_boost": 1.2,
+    "raw_source_boost": 2.0,
+    "excel_source_boost": 2.0,
+    "cq08_source_boost": 1.0,
+    "unknown_sample_boost": 1.7,
+    "unknown_loss_weight": 0.8,
+    "low_altitude_aux_weight": 0.5,
+    "low_altitude_mutual_weight": 1.0,
+    "low_altitude_contrastive_weight": 0.2,
+    "low_altitude_temperature": 0.1,
+    "cosface_scale": 16.0,
+    "cosface_margin": 0.2,
+    "enable_reject_in_train": false,
+    "enable_reject_in_eval": false,
+    "reject_threshold": 0.35,
+    "skip_non_finite_batch": true,
+    "candidate_overrides": {
+      "highest_accuracy": {
+        "unknown_sample_boost": 1.0,
+        "unknown_loss_weight": 0.5,
+        "rd_activation_threshold": 0.8
+      },
+      "balanced_unknown": {
+        "unknown_sample_boost": 1.7,
+        "unknown_loss_weight": 0.8,
+        "rd_activation_threshold": 0.8
+      },
+      "max_rd_fusion_probe": {
+        "unknown_sample_boost": 1.7,
+        "unknown_loss_weight": 0.8,
+        "rd_activation_threshold": 1.01
+      }
+    }
+  },
+    "system": {
+    "output_dir": "artifacts/system_config_smoke",
+    "epochs": 2,
+    "batch_size": 8,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "hidden_dim": 128,
+    "dropout": 0.1,
+    "source_normalization": true,
+    "sequence_encoder_lr_multiplier": 0.1,
+    "pretrained_track_checkpoint": "",
+    "pretrained_router_checkpoint": "artifacts/20260427-205242/router_v1/best_model.pt",
+    "expert1_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+    "expert2_checkpoint": "artifacts/20260427-203506/expert2_config_smoke/best_model.pt",
+    "expert4_checkpoint": "artifacts/20260427-203647/expert4_config_smoke/best_model.pt",
+    "freeze_track_encoder_epochs": 1,
+    "fusion_mode": "hard_route",
+    "freeze_router": true,
+    "stage_warmup_epochs": 0,
+    "stage_expert_warmup_epochs": 0,
+    "stage_joint_epochs": 1,
+    "joint_loss_ramp_epochs": 2,
+    "freeze_non_router_in_warmup": true,
+    "freeze_non_low_altitude_in_expert_warmup": true,
+    "freeze_router_in_expert_warmup": true,
+    "freeze_track_encoder_in_expert_warmup": true,
+    "route_loss_weight": 0.3,
+    "low_altitude_aux_weight": 0.5,
+    "low_altitude_mutual_weight": 1.0,
+    "low_altitude_contrastive_weight": 0.2,
+    "low_altitude_temperature": 0.1,
+    "low_altitude_cosface_scale": 16.0,
+    "low_altitude_cosface_margin": 0.2,
+    "low_altitude_reject_threshold": 0.35,
+    "low_altitude_rd_activation_threshold": 0.8,
+    "enable_low_altitude_reject_in_train": false,
+    "enable_low_altitude_reject_in_eval": false,
+    "consistency_loss_weight": 0.3,
+    "stage_expert_warmup_route_loss_scale": 0.0,
+    "stage_expert_warmup_low_altitude_aux_scale": 1.0,
+    "stage_expert_warmup_low_altitude_mutual_scale": 1.0,
+    "stage_expert_warmup_low_altitude_contrastive_scale": 1.0,
+    "stage_expert_warmup_consistency_scale": 1.0,
+    "stage_finetune_route_loss_scale": 0.5,
+    "stage_finetune_low_altitude_aux_scale": 0.5,
+    "stage_finetune_low_altitude_mutual_scale": 0.5,
+    "stage_finetune_low_altitude_contrastive_scale": 0.5,
+    "stage_finetune_consistency_scale": 0.5,
+    "sequence_encoder_grad_clip_norm": 0.25,
+    "global_grad_clip_norm": 1.0,
+    "skip_non_finite_batch": true,
+    "checkpoint_policy": {
+      "pretrained_track_checkpoint": "",
+      "pretrained_router_checkpoint": "artifacts/20260427-205242/router_v1/best_model.pt",
+      "expert1_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+      "expert2_checkpoint": "artifacts/20260427-203506/expert2_config_smoke/best_model.pt",
+      "expert4_checkpoint": "artifacts/20260427-203647/expert4_config_smoke/best_model.pt",
+      "shared_encoder_priority": [
+        "expert1_checkpoint",
+        "pretrained_track_checkpoint",
+        "system_training"
+      ],
+      "do_not_override_shared_encoder_from": [
+        "expert2_checkpoint",
+        "expert4_checkpoint"
+      ]
+    }
+  },
+  "expert2": {
+    "output_dir": "artifacts/expert2_config_smoke",
+    "epochs": 1,
+    "batch_size": 16,
+    "learning_rate": 0.0002,
+    "source_normalization": true,
+    "train_representation_builder": false,
+    "shared_representation_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt",
+    "negative_classes": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget",
+      "UnknownTarget",
+      "PeopleTarget",
+      "CarTarget",
+      "ShipTarget"
+    ]
+  },
+  "expert4": {
+    "output_dir": "artifacts/expert4_config_smoke",
+    "epochs": 1,
+    "batch_size": 16,
+    "learning_rate": 0.0002,
+    "source_normalization": true,
+    "train_representation_builder": false,
+    "shared_representation_checkpoint": "artifacts\\20260427-203222\\expert1_config_smoke\\best_model.pt"
+  },
+  "recommended_commands": {
+    "pretrain_track": ".\\.venv\\Scripts\\python.exe -m src.core.train_pretrain_track --config config/config.json",
+    "router": ".\\.venv\\Scripts\\python.exe -m src.core.train_router --config config/config.json",
+    "expert1": ".\\.venv\\Scripts\\python.exe -m src.core.train_expert1 --config config/config.json",
+    "expert2": ".\\.venv\\Scripts\\python.exe -m src.core.train_expert2 --config config/config.json",
+    "expert4": ".\\.venv\\Scripts\\python.exe -m src.core.train_expert4 --config config/config.json",
+    "system": ".\\.venv\\Scripts\\python.exe -m src.core.train_system --config config/config.json",
+    "pipeline": ".\\.venv\\Scripts\\python.exe -m src.core.train_main_pipeline --config config/config.json"
+  }
+}

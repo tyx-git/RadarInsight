@@ -52,6 +52,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines.append(f"- macro_recall: {_format_float(float(summary_metrics['macro_recall']))}")
     lines.append(f"- macro_f1: {_format_float(float(summary_metrics['macro_f1']))}")
     lines.append(f"- route_accuracy: {_format_float(float(summary_metrics['route_accuracy']))}")
+    if "route_macro_recall" in summary_metrics:
+        lines.append(f"- route_macro_recall: {_format_float(float(summary_metrics['route_macro_recall']))}")
     lines.append(f"- loss: {_format_float(float(summary_metrics['loss']))}")
     if "skipped_non_finite_batches" in summary_metrics:
         lines.append(f"- skipped_non_finite_batches: {summary_metrics['skipped_non_finite_batches']}")
@@ -92,6 +94,10 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
         lines.append("- 无明显混淆。")
     lines.append("")
     lines.append("## 路由表现")
+    if route_report.get("collapsed_route"):
+        lines.append(f"- collapsed_route: {route_report['collapsed_route']}")
+    if "macro_recall" in route_report:
+        lines.append(f"- macro_recall: {_format_float(float(route_report['macro_recall']))}")
     lines.append("| 路由 | support | correct | recall |")
     lines.append("|---|---:|---:|---:|")
     for item in route_report["per_route"]:
