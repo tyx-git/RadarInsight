@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -21,8 +21,11 @@ class SystemTrainConfig:
     expert1_checkpoint: str = ""
     expert2_checkpoint: str = ""
     expert4_checkpoint: str = ""
-    fusion_mode: str = "ungated"
-    freeze_router: bool = False
+    fusion_mode: str = "soft_log_weighted"
+    eval_fusion_candidate_modes: list[str] = field(
+        default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2"]
+    )
+    freeze_router: bool = True
     freeze_track_encoder_epochs: int = 0
     freeze_non_router_in_warmup: bool = True
     stage_warmup_epochs: int = 0
@@ -31,6 +34,7 @@ class SystemTrainConfig:
     joint_loss_ramp_epochs: int = 2
     freeze_non_low_altitude_in_expert_warmup: bool = True
     route_loss_weight: float = 0.3
+    route_coarse_loss_weight: float = 0.3
     low_altitude_aux_weight: float = 0.5
     low_altitude_mutual_weight: float = 1.0
     low_altitude_contrastive_weight: float = 0.2

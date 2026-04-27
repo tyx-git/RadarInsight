@@ -785,7 +785,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     history: list[dict[str, object]] = []
     best_val = -1.0
     best_path = run_paths.output_dir / "best_model.pt"
+    fallback_candidate_path = run_paths.output_dir / "fallback_candidate_model.pt"
     best_epoch = -1
+    fallback_candidate_epoch = -1
+    fallback_candidate_score = float("-inf")
+    fallback_candidate_components: dict[str, float] = {}
     best_selection_reason = "selection_score"
     best_selection_components: dict[str, float] = {}
 
@@ -823,6 +827,23 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         )
         can_replace_best = val_selection_eligible and val_selection_score > best_val
         selection_reason = "stage2_rd_composite" if stage2_enabled else "traj_composite"
+        if val_selection_score > fallback_candidate_score:
+            fallback_candidate_score = float(val_selection_score)
+            fallback_candidate_epoch = epoch
+            fallback_candidate_components = val_selection_components
+            torch.save(
+                {
+                    "representation_builder_state_dict": representation_builder.state_dict(),
+                    "rd_proj_state_dict": rd_proj.state_dict(),
+                    "model_state_dict": model.state_dict(),
+                    "config": config.__dict__,
+                    "labels": LOW_ALTITUDE_CLASSES,
+                    "source_feature_stats": source_feature_stats,
+                    "selection_eligible": bool(val_selection_eligible),
+                    "selection_reason": selection_reason,
+                },
+                fallback_candidate_path,
+            )
         if can_replace_best:
             best_val = float(val_selection_score)
             best_epoch = epoch
@@ -841,24 +862,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             )
 
     if best_epoch < 0 and history:
-        fallback = max(history, key=lambda item: float(item["val"].get("selection_score", item["val"].get("macro_f1", 0.0))))
-        best_epoch = int(fallback["epoch"])
-        best_val = float(fallback["val"].get("selection_score", fallback["val"].get("macro_f1", 0.0)))
-        best_selection_components = dict(fallback["val"].get("selection_components", {}))
+        if not fallback_candidate_path.exists():
+            raise RuntimeError("no eligible or fallback expert1 checkpoint was saved")
+        best_epoch = int(fallback_candidate_epoch)
+        best_val = float(fallback_candidate_score)
+        best_selection_components = dict(fallback_candidate_components)
         best_selection_reason = "fallback_no_rd_quality_checkpoint"
-        best_path = run_paths.output_dir / "fallback_model.pt"
-        torch.save(
-            {
-                "representation_builder_state_dict": representation_builder.state_dict(),
-                "rd_proj_state_dict": rd_proj.state_dict(),
-                "model_state_dict": model.state_dict(),
-                "config": config.__dict__,
-                "labels": LOW_ALTITUDE_CLASSES,
-                "source_feature_stats": source_feature_stats,
-                "warning": "no validation epoch passed RD quality gates; checkpoint saved only to keep the run reproducible",
-            },
-            best_path,
-        )
+        best_path = fallback_candidate_path
 
     if best_path.exists():
         state = torch.load(best_path, map_location=device, weights_only=True)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import random
 from dataclasses import asdict
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -595,8 +596,10 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             class_logits = _project_to_global_logits(labels, output, len(DEFAULT_VOCAB.labels), device, config.fusion_mode)
             class_loss = class_criterion(class_logits, labels)
             route_loss = route_criterion(output.routing.route_logits, route_labels)
+            route_coarse_loss = torch.nn.functional.cross_entropy(output.routing.coarse_logits, labels)
             scales = _stage_loss_scales(stage_name, config, stage_epoch=stage_epoch)
-            loss = class_loss + (config.route_loss_weight * scales["route"]) * route_loss
+            route_total_loss = route_loss + config.route_coarse_loss_weight * route_coarse_loss
+            loss = class_loss + (config.route_loss_weight * scales["route"]) * route_total_loss
 
             low_aux_loss = torch.tensor(0.0, device=device)
             low_mutual_loss = torch.tensor(0.0, device=device)
@@ -683,6 +686,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         if "class_loss_values" not in locals():
             class_loss_values = []
             route_loss_values = []
+            route_coarse_loss_values = []
             low_aux_loss_values = []
             low_mutual_loss_values = []
             low_contrastive_loss_values = []
@@ -702,6 +706,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             route_override_rate_values = []
         class_loss_values.append(float(class_loss.detach().cpu().item()))
         route_loss_values.append(float(route_loss.detach().cpu().item()))
+        route_coarse_loss_values.append(float(route_coarse_loss.detach().cpu().item()))
         low_aux_loss_values.append(float(low_aux_loss.detach().cpu().item()))
         low_mutual_loss_values.append(float(low_mutual_loss.detach().cpu().item()))
         low_contrastive_loss_values.append(float(low_contrastive_loss.detach().cpu().item()))
@@ -790,6 +795,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         "loss_components": {
             "class_loss": float(sum(class_loss_values) / len(class_loss_values)),
             "route_loss": float(sum(route_loss_values) / len(route_loss_values)),
+            "route_coarse_loss": float(sum(route_coarse_loss_values) / len(route_coarse_loss_values)),
             "low_aux_loss": float(sum(low_aux_loss_values) / len(low_aux_loss_values)),
             "low_mutual_loss": float(sum(low_mutual_loss_values) / len(low_mutual_loss_values)),
             "low_contrastive_loss": float(sum(low_contrastive_loss_values) / len(low_contrastive_loss_values)),
@@ -1084,6 +1090,59 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
     }
 
 
+def _evaluate_with_fusion_mode(
+    model: nn.Module,
+    loader,
+    class_criterion: nn.Module,
+    route_criterion: nn.Module,
+    low_criterion: nn.Module,
+    optimizer,
+    device: torch.device,
+    config: SystemTrainConfig,
+    fusion_mode: str,
+    source_feature_stats: dict[str, dict[str, torch.Tensor]] | None,
+) -> dict[str, object]:
+    mode_config = replace(config, fusion_mode=fusion_mode)
+    metrics = _run_epoch(
+        model,
+        loader,
+        class_criterion,
+        route_criterion,
+        low_criterion,
+        optimizer,
+        device,
+        False,
+        config.skip_non_finite_batch,
+        mode_config,
+        stage_name="finetune",
+        stage_epoch=max(1, config.joint_loss_ramp_epochs),
+        source_feature_stats=source_feature_stats,
+    )
+    selection_score, selection_components = _system_selection_score(metrics)
+    metrics["selection_score"] = selection_score
+    metrics["selection_components"] = selection_components
+    metrics["fusion_mode"] = fusion_mode
+    return metrics
+
+
+def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
+    critical = metrics.get("critical_metrics", {})
+    return {
+        "fusion_mode": metrics.get("fusion_mode"),
+        "accuracy": float(metrics.get("accuracy", 0.0)),
+        "macro_f1": float(metrics.get("macro_f1", 0.0)),
+        "selection_score": float(metrics.get("selection_score", 0.0)),
+        "route_macro_recall": float(metrics.get("route_macro_recall", 0.0)),
+        "ground_route_recall": float(critical.get("ground_route_recall", 0.0)),
+        "expert1_low_altitude_macro_f1": float(critical.get("expert1_low_altitude_macro_f1", 0.0)),
+        "drone_bird_recall_mean": float(
+            critical.get("drone_bird", {}).get("drone_bird_recall_mean", 0.0)
+        ),
+        "unknown_recall": float(critical.get("unknown_recall", 0.0)),
+        "clutter_recall": float(critical.get("clutter_recall", 0.0)),
+    }
+
+
 def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     set_seed(config.seed)
     run_paths = prepare_run_output_dir(config.output_dir)
@@ -1233,7 +1292,25 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
 
     checkpoint = torch.load(best_path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint["model_state_dict"])
-    test_metrics = _run_epoch(
+    candidate_modes = list(dict.fromkeys([config.fusion_mode] + list(config.eval_fusion_candidate_modes)))
+    val_fusion_metrics = [
+        _evaluate_with_fusion_mode(
+            model,
+            loaders.val_loader,
+            class_criterion,
+            route_criterion,
+            low_criterion,
+            optimizer,
+            device,
+            config,
+            fusion_mode,
+            source_feature_stats,
+        )
+        for fusion_mode in candidate_modes
+    ]
+    selected_val_metrics = max(val_fusion_metrics, key=lambda item: float(item["selection_score"]))
+    selected_fusion_mode = str(selected_val_metrics["fusion_mode"])
+    test_metrics = _evaluate_with_fusion_mode(
         model,
         loaders.test_loader,
         class_criterion,
@@ -1241,18 +1318,17 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_criterion,
         optimizer,
         device,
-        False,
-        config.skip_non_finite_batch,
         config,
-        stage_name="finetune",
-        stage_epoch=max(1, config.joint_loss_ramp_epochs),
-        source_feature_stats=source_feature_stats,
+        selected_fusion_mode,
+        source_feature_stats,
     )
-    test_selection_score, test_selection_components = _system_selection_score(test_metrics)
-    test_metrics["selection_score"] = test_selection_score
-    test_metrics["selection_components"] = test_selection_components
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
+    evaluation_report["selected_fusion_mode"] = selected_fusion_mode
+    evaluation_report["fusion_validation_probe"] = [
+        _fusion_probe_summary(metrics)
+        for metrics in val_fusion_metrics
+    ]
 
     history_path = output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1296,6 +1372,11 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "expert4_checkpoint": config.expert4_checkpoint,
         "expert4_info": expert4_info,
         "fusion_mode": config.fusion_mode,
+        "selected_fusion_mode": selected_fusion_mode,
+        "fusion_validation_probe": [
+            _fusion_probe_summary(metrics)
+            for metrics in val_fusion_metrics
+        ],
         "freeze_router": bool(config.freeze_router),
         "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
         "best_selection_score": best_metric,
@@ -1328,6 +1409,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "consistency_loss_weight": config.consistency_loss_weight,
         "class_weights": class_weights.detach().cpu().tolist(),
         "route_weights": route_weights.detach().cpu().tolist(),
+        "route_coarse_loss_weight": config.route_coarse_loss_weight,
         "low_altitude_class_weights": low_class_weights.detach().cpu().tolist(),
         "split_sizes": {
             "train": len(loaders.split.train_ids),
