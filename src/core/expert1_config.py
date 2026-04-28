@@ -19,6 +19,15 @@ class Expert1TrainConfig:
     low_altitude_rd_hard_aux_weight: float = 0.5
     low_altitude_rd_focal_gamma: float = 1.5
     low_altitude_rd_binary_aux_weight: float = 0.4
+    low_altitude_rd_pairwise_aux_weight: float = 0.8
+    low_altitude_rd_unknown_pairwise_aux_weight: float = 0.8
+    low_altitude_rd_clutter_pairwise_aux_weight: float = 0.8
+    low_altitude_rd_rare_margin_aux_weight: float = 0.6
+    low_altitude_rd_rare_margin: float = 0.4
+    low_altitude_rd_forced_fusion_weight: float = 0.6
+    low_altitude_rd_gate_aux_weight: float = 0.6
+    low_altitude_rd_gate_temperature: float = 0.35
+    low_altitude_rd_rare_gate_floor: float = 0.25
     low_altitude_mutual_weight: float = 1.0
     low_altitude_contrastive_weight: float = 0.2
     low_altitude_temperature: float = 0.1
@@ -26,7 +35,11 @@ class Expert1TrainConfig:
     cosface_margin: float = 0.2
     reject_threshold: float = 0.35
     rd_activation_threshold: float = 0.8
+    rd_bird_logit_scale: float = 0.75
+    rd_unknown_logit_scale: float = 0.75
+    rd_clutter_logit_scale: float = 0.75
     rd_sample_boost: float = 1.2
+    bird_sample_boost: float = 1.0
     raw_source_boost: float = 2.0
     excel_source_boost: float = 2.0
     cq08_source_boost: float = 1.0
@@ -34,6 +47,10 @@ class Expert1TrainConfig:
     clutter_sample_boost: float = 2.0
     source_normalization: bool = True
     unknown_loss_weight: float = 1.0
+    rd_bird_positive_weight: float = 3.0
+    rd_unknown_positive_weight: float = 3.0
+    rd_clutter_positive_weight: float = 4.0
+    low_altitude_mutual_exclude_rare_classes: bool = True
     enable_reject_in_train: bool = False
     enable_reject_in_eval: bool = False
     stage1_traj_only_epochs: int = 12
@@ -42,6 +59,7 @@ class Expert1TrainConfig:
     use_rd_patch_cnn: bool = True
     min_rd_macro_f1_for_best: float = 0.22
     min_drone_bird_rd_recall_for_best: float = 0.30
+    min_drone_bird_single_rd_recall_for_best: float = 0.15
     min_unknown_clutter_rd_recall_for_best: float = 0.10
     min_rare_rd_recall_for_best: float = 0.05
     require_final_not_worse_than_traj: bool = True

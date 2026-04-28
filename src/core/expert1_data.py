@@ -44,6 +44,7 @@ def build_expert1_dataloaders(
     cq08_source_boost: float = 1.0,
     unknown_sample_boost: float = 1.0,
     clutter_sample_boost: float = 2.0,
+    bird_sample_boost: float = 1.0,
 ) -> Expert1LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="expert1_track_index.csv")
     frame = dataset.to_frame().copy()
@@ -101,6 +102,8 @@ def build_expert1_dataloaders(
             weight *= unknown_sample_boost
         if str(row.get("label_name", "")) == "ClutterTarget":
             weight *= clutter_sample_boost
+        if str(row.get("label_name", "")) == "BirdTarget":
+            weight *= bird_sample_boost
         train_weights.append(weight)
     sampler = WeightedRandomSampler(
         weights=torch.tensor(train_weights, dtype=torch.double),

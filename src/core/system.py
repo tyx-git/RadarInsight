@@ -128,6 +128,7 @@ class RadarClassificationSystem(nn.Module):
             rd_padding_mask=rd_padding_mask,
             rd_patch_padding_mask=rd_patch_padding_mask,
             enable_reject=enable_low_altitude_reject,
+            force_rd_activation=False,
         )
         conventional_air = self.conventional_air_expert(
             representation.sequence_features,

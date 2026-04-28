@@ -281,6 +281,62 @@ def _masked_weighted_ce_loss(
     return (per_sample * weights).mean()
 
 
+def _binary_positive_ce_loss(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    positive_weight: float,
+) -> torch.Tensor:
+    return torch.nn.functional.cross_entropy(
+        logits,
+        targets,
+        weight=torch.tensor([1.0, positive_weight], dtype=torch.float32, device=logits.device),
+    )
+
+
+def _target_margin_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    target_index: int,
+    margin: float,
+) -> torch.Tensor:
+    mask = labels == target_index
+    if not bool(mask.any()):
+        return logits.new_tensor(0.0)
+    target_logits = logits[mask]
+    positive = target_logits[:, target_index]
+    negatives = torch.cat([target_logits[:, :target_index], target_logits[:, target_index + 1 :]], dim=-1)
+    hardest_negative = negatives.max(dim=-1).values
+    return torch.nn.functional.relu(float(margin) + hardest_negative - positive).mean()
+
+
+def _fusion_gate_aux_loss(
+    output,
+    labels: torch.Tensor,
+    mask: torch.Tensor,
+    rare_indices: set[int],
+    temperature: float,
+    rare_gate_floor: float,
+) -> torch.Tensor:
+    if not bool(mask.any()):
+        return labels.new_tensor(0.0, dtype=torch.float32)
+    with torch.no_grad():
+        traj_ce = torch.nn.functional.cross_entropy(output.traj_logits[mask], labels[mask], reduction="none")
+        rd_ce = torch.nn.functional.cross_entropy(output.rd_logits[mask], labels[mask], reduction="none")
+        rd_target = torch.sigmoid((traj_ce - rd_ce) / max(float(temperature), 1e-3))
+        rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
+        for index in rare_indices:
+            rare_mask = rare_mask | (labels[mask] == index)
+        if bool(rare_mask.any()):
+            rd_target = torch.where(
+                rare_mask,
+                torch.maximum(rd_target, torch.full_like(rd_target, float(rare_gate_floor))),
+                rd_target,
+            )
+        target = torch.stack([1.0 - rd_target, rd_target], dim=-1)
+    log_weights = torch.log(output.fusion_weights[mask].clamp_min(1e-6))
+    return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
+
+
 def _rel(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
@@ -305,6 +361,8 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_unknown_clutter_recall_mean": metrics.get("rd_unknown_clutter_recall_mean", 0.0),
         "rd_drone_as_bird_rate": metrics.get("rd_drone_as_bird_rate", 0.0),
         "rd_bird_as_drone_rate": metrics.get("rd_bird_as_drone_rate", 0.0),
+        "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
+        "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
         "selection_score": metrics.get("selection_score", 0.0),
         "selection_eligible": metrics.get("selection_eligible", False),
         "selection_components": metrics.get("selection_components", {}),
@@ -393,6 +451,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     traj_macro = float(metrics.get("traj_macro_f1", 0.0))
     final_delta = final_macro - traj_macro
     rd_recall = dict(metrics.get("rd_per_class_recall_on_rd", {}))
+    drone_recall = float(rd_recall.get("DroneTarget", 0.0))
+    bird_recall = float(rd_recall.get("BirdTarget", 0.0))
+    min_drone_bird_recall = min(drone_recall, bird_recall)
     balloon_recall = float(rd_recall.get("BalloonTarget", 0.0))
     clutter_recall = float(rd_recall.get("ClutterTarget", 0.0))
     unknown_recall = float(rd_recall.get("UnknownTarget", 0.0))
@@ -410,6 +471,7 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     if stage2_enabled:
         eligible = eligible and rd_macro >= config.min_rd_macro_f1_for_best
         eligible = eligible and drone_bird >= config.min_drone_bird_rd_recall_for_best
+        eligible = eligible and min_drone_bird_recall >= config.min_drone_bird_single_rd_recall_for_best
         eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
         eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
         if config.require_final_not_worse_than_traj:
@@ -420,6 +482,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "final_minus_traj_macro_f1": final_delta,
         "rd_macro_f1_on_rd": rd_macro,
         "rd_drone_bird_recall_mean": drone_bird,
+        "rd_drone_recall": drone_recall,
+        "rd_bird_recall": bird_recall,
+        "rd_min_drone_bird_recall": min_drone_bird_recall,
         "rd_unknown_clutter_recall_mean": unknown_clutter,
         "rd_balloon_recall": balloon_recall,
         "rd_clutter_recall": clutter_recall,
@@ -455,6 +520,7 @@ def _run_epoch(
     label_names_all: list[str] = []
     has_rd_all: list[bool] = []
     rd_activated_all: list[bool] = []
+    fusion_weights_all: list[torch.Tensor] = []
     loss_values: list[float] = []
     skipped_non_finite_batches = 0
 
@@ -507,6 +573,7 @@ def _run_epoch(
                 rd_padding_mask=rd_padding_mask,
                 rd_patch_padding_mask=rd_patch_padding_mask,
                 enable_reject=(config.enable_reject_in_train if train else config.enable_reject_in_eval) and stage2_enabled,
+                force_rd_activation=bool(train and stage2_enabled),
             )
             unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
             main_loss = _weighted_ce_loss(
@@ -553,29 +620,102 @@ def _run_epoch(
                     )
                     rd_aux = rd_aux + config.low_altitude_rd_hard_aux_weight * hard_rd_aux
                 unknown_binary_targets = (labels[has_rd_mask] == unknown_index).long()
+                bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
+                bird_binary_targets = (labels[has_rd_mask] == bird_index).long()
                 clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
                 clutter_binary_targets = (labels[has_rd_mask] == clutter_index).long()
-                unknown_binary_loss = torch.nn.functional.cross_entropy(
+                bird_binary_loss = torch.nn.functional.cross_entropy(
+                    output.rd_bird_logits[has_rd_mask],
+                    bird_binary_targets,
+                    weight=torch.tensor([1.0, config.rd_bird_positive_weight], dtype=torch.float32, device=device),
+                )
+                unknown_binary_loss = _binary_positive_ce_loss(
                     output.rd_unknown_logits[has_rd_mask],
                     unknown_binary_targets,
-                    weight=torch.tensor([1.0, 3.0], dtype=torch.float32, device=device),
+                    positive_weight=config.rd_unknown_positive_weight,
                 )
-                clutter_binary_loss = torch.nn.functional.cross_entropy(
+                clutter_binary_loss = _binary_positive_ce_loss(
                     output.rd_clutter_logits[has_rd_mask],
                     clutter_binary_targets,
-                    weight=torch.tensor([1.0, 4.0], dtype=torch.float32, device=device),
+                    positive_weight=config.rd_clutter_positive_weight,
                 )
                 rd_aux = rd_aux + config.low_altitude_rd_binary_aux_weight * (
-                    unknown_binary_loss + clutter_binary_loss
+                    bird_binary_loss + unknown_binary_loss + clutter_binary_loss
                 )
+                drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
+                drone_bird_mask = has_rd_mask & ((labels == drone_index) | (labels == bird_index))
+                if drone_bird_mask.any():
+                    drone_bird_targets = (labels[drone_bird_mask] == bird_index).long()
+                    drone_bird_logits = output.rd_logits[drone_bird_mask][:, [drone_index, bird_index]]
+                    pairwise_loss = torch.nn.functional.cross_entropy(
+                        drone_bird_logits,
+                        drone_bird_targets,
+                        weight=torch.tensor([1.0, 2.0], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_pairwise_aux_weight * pairwise_loss
+                unknown_pairwise_mask = has_rd_mask & ((labels == unknown_index) | (labels == bird_index) | (labels == drone_index))
+                if unknown_pairwise_mask.any():
+                    unknown_pairwise_targets = (labels[unknown_pairwise_mask] == unknown_index).long()
+                    unknown_pairwise_logits = output.rd_unknown_logits[unknown_pairwise_mask]
+                    unknown_pairwise_loss = torch.nn.functional.cross_entropy(
+                        unknown_pairwise_logits,
+                        unknown_pairwise_targets,
+                        weight=torch.tensor([1.0, config.rd_unknown_positive_weight], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_unknown_pairwise_aux_weight * unknown_pairwise_loss
+                clutter_pairwise_mask = has_rd_mask & (
+                    (labels == clutter_index)
+                    | (labels == bird_index)
+                    | (labels == drone_index)
+                    | (labels == LOW_ALTITUDE_CLASSES.index("BalloonTarget"))
+                )
+                if clutter_pairwise_mask.any():
+                    clutter_pairwise_targets = (labels[clutter_pairwise_mask] == clutter_index).long()
+                    clutter_pairwise_logits = output.rd_clutter_logits[clutter_pairwise_mask]
+                    clutter_pairwise_loss = torch.nn.functional.cross_entropy(
+                        clutter_pairwise_logits,
+                        clutter_pairwise_targets,
+                        weight=torch.tensor([1.0, config.rd_clutter_positive_weight], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_clutter_pairwise_aux_weight * clutter_pairwise_loss
+                rare_margin_loss = (
+                    _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], unknown_index, config.low_altitude_rd_rare_margin)
+                    + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], clutter_index, config.low_altitude_rd_rare_margin)
+                )
+                rd_aux = rd_aux + config.low_altitude_rd_rare_margin_aux_weight * rare_margin_loss
+                forced_fusion_loss = _masked_weighted_ce_loss(
+                    output.logits[has_rd_mask],
+                    labels[has_rd_mask],
+                    rd_class_weights.to(device),
+                    unknown_index=unknown_index,
+                    unknown_weight=config.unknown_loss_weight,
+                    focal_gamma=config.low_altitude_rd_focal_gamma,
+                )
+                main_loss = main_loss + config.low_altitude_rd_forced_fusion_weight * forced_fusion_loss
+                gate_loss = _fusion_gate_aux_loss(
+                    output,
+                    labels,
+                    has_rd_mask,
+                    rare_indices={unknown_index, clutter_index},
+                    temperature=config.low_altitude_rd_gate_temperature,
+                    rare_gate_floor=config.low_altitude_rd_rare_gate_floor,
+                )
+                main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * gate_loss
                 aux_loss = (
                     config.low_altitude_traj_aux_ratio * aux_loss
                     + config.low_altitude_rd_aux_ratio * rd_aux
                 )
-                mutual_loss = _symmetric_kl(
-                    output.traj_logits[has_rd_mask],
-                    output.rd_logits[has_rd_mask],
-                )
+                if config.low_altitude_mutual_exclude_rare_classes:
+                    mutual_mask = has_rd_mask & (labels != unknown_index) & (labels != clutter_index)
+                else:
+                    mutual_mask = has_rd_mask
+                if mutual_mask.any():
+                    mutual_loss = _symmetric_kl(
+                        output.traj_logits[mutual_mask],
+                        output.rd_logits[mutual_mask],
+                    )
+                else:
+                    mutual_loss = torch.tensor(0.0, device=device)
                 contrastive_mask = has_rd_mask & (labels != unknown_index)
                 if contrastive_mask.any():
                     contrastive_loss = _supervised_contrastive_loss(
@@ -638,6 +778,7 @@ def _run_epoch(
         label_names_all.extend(batch.label_names)
         has_rd_all.extend([bool(x) for x in batch.rd_is_multimodal.tolist()])
         rd_activated_all.extend([bool(x) for x in output.rd_activated.detach().cpu().tolist()])
+        fusion_weights_all.append(output.fusion_weights.detach().cpu())
 
     if not logits_all:
         return {
@@ -655,6 +796,8 @@ def _run_epoch(
             "label_names": label_names_all,
             "has_rd": has_rd_all,
             "rd_activated": rd_activated_all,
+            "rd_fusion_weight_mean": 0.0,
+            "rd_fusion_weight_on_rd_mean": 0.0,
         }
 
     logits_cat = torch.cat(logits_all, dim=0)
@@ -680,6 +823,13 @@ def _run_epoch(
     rd_activation_rate_on_rd = (
         float(rd_activated_tensor[has_rd_tensor].float().mean().item())
         if bool(has_rd_tensor.any())
+        else 0.0
+    )
+    fusion_weights_cat = torch.cat(fusion_weights_all, dim=0) if fusion_weights_all else torch.empty((0, 2), dtype=torch.float32)
+    rd_fusion_weight_mean = float(fusion_weights_cat[:, 1].mean().item()) if fusion_weights_cat.numel() else 0.0
+    rd_fusion_weight_on_rd_mean = (
+        float(fusion_weights_cat[has_rd_tensor, 1].mean().item())
+        if bool(has_rd_tensor.any()) and fusion_weights_cat.numel()
         else 0.0
     )
     rd_drone_bird = diagnostics["rd_on_rd_drone_bird"]
@@ -710,6 +860,8 @@ def _run_epoch(
         "final_unknown_clutter_recall_mean": diagnostics["final_unknown_clutter_recall_mean"],
         "rd_activation_rate": rd_activation_rate,
         "rd_activation_rate_on_rd": rd_activation_rate_on_rd,
+        "rd_fusion_weight_mean": rd_fusion_weight_mean,
+        "rd_fusion_weight_on_rd_mean": rd_fusion_weight_on_rd_mean,
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
         "logits": logits_cat,
@@ -739,6 +891,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         cq08_source_boost=config.cq08_source_boost,
         unknown_sample_boost=config.unknown_sample_boost,
         clutter_sample_boost=config.clutter_sample_boost,
+        bird_sample_boost=config.bird_sample_boost,
     )
     representation_builder = TrackRepresentationBuilder(
         sequence_input_dim=10,
@@ -765,6 +918,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         cosface_margin=config.cosface_margin,
         reject_threshold=config.reject_threshold,
         rd_activation_threshold=config.rd_activation_threshold,
+        rd_bird_logit_scale=config.rd_bird_logit_scale,
+        rd_unknown_logit_scale=config.rd_unknown_logit_scale,
+        rd_clutter_logit_scale=config.rd_clutter_logit_scale,
     ).to(device)
     pretrained_track_info = None
     if config.pretrained_track_checkpoint:
@@ -1047,6 +1203,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "rd_activation_rate": test_metrics["rd_activation_rate"],
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
+            "rd_fusion_weight_mean": test_metrics["rd_fusion_weight_mean"],
+            "rd_fusion_weight_on_rd_mean": test_metrics["rd_fusion_weight_on_rd_mean"],
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
             "has_valid_batches": test_metrics["has_valid_batches"],
         },
@@ -1072,6 +1230,23 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_hard_aux_weight": config.low_altitude_rd_hard_aux_weight,
         "low_altitude_rd_focal_gamma": config.low_altitude_rd_focal_gamma,
         "low_altitude_rd_binary_aux_weight": config.low_altitude_rd_binary_aux_weight,
+        "low_altitude_rd_pairwise_aux_weight": config.low_altitude_rd_pairwise_aux_weight,
+        "low_altitude_rd_unknown_pairwise_aux_weight": config.low_altitude_rd_unknown_pairwise_aux_weight,
+        "low_altitude_rd_clutter_pairwise_aux_weight": config.low_altitude_rd_clutter_pairwise_aux_weight,
+        "low_altitude_rd_rare_margin_aux_weight": config.low_altitude_rd_rare_margin_aux_weight,
+        "low_altitude_rd_rare_margin": config.low_altitude_rd_rare_margin,
+        "low_altitude_rd_forced_fusion_weight": config.low_altitude_rd_forced_fusion_weight,
+        "low_altitude_rd_gate_aux_weight": config.low_altitude_rd_gate_aux_weight,
+        "low_altitude_rd_gate_temperature": config.low_altitude_rd_gate_temperature,
+        "low_altitude_rd_rare_gate_floor": config.low_altitude_rd_rare_gate_floor,
+        "rd_bird_logit_scale": config.rd_bird_logit_scale,
+        "rd_unknown_logit_scale": config.rd_unknown_logit_scale,
+        "rd_clutter_logit_scale": config.rd_clutter_logit_scale,
+        "rd_bird_positive_weight": config.rd_bird_positive_weight,
+        "rd_unknown_positive_weight": config.rd_unknown_positive_weight,
+        "rd_clutter_positive_weight": config.rd_clutter_positive_weight,
+        "low_altitude_mutual_exclude_rare_classes": bool(config.low_altitude_mutual_exclude_rare_classes),
+        "bird_sample_boost": config.bird_sample_boost,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "split_sizes": {
             "train": len(loaders.split.train_ids),
@@ -1090,6 +1265,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_quality_gate": {
             "min_rd_macro_f1_for_best": config.min_rd_macro_f1_for_best,
             "min_drone_bird_rd_recall_for_best": config.min_drone_bird_rd_recall_for_best,
+            "min_drone_bird_single_rd_recall_for_best": config.min_drone_bird_single_rd_recall_for_best,
             "min_unknown_clutter_rd_recall_for_best": config.min_unknown_clutter_rd_recall_for_best,
             "min_rare_rd_recall_for_best": config.min_rare_rd_recall_for_best,
             "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),

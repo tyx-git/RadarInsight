@@ -54,6 +54,7 @@ class LowAltitudeFusionOutput:
     rd_cosine: torch.Tensor
     traj_logits: torch.Tensor
     rd_logits: torch.Tensor
+    rd_bird_logits: torch.Tensor
     rd_unknown_logits: torch.Tensor
     rd_clutter_logits: torch.Tensor
     logits: torch.Tensor
@@ -142,11 +143,18 @@ class LowAltitudeSuspectExpert(nn.Module):
         reject_threshold: float = 0.35,
         rd_activation_threshold: float = 0.8,
         rd_binary_logit_scale: float = 0.75,
+        rd_bird_logit_scale: float | None = None,
+        rd_unknown_logit_scale: float | None = None,
+        rd_clutter_logit_scale: float | None = None,
+        initial_rd_gate_bias: float = 0.0,
     ) -> None:
         super().__init__()
         self.rd_activation_threshold = rd_activation_threshold
         self.reject_threshold = reject_threshold
         self.rd_binary_logit_scale = rd_binary_logit_scale
+        self.rd_bird_logit_scale = float(rd_binary_logit_scale if rd_bird_logit_scale is None else rd_bird_logit_scale)
+        self.rd_unknown_logit_scale = float(rd_binary_logit_scale if rd_unknown_logit_scale is None else rd_unknown_logit_scale)
+        self.rd_clutter_logit_scale = float(rd_binary_logit_scale if rd_clutter_logit_scale is None else rd_clutter_logit_scale)
         self.rd_model_dim = 512
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
@@ -254,6 +262,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             scale=cosface_scale,
             margin=cosface_margin,
         )
+        self.rd_bird_head = nn.Linear(512, 2)
         self.rd_unknown_head = nn.Linear(512, 2)
         self.rd_clutter_head = nn.Linear(512, 2)
         self.fusion_gate = nn.Sequential(
@@ -263,7 +272,8 @@ class LowAltitudeSuspectExpert(nn.Module):
         )
         nn.init.zeros_(self.fusion_gate[-1].weight)
         with torch.no_grad():
-            self.fusion_gate[-1].bias.copy_(torch.tensor([1.5, -1.5], dtype=self.fusion_gate[-1].bias.dtype))
+            bias = float(initial_rd_gate_bias)
+            self.fusion_gate[-1].bias.copy_(torch.tensor([-bias, bias], dtype=self.fusion_gate[-1].bias.dtype))
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
@@ -381,6 +391,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_padding_mask: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         enable_reject: bool = True,
+        force_rd_activation: bool = False,
     ) -> LowAltitudeFusionOutput:
         traj_features = self.traj_backbone(traj_input)
         traj_cosine, traj_logits = self.traj_head(traj_features, labels=low_altitude_targets)
@@ -397,18 +408,24 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
+            rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
             rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
+            bird_delta = rd_bird_logits[:, 1] - rd_bird_logits[:, 0]
             unknown_delta = rd_unknown_logits[:, 1] - rd_unknown_logits[:, 0]
             clutter_delta = rd_clutter_logits[:, 1] - rd_clutter_logits[:, 0]
             rd_logits = rd_logits.clone()
+            rd_logits[:, LOW_ALTITUDE_CLASSES.index("BirdTarget")] = (
+                rd_logits[:, LOW_ALTITUDE_CLASSES.index("BirdTarget")]
+                + self.rd_bird_logit_scale * bird_delta
+            )
             rd_logits[:, LOW_ALTITUDE_CLASSES.index("UnknownTarget")] = (
                 rd_logits[:, LOW_ALTITUDE_CLASSES.index("UnknownTarget")]
-                + self.rd_binary_logit_scale * unknown_delta
+                + self.rd_unknown_logit_scale * unknown_delta
             )
             rd_logits[:, LOW_ALTITUDE_CLASSES.index("ClutterTarget")] = (
                 rd_logits[:, LOW_ALTITUDE_CLASSES.index("ClutterTarget")]
-                + self.rd_binary_logit_scale * clutter_delta
+                + self.rd_clutter_logit_scale * clutter_delta
             )
             if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
                 no_rd = ~rd_is_multimodal.bool()
@@ -417,6 +434,7 @@ class LowAltitudeSuspectExpert(nn.Module):
                     neutral_cosine = torch.zeros_like(rd_cosine)
                     rd_logits = torch.where(no_rd.unsqueeze(-1), neutral_logits, rd_logits)
                     rd_cosine = torch.where(no_rd.unsqueeze(-1), neutral_cosine, rd_cosine)
+                    rd_bird_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_bird_logits), rd_bird_logits)
                     rd_unknown_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_logits), rd_unknown_logits)
                     rd_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_logits), rd_clutter_logits)
         else:
@@ -425,6 +443,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_patch = traj_input.new_zeros((traj_input.shape[0], self.rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
+            rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
             rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
 
@@ -444,7 +463,8 @@ class LowAltitudeSuspectExpert(nn.Module):
             has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
         else:
             has_rd = rd_features[..., -1].amax(dim=1) > 0.5
-        rd_activated = has_rd & (traj_confidence < self.rd_activation_threshold)
+        forced_rd = torch.full_like(has_rd, bool(force_rd_activation), dtype=torch.bool)
+        rd_activated = has_rd & (forced_rd | (traj_confidence < self.rd_activation_threshold))
         fused_cosine = 0.5 * (traj_cosine + rd_cosine)
         selected_logits = torch.where(rd_activated.unsqueeze(-1), fused_logits, traj_logits)
         selected_cosine = torch.where(rd_activated.unsqueeze(-1), fused_cosine, traj_cosine)
@@ -460,6 +480,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_cosine=rd_cosine,
             traj_logits=traj_logits,
             rd_logits=rd_logits,
+            rd_bird_logits=rd_bird_logits,
             rd_unknown_logits=rd_unknown_logits,
             rd_clutter_logits=rd_clutter_logits,
             logits=final_logits,
