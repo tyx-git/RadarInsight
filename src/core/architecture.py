@@ -20,18 +20,18 @@ class SystemArchitectureSpec:
         default_factory=lambda: (
             RouteSpec(
                 route_name=ROUTE_NAMES[0],
-                description="低空可疑目标专家，负责无人机/鸟/气球/未知。",
-                class_names=("DroneTarget", "BirdTarget", "BalloonTarget", "UnknownTarget"),
+                description="低空可疑目标专家，采用轨迹常开分支 + 幅度/相位 RD 多模态 Transformer 分支 + 统计特征增强，负责无人机/鸟/气球/低空杂类目标与低置信拒识目标。",
+                class_names=("DroneTarget", "BirdTarget", "BalloonTarget", "ClutterTarget", "UnknownTarget"),
             ),
             RouteSpec(
                 route_name=ROUTE_NAMES[1],
-                description="常规空中目标专家，负责固定翼/直升机等常规空中目标。",
+                description="常规空中目标专家，采用轻量1D-CNN处理时序轨迹特征。",
                 class_names=("AircraftTarget",),
             ),
             RouteSpec(
                 route_name=ROUTE_NAMES[2],
-                description="高空高速过滤专家，优先由规则完成过滤。",
-                class_names=("UnknownTarget",),
+                description="高空高速过滤专家，优先由规则兜底完成过滤。",
+                class_names=(),
             ),
             RouteSpec(
                 route_name=ROUTE_NAMES[3],

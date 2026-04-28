@@ -9,6 +9,8 @@ from typing import Dict, List, Optional
 import h5py
 import pandas as pd
 
+from .cq08_manifest import write_cq08_manifest
+
 
 RAW_PATTERN = re.compile(
     r"^(?P<timestamp>\d+)_DAUR_(?P<kind>TR|RD)_(?P<label>.+)_(?P<segment>\d+)_(?P<sample>\d+)\.mat$"
@@ -191,6 +193,9 @@ def write_manifests(project_root: Path) -> Dict[str, int]:
         "raw_labels": sorted({record.label for record in raw_records}),
         "excel_timestamps": [record.timestamp for record in excel_records],
     }
+    cq08_summary = write_cq08_manifest(project_root)
+    summary["cq08_track_groups"] = int(cq08_summary["total_track_groups"])
+    summary["cq08_usable_track_groups"] = int(cq08_summary["usable_track_groups"])
     summary_json.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 

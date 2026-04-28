@@ -22,6 +22,12 @@ def _structured_complex_to_amplitude(dpl: np.ndarray) -> np.ndarray:
     return np.sqrt(real * real + imag * imag)
 
 
+def _structured_complex_to_phase(dpl: np.ndarray) -> np.ndarray:
+    real = dpl["real"].astype(np.float64)
+    imag = dpl["imag"].astype(np.float64)
+    return np.arctan2(imag, real)
+
+
 def export_raw_rd(project_root: Path) -> List[Dict[str, object]]:
     manifest_path = project_root / "data" / "manifests" / "raw_tr_rd_manifest.json"
     output_dir = project_root / "data" / "processed" / "raw_rd"
@@ -38,6 +44,7 @@ def export_raw_rd(project_root: Path) -> List[Dict[str, object]]:
             dpl = np.array(handle["DPL"])
 
         amplitude = _structured_complex_to_amplitude(dpl)
+        phase = _structured_complex_to_phase(dpl)
         frame_count = int(amplitude.shape[1])
         bin_count = int(amplitude.shape[0])
         frame_energy = amplitude.mean(axis=0)
@@ -57,6 +64,13 @@ def export_raw_rd(project_root: Path) -> List[Dict[str, object]]:
         )
         output_path = output_dir / f"{item['pair_id'].replace('|', '__')}_rd_summary.csv"
         summary_df.to_csv(output_path, index=False, encoding="utf-8")
+        rd_tensor_path = output_dir / f"{item['pair_id'].replace('|', '__')}_rd_tensor.npz"
+        np.savez_compressed(
+            rd_tensor_path,
+            amplitude=amplitude.astype(np.float32),
+            phase=phase.astype(np.float32),
+            time_raw=data_time[:frame_count].astype(np.float32),
+        )
 
         index_rows.append(
             {
@@ -74,6 +88,7 @@ def export_raw_rd(project_root: Path) -> List[Dict[str, object]]:
                 "frame_energy_mean": float(frame_energy.mean()) if frame_count else np.nan,
                 "frame_energy_std": float(frame_energy.std()) if frame_count else np.nan,
                 "summary_csv_path": output_path.relative_to(project_root).as_posix(),
+                "rd_tensor_path": rd_tensor_path.relative_to(project_root).as_posix(),
                 "rd_mat_path": rd_path.relative_to(project_root).as_posix(),
             }
         )

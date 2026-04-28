@@ -66,7 +66,10 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
     if rd_index_path.exists():
         rd_index_df = pd.read_csv(rd_index_path)
         rd_summary_map = {
-            str(row["sample_id"]): str(row["summary_csv_path"])
+            str(row["sample_id"]): {
+                "summary_csv_path": str(row["summary_csv_path"]),
+                "rd_tensor_path": str(row["rd_tensor_path"]) if "rd_tensor_path" in row and not pd.isna(row["rd_tensor_path"]) else "",
+            }
             for row in rd_index_df.to_dict(orient="records")
             if row.get("summary_csv_path")
         }
@@ -126,7 +129,8 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "time_seconds_max": float(df["time_seconds"].max()) if frame_count else np.nan,
                 "csv_path": output_path.relative_to(project_root).as_posix(),
                 "rd_path": Path(item["rd_file"]).relative_to(project_root).as_posix(),
-                "rd_summary_csv_path": rd_summary_map.get(item["pair_id"], ""),
+                "rd_summary_csv_path": rd_summary_map.get(item["pair_id"], {}).get("summary_csv_path", ""),
+                "rd_tensor_path": rd_summary_map.get(item["pair_id"], {}).get("rd_tensor_path", ""),
             }
         )
     return index_rows
@@ -233,6 +237,7 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                     "csv_path": output_path.relative_to(project_root).as_posix(),
                     "rd_path": "",
                     "rd_summary_csv_path": "",
+                    "rd_tensor_path": "",
                 }
             )
     return index_rows

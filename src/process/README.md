@@ -4,8 +4,47 @@
 - `raw_excel_manifest.py`
   - 扫描 `OriData/raw/TR` 与 `OriData/raw/RD`
   - 扫描 `OriData/excel` 中的 `tck/bz` 配对
+  - 扫描 `OriData/23/CQ-08` 的：
+    - `航迹`
+    - `点迹`
+    - `原始回波`
+    - `MAT`
   - 写入 Excel 字段语义
   - 输出基础清单到 `data/manifests/`
+- `cq08_manifest.py`
+  - 建立 `CQ-08` 统一 manifest
+  - 审查航迹、点迹、原始回波、RD MAT 是否可配对
+  - 固定分组切分粒度为：
+    - `track_id`
+  - 明确禁止：
+    - RD 帧级随机切分
+- `cq08_split.py`
+  - 基于 `CQ-08` 统一 manifest 生成 grouped split
+  - 只按 `track_id` 分组切分
+  - 同一 `track_id` 下的全部：
+    - 航迹
+    - 点迹
+    - 原始回波
+    - RD MAT 帧
+    必须在同一个 split
+- `standardize_cq08.py`
+  - 将 `CQ-08` 的航迹、点迹、RD MAT 统一导出到：
+    - `data/processed/cq08_tracks/`
+    - `data/processed/cq08_rd/`
+  - 输出：
+    - `data/processed/cq08_track_index.csv`
+    - `data/processed/cq08_rd_index.csv`
+  - 当前仍与现有 `raw + excel` 主线解耦，不直接并入 `trainable_track_index.csv`
+- `build_expert1_index.py`
+  - 生成 expert1 单独任务专用索引：
+    - `DroneTarget`
+    - `BirdTarget`
+    - `BalloonTarget`
+    - `ClutterTarget`
+    - `UnknownTarget`
+  - 输出：
+    - `data/processed/expert1_track_index.csv`
+    - `data/processed/expert1_summary.json`
 - `schema.py`
   - 定义第一版统一轨迹字段
 - `standardize_tracks.py`

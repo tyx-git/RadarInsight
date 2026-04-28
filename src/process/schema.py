@@ -42,4 +42,7 @@ TRACK_INDEX_COLUMNS = [
     "csv_path",
     "rd_path",
     "rd_summary_csv_path",
+    "rd_tensor_path",
+    "rd_phase_missing",
+    "height_missing",
 ]

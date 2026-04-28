@@ -245,3 +245,625 @@
   - `reports/real/<timestamp>/<experiment_name>.md`
   - `reports/real/<timestamp>/<experiment_name>.json`
 - 这样每轮模型、checkpoint、history、summary、中文报告都不会互相覆盖，便于长期对照和回溯。
+## 2026-04-25 按 `main.md` 继续补齐系统架构
+- 在不改 `main.md` 的前提下，继续把当前 `src/core` 往目标系统推进，已补上三块关键结构：
+  - 路由器加入物理规则兜底修正：
+    - 高空高速样本可被强制路由到 `high_altitude_filter`
+    - 低高度低速且垂直变化极小的样本可被强制路由到 `ground_target`
+  - 低空专家从单一 MLP 升级为双流结构：
+    - 轨迹常开分支
+    - RD Transformer 轻分支
+    - 基于置信度的按需激活与融合
+  - 常规空中专家改为轻量 1D-CNN；地面专家改为复用深度轨迹特征+选定物理特征
+- 这一步的目标不是宣称已经达到 `main.md` 完整形态，而是把当前系统从“有专家名义”推进到“专家内部结构也开始贴近设计目标”。
+## 2026-04-25 专家一扩展到千万级预算方向
+- 根据当前新的参数预算约束（1000万-2000万），已把主要容量集中投向专家一。
+- 当前低空专家不再是轻量 RD 分支，而是：
+  - 轨迹常开分类头
+  - 幅度模态投影分支
+  - 相位模态投影分支
+  - 3层、512维的 RD Transformer
+  - 偏度/峰度/相位统计特征分支
+  - 双分支融合门
+- 同时把低空专家内部类别对齐到当前项目主标签空间：
+  - `DroneTarget / BirdTarget / BalloonTarget / ClutterTarget`
+- 目标是让有限的大参数预算优先服务于系统主战场：低空可疑目标鉴别器。
+## 2026-04-25 专家一 reject 从临时折叠改为正式 Unknown 闭环
+- 当前全局标签空间已重新纳入 `UnknownTarget`。
+- 低空专家内部类别现为：
+  - `DroneTarget / BirdTarget / BalloonTarget / ClutterTarget / UnknownTarget`
+- CosFace 低置信 reject 不再临时折叠到 `ClutterTarget`，而是正式投到 `UnknownTarget`。
+- 数据处理侧同步放开：
+  - `UnknownTarget` 不再被 `build_training_index.py` 默认排除
+- 这样专家一的“识别 + 拒识”才形成真正闭环，而不是临时折中实现。
+## 2026-04-25 专家一单独训练链打通
+- 为避免继续被其他专家和全局路由耦合干扰，新增了专家一单独训练入口：
+  - `src/core/expert1_config.py`
+  - `src/core/expert1_data.py`
+  - `src/core/expert1_trainer.py`
+  - `src/core/train_expert1.py`
+- 当前专家一单独训练只使用低空五类：
+  - `DroneTarget / BirdTarget / BalloonTarget / ClutterTarget / UnknownTarget`
+- 并复用：
+  - 多模态幅度/相位 RD
+  - CosFace 头
+  - 双头辅助监督
+  - 互学习
+  - 监督对比学习
+- 1 epoch CUDA smoke 已通过：
+  - `artifacts/20260425-205946/expert1_v1_smoke3`
+  - `reports/real/20260425-205946/expert1_v1_smoke3.md`
+- 这一步的目标是先把专家一完全跑通、稳定下来，再回头继续推进其他专家层。
+## 2026-04-25 其余专家层结构增强
+- 在不打断 expert1 主线的前提下，已把其余专家层从“轻量占位头”推进到更接近 `main.md` 的可训练结构：
+  - 常规空中专家：
+    - 时序卷积
+    - 注意力池化
+    - 物理分支投影
+    - 融合后分类
+  - 地面专家：
+    - 深轨迹特征分支
+    - 选定物理特征分支
+    - 门控融合后分类
+- 这样后续在 expert1 稳定后，系统级训练不需要再从非常弱的其他专家头重新起步。
+## 2026-04-25 expert1 默认训练策略继续向稳定收敛调整
+- expert1 默认采样与两阶段配置已继续前推：
+  - `rd_sample_boost: 4.0 -> 6.0`
+  - `raw_source_boost: 2.0 -> 3.0`
+  - `stage1_traj_only_epochs: 5 -> 8`
+- 目标是：
+  - 进一步提高真实 RD 样本在训练中的出现频率
+  - 延长轨迹边界预热阶段
+  - 在专家一尚未完全收敛前，避免过早让 RD 互学习/对比学习扰动主干
+## 2026-04-26 expert1 继续延后 RD 介入
+- 根据正式 `expert1_v1` 报告：
+  - `Drone/Bird` 轨迹边界已经开始形成
+  - 但 `raw_tr_rd / with_rd` 仍然几乎没学起来
+- 因此把：
+  - `stage1_traj_only_epochs: 8 -> 12`
+- 目标是让轨迹主干先更充分收敛，再在后半程引入 RD 分支、互学习和对比学习。
+## 2026-04-26 expert1 将 UnknownTarget 调整为弱监督类
+- 根据正式 `expert1_v1` 报告：
+  - `UnknownTarget` 仍未学起
+  - 但会持续参与低空主边界竞争
+- 当前调整为：
+  - `unknown_loss_weight = 0.35`
+  - 主分类损失与辅助头损失中，对 `UnknownTarget` 样本降权
+  - 监督对比学习中暂时排除 `UnknownTarget`
+- 目标是先稳定 `Drone/Bird/Balloon/Clutter` 主边界，再让 `UnknownTarget` 作为弱监督类存在。
+## 2026-04-25 专家二与专家四单独训练闭环打通
+- 新增：
+  - `src/core/expert_other_config.py`
+  - `src/core/expert_other_data.py`
+  - `src/core/expert_other_trainer.py`
+  - `src/core/train_expert2.py`
+  - `src/core/train_expert4.py`
+- 当前专家二可单独训练 `AircraftTarget` 子任务。
+- 当前专家四可单独训练 `PeopleTarget / CarTarget / ShipTarget` 子任务。
+- 1 epoch CUDA smoke 已通过：
+  - `artifacts/20260425-235908/expert2_air_smoke`
+  - `artifacts/20260425-235908/expert4_ground_smoke`
+- 这样“其余专家层”已经从结构存在推进到“可单独训练、可出报告、可继续优化”的状态。
+## 2026-04-26 路由器单独训练闭环打通
+- 新增：
+  - `src/core/router_train_config.py`
+  - `src/core/router_trainer.py`
+  - `src/core/train_router.py`
+- 当前路由器采用：
+  - 15维物理特征输入
+  - `low_altitude_suspect / conventional_air / ground_target` 三路监督
+  - 高空路径仍由规则兜底，不纳入当前监督闭环
+- 1 epoch CUDA smoke 已通过：
+  - `artifacts/20260426-003112/router_v1_smoke`
+  - `reports/real/20260426-003112/router_v1_smoke.md`
+- 这样 `main.md` 中“深度门控路由网络”的独立训练链也已经从无到有。
+## 2026-04-26 主线训练代码接入预训练与阶段调度
+- `system` 训练现在支持：
+  - `pretrained_track_checkpoint`
+  - `freeze_track_encoder_epochs`
+  - `stage_warmup_epochs`
+  - `stage_joint_epochs`
+- 当前已经实现：
+  - 轨迹预训练权重加载到 `representation_builder.sequence_encoder`
+  - 前若干轮冻结 encoder
+  - warmup / joint / finetune 三阶段骨架
+- smoke 已验证：
+  - 预训练权重可完整加载（`missing_keys=[]`, `unexpected_keys=[]`）
+  - 三阶段参数能正常进入 `training_summary.json`
+- 这样主线训练代码已经开始从“单阶段 system 训练”推进到更接近 `main.md` 的训练编排。
+## 2026-04-26 主线训练代码补充三阶段 loss 调度
+- `system` 训练进一步补上了显式阶段调度：
+  - `warmup`
+  - `joint`
+  - `finetune`
+- 当前实现：
+  - `warmup` 阶段关闭低空额外联合损失，只保留 coarse 分类和 route
+  - `joint` 阶段打开低空联合损失
+  - `finetune` 阶段对 route / low-altitude aux / mutual / contrastive 使用可单独配置的缩放系数
+- 对应新配置：
+  - `stage_finetune_route_loss_scale`
+  - `stage_finetune_low_altitude_aux_scale`
+  - `stage_finetune_low_altitude_mutual_scale`
+  - `stage_finetune_low_altitude_contrastive_scale`
+- smoke 已通过，主线训练器现在已经不再是“所有 epoch 一把梭”的单阶段结构。
+## 2026-04-26 主线训练代码接入系统级一致性损失
+- 已按 `main.md` 接入第一版 `L_consistency`：
+  - 仅对低空且有真实 RD 的样本生效
+  - 当前实现为轨迹分支特征与 RD 分支特征之间的 MSE 对齐
+- 新配置：
+  - `consistency_loss_weight`
+- smoke 已通过：
+  - `artifacts/20260426-004941/system_v1_consistency_smoke`
+- 这样主线训练代码已经具备：
+  - 预训练接入
+  - 冻结 encoder
+  - warmup/joint/finetune 三阶段骨架
+  - 系统级一致性损失接口
+## 2026-04-26 主线训练代码补 route-only warmup
+- 新增：
+  - `freeze_non_router_in_warmup`
+- 当前 warmup 阶段支持：
+  - 仅训练 router
+  - 其他 system 参数冻结
+- 这一步的目标是把 route warmup 从“trainer 内部弱化部分损失”推进到“真正的 route-only 预热阶段”。
+- 1 epoch smoke 已通过，虽然分类指标会塌，但这是预期行为，因为该阶段本就不以分类性能为目标。
+## 2026-04-26 主线训练代码补 expert warmup / curriculum
+- 新增：
+  - `stage_expert_warmup_epochs`
+  - `freeze_router_in_expert_warmup`
+  - `freeze_track_encoder_in_expert_warmup`
+  - `stage_expert_warmup_route_loss_scale`
+  - `stage_expert_warmup_low_altitude_aux_scale`
+  - `stage_expert_warmup_low_altitude_mutual_scale`
+  - `stage_expert_warmup_low_altitude_contrastive_scale`
+  - `stage_expert_warmup_consistency_scale`
+- 当前 `system` 训练已具备四段编排骨架：
+  - `route warmup`
+  - `expert warmup`
+  - `joint`
+  - `finetune`
+- 1 epoch `expert_warmup` smoke 已通过，说明主线训练器已经不再只是简单阶段标签，而是能按阶段冻结不同模块并切换损失权重。
+## 2026-04-26 主线 pipeline orchestrator 打通
+- 新增：
+  - `src/core/pipeline_config.py`
+  - `src/core/pipeline_trainer.py`
+  - `src/core/train_main_pipeline.py`
+- 当前已能按统一入口顺序执行：
+  - `pretrain_track`
+  - `router_v1`
+  - `system_v1`
+- 并自动把：
+  - 预训练轨迹 encoder 权重
+  - route warmup / expert warmup / joint / finetune 阶段参数
+  串到 system 训练里。
+- 1-1-1 的 smoke pipeline 已通过：
+  - `artifacts/main_pipeline_smoke/...`
+- 这样主线已经不再只是“有若干独立命令”，而是具备了一个可统一触发的阶段式训练编排入口。
+## 2026-04-26 主线 pipeline 串上 expert2 / expert4
+- `pipeline` 当前已扩展为：
+  - `pretrain_track`
+  - `router_v1`
+  - `expert2_air`
+  - `expert4_ground`
+  - `system_v1`
+- smoke 已验证完整链路可跑：
+  - `artifacts/main_pipeline_smoke2/...`
+- 当前仍未做的是：
+  - expert2 / expert4 checkpoint 自动回灌 `system`
+  - 但主线训练编排已经能把各阶段与各专家训练产物统一归档和汇总。
+## 2026-04-26 src/core 按职责分层，降低耦合
+- 新增子包：
+  - `src/core/data`
+  - `src/core/modeling`
+  - `src/core/training`
+  - `src/core/evaluation`
+  - `src/core/utils`
+- 目的：
+  - 把原来堆平在 `src/core` 下的数据层、模型层、训练层、评估层和工具层拆开
+  - 保留现有入口文件不动，先通过“子包导出 + 兼容壳”方式降低耦合
+- 这样后续继续拆分内部模块时，不需要一次性打断现有训练命令。
+## 2026-04-26 src/core 第二阶段解耦：数据访问链真实迁移
+- 已完成：
+  - `labels`
+  - `processed_dataset`
+  - `samples`
+  - `track_dataset`
+  - `split`
+  - `rd`
+  - `torch_dataset`
+  - `collate`
+  - `dataloaders`
+- 这些模块的真实实现已迁入：
+  - `src/core/data/`
+- 原 `src/core/*.py` 同名文件当前只保留薄兼容壳，负责 re-export。
+- 这样后续继续拆 `modeling/` 和 `training/` 时，风险会更低，也不会打断现有入口。
+## 2026-04-26 主线补全：expert1 回灌 system，预训练回流专家，warmup 强约束
+- `expert1` 独立训练已改成复用：
+  - `TrackRepresentationBuilder`
+  - `rd_proj`
+  - `LowAltitudeSuspectExpert`
+- 这样 `expert1` 的 checkpoint 现在包含：
+  - `representation_builder_state_dict`
+  - `rd_proj_state_dict`
+  - `model_state_dict`
+- `system` 已新增 `expert1_checkpoint` 装配能力，可直接回灌低空专家。
+- `expert2` / `expert4` 训练入口已支持加载预训练轨迹 encoder，并可冻结前若干轮 encoder。
+- `main pipeline` 已扩展为：
+  - `pretrain_track`
+  - `router_v1`
+  - `expert1_v1`
+  - `expert2_air`
+  - `expert4_ground`
+  - `system_v1`
+- `system` 的 `expert warmup` 现在支持更强约束：
+  - 只训 low-altitude expert 相关模块
+  - 其余模块保持冻结
+## 2026-04-26 CQ-08 接入前置审查与统一 manifest
+- 已对 `OriData/23/CQ-08` 做可用性审查：
+  - `航迹`、`点迹`、`原始回波` 三类文件可按 `(track_id, label_id)` 一一对应
+  - `MAT` 可按 `track_id` 聚合成 RD 帧序列
+  - `1550` 个航迹组中，当前 `1549` 个可用，`1` 个缺失 RD MAT（`track_id=1008`）
+- 新增：
+  - `src/process/cq08_manifest.py`
+- 输出：
+  - `data/manifests/cq08_unified_manifest.json`
+  - `data/manifests/cq08_availability_summary.json`
+  - `data/manifests/cq08_split_policy.json`
+- 当前固定切分规则：
+  - 按 `track_id` 分组切分
+  - 同一 `track_id` 下的：
+    - 航迹
+    - 点迹
+    - 原始回波
+    - 全部 RD MAT 帧
+    必须留在同一个 split
+  - 禁止 RD 帧级随机切分
+- 已新增：
+  - `src/process/cq08_split.py`
+- 当前 `CQ-08` grouped split 已独立落地到：
+  - `data/manifests/cq08_grouped_split.json`
+## 2026-04-26 CQ-08 标准化导出落地
+- 已新增：
+  - `src/process/standardize_cq08.py`
+- 当前会独立导出：
+  - `data/processed/cq08_tracks/`
+  - `data/processed/cq08_rd/`
+  - `data/processed/cq08_track_index.csv`
+  - `data/processed/cq08_rd_index.csv`
+- 当前策略：
+  - 先把 `CQ-08` 做成独立可审查的 processed 数据源
+  - 暂不直接并入现有 `raw + excel` 训练主线
+  - 继续保持按 `track_id` 分组，禁止 RD 帧级随机切分
+## 2026-04-26 expert1 切换到五类单独任务索引
+- 已新增：
+  - `src/process/build_expert1_index.py`
+- 当前 expert1 专用索引会合并：
+  - `raw_tr_rd` 中的
+    - `DroneTarget`
+    - `BirdTarget`
+    - `BalloonTarget`
+    - `ClutterTarget`
+    - `UnknownTarget`
+  - `CQ-08` 中同五类样本
+- 输出：
+  - `data/processed/expert1_track_index.csv`
+  - `data/processed/expert1_summary.json`
+- `src/core/expert1_data.py` 已切到读取该专用索引，不再依赖通用 `trainable_track_index.csv`
+## 2026-04-26 expert1 五类任务采样再平衡
+- 当前发现：
+  - `CQ-08 + with_rd` 已经成为 expert1 主体
+  - 但 `excel_track` 子集准确率仍明显落后
+- 因此把 expert1 sampler 从“强拉高 with_rd”改成“来源更平衡”的版本：
+  - `rd_sample_boost = 1.2`
+  - `raw_source_boost = 2.0`
+  - `excel_source_boost = 2.0`
+  - `cq08_source_boost = 1.0`
+- 目标：
+  - 保留 `CQ-08 / RD` 的主导收益
+  - 但不再让 `excel_track` 被过度边缘化
+## 2026-04-26 expert1 stage2 渐进减弱
+- 训练曲线显示：
+  - `stage1` 到 `epoch 12` 左右时验证表现最好
+  - `stage2` 一次性打开后，`val_f1` 会明显塌掉
+- 当前改成：
+  - `stage2_ramp_epochs = 6`
+- 也就是：
+  - `stage2` 相关辅助损失不再一步从 `0 -> 1`
+  - 而是在进入 stage2 后按线性 ramp 缓慢放大
+- 当前仍保持：
+  - 主分类损失全程开启
+  - 只对 `aux / mutual / contrastive` 做渐进减弱与缓启动
+## 2026-04-26 修复审查问题：评估泄漏、CQ-08 标签/点迹/RD、system 索引
+- 已修：
+  - CosFace 评估阶段不再传入真实标签
+  - `CQ-08 label 6` 从 `OtherTarget` 改为 `UnknownTarget`
+  - `CQ-08` 标准化轨迹已接入点迹：
+    - 多普勒速度
+    - 和幅度
+    - 信噪比
+  - system low-alt 辅助损失已按 `rd_is_multimodal` 过滤
+- 已接入：
+  - `CQ-08 grouped split` 到 `expert1` 训练
+  - `CQ-08 grouped split` 到 `system` 数据入口
+- 已新增：
+  - `src/process/build_system_index.py`
+  - `data/processed/system_trainable_track_index.csv`
+- 当前仍在继续优化：
+  - `CQ-08` 3D RD token 规模控制
+## 2026-04-26 架构审查问题修复（处理链/索引统一/CQ-08 RD/Expert2）
+
+- `build_all_processed.py` 已接入 `build_system_index()`，现在一键重建会生成：
+  - `data/processed/system_trainable_track_index.csv`
+  - `data/processed/system_trainable_summary.json`
+  - `pipeline_summary.json` 里也会写入 `system`
+- 预训练、路由器、expert2/4 已统一切到 `system_trainable_track_index.csv`
+  - 不再继续吃旧 `trainable_track_index.csv`
+- `CQ-08` RD 编码不再直接平均掉 Doppler 维
+  - 当前保持训练接口稳定的前提下，改成保留两套投影：
+    - `range(amplitude/phase)`
+    - `doppler(amplitude/phase)`
+  - 每帧 RD 现编码为 `[T, 512, 4]`
+- `CQ-08` 缺失高度/缺失相位已显式进入数据链
+  - `height_missing`
+  - `rd_phase_missing`
+  - 物理特征追加：
+    - `height_missing_flag`
+    - `phase_missing_flag`
+- `ConventionalAirExpert` 已从“单类伪训练”改成显式二分类语义：
+  - `NonAircraftTarget`
+  - `AircraftTarget`
+- `ConventionalAirExpert` 的时间注意力池化已支持 `padding_mask`
+  - 避免 padding token 参与池化
+
+## 2026-04-27 system GPU 稳定性复核与 router 输入修正
+
+- 根据最新 system 稳定性修补继续复核：
+  - `source_normalization`
+  - sequence encoder 低学习率参数组
+  - joint/finetune loss ramp
+  - sequence/global grad clip
+  - loss component / logit / grad norm 记录
+- 发现并修正一处路由输入语义问题：
+  - `DeepGatingRouter` 已支持 `rule_features`
+  - 但 `system.py` 仍把 raw physical 同时作为网络输入和规则输入
+  - 已改成：
+    - router network 输入 `representation.physical_features`
+    - rule override 输入 `representation.raw_physical_features`
+- 验证结果：
+  - `python -m compileall src` 通过
+  - `system_router_fix_smoke` 1 epoch CUDA 通过
+  - `system_router_fix_3epoch` 3 epoch CUDA 通过
+  - 两轮均 `skipped_non_finite_batches = 0`
+  - route logits 回到小量级，3 epoch 测试 `route_logit_min/max ≈ -1.12 / 2.20`
+- 当前状态：
+  - system GPU 首轮 non-finite / all epochs unstable 已经压住
+  - system 分类性能仍弱，主要偏向 `UnknownTarget`
+  - route 仍几乎把所有 conventional/ground 样本预测为 `low_altitude_suspect`
+  - 下一步应转向 system 路由/专家全局协调，而不是继续查 GPU 数值崩溃
+
+## 2026-04-27 system 准确率骤降审查：低空 reject 过度吸收
+
+- 针对 `system_router_fix_3epoch` 准确率偏低做审查：
+  - 该实验只是 3 epoch 稳定性 smoke，不能和长训练直接横向比较
+  - 但混淆矩阵显示大量 `Drone/Bird/Balloon/Clutter` 被预测为 `UnknownTarget`
+  - `CQ-08` 准确率只有 `0.0644`
+- 定位到真实代码问题：
+  - `LowAltitudeSuspectExpert` 的 reject 评估路径默认开启
+  - reject 条件使用 `has_rd`，导致所有有 RD 的低余弦样本都可能被强制改成 `UnknownTarget`
+  - 全量 `CQ-08` 大部分都有 RD，因此被过度吸收到 `UnknownTarget`
+- 已修：
+  - `SystemTrainConfig` 新增：
+    - `enable_low_altitude_reject_in_train = False`
+    - `enable_low_altitude_reject_in_eval = False`
+  - `train_system.py` 新增显式开关：
+    - `--low-altitude-reject`
+    - `--low-altitude-reject-in-train`
+  - `LowAltitudeSuspectExpert` 的 reject 现在只作用于 `rd_activated` 样本，不再对所有 `has_rd` 样本生效
+- 对照验证：
+  - `system_router_fix_3epoch`：
+    - `accuracy = 0.2229`
+    - `macro_f1 = 0.1913`
+    - `cq08_track accuracy = 0.0644`
+  - `system_no_reject_3epoch`：
+    - `accuracy = 0.5030`
+    - `macro_f1 = 0.2330`
+    - `cq08_track accuracy = 0.4506`
+- 结论：
+  - 准确率大幅降低的主因不是 GPU 稳定性修复，也不是 CQ-08 数据链重新断掉
+  - 主因是 system 评估阶段未校准 reject 过度把有 RD 的低空样本改成 `UnknownTarget`
+  - 后续 reject 必须作为单独校准/阈值实验，不应默认参与 system 主评估
+## 2026-04-27 架构/代码审查：system 准确率下降原因定位
+
+- 现象：早期只跑专家一时，低空任务可到 80% 左右；system 架构完善后短训一度掉到 20%~50%。
+- 已确认不是“模型容量不足”导致。修复接线后，同样 3 epoch、无预训练、无专家 checkpoint 的 system smoke 达到：
+  - `artifacts/20260427-185539/system_arch_review_raw_router_3epoch`
+  - accuracy `0.7831`
+  - macro F1 `0.5558`
+  - CQ08 source accuracy `0.8627`
+  - Drone F1 `0.8627`, Balloon F1 `0.9455`, Bird F1 `0.6933`, Unknown F1 `0.5161`
+- 根因 1：低空 reject 在评估阶段过度吸收 Unknown。修复前大量 Drone/Bird/Balloon 被硬改成 Unknown，指标不代表真实分类能力。现在 system/expert1 默认评估关闭硬 reject，后续需要单独做阈值校准再打开。
+- 根因 2：system 全局 logits 投影没有路由门控，所有专家 logits 对所有样本自由竞争；同时专家二 Aircraft 使用了错误列。已改为按 route weight 给对应专家 logits 加 log gate，并将 Aircraft 映射到 ConventionalAirExpert 的正类列。
+- 根因 3：route loss 与 low-altitude aux loss 共用同一个 criterion。加入 route class weight 后会维度冲突，也说明 loss 耦合不清。已拆分 `class_criterion` / `route_criterion` / `low_criterion`。
+- 根因 4：router standalone 训练曾按 `output.network_logits[:, :3]` 取列，第三列实际是 `high_altitude_filter`，不是 `ground_target`。已改为按 `ROUTE_NAMES.index()` 精确索引。
+- 根因 5：轨迹预训练 checkpoint 原来保存整模型 key，system/expert loader 期望 `encoder.*` key，导致预训练回灌实际可能为空。已改为同时保存 `model_state_dict=encoder.*` 和 `pretrain_model_state_dict`。
+- 根因 6：router standalone 与 system router 输入维度一度不一致。已按 main.md 回到 17 维显式物理特征输入，Router 内部 LayerNorm 控制尺度，规则兜底继续使用 raw physical。验证：
+  - `artifacts/20260427-190301/system_router_load_check`
+  - `pretrained_router_info.loaded_keys=8`
+  - `missing_keys=[]`
+  - `skipped_shape_mismatch={}`
+- 仍未解决的问题：
+  - route 总 accuracy 仍虚高，因为 low-altitude 占绝大多数；conventional_air 只有 33 条，test 仅 5 条，当前召回仍为 0。必须用 macro route recall 和 per-route recall 作为主指标。
+  - PeopleTarget 总量只有 2 条，不能期待有效训练。
+  - full pipeline 1 epoch smoke 可以跑通，但 system 1 epoch 低，是预期现象；需要分别把 expert1/router/expert2/expert4 训练到可用，再回灌 system。
+  - `git diff --check` 仍有既有空白问题，主要在 README 和兼容 shim 文件，不影响训练。
+
+## 2026-04-29 Expert2 Open-Set 改造与 System 接入复盘
+
+### 问题 1：Expert2 二分类几乎全判 NonAircraft
+
+- 现象：
+  - Expert2 原本做 `[NonAircraftTarget, AircraftTarget]` 二分类。
+  - 测试时容易退化成几乎全判 `NonAircraftTarget`。
+  - macro F1 接近 `0.50`，Aircraft 正类召回趋近于 `0`。
+- 数据证据：
+  - `system_trainable_track_index.csv` 中 `AircraftTarget` 只有 `33` 条。
+  - 负类由 `DroneTarget / BirdTarget / BalloonTarget / ClutterTarget / UnknownTarget / PeopleTarget / CarTarget / ShipTarget` 合并而来。
+  - 负类不是一个语义紧凑类别，而是一个高方差“其它类集合”。
+- 根因：
+  - 原始 `nn.CrossEntropyLoss()` 没有类别权重，也没有均衡采样。
+  - 在极端不均衡下，全判负类能得到很高 accuracy，但正类召回失效。
+  - 更深层的问题是：`NonAircraftTarget` 本身不是可学习的紧凑类，强行二分类会让模型学习一个边界极不稳定的垃圾桶负类。
+
+### 解决方案：将 Expert2 改为 Aircraft Open-Set 原型识别
+
+- 落地思路：
+  - 不再让 Expert2 学“什么是 NonAircraft”。
+  - 只学习一个 `AircraftTarget` 原型向量。
+  - 样本特征与 Aircraft 原型计算 cosine similarity。
+  - similarity 高于阈值则输出 `AircraftTarget`，否则输出 `NonAircraftTarget`。
+- 代码落地：
+  - `src/core/experts.py`
+    - `ConventionalAirExpert` 新增 `aircraft_prototype`。
+    - 新增 `decision_threshold` buffer，保证阈值能随 checkpoint 保存/加载。
+    - 默认 `open_set=True`。
+    - 仍输出二分类 logits，保持 System 侧 `[NonAircraftTarget, AircraftTarget]` 接口兼容。
+  - `src/core/expert_other_trainer.py`
+    - 新增 `FocalCrossEntropyLoss`。
+    - 新增 validation threshold calibration。
+    - 把最佳阈值写入 checkpoint。
+    - 训练/报告记录：
+      - `aircraft_recall`
+      - `non_aircraft_recall`
+      - `balanced_accuracy`
+      - `prediction_distribution`
+      - `decision_threshold`
+  - `src/core/expert_other_data.py`
+    - Expert2 训练加入 `WeightedRandomSampler`。
+    - 采用短 epoch 均衡采样，不再每轮全量扫过所有 NonAircraft。
+  - `src/core/expert_other_config.py`
+    - 新增 Expert2 配置：
+      - `balanced_sampling`
+      - `balanced_positive_multiplier`
+      - `focal_loss_gamma`
+      - `positive_class_weight`
+      - `aircraft_positive_noise_std`
+      - `open_set_aircraft`
+      - `open_set_logit_scale`
+      - `threshold_min/max/steps`
+  - `config/config.json`
+    - Expert2 训练轮数改为 `8`。
+    - System 的 `expert2_checkpoint` 更新到新 Open-Set checkpoint。
+
+### 问题 2：Expert2 训练一度看起来“卡住”
+
+- 现象：
+  - 第一次 Expert2 CUDA 训练被中断。
+  - 后台仍残留 python 训练进程。
+- 定位：
+  - 不是 CPU 训练，也不是 deadlock。
+  - 主要原因是均衡采样策略初版仍按大规模负类 epoch 运行，33 条 Aircraft 被大量 NonAircraft 拖慢。
+- 解决：
+  - 停止残留训练进程。
+  - 将 Expert2 sampler 改成短 epoch：
+    - `num_samples = 2 * positive_count * balanced_positive_multiplier`
+    - 当前 `balanced_positive_multiplier = 8`
+  - 保留正负均衡训练信号，同时减少无意义负类重复。
+- 结果：
+  - 后续 Expert2 CUDA 训练正常完成。
+  - 训练时间约数分钟量级，没有再出现长时间无反馈。
+
+### Expert2 最终训练结果
+
+- 训练命令：
+  - `.\.venv\Scripts\python.exe -m src.core.train_expert2 --config config/config.json`
+- 运行目录：
+  - `artifacts/20260428-201240/expert2_config_smoke`
+- 设备：
+  - `cuda`
+  - `NVIDIA GeForce RTX 4060 Laptop GPU`
+- 测试指标：
+  - accuracy：`0.9697`
+  - macro F1：`0.7144`
+  - balanced accuracy：`0.8862`
+  - Aircraft precision：`0.3077`
+  - Aircraft recall：`0.8000`
+  - Aircraft F1：`0.4444`
+  - NonAircraft recall：`0.9723`
+  - decision threshold：`0.63`
+- 混淆矩阵：
+  - `NonAircraftTarget`: `316` 判对，`9` 判成 Aircraft
+  - `AircraftTarget`: `4` 判对，`1` 判成 NonAircraft
+- 结论：
+  - Expert2 “全判 NonAircraft”问题已被修复。
+  - 由于 Aircraft 测试集只有 `5` 条，单次 recall 波动会很大，后续需要更多 Aircraft 样本或 grouped repeated split 来确认稳定性。
+
+### 问题 3：System 接入后 Aircraft 最终分类仍被跨专家竞争压制
+
+- 现象：
+  - 新 Expert2 单独测试 Aircraft recall 已到 `0.80`。
+  - 但 System 最终全局分类里，Aircraft 仍然会被低空专家/其它专家 logits 抢走。
+- 验证运行：
+  - `artifacts/20260428-232117/system_config_smoke`
+- System 测试指标：
+  - accuracy：`0.8434`
+  - macro F1：`0.5651`
+  - route accuracy：`0.7319`
+  - route macro recall：`0.7460`
+  - low-altitude macro F1：`0.8265`
+  - low-altitude accuracy：`0.9032`
+  - Drone/Bird recall mean：`0.9044`
+  - Unknown recall：`0.6111`
+  - Clutter recall：`0.7143`
+  - ground route recall：`0.7059`
+- System 接入验证：
+  - 新 Expert2 checkpoint 已完整加载。
+  - `expert2_info.loaded_keys = 30`
+  - `missing_keys = []`
+  - `unexpected_keys = []`
+- 根因判断：
+  - Expert2 的基础识别能力已经恢复。
+  - 当前瓶颈转移到 System 全局融合层：
+    - 各专家 logits 标尺不统一。
+    - Expert1 CosFace logits、Expert2 Open-Set similarity logits、Expert4 MLP logits 直接进入全局竞争。
+    - Router 仍不是稳定强约束，不能直接 hard gate。
+  - 因此 Aircraft 在 Expert2 中可被识别，但在 System 最终 argmax 中仍可能被低空类别覆盖。
+
+### 本轮最终落地
+
+- 已提交 git：
+  - `73a020d Improve expert2 open-set aircraft training`
+- 提交中记录了模型性能：
+  - Expert2：
+    - accuracy `0.9697`
+    - macro F1 `0.7144`
+    - balanced accuracy `0.8862`
+    - Aircraft recall `0.8000`
+  - System：
+    - accuracy `0.8434`
+    - macro F1 `0.5651`
+    - route macro recall `0.7460`
+    - low-altitude macro F1 `0.8265`
+    - Drone/Bird recall mean `0.9044`
+- 未提交内容：
+  - 其它手动重构留下的 dirty 文件未纳入本次 commit。
+  - 只提交了本轮 Expert2/Open-Set、Expert1 指标补充、config 接入相关文件。
+
+### 后续方向
+
+- 最高优先级：
+  - 做 System 级专家置信度标定与回退融合。
+  - 目标是让 Expert2 的 Open-Set Aircraft 置信度真正影响最终决策，而不是只在单专家报告中好看。
+- 可选方案：
+  - 为各专家 logits 增加 per-expert temperature calibration。
+  - 对 Expert2 Aircraft 使用独立 open-set 置信度覆盖规则：
+    - 当 Aircraft similarity 高于高置信阈值时，优先保护 Aircraft 输出。
+  - 加入 cross-expert fallback：
+    - 当主路由专家低置信时，允许相邻专家二次判断。
+  - 在训练报告中增加：
+    - System 全局 Aircraft recall
+    - Expert2-in-System recall
+    - Expert2 high-confidence override 触发率
+    - override 后的 false positive rate
+- 注意：
+  - 当前不要恢复 hard route 作为默认训练路径。
+  - Router 未稳定前，hard route 会把错误路由放大成不可恢复的分类错误。

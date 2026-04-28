@@ -7,7 +7,7 @@ from typing import Dict
 import pandas as pd
 
 
-EXCLUDED_LABELS = {"MixedLabel", "UnknownTarget"}
+EXCLUDED_LABELS = {"MixedLabel"}
 
 
 def build_training_index(project_root: Path) -> Dict[str, object]:
