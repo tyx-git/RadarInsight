@@ -28,6 +28,8 @@ class Expert1TrainConfig:
     low_altitude_rd_gate_aux_weight: float = 0.6
     low_altitude_rd_gate_temperature: float = 0.35
     low_altitude_rd_rare_gate_floor: float = 0.25
+    low_altitude_traj_anchor_weight: float = 0.5
+    low_altitude_traj_anchor_start_epoch: int = 2
     low_altitude_mutual_weight: float = 1.0
     low_altitude_contrastive_weight: float = 0.2
     low_altitude_temperature: float = 0.1
@@ -62,6 +64,8 @@ class Expert1TrainConfig:
     min_drone_bird_single_rd_recall_for_best: float = 0.15
     min_unknown_clutter_rd_recall_for_best: float = 0.10
     min_rare_rd_recall_for_best: float = 0.05
+    min_without_rd_accuracy_for_best: float = 0.72
+    min_source_accuracy_for_best: float = 0.50
     require_final_not_worse_than_traj: bool = True
     max_final_traj_f1_drop: float = 0.02
     sequence_encoder_lr_multiplier: float = 0.1

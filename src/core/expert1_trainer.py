@@ -241,6 +241,33 @@ def _subset_accuracy(logits: torch.Tensor, labels: torch.Tensor, mask: torch.Ten
     return float((preds[mask] == labels[mask]).float().mean().item())
 
 
+def _group_accuracy_metrics(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    source_names: list[str],
+    has_rd: list[bool],
+) -> dict[str, object]:
+    preds = logits.argmax(dim=-1)
+    by_source: dict[str, float] = {}
+    for source_name in sorted(set(source_names)):
+        indices = [idx for idx, item in enumerate(source_names) if item == source_name]
+        if not indices:
+            continue
+        index_tensor = torch.tensor(indices, dtype=torch.long)
+        by_source[source_name] = float((preds[index_tensor] == labels[index_tensor]).float().mean().item())
+    source_values = list(by_source.values())
+    source_balanced_accuracy = float(sum(source_values) / len(source_values)) if source_values else 0.0
+    min_source_accuracy = float(min(source_values)) if source_values else 0.0
+    rd_mask = torch.tensor(has_rd, dtype=torch.bool)
+    return {
+        "by_source_accuracy": by_source,
+        "source_balanced_accuracy": source_balanced_accuracy,
+        "min_source_accuracy": min_source_accuracy,
+        "with_rd_accuracy": _subset_accuracy(logits, labels, rd_mask),
+        "without_rd_accuracy": _subset_accuracy(logits, labels, ~rd_mask),
+    }
+
+
 def _weighted_ce_loss(
     criterion: nn.Module,
     logits: torch.Tensor,
@@ -363,6 +390,10 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_bird_as_drone_rate": metrics.get("rd_bird_as_drone_rate", 0.0),
         "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
         "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
+        "source_balanced_accuracy": metrics.get("source_balanced_accuracy", 0.0),
+        "min_source_accuracy": metrics.get("min_source_accuracy", 0.0),
+        "with_rd_accuracy": metrics.get("with_rd_accuracy", 0.0),
+        "without_rd_accuracy": metrics.get("without_rd_accuracy", 0.0),
         "selection_score": metrics.get("selection_score", 0.0),
         "selection_eligible": metrics.get("selection_eligible", False),
         "selection_components": metrics.get("selection_components", {}),
@@ -449,6 +480,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_clutter = float(metrics.get("rd_unknown_clutter_recall_mean", 0.0))
     final_macro = float(metrics.get("macro_f1", 0.0))
     traj_macro = float(metrics.get("traj_macro_f1", 0.0))
+    accuracy = float(metrics.get("accuracy", 0.0))
+    source_balanced_accuracy = float(metrics.get("source_balanced_accuracy", 0.0))
+    min_source_accuracy = float(metrics.get("min_source_accuracy", 0.0))
+    without_rd_accuracy = float(metrics.get("without_rd_accuracy", 0.0))
     final_delta = final_macro - traj_macro
     rd_recall = dict(metrics.get("rd_per_class_recall_on_rd", {}))
     drone_recall = float(rd_recall.get("DroneTarget", 0.0))
@@ -459,12 +494,15 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_recall = float(rd_recall.get("UnknownTarget", 0.0))
     min_rare_rd_recall = min(balloon_recall, clutter_recall, unknown_recall)
     score = (
-        final_macro
+        0.65 * final_macro
+        + 0.25 * accuracy
+        + 0.25 * source_balanced_accuracy
+        + 0.20 * without_rd_accuracy
         + 0.70 * rd_macro
         + 0.35 * drone_bird
         + 0.35 * unknown_clutter
         + 0.25 * min_rare_rd_recall
-        + 0.15 * traj_macro
+        + 0.25 * traj_macro
         + 0.25 * final_delta
     )
     eligible = bool(stage2_enabled) if config.prefer_stage2_checkpoint else True
@@ -474,10 +512,16 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         eligible = eligible and min_drone_bird_recall >= config.min_drone_bird_single_rd_recall_for_best
         eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
         eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
+        eligible = eligible and without_rd_accuracy >= config.min_without_rd_accuracy_for_best
+        eligible = eligible and min_source_accuracy >= config.min_source_accuracy_for_best
         if config.require_final_not_worse_than_traj:
             eligible = eligible and final_delta >= -config.max_final_traj_f1_drop
     return score, eligible, {
         "final_macro_f1": final_macro,
+        "accuracy": accuracy,
+        "source_balanced_accuracy": source_balanced_accuracy,
+        "min_source_accuracy": min_source_accuracy,
+        "without_rd_accuracy": without_rd_accuracy,
         "traj_macro_f1": traj_macro,
         "final_minus_traj_macro_f1": final_delta,
         "rd_macro_f1_on_rd": rd_macro,
@@ -507,6 +551,7 @@ def _run_epoch(
     stage2_scale: float,
     rd_class_weights: torch.Tensor,
     source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None,
+    anchor_traj_logits: dict[str, torch.Tensor] | None = None,
 ) -> dict[str, object]:
     representation_builder.train(mode=train)
     rd_proj.train(mode=train)
@@ -523,6 +568,8 @@ def _run_epoch(
     fusion_weights_all: list[torch.Tensor] = []
     loss_values: list[float] = []
     skipped_non_finite_batches = 0
+    if anchor_traj_logits is None:
+        anchor_traj_logits = {}
 
     for batch in loader:
         features = batch.features.to(device)
@@ -590,6 +637,28 @@ def _run_epoch(
                 unknown_index=unknown_index,
                 unknown_weight=config.unknown_loss_weight,
             )
+            anchor_loss = torch.tensor(0.0, device=device)
+            if train and config.low_altitude_traj_anchor_weight > 0.0:
+                if not stage2_enabled:
+                    anchor_traj_logits.update(
+                        {
+                            str(sample_id): logits_row
+                            for sample_id, logits_row in zip(batch.sample_ids, output.traj_logits.detach().cpu())
+                        }
+                    )
+                elif anchor_traj_logits:
+                    matched_indices: list[int] = []
+                    target_rows: list[torch.Tensor] = []
+                    for batch_index, sample_id in enumerate(batch.sample_ids):
+                        anchor = anchor_traj_logits.get(str(sample_id))
+                        if anchor is not None:
+                            matched_indices.append(batch_index)
+                            target_rows.append(anchor)
+                    if matched_indices:
+                        index_tensor = torch.tensor(matched_indices, dtype=torch.long, device=device)
+                        target_probs = torch.softmax(torch.stack(target_rows).to(device), dim=-1)
+                        log_probs = torch.log_softmax(output.traj_logits[index_tensor], dim=-1)
+                        anchor_loss = torch.nn.functional.kl_div(log_probs, target_probs, reduction="batchmean")
             has_rd_mask = rd_is_multimodal.bool()
             if stage2_enabled and has_rd_mask.any():
                 rd_aux = _masked_weighted_ce_loss(
@@ -737,6 +806,7 @@ def _run_epoch(
             loss = (
                 main_loss
                 + (config.low_altitude_aux_weight * stage2_scale) * aux_loss
+                + (config.low_altitude_traj_anchor_weight * stage2_scale) * anchor_loss
                 + (config.low_altitude_mutual_weight * stage2_scale) * mutual_loss
                 + (config.low_altitude_contrastive_weight * stage2_scale) * contrastive_loss
             )
@@ -819,6 +889,7 @@ def _run_epoch(
     diagnostics.update(_expert1_diagnostics(traj_logits_cat, labels_cat, "traj"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd_on_rd", mask=has_rd_tensor))
+    group_metrics = _group_accuracy_metrics(logits_cat, labels_cat, source_names_all, has_rd_all)
     rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
     rd_activation_rate_on_rd = (
         float(rd_activated_tensor[has_rd_tensor].float().mean().item())
@@ -862,6 +933,11 @@ def _run_epoch(
         "rd_activation_rate_on_rd": rd_activation_rate_on_rd,
         "rd_fusion_weight_mean": rd_fusion_weight_mean,
         "rd_fusion_weight_on_rd_mean": rd_fusion_weight_on_rd_mean,
+        "by_source_accuracy": group_metrics["by_source_accuracy"],
+        "source_balanced_accuracy": group_metrics["source_balanced_accuracy"],
+        "min_source_accuracy": group_metrics["min_source_accuracy"],
+        "with_rd_accuracy": group_metrics["with_rd_accuracy"],
+        "without_rd_accuracy": group_metrics["without_rd_accuracy"],
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
         "logits": logits_cat,
@@ -948,12 +1024,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     fallback_candidate_components: dict[str, float] = {}
     best_selection_reason = "selection_score"
     best_selection_components: dict[str, float] = {}
+    anchor_traj_logits: dict[str, torch.Tensor] = {}
 
     for epoch in range(1, config.epochs + 1):
         stage2_enabled = epoch > config.stage1_traj_only_epochs
         stage2_scale = _stage2_scale(epoch, config)
         _set_track_encoder_trainable(representation_builder, epoch > config.freeze_track_encoder_epochs)
-        train_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.train_loader, criterion, optimizer, device, True, config, stage2_enabled, stage2_scale, rd_class_weights, source_feature_stats)
+        train_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.train_loader, criterion, optimizer, device, True, config, stage2_enabled, stage2_scale, rd_class_weights, source_feature_stats, anchor_traj_logits)
         if not train_metrics["has_valid_batches"]:
             break
         val_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.val_loader, criterion, optimizer, device, False, config, stage2_enabled, stage2_scale, rd_class_weights, source_feature_stats)
@@ -1205,6 +1282,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
             "rd_fusion_weight_mean": test_metrics["rd_fusion_weight_mean"],
             "rd_fusion_weight_on_rd_mean": test_metrics["rd_fusion_weight_on_rd_mean"],
+            "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
+            "min_source_accuracy": test_metrics["min_source_accuracy"],
+            "with_rd_accuracy": test_metrics["with_rd_accuracy"],
+            "without_rd_accuracy": test_metrics["without_rd_accuracy"],
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
             "has_valid_batches": test_metrics["has_valid_batches"],
         },
@@ -1239,6 +1320,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_gate_aux_weight": config.low_altitude_rd_gate_aux_weight,
         "low_altitude_rd_gate_temperature": config.low_altitude_rd_gate_temperature,
         "low_altitude_rd_rare_gate_floor": config.low_altitude_rd_rare_gate_floor,
+        "low_altitude_traj_anchor_weight": config.low_altitude_traj_anchor_weight,
+        "low_altitude_traj_anchor_start_epoch": config.low_altitude_traj_anchor_start_epoch,
         "rd_bird_logit_scale": config.rd_bird_logit_scale,
         "rd_unknown_logit_scale": config.rd_unknown_logit_scale,
         "rd_clutter_logit_scale": config.rd_clutter_logit_scale,
@@ -1268,6 +1351,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_drone_bird_single_rd_recall_for_best": config.min_drone_bird_single_rd_recall_for_best,
             "min_unknown_clutter_rd_recall_for_best": config.min_unknown_clutter_rd_recall_for_best,
             "min_rare_rd_recall_for_best": config.min_rare_rd_recall_for_best,
+            "min_without_rd_accuracy_for_best": config.min_without_rd_accuracy_for_best,
+            "min_source_accuracy_for_best": config.min_source_accuracy_for_best,
             "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),
             "max_final_traj_f1_drop": config.max_final_traj_f1_drop,
         },

@@ -19,6 +19,7 @@ class ExpertOutput:
     """
     logits: torch.Tensor
     features: torch.Tensor | None = None
+    auxiliary: dict[str, torch.Tensor] | None = None
 
 
 
@@ -495,8 +496,19 @@ class ConventionalAirExpert(nn.Module):
     """
     传统航空专家类，用于处理传统航空目标的分类任务。
     """
-    def __init__(self, sequence_dim: int, physical_dim: int, hidden_dim: int = 64, dropout: float = 0.1) -> None:
+    def __init__(
+        self,
+        sequence_dim: int,
+        physical_dim: int,
+        hidden_dim: int = 64,
+        dropout: float = 0.1,
+        open_set: bool = True,
+        logit_scale: float = 10.0,
+        decision_threshold: float = 0.35,
+    ) -> None:
         super().__init__()
+        self.open_set = bool(open_set)
+        self.logit_scale = float(logit_scale)
         self.physical_input_norm = nn.LayerNorm(physical_dim)
         self.temporal_conv = nn.Sequential(
             nn.Conv1d(sequence_dim, 32, kernel_size=3, padding=1),
@@ -529,6 +541,20 @@ class ConventionalAirExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, 2),
         )
+        self.aircraft_prototype = nn.Parameter(torch.randn(128))
+        nn.init.normal_(self.aircraft_prototype, mean=0.0, std=0.02)
+        self.register_buffer("decision_threshold", torch.tensor(float(decision_threshold), dtype=torch.float32))
+
+    def set_decision_threshold(self, value: float) -> None:
+        self.decision_threshold.fill_(float(value))
+
+    def _open_set_logits(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        normalized_features = F.normalize(features, dim=-1)
+        normalized_prototype = F.normalize(self.aircraft_prototype, dim=0)
+        similarity = normalized_features @ normalized_prototype
+        centered = similarity - self.decision_threshold.to(device=features.device, dtype=features.dtype)
+        logits = torch.stack([-centered, centered], dim=-1) * self.logit_scale
+        return logits, similarity
 
     def forward(self, sequence_features: torch.Tensor, physical_features: torch.Tensor, padding_mask: torch.Tensor | None = None) -> ExpertOutput:
         seq = sequence_features.transpose(1, 2)
@@ -536,6 +562,16 @@ class ConventionalAirExpert(nn.Module):
         temporal = self.temporal_pool(hidden, padding_mask=padding_mask)
         physical = self.physical_proj(self.physical_input_norm(physical_features))
         fused = self.fuse(torch.cat([temporal, physical], dim=-1))
+        if self.open_set:
+            logits, similarity = self._open_set_logits(fused)
+            return ExpertOutput(
+                logits=logits,
+                features=fused,
+                auxiliary={
+                    "aircraft_similarity": similarity,
+                    "aircraft_threshold": self.decision_threshold.expand_as(similarity),
+                },
+            )
         logits = self.classifier(fused)
         return ExpertOutput(logits=logits, features=fused)
 

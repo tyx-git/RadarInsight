@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 from .device import resolve_cuda_device
 from .experts import ConventionalAirExpert, GroundTargetExpert
@@ -38,6 +39,105 @@ def resolve_device(requested_device: str) -> tuple[torch.device, dict[str, objec
 
 def _count_trainable_parameters(model: nn.Module) -> int:
     return int(sum(param.numel() for param in model.parameters() if param.requires_grad))
+
+
+class FocalCrossEntropyLoss(nn.Module):
+    def __init__(self, weight: torch.Tensor | None = None, gamma: float = 0.0) -> None:
+        super().__init__()
+        self.register_buffer("weight", weight if weight is not None else None)
+        self.gamma = float(max(0.0, gamma))
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce = F.cross_entropy(logits, targets, weight=self.weight, reduction="none")
+        if self.gamma <= 0:
+            return ce.mean()
+        probs = torch.softmax(logits, dim=-1)
+        pt = probs.gather(dim=-1, index=targets.unsqueeze(-1)).squeeze(-1).clamp_min(1e-6)
+        return ((1.0 - pt) ** self.gamma * ce).mean()
+
+
+def _open_set_logits_from_similarity(similarity: torch.Tensor, threshold: float, scale: float) -> torch.Tensor:
+    centered = similarity - float(threshold)
+    return torch.stack([-centered, centered], dim=-1) * float(scale)
+
+
+def _binary_details(logits: torch.Tensor, labels: torch.Tensor, label_names: list[str]) -> dict[str, object]:
+    preds = logits.argmax(dim=-1)
+    details: dict[str, object] = {
+        "prediction_distribution": {
+            label_names[idx]: int((preds == idx).sum().item())
+            for idx in range(len(label_names))
+        },
+        "per_class": [],
+    }
+    recalls: list[float] = []
+    for idx, label_name in enumerate(label_names):
+        pred_pos = preds == idx
+        true_pos = labels == idx
+        tp = int((pred_pos & true_pos).sum().item())
+        fp = int((pred_pos & ~true_pos).sum().item())
+        fn = int((~pred_pos & true_pos).sum().item())
+        support = int(true_pos.sum().item())
+        precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+        recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+        recalls.append(recall)
+        details["per_class"].append(
+            {
+                "label_name": label_name,
+                "support": support,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+            }
+        )
+        if label_name == "AircraftTarget":
+            details["aircraft_precision"] = precision
+            details["aircraft_recall"] = recall
+            details["aircraft_f1"] = f1
+            details["aircraft_support"] = support
+        elif label_name == "NonAircraftTarget":
+            details["non_aircraft_precision"] = precision
+            details["non_aircraft_recall"] = recall
+            details["non_aircraft_f1"] = f1
+            details["non_aircraft_support"] = support
+    details["balanced_accuracy"] = float(sum(recalls) / len(recalls)) if recalls else 0.0
+    return details
+
+
+def _calibrate_open_set_threshold(
+    similarities: torch.Tensor,
+    labels: torch.Tensor,
+    label_names: list[str],
+    threshold_min: float,
+    threshold_max: float,
+    threshold_steps: int,
+    logit_scale: float,
+) -> dict[str, object]:
+    best: dict[str, object] | None = None
+    steps = max(2, int(threshold_steps))
+    for threshold in torch.linspace(float(threshold_min), float(threshold_max), steps=steps):
+        threshold_value = float(threshold.item())
+        logits = _open_set_logits_from_similarity(similarities, threshold_value, logit_scale)
+        metrics = compute_classification_metrics(logits, labels, num_classes=len(label_names))
+        details = _binary_details(logits, labels, label_names)
+        aircraft_recall = float(details.get("aircraft_recall", 0.0))
+        non_aircraft_recall = float(details.get("non_aircraft_recall", 0.0))
+        score = metrics.macro_f1 + 0.10 * aircraft_recall + 0.03 * min(aircraft_recall, non_aircraft_recall)
+        candidate = {
+            "threshold": threshold_value,
+            "score": score,
+            "accuracy": metrics.accuracy,
+            "macro_precision": metrics.macro_precision,
+            "macro_recall": metrics.macro_recall,
+            "macro_f1": metrics.macro_f1,
+            **details,
+        }
+        if best is None or float(candidate["score"]) > float(best["score"]):
+            best = candidate
+    if best is None:
+        raise ValueError("failed to calibrate open-set threshold")
+    return best
 
 
 def _set_track_encoder_trainable(representation_builder: TrackRepresentationBuilder, trainable: bool) -> None:
@@ -170,6 +270,7 @@ def _run_epoch(
     labels: list[str],
     expert_name: str,
     source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None,
+    positive_noise_std: float = 0.0,
 ) -> dict[str, object]:
     representation_builder.train(mode=train)
     model.train(mode=train)
@@ -179,6 +280,7 @@ def _run_epoch(
     label_names_all: list[str] = []
     sample_ids_all: list[str] = []
     loss_values: list[float] = []
+    aircraft_similarity_all: list[torch.Tensor] = []
 
     for batch in loader:
         features = batch.features.to(device)
@@ -216,11 +318,34 @@ def _run_epoch(
             else:
                 output = model(rep.deep_features, rep.raw_physical_features)
             loss = criterion(output.logits, labels_local)
+            if train and expert_name == "expert2_air" and positive_noise_std > 0 and labels_local.eq(1).any():
+                positive_mask = labels_local == 1
+                noised_features = features.clone()
+                noise = torch.randn_like(noised_features[positive_mask]) * float(positive_noise_std)
+                noised_features[positive_mask] = noised_features[positive_mask] + noise
+                if any(param.requires_grad for param in representation_builder.parameters()):
+                    aug_rep = representation_builder(
+                        sequence_features=noised_features,
+                        physical_features=physical,
+                        padding_mask=batch.padding_mask.to(device),
+                    )
+                else:
+                    with torch.no_grad():
+                        aug_rep = representation_builder(
+                            sequence_features=noised_features,
+                            physical_features=physical,
+                            padding_mask=batch.padding_mask.to(device),
+                        )
+                aug_output = model(aug_rep.sequence_features, aug_rep.raw_physical_features, padding_mask=batch.padding_mask.to(device))
+                aug_loss = criterion(aug_output.logits[positive_mask], labels_local[positive_mask])
+                loss = loss + 0.5 * aug_loss
             if train:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
         logits_all.append(output.logits.detach().cpu())
+        if output.auxiliary and "aircraft_similarity" in output.auxiliary:
+            aircraft_similarity_all.append(output.auxiliary["aircraft_similarity"].detach().cpu())
         labels_all.append(labels_local.detach().cpu())
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
@@ -230,14 +355,17 @@ def _run_epoch(
     logits_cat = torch.cat(logits_all, dim=0)
     labels_cat = torch.cat(labels_all, dim=0)
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(labels))
+    binary_details = _binary_details(logits_cat, labels_cat, labels)
     return {
         "loss": float(np.mean(loss_values)),
         "accuracy": metrics.accuracy,
         "macro_precision": metrics.macro_precision,
         "macro_recall": metrics.macro_recall,
         "macro_f1": metrics.macro_f1,
+        **binary_details,
         "logits": logits_cat,
         "labels": labels_cat,
+        "aircraft_similarity": torch.cat(aircraft_similarity_all, dim=0) if aircraft_similarity_all else None,
         "source_names": source_names_all,
         "label_names": label_names_all,
         "sample_ids": sample_ids_all,
@@ -257,11 +385,20 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         batch_size=config.batch_size,
         seed=config.seed,
         num_workers=config.num_workers,
+        balanced_sampling=bool(config.balanced_sampling and config.expert_name == "expert2_air"),
+        balanced_positive_multiplier=config.balanced_positive_multiplier,
     )
     labels = loaders.labels
 
     if config.expert_name == "expert2_air":
-        model = ConventionalAirExpert(sequence_dim=128, physical_dim=len(PHYSICAL_FEATURE_COLUMNS), dropout=config.dropout).to(device)
+        model = ConventionalAirExpert(
+            sequence_dim=128,
+            physical_dim=len(PHYSICAL_FEATURE_COLUMNS),
+            dropout=config.dropout,
+            open_set=bool(config.open_set_aircraft),
+            logit_scale=config.open_set_logit_scale,
+            decision_threshold=config.open_set_initial_threshold,
+        ).to(device)
     else:
         model = GroundTargetExpert(deep_dim=128, raw_physical_dim=10, dropout=config.dropout).to(device)
     representation_builder = TrackRepresentationBuilder(
@@ -292,7 +429,15 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
     if config.train_representation_builder:
         optimizer_params = list(representation_builder.parameters()) + optimizer_params
     optimizer = torch.optim.AdamW(optimizer_params, lr=config.learning_rate, weight_decay=config.weight_decay)
-    criterion = nn.CrossEntropyLoss()
+    if config.expert_name == "expert2_air":
+        class_weight = torch.tensor(
+            [float(config.negative_class_weight), float(config.positive_class_weight)],
+            dtype=torch.float32,
+            device=device,
+        )
+        criterion = FocalCrossEntropyLoss(weight=class_weight, gamma=config.focal_loss_gamma)
+    else:
+        criterion = nn.CrossEntropyLoss()
     source_feature_stats = None
     checkpoint_source_feature_stats = None
     if config.source_normalization:
@@ -312,15 +457,75 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
 
     history: list[dict[str, object]] = []
     best_val = -1.0
+    best_threshold = float(config.open_set_initial_threshold)
+    best_selection: dict[str, object] = {}
     best_path = run_paths.output_dir / "best_model.pt"
 
     for epoch in range(1, config.epochs + 1):
         _set_track_encoder_trainable(representation_builder, bool(config.train_representation_builder))
-        train_metrics = _run_epoch(representation_builder, model, loaders.train_loader, criterion, optimizer, device, True, loaders.global_to_local, labels, config.expert_name, source_feature_stats)
-        val_metrics = _run_epoch(representation_builder, model, loaders.val_loader, criterion, optimizer, device, False, loaders.global_to_local, labels, config.expert_name, source_feature_stats)
+        train_metrics = _run_epoch(
+            representation_builder,
+            model,
+            loaders.train_loader,
+            criterion,
+            optimizer,
+            device,
+            True,
+            loaders.global_to_local,
+            labels,
+            config.expert_name,
+            source_feature_stats,
+            positive_noise_std=config.aircraft_positive_noise_std if config.expert_name == "expert2_air" else 0.0,
+        )
+        val_metrics = _run_epoch(
+            representation_builder,
+            model,
+            loaders.val_loader,
+            criterion,
+            optimizer,
+            device,
+            False,
+            loaders.global_to_local,
+            labels,
+            config.expert_name,
+            source_feature_stats,
+        )
+        selection_metric = float(val_metrics["macro_f1"])
+        threshold_info: dict[str, object] | None = None
+        if config.expert_name == "expert2_air" and config.open_set_aircraft and val_metrics.get("aircraft_similarity") is not None:
+            threshold_info = _calibrate_open_set_threshold(
+                val_metrics["aircraft_similarity"],
+                val_metrics["labels"],
+                labels,
+                config.threshold_min,
+                config.threshold_max,
+                config.threshold_steps,
+                config.open_set_logit_scale,
+            )
+            calibrated_logits = _open_set_logits_from_similarity(
+                val_metrics["aircraft_similarity"],
+                float(threshold_info["threshold"]),
+                config.open_set_logit_scale,
+            )
+            calibrated_metrics = compute_classification_metrics(calibrated_logits, val_metrics["labels"], num_classes=len(labels))
+            calibrated_details = _binary_details(calibrated_logits, val_metrics["labels"], labels)
+            val_metrics = {
+                **val_metrics,
+                "calibrated_threshold": threshold_info["threshold"],
+                "calibrated_accuracy": calibrated_metrics.accuracy,
+                "calibrated_macro_precision": calibrated_metrics.macro_precision,
+                "calibrated_macro_recall": calibrated_metrics.macro_recall,
+                "calibrated_macro_f1": calibrated_metrics.macro_f1,
+                "calibrated_details": calibrated_details,
+            }
+            selection_metric = float(threshold_info["score"])
         history.append({"epoch": epoch, "train": train_metrics, "val": val_metrics})
-        if val_metrics["macro_f1"] > best_val:
-            best_val = float(val_metrics["macro_f1"])
+        if selection_metric > best_val:
+            best_val = selection_metric
+            if threshold_info is not None:
+                best_threshold = float(threshold_info["threshold"])
+                model.set_decision_threshold(best_threshold)
+                best_selection = threshold_info
             checkpoint = {
                 "model_state_dict": model.state_dict(),
                 "config": config.__dict__,
@@ -328,6 +533,9 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
                 "source_feature_stats": source_feature_stats,
                 "shared_representation_checkpoint": config.shared_representation_checkpoint,
                 "train_representation_builder": bool(config.train_representation_builder),
+                "best_selection_metric": best_val,
+                "best_selection": best_selection,
+                "decision_threshold": best_threshold,
             }
             if config.train_representation_builder:
                 checkpoint["representation_builder_state_dict"] = representation_builder.state_dict()
@@ -337,7 +545,33 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
     if "representation_builder_state_dict" in state:
         representation_builder.load_state_dict(state["representation_builder_state_dict"])
     model.load_state_dict(state["model_state_dict"])
+    best_threshold = float(state.get("decision_threshold", best_threshold))
+    if hasattr(model, "set_decision_threshold"):
+        model.set_decision_threshold(best_threshold)
     test_metrics = _run_epoch(representation_builder, model, loaders.test_loader, criterion, optimizer, device, False, loaders.global_to_local, labels, config.expert_name, source_feature_stats)
+    test_threshold_info: dict[str, object] | None = None
+    if config.expert_name == "expert2_air" and config.open_set_aircraft and test_metrics.get("aircraft_similarity") is not None:
+        calibrated_logits = _open_set_logits_from_similarity(
+            test_metrics["aircraft_similarity"],
+            best_threshold,
+            config.open_set_logit_scale,
+        )
+        calibrated_metrics = compute_classification_metrics(calibrated_logits, test_metrics["labels"], num_classes=len(labels))
+        calibrated_details = _binary_details(calibrated_logits, test_metrics["labels"], labels)
+        test_metrics = {
+            **test_metrics,
+            "logits": calibrated_logits,
+            "accuracy": calibrated_metrics.accuracy,
+            "macro_precision": calibrated_metrics.macro_precision,
+            "macro_recall": calibrated_metrics.macro_recall,
+            "macro_f1": calibrated_metrics.macro_f1,
+            **calibrated_details,
+        }
+        test_threshold_info = {
+            "threshold": best_threshold,
+            "source": "validation_calibrated",
+            **calibrated_details,
+        }
 
     history_path = run_paths.output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -363,6 +597,10 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             "macro_recall": test_metrics["macro_recall"],
             "macro_f1": test_metrics["macro_f1"],
             "route_accuracy": 1.0,
+            "aircraft_recall": test_metrics.get("aircraft_recall"),
+            "non_aircraft_recall": test_metrics.get("non_aircraft_recall"),
+            "balanced_accuracy": test_metrics.get("balanced_accuracy"),
+            "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
         },
         "label_names": labels,
         "classification_confusion_matrix": confusion.tolist(),
@@ -374,6 +612,13 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         },
         "by_source": {},
         "device": device_info,
+        "expert_details": {
+            "open_set_aircraft": bool(config.expert_name == "expert2_air" and config.open_set_aircraft),
+            "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
+            "threshold_info": test_threshold_info,
+            "best_selection": state.get("best_selection", {}),
+            "prediction_distribution": test_metrics.get("prediction_distribution", {}),
+        },
         "predictions": [],
     }
     for idx, label in enumerate(labels):
@@ -421,6 +666,14 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             "macro_precision": test_metrics["macro_precision"],
             "macro_recall": test_metrics["macro_recall"],
             "macro_f1": test_metrics["macro_f1"],
+            "balanced_accuracy": test_metrics.get("balanced_accuracy"),
+            "aircraft_precision": test_metrics.get("aircraft_precision"),
+            "aircraft_recall": test_metrics.get("aircraft_recall"),
+            "aircraft_f1": test_metrics.get("aircraft_f1"),
+            "non_aircraft_precision": test_metrics.get("non_aircraft_precision"),
+            "non_aircraft_recall": test_metrics.get("non_aircraft_recall"),
+            "non_aircraft_f1": test_metrics.get("non_aircraft_f1"),
+            "prediction_distribution": test_metrics.get("prediction_distribution", {}),
         },
         "run_timestamp": run_paths.timestamp_label,
         "experiment_name": run_paths.experiment_name,
@@ -435,6 +688,10 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         "source_normalization": bool(config.source_normalization),
         "source_feature_stats_saved": bool(source_feature_stats is not None),
         "source_feature_stats_from_checkpoint": bool(checkpoint_source_feature_stats),
+        "open_set_aircraft": bool(config.expert_name == "expert2_air" and config.open_set_aircraft),
+        "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
+        "best_selection_metric": state.get("best_selection_metric"),
+        "best_selection": state.get("best_selection", {}),
     }
     summary_path = run_paths.output_dir / "training_summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")

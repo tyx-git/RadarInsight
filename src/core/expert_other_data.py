@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from torch.utils.data import DataLoader
+from torch.utils.data import WeightedRandomSampler
 
 from .forwardlayer.collate import collate_track_batch
 from .forwardlayer.dataset import TrackDataset
@@ -31,6 +32,8 @@ def build_subset_dataloaders(
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
     num_workers: int = 0,
+    balanced_sampling: bool = False,
+    balanced_positive_multiplier: int = 8,
 ) -> ExpertOtherLoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="system_trainable_track_index.csv")
     frame = dataset.to_frame().copy()
@@ -66,10 +69,31 @@ def build_subset_dataloaders(
     val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, trainable_only=False, index_name="system_trainable_track_index.csv")
     test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, trainable_only=False, index_name="system_trainable_track_index.csv")
 
+    sampler = None
+    shuffle = True
+    if balanced_sampling and labels == ["AircraftTarget"]:
+        train_frame = frame[frame["sample_id"].astype(str).isin({str(sample_id) for sample_id in split.train_ids})].copy()
+        binary_labels = train_frame["label_name"].astype(str).map(lambda value: 1 if value == "AircraftTarget" else 0)
+        counts = binary_labels.value_counts().to_dict()
+        weights = [
+            1.0 / max(1, int(counts[int(binary_label)]))
+            for binary_label in binary_labels.tolist()
+        ]
+        sampler = WeightedRandomSampler(
+            weights=weights,
+            num_samples=max(
+                batch_size,
+                2 * int(counts.get(1, 0)) * max(1, int(balanced_positive_multiplier)),
+            ),
+            replacement=True,
+        )
+        shuffle = False
+
     train_loader = DataLoader(
         train_ds,
         batch_size=batch_size,
-        shuffle=True,
+        shuffle=shuffle,
+        sampler=sampler,
         num_workers=num_workers,
         collate_fn=collate_track_batch,
     )
