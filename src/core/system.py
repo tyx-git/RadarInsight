@@ -7,6 +7,7 @@ from torch import nn
 
 from .experts import (
     ConventionalAirExpert,
+    ExpertOutput,
     GroundTargetExpert,
     LowAltitudeFusionOutput,
     LowAltitudeSuspectExpert,
@@ -22,6 +23,9 @@ class RadarSystemOutput:
     routing: RouteDecision
     rd_features: torch.Tensor
     low_altitude_detail: LowAltitudeFusionOutput
+    conventional_air_detail: ExpertOutput
+    high_altitude_detail: ExpertOutput
+    ground_detail: ExpertOutput
     low_altitude_logits: torch.Tensor
     conventional_air_logits: torch.Tensor
     high_altitude_logits: torch.Tensor
@@ -145,6 +149,9 @@ class RadarClassificationSystem(nn.Module):
             routing=routing,
             rd_features=rd_summary,
             low_altitude_detail=low_altitude,
+            conventional_air_detail=conventional_air,
+            high_altitude_detail=high_altitude,
+            ground_detail=ground,
             low_altitude_logits=low_altitude.logits,
             conventional_air_logits=conventional_air.logits,
             high_altitude_logits=high_altitude.logits,

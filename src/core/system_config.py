@@ -25,6 +25,11 @@ class SystemTrainConfig:
     eval_fusion_candidate_modes: list[str] = field(
         default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2"]
     )
+    aircraft_protection_enabled: bool = True
+    aircraft_confidence_tau_high: float = 0.10
+    aircraft_confidence_tau_low: float = -0.05
+    aircraft_conventional_gate_floor: float = 0.10
+    aircraft_temperature: float = 1.0
     freeze_router: bool = True
     freeze_track_encoder_epochs: int = 0
     freeze_non_router_in_warmup: bool = True

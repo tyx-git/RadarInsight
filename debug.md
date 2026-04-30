@@ -867,3 +867,152 @@
 - 注意：
   - 当前不要恢复 hard route 作为默认训练路径。
   - Router 未稳定前，hard route 会把错误路由放大成不可恢复的分类错误。
+
+## 2026-04-29 System 级跨专家 Aircraft 仲裁修复
+
+### 问题：Expert2 在 System 里仍被跨专家 logits 压制
+
+- 现象：
+  - Expert2 单独训练后已经不再全判 `NonAircraftTarget`，单专家测试中 `AircraftTarget recall = 0.8000`。
+  - 但进入 System 后，最终全局 9 类输出仍会把真实 Aircraft 判成 `DroneTarget`、`BirdTarget` 等低空类别。
+  - 根因不是 Expert2 完全不可用，而是 System 最终投影仍偏向 raw logits 拼接。
+- 旧接线问题：
+  - `RadarSystemOutput` 只暴露 `conventional_air_logits`，没有把 Expert2 的 `aircraft_similarity` / `aircraft_threshold` 透传给仲裁层。
+  - `_project_to_global_logits()` 对 Aircraft 的处理近似为：
+    - `conventional_air_logits[:, 1] + conventional_gate`
+    - 再与 high-altitude 规则 logit 做 `max`
+  - 这会把 Expert2 的 Open-Set 语义退化成普通二分类 raw logit。
+  - Expert1 是 CosFace scale logits，Expert2 是 Open-Set margin logits，Expert4 是 MLP logits，三者数值标尺不一致，直接 argmax 竞争不可靠。
+  - Router 在低空/常规空中边界上并不稳定，因此不应该作为 veto，只能作为 prior。
+
+### 解决方案：把 System 从 raw-logits 拼接器改成带置信度的专家仲裁器
+
+- `src/core/system.py`
+  - `RadarSystemOutput` 新增：
+    - `conventional_air_detail`
+    - `high_altitude_detail`
+    - `ground_detail`
+  - 保留旧字段：
+    - `conventional_air_logits`
+    - `high_altitude_logits`
+    - `ground_logits`
+  - 这样旧训练/报告入口不被破坏，同时 System 仲裁层可以访问 Expert2 的 auxiliary 信号。
+- `src/core/system_config.py`
+  - 新增 Aircraft 仲裁配置：
+    - `aircraft_protection_enabled = true`
+    - `aircraft_confidence_tau_high = 0.10`
+    - `aircraft_confidence_tau_low = -0.05`
+    - `aircraft_conventional_gate_floor = 0.10`
+    - `aircraft_temperature = 1.0`
+- `src/core/system_trainer.py`
+  - `_project_to_global_logits()` 改为接收完整 `SystemTrainConfig`。
+  - 计算 Expert2 置信度：
+    - `aircraft_margin = conventional_air_logits[:, 1] - conventional_air_logits[:, 0]`
+    - `aircraft_confidence = aircraft_similarity - aircraft_threshold`
+  - 三段式保护：
+    - `aircraft_confidence >= tau_high`：Aircraft 分数基本绕过 Router 惩罚，Router 不再一票否决。
+    - `tau_low <= aircraft_confidence < tau_high`：给 conventional gate 一个 floor，防止弱路由把 Expert2 直接压死。
+    - `aircraft_confidence < tau_low`：仍按 Router prior 抑制，避免大量非 Aircraft 被抢成 Aircraft。
+  - HighAltitude 规则只在规则正命中时参与 Aircraft，不再让未命中的 high-altitude negative logit 与 Expert2 无意义竞争。
+
+### 报告和诊断落地
+
+- `training_summary.json` / `evaluation_report.json` 新增 System 级 Aircraft 诊断：
+  - `aircraft_system_recall`
+  - `aircraft_system_precision`
+  - `aircraft_system_f1`
+  - `aircraft_recall_without_aircraft_protection`
+  - `expert2_positive_system_not_aircraft_count`
+  - `expert2_positive_system_not_aircraft_rate`
+  - `non_aircraft_as_aircraft_rate`
+  - `aircraft_overridden_by_low_altitude_count`
+  - `aircraft_overridden_by_ground_count`
+  - `true_aircraft_prediction_counts`
+  - `true_aircraft_prediction_counts_without_protection`
+- `predictions` 样本级记录新增：
+  - `label_name_pred_without_aircraft_protection`
+  - `aircraft_protection_changed_prediction`
+  - `aircraft_similarity`
+  - `aircraft_threshold`
+  - `aircraft_margin`
+  - `aircraft_confidence`
+  - `conventional_route_weight`
+  - `conventional_gate`
+  - `adjusted_conventional_gate`
+  - `expert2_positive`
+  - `aircraft_high_confidence`
+  - `aircraft_mid_confidence`
+- `selection_score` 也纳入 Aircraft：
+  - 正向：`aircraft_system_recall`、`aircraft_system_f1`
+  - 惩罚：`non_aircraft_as_aircraft_rate`
+  - 目的：避免只靠 overall macro F1 选中 Aircraft 已经崩坏的 checkpoint。
+
+### 验证过程
+
+- 编译检查：
+  - `.\.venv\Scripts\python.exe -m compileall src config`
+  - 通过。
+- 格式检查：
+  - `git diff --check`
+  - 通过，仅有 Windows 换行提示。
+- CUDA 单 batch 诊断：
+  - model/checkpoint 全部加载成功。
+  - Expert1 / Expert2 / Expert4 均无 shape mismatch。
+  - `_project_to_global_logits(..., return_diagnostics=True)` 可输出完整 Aircraft 诊断字段。
+- CUDA System 训练：
+  - 命令：`.\.venv\Scripts\python.exe -X faulthandler -m src.core.train_system --config config/config.json`
+  - 运行目录：`artifacts/20260429-021051/system_config_smoke`
+  - 设备：`cuda`
+  - GPU：`NVIDIA GeForce RTX 4060 Laptop GPU`
+  - 训练过程无 non-finite batch，`skipped_non_finite_batches = 0`。
+
+### 最终结果
+
+- System 测试集：
+  - accuracy：`0.8343`
+  - macro precision：`0.6464`
+  - macro recall：`0.6087`
+  - macro F1：`0.5801`
+  - route accuracy：`0.7319`
+  - route macro recall：`0.7460`
+- 低空核心：
+  - expert1 low-altitude macro F1：`0.8279`
+  - expert1 low-altitude accuracy：`0.9065`
+  - Drone recall：`0.9470`
+  - Bird recall：`0.8625`
+  - Drone/Bird recall mean：`0.9048`
+  - Unknown recall：`0.6111`
+  - Clutter recall：`0.7143`
+- Aircraft 仲裁：
+  - 保护前 Aircraft recall：`0.2000`
+  - 保护后 Aircraft recall：`0.8000`
+  - Aircraft precision：`0.2353`
+  - Aircraft F1：`0.3636`
+  - Expert2 判正但 System 未判 Aircraft：`10`
+  - Aircraft 被低空类别压制：
+    - 保护前：`4`
+    - 保护后：`1`
+  - 保护机制恢复真实 Aircraft：`3`
+  - 新增 false Aircraft：`10`
+  - non-Aircraft as Aircraft rate：`0.0398`
+
+### 判断
+
+- 已修复：
+  - System 现在能使用 Expert2 Open-Set 的 `similarity/threshold/margin`。
+  - Aircraft 不再被 Router gate 轻易 veto。
+  - 报告能明确比较保护前/保护后 Aircraft 表现。
+  - 报告能定位 Aircraft 是被低空专家还是地面专家压制。
+- 仍未完全解决：
+  - Aircraft precision 偏低，当前保护机制用 recall 换来了 false positive。
+  - 测试集 Aircraft 只有 `5` 条，单次 recall 波动很大。
+  - Expert2 positive false Aircraft 仍有 `22` 条，说明 Expert2 Open-Set 阈值和 System 仲裁阈值还需要继续校准。
+  - System accuracy 相比 20260428 的 `0.8434` 略降，但 macro F1 从 `0.5651` 提升到 `0.5801`，并且 Aircraft recall 从 System 保护前 `0.20` 拉回到 `0.80`。
+
+### 下一步
+
+- 优先继续做 System 级校准，而不是回退本次架构：
+  - 增加 Expert2 高置信 override 的 precision 约束。
+  - 对 Expert2 false positive 样本做按类别统计，区分是 Bird/Drone/Ship 还是 Unknown 被抢成 Aircraft。
+  - 增加 per-expert temperature/bias calibration，避免 Expert1/Expert2/Expert4 raw logits 尺度继续互相污染。
+  - 在更多 split 或 repeated grouped split 上验证 Aircraft recall，不要只依据 5 条测试样本下结论。

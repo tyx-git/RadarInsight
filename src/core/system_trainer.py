@@ -388,10 +388,12 @@ def _project_to_global_logits(
     system_output,
     num_classes: int,
     device: torch.device,
-    fusion_mode: str,
-) -> torch.Tensor:
+    config: SystemTrainConfig,
+    return_diagnostics: bool = False,
+) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
+    fusion_mode = config.fusion_mode
     if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2"}:
         raise ValueError(f"unsupported fusion_mode: {fusion_mode}")
     if fusion_mode == "ungated":
@@ -437,6 +439,8 @@ def _project_to_global_logits(
             torch.zeros_like(route_indices, dtype=torch.float32),
             torch.full_like(route_indices, fill_value=-30, dtype=torch.float32),
         ).to(device).unsqueeze(-1)
+    route_weights = system_output.routing.route_weights
+    conventional_route_weight = route_weights[:, ROUTE_NAMES.index("conventional_air")]
 
     low = system_output.low_altitude_logits + low_gate
     logits[:, global_index["DroneTarget"]] = low[:, 0]
@@ -445,20 +449,76 @@ def _project_to_global_logits(
     logits[:, global_index["ClutterTarget"]] = low[:, 3]
     logits[:, global_index["UnknownTarget"]] = low[:, 4]
 
-    conv = system_output.conventional_air_logits + conventional_gate
-    aircraft_column = 1 if conv.shape[1] > 1 else 0
-    high = system_output.high_altitude_logits + high_gate
-    high_aircraft_column = 1 if high.shape[1] > 1 else 0
-    logits[:, global_index["AircraftTarget"]] = torch.maximum(
-        conv[:, aircraft_column],
-        high[:, high_aircraft_column],
+    conv_logits = system_output.conventional_air_logits
+    aircraft_column = 1 if conv_logits.shape[1] > 1 else 0
+    non_aircraft_column = 0
+    conv_positive = conv_logits[:, aircraft_column]
+    if conv_logits.shape[1] > 1:
+        aircraft_margin = conv_logits[:, aircraft_column] - conv_logits[:, non_aircraft_column]
+    else:
+        aircraft_margin = conv_positive
+    auxiliary = getattr(system_output.conventional_air_detail, "auxiliary", None) or {}
+    aircraft_similarity = auxiliary.get("aircraft_similarity")
+    if aircraft_similarity is None:
+        aircraft_similarity = aircraft_margin.detach()
+    aircraft_similarity = aircraft_similarity.to(device=device, dtype=conv_logits.dtype)
+    aircraft_threshold = auxiliary.get("aircraft_threshold")
+    if aircraft_threshold is None:
+        aircraft_threshold = torch.zeros_like(aircraft_similarity)
+    aircraft_threshold = aircraft_threshold.to(device=device, dtype=conv_logits.dtype)
+    aircraft_confidence = aircraft_similarity - aircraft_threshold
+    conventional_gate_flat = conventional_gate.squeeze(-1)
+    adjusted_conventional_gate = conventional_gate_flat
+    high_conf = aircraft_confidence >= float(config.aircraft_confidence_tau_high)
+    mid_conf = (
+        (aircraft_confidence >= float(config.aircraft_confidence_tau_low))
+        & ~high_conf
     )
+    if config.aircraft_protection_enabled:
+        floor_weight = max(float(config.aircraft_conventional_gate_floor), 1e-6)
+        conventional_gate_floor = float(np.log(floor_weight))
+        floor_tensor = torch.full_like(adjusted_conventional_gate, conventional_gate_floor)
+        adjusted_conventional_gate = torch.where(
+            high_conf,
+            torch.zeros_like(adjusted_conventional_gate),
+            torch.where(mid_conf, torch.maximum(adjusted_conventional_gate, floor_tensor), adjusted_conventional_gate),
+        )
+        aircraft_score = aircraft_margin / max(float(config.aircraft_temperature), 1e-6) + adjusted_conventional_gate
+    else:
+        aircraft_score = conv_positive + conventional_gate_flat
+
+    high_logits = system_output.high_altitude_logits
+    high_aircraft_column = 1 if high_logits.shape[1] > 1 else 0
+    high_positive = high_logits[:, high_aircraft_column] > high_logits[:, 0]
+    high_aircraft_score = high_logits[:, high_aircraft_column] + high_gate.squeeze(-1)
+    high_aircraft_score = torch.where(
+        high_positive,
+        high_aircraft_score,
+        torch.full_like(high_aircraft_score, -6.0),
+    )
+    logits[:, global_index["AircraftTarget"]] = torch.maximum(aircraft_score, high_aircraft_score)
 
     ground = system_output.ground_logits + ground_gate
     logits[:, global_index["PeopleTarget"]] = ground[:, 0]
     logits[:, global_index["CarTarget"]] = ground[:, 1]
     logits[:, global_index["ShipTarget"]] = ground[:, 2]
-    return logits
+    if not return_diagnostics:
+        return logits
+    diagnostics = {
+        "aircraft_similarity": aircraft_similarity.detach(),
+        "aircraft_threshold": aircraft_threshold.detach(),
+        "aircraft_margin": aircraft_margin.detach(),
+        "aircraft_confidence": aircraft_confidence.detach(),
+        "aircraft_score": logits[:, global_index["AircraftTarget"]].detach(),
+        "conventional_route_weight": conventional_route_weight.detach(),
+        "conventional_gate": conventional_gate_flat.detach(),
+        "adjusted_conventional_gate": adjusted_conventional_gate.detach(),
+        "expert2_positive": (aircraft_confidence >= 0.0).detach(),
+        "aircraft_high_confidence": high_conf.detach(),
+        "aircraft_mid_confidence": mid_conf.detach(),
+        "high_altitude_rule_positive": high_positive.detach(),
+    }
+    return logits, diagnostics
 
 
 def _low_altitude_local_targets(labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -552,15 +612,18 @@ def _stage_loss_scales(stage_name: str, config: SystemTrainConfig, stage_epoch: 
 def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, optimizer, device: torch.device, train: bool, skip_non_finite_batch: bool, config: SystemTrainConfig, stage_name: str, stage_epoch: int | None = None, source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None) -> dict[str, object]:
     model.train(mode=train)
     class_logits_all: list[torch.Tensor] = []
+    class_logits_without_aircraft_protection_all: list[torch.Tensor] = []
     class_labels_all: list[torch.Tensor] = []
     route_logits_all: list[torch.Tensor] = []
     route_labels_all: list[torch.Tensor] = []
+    aircraft_diagnostics_all: dict[str, list[torch.Tensor]] = {}
     loss_values: list[float] = []
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
     label_names_all: list[str] = []
     route_names_all: list[str] = []
     skipped_non_finite_batches = 0
+    unprotected_config = replace(config, aircraft_protection_enabled=False)
 
     for batch in loader:
         features = batch.features.to(device)
@@ -593,7 +656,24 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     else config.enable_low_altitude_reject_in_eval
                 ),
             )
-            class_logits = _project_to_global_logits(labels, output, len(DEFAULT_VOCAB.labels), device, config.fusion_mode)
+            class_logits_result = _project_to_global_logits(
+                labels,
+                output,
+                len(DEFAULT_VOCAB.labels),
+                device,
+                config,
+                return_diagnostics=True,
+            )
+            class_logits, aircraft_diagnostics = class_logits_result
+            with torch.no_grad():
+                class_logits_without_aircraft_protection = _project_to_global_logits(
+                    labels,
+                    output,
+                    len(DEFAULT_VOCAB.labels),
+                    device,
+                    unprotected_config,
+                    return_diagnostics=False,
+                )
             class_loss = class_criterion(class_logits, labels)
             route_loss = route_criterion(output.routing.route_logits, route_labels)
             route_coarse_loss = torch.nn.functional.cross_entropy(output.routing.coarse_logits, labels)
@@ -725,9 +805,14 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         route_network_logit_max_values.append(float(output.routing.network_logits.detach().amax().cpu().item()))
         route_override_rate_values.append(float(output.routing.override_mask.detach().float().mean().cpu().item()))
         class_logits_all.append(class_logits.detach().cpu())
+        class_logits_without_aircraft_protection_all.append(
+            class_logits_without_aircraft_protection.detach().cpu()
+        )
         class_labels_all.append(labels.detach().cpu())
         route_logits_all.append(output.routing.route_logits.detach().cpu())
         route_labels_all.append(route_labels.detach().cpu())
+        for diag_name, diag_value in aircraft_diagnostics.items():
+            aircraft_diagnostics_all.setdefault(diag_name, []).append(diag_value.detach().cpu())
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
@@ -746,6 +831,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             "class_labels": torch.empty((0,), dtype=torch.long),
             "route_logits": torch.empty((0, len(ROUTE_NAMES)), dtype=torch.float32),
             "route_labels": torch.empty((0,), dtype=torch.long),
+            "class_logits_without_aircraft_protection": torch.empty((0, len(DEFAULT_VOCAB.labels)), dtype=torch.float32),
+            "aircraft_diagnostics": {},
             "sample_ids": [],
             "source_names": [],
             "label_names": [],
@@ -757,9 +844,17 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         }
 
     class_logits_cat = torch.cat(class_logits_all, dim=0)
+    class_logits_without_aircraft_protection_cat = torch.cat(
+        class_logits_without_aircraft_protection_all,
+        dim=0,
+    )
     class_labels_cat = torch.cat(class_labels_all, dim=0)
     route_logits_cat = torch.cat(route_logits_all, dim=0)
     route_labels_cat = torch.cat(route_labels_all, dim=0)
+    aircraft_diagnostics_cat = {
+        name: torch.cat(values, dim=0)
+        for name, values in aircraft_diagnostics_all.items()
+    }
     metrics = compute_system_metrics(
         class_logits=class_logits_cat,
         class_labels=class_labels_cat,
@@ -772,6 +867,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         class_labels_cat,
         route_logits_cat,
         route_labels_cat,
+        aircraft_diagnostics=aircraft_diagnostics_cat,
+        class_logits_without_aircraft_protection=class_logits_without_aircraft_protection_cat,
     )
     return {
         "loss": float(sum(loss_values) / len(loss_values)),
@@ -782,9 +879,11 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         "route_accuracy": metrics.route_accuracy,
         "route_macro_recall": metrics.route_macro_recall,
         "class_logits": class_logits_cat,
+        "class_logits_without_aircraft_protection": class_logits_without_aircraft_protection_cat,
         "class_labels": class_labels_cat,
         "route_logits": route_logits_cat,
         "route_labels": route_labels_cat,
+        "aircraft_diagnostics": aircraft_diagnostics_cat,
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
@@ -905,6 +1004,167 @@ def _label_recall(class_logits: torch.Tensor, class_labels: torch.Tensor, label_
     return float((preds[mask] == label_idx).float().mean().item())
 
 
+def _binary_label_metrics(class_logits: torch.Tensor, class_labels: torch.Tensor, label_name: str) -> dict[str, float | int]:
+    label_idx = DEFAULT_VOCAB.label_to_index[label_name]
+    preds = class_logits.argmax(dim=-1)
+    pred_pos = preds == label_idx
+    true_pos = class_labels == label_idx
+    tp = int((pred_pos & true_pos).sum().item())
+    fp = int((pred_pos & ~true_pos).sum().item())
+    fn = int((~pred_pos & true_pos).sum().item())
+    support = int(true_pos.sum().item())
+    precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+    return {
+        "support": support,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
+
+
+def _mean_or_zero(values: torch.Tensor, mask: torch.Tensor) -> float:
+    if not bool(mask.any()):
+        return 0.0
+    return float(values[mask].float().mean().item())
+
+
+def _safe_diagnostic(
+    diagnostics: dict[str, torch.Tensor] | None,
+    name: str,
+    reference: torch.Tensor,
+    fill_value: float = 0.0,
+) -> torch.Tensor:
+    if diagnostics and name in diagnostics:
+        return diagnostics[name].to(dtype=torch.float32)
+    return torch.full((reference.shape[0],), fill_value=fill_value, dtype=torch.float32)
+
+
+def _mask_for_indices(preds: torch.Tensor, indices: list[int]) -> torch.Tensor:
+    mask = torch.zeros_like(preds, dtype=torch.bool)
+    for index in indices:
+        mask |= preds == int(index)
+    return mask
+
+
+def _label_count_dict(preds: torch.Tensor, mask: torch.Tensor) -> dict[str, int]:
+    if not bool(mask.any()):
+        return {label_name: 0 for label_name in DEFAULT_VOCAB.labels}
+    return {
+        label_name: int(((preds == label_idx) & mask).sum().item())
+        for label_idx, label_name in enumerate(DEFAULT_VOCAB.labels)
+    }
+
+
+def _aircraft_report(
+    class_logits: torch.Tensor,
+    class_labels: torch.Tensor,
+    aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
+    class_logits_without_aircraft_protection: torch.Tensor | None = None,
+) -> dict[str, object]:
+    aircraft_idx = DEFAULT_VOCAB.label_to_index["AircraftTarget"]
+    low_indices = [DEFAULT_VOCAB.label_to_index[label_name] for label_name in LOW_ALTITUDE_CLASSES]
+    ground_indices = [
+        DEFAULT_VOCAB.label_to_index["PeopleTarget"],
+        DEFAULT_VOCAB.label_to_index["CarTarget"],
+        DEFAULT_VOCAB.label_to_index["ShipTarget"],
+    ]
+    if class_logits_without_aircraft_protection is None:
+        class_logits_without_aircraft_protection = class_logits
+    preds = class_logits.argmax(dim=-1)
+    unprotected_preds = class_logits_without_aircraft_protection.argmax(dim=-1)
+    true_aircraft = class_labels == aircraft_idx
+    non_aircraft = ~true_aircraft
+    expert2_positive = _safe_diagnostic(
+        aircraft_diagnostics,
+        "expert2_positive",
+        class_labels,
+    ).bool()
+    aircraft_margin = _safe_diagnostic(aircraft_diagnostics, "aircraft_margin", class_labels)
+    aircraft_confidence = _safe_diagnostic(aircraft_diagnostics, "aircraft_confidence", class_labels)
+    conventional_route_weight = _safe_diagnostic(
+        aircraft_diagnostics,
+        "conventional_route_weight",
+        class_labels,
+    )
+    conventional_gate = _safe_diagnostic(aircraft_diagnostics, "conventional_gate", class_labels)
+    high_confidence = _safe_diagnostic(
+        aircraft_diagnostics,
+        "aircraft_high_confidence",
+        class_labels,
+    ).bool()
+    mid_confidence = _safe_diagnostic(
+        aircraft_diagnostics,
+        "aircraft_mid_confidence",
+        class_labels,
+    ).bool()
+    final_aircraft = preds == aircraft_idx
+    unprotected_aircraft = unprotected_preds == aircraft_idx
+    final_low = _mask_for_indices(preds, low_indices)
+    final_ground = _mask_for_indices(preds, ground_indices)
+    unprotected_low = _mask_for_indices(unprotected_preds, low_indices)
+    unprotected_ground = _mask_for_indices(unprotected_preds, ground_indices)
+    protected_recovered = true_aircraft & ~unprotected_aircraft & final_aircraft
+    protected_lost = true_aircraft & unprotected_aircraft & ~final_aircraft
+    false_positive_introduced = non_aircraft & ~unprotected_aircraft & final_aircraft
+    expert2_positive_count = int(expert2_positive.sum().item())
+    expert2_positive_system_not_aircraft = expert2_positive & ~final_aircraft
+    non_aircraft_count = int(non_aircraft.sum().item())
+    metrics = _binary_label_metrics(class_logits, class_labels, "AircraftTarget")
+    unprotected_metrics = _binary_label_metrics(
+        class_logits_without_aircraft_protection,
+        class_labels,
+        "AircraftTarget",
+    )
+    return {
+        "system": metrics,
+        "without_aircraft_protection": unprotected_metrics,
+        "aircraft_system_recall": float(metrics["recall"]),
+        "aircraft_system_precision": float(metrics["precision"]),
+        "aircraft_system_f1": float(metrics["f1"]),
+        "aircraft_recall_without_aircraft_protection": float(unprotected_metrics["recall"]),
+        "aircraft_precision_without_aircraft_protection": float(unprotected_metrics["precision"]),
+        "aircraft_f1_without_aircraft_protection": float(unprotected_metrics["f1"]),
+        "aircraft_margin_mean_true_aircraft": _mean_or_zero(aircraft_margin, true_aircraft),
+        "aircraft_margin_mean_non_aircraft": _mean_or_zero(aircraft_margin, non_aircraft),
+        "aircraft_confidence_mean_true_aircraft": _mean_or_zero(aircraft_confidence, true_aircraft),
+        "aircraft_confidence_mean_non_aircraft": _mean_or_zero(aircraft_confidence, non_aircraft),
+        "aircraft_route_weight_mean_true_aircraft": _mean_or_zero(conventional_route_weight, true_aircraft),
+        "aircraft_route_weight_mean_non_aircraft": _mean_or_zero(conventional_route_weight, non_aircraft),
+        "aircraft_conventional_gate_mean_true_aircraft": _mean_or_zero(conventional_gate, true_aircraft),
+        "expert2_positive_count": expert2_positive_count,
+        "expert2_positive_system_not_aircraft_count": int(expert2_positive_system_not_aircraft.sum().item()),
+        "expert2_positive_system_not_aircraft_rate": (
+            int(expert2_positive_system_not_aircraft.sum().item()) / expert2_positive_count
+            if expert2_positive_count > 0
+            else 0.0
+        ),
+        "expert2_positive_true_aircraft_count": int((expert2_positive & true_aircraft).sum().item()),
+        "expert2_positive_false_aircraft_count": int((expert2_positive & non_aircraft).sum().item()),
+        "aircraft_high_confidence_count": int(high_confidence.sum().item()),
+        "aircraft_mid_confidence_count": int(mid_confidence.sum().item()),
+        "aircraft_protection_recovered_count": int(protected_recovered.sum().item()),
+        "aircraft_protection_lost_count": int(protected_lost.sum().item()),
+        "aircraft_false_positive_introduced_count": int(false_positive_introduced.sum().item()),
+        "non_aircraft_as_aircraft_count": int((non_aircraft & final_aircraft).sum().item()),
+        "non_aircraft_as_aircraft_rate": (
+            int((non_aircraft & final_aircraft).sum().item()) / non_aircraft_count
+            if non_aircraft_count > 0
+            else 0.0
+        ),
+        "aircraft_overridden_by_low_altitude_count": int((true_aircraft & final_low).sum().item()),
+        "aircraft_overridden_by_ground_count": int((true_aircraft & final_ground).sum().item()),
+        "aircraft_overridden_by_low_altitude_without_protection_count": int((true_aircraft & unprotected_low).sum().item()),
+        "aircraft_overridden_by_ground_without_protection_count": int((true_aircraft & unprotected_ground).sum().item()),
+        "true_aircraft_prediction_counts": _label_count_dict(preds, true_aircraft),
+        "true_aircraft_prediction_counts_without_protection": _label_count_dict(unprotected_preds, true_aircraft),
+    }
+
+
 def _low_altitude_report(class_logits: torch.Tensor, class_labels: torch.Tensor) -> dict[str, object]:
     low_indices = [
         DEFAULT_VOCAB.label_to_index[label_name]
@@ -979,6 +1239,8 @@ def _critical_metric_summary(
     class_labels: torch.Tensor,
     route_logits: torch.Tensor,
     route_labels: torch.Tensor,
+    aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
+    class_logits_without_aircraft_protection: torch.Tensor | None = None,
 ) -> dict[str, object]:
     route = _route_report(route_logits, route_labels)
     per_route_recall = {
@@ -986,6 +1248,12 @@ def _critical_metric_summary(
         for item in route["per_route"]
     }
     low = _low_altitude_report(class_logits, class_labels)
+    aircraft = _aircraft_report(
+        class_logits,
+        class_labels,
+        aircraft_diagnostics=aircraft_diagnostics,
+        class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
+    )
     return {
         "route_macro_recall": route["macro_recall"],
         "per_route_recall": per_route_recall,
@@ -997,6 +1265,14 @@ def _critical_metric_summary(
         "unknown_recall": low["per_class_recall"].get("UnknownTarget", 0.0),
         "clutter_recall": low["per_class_recall"].get("ClutterTarget", 0.0),
         "unknown_clutter_recall_mean": low["unknown_clutter_recall_mean"],
+        "aircraft": aircraft,
+        "aircraft_system_recall": aircraft["aircraft_system_recall"],
+        "aircraft_system_precision": aircraft["aircraft_system_precision"],
+        "aircraft_system_f1": aircraft["aircraft_system_f1"],
+        "aircraft_recall_without_aircraft_protection": aircraft["aircraft_recall_without_aircraft_protection"],
+        "expert2_positive_system_not_aircraft_count": aircraft["expert2_positive_system_not_aircraft_count"],
+        "expert2_positive_system_not_aircraft_rate": aircraft["expert2_positive_system_not_aircraft_rate"],
+        "non_aircraft_as_aircraft_rate": aircraft["non_aircraft_as_aircraft_rate"],
     }
 
 
@@ -1009,6 +1285,9 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     clutter_recall = float(critical.get("clutter_recall", 0.0))
     ground_route = float(critical.get("ground_route_recall", 0.0))
     drone_bird = float(critical.get("drone_bird", {}).get("drone_bird_recall_mean", 0.0))
+    aircraft_recall = float(critical.get("aircraft_system_recall", 0.0))
+    aircraft_f1 = float(critical.get("aircraft_system_f1", 0.0))
+    non_aircraft_as_aircraft_rate = float(critical.get("non_aircraft_as_aircraft_rate", 0.0))
     score = (
         macro_f1
         + 0.20 * route_macro
@@ -1016,6 +1295,9 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         + 0.15 * drone_bird
         + 0.10 * (unknown_recall + clutter_recall)
         + 0.10 * ground_route
+        + 0.12 * aircraft_recall
+        + 0.08 * aircraft_f1
+        - 0.10 * non_aircraft_as_aircraft_rate
     )
     if ground_route == 0.0:
         score -= 0.10
@@ -1031,32 +1313,61 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         "unknown_recall": unknown_recall,
         "clutter_recall": clutter_recall,
         "ground_route_recall": ground_route,
+        "aircraft_system_recall": aircraft_recall,
+        "aircraft_system_f1": aircraft_f1,
+        "non_aircraft_as_aircraft_rate": non_aircraft_as_aircraft_rate,
     }
 
 
 def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, object]]:
     class_logits = epoch_metrics["class_logits"]
+    class_logits_without_aircraft_protection = epoch_metrics.get(
+        "class_logits_without_aircraft_protection",
+        class_logits,
+    )
     route_logits = epoch_metrics["route_logits"]
     class_preds = class_logits.argmax(dim=-1).tolist()
+    class_preds_without_aircraft_protection = class_logits_without_aircraft_protection.argmax(dim=-1).tolist()
     route_preds = route_logits.argmax(dim=-1).tolist()
+    diagnostics = epoch_metrics.get("aircraft_diagnostics", {})
     records: list[dict[str, object]] = []
     for idx, sample_id in enumerate(epoch_metrics["sample_ids"]):
         true_label = str(epoch_metrics["label_names"][idx])
         pred_label = DEFAULT_VOCAB.decode(int(class_preds[idx]))
+        pred_without_protection = DEFAULT_VOCAB.decode(int(class_preds_without_aircraft_protection[idx]))
         true_route = str(epoch_metrics["route_names"][idx])
         pred_route = ROUTE_NAMES[int(route_preds[idx])]
-        records.append(
-            {
-                "sample_id": sample_id,
-                "source_name": str(epoch_metrics["source_names"][idx]),
-                "label_name_true": true_label,
-                "label_name_pred": pred_label,
-                "route_name_true": true_route,
-                "route_name_pred": pred_route,
-                "is_correct": pred_label == true_label,
-                "is_route_correct": pred_route == true_route,
-            }
-        )
+        record = {
+            "sample_id": sample_id,
+            "source_name": str(epoch_metrics["source_names"][idx]),
+            "label_name_true": true_label,
+            "label_name_pred": pred_label,
+            "label_name_pred_without_aircraft_protection": pred_without_protection,
+            "route_name_true": true_route,
+            "route_name_pred": pred_route,
+            "is_correct": pred_label == true_label,
+            "is_route_correct": pred_route == true_route,
+            "aircraft_protection_changed_prediction": pred_label != pred_without_protection,
+        }
+        for diag_name in (
+            "aircraft_similarity",
+            "aircraft_threshold",
+            "aircraft_margin",
+            "aircraft_confidence",
+            "conventional_route_weight",
+            "conventional_gate",
+            "adjusted_conventional_gate",
+            "expert2_positive",
+            "aircraft_high_confidence",
+            "aircraft_mid_confidence",
+        ):
+            if isinstance(diagnostics, dict) and diag_name in diagnostics:
+                value = diagnostics[diag_name][idx]
+                if value.dtype == torch.bool:
+                    record[diag_name] = bool(value.item())
+                else:
+                    record[diag_name] = float(value.item())
+        records.append(record)
     return records
 
 
@@ -1065,9 +1376,21 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
     class_labels = epoch_metrics["class_labels"]
     route_logits = epoch_metrics["route_logits"]
     route_labels = epoch_metrics["route_labels"]
+    aircraft_diagnostics = epoch_metrics.get("aircraft_diagnostics", {})
+    class_logits_without_aircraft_protection = epoch_metrics.get(
+        "class_logits_without_aircraft_protection",
+        class_logits,
+    )
     per_class = compute_per_class_metrics(class_logits, class_labels, DEFAULT_VOCAB.labels)
     confusion = compute_confusion_matrix(class_logits, class_labels, len(DEFAULT_VOCAB.labels))
-    critical_metrics = _critical_metric_summary(class_logits, class_labels, route_logits, route_labels)
+    critical_metrics = _critical_metric_summary(
+        class_logits,
+        class_labels,
+        route_logits,
+        route_labels,
+        aircraft_diagnostics=aircraft_diagnostics,
+        class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
+    )
     return {
         "summary": _metric_summary(epoch_metrics),
         "label_names": DEFAULT_VOCAB.labels,
@@ -1084,6 +1407,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         ],
         "route": _route_report(route_logits, route_labels),
         "critical_metrics": critical_metrics,
+        "aircraft_arbitration": critical_metrics["aircraft"],
         "expert1_low_altitude": _low_altitude_report(class_logits, class_labels),
         "by_source": _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
         "predictions": _prediction_records(epoch_metrics),
@@ -1127,6 +1451,7 @@ def _evaluate_with_fusion_mode(
 
 def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
     critical = metrics.get("critical_metrics", {})
+    aircraft = critical.get("aircraft", {}) if isinstance(critical, dict) else {}
     return {
         "fusion_mode": metrics.get("fusion_mode"),
         "accuracy": float(metrics.get("accuracy", 0.0)),
@@ -1140,6 +1465,19 @@ def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
         ),
         "unknown_recall": float(critical.get("unknown_recall", 0.0)),
         "clutter_recall": float(critical.get("clutter_recall", 0.0)),
+        "aircraft_system_recall": float(critical.get("aircraft_system_recall", 0.0)),
+        "aircraft_system_precision": float(critical.get("aircraft_system_precision", 0.0)),
+        "aircraft_system_f1": float(critical.get("aircraft_system_f1", 0.0)),
+        "aircraft_recall_without_aircraft_protection": float(
+            critical.get("aircraft_recall_without_aircraft_protection", 0.0)
+        ),
+        "expert2_positive_system_not_aircraft_count": int(
+            critical.get("expert2_positive_system_not_aircraft_count", 0)
+        ),
+        "non_aircraft_as_aircraft_rate": float(critical.get("non_aircraft_as_aircraft_rate", 0.0)),
+        "aircraft_protection_recovered_count": int(
+            aircraft.get("aircraft_protection_recovered_count", 0)
+        ) if isinstance(aircraft, dict) else 0,
     }
 
 
@@ -1380,7 +1718,12 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "freeze_router": bool(config.freeze_router),
         "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
         "best_selection_score": best_metric,
-        "best_selection_policy": "macro_f1 + route/low-altitude/Drone-Bird/Unknown-Clutter/Ground penalties",
+        "best_selection_policy": "macro_f1 + route/low-altitude/Drone-Bird/Unknown-Clutter/Ground/Aircraft arbitration penalties",
+        "aircraft_protection_enabled": bool(config.aircraft_protection_enabled),
+        "aircraft_confidence_tau_high": config.aircraft_confidence_tau_high,
+        "aircraft_confidence_tau_low": config.aircraft_confidence_tau_low,
+        "aircraft_conventional_gate_floor": config.aircraft_conventional_gate_floor,
+        "aircraft_temperature": config.aircraft_temperature,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "sequence_encoder_grad_clip_norm": config.sequence_encoder_grad_clip_norm,

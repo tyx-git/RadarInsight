@@ -163,6 +163,11 @@
       "ungated",
       "soft_top2"
     ],
+    "aircraft_protection_enabled": true,
+    "aircraft_confidence_tau_high": 0.1,
+    "aircraft_confidence_tau_low": -0.05,
+    "aircraft_conventional_gate_floor": 0.1,
+    "aircraft_temperature": 1.0,
     "freeze_router": true,
     "stage_warmup_epochs": 0,
     "stage_expert_warmup_epochs": 0,
