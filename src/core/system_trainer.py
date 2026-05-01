@@ -562,6 +562,130 @@ def _project_to_global_logits(
     return logits, diagnostics
 
 
+def _project_to_global_logits_reroute(
+    batch_labels: torch.Tensor,
+    system_output,
+    num_classes: int,
+    device: torch.device,
+    config: SystemTrainConfig,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    route_logits = system_output.routing.route_logits.detach().clone()
+    batch_size = batch_labels.shape[0]
+    base_logits, base_diagnostics = _project_to_global_logits(
+        batch_labels,
+        system_output,
+        num_classes,
+        device,
+        replace(config, fusion_mode="soft_log_weighted"),
+        return_diagnostics=True,
+    )
+    logits = torch.full((batch_size, num_classes), fill_value=-6.0, device=device)
+    global_index = DEFAULT_VOCAB.label_to_index
+    fallback_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+    completed_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+    reroute_count = torch.zeros((batch_size,), dtype=torch.long, device=device)
+    selected_route = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+    total_penalty = torch.zeros((batch_size,), dtype=torch.float32, device=device)
+    low_conf = system_output.low_altitude_detail.traj_cosine.max(dim=-1).values
+    conventional_aux = getattr(system_output.conventional_air_detail, "auxiliary", None) or {}
+    conventional_conf = conventional_aux.get("aircraft_similarity")
+    if conventional_conf is None:
+        conventional_conf = system_output.conventional_air_logits[:, 1] if system_output.conventional_air_logits.shape[1] > 1 else system_output.conventional_air_logits[:, 0]
+    conventional_conf = conventional_conf.to(device=device, dtype=torch.float32)
+    ground_aux = getattr(system_output.ground_detail, "auxiliary", None) or {}
+    ground_conf = ground_aux.get("groundness_probability")
+    if ground_conf is None:
+        ground_conf = torch.ones((batch_size,), dtype=torch.float32, device=device)
+    ground_conf = ground_conf.to(device=device, dtype=torch.float32)
+    high_aux = getattr(system_output.high_altitude_detail, "logits", system_output.high_altitude_logits)
+    high_accept = high_aux[:, 1] > high_aux[:, 0]
+    rule_override = system_output.routing.override_mask
+    rule_route = system_output.routing.route_indices
+    high_route_index = ROUTE_NAMES.index("high_altitude_filter")
+    ground_route_index = ROUTE_NAMES.index("ground_target")
+    completed_mask |= rule_override & ((rule_route == high_route_index) | (rule_route == ground_route_index))
+    selected_route = torch.where(
+        completed_mask,
+        rule_route,
+        selected_route,
+    )
+    for _ in range(max(1, int(config.reroute_max_passes))):
+        pending_mask = ~completed_mask & ~fallback_mask
+        if not bool(pending_mask.any()):
+            break
+        route_choice = route_logits.argmax(dim=-1)
+        for route_idx, route_name in enumerate(ROUTE_NAMES):
+            route_mask = pending_mask & (route_choice == route_idx)
+            if not bool(route_mask.any()):
+                continue
+            if route_name == "low_altitude_suspect":
+                accepted = low_conf >= float(config.reroute_low_altitude_conf_threshold)
+            elif route_name == "conventional_air":
+                accepted = conventional_conf >= float(config.reroute_conventional_air_conf_threshold)
+            elif route_name == "ground_target":
+                accepted = ground_conf >= float(config.reroute_ground_conf_threshold)
+            else:
+                accepted = torch.ones_like(route_mask, dtype=torch.bool)
+            accept_mask = route_mask & accepted
+            reject_mask = route_mask & ~accepted
+            if bool(accept_mask.any()):
+                completed_mask |= accept_mask
+                selected_route = torch.where(
+                    accept_mask,
+                    torch.full_like(selected_route, route_idx),
+                    selected_route,
+                )
+            if bool(reject_mask.any()):
+                reroute_count[reject_mask] += 1
+                penalty = torch.full_like(total_penalty, float(config.reroute_penalty))
+                remaining = float(config.reroute_max_total_penalty) - total_penalty
+                clipped_penalty = torch.minimum(penalty, remaining.clamp_min(0.0))
+                route_logits[reject_mask, route_idx] -= clipped_penalty[reject_mask]
+                total_penalty[reject_mask] += clipped_penalty[reject_mask]
+        maxed_penalty = total_penalty >= float(config.reroute_max_total_penalty)
+        exhausted = reroute_count >= int(config.reroute_max_passes)
+        fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted)
+    fallback_mask |= ~completed_mask
+    family_indices = {
+        ROUTE_NAMES.index("low_altitude_suspect"): [
+            global_index["DroneTarget"],
+            global_index["BirdTarget"],
+            global_index["BalloonTarget"],
+            global_index["ClutterTarget"],
+            global_index["UnknownTarget"],
+        ],
+        ROUTE_NAMES.index("conventional_air"): [global_index["AircraftTarget"]],
+        ROUTE_NAMES.index("high_altitude_filter"): [global_index["AircraftTarget"]],
+        ROUTE_NAMES.index("ground_target"): [
+            global_index["PeopleTarget"],
+            global_index["CarTarget"],
+            global_index["ShipTarget"],
+        ],
+    }
+    for route_idx, route_name in enumerate(ROUTE_NAMES):
+        route_mask = completed_mask & (selected_route == route_idx)
+        if not bool(route_mask.any()):
+            continue
+        family = family_indices[route_idx]
+        logits[route_mask] = -6.0
+        for family_idx in family:
+            logits[route_mask, family_idx] = base_logits[route_mask, family_idx]
+    if bool(fallback_mask.any()):
+        logits[fallback_mask] = -6.0
+        logits[fallback_mask, global_index["UnknownTarget"]] = 6.0
+    reroute_triggered = reroute_count > 0
+    diagnostics = {
+        **base_diagnostics,
+        "reroute_count": reroute_count.detach(),
+        "reroute_triggered": reroute_triggered.detach(),
+        "reroute_fallback": fallback_mask.detach(),
+        "reroute_selected_route": selected_route.detach(),
+        "reroute_final_route_logits": route_logits.detach(),
+        "reroute_total_penalty": total_penalty.detach(),
+    }
+    return logits, diagnostics
+
+
 def _low_altitude_local_targets(labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     local = torch.full_like(labels, fill_value=-1)
     low_mask = torch.zeros_like(labels, dtype=torch.bool)
@@ -658,6 +782,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
     route_logits_all: list[torch.Tensor] = []
     route_labels_all: list[torch.Tensor] = []
     aircraft_diagnostics_all: dict[str, list[torch.Tensor]] = {}
+    reroute_diagnostics_all: dict[str, list[torch.Tensor]] = {}
     loss_values: list[float] = []
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
@@ -665,6 +790,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
     route_names_all: list[str] = []
     skipped_non_finite_batches = 0
     unprotected_config = replace(config, aircraft_protection_enabled=False)
+    if unprotected_config.fusion_mode == "reroute":
+        unprotected_config = replace(unprotected_config, fusion_mode="soft_log_weighted")
 
     for batch in loader:
         features = batch.features.to(device)
@@ -697,15 +824,33 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     else config.enable_low_altitude_reject_in_eval
                 ),
             )
-            class_logits_result = _project_to_global_logits(
-                labels,
-                output,
-                len(DEFAULT_VOCAB.labels),
-                device,
-                config,
-                return_diagnostics=True,
-            )
-            class_logits, aircraft_diagnostics = class_logits_result
+            if not train and config.fusion_mode == "reroute":
+                class_logits, reroute_diagnostics = _project_to_global_logits_reroute(
+                    labels,
+                    output,
+                    len(DEFAULT_VOCAB.labels),
+                    device,
+                    config,
+                )
+                _, aircraft_diagnostics = _project_to_global_logits(
+                    labels,
+                    output,
+                    len(DEFAULT_VOCAB.labels),
+                    device,
+                    replace(config, fusion_mode="soft_log_weighted"),
+                    return_diagnostics=True,
+                )
+            else:
+                class_logits_result = _project_to_global_logits(
+                    labels,
+                    output,
+                    len(DEFAULT_VOCAB.labels),
+                    device,
+                    config,
+                    return_diagnostics=True,
+                )
+                class_logits, aircraft_diagnostics = class_logits_result
+                reroute_diagnostics = {}
             with torch.no_grad():
                 class_logits_without_aircraft_protection = _project_to_global_logits(
                     labels,
@@ -854,6 +999,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         route_labels_all.append(route_labels.detach().cpu())
         for diag_name, diag_value in aircraft_diagnostics.items():
             aircraft_diagnostics_all.setdefault(diag_name, []).append(diag_value.detach().cpu())
+        for diag_name, diag_value in reroute_diagnostics.items():
+            reroute_diagnostics_all.setdefault(diag_name, []).append(diag_value.detach().cpu())
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
@@ -874,6 +1021,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             "route_labels": torch.empty((0,), dtype=torch.long),
             "class_logits_without_aircraft_protection": torch.empty((0, len(DEFAULT_VOCAB.labels)), dtype=torch.float32),
             "aircraft_diagnostics": {},
+            "reroute_diagnostics": {},
             "sample_ids": [],
             "source_names": [],
             "label_names": [],
@@ -896,6 +1044,10 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         name: torch.cat(values, dim=0)
         for name, values in aircraft_diagnostics_all.items()
     }
+    reroute_diagnostics_cat = {
+        name: torch.cat(values, dim=0)
+        for name, values in reroute_diagnostics_all.items()
+    }
     metrics = compute_system_metrics(
         class_logits=class_logits_cat,
         class_labels=class_labels_cat,
@@ -909,6 +1061,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         route_logits_cat,
         route_labels_cat,
         aircraft_diagnostics=aircraft_diagnostics_cat,
+        reroute_diagnostics=reroute_diagnostics_cat,
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection_cat,
     )
     return {
@@ -925,6 +1078,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         "route_logits": route_logits_cat,
         "route_labels": route_labels_cat,
         "aircraft_diagnostics": aircraft_diagnostics_cat,
+        "reroute_diagnostics": reroute_diagnostics_cat,
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
@@ -1154,6 +1308,58 @@ def _ground_report(
     }
 
 
+def _reroute_report(
+    class_logits: torch.Tensor,
+    class_labels: torch.Tensor,
+    reroute_diagnostics: dict[str, torch.Tensor] | None = None,
+) -> dict[str, object]:
+    if not reroute_diagnostics:
+        return {
+            "reroute_rate": 0.0,
+            "reroute_avg_count": 0.0,
+            "reroute_recovery_rate": 0.0,
+            "reroute_fallback_rate": 0.0,
+            "reroute_worsen_rate": 0.0,
+            "reroute_count_distribution": {},
+        }
+    preds = class_logits.argmax(dim=-1)
+    correct = preds == class_labels
+    reroute_count = reroute_diagnostics.get("reroute_count")
+    reroute_triggered = reroute_diagnostics.get("reroute_triggered")
+    reroute_fallback = reroute_diagnostics.get("reroute_fallback")
+    if reroute_count is None or reroute_triggered is None or reroute_fallback is None:
+        return {
+            "reroute_rate": 0.0,
+            "reroute_avg_count": 0.0,
+            "reroute_recovery_rate": 0.0,
+            "reroute_fallback_rate": 0.0,
+            "reroute_worsen_rate": 0.0,
+            "reroute_count_distribution": {},
+        }
+    reroute_triggered = reroute_triggered.bool()
+    reroute_fallback = reroute_fallback.bool()
+    total = int(reroute_count.shape[0])
+    triggered_count = int(reroute_triggered.sum().item())
+    fallback_count = int(reroute_fallback.sum().item())
+    reroute_rate = triggered_count / total if total > 0 else 0.0
+    reroute_avg_count = float(reroute_count.float().mean().item()) if total > 0 else 0.0
+    reroute_recovery_rate = float(correct[reroute_triggered].float().mean().item()) if triggered_count > 0 else 0.0
+    reroute_worsen_mask = reroute_triggered & ~correct & ~reroute_fallback
+    reroute_worsen_rate = float(reroute_worsen_mask.float().sum().item() / triggered_count) if triggered_count > 0 else 0.0
+    distribution = torch.bincount(reroute_count, minlength=int(reroute_count.max().item()) + 1 if reroute_count.numel() > 0 else 1)
+    return {
+        "reroute_rate": reroute_rate,
+        "reroute_avg_count": reroute_avg_count,
+        "reroute_recovery_rate": reroute_recovery_rate,
+        "reroute_fallback_rate": fallback_count / total if total > 0 else 0.0,
+        "reroute_worsen_rate": reroute_worsen_rate,
+        "reroute_count_distribution": {
+            str(index): int(value.item())
+            for index, value in enumerate(distribution)
+        },
+    }
+
+
 def _aircraft_report(
     class_logits: torch.Tensor,
     class_labels: torch.Tensor,
@@ -1334,6 +1540,7 @@ def _critical_metric_summary(
     route_logits: torch.Tensor,
     route_labels: torch.Tensor,
     aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
+    reroute_diagnostics: dict[str, torch.Tensor] | None = None,
     class_logits_without_aircraft_protection: torch.Tensor | None = None,
 ) -> dict[str, object]:
     route = _route_report(route_logits, route_labels)
@@ -1346,6 +1553,11 @@ def _critical_metric_summary(
         class_logits,
         class_labels,
         aircraft_diagnostics=aircraft_diagnostics,
+    )
+    reroute = _reroute_report(
+        class_logits,
+        class_labels,
+        reroute_diagnostics=reroute_diagnostics,
     )
     aircraft = _aircraft_report(
         class_logits,
@@ -1369,6 +1581,12 @@ def _critical_metric_summary(
         "ground_group_precision": ground["ground_group_precision"],
         "ground_group_f1": ground["ground_group_f1"],
         "pred_ground_on_non_ground_count": ground["pred_ground_on_non_ground_count"],
+        "reroute": reroute,
+        "reroute_rate": reroute["reroute_rate"],
+        "reroute_avg_count": reroute["reroute_avg_count"],
+        "reroute_recovery_rate": reroute["reroute_recovery_rate"],
+        "reroute_fallback_rate": reroute["reroute_fallback_rate"],
+        "reroute_worsen_rate": reroute["reroute_worsen_rate"],
         "aircraft": aircraft,
         "aircraft_system_recall": aircraft["aircraft_system_recall"],
         "aircraft_system_precision": aircraft["aircraft_system_precision"],
@@ -1436,9 +1654,11 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
         class_logits,
     )
     route_logits = epoch_metrics["route_logits"]
+    reroute_diagnostics = epoch_metrics.get("reroute_diagnostics", {})
     class_preds = class_logits.argmax(dim=-1).tolist()
     class_preds_without_aircraft_protection = class_logits_without_aircraft_protection.argmax(dim=-1).tolist()
     route_preds = route_logits.argmax(dim=-1).tolist()
+    reroute_selected_route = reroute_diagnostics.get("reroute_selected_route") if isinstance(reroute_diagnostics, dict) else None
     diagnostics = epoch_metrics.get("aircraft_diagnostics", {})
     records: list[dict[str, object]] = []
     for idx, sample_id in enumerate(epoch_metrics["sample_ids"]):
@@ -1447,6 +1667,10 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
         pred_without_protection = DEFAULT_VOCAB.decode(int(class_preds_without_aircraft_protection[idx]))
         true_route = str(epoch_metrics["route_names"][idx])
         pred_route = ROUTE_NAMES[int(route_preds[idx])]
+        if reroute_selected_route is not None:
+            reroute_route_idx = int(reroute_selected_route[idx].item())
+            if reroute_route_idx >= 0:
+                pred_route = ROUTE_NAMES[reroute_route_idx]
         record = {
             "sample_id": sample_id,
             "source_name": str(epoch_metrics["source_names"][idx]),
@@ -1484,6 +1708,13 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                     record[diag_name] = bool(value.item())
                 else:
                     record[diag_name] = float(value.item())
+        for diag_name in ("reroute_count", "reroute_triggered", "reroute_fallback", "reroute_selected_route", "reroute_total_penalty"):
+            if isinstance(reroute_diagnostics, dict) and diag_name in reroute_diagnostics:
+                value = reroute_diagnostics[diag_name][idx]
+                if value.dtype == torch.bool:
+                    record[diag_name] = bool(value.item())
+                else:
+                    record[diag_name] = int(value.item()) if "count" in diag_name or "route" in diag_name else float(value.item())
         records.append(record)
     return records
 
@@ -1506,6 +1737,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         route_logits,
         route_labels,
         aircraft_diagnostics=aircraft_diagnostics,
+        reroute_diagnostics=epoch_metrics.get("reroute_diagnostics", {}),
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
     )
     return {

@@ -1134,3 +1134,102 @@
 - 优先做两件事：
   - 重新校准 `groundness` 和 `aircraft` 两条保护线的相互作用，避免 Expert4 把 System 的 Aircraft 主线重新压低。
   - 针对 Expert4 增加更强的非地面 hard negatives 采样和更明确的 group-level selection metric，不只盯三分类 macro F1。
+
+## 2026-05-01 S2 推理端回流重路由机制
+
+### 目标
+
+- 按 `target.md` 增加仅推理启用的回流重路由：
+  - 训练阶段不启用，不引入不可微链路。
+  - 推理阶段允许样本在“当前专家低置信”时惩罚当前 route，再尝试下一专家。
+  - 多轮后仍无结论时回落到 `UnknownTarget`。
+
+### 代码落地
+
+- `src/core/system_config.py`
+  - 新增 reroute 配置：
+    - `reroute_max_passes = 3`
+    - `reroute_penalty = 3.0`
+    - `reroute_max_total_penalty = 6.0`
+    - `reroute_low_altitude_conf_threshold = 0.35`
+    - `reroute_conventional_air_conf_threshold = 0.35`
+    - `reroute_ground_conf_threshold = 0.50`
+  - `eval_fusion_candidate_modes` 新增 `reroute`。
+- `src/core/system_trainer.py`
+  - 新增 `_project_to_global_logits_reroute()`。
+  - 回流置信度信号：
+    - Expert1：`traj_cosine.max()`
+    - Expert2：`aircraft_similarity`
+    - Expert3：一旦选中直接接受
+    - Expert4：`groundness_probability`
+  - 规则覆盖样本：
+    - `high_altitude_filter`
+    - `ground_target`
+    - 在 pass 0 直接完成，不进入回流循环。
+  - 诊断字段：
+    - `reroute_count`
+    - `reroute_triggered`
+    - `reroute_fallback`
+    - `reroute_selected_route`
+    - `reroute_total_penalty`
+  - 报告指标：
+    - `reroute_rate`
+    - `reroute_avg_count`
+    - `reroute_recovery_rate`
+    - `reroute_fallback_rate`
+    - `reroute_worsen_rate`
+    - `reroute_count_distribution`
+  - `predictions` 已增加 reroute 样本级记录，便于回查具体误判。
+
+### 当前实现策略
+
+- 先用现有 `soft_log_weighted` 仲裁得到 base global logits。
+- 回流机制只决定“最终采用哪个专家族”：
+  - 低空族：`Drone/Bird/Balloon/Clutter/Unknown`
+  - 常规空中族：`Aircraft`
+  - 地面族：`People/Car/Ship`
+  - 高空族：`Aircraft`
+- fallback 样本强制输出 `UnknownTarget`。
+
+### CUDA 验证
+
+- 独立 reroute probe：
+  - 使用 `artifacts/20260501-212307/system_config_smoke/best_model.pt`
+  - 在测试集直接跑 `fusion_mode='reroute'`
+- 正式主线验证：
+  - `.\.venv\Scripts\python.exe -X faulthandler -m src.core.train_system --config config/config.json`
+  - 运行目录：`artifacts/20260501-222747/system_config_smoke`
+
+### 验证结果
+
+- 当前主线最佳模式仍是：
+  - `soft_log_weighted`
+- `fusion_validation_probe` 中 `reroute` 表现：
+  - accuracy：`0.6391`
+  - macro F1：`0.4290`
+  - Aircraft recall：`0.6000`
+  - Aircraft precision：`0.1200`
+  - Aircraft F1：`0.2000`
+  - ground group F1：`0.3158`
+  - non-Aircraft as Aircraft rate：`0.0683`
+- 说明：
+  - `reroute` 已经实现成功并能稳定运行。
+  - 但当前阈值/惩罚配置下，它明显弱于 `soft_log_weighted`，还不适合作为默认推理策略。
+
+### 当前判断
+
+- 已完成：
+  - 推理端回流机制已落地。
+  - 训练链路保持不变。
+  - 报告链路已能直接比较 `reroute` 与原融合模式。
+- 当前问题：
+  - `reroute` 会显著伤害低空主任务。
+  - 当前阈值配置过于激进，fallback 和跨专家串扰仍偏高。
+  - 它适合继续做推理实验，但现在不应取代主线融合。
+
+### 下一步
+
+- 若继续推进 S2，应优先做：
+  - 对 `reroute_*_conf_threshold` 做系统性 sweep。
+  - 给 Expert1/Expert2/Expert4 增加更保守的“低置信定义”，减少无谓回流。
+  - 将 reroute 约束在相邻专家子图，而不是开放所有专家自由跳转。

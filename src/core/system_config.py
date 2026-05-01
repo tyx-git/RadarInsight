@@ -23,7 +23,7 @@ class SystemTrainConfig:
     expert4_checkpoint: str = ""
     fusion_mode: str = "soft_log_weighted"
     eval_fusion_candidate_modes: list[str] = field(
-        default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2"]
+        default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2", "reroute"]
     )
     aircraft_protection_enabled: bool = True
     aircraft_confidence_tau_high: float = 0.10
@@ -35,6 +35,12 @@ class SystemTrainConfig:
     groundness_confidence_tau_low: float = -0.05
     ground_route_gate_floor: float = 0.10
     groundness_temperature: float = 1.0
+    reroute_max_passes: int = 3
+    reroute_penalty: float = 3.0
+    reroute_max_total_penalty: float = 6.0
+    reroute_low_altitude_conf_threshold: float = 0.35
+    reroute_conventional_air_conf_threshold: float = 0.35
+    reroute_ground_conf_threshold: float = 0.50
     freeze_router: bool = True
     freeze_track_encoder_epochs: int = 0
     freeze_non_router_in_warmup: bool = True

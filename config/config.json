@@ -161,7 +161,8 @@
     "eval_fusion_candidate_modes": [
       "soft_log_weighted",
       "ungated",
-      "soft_top2"
+      "soft_top2",
+      "reroute"
     ],
     "aircraft_protection_enabled": true,
     "aircraft_confidence_tau_high": 0.1,
@@ -173,6 +174,12 @@
     "groundness_confidence_tau_low": -0.05,
     "ground_route_gate_floor": 0.1,
     "groundness_temperature": 1.0,
+    "reroute_max_passes": 3,
+    "reroute_penalty": 3.0,
+    "reroute_max_total_penalty": 6.0,
+    "reroute_low_altitude_conf_threshold": 0.35,
+    "reroute_conventional_air_conf_threshold": 0.35,
+    "reroute_ground_conf_threshold": 0.5,
     "freeze_router": true,
     "stage_warmup_epochs": 0,
     "stage_expert_warmup_epochs": 0,
