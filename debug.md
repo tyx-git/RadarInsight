@@ -1233,3 +1233,115 @@
   - 对 `reroute_*_conf_threshold` 做系统性 sweep。
   - 给 Expert1/Expert2/Expert4 增加更保守的“低置信定义”，减少无谓回流。
   - 将 reroute 约束在相邻专家子图，而不是开放所有专家自由跳转。
+
+## 2026-05-01 全链路主线调试与 main 对齐复核
+
+### 发现的问题
+
+- `src/core/pipeline_trainer.py` 仍是旧编排版本：
+  - 没有复用 `config/config.json` 中各阶段的真实配置。
+  - 没有把最新的 `expert4 groundness`、`system reroute probe` 等设置带进主线。
+  - checkpoint 回流链路虽然概念上存在，但参数来源与当前主线不一致。
+- 结果是：
+  - 单阶段训练可以跑通。
+  - 但 `train_main_pipeline` 作为全链路入口，不能稳定代表当前真实架构。
+
+### 修复内容
+
+- `src/core/pipeline_config.py`
+  - 改为真正的 orchestrator 配置：
+    - 每个阶段单独开关
+    - 每个阶段单独输出目录
+    - 支持显式 checkpoint 恢复
+- `src/core/pipeline_trainer.py`
+  - 改为从 `config/config.json` 读取：
+    - `pretrain_track`
+    - `router`
+    - `expert1`
+    - `expert2`
+    - `expert4`
+    - `system`
+  - 按顺序回流 checkpoint：
+    - `pretrain -> expert1/system`
+    - `router -> system`
+    - `expert1 -> expert2/expert4/system`
+    - `expert2/expert4 -> system`
+  - 增加续跑逻辑：
+    - 优先读取各阶段 `training_summary.json`
+    - 若 summary 缺失，可直接用显式 `best_checkpoint` 恢复
+- `src/core/train_main_pipeline.py`
+  - 显式把 `--config` 路径传入 pipeline trainer。
+- `config/config.json`
+  - 新增 `pipeline` section，主线训练入口现在可直接由单一配置文件驱动。
+
+### 全链路 smoke 结果
+
+- 主线 smoke 实际顺序完成：
+  - `pretrain_track`
+  - `router_v1`
+  - `expert1_v1`
+  - `expert2_air`
+  - `expert4_ground`
+  - `system_v1`
+- 产物根目录：
+  - `artifacts/main_pipeline_config_smoke`
+- 汇总文件：
+  - `artifacts/main_pipeline_config_smoke/pipeline_summary.json`
+
+### 各阶段结果
+
+- `pretrain_track`
+  - `artifacts/main_pipeline_config_smoke/20260501-225130/pretrain_track`
+  - final loss：`0.1912`
+- `router_v1`
+  - `artifacts/main_pipeline_config_smoke/20260501-225235/router_v1`
+  - accuracy：`0.7629`
+  - macro F1：`0.7942`
+- `expert1_v1`
+  - `artifacts/main_pipeline_config_smoke/20260501-225426/expert1_v1`
+  - final accuracy：`0.8258`
+  - final macro F1：`0.7226`
+  - RD on-RD macro F1：`0.5356`
+- `expert2_air`
+  - `artifacts/main_pipeline_config_smoke/20260501-231311/expert2_air`
+  - accuracy：`0.9515`
+  - macro F1：`0.6541`
+  - Aircraft recall：`0.8000`
+- `expert4_ground`
+  - `artifacts/main_pipeline_config_smoke/20260501-231610/expert4_ground`
+  - 本轮由于主命令超时，只保留了 `best_model.pt`
+  - 后续已通过显式 checkpoint 恢复进 pipeline 汇总
+- `system_v1`
+  - `artifacts/main_pipeline_config_smoke/20260501-232217/system_v1`
+  - accuracy：`0.8645`
+  - macro F1：`0.5760`
+  - selected fusion mode：`ungated`
+  - Aircraft precision：`0.4286`
+  - Aircraft recall：`0.6000`
+  - Aircraft F1：`0.5000`
+  - ground group F1：`0.3846`
+  - low-altitude macro F1：`0.8019`
+  - Drone/Bird recall mean：`0.9055`
+
+### 与 main.md 的当前对齐结论
+
+- 已对齐的部分：
+  - 深度轨迹粗筛 + 物理特征路由 + 多专家结构
+  - 专家一轨迹/RD 双流
+  - 轨迹预训练回流
+  - 路由器独立训练并回灌 system
+  - 专家二 open-set 化
+  - 专家四 groundness 拒识
+  - 主线 pipeline 串联与 checkpoint 回流
+- 仍未完全对齐的部分：
+  - `system` 当前最佳融合仍是 `ungated`，尚未达到 `main.md` 中更理想的“稳定门控协同”
+  - `reroute` 已实现但当前不是有效主线策略
+  - 专家一 RD 分支仍未达到你要的强判别上限
+  - Expert3 仍是规则路径，没有进一步的高空学习专家
+  - 轨迹预训练仍是骨架级 self-supervised，而不是更强的跨域预训练体系
+
+### 当前建议
+
+- 下一主线应收敛到两件事：
+  - 继续强化 `expert1` 的 RD 判别质量，尤其是 `Bird / Clutter / Unknown`
+  - 继续压实 `system` 的融合策略，让 `ungated` 逐步让位给更稳定的门控协同，而不是继续扩展 `reroute`

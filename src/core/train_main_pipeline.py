@@ -13,7 +13,7 @@ def main() -> None:
     args = parser.parse_args()
 
     config = load_pipeline_config(args.config)
-    summary = run_main_pipeline(config)
+    summary = run_main_pipeline(config, config_path=args.config)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

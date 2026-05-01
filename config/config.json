@@ -283,6 +283,21 @@
     "groundness_threshold_max": 0.9,
     "groundness_threshold_steps": 71
   },
+  "pipeline": {
+    "output_root": "artifacts/main_pipeline_config_smoke",
+    "pretrain_enabled": true,
+    "router_enabled": true,
+    "expert1_enabled": true,
+    "expert2_enabled": true,
+    "expert4_enabled": true,
+    "system_enabled": true,
+    "pretrain_output_dir": "artifacts/main_pipeline_config_smoke/pretrain_track",
+    "router_output_dir": "artifacts/main_pipeline_config_smoke/router_v1",
+    "expert1_output_dir": "artifacts/main_pipeline_config_smoke/expert1_v1",
+    "expert2_output_dir": "artifacts/main_pipeline_config_smoke/expert2_air",
+    "expert4_output_dir": "artifacts/main_pipeline_config_smoke/expert4_ground",
+    "system_output_dir": "artifacts/main_pipeline_config_smoke/system_v1"
+  },
   "recommended_commands": {
     "pretrain_track": ".\\.venv\\Scripts\\python.exe -m src.core.train_pretrain_track --config config/config.json",
     "router": ".\\.venv\\Scripts\\python.exe -m src.core.train_router --config config/config.json",
