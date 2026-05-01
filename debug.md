@@ -1016,3 +1016,121 @@
   - 对 Expert2 false positive 样本做按类别统计，区分是 Bird/Drone/Ship 还是 Unknown 被抢成 Aircraft。
   - 增加 per-expert temperature/bias calibration，避免 Expert1/Expert2/Expert4 raw logits 尺度继续互相污染。
   - 在更多 split 或 repeated grouped split 上验证 Aircraft recall，不要只依据 5 条测试样本下结论。
+
+## 2026-05-01 Expert4 Groundness 拒识与 System 地面门控
+
+### 问题：Expert4 之前只会在 People/Car/Ship 内硬分类
+
+- 旧设计问题：
+  - `GroundTargetExpert` 只有三分类 head。
+  - 任何被误路由进 Expert4 的样本，都会被强制判成 `PeopleTarget / CarTarget / ShipTarget` 之一。
+  - 这和 `target.md` 里的设计不一致：地面专家至少要先判断“是否属于地面目标族”，再做子类细分。
+- 直接风险：
+  - 低空样本、未知样本、甚至 Aircraft，只要地面 route 或全局专家竞争稍有偏差，就可能被地面专家硬拉走。
+  - 这会污染 System 的鲁棒性，尤其是 route 本身不稳定时更明显。
+
+### 落地方案
+
+- `src/core/experts.py`
+  - 给 `GroundTargetExpert` 增加 `groundness_head`。
+  - 输出 auxiliary：
+    - `groundness_logits`
+    - `groundness_probability`
+    - `groundness_threshold`
+    - `groundness_margin`
+  - 保留 `People/Car/Ship` 三分类 head，不破坏现有接口。
+- `src/core/expert_other_data.py`
+  - `expert4` 训练时允许引入 hard negatives：
+    - `DroneTarget`
+    - `BirdTarget`
+    - `BalloonTarget`
+    - `ClutterTarget`
+    - `UnknownTarget`
+    - `AircraftTarget`
+- `src/core/expert_other_trainer.py`
+  - 地面三分类 CE 只在真实地面样本上计算。
+  - `groundness` 二分类 loss 在全部样本上计算。
+  - 加入 groundness threshold calibration。
+  - 输出：
+    - `groundness_precision`
+    - `groundness_recall`
+    - `groundness_specificity`
+    - `groundness_f1`
+- `src/core/system_trainer.py`
+  - 在 `_project_to_global_logits()` 中读取 `ground_detail.auxiliary`。
+  - 用 `groundness_probability - groundness_threshold` 构造 `groundness_confidence`。
+  - 地面专家的 route gate 改为三段式：
+    - 高置信地面：弱化 route 惩罚
+    - 中置信地面：给 route floor
+    - 低置信地面：额外下压地面 logits，减少误抢占
+  - 新增 System 级地面诊断：
+    - `ground_group_precision`
+    - `ground_group_recall`
+    - `ground_group_f1`
+    - `pred_ground_on_non_ground_count`
+    - `groundness_probability_mean_true_ground`
+    - `groundness_probability_mean_non_ground`
+
+### Expert4 CUDA 训练结果
+
+- 训练命令：
+  - `.\.venv\Scripts\python.exe -m src.core.train_expert4 --config config/config.json`
+- 运行目录：
+  - `artifacts/20260501-211707/expert4_config_smoke`
+- 测试指标：
+  - accuracy：`0.8824`
+  - macro F1：`0.6061`
+  - groundness precision：`0.4667`
+  - groundness recall：`0.4118`
+  - groundness specificity：`0.9744`
+  - groundness F1：`0.4375`
+  - calibrated groundness threshold：`0.22`
+- 解释：
+  - 当前 groundness head 已能较强压制非地面误报，specificity 很高。
+  - 但 recall 仍偏低，说明它对“真地面样本”还偏保守。
+
+### System CUDA 训练结果
+
+- 训练命令：
+  - `.\.venv\Scripts\python.exe -X faulthandler -m src.core.train_system --config config/config.json`
+- 运行目录：
+  - `artifacts/20260501-212307/system_config_smoke`
+- 全局指标：
+  - accuracy：`0.8434`
+  - macro F1：`0.5607`
+  - route macro recall：`0.7460`
+- 低空指标：
+  - low-altitude macro F1：`0.8047`
+  - Drone/Bird recall mean：`0.8893`
+  - Unknown recall：`0.7778`
+  - Clutter recall：`0.5714`
+- 地面组指标：
+  - ground group precision：`0.4286`
+  - ground group recall：`0.3529`
+  - ground group F1：`0.3871`
+  - non-ground 被判为地面目标：`8`
+- Aircraft 指标：
+  - Aircraft recall：`0.6000`
+  - Aircraft precision：`0.3000`
+  - Aircraft F1：`0.4000`
+  - protection 前 recall：`0.0000`
+  - non-Aircraft as Aircraft rate：`0.0214`
+
+### 当前判断
+
+- 已经完成：
+  - Expert4 不再是纯三分类硬头，已经具备 groundness 拒识能力。
+  - System 已能使用地面专家的 groundness 置信度，而不是无条件让地面 logits 参与竞争。
+  - 报告里已经能看到 ground group 指标和非地面误判计数。
+- 当前问题：
+  - 新 Expert4 让 Aircraft false positive 下降了，但同时把 Aircraft recall 从上轮 `0.8000` 压到了 `0.6000`。
+  - groundness 概率在真地面/非地面之间均值差异过小：
+    - true ground `0.2806`
+    - non-ground `0.2708`
+  - 说明 groundness head 虽然通过阈值把误报压下来了，但特征分离还不够强。
+
+### 下一步
+
+- 优先做两件事：
+  - 重新校准 `groundness` 和 `aircraft` 两条保护线的相互作用，避免 Expert4 把 System 的 Aircraft 主线重新压低。
+  - 针对 Expert4 增加更强的非地面 hard negatives 采样和更明确的 group-level selection metric，不只盯三分类 macro F1。

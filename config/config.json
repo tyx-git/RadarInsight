@@ -155,7 +155,7 @@
     "pretrained_router_checkpoint": "artifacts/20260428-000718/router_v1/best_model.pt",
     "expert1_checkpoint": "artifacts/20260428-121025/expert1_config_smoke/best_model.pt",
     "expert2_checkpoint": "artifacts/20260428-201240/expert2_config_smoke/best_model.pt",
-    "expert4_checkpoint": "artifacts/20260428-004851/expert4_config_smoke/best_model.pt",
+    "expert4_checkpoint": "artifacts/20260501-211707/expert4_config_smoke/best_model.pt",
     "freeze_track_encoder_epochs": 1,
     "fusion_mode": "soft_log_weighted",
     "eval_fusion_candidate_modes": [
@@ -168,6 +168,11 @@
     "aircraft_confidence_tau_low": -0.05,
     "aircraft_conventional_gate_floor": 0.1,
     "aircraft_temperature": 1.0,
+    "groundness_protection_enabled": true,
+    "groundness_confidence_tau_high": 0.1,
+    "groundness_confidence_tau_low": -0.05,
+    "ground_route_gate_floor": 0.1,
+    "groundness_temperature": 1.0,
     "freeze_router": true,
     "stage_warmup_epochs": 0,
     "stage_expert_warmup_epochs": 0,
@@ -209,7 +214,7 @@
       "pretrained_router_checkpoint": "artifacts/20260428-000718/router_v1/best_model.pt",
       "expert1_checkpoint": "artifacts/20260428-121025/expert1_config_smoke/best_model.pt",
       "expert2_checkpoint": "artifacts/20260428-201240/expert2_config_smoke/best_model.pt",
-      "expert4_checkpoint": "artifacts/20260428-004851/expert4_config_smoke/best_model.pt",
+      "expert4_checkpoint": "artifacts/20260501-211707/expert4_config_smoke/best_model.pt",
       "shared_encoder_priority": [
         "expert1_checkpoint",
         "pretrained_track_checkpoint",
@@ -256,12 +261,20 @@
   },
   "expert4": {
     "output_dir": "artifacts/expert4_config_smoke",
-    "epochs": 1,
+    "epochs": 4,
     "batch_size": 16,
     "learning_rate": 0.0002,
     "source_normalization": true,
     "train_representation_builder": false,
-    "shared_representation_checkpoint": "artifacts/20260428-121025/expert1_config_smoke/best_model.pt"
+    "shared_representation_checkpoint": "artifacts/20260428-121025/expert1_config_smoke/best_model.pt",
+    "include_ground_hard_negatives": true,
+    "groundness_loss_weight": 0.7,
+    "groundness_positive_weight": 1.0,
+    "groundness_negative_weight": 1.5,
+    "groundness_initial_threshold": 0.5,
+    "groundness_threshold_min": 0.2,
+    "groundness_threshold_max": 0.9,
+    "groundness_threshold_steps": 71
   },
   "recommended_commands": {
     "pretrain_track": ".\\.venv\\Scripts\\python.exe -m src.core.train_pretrain_track --config config/config.json",

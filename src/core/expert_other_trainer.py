@@ -140,6 +140,71 @@ def _calibrate_open_set_threshold(
     return best
 
 
+def _calibrate_groundness_threshold(
+    probabilities: torch.Tensor,
+    labels: torch.Tensor,
+    threshold_min: float,
+    threshold_max: float,
+    threshold_steps: int,
+) -> dict[str, object]:
+    best: dict[str, object] | None = None
+    steps = max(2, int(threshold_steps))
+    for threshold in torch.linspace(float(threshold_min), float(threshold_max), steps=steps):
+        threshold_value = float(threshold.item())
+        preds = probabilities >= threshold_value
+        positives = labels.bool()
+        tp = int((preds & positives).sum().item())
+        fp = int((preds & ~positives).sum().item())
+        fn = int((~preds & positives).sum().item())
+        tn = int((~preds & ~positives).sum().item())
+        precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+        recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+        specificity = tn / (tn + fp) if tn + fp > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+        score = f1 + 0.05 * min(recall, specificity)
+        candidate = {
+            "threshold": threshold_value,
+            "score": score,
+            "precision": precision,
+            "recall": recall,
+            "specificity": specificity,
+            "f1": f1,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "tn": tn,
+        }
+        if best is None or float(candidate["score"]) > float(best["score"]):
+            best = candidate
+    if best is None:
+        raise ValueError("failed to calibrate groundness threshold")
+    return best
+
+
+def _groundness_details(probabilities: torch.Tensor, labels: torch.Tensor, threshold: float) -> dict[str, object]:
+    preds = probabilities >= float(threshold)
+    positives = labels.bool()
+    tp = int((preds & positives).sum().item())
+    fp = int((preds & ~positives).sum().item())
+    fn = int((~preds & positives).sum().item())
+    tn = int((~preds & ~positives).sum().item())
+    precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+    specificity = tn / (tn + fp) if tn + fp > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+    return {
+        "groundness_threshold": float(threshold),
+        "groundness_precision": precision,
+        "groundness_recall": recall,
+        "groundness_specificity": specificity,
+        "groundness_f1": f1,
+        "groundness_tp": tp,
+        "groundness_fp": fp,
+        "groundness_fn": fn,
+        "groundness_tn": tn,
+    }
+
+
 def _set_track_encoder_trainable(representation_builder: TrackRepresentationBuilder, trainable: bool) -> None:
     for param in representation_builder.sequence_encoder.parameters():
         param.requires_grad = trainable
@@ -281,6 +346,9 @@ def _run_epoch(
     sample_ids_all: list[str] = []
     loss_values: list[float] = []
     aircraft_similarity_all: list[torch.Tensor] = []
+    groundness_probabilities_all: list[torch.Tensor] = []
+    groundness_labels_all: list[torch.Tensor] = []
+    groundness_threshold = float(getattr(model, "groundness_threshold", torch.tensor(0.5)).detach().cpu().item()) if hasattr(model, "groundness_threshold") else 0.5
 
     for batch in loader:
         features = batch.features.to(device)
@@ -295,7 +363,12 @@ def _run_epoch(
             )
         else:
             labels_local = torch.tensor(
-                [global_to_local[int(label)] for label in batch.labels.tolist()],
+                [global_to_local.get(int(label), 0) for label in batch.labels.tolist()],
+                dtype=torch.long,
+                device=device,
+            )
+            groundness_labels = torch.tensor(
+                [1 if name in EXPERT_LABELS["expert4_ground"] else 0 for name in batch.label_names],
                 dtype=torch.long,
                 device=device,
             )
@@ -317,7 +390,22 @@ def _run_epoch(
                 output = model(rep.sequence_features, rep.raw_physical_features, padding_mask=batch.padding_mask.to(device))
             else:
                 output = model(rep.deep_features, rep.raw_physical_features)
-            loss = criterion(output.logits, labels_local)
+            if expert_name == "expert4_ground" and output.auxiliary:
+                ground_mask = groundness_labels.bool()
+                if ground_mask.any():
+                    loss = criterion(output.logits[ground_mask], labels_local[ground_mask])
+                else:
+                    loss = output.logits.sum() * 0.0
+                groundness_logits = output.auxiliary["groundness_logits"]
+                groundness_weight = getattr(criterion, "groundness_weight", None)
+                groundness_loss = F.cross_entropy(
+                    groundness_logits,
+                    groundness_labels,
+                    weight=groundness_weight,
+                )
+                loss = loss + float(getattr(criterion, "groundness_loss_weight", 0.0)) * groundness_loss
+            else:
+                loss = criterion(output.logits, labels_local)
             if train and expert_name == "expert2_air" and positive_noise_std > 0 and labels_local.eq(1).any():
                 positive_mask = labels_local == 1
                 noised_features = features.clone()
@@ -343,19 +431,50 @@ def _run_epoch(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-        logits_all.append(output.logits.detach().cpu())
+        if expert_name == "expert4_ground":
+            ground_mask_cpu = groundness_labels.detach().cpu().bool()
+            if bool(ground_mask_cpu.any()):
+                logits_all.append(output.logits.detach().cpu()[ground_mask_cpu])
+                labels_all.append(labels_local.detach().cpu()[ground_mask_cpu])
+                source_names_all.extend(
+                    source_name
+                    for source_name, keep in zip(batch.source_names, ground_mask_cpu.tolist())
+                    if keep
+                )
+                label_names_all.extend(
+                    label_name
+                    for label_name, keep in zip(batch.label_names, ground_mask_cpu.tolist())
+                    if keep
+                )
+                sample_ids_all.extend(
+                    sample_id
+                    for sample_id, keep in zip(batch.sample_ids, ground_mask_cpu.tolist())
+                    if keep
+                )
+        else:
+            logits_all.append(output.logits.detach().cpu())
+            labels_all.append(labels_local.detach().cpu())
+            source_names_all.extend(batch.source_names)
+            label_names_all.extend(batch.label_names)
+            sample_ids_all.extend(batch.sample_ids)
         if output.auxiliary and "aircraft_similarity" in output.auxiliary:
             aircraft_similarity_all.append(output.auxiliary["aircraft_similarity"].detach().cpu())
-        labels_all.append(labels_local.detach().cpu())
-        source_names_all.extend(batch.source_names)
-        label_names_all.extend(batch.label_names)
-        sample_ids_all.extend(batch.sample_ids)
+        if output.auxiliary and "groundness_probability" in output.auxiliary:
+            groundness_probabilities_all.append(output.auxiliary["groundness_probability"].detach().cpu())
+            groundness_labels_all.append(groundness_labels.detach().cpu())
         loss_values.append(float(loss.detach().cpu().item()))
 
-    logits_cat = torch.cat(logits_all, dim=0)
-    labels_cat = torch.cat(labels_all, dim=0)
+    logits_cat = torch.cat(logits_all, dim=0) if logits_all else torch.empty((0, len(labels)), dtype=torch.float32)
+    labels_cat = torch.cat(labels_all, dim=0) if labels_all else torch.empty((0,), dtype=torch.long)
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(labels))
     binary_details = _binary_details(logits_cat, labels_cat, labels)
+    groundness_probabilities = torch.cat(groundness_probabilities_all, dim=0) if groundness_probabilities_all else None
+    groundness_labels_cat = torch.cat(groundness_labels_all, dim=0) if groundness_labels_all else None
+    groundness_metrics = (
+        _groundness_details(groundness_probabilities, groundness_labels_cat, groundness_threshold)
+        if groundness_probabilities is not None and groundness_labels_cat is not None
+        else {}
+    )
     return {
         "loss": float(np.mean(loss_values)),
         "accuracy": metrics.accuracy,
@@ -363,9 +482,12 @@ def _run_epoch(
         "macro_recall": metrics.macro_recall,
         "macro_f1": metrics.macro_f1,
         **binary_details,
+        **groundness_metrics,
         "logits": logits_cat,
         "labels": labels_cat,
         "aircraft_similarity": torch.cat(aircraft_similarity_all, dim=0) if aircraft_similarity_all else None,
+        "groundness_probability": groundness_probabilities,
+        "groundness_labels": groundness_labels_cat,
         "source_names": source_names_all,
         "label_names": label_names_all,
         "sample_ids": sample_ids_all,
@@ -387,6 +509,9 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         num_workers=config.num_workers,
         balanced_sampling=bool(config.balanced_sampling and config.expert_name == "expert2_air"),
         balanced_positive_multiplier=config.balanced_positive_multiplier,
+        include_ground_hard_negatives=bool(
+            config.include_ground_hard_negatives and config.expert_name == "expert4_ground"
+        ),
     )
     labels = loaders.labels
 
@@ -400,7 +525,12 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             decision_threshold=config.open_set_initial_threshold,
         ).to(device)
     else:
-        model = GroundTargetExpert(deep_dim=128, raw_physical_dim=10, dropout=config.dropout).to(device)
+        model = GroundTargetExpert(
+            deep_dim=128,
+            raw_physical_dim=10,
+            dropout=config.dropout,
+            groundness_threshold=config.groundness_initial_threshold,
+        ).to(device)
     representation_builder = TrackRepresentationBuilder(
         sequence_input_dim=10,
         physical_input_dim=len(PHYSICAL_FEATURE_COLUMNS),
@@ -438,6 +568,13 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         criterion = FocalCrossEntropyLoss(weight=class_weight, gamma=config.focal_loss_gamma)
     else:
         criterion = nn.CrossEntropyLoss()
+        groundness_weight = torch.tensor(
+            [float(config.groundness_negative_weight), float(config.groundness_positive_weight)],
+            dtype=torch.float32,
+            device=device,
+        )
+        criterion.groundness_weight = groundness_weight
+        criterion.groundness_loss_weight = float(config.groundness_loss_weight)
     source_feature_stats = None
     checkpoint_source_feature_stats = None
     if config.source_normalization:
@@ -458,6 +595,7 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
     history: list[dict[str, object]] = []
     best_val = -1.0
     best_threshold = float(config.open_set_initial_threshold)
+    best_groundness_threshold = float(config.groundness_initial_threshold)
     best_selection: dict[str, object] = {}
     best_path = run_paths.output_dir / "best_model.pt"
 
@@ -519,12 +657,30 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
                 "calibrated_details": calibrated_details,
             }
             selection_metric = float(threshold_info["score"])
+        elif config.expert_name == "expert4_ground" and val_metrics.get("groundness_probability") is not None:
+            threshold_info = _calibrate_groundness_threshold(
+                val_metrics["groundness_probability"],
+                val_metrics["groundness_labels"],
+                config.groundness_threshold_min,
+                config.groundness_threshold_max,
+                config.groundness_threshold_steps,
+            )
+            val_metrics = {
+                **val_metrics,
+                **threshold_info,
+                "calibrated_groundness_threshold": threshold_info["threshold"],
+            }
+            selection_metric = float(val_metrics["macro_f1"]) + 0.25 * float(threshold_info["f1"]) + 0.10 * float(threshold_info["specificity"])
         history.append({"epoch": epoch, "train": train_metrics, "val": val_metrics})
         if selection_metric > best_val:
             best_val = selection_metric
             if threshold_info is not None:
-                best_threshold = float(threshold_info["threshold"])
-                model.set_decision_threshold(best_threshold)
+                if config.expert_name == "expert2_air":
+                    best_threshold = float(threshold_info["threshold"])
+                    model.set_decision_threshold(best_threshold)
+                elif config.expert_name == "expert4_ground":
+                    best_groundness_threshold = float(threshold_info["threshold"])
+                    model.set_groundness_threshold(best_groundness_threshold)
                 best_selection = threshold_info
             checkpoint = {
                 "model_state_dict": model.state_dict(),
@@ -536,6 +692,7 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
                 "best_selection_metric": best_val,
                 "best_selection": best_selection,
                 "decision_threshold": best_threshold,
+                "groundness_threshold": best_groundness_threshold,
             }
             if config.train_representation_builder:
                 checkpoint["representation_builder_state_dict"] = representation_builder.state_dict()
@@ -546,8 +703,11 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         representation_builder.load_state_dict(state["representation_builder_state_dict"])
     model.load_state_dict(state["model_state_dict"])
     best_threshold = float(state.get("decision_threshold", best_threshold))
+    best_groundness_threshold = float(state.get("groundness_threshold", best_groundness_threshold))
     if hasattr(model, "set_decision_threshold"):
         model.set_decision_threshold(best_threshold)
+    if hasattr(model, "set_groundness_threshold"):
+        model.set_groundness_threshold(best_groundness_threshold)
     test_metrics = _run_epoch(representation_builder, model, loaders.test_loader, criterion, optimizer, device, False, loaders.global_to_local, labels, config.expert_name, source_feature_stats)
     test_threshold_info: dict[str, object] | None = None
     if config.expert_name == "expert2_air" and config.open_set_aircraft and test_metrics.get("aircraft_similarity") is not None:
@@ -571,6 +731,21 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             "threshold": best_threshold,
             "source": "validation_calibrated",
             **calibrated_details,
+        }
+    elif config.expert_name == "expert4_ground" and test_metrics.get("groundness_probability") is not None:
+        groundness_details = _groundness_details(
+            test_metrics["groundness_probability"],
+            test_metrics["groundness_labels"],
+            best_groundness_threshold,
+        )
+        test_metrics = {
+            **test_metrics,
+            **groundness_details,
+        }
+        test_threshold_info = {
+            "threshold": best_groundness_threshold,
+            "source": "validation_calibrated_groundness",
+            **groundness_details,
         }
 
     history_path = run_paths.output_dir / "training_history.json"
@@ -601,6 +776,11 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             "non_aircraft_recall": test_metrics.get("non_aircraft_recall"),
             "balanced_accuracy": test_metrics.get("balanced_accuracy"),
             "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
+            "groundness_threshold": best_groundness_threshold if config.expert_name == "expert4_ground" else None,
+            "groundness_precision": test_metrics.get("groundness_precision"),
+            "groundness_recall": test_metrics.get("groundness_recall"),
+            "groundness_specificity": test_metrics.get("groundness_specificity"),
+            "groundness_f1": test_metrics.get("groundness_f1"),
         },
         "label_names": labels,
         "classification_confusion_matrix": confusion.tolist(),
@@ -615,6 +795,7 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         "expert_details": {
             "open_set_aircraft": bool(config.expert_name == "expert2_air" and config.open_set_aircraft),
             "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
+            "groundness_threshold": best_groundness_threshold if config.expert_name == "expert4_ground" else None,
             "threshold_info": test_threshold_info,
             "best_selection": state.get("best_selection", {}),
             "prediction_distribution": test_metrics.get("prediction_distribution", {}),
@@ -673,6 +854,10 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
             "non_aircraft_precision": test_metrics.get("non_aircraft_precision"),
             "non_aircraft_recall": test_metrics.get("non_aircraft_recall"),
             "non_aircraft_f1": test_metrics.get("non_aircraft_f1"),
+            "groundness_precision": test_metrics.get("groundness_precision"),
+            "groundness_recall": test_metrics.get("groundness_recall"),
+            "groundness_specificity": test_metrics.get("groundness_specificity"),
+            "groundness_f1": test_metrics.get("groundness_f1"),
             "prediction_distribution": test_metrics.get("prediction_distribution", {}),
         },
         "run_timestamp": run_paths.timestamp_label,
@@ -690,6 +875,8 @@ def train_other_expert(config: ExpertOtherTrainConfig) -> dict[str, object]:
         "source_feature_stats_from_checkpoint": bool(checkpoint_source_feature_stats),
         "open_set_aircraft": bool(config.expert_name == "expert2_air" and config.open_set_aircraft),
         "decision_threshold": best_threshold if config.expert_name == "expert2_air" else None,
+        "include_ground_hard_negatives": bool(config.include_ground_hard_negatives and config.expert_name == "expert4_ground"),
+        "groundness_threshold": best_groundness_threshold if config.expert_name == "expert4_ground" else None,
         "best_selection_metric": state.get("best_selection_metric"),
         "best_selection": state.get("best_selection", {}),
     }

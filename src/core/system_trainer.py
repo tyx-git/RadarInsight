@@ -498,7 +498,40 @@ def _project_to_global_logits(
     )
     logits[:, global_index["AircraftTarget"]] = torch.maximum(aircraft_score, high_aircraft_score)
 
-    ground = system_output.ground_logits + ground_gate
+    ground_logits = system_output.ground_logits
+    ground_auxiliary = getattr(system_output.ground_detail, "auxiliary", None) or {}
+    groundness_probability = ground_auxiliary.get("groundness_probability")
+    if groundness_probability is None:
+        groundness_probability = torch.ones((batch_labels.shape[0],), device=device, dtype=ground_logits.dtype)
+    groundness_probability = groundness_probability.to(device=device, dtype=ground_logits.dtype)
+    groundness_threshold = ground_auxiliary.get("groundness_threshold")
+    if groundness_threshold is None:
+        groundness_threshold = torch.full_like(groundness_probability, 0.5)
+    groundness_threshold = groundness_threshold.to(device=device, dtype=ground_logits.dtype)
+    groundness_confidence = groundness_probability - groundness_threshold
+    ground_gate_flat = ground_gate.squeeze(-1)
+    adjusted_ground_gate = ground_gate_flat
+    ground_high_conf = groundness_confidence >= float(config.groundness_confidence_tau_high)
+    ground_mid_conf = (
+        (groundness_confidence >= float(config.groundness_confidence_tau_low))
+        & ~ground_high_conf
+    )
+    if config.groundness_protection_enabled:
+        floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
+        ground_gate_floor = float(np.log(floor_weight))
+        ground_floor_tensor = torch.full_like(adjusted_ground_gate, ground_gate_floor)
+        adjusted_ground_gate = torch.where(
+            ground_high_conf,
+            torch.zeros_like(adjusted_ground_gate),
+            torch.where(
+                ground_mid_conf,
+                torch.maximum(adjusted_ground_gate, ground_floor_tensor),
+                adjusted_ground_gate - 1.5,
+            ),
+        )
+        ground = ground_logits / max(float(config.groundness_temperature), 1e-6) + adjusted_ground_gate.unsqueeze(-1)
+    else:
+        ground = ground_logits + ground_gate
     logits[:, global_index["PeopleTarget"]] = ground[:, 0]
     logits[:, global_index["CarTarget"]] = ground[:, 1]
     logits[:, global_index["ShipTarget"]] = ground[:, 2]
@@ -517,6 +550,14 @@ def _project_to_global_logits(
         "aircraft_high_confidence": high_conf.detach(),
         "aircraft_mid_confidence": mid_conf.detach(),
         "high_altitude_rule_positive": high_positive.detach(),
+        "groundness_probability": groundness_probability.detach(),
+        "groundness_threshold": groundness_threshold.detach(),
+        "groundness_confidence": groundness_confidence.detach(),
+        "ground_route_weight": route_weights[:, ROUTE_NAMES.index("ground_target")].detach(),
+        "ground_gate": ground_gate_flat.detach(),
+        "adjusted_ground_gate": adjusted_ground_gate.detach(),
+        "ground_high_confidence": ground_high_conf.detach(),
+        "ground_mid_confidence": ground_mid_conf.detach(),
     }
     return logits, diagnostics
 
@@ -1060,6 +1101,59 @@ def _label_count_dict(preds: torch.Tensor, mask: torch.Tensor) -> dict[str, int]
     }
 
 
+def _ground_report(
+    class_logits: torch.Tensor,
+    class_labels: torch.Tensor,
+    aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
+) -> dict[str, object]:
+    ground_indices = [
+        DEFAULT_VOCAB.label_to_index["PeopleTarget"],
+        DEFAULT_VOCAB.label_to_index["CarTarget"],
+        DEFAULT_VOCAB.label_to_index["ShipTarget"],
+    ]
+    preds = class_logits.argmax(dim=-1)
+    ground_mask = torch.zeros_like(class_labels, dtype=torch.bool)
+    for label_idx in ground_indices:
+        ground_mask |= class_labels == label_idx
+    pred_ground_mask = torch.zeros_like(preds, dtype=torch.bool)
+    for label_idx in ground_indices:
+        pred_ground_mask |= preds == label_idx
+    groundness_probability = _safe_diagnostic(
+        aircraft_diagnostics,
+        "groundness_probability",
+        class_labels,
+        fill_value=1.0,
+    )
+    groundness_confidence = _safe_diagnostic(
+        aircraft_diagnostics,
+        "groundness_confidence",
+        class_labels,
+        fill_value=0.5,
+    )
+    ground_high_conf = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_high_confidence",
+        class_labels,
+    ).bool()
+    tp = int((pred_ground_mask & ground_mask).sum().item())
+    fp = int((pred_ground_mask & ~ground_mask).sum().item())
+    fn = int((~pred_ground_mask & ground_mask).sum().item())
+    precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+    return {
+        "ground_group_precision": precision,
+        "ground_group_recall": recall,
+        "ground_group_f1": f1,
+        "pred_ground_on_non_ground_count": fp,
+        "groundness_probability_mean_true_ground": _mean_or_zero(groundness_probability, ground_mask),
+        "groundness_probability_mean_non_ground": _mean_or_zero(groundness_probability, ~ground_mask),
+        "groundness_confidence_mean_true_ground": _mean_or_zero(groundness_confidence, ground_mask),
+        "groundness_confidence_mean_non_ground": _mean_or_zero(groundness_confidence, ~ground_mask),
+        "ground_high_confidence_count": int(ground_high_conf.sum().item()),
+    }
+
+
 def _aircraft_report(
     class_logits: torch.Tensor,
     class_labels: torch.Tensor,
@@ -1248,6 +1342,11 @@ def _critical_metric_summary(
         for item in route["per_route"]
     }
     low = _low_altitude_report(class_logits, class_labels)
+    ground = _ground_report(
+        class_logits,
+        class_labels,
+        aircraft_diagnostics=aircraft_diagnostics,
+    )
     aircraft = _aircraft_report(
         class_logits,
         class_labels,
@@ -1265,6 +1364,11 @@ def _critical_metric_summary(
         "unknown_recall": low["per_class_recall"].get("UnknownTarget", 0.0),
         "clutter_recall": low["per_class_recall"].get("ClutterTarget", 0.0),
         "unknown_clutter_recall_mean": low["unknown_clutter_recall_mean"],
+        "ground": ground,
+        "ground_group_recall": ground["ground_group_recall"],
+        "ground_group_precision": ground["ground_group_precision"],
+        "ground_group_f1": ground["ground_group_f1"],
+        "pred_ground_on_non_ground_count": ground["pred_ground_on_non_ground_count"],
         "aircraft": aircraft,
         "aircraft_system_recall": aircraft["aircraft_system_recall"],
         "aircraft_system_precision": aircraft["aircraft_system_precision"],
@@ -1288,6 +1392,8 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     aircraft_recall = float(critical.get("aircraft_system_recall", 0.0))
     aircraft_f1 = float(critical.get("aircraft_system_f1", 0.0))
     non_aircraft_as_aircraft_rate = float(critical.get("non_aircraft_as_aircraft_rate", 0.0))
+    ground_group_f1 = float(critical.get("ground_group_f1", 0.0))
+    pred_ground_on_non_ground = float(critical.get("pred_ground_on_non_ground_count", 0.0))
     score = (
         macro_f1
         + 0.20 * route_macro
@@ -1295,9 +1401,11 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         + 0.15 * drone_bird
         + 0.10 * (unknown_recall + clutter_recall)
         + 0.10 * ground_route
+        + 0.08 * ground_group_f1
         + 0.12 * aircraft_recall
         + 0.08 * aircraft_f1
         - 0.10 * non_aircraft_as_aircraft_rate
+        - 0.01 * pred_ground_on_non_ground
     )
     if ground_route == 0.0:
         score -= 0.10
@@ -1313,6 +1421,8 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         "unknown_recall": unknown_recall,
         "clutter_recall": clutter_recall,
         "ground_route_recall": ground_route,
+        "ground_group_f1": ground_group_f1,
+        "pred_ground_on_non_ground_count": pred_ground_on_non_ground,
         "aircraft_system_recall": aircraft_recall,
         "aircraft_system_f1": aircraft_f1,
         "non_aircraft_as_aircraft_rate": non_aircraft_as_aircraft_rate,
@@ -1360,6 +1470,13 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "expert2_positive",
             "aircraft_high_confidence",
             "aircraft_mid_confidence",
+            "groundness_probability",
+            "groundness_threshold",
+            "groundness_confidence",
+            "ground_gate",
+            "adjusted_ground_gate",
+            "ground_high_confidence",
+            "ground_mid_confidence",
         ):
             if isinstance(diagnostics, dict) and diag_name in diagnostics:
                 value = diagnostics[diag_name][idx]
@@ -1475,6 +1592,8 @@ def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
             critical.get("expert2_positive_system_not_aircraft_count", 0)
         ),
         "non_aircraft_as_aircraft_rate": float(critical.get("non_aircraft_as_aircraft_rate", 0.0)),
+        "ground_group_f1": float(critical.get("ground_group_f1", 0.0)),
+        "pred_ground_on_non_ground_count": int(critical.get("pred_ground_on_non_ground_count", 0)),
         "aircraft_protection_recovered_count": int(
             aircraft.get("aircraft_protection_recovered_count", 0)
         ) if isinstance(aircraft, dict) else 0,
@@ -1724,6 +1843,11 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "aircraft_confidence_tau_low": config.aircraft_confidence_tau_low,
         "aircraft_conventional_gate_floor": config.aircraft_conventional_gate_floor,
         "aircraft_temperature": config.aircraft_temperature,
+        "groundness_protection_enabled": bool(config.groundness_protection_enabled),
+        "groundness_confidence_tau_high": config.groundness_confidence_tau_high,
+        "groundness_confidence_tau_low": config.groundness_confidence_tau_low,
+        "ground_route_gate_floor": config.ground_route_gate_floor,
+        "groundness_temperature": config.groundness_temperature,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "sequence_encoder_grad_clip_norm": config.sequence_encoder_grad_clip_norm,

@@ -34,6 +34,7 @@ def build_subset_dataloaders(
     num_workers: int = 0,
     balanced_sampling: bool = False,
     balanced_positive_multiplier: int = 8,
+    include_ground_hard_negatives: bool = False,
 ) -> ExpertOtherLoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="system_trainable_track_index.csv")
     frame = dataset.to_frame().copy()
@@ -50,6 +51,22 @@ def build_subset_dataloaders(
                     "PeopleTarget",
                     "CarTarget",
                     "ShipTarget",
+                ]
+            )
+        ].copy()
+    elif include_ground_hard_negatives and set(labels) == {"PeopleTarget", "CarTarget", "ShipTarget"}:
+        frame = frame[
+            frame["label_name"].astype(str).isin(
+                [
+                    "PeopleTarget",
+                    "CarTarget",
+                    "ShipTarget",
+                    "DroneTarget",
+                    "BirdTarget",
+                    "BalloonTarget",
+                    "ClutterTarget",
+                    "UnknownTarget",
+                    "AircraftTarget",
                 ]
             )
         ].copy()

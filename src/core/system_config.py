@@ -30,6 +30,11 @@ class SystemTrainConfig:
     aircraft_confidence_tau_low: float = -0.05
     aircraft_conventional_gate_floor: float = 0.10
     aircraft_temperature: float = 1.0
+    groundness_protection_enabled: bool = True
+    groundness_confidence_tau_high: float = 0.10
+    groundness_confidence_tau_low: float = -0.05
+    ground_route_gate_floor: float = 0.10
+    groundness_temperature: float = 1.0
     freeze_router: bool = True
     freeze_track_encoder_epochs: int = 0
     freeze_non_router_in_warmup: bool = True

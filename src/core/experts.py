@@ -580,7 +580,14 @@ class GroundTargetExpert(nn.Module):
     """
     地面目标专家类，用于分类地面目标。
     """
-    def __init__(self, deep_dim: int, raw_physical_dim: int, hidden_dim: int = 64, dropout: float = 0.1) -> None:
+    def __init__(
+        self,
+        deep_dim: int,
+        raw_physical_dim: int,
+        hidden_dim: int = 64,
+        dropout: float = 0.1,
+        groundness_threshold: float = 0.5,
+    ) -> None:
         super().__init__()
         self.physical_input_norm = nn.LayerNorm(raw_physical_dim)
         self.deep_proj = nn.Sequential(
@@ -611,6 +618,16 @@ class GroundTargetExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, len(GROUND_TARGET_CLASSES)),
         )
+        self.groundness_head = nn.Sequential(
+            nn.Linear(128 + 64, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 2),
+        )
+        self.register_buffer("groundness_threshold", torch.tensor(float(groundness_threshold), dtype=torch.float32))
+
+    def set_groundness_threshold(self, value: float) -> None:
+        self.groundness_threshold.fill_(float(value))
 
     def forward(self, deep_features: torch.Tensor, raw_physical_features: torch.Tensor) -> ExpertOutput:
         selected = torch.stack(
@@ -639,7 +656,19 @@ class GroundTargetExpert(nn.Module):
             dim=-1,
         )
         logits = self.classifier(fused)
-        return ExpertOutput(logits=logits, features=fused)
+        groundness_logits = self.groundness_head(fused)
+        groundness_probability = torch.softmax(groundness_logits, dim=-1)[:, 1]
+        threshold = self.groundness_threshold.to(device=groundness_probability.device, dtype=groundness_probability.dtype)
+        return ExpertOutput(
+            logits=logits,
+            features=fused,
+            auxiliary={
+                "groundness_logits": groundness_logits,
+                "groundness_probability": groundness_probability,
+                "groundness_threshold": threshold.expand_as(groundness_probability),
+                "groundness_margin": groundness_probability - threshold,
+            },
+        )
 
 
 class RuleBasedHighAltitudeExpert(nn.Module):

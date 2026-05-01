@@ -31,5 +31,13 @@ class ExpertOtherTrainConfig:
     threshold_max: float = 0.8
     threshold_steps: int = 101
     selection_metric: str = "aircraft_macro_f1"
+    include_ground_hard_negatives: bool = True
+    groundness_loss_weight: float = 0.7
+    groundness_positive_weight: float = 1.0
+    groundness_negative_weight: float = 1.5
+    groundness_initial_threshold: float = 0.5
+    groundness_threshold_min: float = 0.2
+    groundness_threshold_max: float = 0.9
+    groundness_threshold_steps: int = 71
     seed: int = 42
     device: str = "cuda"
