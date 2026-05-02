@@ -1345,3 +1345,49 @@
 - 下一主线应收敛到两件事：
   - 继续强化 `expert1` 的 RD 判别质量，尤其是 `Bird / Clutter / Unknown`
   - 继续压实 `system` 的融合策略，让 `ungated` 逐步让位给更稳定的门控协同，而不是继续扩展 `reroute`
+
+## 2026-05-02 第一轮提准研究：先关掉 groundness_protection
+
+### 研究动机
+
+- 当前 `system_v1` 全链路最好结果是：
+  - accuracy：`0.8645`
+  - macro F1：`0.5760`
+  - Aircraft F1：`0.5000`
+- 但 `groundness_probability_mean_true_ground` 与 `groundness_probability_mean_non_ground` 非常接近：
+  - true ground：`0.2585`
+  - non-ground：`0.2714`
+- 这说明当前 `groundness_head` 的分离度还不够，System 里继续启用 `groundness_protection` 很可能在“保护地面”之前，先错误抑制了其它专家的正常竞争。
+
+### 快速校准实验
+
+- 基于 `artifacts/main_pipeline_config_smoke/20260501-232217/system_v1/best_model.pt` 做纯推理评估，不重训：
+  - 模式：`ungated`
+  - 修改：`groundness_protection_enabled = false`
+- 测试集结果：
+  - accuracy：`0.8645`（保持不变）
+  - macro F1：`0.6010`
+  - Aircraft precision：`0.6000`
+  - Aircraft recall：`0.6000`
+  - Aircraft F1：`0.6000`
+  - ground group F1：`0.4848`
+  - false aircraft rate：`0.0061`
+
+### 结论
+
+- 这是当前最明确、最便宜的一步收益。
+- 与开启 `groundness_protection` 相比：
+  - macro F1：`0.5760 -> 0.6010`
+  - Aircraft F1：`0.5000 -> 0.6000`
+  - false aircraft rate：`0.0122 -> 0.0061`
+- 因此当前主线配置先切换为：
+  - `system.groundness_protection_enabled = false`
+
+### 当前判断
+
+- 这不是否定 Expert4/groundness 的方向，而是说明：
+  - 当前 `groundness_head` 还没强到足以承担 System 级保护职责。
+  - 在它真正学好之前，把它从全局裁决里退一步，更有利于整体精度。
+- 下一步应该继续：
+  - 提升 `Expert1` 的 `Bird / Clutter / Unknown` RD 判别
+  - 再重新训练一版 `System`，验证这条配置修改是否能稳定把正式 best checkpoint 提到 `macro_f1 > 0.60`

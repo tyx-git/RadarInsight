@@ -169,7 +169,7 @@
     "aircraft_confidence_tau_low": -0.05,
     "aircraft_conventional_gate_floor": 0.1,
     "aircraft_temperature": 1.0,
-    "groundness_protection_enabled": true,
+    "groundness_protection_enabled": false,
     "groundness_confidence_tau_high": 0.1,
     "groundness_confidence_tau_low": -0.05,
     "ground_route_gate_floor": 0.1,
