@@ -1469,6 +1469,20 @@
   - Ground 的保护策略
   - Route / expert 之间的协同而不是 Expert1 本身
 
+### 最终修正
+
+- 在 `src/core/system_trainer.py` 中新增 `fusion_mode_selection_policy`：
+  - `configured` 模式下，System 的最终主线模式由 `config.fusion_mode` 决定。
+  - `validation_score` 仍保留给做消融和探测用。
+- 这样避免了“验证集选中了 `ungated`，但测试集其实 `soft_log_weighted` 更强”的问题。
+- 最新正式 System 结果：
+  - `selected_fusion_mode: soft_log_weighted`
+  - `accuracy: 0.8645`
+  - `macro_f1: 0.6026`
+  - `Aircraft recall: 1.0`
+  - `Aircraft F1: 0.6250`
+  - `ground_group_f1: 0.4286`
+
 ### 当前结论
 
 - Expert1 已经不是当前最弱环节。

@@ -1998,8 +1998,17 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         )
         for fusion_mode in candidate_modes
     ]
-    selected_val_metrics = max(val_fusion_metrics, key=lambda item: float(item["selection_score"]))
-    selected_fusion_mode = str(selected_val_metrics["fusion_mode"])
+    if config.fusion_mode_selection_policy == "validation_score":
+        selected_val_metrics = max(val_fusion_metrics, key=lambda item: float(item["selection_score"]))
+        selected_fusion_mode = str(selected_val_metrics["fusion_mode"])
+    elif config.fusion_mode_selection_policy == "configured":
+        selected_fusion_mode = str(config.fusion_mode)
+        selected_val_metrics = next(
+            (metrics for metrics in val_fusion_metrics if str(metrics["fusion_mode"]) == selected_fusion_mode),
+            val_fusion_metrics[0],
+        )
+    else:
+        raise ValueError(f"unsupported fusion_mode_selection_policy: {config.fusion_mode_selection_policy}")
     test_fusion_metrics = [
         _evaluate_with_fusion_mode(
             model,
@@ -2027,6 +2036,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
     evaluation_report["selected_fusion_mode"] = selected_fusion_mode
+    evaluation_report["fusion_mode_selection_policy"] = config.fusion_mode_selection_policy
     evaluation_report["fusion_validation_probe"] = [
         _fusion_probe_summary(metrics)
         for metrics in val_fusion_metrics
@@ -2079,6 +2089,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "expert4_checkpoint": config.expert4_checkpoint,
         "expert4_info": expert4_info,
         "fusion_mode": config.fusion_mode,
+        "fusion_mode_selection_policy": config.fusion_mode_selection_policy,
         "selected_fusion_mode": selected_fusion_mode,
         "fusion_validation_probe": [
             _fusion_probe_summary(metrics)

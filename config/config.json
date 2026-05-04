@@ -159,6 +159,7 @@
     "expert4_checkpoint": "artifacts/main_pipeline_config_smoke/20260501-231610/expert4_ground/best_model.pt",
     "freeze_track_encoder_epochs": 1,
     "fusion_mode": "soft_log_weighted",
+    "fusion_mode_selection_policy": "configured",
     "eval_fusion_candidate_modes": [
       "soft_log_weighted",
       "ungated",

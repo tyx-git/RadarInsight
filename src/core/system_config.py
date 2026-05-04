@@ -22,6 +22,7 @@ class SystemTrainConfig:
     expert2_checkpoint: str = ""
     expert4_checkpoint: str = ""
     fusion_mode: str = "soft_log_weighted"
+    fusion_mode_selection_policy: str = "configured"
     eval_fusion_candidate_modes: list[str] = field(
         default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2", "reroute"]
     )
