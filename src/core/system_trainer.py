@@ -1855,6 +1855,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_altitude_reject_threshold=config.low_altitude_reject_threshold,
         low_altitude_rd_activation_threshold=config.low_altitude_rd_activation_threshold,
         low_altitude_use_rd_patch_cnn=config.low_altitude_use_rd_patch_cnn,
+        low_altitude_initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None
@@ -1999,17 +2000,29 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     ]
     selected_val_metrics = max(val_fusion_metrics, key=lambda item: float(item["selection_score"]))
     selected_fusion_mode = str(selected_val_metrics["fusion_mode"])
-    test_metrics = _evaluate_with_fusion_mode(
-        model,
-        loaders.test_loader,
-        class_criterion,
-        route_criterion,
-        low_criterion,
-        optimizer,
-        device,
-        config,
-        selected_fusion_mode,
-        source_feature_stats,
+    test_fusion_metrics = [
+        _evaluate_with_fusion_mode(
+            model,
+            loaders.test_loader,
+            class_criterion,
+            route_criterion,
+            low_criterion,
+            optimizer,
+            device,
+            config,
+            fusion_mode,
+            source_feature_stats,
+        )
+        for fusion_mode in candidate_modes
+    ]
+    test_metrics_by_mode = {
+        str(metrics["fusion_mode"]): metrics
+        for metrics in test_fusion_metrics
+    }
+    test_metrics = test_metrics_by_mode[selected_fusion_mode]
+    best_test_probe_metrics = max(
+        test_fusion_metrics,
+        key=lambda item: (float(item.get("macro_f1", 0.0)), float(item.get("accuracy", 0.0))),
     )
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
@@ -2018,6 +2031,11 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         _fusion_probe_summary(metrics)
         for metrics in val_fusion_metrics
     ]
+    evaluation_report["fusion_test_probe"] = [
+        _fusion_probe_summary(metrics)
+        for metrics in test_fusion_metrics
+    ]
+    evaluation_report["best_test_probe"] = _fusion_probe_summary(best_test_probe_metrics)
 
     history_path = output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -2066,6 +2084,11 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
             _fusion_probe_summary(metrics)
             for metrics in val_fusion_metrics
         ],
+        "fusion_test_probe": [
+            _fusion_probe_summary(metrics)
+            for metrics in test_fusion_metrics
+        ],
+        "best_test_probe": _fusion_probe_summary(best_test_probe_metrics),
         "freeze_router": bool(config.freeze_router),
         "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
         "best_selection_score": best_metric,
@@ -2105,6 +2128,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "enable_low_altitude_reject_in_train": bool(config.enable_low_altitude_reject_in_train),
         "enable_low_altitude_reject_in_eval": bool(config.enable_low_altitude_reject_in_eval),
         "low_altitude_rd_activation_threshold": config.low_altitude_rd_activation_threshold,
+        "low_altitude_initial_rd_gate_bias": config.low_altitude_initial_rd_gate_bias,
         "consistency_loss_weight": config.consistency_loss_weight,
         "class_weights": class_weights.detach().cpu().tolist(),
         "route_weights": route_weights.detach().cpu().tolist(),

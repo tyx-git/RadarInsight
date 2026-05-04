@@ -60,6 +60,7 @@ class SystemTrainConfig:
     low_altitude_reject_threshold: float = 0.35
     low_altitude_rd_activation_threshold: float = 0.8
     low_altitude_use_rd_patch_cnn: bool = True
+    low_altitude_initial_rd_gate_bias: float = 0.0
     enable_low_altitude_reject_in_train: bool = False
     enable_low_altitude_reject_in_eval: bool = False
     consistency_loss_weight: float = 0.3

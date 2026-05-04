@@ -45,6 +45,7 @@ class RadarClassificationSystem(nn.Module):
         low_altitude_rd_activation_threshold: float = 0.8,
         low_altitude_use_rd_patch_cnn: bool = True,
         low_altitude_rd_patch_input_dim: int = 3,
+        low_altitude_initial_rd_gate_bias: float = 0.0,
     ) -> None:
         super().__init__()
         rd_dim = 16
@@ -74,6 +75,7 @@ class RadarClassificationSystem(nn.Module):
             reject_threshold=low_altitude_reject_threshold,
             rd_activation_threshold=low_altitude_rd_activation_threshold,
             use_rd_patch_cnn=low_altitude_use_rd_patch_cnn,
+            initial_rd_gate_bias=low_altitude_initial_rd_gate_bias,
         )
         self.conventional_air_expert = ConventionalAirExpert(sequence_dim=model_dim, physical_dim=physical_input_dim, dropout=dropout)
         self.high_altitude_expert = RuleBasedHighAltitudeExpert()

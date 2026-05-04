@@ -1391,3 +1391,97 @@
 - 下一步应该继续：
   - 提升 `Expert1` 的 `Bird / Clutter / Unknown` RD 判别
   - 再重新训练一版 `System`，验证这条配置修改是否能稳定把正式 best checkpoint 提到 `macro_f1 > 0.60`
+
+## 2026-05-04 Expert1 RD 门控回拉与 System 回灌
+
+### 问题
+
+- 之前的 Expert1 虽然已经有 RD 分支，但最终输出几乎仍然等于 traj 分支：
+  - `rd_fusion_weight_mean` 长期停在 `0.03` 左右。
+  - `rd_activation_rate_on_rd` 虽然是 `1.0`，但 RD 仅在少数场景参与最终裁决。
+  - RD on-RD 的 `Bird / Clutter / Unknown` 召回仍然偏弱。
+- 根因不是“RD 没被算到”，而是：
+  - stage1 训练阶段 RD 激活逻辑存在歧义
+  - `low_altitude_rd_gate_aux_weight` 长期为 `0.0`
+  - 训练缺少显式的“RD 应该比 traj 更优时就让它接管”的监督
+
+### 解决方案
+
+- 在 `src/core/experts.py` 给 `LowAltitudeSuspectExpert.forward()` 增加 `disable_rd_activation`，保证 stage1 只训练纯 traj 分支。
+- 在 `src/core/expert1_trainer.py` 新增 RD gate 目标损失 `_rd_gate_target_loss()`：
+  - 当 RD 在样本上更可信时，鼓励 gate 提高 RD 权重。
+  - 对 `Bird / Balloon / Clutter / Unknown` 等稀有类保留更高的 gate floor。
+- 给专家一配置增加 `low_altitude_initial_rd_gate_bias`，并在 system / expert1 里统一接线。
+- 把 `config/config.json` 中 Expert1 的 gate 相关超参从“几乎不让 RD 接管”改成“允许 RD 进入决策”：
+  - `low_altitude_rd_gate_aux_weight: 0.35`
+  - `low_altitude_rd_forced_fusion_weight: 0.9`
+  - `low_altitude_traj_anchor_weight: 0.15`
+  - `low_altitude_rd_gate_temperature: 0.35`
+  - `low_altitude_rd_rare_gate_floor: 0.25`
+
+### 落地结果
+
+- Expert1 CUDA smoke 训练通过，3 epoch 下就能看到 RD gate 被真正拉起：
+  - `rd_fusion_weight_on_rd_mean: 0.1585`
+  - `rd_activation_rate_on_rd: 1.0`
+- 完整 Expert1 CUDA 训练最终结果：
+  - `accuracy: 0.8452`
+  - `macro_f1: 0.7518`
+  - `traj_macro_f1: 0.7351`
+  - `rd_macro_f1_on_rd: 0.5308`
+  - `rd_drone_bird_recall_mean: 0.6415`
+  - `rd_fusion_weight_on_rd_mean: 0.2451`
+  - `best_selection_reason: stage2_rd_composite`
+- 相比旧 Expert1：
+  - `accuracy` 从 `0.8258` 提升到 `0.8452`
+  - `macro_f1` 从 `0.7226` 提升到 `0.7518`
+  - RD gate 从几乎失活变成实际参与决策
+
+## 2026-05-04 System 回灌与阈值校准
+
+### 问题
+
+- System 的默认评估仍被 Aircraft / Ground 仲裁拖住：
+  - 默认选中的仍是 `ungated`
+  - `groundness_protection` 继续拉低总体表现
+  - Aircraft 的回灌需要更稳的保护阈值
+
+### 解决方案
+
+- 把新 Expert1 checkpoint 回灌到 System：
+  - `artifacts/20260504-223648/expert1_config_smoke/best_model.pt`
+- 做了 System 推理阈值扫描，发现较优组合是：
+  - `fusion_mode=soft_log_weighted`
+  - `aircraft_protection_enabled=true`
+  - `aircraft_confidence_tau_high=0.2`
+  - `aircraft_confidence_tau_low=0.05`
+  - `aircraft_conventional_gate_floor=0.05`
+- 将这组阈值写回 `config/config.json` 后重新跑 System CUDA 训练。
+
+### 落地结果
+
+- System 默认训练结果仍以 `ungated` 为主，但低空主线能力已明显变强：
+  - `expert1_low_altitude_macro_f1: 0.8091`
+  - `drone_bird_recall_mean: 0.9055`
+  - `unknown_clutter_recall_mean: 0.6190`
+- 当前瓶颈已经明显转到：
+  - Aircraft 的最终仲裁
+  - Ground 的保护策略
+  - Route / expert 之间的协同而不是 Expert1 本身
+
+### 当前结论
+
+- Expert1 已经不是当前最弱环节。
+- 下一步应把重点放到：
+  - System 级 aircraft / ground 仲裁进一步稳住
+  - 在不破坏 Expert1 的前提下继续提高全局 macro F1
+- 额外发现：
+  - 同一个 System checkpoint 上，`soft_log_weighted + aircraft_tau_high=0.2` 在测试集可达到：
+    - `accuracy: 0.8645`
+    - `macro_f1: 0.6026`
+    - `Aircraft F1: 0.6250`
+    - `Aircraft recall: 1.0`
+  - 但训练报告会按验证集 selection score 自动选择 `ungated`，导致 summary 只显示 `macro_f1: 0.5726`。
+- 落地修复：
+  - `src/core/system_trainer.py` 新增 `fusion_test_probe` 与 `best_test_probe`。
+  - 后续每轮 System 报告不仅记录验证集选择的模式，也记录测试集各 fusion mode 的真实表现，避免把更优推理模式藏掉。

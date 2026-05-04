@@ -28,6 +28,7 @@ class Expert1TrainConfig:
     low_altitude_rd_gate_aux_weight: float = 0.6
     low_altitude_rd_gate_temperature: float = 0.35
     low_altitude_rd_rare_gate_floor: float = 0.25
+    low_altitude_initial_rd_gate_bias: float = 0.0
     low_altitude_traj_anchor_weight: float = 0.5
     low_altitude_traj_anchor_start_epoch: int = 2
     low_altitude_mutual_weight: float = 1.0

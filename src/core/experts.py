@@ -393,6 +393,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_patch_padding_mask: torch.Tensor | None = None,
         enable_reject: bool = True,
         force_rd_activation: bool = False,
+        disable_rd_activation: bool = False,
     ) -> LowAltitudeFusionOutput:
         traj_features = self.traj_backbone(traj_input)
         traj_cosine, traj_logits = self.traj_head(traj_features, labels=low_altitude_targets)
@@ -464,8 +465,11 @@ class LowAltitudeSuspectExpert(nn.Module):
             has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
         else:
             has_rd = rd_features[..., -1].amax(dim=1) > 0.5
-        forced_rd = torch.full_like(has_rd, bool(force_rd_activation), dtype=torch.bool)
-        rd_activated = has_rd & (forced_rd | (traj_confidence < self.rd_activation_threshold))
+        if disable_rd_activation:
+            rd_activated = torch.zeros_like(has_rd, dtype=torch.bool)
+        else:
+            forced_rd = torch.full_like(has_rd, bool(force_rd_activation), dtype=torch.bool)
+            rd_activated = has_rd & (forced_rd | (traj_confidence < self.rd_activation_threshold))
         fused_cosine = 0.5 * (traj_cosine + rd_cosine)
         selected_logits = torch.where(rd_activated.unsqueeze(-1), fused_logits, traj_logits)
         selected_cosine = torch.where(rd_activated.unsqueeze(-1), fused_cosine, traj_cosine)

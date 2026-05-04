@@ -364,6 +364,39 @@ def _fusion_gate_aux_loss(
     return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
 
 
+def _rd_gate_target_loss(
+    output,
+    labels: torch.Tensor,
+    mask: torch.Tensor,
+    temperature: float,
+    rare_floor: float,
+) -> torch.Tensor:
+    if not bool(mask.any()):
+        return labels.new_tensor(0.0, dtype=torch.float32)
+    with torch.no_grad():
+        traj_confidence = torch.softmax(output.traj_logits[mask], dim=-1).max(dim=-1).values
+        rd_confidence = torch.softmax(output.rd_logits[mask], dim=-1).max(dim=-1).values
+        target = torch.sigmoid((rd_confidence - traj_confidence) / max(float(temperature), 1e-3))
+        rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
+        rare_indices = {
+            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+            LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
+            LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+            LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+        }
+        for index in rare_indices:
+            rare_mask = rare_mask | (labels[mask] == index)
+        if bool(rare_mask.any()):
+            target = torch.where(
+                rare_mask,
+                torch.maximum(target, torch.full_like(target, float(rare_floor))),
+                target,
+            )
+        target = torch.stack([1.0 - target, target], dim=-1)
+    log_weights = torch.log(output.fusion_weights[mask].clamp_min(1e-6))
+    return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
+
+
 def _rel(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
@@ -621,6 +654,7 @@ def _run_epoch(
                 rd_patch_padding_mask=rd_patch_padding_mask,
                 enable_reject=(config.enable_reject_in_train if train else config.enable_reject_in_eval) and stage2_enabled,
                 force_rd_activation=bool(train and stage2_enabled),
+                disable_rd_activation=bool(train and not stage2_enabled),
             )
             unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
             main_loss = _weighted_ce_loss(
@@ -770,6 +804,14 @@ def _run_epoch(
                     rare_gate_floor=config.low_altitude_rd_rare_gate_floor,
                 )
                 main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * gate_loss
+                rd_gate_target_loss = _rd_gate_target_loss(
+                    output,
+                    labels,
+                    has_rd_mask,
+                    temperature=max(config.low_altitude_rd_gate_temperature, 0.1),
+                    rare_floor=config.low_altitude_rd_rare_gate_floor,
+                )
+                main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * rd_gate_target_loss
                 aux_loss = (
                     config.low_altitude_traj_aux_ratio * aux_loss
                     + config.low_altitude_rd_aux_ratio * rd_aux
@@ -997,6 +1039,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         rd_bird_logit_scale=config.rd_bird_logit_scale,
         rd_unknown_logit_scale=config.rd_unknown_logit_scale,
         rd_clutter_logit_scale=config.rd_clutter_logit_scale,
+        initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
     ).to(device)
     pretrained_track_info = None
     if config.pretrained_track_checkpoint:
@@ -1299,6 +1342,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "unknown_loss_weight": config.unknown_loss_weight,
         "unknown_sample_boost": config.unknown_sample_boost,
         "rd_activation_threshold": config.rd_activation_threshold,
+        "rd_activation_rate": test_metrics["rd_activation_rate"],
+        "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
         "source_normalization": bool(config.source_normalization),
         "source_feature_stats_saved": bool(source_feature_stats is not None),
         "prefer_stage2_checkpoint": bool(config.prefer_stage2_checkpoint),
@@ -1320,6 +1365,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_gate_aux_weight": config.low_altitude_rd_gate_aux_weight,
         "low_altitude_rd_gate_temperature": config.low_altitude_rd_gate_temperature,
         "low_altitude_rd_rare_gate_floor": config.low_altitude_rd_rare_gate_floor,
+        "low_altitude_initial_rd_gate_bias": config.low_altitude_initial_rd_gate_bias,
         "low_altitude_traj_anchor_weight": config.low_altitude_traj_anchor_weight,
         "low_altitude_traj_anchor_start_epoch": config.low_altitude_traj_anchor_start_epoch,
         "rd_bird_logit_scale": config.rd_bird_logit_scale,
