@@ -390,6 +390,8 @@ def _project_to_global_logits(
     device: torch.device,
     config: SystemTrainConfig,
     return_diagnostics: bool = False,
+    source_names: list[str] | None = None,
+    apply_source_aircraft_policy: bool = True,
 ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
@@ -469,13 +471,28 @@ def _project_to_global_logits(
         aircraft_threshold = torch.zeros_like(aircraft_similarity)
     aircraft_threshold = aircraft_threshold.to(device=device, dtype=conv_logits.dtype)
     aircraft_confidence = aircraft_similarity - aircraft_threshold
+    source_tau_low = torch.full_like(aircraft_confidence, float(config.aircraft_confidence_tau_low))
+    source_override_mask = torch.zeros_like(aircraft_confidence, dtype=torch.bool)
+    source_overrides = dict(config.aircraft_source_confidence_tau_low or {})
+    if apply_source_aircraft_policy and source_names and source_overrides:
+        override_values = [
+            float(source_overrides.get(str(source_name), float(config.aircraft_confidence_tau_low)))
+            for source_name in source_names
+        ]
+        source_tau_low = torch.tensor(override_values, device=device, dtype=conv_logits.dtype)
+        source_override_mask = torch.tensor(
+            [str(source_name) in source_overrides for source_name in source_names],
+            device=device,
+            dtype=torch.bool,
+        )
     conventional_gate_flat = conventional_gate.squeeze(-1)
     adjusted_conventional_gate = conventional_gate_flat
     high_conf = aircraft_confidence >= float(config.aircraft_confidence_tau_high)
     mid_conf = (
-        (aircraft_confidence >= float(config.aircraft_confidence_tau_low))
+        (aircraft_confidence >= source_tau_low)
         & ~high_conf
     )
+    source_reject = source_override_mask & (aircraft_confidence < source_tau_low)
     if config.aircraft_protection_enabled:
         floor_weight = max(float(config.aircraft_conventional_gate_floor), 1e-6)
         conventional_gate_floor = float(np.log(floor_weight))
@@ -486,6 +503,12 @@ def _project_to_global_logits(
             torch.where(mid_conf, torch.maximum(adjusted_conventional_gate, floor_tensor), adjusted_conventional_gate),
         )
         aircraft_score = aircraft_margin / max(float(config.aircraft_temperature), 1e-6) + adjusted_conventional_gate
+        if apply_source_aircraft_policy and config.aircraft_source_suppress_below_tau:
+            aircraft_score = torch.where(
+                source_reject,
+                torch.full_like(aircraft_score, float(config.aircraft_source_suppress_logit)),
+                aircraft_score,
+            )
     else:
         aircraft_score = conv_positive + conventional_gate_flat
 
@@ -546,6 +569,9 @@ def _project_to_global_logits(
         "aircraft_threshold": aircraft_threshold.detach(),
         "aircraft_margin": aircraft_margin.detach(),
         "aircraft_confidence": aircraft_confidence.detach(),
+        "aircraft_source_tau_low": source_tau_low.detach(),
+        "aircraft_source_override": source_override_mask.detach(),
+        "aircraft_source_reject": source_reject.detach(),
         "aircraft_score": logits[:, global_index["AircraftTarget"]].detach(),
         "conventional_route_weight": conventional_route_weight.detach(),
         "conventional_gate": conventional_gate_flat.detach(),
@@ -573,6 +599,7 @@ def _project_to_global_logits_reroute(
     num_classes: int,
     device: torch.device,
     config: SystemTrainConfig,
+    source_names: list[str] | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     route_logits = system_output.routing.route_logits.detach().clone()
     batch_size = batch_labels.shape[0]
@@ -583,6 +610,8 @@ def _project_to_global_logits_reroute(
         device,
         replace(config, fusion_mode="soft_log_weighted"),
         return_diagnostics=True,
+        source_names=source_names,
+        apply_source_aircraft_policy=True,
     )
     logits = torch.full((batch_size, num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
@@ -842,6 +871,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     len(DEFAULT_VOCAB.labels),
                     device,
                     config,
+                    source_names=batch.source_names,
                 )
                 _, aircraft_diagnostics = _project_to_global_logits(
                     labels,
@@ -850,6 +880,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     device,
                     replace(config, fusion_mode="soft_log_weighted"),
                     return_diagnostics=True,
+                    source_names=batch.source_names,
+                    apply_source_aircraft_policy=True,
                 )
             else:
                 class_logits_result = _project_to_global_logits(
@@ -859,6 +891,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     device,
                     config,
                     return_diagnostics=True,
+                    source_names=batch.source_names,
+                    apply_source_aircraft_policy=not train,
                 )
                 class_logits, aircraft_diagnostics = class_logits_result
                 reroute_diagnostics = {}
@@ -870,6 +904,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     device,
                     unprotected_config,
                     return_diagnostics=False,
+                    source_names=batch.source_names,
+                    apply_source_aircraft_policy=False,
                 )
             class_loss = class_criterion(class_logits, labels)
             route_loss = route_criterion(output.routing.route_logits, route_labels)
@@ -1197,9 +1233,32 @@ def _source_report(
         true = class_labels[indices]
         pred = preds[indices]
         accuracy = float((true == pred).float().mean().item()) if len(indices) > 0 else 0.0
+        per_label: dict[str, dict[str, float | int]] = {}
+        for label_idx, label_name in enumerate(DEFAULT_VOCAB.labels):
+            label_mask = true == label_idx
+            support = int(label_mask.sum().item())
+            pred_mask = pred == label_idx
+            tp = int((pred_mask & label_mask).sum().item())
+            fp = int((pred_mask & ~label_mask).sum().item())
+            fn = int((~pred_mask & label_mask).sum().item())
+            precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+            recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+            f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
+            if support > 0 or int(pred_mask.sum().item()) > 0:
+                per_label[label_name] = {
+                    "support": support,
+                    "predicted": int(pred_mask.sum().item()),
+                    "tp": tp,
+                    "fp": fp,
+                    "fn": fn,
+                    "precision": precision,
+                    "recall": recall,
+                    "f1": f1,
+                }
         report[source_name] = {
             "count": len(indices),
             "accuracy": accuracy,
+            "per_label": per_label,
         }
     return report
 
@@ -1434,6 +1493,16 @@ def _aircraft_report(
         "aircraft_mid_confidence",
         class_labels,
     ).bool()
+    source_override = _safe_diagnostic(
+        aircraft_diagnostics,
+        "aircraft_source_override",
+        class_labels,
+    ).bool()
+    source_reject = _safe_diagnostic(
+        aircraft_diagnostics,
+        "aircraft_source_reject",
+        class_labels,
+    ).bool()
     final_aircraft = preds == aircraft_idx
     unprotected_aircraft = unprotected_preds == aircraft_idx
     final_low = _mask_for_indices(preds, low_indices)
@@ -1479,6 +1548,10 @@ def _aircraft_report(
         "expert2_positive_false_aircraft_count": int((expert2_positive & non_aircraft).sum().item()),
         "aircraft_high_confidence_count": int(high_confidence.sum().item()),
         "aircraft_mid_confidence_count": int(mid_confidence.sum().item()),
+        "aircraft_source_override_count": int(source_override.sum().item()),
+        "aircraft_source_reject_count": int(source_reject.sum().item()),
+        "aircraft_source_reject_true_aircraft_count": int((source_reject & true_aircraft).sum().item()),
+        "aircraft_source_reject_false_aircraft_count": int((source_reject & non_aircraft).sum().item()),
         "aircraft_protection_recovered_count": int(protected_recovered.sum().item()),
         "aircraft_protection_lost_count": int(protected_lost.sum().item()),
         "aircraft_false_positive_introduced_count": int(false_positive_introduced.sum().item()),
@@ -1626,6 +1699,10 @@ def _critical_metric_summary(
         "aircraft_system_precision": aircraft["aircraft_system_precision"],
         "aircraft_system_f1": aircraft["aircraft_system_f1"],
         "aircraft_recall_without_aircraft_protection": aircraft["aircraft_recall_without_aircraft_protection"],
+        "aircraft_source_override_count": aircraft["aircraft_source_override_count"],
+        "aircraft_source_reject_count": aircraft["aircraft_source_reject_count"],
+        "aircraft_source_reject_true_aircraft_count": aircraft["aircraft_source_reject_true_aircraft_count"],
+        "aircraft_source_reject_false_aircraft_count": aircraft["aircraft_source_reject_false_aircraft_count"],
         "expert2_positive_system_not_aircraft_count": aircraft["expert2_positive_system_not_aircraft_count"],
         "expert2_positive_system_not_aircraft_rate": aircraft["expert2_positive_system_not_aircraft_rate"],
         "non_aircraft_as_aircraft_rate": aircraft["non_aircraft_as_aircraft_rate"],
@@ -1759,6 +1836,9 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "aircraft_threshold",
             "aircraft_margin",
             "aircraft_confidence",
+            "aircraft_source_tau_low",
+            "aircraft_source_override",
+            "aircraft_source_reject",
             "conventional_route_weight",
             "conventional_gate",
             "adjusted_conventional_gate",
@@ -1966,6 +2046,8 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         fitted_source_feature_stats = _fit_source_feature_stats(loaders.train_loader)
         checkpoint_source_feature_stats = _merge_source_feature_stats(
             _source_feature_stats_from_checkpoint(config.expert1_checkpoint, device) if config.expert1_checkpoint else None,
+            _source_feature_stats_from_checkpoint(config.expert2_checkpoint, device) if config.expert2_checkpoint else None,
+            _source_feature_stats_from_checkpoint(config.expert4_checkpoint, device) if config.expert4_checkpoint else None,
             _source_feature_stats_from_checkpoint(config.pretrained_track_checkpoint, device) if config.pretrained_track_checkpoint else None,
         )
         source_feature_stats = _merge_source_feature_stats(fitted_source_feature_stats, checkpoint_source_feature_stats)
@@ -2179,6 +2261,9 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "aircraft_protection_enabled": bool(config.aircraft_protection_enabled),
         "aircraft_confidence_tau_high": config.aircraft_confidence_tau_high,
         "aircraft_confidence_tau_low": config.aircraft_confidence_tau_low,
+        "aircraft_source_confidence_tau_low": dict(config.aircraft_source_confidence_tau_low),
+        "aircraft_source_suppress_below_tau": bool(config.aircraft_source_suppress_below_tau),
+        "aircraft_source_suppress_logit": config.aircraft_source_suppress_logit,
         "aircraft_conventional_gate_floor": config.aircraft_conventional_gate_floor,
         "aircraft_temperature": config.aircraft_temperature,
         "groundness_protection_enabled": bool(config.groundness_protection_enabled),

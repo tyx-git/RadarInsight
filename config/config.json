@@ -168,6 +168,11 @@
     "aircraft_protection_enabled": true,
     "aircraft_confidence_tau_high": 0.2,
     "aircraft_confidence_tau_low": 0.05,
+    "aircraft_source_confidence_tau_low": {
+      "raw_tr_rd": 0.17
+    },
+    "aircraft_source_suppress_below_tau": true,
+    "aircraft_source_suppress_logit": -6.0,
     "aircraft_conventional_gate_floor": 0.05,
     "aircraft_temperature": 1.0,
     "groundness_protection_enabled": false,

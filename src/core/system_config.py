@@ -29,6 +29,9 @@ class SystemTrainConfig:
     aircraft_protection_enabled: bool = True
     aircraft_confidence_tau_high: float = 0.10
     aircraft_confidence_tau_low: float = -0.05
+    aircraft_source_confidence_tau_low: dict[str, float] = field(default_factory=dict)
+    aircraft_source_suppress_below_tau: bool = True
+    aircraft_source_suppress_logit: float = -6.0
     aircraft_conventional_gate_floor: float = 0.10
     aircraft_temperature: float = 1.0
     groundness_protection_enabled: bool = True

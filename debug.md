@@ -1627,3 +1627,110 @@
   - raw_tr_rd source accuracy 只有 `0.4545`。
   - Ground group F1 仍只有 `0.4286`。
 - 下一步应进入“专家候选 + calibrated confidence 仲裁”，而不是继续调 raw logits 拼接。
+
+## 2026-05-05 raw_tr_rd Aircraft 假阳性定位与修复
+
+### 问题
+
+- 最新 `tmp.md` 重新定位后，System 当前第一错误源不是 reroute，也不是 high-altitude 分支，而是 `raw_tr_rd` 上 Expert2/System Aircraft 保护过度放行。
+- 最新报告 `artifacts/20260505-171533/system_config_smoke/evaluation_report.json` 显示：
+  - `raw_tr_rd` 测试集 11 条，accuracy 只有 `0.4545`。
+  - 真实分布：Aircraft 4、Bird 3、Drone 2、Ship 2。
+  - 预测分布：Aircraft 10、Bird 1。
+  - 6 个 System Aircraft FP 全部来自 `raw_tr_rd`：Drone 2、Bird 2、Ship 2。
+- 抽查 prediction 记录发现，真实 Aircraft 与 raw false Aircraft 的 `aircraft_confidence` 非常接近：
+  - 真实 Aircraft 约 `0.1707 ~ 0.1778`。
+  - 假阳性约 `0.1567 ~ 0.1776`。
+- 因此不能简单采用“raw_tr_rd 只允许 high confidence Aircraft”：当前 `tau_high=0.2` 下真实 Aircraft 也会全部被拒掉。
+
+### 解决方案
+
+- 在 `SystemTrainConfig` 增加 source-aware Aircraft 仲裁参数：
+  - `aircraft_source_confidence_tau_low`
+  - `aircraft_source_suppress_below_tau`
+  - `aircraft_source_suppress_logit`
+- 在 `_project_to_global_logits()` 中接入 `source_names`：
+  - 默认 source 仍使用全局 `aircraft_confidence_tau_low`。
+  - 配置中的 source 使用单独低门槛。
+  - 低于 source 门槛时，训练/评估主 logits 中 Aircraft score 显式压到 `-6.0`，避免未保护的 conventional logit 继续赢。
+- 当前配置落地为：
+  - `raw_tr_rd: tau_low=0.17`
+  - `aircraft_source_suppress_below_tau=true`
+- 该门槛来自最新报告的数值分布：尽量保住 4 个 raw Aircraft，同时压掉大部分低置信 raw Drone/Bird/Ship -> Aircraft。
+
+### 同步修复
+
+- System source normalization 之前只合并 Expert1 与 pretrain checkpoint 的 stats。
+- 现在 System 同步读取 Expert2/Expert4 checkpoint 内的 `source_feature_stats`，避免辅助专家 head 与 System 输入归一化来源不一致。
+- 由于当前 Expert1、Expert2、Expert4 的 source stats 数值一致，此修复主要是把工程接线补完整，防止后续专家重训后发生隐性漂移。
+
+### 落地
+
+- 修改文件：
+  - `src/core/system_config.py`
+  - `src/core/system_trainer.py`
+  - `config/config.json`
+  - `debug.md`
+- 新增报告字段：
+  - `aircraft_source_tau_low`
+  - `aircraft_source_override`
+  - `aircraft_source_reject`
+  - `aircraft_source_reject_true_aircraft_count`
+  - `aircraft_source_reject_false_aircraft_count`
+- 后续验证：
+  - 重新跑 CUDA System 训练。
+  - 重点观察 `raw_tr_rd` accuracy、Aircraft precision/recall、`aircraft_source_reject_*` 和 source x label 指标。
+
+### 第一次重训暴露的新问题
+
+- 产物：`artifacts/20260505-182345/system_config_smoke`
+- 结果：
+  - `accuracy: 0.8645`
+  - `macro_f1: 0.5803`
+  - `Aircraft precision: 1.0`
+  - `Aircraft recall: 0.2`
+  - `raw_tr_rd accuracy: 0.3636`
+- 问题：
+  - source-aware suppress 在训练 batch 的 CE loss 主路径中也生效了。
+  - 这等价于训练期把低于 raw source 门槛的真实 Aircraft 也压成非 Aircraft。
+  - 测试报告中 4 条 raw Aircraft 全部 `aircraft_source_reject=true`，真实 Aircraft 被一起压掉。
+- 修正：
+  - `_project_to_global_logits()` 增加 `apply_source_aircraft_policy`。
+  - 训练时 `apply_source_aircraft_policy=False`，不让 source suppress 污染训练梯度。
+  - 验证/测试/推理时 `apply_source_aircraft_policy=True`，用于评估仲裁和推理止血。
+  - `class_logits_without_aircraft_protection` 固定不使用 source suppress，保持真实“无保护”对照。
+
+### 第二次重训结果
+
+- 产物：`artifacts/20260505-204215/system_config_smoke`
+- 命令：
+  - `python -m src.core.train_system --config config/config.json`
+- 结果：
+  - `accuracy: 0.8735`
+  - `macro_f1: 0.6348`
+  - `route_macro_recall: 0.7460`
+  - `expert1_low_altitude_macro_f1: 0.8091`
+  - `Aircraft precision: 0.8333`
+  - `Aircraft recall: 1.0`
+  - `Aircraft F1: 0.9091`
+  - `non_aircraft_as_aircraft_rate: 0.0031`
+  - `source_balanced_accuracy: 0.7944`
+  - `min_source_accuracy: 0.7159`
+  - `raw_tr_rd accuracy: 0.7273`
+- 对比上一版 `artifacts/20260505-171533/system_config_smoke`：
+  - accuracy：`0.8645 -> 0.8735`
+  - macro F1：`0.6026 -> 0.6348`
+  - Aircraft F1：`0.6250 -> 0.9091`
+  - Aircraft FP：`6 -> 1`
+  - raw_tr_rd accuracy：`0.4545 -> 0.7273`
+- 关键验证：
+  - `aircraft_source_reject_count: 5`
+  - `aircraft_source_reject_true_aircraft_count: 0`
+  - `aircraft_source_reject_false_aircraft_count: 5`
+- 结论：
+  - source-aware Aircraft policy 作为验证/推理仲裁层是有效的。
+  - 不应在训练主 loss 中启用这类 source suppress，否则会压掉真实 raw Aircraft。
+  - 当前剩余主瓶颈转为 Ground/Ship/People 与 source-label 长尾问题：
+    - raw_tr_rd Ship recall 仍为 `0.0`
+    - People 仍因样本极少为 `0.0`
+    - Groundness true/non-ground mean 仍非常接近，Expert4 接线/联合微调仍需继续处理。
