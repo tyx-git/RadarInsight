@@ -394,8 +394,10 @@ def _project_to_global_logits(
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
     fusion_mode = config.fusion_mode
-    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2"}:
+    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2", "reroute"}:
         raise ValueError(f"unsupported fusion_mode: {fusion_mode}")
+    if fusion_mode == "reroute":
+        raise ValueError("fusion_mode='reroute' is inference-only; use _project_to_global_logits_reroute()")
     if fusion_mode == "ungated":
         low_gate = torch.zeros((batch_labels.shape[0], 1), dtype=torch.float32, device=device)
         conventional_gate = torch.zeros_like(low_gate)
@@ -571,7 +573,7 @@ def _project_to_global_logits_reroute(
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     route_logits = system_output.routing.route_logits.detach().clone()
     batch_size = batch_labels.shape[0]
-    base_logits, base_diagnostics = _project_to_global_logits(
+    _base_logits, base_diagnostics = _project_to_global_logits(
         batch_labels,
         system_output,
         num_classes,
@@ -646,30 +648,31 @@ def _project_to_global_logits_reroute(
         exhausted = reroute_count >= int(config.reroute_max_passes)
         fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted)
     fallback_mask |= ~completed_mask
-    family_indices = {
-        ROUTE_NAMES.index("low_altitude_suspect"): [
-            global_index["DroneTarget"],
-            global_index["BirdTarget"],
-            global_index["BalloonTarget"],
-            global_index["ClutterTarget"],
-            global_index["UnknownTarget"],
-        ],
-        ROUTE_NAMES.index("conventional_air"): [global_index["AircraftTarget"]],
-        ROUTE_NAMES.index("high_altitude_filter"): [global_index["AircraftTarget"]],
-        ROUTE_NAMES.index("ground_target"): [
-            global_index["PeopleTarget"],
-            global_index["CarTarget"],
-            global_index["ShipTarget"],
-        ],
-    }
     for route_idx, route_name in enumerate(ROUTE_NAMES):
         route_mask = completed_mask & (selected_route == route_idx)
         if not bool(route_mask.any()):
             continue
-        family = family_indices[route_idx]
         logits[route_mask] = -6.0
-        for family_idx in family:
-            logits[route_mask, family_idx] = base_logits[route_mask, family_idx]
+        if route_name == "low_altitude_suspect":
+            low_logits = system_output.low_altitude_logits
+            logits[route_mask, global_index["DroneTarget"]] = low_logits[route_mask, 0]
+            logits[route_mask, global_index["BirdTarget"]] = low_logits[route_mask, 1]
+            logits[route_mask, global_index["BalloonTarget"]] = low_logits[route_mask, 2]
+            logits[route_mask, global_index["ClutterTarget"]] = low_logits[route_mask, 3]
+            logits[route_mask, global_index["UnknownTarget"]] = low_logits[route_mask, 4]
+        elif route_name == "conventional_air":
+            conv_logits = system_output.conventional_air_logits
+            aircraft_column = 1 if conv_logits.shape[1] > 1 else 0
+            logits[route_mask, global_index["AircraftTarget"]] = conv_logits[route_mask, aircraft_column]
+        elif route_name == "high_altitude_filter":
+            high_logits = system_output.high_altitude_logits
+            aircraft_column = 1 if high_logits.shape[1] > 1 else 0
+            logits[route_mask, global_index["AircraftTarget"]] = high_logits[route_mask, aircraft_column]
+        elif route_name == "ground_target":
+            ground_logits = system_output.ground_logits
+            logits[route_mask, global_index["PeopleTarget"]] = ground_logits[route_mask, 0]
+            logits[route_mask, global_index["CarTarget"]] = ground_logits[route_mask, 1]
+            logits[route_mask, global_index["ShipTarget"]] = ground_logits[route_mask, 2]
     if bool(fallback_mask.any()):
         logits[fallback_mask] = -6.0
         logits[fallback_mask, global_index["UnknownTarget"]] = 6.0
@@ -1659,6 +1662,7 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
     class_preds_without_aircraft_protection = class_logits_without_aircraft_protection.argmax(dim=-1).tolist()
     route_preds = route_logits.argmax(dim=-1).tolist()
     reroute_selected_route = reroute_diagnostics.get("reroute_selected_route") if isinstance(reroute_diagnostics, dict) else None
+    reroute_fallback = reroute_diagnostics.get("reroute_fallback") if isinstance(reroute_diagnostics, dict) else None
     diagnostics = epoch_metrics.get("aircraft_diagnostics", {})
     records: list[dict[str, object]] = []
     for idx, sample_id in enumerate(epoch_metrics["sample_ids"]):
@@ -1666,11 +1670,17 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
         pred_label = DEFAULT_VOCAB.decode(int(class_preds[idx]))
         pred_without_protection = DEFAULT_VOCAB.decode(int(class_preds_without_aircraft_protection[idx]))
         true_route = str(epoch_metrics["route_names"][idx])
-        pred_route = ROUTE_NAMES[int(route_preds[idx])]
+        router_route = ROUTE_NAMES[int(route_preds[idx])]
+        final_route = router_route
+        is_fallback = bool(reroute_fallback[idx].item()) if reroute_fallback is not None else False
         if reroute_selected_route is not None:
             reroute_route_idx = int(reroute_selected_route[idx].item())
-            if reroute_route_idx >= 0:
-                pred_route = ROUTE_NAMES[reroute_route_idx]
+            if is_fallback:
+                final_route = "fallback_unknown"
+            elif 0 <= reroute_route_idx < len(ROUTE_NAMES):
+                final_route = ROUTE_NAMES[reroute_route_idx]
+        elif is_fallback:
+            final_route = "fallback_unknown"
         record = {
             "sample_id": sample_id,
             "source_name": str(epoch_metrics["source_names"][idx]),
@@ -1678,9 +1688,13 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "label_name_pred": pred_label,
             "label_name_pred_without_aircraft_protection": pred_without_protection,
             "route_name_true": true_route,
-            "route_name_pred": pred_route,
+            "route_name_router_pred": router_route,
+            "route_name_pred": router_route,
+            "route_name_final": final_route,
             "is_correct": pred_label == true_label,
-            "is_route_correct": pred_route == true_route,
+            "is_route_correct": router_route == true_route,
+            "is_router_route_correct": router_route == true_route,
+            "is_final_route_correct": final_route == true_route,
             "aircraft_protection_changed_prediction": pred_label != pred_without_protection,
         }
         for diag_name in (

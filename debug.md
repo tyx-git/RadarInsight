@@ -1011,6 +1011,41 @@
 
 ### 下一步
 
+## 2026-05-05 回流重路由最终修正
+
+### 问题
+
+- `_project_to_global_logits_reroute` 表面上“切到了新专家”，实际仍然复用了 `soft_log_weighted` 的 `base_logits`。
+- 这意味着：
+  - Expert2 即使被回流选中，Aircraft logit 仍然带着原始 Router 的 `log(route_weight)` 惩罚。
+  - Expert1、Expert4、高空分支也都没有真正回到“专家原始输出”。
+- `reporting.py` 的 Markdown 报告只显示主分类和路由表，不显示回流指标：
+  - `reroute_rate`
+  - `reroute_recovery_rate`
+  - `reroute_fallback_rate`
+  - `reroute_worsen_rate`
+- `_prediction_records` 还把回流后的最终路由混进了 `route_name_pred`，导致 fallback 样本的 `is_route_correct` 语义不清。
+
+### 解决方案
+
+- 将 reroute 的最终组装改为“按最终选中专家族直接使用原始专家 logits”：
+  - 低空族直接用 `system_output.low_altitude_logits`
+  - 常规空中直接用 `system_output.conventional_air_logits`
+  - 高空过滤直接用 `system_output.high_altitude_logits`
+  - 地面族直接用 `system_output.ground_logits`
+- 明确把 `fusion_mode='reroute'` 标记为 inference-only，避免训练侧误用。
+- 在样本级记录中拆分：
+  - `route_name_router_pred`：初始 Router 路由
+  - `route_name_final`：回流后的最终路由
+  - `route_name_pred` 保持 Router 语义，避免和回流语义混淆
+- 在 Markdown 报告中新增 `## 回流重路由`，显式渲染回流触发率、恢复率、兜底率和回流次数分布。
+
+### 最终落地
+
+- reroute 现在真正变成“先路由、后回流、最后由专家原始输出裁决”，而不是“换专家但继续吃 gate 压制后的分数”。
+- 报告可直接看出回流有没有带来收益，fallback 和 worsen 也能一眼看到。
+- Router 评估与回流最终路由不再混写，后续排查误路由会更清楚。
+
 - 优先继续做 System 级校准，而不是回退本次架构：
   - 增加 Expert2 高置信 override 的 precision 约束。
   - 对 Expert2 false positive 样本做按类别统计，区分是 Bird/Drone/Ship 还是 Unknown 被抢成 Aircraft。

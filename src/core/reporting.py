@@ -38,6 +38,7 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     route_report = report["route"]
     by_source = report["by_source"]
     predictions = report["predictions"]
+    critical_metrics = report.get("critical_metrics", {})
 
     top_confusions = _top_confusions(label_names, confusion, top_k=10)
     wrong_predictions = [item for item in predictions if not item["is_correct"]]
@@ -105,6 +106,33 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             f"| {item['route_name']} | {item['support']} | {item['correct']} | {_format_float(float(item['recall']))} |"
         )
     lines.append("")
+    reroute_metrics = {}
+    if isinstance(critical_metrics, dict):
+        candidate = critical_metrics.get("reroute", {})
+        if isinstance(candidate, dict):
+            reroute_metrics = candidate
+    if reroute_metrics:
+        lines.append("## 回流重路由")
+        lines.append("| 指标 | 值 |")
+        lines.append("|---|---:|")
+        metric_labels = [
+            ("reroute_rate", "触发率"),
+            ("reroute_avg_count", "平均回流次数"),
+            ("reroute_recovery_rate", "回流后正确率"),
+            ("reroute_fallback_rate", "Unknown 兜底率"),
+            ("reroute_worsen_rate", "回流后错误率"),
+        ]
+        for key, label in metric_labels:
+            if key in reroute_metrics:
+                lines.append(f"| {label} | {_format_float(float(reroute_metrics[key]))} |")
+        distribution = reroute_metrics.get("reroute_count_distribution", {})
+        if isinstance(distribution, dict) and distribution:
+            lines.append("")
+            lines.append("| 回流次数 | 样本数 |")
+            lines.append("|---:|---:|")
+            for count, value in sorted(distribution.items(), key=lambda item: int(item[0])):
+                lines.append(f"| {count} | {value} |")
+        lines.append("")
     lines.append("## 按来源统计")
     lines.append("| 来源 | count | accuracy |")
     lines.append("|---|---:|---:|")
@@ -113,12 +141,14 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines.append("")
     lines.append("## 典型错分样本（前20条）")
     if wrong_predictions:
-        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 预测路由 |")
-        lines.append("|---|---|---|---|---|---|")
+        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 初始路由 | 最终路由 |")
+        lines.append("|---|---|---|---|---|---|---|")
         for item in wrong_predictions:
+            router_route = item.get("route_name_router_pred", item["route_name_pred"])
+            final_route = item.get("route_name_final", item["route_name_pred"])
             lines.append(
                 f"| {item['sample_id']} | {item['source_name']} | {item['label_name_true']} | "
-                f"{item['label_name_pred']} | {item['route_name_true']} | {item['route_name_pred']} |"
+                f"{item['label_name_pred']} | {item['route_name_true']} | {router_route} | {final_route} |"
             )
     else:
         lines.append("- 当前测试集中无错分样本。")
