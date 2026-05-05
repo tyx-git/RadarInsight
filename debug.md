@@ -1046,6 +1046,45 @@
 - 报告可直接看出回流有没有带来收益，fallback 和 worsen 也能一眼看到。
 - Router 评估与回流最终路由不再混写，后续排查误路由会更清楚。
 
+## 2026-05-05 当前止血修复
+
+### 问题
+
+- `reroute` 仍被放在默认 fusion probe 候选里，容易污染训练/评估对比。
+- high-altitude_filter 在全局投影里仍可能把不确定高空样本直接写成 `AircraftTarget`。
+- System 选模仍偏向 Aircraft recall，对 FP 和 source 泛化约束不够硬。
+- `by_source` 目前只展示 accuracy，看不出 source balanced / min source 的坏点。
+
+### 解决方案
+
+- 从 `eval_fusion_candidate_modes` 中移除 `reroute`，默认不再作为候选 probe。
+- high-altitude route 只有在规则覆盖且高空专家 positive 时才允许写 Aircraft，否则兜底 Unknown。
+- System selection score 新增：
+  - `aircraft_system_precision`
+  - `source_balanced_accuracy`
+  - `min_source_accuracy`
+  - 对 `non_aircraft_as_aircraft_rate` 施加强惩罚
+- source report 单独输出来源 accuracy，source 汇总只进入 `critical_metrics`，不污染 `by_source` 表。
+
+### 最终落地
+
+- 训练期不会再被 `reroute` 候选干扰。
+- 高空分支对 Aircraft 的写入更保守，减少无条件 Aircraft 假阳性。
+- System 选模从“偏召回”往“兼顾 precision + source 泛化”移动了一步。
+- 报告开始能暴露 source 级别的真正问题，而不是只看整体 accuracy。
+
+### 落地状态
+
+- 已完成：
+  - `reroute` 从默认 fusion probe 候选移除。
+  - high-altitude_filter 不再无条件写 Aircraft。
+  - System selection score 增加 Aircraft precision、source balanced/min source accuracy 约束。
+  - Markdown 报告开始显式显示 source balanced/min source accuracy。
+- 仍待后续：
+  - System 从 raw logits 拼接改成专家候选 + calibrated confidence 仲裁。
+  - Expert2 做 source-aware threshold/calibration。
+  - Expert1 RD 继续强化。
+
 - 优先继续做 System 级校准，而不是回退本次架构：
   - 增加 Expert2 高置信 override 的 precision 约束。
   - 对 Expert2 false positive 样本做按类别统计，区分是 Bird/Drone/Ship 还是 Unknown 被抢成 Aircraft。

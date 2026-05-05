@@ -24,7 +24,7 @@ class SystemTrainConfig:
     fusion_mode: str = "soft_log_weighted"
     fusion_mode_selection_policy: str = "configured"
     eval_fusion_candidate_modes: list[str] = field(
-        default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2", "reroute"]
+        default_factory=lambda: ["soft_log_weighted", "ungated", "soft_top2"]
     )
     aircraft_protection_enabled: bool = True
     aircraft_confidence_tau_high: float = 0.10

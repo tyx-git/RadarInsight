@@ -134,6 +134,11 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 lines.append(f"| {count} | {value} |")
         lines.append("")
     lines.append("## 按来源统计")
+    if isinstance(critical_metrics, dict):
+        if "source_balanced_accuracy" in critical_metrics:
+            lines.append(f"- source_balanced_accuracy: {_format_float(float(critical_metrics['source_balanced_accuracy']))}")
+        if "min_source_accuracy" in critical_metrics:
+            lines.append(f"- min_source_accuracy: {_format_float(float(critical_metrics['min_source_accuracy']))}")
     lines.append("| 来源 | count | accuracy |")
     lines.append("|---|---:|---:|")
     for source_name, item in by_source.items():

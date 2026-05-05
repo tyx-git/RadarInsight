@@ -492,9 +492,11 @@ def _project_to_global_logits(
     high_logits = system_output.high_altitude_logits
     high_aircraft_column = 1 if high_logits.shape[1] > 1 else 0
     high_positive = high_logits[:, high_aircraft_column] > high_logits[:, 0]
+    high_route_selected = system_output.routing.route_indices == ROUTE_NAMES.index("high_altitude_filter")
+    high_allowed = high_positive & high_route_selected & system_output.routing.override_mask
     high_aircraft_score = high_logits[:, high_aircraft_column] + high_gate.squeeze(-1)
     high_aircraft_score = torch.where(
-        high_positive,
+        high_allowed,
         high_aircraft_score,
         torch.full_like(high_aircraft_score, -6.0),
     )
@@ -552,6 +554,7 @@ def _project_to_global_logits(
         "aircraft_high_confidence": high_conf.detach(),
         "aircraft_mid_confidence": mid_conf.detach(),
         "high_altitude_rule_positive": high_positive.detach(),
+        "high_altitude_allowed": high_allowed.detach(),
         "groundness_probability": groundness_probability.detach(),
         "groundness_threshold": groundness_threshold.detach(),
         "groundness_confidence": groundness_confidence.detach(),
@@ -627,7 +630,7 @@ def _project_to_global_logits_reroute(
             elif route_name == "ground_target":
                 accepted = ground_conf >= float(config.reroute_ground_conf_threshold)
             else:
-                accepted = torch.ones_like(route_mask, dtype=torch.bool)
+                accepted = high_accept
             accept_mask = route_mask & accepted
             reject_mask = route_mask & ~accepted
             if bool(accept_mask.any()):
@@ -667,7 +670,12 @@ def _project_to_global_logits_reroute(
         elif route_name == "high_altitude_filter":
             high_logits = system_output.high_altitude_logits
             aircraft_column = 1 if high_logits.shape[1] > 1 else 0
-            logits[route_mask, global_index["AircraftTarget"]] = high_logits[route_mask, aircraft_column]
+            high_route_accept = route_mask & high_accept
+            high_route_reject = route_mask & ~high_accept
+            if bool(high_route_accept.any()):
+                logits[high_route_accept, global_index["AircraftTarget"]] = high_logits[high_route_accept, aircraft_column]
+            if bool(high_route_reject.any()):
+                logits[high_route_reject, global_index["UnknownTarget"]] = 6.0
         elif route_name == "ground_target":
             ground_logits = system_output.ground_logits
             logits[route_mask, global_index["PeopleTarget"]] = ground_logits[route_mask, 0]
@@ -1058,6 +1066,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         route_labels=route_labels_cat,
         num_classes=len(DEFAULT_VOCAB.labels),
     )
+    source_report = _source_report(class_logits_cat, class_labels_cat, source_names_all)
     critical_metrics = _critical_metric_summary(
         class_logits_cat,
         class_labels_cat,
@@ -1066,6 +1075,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         aircraft_diagnostics=aircraft_diagnostics_cat,
         reroute_diagnostics=reroute_diagnostics_cat,
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection_cat,
+        source_report=source_report,
     )
     return {
         "loss": float(sum(loss_values) / len(loss_values)),
@@ -1086,6 +1096,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         "source_names": source_names_all,
         "label_names": label_names_all,
         "route_names": route_names_all,
+        "source_report": source_report,
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
         "critical_metrics": critical_metrics,
@@ -1191,6 +1202,24 @@ def _source_report(
             "accuracy": accuracy,
         }
     return report
+
+
+def _source_summary(source_report: dict[str, object]) -> dict[str, float]:
+    source_items = [
+        item
+        for item in source_report.values()
+        if isinstance(item, dict) and "accuracy" in item
+    ]
+    if not source_items:
+        return {
+            "source_balanced_accuracy": 0.0,
+            "min_source_accuracy": 0.0,
+        }
+    accuracies = [float(item["accuracy"]) for item in source_items]
+    return {
+        "source_balanced_accuracy": float(sum(accuracies) / len(accuracies)),
+        "min_source_accuracy": float(min(accuracies)),
+    }
 
 
 def _label_recall(class_logits: torch.Tensor, class_labels: torch.Tensor, label_name: str) -> float:
@@ -1545,6 +1574,7 @@ def _critical_metric_summary(
     aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
     reroute_diagnostics: dict[str, torch.Tensor] | None = None,
     class_logits_without_aircraft_protection: torch.Tensor | None = None,
+    source_report: dict[str, object] | None = None,
 ) -> dict[str, object]:
     route = _route_report(route_logits, route_labels)
     per_route_recall = {
@@ -1568,6 +1598,7 @@ def _critical_metric_summary(
         aircraft_diagnostics=aircraft_diagnostics,
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
     )
+    source_summary = _source_summary(source_report or {})
     return {
         "route_macro_recall": route["macro_recall"],
         "per_route_recall": per_route_recall,
@@ -1598,6 +1629,9 @@ def _critical_metric_summary(
         "expert2_positive_system_not_aircraft_count": aircraft["expert2_positive_system_not_aircraft_count"],
         "expert2_positive_system_not_aircraft_rate": aircraft["expert2_positive_system_not_aircraft_rate"],
         "non_aircraft_as_aircraft_rate": aircraft["non_aircraft_as_aircraft_rate"],
+        "source_report": source_report or {},
+        "source_balanced_accuracy": source_summary["source_balanced_accuracy"],
+        "min_source_accuracy": source_summary["min_source_accuracy"],
     }
 
 
@@ -1611,10 +1645,13 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     ground_route = float(critical.get("ground_route_recall", 0.0))
     drone_bird = float(critical.get("drone_bird", {}).get("drone_bird_recall_mean", 0.0))
     aircraft_recall = float(critical.get("aircraft_system_recall", 0.0))
+    aircraft_precision = float(critical.get("aircraft_system_precision", 0.0))
     aircraft_f1 = float(critical.get("aircraft_system_f1", 0.0))
     non_aircraft_as_aircraft_rate = float(critical.get("non_aircraft_as_aircraft_rate", 0.0))
     ground_group_f1 = float(critical.get("ground_group_f1", 0.0))
     pred_ground_on_non_ground = float(critical.get("pred_ground_on_non_ground_count", 0.0))
+    source_balanced_accuracy = float(critical.get("source_balanced_accuracy", 0.0))
+    min_source_accuracy = float(critical.get("min_source_accuracy", 0.0))
     score = (
         macro_f1
         + 0.20 * route_macro
@@ -1623,9 +1660,12 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         + 0.10 * (unknown_recall + clutter_recall)
         + 0.10 * ground_route
         + 0.08 * ground_group_f1
-        + 0.12 * aircraft_recall
+        + 0.06 * aircraft_recall
         + 0.08 * aircraft_f1
-        - 0.10 * non_aircraft_as_aircraft_rate
+        + 0.10 * aircraft_precision
+        + 0.10 * source_balanced_accuracy
+        + 0.08 * min_source_accuracy
+        - 1.50 * non_aircraft_as_aircraft_rate
         - 0.01 * pred_ground_on_non_ground
     )
     if ground_route == 0.0:
@@ -1634,6 +1674,12 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         score -= 0.05
     if clutter_recall == 0.0:
         score -= 0.05
+    if aircraft_precision < 0.60:
+        score -= 0.25
+    if non_aircraft_as_aircraft_rate > 0.01:
+        score -= 0.20
+    if min_source_accuracy < 0.50:
+        score -= 0.25
     return score, {
         "macro_f1": macro_f1,
         "route_macro_recall": route_macro,
@@ -1645,8 +1691,11 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         "ground_group_f1": ground_group_f1,
         "pred_ground_on_non_ground_count": pred_ground_on_non_ground,
         "aircraft_system_recall": aircraft_recall,
+        "aircraft_system_precision": aircraft_precision,
         "aircraft_system_f1": aircraft_f1,
         "non_aircraft_as_aircraft_rate": non_aircraft_as_aircraft_rate,
+        "source_balanced_accuracy": source_balanced_accuracy,
+        "min_source_accuracy": min_source_accuracy,
     }
 
 
@@ -1753,6 +1802,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         aircraft_diagnostics=aircraft_diagnostics,
         reroute_diagnostics=epoch_metrics.get("reroute_diagnostics", {}),
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
+        source_report=epoch_metrics.get("source_report"),
     )
     return {
         "summary": _metric_summary(epoch_metrics),
@@ -1772,7 +1822,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         "critical_metrics": critical_metrics,
         "aircraft_arbitration": critical_metrics["aircraft"],
         "expert1_low_altitude": _low_altitude_report(class_logits, class_labels),
-        "by_source": _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
+        "by_source": epoch_metrics.get("source_report") or _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
         "predictions": _prediction_records(epoch_metrics),
     }
 

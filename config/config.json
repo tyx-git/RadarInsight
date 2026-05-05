@@ -163,8 +163,7 @@
     "eval_fusion_candidate_modes": [
       "soft_log_weighted",
       "ungated",
-      "soft_top2",
-      "reroute"
+      "soft_top2"
     ],
     "aircraft_protection_enabled": true,
     "aircraft_confidence_tau_high": 0.2,
