@@ -1573,3 +1573,57 @@
 - 落地修复：
   - `src/core/system_trainer.py` 新增 `fusion_test_probe` 与 `best_test_probe`。
   - 后续每轮 System 报告不仅记录验证集选择的模式，也记录测试集各 fusion mode 的真实表现，避免把更优推理模式藏掉。
+
+## 2026-05-05 System 止血修复后重训
+
+### 第一次重训
+
+- 命令：
+  - `python -m src.core.train_system --config config/config.json`
+- 产物：
+  - `artifacts/20260505-164555/system_config_smoke`
+- 结果：
+  - `accuracy: 0.8163`
+  - `macro_f1: 0.4665`
+  - `aircraft_recall: 0.0`
+  - `aircraft_precision: 0.0`
+  - `non_aircraft_as_aircraft_rate: 0.0031`
+- 问题：
+  - selection score 对 Aircraft FP 惩罚加硬后，反而选到了“几乎不输出 Aircraft”的 checkpoint。
+  - 假阳性少了，但 5 个 Aircraft 全漏，macro F1 和 accuracy 都明显退化。
+
+### 修复
+
+- 在 `_system_selection_score()` 中增加 Aircraft 支持样本存在时的 recall/F1 约束：
+  - `aircraft_support > 0 and aircraft_recall == 0` 施加强惩罚。
+  - `aircraft_recall < 0.40` 施加轻惩罚。
+  - `aircraft_f1 == 0` 追加惩罚。
+- 目标：
+  - 防止模型靠“完全不判 Aircraft”规避 FP 惩罚。
+  - 继续保留 FP/source 约束，但不能把正类召回压死。
+
+### 第二次重训
+
+- 产物：
+  - `artifacts/20260505-171533/system_config_smoke`
+- 结果：
+  - `accuracy: 0.8645`
+  - `macro_f1: 0.6026`
+  - `route_macro_recall: 0.7460`
+  - `expert1_low_altitude_macro_f1: 0.8091`
+  - `drone_bird_recall_mean: 0.9055`
+  - `aircraft_recall: 1.0`
+  - `aircraft_precision: 0.4545`
+  - `aircraft_f1: 0.6250`
+  - `non_aircraft_as_aircraft_rate: 0.0183`
+  - `source_balanced_accuracy: 0.7035`
+  - `min_source_accuracy: 0.4545`
+
+### 当前判断
+
+- 止血修复没有提升最高指标，但已避免错误选到 Aircraft 全漏 checkpoint。
+- 当前瓶颈仍是 System 仲裁：
+  - Aircraft precision 不够高。
+  - raw_tr_rd source accuracy 只有 `0.4545`。
+  - Ground group F1 仍只有 `0.4286`。
+- 下一步应进入“专家候选 + calibrated confidence 仲裁”，而不是继续调 raw logits 拼接。

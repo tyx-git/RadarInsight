@@ -1647,6 +1647,7 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     aircraft_recall = float(critical.get("aircraft_system_recall", 0.0))
     aircraft_precision = float(critical.get("aircraft_system_precision", 0.0))
     aircraft_f1 = float(critical.get("aircraft_system_f1", 0.0))
+    aircraft_support = int(critical.get("aircraft", {}).get("system", {}).get("support", 0))
     non_aircraft_as_aircraft_rate = float(critical.get("non_aircraft_as_aircraft_rate", 0.0))
     ground_group_f1 = float(critical.get("ground_group_f1", 0.0))
     pred_ground_on_non_ground = float(critical.get("pred_ground_on_non_ground_count", 0.0))
@@ -1676,6 +1677,12 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         score -= 0.05
     if aircraft_precision < 0.60:
         score -= 0.25
+    if aircraft_support > 0 and aircraft_recall == 0.0:
+        score -= 0.45
+    elif aircraft_support > 0 and aircraft_recall < 0.40:
+        score -= 0.15
+    if aircraft_support > 0 and aircraft_f1 == 0.0:
+        score -= 0.20
     if non_aircraft_as_aircraft_rate > 0.01:
         score -= 0.20
     if min_source_accuracy < 0.50:
@@ -1693,6 +1700,7 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         "aircraft_system_recall": aircraft_recall,
         "aircraft_system_precision": aircraft_precision,
         "aircraft_system_f1": aircraft_f1,
+        "aircraft_support": float(aircraft_support),
         "non_aircraft_as_aircraft_rate": non_aircraft_as_aircraft_rate,
         "source_balanced_accuracy": source_balanced_accuracy,
         "min_source_accuracy": min_source_accuracy,
