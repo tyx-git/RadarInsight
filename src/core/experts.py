@@ -548,32 +548,59 @@ class ConventionalAirExpert(nn.Module):
         self.aircraft_prototype = nn.Parameter(torch.randn(128))
         nn.init.normal_(self.aircraft_prototype, mean=0.0, std=0.02)
         self.register_buffer("decision_threshold", torch.tensor(float(decision_threshold), dtype=torch.float32))
+        self.source_thresholds: dict[str, float] = {}
 
     def set_decision_threshold(self, value: float) -> None:
         self.decision_threshold.fill_(float(value))
 
-    def _open_set_logits(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def set_source_thresholds(self, thresholds: dict[str, float] | None) -> None:
+        self.source_thresholds = {
+            str(key): float(value)
+            for key, value in (thresholds or {}).items()
+        }
+
+    def _threshold_for_sources(self, batch_size: int, device: torch.device, dtype: torch.dtype, source_names: list[str] | None = None) -> torch.Tensor:
+        default_threshold = self.decision_threshold.to(device=device, dtype=dtype)
+        if not self.source_thresholds or not source_names:
+            return default_threshold.expand(batch_size)
+        values = [
+            float(self.source_thresholds.get(str(source_name), float(default_threshold.item())))
+            for source_name in source_names
+        ]
+        return torch.tensor(values, dtype=dtype, device=device)
+
+    def _open_set_logits(self, features: torch.Tensor, threshold: torch.Tensor | float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         normalized_features = F.normalize(features, dim=-1)
         normalized_prototype = F.normalize(self.aircraft_prototype, dim=0)
         similarity = normalized_features @ normalized_prototype
-        centered = similarity - self.decision_threshold.to(device=features.device, dtype=features.dtype)
+        if threshold is None:
+            threshold = self.decision_threshold.to(device=features.device, dtype=features.dtype)
+        elif not torch.is_tensor(threshold):
+            threshold = torch.tensor(float(threshold), device=features.device, dtype=features.dtype)
+        centered = similarity - threshold
         logits = torch.stack([-centered, centered], dim=-1) * self.logit_scale
         return logits, similarity
 
-    def forward(self, sequence_features: torch.Tensor, physical_features: torch.Tensor, padding_mask: torch.Tensor | None = None) -> ExpertOutput:
+    def forward(self, sequence_features: torch.Tensor, physical_features: torch.Tensor, padding_mask: torch.Tensor | None = None, source_names: list[str] | None = None) -> ExpertOutput:
         seq = sequence_features.transpose(1, 2)
         hidden = self.temporal_conv(seq).transpose(1, 2)
         temporal = self.temporal_pool(hidden, padding_mask=padding_mask)
         physical = self.physical_proj(self.physical_input_norm(physical_features))
         fused = self.fuse(torch.cat([temporal, physical], dim=-1))
         if self.open_set:
-            logits, similarity = self._open_set_logits(fused)
+            threshold = self._threshold_for_sources(
+                batch_size=fused.shape[0],
+                device=fused.device,
+                dtype=fused.dtype,
+                source_names=source_names,
+            )
+            logits, similarity = self._open_set_logits(fused, threshold=threshold)
             return ExpertOutput(
                 logits=logits,
                 features=fused,
                 auxiliary={
                     "aircraft_similarity": similarity,
-                    "aircraft_threshold": self.decision_threshold.expand_as(similarity),
+                    "aircraft_threshold": threshold,
                 },
             )
         logits = self.classifier(fused)

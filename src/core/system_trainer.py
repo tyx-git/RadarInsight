@@ -221,6 +221,13 @@ def _load_expert_bundle(
     model_key = checkpoint.get("model_state_dict", {})
     if expert_name == "expert2_air":
         missing, unexpected = model.conventional_air_expert.load_state_dict(model_key, strict=False)
+        source_thresholds = {
+            str(key): float(value)
+            for key, value in dict(checkpoint.get("source_thresholds", {})).items()
+        }
+        if source_thresholds and hasattr(model.conventional_air_expert, "set_source_thresholds"):
+            model.conventional_air_expert.set_source_thresholds(source_thresholds)
+        info["source_thresholds"] = source_thresholds
     elif expert_name == "expert4_ground":
         missing, unexpected = model.ground_expert.load_state_dict(model_key, strict=False)
     else:
@@ -396,11 +403,18 @@ def _project_to_global_logits(
     logits = torch.full((batch_labels.shape[0], num_classes), fill_value=-6.0, device=device)
     global_index = DEFAULT_VOCAB.label_to_index
     fusion_mode = config.fusion_mode
-    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2", "reroute"}:
+    if fusion_mode not in {"ungated", "hard_route", "soft_log_weighted", "soft_top2", "reroute", "calibrated_candidates"}:
         raise ValueError(f"unsupported fusion_mode: {fusion_mode}")
     if fusion_mode == "reroute":
         raise ValueError("fusion_mode='reroute' is inference-only; use _project_to_global_logits_reroute()")
-    if fusion_mode == "ungated":
+    route_weights = system_output.routing.route_weights
+    route_log_prior = 0.25 * torch.log(route_weights.clamp_min(1e-6))
+    if fusion_mode == "calibrated_candidates":
+        low_gate = route_log_prior[:, ROUTE_NAMES.index("low_altitude_suspect")].unsqueeze(-1)
+        conventional_gate = route_log_prior[:, ROUTE_NAMES.index("conventional_air")].unsqueeze(-1)
+        high_gate = route_log_prior[:, ROUTE_NAMES.index("high_altitude_filter")].unsqueeze(-1)
+        ground_gate = route_log_prior[:, ROUTE_NAMES.index("ground_target")].unsqueeze(-1)
+    elif fusion_mode == "ungated":
         low_gate = torch.zeros((batch_labels.shape[0], 1), dtype=torch.float32, device=device)
         conventional_gate = torch.zeros_like(low_gate)
         high_gate = torch.zeros_like(low_gate)
@@ -443,10 +457,12 @@ def _project_to_global_logits(
             torch.zeros_like(route_indices, dtype=torch.float32),
             torch.full_like(route_indices, fill_value=-30, dtype=torch.float32),
         ).to(device).unsqueeze(-1)
-    route_weights = system_output.routing.route_weights
     conventional_route_weight = route_weights[:, ROUTE_NAMES.index("conventional_air")]
 
-    low = system_output.low_altitude_logits + low_gate
+    if fusion_mode == "calibrated_candidates":
+        low = torch.log_softmax(system_output.low_altitude_logits, dim=-1) + low_gate
+    else:
+        low = system_output.low_altitude_logits + low_gate
     logits[:, global_index["DroneTarget"]] = low[:, 0]
     logits[:, global_index["BirdTarget"]] = low[:, 1]
     logits[:, global_index["BalloonTarget"]] = low[:, 2]
@@ -493,7 +509,24 @@ def _project_to_global_logits(
         & ~high_conf
     )
     source_reject = source_override_mask & (aircraft_confidence < source_tau_low)
-    if config.aircraft_protection_enabled:
+    if fusion_mode == "calibrated_candidates":
+        aircraft_log_prob = torch.log_softmax(conv_logits, dim=-1)[:, aircraft_column]
+        floor_weight = max(float(config.aircraft_conventional_gate_floor), 1e-6)
+        conventional_gate_floor = float(np.log(floor_weight))
+        floor_tensor = torch.full_like(adjusted_conventional_gate, conventional_gate_floor)
+        adjusted_conventional_gate = torch.where(
+            high_conf,
+            torch.zeros_like(adjusted_conventional_gate),
+            torch.where(mid_conf, torch.maximum(adjusted_conventional_gate, floor_tensor), adjusted_conventional_gate),
+        )
+        aircraft_score = aircraft_log_prob / max(float(config.aircraft_temperature), 1e-6) + adjusted_conventional_gate
+        if apply_source_aircraft_policy and config.aircraft_source_suppress_below_tau:
+            aircraft_score = torch.where(
+                source_reject,
+                torch.full_like(aircraft_score, float(config.aircraft_source_suppress_logit)),
+                aircraft_score,
+            )
+    elif config.aircraft_protection_enabled:
         floor_weight = max(float(config.aircraft_conventional_gate_floor), 1e-6)
         conventional_gate_floor = float(np.log(floor_weight))
         floor_tensor = torch.full_like(adjusted_conventional_gate, conventional_gate_floor)
@@ -517,7 +550,7 @@ def _project_to_global_logits(
     high_positive = high_logits[:, high_aircraft_column] > high_logits[:, 0]
     high_route_selected = system_output.routing.route_indices == ROUTE_NAMES.index("high_altitude_filter")
     high_allowed = high_positive & high_route_selected & system_output.routing.override_mask
-    high_aircraft_score = high_logits[:, high_aircraft_column] + high_gate.squeeze(-1)
+    high_aircraft_score = torch.log_softmax(high_logits, dim=-1)[:, high_aircraft_column] + high_gate.squeeze(-1)
     high_aircraft_score = torch.where(
         high_allowed,
         high_aircraft_score,
@@ -543,7 +576,21 @@ def _project_to_global_logits(
         (groundness_confidence >= float(config.groundness_confidence_tau_low))
         & ~ground_high_conf
     )
-    if config.groundness_protection_enabled:
+    if fusion_mode == "calibrated_candidates":
+        floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
+        ground_gate_floor = float(np.log(floor_weight))
+        ground_floor_tensor = torch.full_like(adjusted_ground_gate, ground_gate_floor)
+        adjusted_ground_gate = torch.where(
+            ground_high_conf,
+            torch.zeros_like(adjusted_ground_gate),
+            torch.where(
+                ground_mid_conf,
+                torch.maximum(adjusted_ground_gate, ground_floor_tensor),
+                adjusted_ground_gate - 1.5,
+            ),
+        )
+        ground = torch.log_softmax(ground_logits, dim=-1) / max(float(config.groundness_temperature), 1e-6) + adjusted_ground_gate.unsqueeze(-1)
+    elif config.groundness_protection_enabled:
         floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
         ground_gate_floor = float(np.log(floor_weight))
         ground_floor_tensor = torch.full_like(adjusted_ground_gate, ground_gate_floor)
@@ -829,7 +876,10 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
     label_names_all: list[str] = []
     route_names_all: list[str] = []
     skipped_non_finite_batches = 0
-    unprotected_config = replace(config, aircraft_protection_enabled=False)
+    runtime_config = config
+    if train and config.fusion_mode == "calibrated_candidates":
+        runtime_config = replace(config, fusion_mode="soft_log_weighted")
+    unprotected_config = replace(runtime_config, aircraft_protection_enabled=False)
     if unprotected_config.fusion_mode == "reroute":
         unprotected_config = replace(unprotected_config, fusion_mode="soft_log_weighted")
 
@@ -858,6 +908,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                 padding_mask=padding_mask,
                 rd_padding_mask=rd_padding_mask,
                 rd_patch_padding_mask=rd_patch_padding_mask,
+                source_names=batch.source_names,
                 enable_low_altitude_reject=(
                     config.enable_low_altitude_reject_in_train
                     if train
@@ -870,7 +921,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     output,
                     len(DEFAULT_VOCAB.labels),
                     device,
-                    config,
+                    runtime_config,
                     source_names=batch.source_names,
                 )
                 _, aircraft_diagnostics = _project_to_global_logits(
@@ -878,7 +929,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     output,
                     len(DEFAULT_VOCAB.labels),
                     device,
-                    replace(config, fusion_mode="soft_log_weighted"),
+                    replace(runtime_config, fusion_mode="soft_log_weighted"),
                     return_diagnostics=True,
                     source_names=batch.source_names,
                     apply_source_aircraft_policy=True,
@@ -889,7 +940,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     output,
                     len(DEFAULT_VOCAB.labels),
                     device,
-                    config,
+                    runtime_config,
                     return_diagnostics=True,
                     source_names=batch.source_names,
                     apply_source_aircraft_policy=not train,

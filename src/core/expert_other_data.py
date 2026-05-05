@@ -35,6 +35,8 @@ def build_subset_dataloaders(
     balanced_sampling: bool = False,
     balanced_positive_multiplier: int = 8,
     include_ground_hard_negatives: bool = False,
+    source_sampling_name: str = "",
+    source_sampling_multiplier: float = 1.0,
 ) -> ExpertOtherLoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="system_trainable_track_index.csv")
     frame = dataset.to_frame().copy()
@@ -88,23 +90,46 @@ def build_subset_dataloaders(
 
     sampler = None
     shuffle = True
-    if balanced_sampling and labels == ["AircraftTarget"]:
+    if balanced_sampling:
         train_frame = frame[frame["sample_id"].astype(str).isin({str(sample_id) for sample_id in split.train_ids})].copy()
-        binary_labels = train_frame["label_name"].astype(str).map(lambda value: 1 if value == "AircraftTarget" else 0)
-        counts = binary_labels.value_counts().to_dict()
-        weights = [
-            1.0 / max(1, int(counts[int(binary_label)]))
-            for binary_label in binary_labels.tolist()
-        ]
-        sampler = WeightedRandomSampler(
-            weights=weights,
-            num_samples=max(
-                batch_size,
-                2 * int(counts.get(1, 0)) * max(1, int(balanced_positive_multiplier)),
-            ),
-            replacement=True,
-        )
-        shuffle = False
+        train_labels = train_frame["label_name"].astype(str)
+        counts = train_labels.value_counts().to_dict()
+        if labels == ["AircraftTarget"]:
+            binary_labels = train_labels.map(lambda value: 1 if value == "AircraftTarget" else 0)
+            binary_counts = binary_labels.value_counts().to_dict()
+            train_sources = train_frame["source_name"].astype(str) if "source_name" in train_frame.columns else None
+            weights = [
+                (1.0 / max(1, int(binary_counts[int(binary_label)])))
+                * (max(1, int(balanced_positive_multiplier)) if int(binary_label) == 1 else 1.0)
+                * (
+                    max(1.0, float(source_sampling_multiplier))
+                    if train_sources is not None
+                    and str(source_sampling_name)
+                    and str(source_name) == str(source_sampling_name)
+                    else 1.0
+                )
+                for binary_label, source_name in zip(
+                    binary_labels.tolist(),
+                    train_sources.tolist() if train_sources is not None else ["" for _ in binary_labels.tolist()],
+                )
+            ]
+            sampler = WeightedRandomSampler(
+                weights=weights,
+                num_samples=max(
+                    batch_size,
+                    2 * int(binary_counts.get(1, 0)) * max(1, int(balanced_positive_multiplier)),
+                ),
+                replacement=True,
+            )
+            shuffle = False
+        elif len(counts) > 1:
+            weights = [1.0 / max(1, int(counts[str(label)])) for label in train_labels.tolist()]
+            sampler = WeightedRandomSampler(
+                weights=weights,
+                num_samples=max(batch_size, len(weights)),
+                replacement=True,
+            )
+            shuffle = False
 
     train_loader = DataLoader(
         train_ds,

@@ -198,6 +198,65 @@
 - `evaluation_report.json` 当前包含：
   - 总体 summary
   - 分类 confusion matrix
+
+## 2026-05-06 Expert2 / Expert4 / System 最近修复记录
+- 先修复了 `expert2_air` 的开集校准链路，解决“源内阈值只看 raw_tr_rd、excel_track 自身假 Aircraft 也被放行”的问题。
+- 代码落点：
+  - `src/core/expert_other_trainer.py`
+  - `src/core/expert_other_config.py`
+  - `config/config.json`
+- 具体修复：
+  - 源内阈值校准加入 `source_false_aircraft_rate` 和 `max_source_false_aircraft_rate` 约束
+  - 非 focus 源在 positive support 太少时回退默认阈值
+  - best checkpoint 选择改为以校准后宏 F1 + aircraft precision/recall 为主
+  - 增加 hard negative label 级加权，重点压 `BirdTarget` / `DroneTarget` / `ShipTarget`
+- 实测结果：
+  - `expert2_config_smoke` 独立测试从早期“precision 很低、FP 爆炸”修到：
+    - `Aircraft precision = 0.3333`
+    - `Aircraft recall = 0.4`
+    - `macro F1 = 0.6764`
+  - 训练后 `raw_tr_rd` 和 `excel_track` 的 Aircraft 假阳性明显收敛
+
+- 再训练 `expert4_ground`，把 groundness 分离损失和 ground 类别权重打开。
+- 代码落点：
+  - `config/config.json`
+  - `src/core/expert_other_trainer.py`
+- 具体修复：
+  - `balanced_sampling = true`
+  - `use_ground_class_weighting = true`
+  - `groundness_separation_loss_weight = 0.15`
+  - 重新选择 groundness threshold
+- 实测结果：
+  - `expert4_config_smoke` 独立测试 ground group F1 从旧版 `0.4516` 提升到 `0.5641`
+  - `System` 中 `representation + expert4 head` 也提升到 `0.5405`
+  - 说明 ground head 不是纯失效，System 仲裁仍有压制
+
+- 对 Ground 做过两次系统级保护实验：
+  - `groundness_protection_enabled = true` 时，ground 独立可更高，但系统最终 ground F1 反而下降
+  - 回退到 `groundness_protection_enabled = false` 后，系统最终更稳
+- 结论：
+  - 当前 Ground 的主要瓶颈不是简单的保护阈值，而是 System 级仲裁仍会压低 ground 候选
+  - 当前阶段不再继续盲开 groundness 保护
+
+- System 侧最近修复：
+  - `fusion_mode_selection_policy` 从 `configured` 改为 `validation_score`
+  - 系统验证 probe 会选择 `ungated` 作为当前更优模式，而不是被 `soft_log_weighted` 固定住
+  - `groundness_protection_enabled` 经过实测后回退关闭，避免误伤最终 ground_group
+- 最新系统结果：
+  - `accuracy = 0.8614`
+  - `macro F1 = 0.6112`
+  - `aircraft precision = 0.5714`
+  - `aircraft recall = 0.8`
+  - `ground_group F1 = 0.4375`
+  - `best_test_probe = ungated`
+
+- 当前结论：
+  - Expert2 已从“Aircraft FP 爆炸”修到可用
+  - Expert4 独立变强了，但 System 最终 ground 仍被仲裁压制
+  - 当前下一步应继续做的是：
+    - 系统级 Ground 候选保护的更稳版本
+    - 或者把 Ground 重新纳入 calibrated candidate 仲裁
+    - 同时继续提升 Expert1 RD 对 Unknown / Clutter / Bird 的分离能力
   - per-class precision / recall / f1 / support
   - route confusion matrix
   - per-route support / recall
@@ -1681,6 +1740,54 @@
   - 重新跑 CUDA System 训练。
   - 重点观察 `raw_tr_rd` accuracy、Aircraft precision/recall、`aircraft_source_reject_*` 和 source x label 指标。
 
+## 2026-05-05 Ground/Expert4 对照测试
+
+### 目标
+
+- 验证 Expert4 在 System 中的低分到底来自：
+  1. Expert4 head 本身问题
+  2. System representation 漂移
+  3. 全局仲裁抢分
+
+### 测试
+
+- 新增：`tests/test_ground_system_alignment.py`
+- 使用：
+  - 最新 System checkpoint：`artifacts/20260505-204215/system_config_smoke/best_model.pt`
+  - 最新 Expert4 checkpoint：`artifacts/main_pipeline_config_smoke/20260501-231610/expert4_ground/best_model.pt`
+- 对同一 System test split，比较三条路径：
+  1. Expert4 standalone
+  2. System representation + Expert4 head
+  3. System final global 输出
+
+### 结果
+
+- Expert4 standalone ground F1：`0.4516`
+- System representation + Expert4 head ground F1：`0.4375`
+- System final global ground F1：`0.4286`
+- 测试诊断：`expert4_head_or_data_limit`
+
+### 结论
+
+- 不是明显的 representation drift。
+- 不是明显的全局仲裁压坏。
+- Ground 低分主要还是 Expert4 head 自身和样本上限问题。
+- 这意味着后续修 Ground 的优先级应当转为：
+  1. 强化 Expert4 自身训练目标和阈值选模
+  2. 再看 System 是否需要轻量候选保护
+  3. 不要先大改 System 仲裁
+
+### 落地
+
+- 新增测试文件：
+  - `tests/test_ground_system_alignment.py`
+- 新增报告：
+  - `tests/ground_system_alignment_report.json`
+- 后续可继续推进：
+  - Expert4 阈值筛选
+  - Ground 组 hard-negative 与 source-balanced 选模
+  - `source x label` 的更细粒度报告
+
 ### 第一次重训暴露的新问题
 
 - 产物：`artifacts/20260505-182345/system_config_smoke`
@@ -1734,3 +1841,212 @@
     - raw_tr_rd Ship recall 仍为 `0.0`
     - People 仍因样本极少为 `0.0`
     - Groundness true/non-ground mean 仍非常接近，Expert4 接线/联合微调仍需继续处理。
+
+## 2026-05-05 Expert2 阈值校准复查
+
+### 问题
+
+- 按 `tmp.md` 的建议，Expert2 阈值选择加入了：
+  - Aircraft recall 下限
+  - Aircraft precision 下限
+  - `raw_tr_rd` false Aircraft rate 惩罚
+- 第一次重训产物：`artifacts/20260505-234711/expert2_config_smoke`
+- 测试结果：
+  - accuracy：`0.9818`
+  - macro F1：`0.6204`
+  - Aircraft precision：`0.3333`
+  - Aircraft recall：`0.2000`
+  - Aircraft F1：`0.2500`
+  - decision threshold：`0.6400`
+  - `raw_tr_rd` accuracy：`0.6154`
+
+### 定位
+
+- 这不是 System 侧仲裁问题，而是 Expert2 独立阈值和相似度分布问题。
+- 在 validation 上扫描阈值发现：
+  - Aircraft 正样本 similarity 约为 `0.5872 ~ 0.6422`
+  - 非 Aircraft 最大 similarity 可到 `0.6363`
+  - 阈值 `0.62` 附近能达到 Aircraft recall `0.60`，但 precision 只有 `0.273`
+  - 阈值 `0.64` 能把 raw false Aircraft 压到 0，但 Aircraft recall 只剩 `0.20`
+- 也就是说当前 Expert2 表征没有形成同时满足 `recall>=0.60`、`precision>=0.50`、`raw_tr_rd FP<=0.10` 的可行阈值窗口。
+
+### 修复
+
+- 修改 `_calibrate_open_set_threshold()`：
+  - 不再让一个大惩罚直接把阈值推到极保守端。
+  - 先寻找满足三项硬约束的 feasible candidate。
+  - 若不存在 feasible candidate，返回带 `feasible=false` 的最佳折中候选，并降低该 epoch 的选模分数。
+  - 评分同时考虑 `macro_f1`、`aircraft_f1`、`aircraft_precision`、`aircraft_recall`、`non_aircraft_recall` 和 `raw_false_aircraft_rate`。
+
+### 当前结论
+
+- Expert2 当前不能仅靠阈值达到目标，需要继续从训练目标提升 aircraft prototype 与 hard negatives 的分离度。
+- 新的阈值校准逻辑会显式暴露 `feasible=false`，避免把“高 accuracy、低 Aircraft recall”的模型误认为已达标。
+
+## 2026-05-06 Expert4 训练加权与均衡
+
+### 问题
+
+- Expert4 之前虽然能独立达到 `macro F1=0.6061`，但：
+  - `groundness_threshold` 选模偏保守。
+  - People/Ship/Car 样本极少，普通顺序采样不足以支撑稳定训练。
+  - System 里 ground_group 仍被压到 `0.4286` 左右。
+
+### 修复
+
+- `build_subset_dataloaders()`：
+  - 对 `expert4_ground` 也开启 `balanced_sampling`。
+  - 改为多类按训练集频率反比采样，而不是仅支持 `expert2_air` 的二分类正类放大。
+- `train_other_expert()`：
+  - Expert4 的 `CrossEntropyLoss` 改为按训练分布自动生成 `class_weight`。
+  - `groundness_loss` 保持，但同时增加 `groundness_separation_loss`：
+    - 正样本 groundness probability 向 `positive_target` 推进
+    - 负样本 groundness probability 向 `negative_target` 压回
+  - 这样 groundness head 不再只靠阈值选模，而是直接优化概率分离。
+
+### 目的
+
+- 让 Ground head 先学出可分概率，再谈 System 级保护。
+- 避免只调 `groundness_threshold`，把问题掩盖成阈值选择偏差。
+
+### 结果
+
+- 新的 Expert4 smoke：
+  - `groundness_recall: 0.7059`
+  - `groundness_precision: 0.4615`
+  - `groundness_f1: 0.5581`
+  - `best_selection_metric` 提升到 `0.7705`
+- 但地面三分类主指标掉到：
+  - `macro_f1: 0.4837`
+  - `accuracy: 0.7059`
+
+### 结论
+
+- 说明 groundness 可以被强化，但“强 groundness”与“稳定地面三分类”之间仍有明显 trade-off。
+- 当前默认训练不应把 `balanced_sampling` 打开作为常态，否则会牺牲 Expert4 的整体分类质量。
+- 这类权衡应作为独立实验分支，而不是主线默认策略。
+
+## 2026-05-06 System calibrated candidates 仲裁试验
+
+### 问题
+
+- 当前 System 默认 `soft_log_weighted` 在测试集达到：
+  - `accuracy: 0.8735`
+  - `macro_f1: 0.6348`
+  - `Aircraft precision: 0.8333`
+  - `Aircraft recall: 1.0`
+  - `ground_group_f1: 0.4286`
+- 但架构上仍存在一个风险：
+  - Expert1 使用 CosFace 尺度 logits。
+  - Expert2 是 Aircraft open-set similarity / threshold。
+  - Expert4 是 Ground 三分类 logits + groundness head。
+  - 这些 raw logits 不是同一标定空间，直接竞争会让后续候选保护和回流机制难以解释。
+- 需要按 `target.md` 阶段 4 的方向，先增加一个评估候选模式，不替换默认训练路径，用来验证“专家候选置信度 + router prior”是否比 raw logits 竞争更好。
+
+### 落地
+
+- 新增 `calibrated_candidates` fusion mode：
+  - 只作为 `eval_fusion_candidate_modes` 的 probe。
+  - 默认 `fusion_mode` 仍保持 `soft_log_weighted`。
+  - 训练阶段如果误配置为 `calibrated_candidates`，会自动回退到 `soft_log_weighted`，避免试验性仲裁污染训练 loss。
+- 投影逻辑：
+  - Low-altitude 使用 `log_softmax(low_altitude_logits)` + 小权重 route prior。
+  - Aircraft 使用 Expert2 的 open-set 二分类 `log_softmax` 后的 Aircraft log-prob + 小权重 route prior。
+  - High-altitude 仍只允许规则覆盖样本参与 Aircraft 候选。
+  - Ground 使用 `log_softmax(ground_logits)` + groundness confidence + 小权重 route prior。
+- 配置更新：
+  - `system.eval_fusion_candidate_modes` 增加 `reroute` 和 `calibrated_candidates`。
+  - `system.eval_fusion_candidate_notes` 写明候选模式只用于评估 probe。
+
+### CUDA 验证
+
+- 命令：
+  - `python -m src.core.train_system --config config/config.json`
+- 产物：
+  - `artifacts/20260506-005511/system_config_smoke`
+- 默认主路径结果未退化：
+  - `accuracy: 0.8735`
+  - `macro_f1: 0.6348`
+  - `Aircraft precision: 0.8333`
+  - `Aircraft recall: 1.0`
+  - `non_aircraft_as_aircraft_rate: 0.0031`
+- 第一次 `calibrated_candidates` probe 暴露的问题：
+  - validation:
+    - `accuracy: 0.7859`
+    - `macro_f1: 0.5321`
+    - `Aircraft precision: 0.1316`
+    - `Aircraft recall: 1.0`
+    - `non_aircraft_as_aircraft_rate: 0.1025`
+  - test:
+    - `accuracy: 0.8163`
+    - `macro_f1: 0.5162`
+    - `Aircraft precision: 0.1563`
+    - `Aircraft recall: 1.0`
+    - `non_aircraft_as_aircraft_rate: 0.0826`
+
+### 结论
+
+- `calibrated_candidates` 当前不能升为默认融合模式。
+- 它证明了一个关键问题：
+  - Expert2 的 open-set 候选仍过激，作为候选仲裁时会显著拉高非 Aircraft -> Aircraft FP。
+  - 这与 Expert2 独立训练的 `feasible=false` 结论一致，说明 System 当前高 Aircraft 指标主要依赖 source-aware suppress 和 protection，而不是 Expert2 本身已经稳定。
+- 后续方向：
+  1. 继续把 `calibrated_candidates` 保留为报告 probe。
+  2. 不让它参与默认训练。
+  3. 先提升 Expert2 prototype / hard-negative 分离度，再考虑把候选仲裁升级为主路径。
+
+## 2026-05-06 Expert2 再训练与分布诊断
+
+### 问题
+
+- 第一次修复后，Expert2 从：
+  - `macro_f1=0.6204`
+  - `Aircraft recall=0.2000`
+  - `feasible=false`
+  变成：
+  - `macro_f1=0.6764`
+  - `Aircraft recall=0.4000`
+  - `Aircraft precision=0.3333`
+  - `raw_false_aircraft_rate=0.1429`
+  - 仍然 `feasible=false`
+- 说明 threshold 本身不是根因，根因还是 Aircraft 与 hard negatives 的相似度区间重叠太大。
+
+### 诊断
+
+- 重新抽相似度分布后，发现：
+  - validation/test 上 `raw_tr_rd` 的正负样本几乎贴着阈值带，Aircraft 正样本只略高于非 Aircraft 上界。
+  - `excel_track` 的 Aircraft 样本 similarity 甚至低于 `0.55`，这意味着 source distribution shift 仍然很重。
+  - `raw_tr_rd` 的非 Aircraft 中，Drone/Bird/Ship 直接压在 `0.65` 左右，和 Aircraft 形成严重重叠。
+
+### 修复
+
+- 在 Expert2 训练里补两类约束：
+  1. `open_set_similarity_loss_weight=0.25`
+     - 强制正样本相似度逼近更高目标
+     - 强制负样本相似度压低到更安全区
+  2. `open_set_pairwise_loss_weight=0.12`
+     - 拉大正负样本 similarity margin
+- 同时增加 `raw_tr_rd` 源定向增采样：
+  - `open_set_source_sampling_name="raw_tr_rd"`
+  - `open_set_source_sampling_multiplier=4.0`
+- `open_set_hard_negative_weight` 提到 `5.0`，让 raw_tr_rd 的 hard negatives 在损失里更有存在感。
+
+### 结果
+
+- 新 Expert2 smoke：
+  - `macro_f1=0.6764`
+  - `Aircraft precision=0.3333`
+  - `Aircraft recall=0.4000`
+  - `decision_threshold=0.66`
+  - `feasible=false`
+- 说明优化有效，但还不足以把 Aircraft 拉到可部署区间。
+
+### 结论
+
+- Expert2 目前仍然不是 System 的稳定硬候选，只能继续留在训练推进列表里。
+- 由于 `raw_tr_rd` 的 Aircraft 与非 Aircraft similarity 仍严重重叠，后续要继续从：
+  1. 共享表示
+  2. hard negative 来源
+  3. open-set 原型约束
+  4. source-aware 校准
+  四个方向一起推进，而不能只靠阈值和后处理。

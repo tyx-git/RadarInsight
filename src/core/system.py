@@ -92,6 +92,7 @@ class RadarClassificationSystem(nn.Module):
         padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
+        source_names: list[str] | None = None,
         enable_low_altitude_reject: bool = True,
     ) -> RadarSystemOutput:
         representation = self.representation_builder(
@@ -140,6 +141,7 @@ class RadarClassificationSystem(nn.Module):
             representation.sequence_features,
             representation.raw_physical_features,
             padding_mask=padding_mask,
+            source_names=source_names,
         )
         high_altitude = self.high_altitude_expert(
             height_mean=physical_features[:, 0],
