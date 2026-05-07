@@ -476,6 +476,58 @@ def _rd_gate_target_loss(
     return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
 
 
+def _rd_class_gate_target_loss(
+    output,
+    labels: torch.Tensor,
+    mask: torch.Tensor,
+    traj_logits: torch.Tensor,
+    rd_logits: torch.Tensor,
+    rare_floor: float,
+) -> torch.Tensor:
+    if not bool(mask.any()):
+        return labels.new_tensor(0.0, dtype=torch.float32)
+    gate_logits = output.rd_class_gate_logits
+    if gate_logits is None:
+        return labels.new_tensor(0.0, dtype=torch.float32)
+    with torch.no_grad():
+        traj_pred = traj_logits[mask].argmax(dim=-1)
+        rd_pred = rd_logits[mask].argmax(dim=-1)
+        traj_conf = torch.softmax(traj_logits[mask], dim=-1).max(dim=-1).values
+        rd_conf = torch.softmax(rd_logits[mask], dim=-1).max(dim=-1).values
+        masked_labels = labels[mask]
+        target = torch.full_like(gate_logits[mask], 0.05)
+        row_indices = torch.arange(target.shape[0], dtype=torch.long, device=labels.device)
+        true_cols = masked_labels.clamp(min=0, max=target.shape[-1] - 1)
+        rd_rescue = (traj_pred != masked_labels) & (rd_pred == masked_labels)
+        rd_harm = (traj_pred == masked_labels) & (rd_pred != masked_labels)
+        if bool(rd_rescue.any()):
+            target[row_indices[rd_rescue], true_cols[rd_rescue]] = 0.72
+        if bool(rd_harm.any()):
+            target[rd_harm] = 0.12
+        hard_pairs = torch.tensor(
+            [
+                LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+                LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+                LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+                LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+            ],
+            dtype=torch.long,
+            device=labels.device,
+        )
+        hard_pair_mask = torch.isin(masked_labels, hard_pairs)
+        hard_pair_high = hard_pair_mask & rd_rescue & (rd_conf >= 0.45)
+        if bool(hard_pair_high.any()):
+            target[row_indices[hard_pair_high], true_cols[hard_pair_high]] = torch.maximum(
+                target[row_indices[hard_pair_high], true_cols[hard_pair_high]],
+                torch.full_like(target[row_indices[hard_pair_high], true_cols[hard_pair_high]], 0.65),
+            )
+        uncertain = ((rd_conf < 0.40) | (traj_conf > rd_conf + 0.15)) & (~rd_rescue)
+        if bool(uncertain.any()):
+            target[uncertain] = torch.minimum(target[uncertain], torch.full_like(target[uncertain], float(rare_floor)))
+    probs = torch.sigmoid(gate_logits[mask])
+    return torch.nn.functional.mse_loss(probs, target)
+
+
 def _rel(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
@@ -504,10 +556,16 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_harm_count": metrics.get("rd_harm_count", 0),
         "rd_rescue_rate_on_rd": metrics.get("rd_rescue_rate_on_rd", 0.0),
         "rd_harm_rate_on_rd": metrics.get("rd_harm_rate_on_rd", 0.0),
+        "rd_net_gain_count": metrics.get("rd_net_gain_count", 0),
+        "rd_net_gain_rate_on_rd": metrics.get("rd_net_gain_rate_on_rd", 0.0),
         "final_rescue_count": metrics.get("final_rescue_count", 0),
         "final_harm_count": metrics.get("final_harm_count", 0),
         "final_rescue_rate_on_rd": metrics.get("final_rescue_rate_on_rd", 0.0),
         "final_harm_rate_on_rd": metrics.get("final_harm_rate_on_rd", 0.0),
+        "final_net_gain_count": metrics.get("final_net_gain_count", 0),
+        "final_net_gain_rate_on_rd": metrics.get("final_net_gain_rate_on_rd", 0.0),
+        "rd_rescue_unadopted_count": metrics.get("rd_rescue_unadopted_count", 0),
+        "rd_harm_adopted_count": metrics.get("rd_harm_adopted_count", 0),
         "rd_raw_tr_rd_accuracy": metrics.get("rd_raw_tr_rd_accuracy", 0.0),
         "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
         "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
@@ -616,6 +674,8 @@ def _rd_teacher_effect_metrics(
     rd_harm = has_rd & (traj_preds == labels) & (rd_preds != labels)
     final_rescue = has_rd & (traj_preds != labels) & (final_preds == labels)
     final_harm = has_rd & (traj_preds == labels) & (final_preds != labels)
+    rd_rescue_unadopted = rd_rescue & ~final_rescue
+    rd_harm_adopted = rd_harm & final_harm
     with_rd_count = int(has_rd.sum().item())
     by_source: dict[str, dict[str, float | int]] = {}
     for source_name in sorted(set(source_names)):
@@ -637,10 +697,20 @@ def _rd_teacher_effect_metrics(
         "rd_harm_count": int(rd_harm.sum().item()),
         "rd_rescue_rate_on_rd": int(rd_rescue.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
         "rd_harm_rate_on_rd": int(rd_harm.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "rd_net_gain_count": int(rd_rescue.sum().item()) - int(rd_harm.sum().item()),
+        "rd_net_gain_rate_on_rd": (
+            (int(rd_rescue.sum().item()) - int(rd_harm.sum().item())) / with_rd_count if with_rd_count > 0 else 0.0
+        ),
         "final_rescue_count": int(final_rescue.sum().item()),
         "final_harm_count": int(final_harm.sum().item()),
         "final_rescue_rate_on_rd": int(final_rescue.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
         "final_harm_rate_on_rd": int(final_harm.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "final_net_gain_count": int(final_rescue.sum().item()) - int(final_harm.sum().item()),
+        "final_net_gain_rate_on_rd": (
+            (int(final_rescue.sum().item()) - int(final_harm.sum().item())) / with_rd_count if with_rd_count > 0 else 0.0
+        ),
+        "rd_rescue_unadopted_count": int(rd_rescue_unadopted.sum().item()),
+        "rd_harm_adopted_count": int(rd_harm_adopted.sum().item()),
         "rd_raw_tr_rd_accuracy": (
             float((rd_preds.cpu()[raw_rd_mask] == labels.cpu()[raw_rd_mask]).float().mean().item())
             if bool(raw_rd_mask.any())
@@ -664,6 +734,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     rd_source_balanced_accuracy = float(metrics.get("rd_source_balanced_accuracy_on_rd", 0.0))
     rd_min_source_accuracy = float(metrics.get("rd_min_source_accuracy_on_rd", 0.0))
     without_rd_accuracy = float(metrics.get("without_rd_accuracy", 0.0))
+    rd_harm_rate = float(metrics.get("rd_harm_rate_on_rd", 0.0))
+    rd_net_gain_rate = float(metrics.get("rd_net_gain_rate_on_rd", 0.0))
+    final_harm_rate = float(metrics.get("final_harm_rate_on_rd", 0.0))
+    final_net_gain_rate = float(metrics.get("final_net_gain_rate_on_rd", 0.0))
     final_delta = final_macro - traj_macro
     source_support = dict(metrics.get("source_support", {}))
     rd_source_support = dict(metrics.get("rd_source_support_on_rd", {}))
@@ -687,9 +761,13 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         + 0.18 * rd_source_balanced_accuracy
         + 0.12 * rd_min_source_accuracy
         + 0.15 * rd_raw_source_accuracy
-        + 0.35 * drone_bird
-        + 0.35 * unknown_clutter
-        + 0.25 * min_rare_rd_recall
+        + 0.28 * drone_bird
+        + 0.32 * unknown_clutter
+        + 0.20 * min_rare_rd_recall
+        + 0.18 * rd_net_gain_rate
+        + 0.18 * final_net_gain_rate
+        - 0.35 * rd_harm_rate
+        - 0.20 * final_harm_rate
         + 0.25 * traj_macro
         + 0.25 * final_delta
     )
@@ -715,6 +793,8 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
             eligible = eligible and min_source_accuracy >= config.min_source_accuracy_for_best
         if enough_rd_raw_source:
             eligible = eligible and rd_raw_source_accuracy >= config.min_rd_raw_source_accuracy_for_best
+        eligible = eligible and rd_harm_rate <= config.max_rd_harm_rate_for_best
+        eligible = eligible and rd_net_gain_rate >= config.min_rd_net_gain_rate_for_best
         if config.require_final_not_worse_than_traj:
             eligible = eligible and final_delta >= max(
                 -config.max_final_traj_f1_drop,
@@ -742,6 +822,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "rd_clutter_recall": clutter_recall,
         "rd_unknown_recall": unknown_recall,
         "rd_min_rare_recall": min_rare_rd_recall,
+        "rd_harm_rate_on_rd": rd_harm_rate,
+        "rd_net_gain_rate_on_rd": rd_net_gain_rate,
+        "final_harm_rate_on_rd": final_harm_rate,
+        "final_net_gain_rate_on_rd": final_net_gain_rate,
         "source_support": source_support,
         "rd_source_support_on_rd": rd_source_support,
         "rd_class_support_on_rd": rd_class_support,
@@ -1015,6 +1099,15 @@ def _run_epoch(
                     rare_floor=config.low_altitude_rd_rare_gate_floor,
                 )
                 main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * rd_gate_target_loss
+                rd_class_gate_loss = _rd_class_gate_target_loss(
+                    output,
+                    labels,
+                    has_rd_mask,
+                    output.traj_logits,
+                    output.rd_logits,
+                    config.low_altitude_rd_rare_gate_floor,
+                )
+                main_loss = main_loss + config.low_altitude_rd_class_gate_aux_weight * rd_class_gate_loss
                 aux_loss = (
                     config.low_altitude_traj_aux_ratio * aux_loss
                     + config.low_altitude_rd_aux_ratio * rd_aux
@@ -1274,6 +1367,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         rd_unknown_logit_scale=config.rd_unknown_logit_scale,
         rd_clutter_logit_scale=config.rd_clutter_logit_scale,
         initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
+        rd_class_activation_threshold=config.low_altitude_rd_class_activation_threshold,
     ).to(device)
     pretrained_track_info = None
     if config.pretrained_track_checkpoint:
@@ -1416,13 +1510,19 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
             "rd_rescue_count": test_metrics["rd_rescue_count"],
             "rd_harm_count": test_metrics["rd_harm_count"],
-            "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
-            "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
-            "final_rescue_count": test_metrics["final_rescue_count"],
-            "final_harm_count": test_metrics["final_harm_count"],
-            "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
-            "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
-            "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
+        "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
+        "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+        "rd_net_gain_count": test_metrics["rd_net_gain_count"],
+        "rd_net_gain_rate_on_rd": test_metrics["rd_net_gain_rate_on_rd"],
+        "final_rescue_count": test_metrics["final_rescue_count"],
+        "final_harm_count": test_metrics["final_harm_count"],
+        "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
+        "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
+        "final_net_gain_count": test_metrics["final_net_gain_count"],
+        "final_net_gain_rate_on_rd": test_metrics["final_net_gain_rate_on_rd"],
+        "rd_rescue_unadopted_count": test_metrics["rd_rescue_unadopted_count"],
+        "rd_harm_adopted_count": test_metrics["rd_harm_adopted_count"],
+        "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
             "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
             "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
             "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
@@ -1499,6 +1599,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "harm_count": test_metrics["rd_harm_count"],
                 "rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
                 "harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+                "net_gain_count": test_metrics["rd_net_gain_count"],
+                "net_gain_rate_on_rd": test_metrics["rd_net_gain_rate_on_rd"],
+                "rescue_unadopted_count": test_metrics["rd_rescue_unadopted_count"],
+                "harm_adopted_count": test_metrics["rd_harm_adopted_count"],
                 "raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
                 "by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
                 "source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
@@ -1617,6 +1721,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_activation_threshold": config.rd_activation_threshold,
         "rd_activation_rate": test_metrics["rd_activation_rate"],
         "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
+        "low_altitude_rd_class_activation_threshold": config.low_altitude_rd_class_activation_threshold,
+        "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
         "source_normalization": bool(config.source_normalization),
         "source_feature_stats_saved": bool(source_feature_stats is not None),
         "prefer_stage2_checkpoint": bool(config.prefer_stage2_checkpoint),
@@ -1680,6 +1786,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_source_support_for_hard_gate": config.min_source_support_for_hard_gate,
             "min_rd_source_support_for_hard_gate": config.min_rd_source_support_for_hard_gate,
             "min_rd_class_support_for_hard_gate": config.min_rd_class_support_for_hard_gate,
+            "max_rd_harm_rate_for_best": config.max_rd_harm_rate_for_best,
+            "min_rd_net_gain_rate_for_best": config.min_rd_net_gain_rate_for_best,
             "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),
             "max_final_traj_f1_drop": config.max_final_traj_f1_drop,
         },

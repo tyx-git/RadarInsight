@@ -2177,3 +2177,68 @@
   3. open-set 原型约束
   4. source-aware 校准
   四个方向一起推进，而不能只靠阈值和后处理。
+
+## 2026-05-07 Expert1 RD 可控化与类条件接管
+
+### 问题
+
+- RD 当前虽然能提供信息，但仍然更像“全局双分支混合”，对局部边界的接管能力不足。
+- `rd_activation_threshold` 基本失去筛选意义，RD 常态进入，再靠 gate 压权重，无法稳定区分“该接管”和“该放手”。
+- 仅看 `rd_macro_f1_on_rd` 会误判 RD 质量，因为真正要看的还有：
+  - `rd_harm_count`
+  - `rd_net_gain_rate_on_rd`
+  - `final_harm_count`
+  - `rd_rescue_unadopted_count`
+  - `rd_harm_adopted_count`
+
+### 方案
+
+- 在 `LowAltitudeSuspectExpert` 中增加 `rd_class_gate`，把 RD 从整体融合改成“类条件修正器”。
+- 轨迹分支保持纯轨迹输入，不接 RD summary。
+- `rd_class_fusion_weights` 只允许对当前类做有限幅度修正，避免 RD 抢掉整套 logits。
+- 在 `expert1_trainer` 中增加 `rd_class_gate_target_loss`，用 rescue / harm 的 teacher signal 监督 gate：
+  - `traj 错 + rd 对` -> 提高对应类 gate
+  - `traj 对 + rd 错` -> 降低对应类 gate
+  - 高风险 hard pair 只给有限接管上限
+- 选模加入硬约束：
+  - `rd_harm_rate_on_rd`
+  - `rd_net_gain_rate_on_rd`
+  - `final_harm_rate_on_rd`
+  - `final_net_gain_rate_on_rd`
+
+### 落地
+
+- `src/core/experts.py`
+  - 新增 `rd_class_gate_logits` / `rd_class_fusion_weights`
+  - RD 融合改为 `traj_logits + class_gate * (rd_logits - traj_logits)`
+  - `rd_class_fusion_weights` 上限收紧，避免 RD 过强抢权
+- `src/core/expert1_trainer.py`
+  - 新增 `rd_class_gate_target_loss`
+  - 新增 `rd_rescue_unadopted_count`、`rd_harm_adopted_count`
+  - 选模加入 `rd_harm_rate_on_rd`、`rd_net_gain_rate_on_rd`
+- `config/config.json` / `src/core/expert1_config.py`
+  - 增加 `low_altitude_rd_class_gate_aux_weight`
+  - 增加 `low_altitude_rd_class_activation_threshold`
+  - 增加 `max_rd_harm_rate_for_best`
+  - 增加 `min_rd_net_gain_rate_for_best`
+
+### 验证
+
+- CUDA smoke 已通过，未出现 shape 错误或非有限 batch。
+- 训练产物：
+  - `artifacts/20260507-201820/expert1_config_smoke`
+- 训练结果：
+  - `accuracy=0.8645`
+  - `macro_f1=0.7787`
+  - `traj_macro_f1=0.7563`
+  - `rd_accuracy_on_rd=0.6962`
+  - `rd_macro_f1_on_rd=0.4869`
+  - `rd_harm_rate_on_rd=0.2236`
+  - `rd_net_gain_rate_on_rd=-0.1899`
+  - `final_harm_rate_on_rd=0.0042`
+  - `final_net_gain_rate_on_rd=0.0211`
+
+### 结论
+
+- 这次改动把 RD 从“常态混合分支”往“可控接管分支”推进了一步。
+- 但 RD 仍然没有形成稳定正收益，`rd_net_gain_rate_on_rd` 还是负值，说明后续还要继续压 `rd_harm`，而不是继续盲目加强 RD 权重。

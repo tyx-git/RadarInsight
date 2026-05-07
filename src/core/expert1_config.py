@@ -30,7 +30,9 @@ class Expert1TrainConfig:
     low_altitude_rd_calibration_negative_target: float = 0.32
     low_altitude_rd_forced_fusion_weight: float = 0.6
     low_altitude_rd_gate_aux_weight: float = 0.6
+    low_altitude_rd_class_gate_aux_weight: float = 0.3
     low_altitude_rd_gate_temperature: float = 0.35
+    low_altitude_rd_class_activation_threshold: float = 0.55
     low_altitude_rd_rare_gate_floor: float = 0.25
     low_altitude_initial_rd_gate_bias: float = 0.0
     low_altitude_traj_anchor_weight: float = 0.5
@@ -41,7 +43,7 @@ class Expert1TrainConfig:
     cosface_scale: float = 16.0
     cosface_margin: float = 0.2
     reject_threshold: float = 0.35
-    rd_activation_threshold: float = 0.8
+    rd_activation_threshold: float = 0.82
     rd_bird_logit_scale: float = 0.75
     rd_unknown_logit_scale: float = 0.75
     rd_clutter_logit_scale: float = 0.75
@@ -74,9 +76,11 @@ class Expert1TrainConfig:
     min_source_balanced_accuracy_for_best: float = 0.65
     min_raw_source_accuracy_for_best: float = 0.50
     min_rd_raw_source_accuracy_for_best: float = 0.35
+    max_rd_harm_rate_for_best: float = 0.28
+    min_rd_net_gain_rate_for_best: float = 0.0
     min_final_minus_traj_macro_f1_for_best: float = -0.01
-    min_source_support_for_hard_gate: int = 8
-    min_rd_source_support_for_hard_gate: int = 8
+    min_source_support_for_hard_gate: int = 4
+    min_rd_source_support_for_hard_gate: int = 4
     min_rd_class_support_for_hard_gate: int = 4
     require_final_not_worse_than_traj: bool = True
     max_final_traj_f1_drop: float = 0.02
