@@ -18,7 +18,7 @@ from .experts import LOW_ALTITUDE_CLASSES
 from .router import ROUTE_NAMES
 from .reporting import write_real_experiment_report
 from .run_paths import prepare_run_output_dir
-from .system import RadarClassificationSystem
+from .system import RadarClassificationSystem, RerouteConfig
 from .system_config import SystemTrainConfig
 from .system_metrics import compute_confusion_matrix, compute_per_class_metrics, compute_system_metrics
 from .physical import PHYSICAL_FEATURE_COLUMNS
@@ -541,6 +541,17 @@ def _route_name_for_label(label_name: str) -> str:
     return "high_altitude_filter"
 
 
+def _system_reroute_config(config: SystemTrainConfig) -> RerouteConfig:
+    return RerouteConfig(
+        max_passes=int(config.reroute_max_passes),
+        penalty=float(config.reroute_penalty),
+        max_total_penalty=float(config.reroute_max_total_penalty),
+        low_altitude_conf_threshold=float(config.reroute_low_altitude_conf_threshold),
+        conventional_air_conf_threshold=float(config.reroute_conventional_air_conf_threshold),
+        ground_conf_threshold=float(config.reroute_ground_conf_threshold),
+    )
+
+
 def _project_to_global_logits(
     batch_labels: torch.Tensor,
     system_output,
@@ -833,9 +844,12 @@ def _project_to_global_logits_reroute(
     config: SystemTrainConfig,
     source_names: list[str] | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-    route_logits = system_output.routing.route_logits.detach().clone()
-    batch_size = batch_labels.shape[0]
-    _base_logits, base_diagnostics = _project_to_global_logits(
+    if system_output.reroute_logits is None or system_output.reroute_diagnostics is None:
+        raise RuntimeError(
+            "reroute logits are now produced by RadarClassificationSystem.forward("
+            "inference_mode='reroute'); trainer-side reroute post-processing is disabled"
+        )
+    _, base_diagnostics = _project_to_global_logits(
         batch_labels,
         system_output,
         num_classes,
@@ -845,117 +859,14 @@ def _project_to_global_logits_reroute(
         source_names=source_names,
         apply_source_aircraft_policy=True,
     )
-    logits = torch.full((batch_size, num_classes), fill_value=-6.0, device=device)
-    global_index = DEFAULT_VOCAB.label_to_index
-    fallback_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
-    completed_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
-    reroute_count = torch.zeros((batch_size,), dtype=torch.long, device=device)
-    selected_route = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
-    total_penalty = torch.zeros((batch_size,), dtype=torch.float32, device=device)
-    low_conf = system_output.low_altitude_detail.traj_cosine.max(dim=-1).values
-    conventional_aux = getattr(system_output.conventional_air_detail, "auxiliary", None) or {}
-    conventional_conf = conventional_aux.get("aircraft_similarity")
-    if conventional_conf is None:
-        conventional_conf = system_output.conventional_air_logits[:, 1] if system_output.conventional_air_logits.shape[1] > 1 else system_output.conventional_air_logits[:, 0]
-    conventional_conf = conventional_conf.to(device=device, dtype=torch.float32)
-    ground_aux = getattr(system_output.ground_detail, "auxiliary", None) or {}
-    ground_conf = ground_aux.get("groundness_probability")
-    if ground_conf is None:
-        ground_conf = torch.ones((batch_size,), dtype=torch.float32, device=device)
-    ground_conf = ground_conf.to(device=device, dtype=torch.float32)
-    high_aux = getattr(system_output.high_altitude_detail, "logits", system_output.high_altitude_logits)
-    high_accept = high_aux[:, 1] > high_aux[:, 0]
-    rule_override = system_output.routing.override_mask
-    rule_route = system_output.routing.route_indices
-    high_route_index = ROUTE_NAMES.index("high_altitude_filter")
-    ground_route_index = ROUTE_NAMES.index("ground_target")
-    completed_mask |= rule_override & ((rule_route == high_route_index) | (rule_route == ground_route_index))
-    selected_route = torch.where(
-        completed_mask,
-        rule_route,
-        selected_route,
-    )
-    for _ in range(max(1, int(config.reroute_max_passes))):
-        pending_mask = ~completed_mask & ~fallback_mask
-        if not bool(pending_mask.any()):
-            break
-        route_choice = route_logits.argmax(dim=-1)
-        for route_idx, route_name in enumerate(ROUTE_NAMES):
-            route_mask = pending_mask & (route_choice == route_idx)
-            if not bool(route_mask.any()):
-                continue
-            if route_name == "low_altitude_suspect":
-                accepted = low_conf >= float(config.reroute_low_altitude_conf_threshold)
-            elif route_name == "conventional_air":
-                accepted = conventional_conf >= float(config.reroute_conventional_air_conf_threshold)
-            elif route_name == "ground_target":
-                accepted = ground_conf >= float(config.reroute_ground_conf_threshold)
-            else:
-                accepted = high_accept
-            accept_mask = route_mask & accepted
-            reject_mask = route_mask & ~accepted
-            if bool(accept_mask.any()):
-                completed_mask |= accept_mask
-                selected_route = torch.where(
-                    accept_mask,
-                    torch.full_like(selected_route, route_idx),
-                    selected_route,
-                )
-            if bool(reject_mask.any()):
-                reroute_count[reject_mask] += 1
-                penalty = torch.full_like(total_penalty, float(config.reroute_penalty))
-                remaining = float(config.reroute_max_total_penalty) - total_penalty
-                clipped_penalty = torch.minimum(penalty, remaining.clamp_min(0.0))
-                route_logits[reject_mask, route_idx] -= clipped_penalty[reject_mask]
-                total_penalty[reject_mask] += clipped_penalty[reject_mask]
-        maxed_penalty = total_penalty >= float(config.reroute_max_total_penalty)
-        exhausted = reroute_count >= int(config.reroute_max_passes)
-        fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted)
-    fallback_mask |= ~completed_mask
-    for route_idx, route_name in enumerate(ROUTE_NAMES):
-        route_mask = completed_mask & (selected_route == route_idx)
-        if not bool(route_mask.any()):
-            continue
-        logits[route_mask] = -6.0
-        if route_name == "low_altitude_suspect":
-            low_logits = system_output.low_altitude_logits
-            logits[route_mask, global_index["DroneTarget"]] = low_logits[route_mask, 0]
-            logits[route_mask, global_index["BirdTarget"]] = low_logits[route_mask, 1]
-            logits[route_mask, global_index["BalloonTarget"]] = low_logits[route_mask, 2]
-            logits[route_mask, global_index["ClutterTarget"]] = low_logits[route_mask, 3]
-            logits[route_mask, global_index["UnknownTarget"]] = low_logits[route_mask, 4]
-        elif route_name == "conventional_air":
-            conv_logits = system_output.conventional_air_logits
-            aircraft_column = 1 if conv_logits.shape[1] > 1 else 0
-            logits[route_mask, global_index["AircraftTarget"]] = conv_logits[route_mask, aircraft_column]
-        elif route_name == "high_altitude_filter":
-            high_logits = system_output.high_altitude_logits
-            aircraft_column = 1 if high_logits.shape[1] > 1 else 0
-            high_route_accept = route_mask & high_accept
-            high_route_reject = route_mask & ~high_accept
-            if bool(high_route_accept.any()):
-                logits[high_route_accept, global_index["AircraftTarget"]] = high_logits[high_route_accept, aircraft_column]
-            if bool(high_route_reject.any()):
-                logits[high_route_reject, global_index["UnknownTarget"]] = 6.0
-        elif route_name == "ground_target":
-            ground_logits = system_output.ground_logits
-            logits[route_mask, global_index["PeopleTarget"]] = ground_logits[route_mask, 0]
-            logits[route_mask, global_index["CarTarget"]] = ground_logits[route_mask, 1]
-            logits[route_mask, global_index["ShipTarget"]] = ground_logits[route_mask, 2]
-    if bool(fallback_mask.any()):
-        logits[fallback_mask] = -6.0
-        logits[fallback_mask, global_index["UnknownTarget"]] = 6.0
-    reroute_triggered = reroute_count > 0
     diagnostics = {
         **base_diagnostics,
-        "reroute_count": reroute_count.detach(),
-        "reroute_triggered": reroute_triggered.detach(),
-        "reroute_fallback": fallback_mask.detach(),
-        "reroute_selected_route": selected_route.detach(),
-        "reroute_final_route_logits": route_logits.detach(),
-        "reroute_total_penalty": total_penalty.detach(),
+        **{
+            key: value.detach()
+            for key, value in system_output.reroute_diagnostics.items()
+        },
     }
-    return logits, diagnostics
+    return system_output.reroute_logits, diagnostics
 
 
 def _low_altitude_local_targets(labels: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -1116,6 +1027,11 @@ def _run_epoch(
                     else config.enable_low_altitude_reject_in_eval
                 ),
                 detach_ground_features=train and detach_ground_features,
+                inference_mode="reroute" if (not train and runtime_config.fusion_mode == "reroute") else "parallel",
+                reroute_config=_system_reroute_config(runtime_config)
+                if (not train and runtime_config.fusion_mode == "reroute")
+                else None,
+                num_global_classes=len(DEFAULT_VOCAB.labels),
             )
             if not train and config.fusion_mode == "reroute":
                 class_logits, reroute_diagnostics = _project_to_global_logits_reroute(

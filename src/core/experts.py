@@ -394,6 +394,11 @@ class LowAltitudeSuspectExpert(nn.Module):
             corrected[reject_mask, LOW_ALTITUDE_CLASSES.index("UnknownTarget")] = 6.0
         return corrected, reject_mask
 
+    def acceptance(self, output: LowAltitudeFusionOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+        confidence = output.traj_cosine.max(dim=-1).values
+        threshold_value = float(self.reject_threshold if threshold is None else threshold)
+        return confidence, confidence >= threshold_value
+
     def _rd_class_gate_logits(
         self,
         traj_features: torch.Tensor,
@@ -629,6 +634,15 @@ class ConventionalAirExpert(nn.Module):
         logits = torch.stack([-centered, centered], dim=-1) * self.logit_scale
         return logits, similarity
 
+    def acceptance(self, output: ExpertOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+        auxiliary = output.auxiliary or {}
+        similarity = auxiliary.get("aircraft_similarity")
+        if similarity is None:
+            similarity = output.logits[:, 1] if output.logits.shape[1] > 1 else output.logits[:, 0]
+        threshold_value = float(self.decision_threshold.item() if threshold is None else threshold)
+        confidence = similarity.to(dtype=torch.float32, device=output.logits.device)
+        return confidence, confidence >= threshold_value
+
     def forward(self, sequence_features: torch.Tensor, physical_features: torch.Tensor, padding_mask: torch.Tensor | None = None, source_names: list[str] | None = None) -> ExpertOutput:
         seq = sequence_features.transpose(1, 2)
         hidden = self.temporal_conv(seq).transpose(1, 2)
@@ -708,6 +722,15 @@ class GroundTargetExpert(nn.Module):
     def set_groundness_threshold(self, value: float) -> None:
         self.groundness_threshold.fill_(float(value))
 
+    def acceptance(self, output: ExpertOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+        auxiliary = output.auxiliary or {}
+        probability = auxiliary.get("groundness_probability")
+        if probability is None:
+            probability = torch.ones((output.logits.shape[0],), dtype=output.logits.dtype, device=output.logits.device)
+        threshold_value = float(self.groundness_threshold.item() if threshold is None else threshold)
+        confidence = probability.to(dtype=torch.float32, device=output.logits.device)
+        return confidence, confidence >= threshold_value
+
     def forward(self, deep_features: torch.Tensor, raw_physical_features: torch.Tensor) -> ExpertOutput:
         selected = torch.stack(
             [
@@ -755,6 +778,11 @@ class RuleBasedHighAltitudeExpert(nn.Module):
         super().__init__()
         self.altitude_threshold_m = altitude_threshold_m
         self.speed_threshold_mps = speed_threshold_mps
+
+    def acceptance(self, output: ExpertOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+        accepted = output.logits[:, 1] > output.logits[:, 0]
+        confidence = (output.logits[:, 1] - output.logits[:, 0]).to(dtype=torch.float32)
+        return confidence, accepted
 
     def forward(self, height_mean: torch.Tensor, speed_mean: torch.Tensor) -> ExpertOutput:
         positive = (height_mean > self.altitude_threshold_m) & (speed_mean > self.speed_threshold_mps)

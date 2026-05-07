@@ -2242,3 +2242,72 @@
 
 - 这次改动把 RD 从“常态混合分支”往“可控接管分支”推进了一步。
 - 但 RD 仍然没有形成稳定正收益，`rd_net_gain_rate_on_rd` 还是负值，说明后续还要继续压 `rd_harm`，而不是继续盲目加强 RD 权重。
+
+## 2026-05-07 System reroute 上移到 forward 层
+
+### 问题
+
+- 之前的 reroute 仍然主要发生在 `src/core/system_trainer.py` 的后处理阶段。
+- `RadarClassificationSystem.forward()` 只做一次性并行推理：
+  - router 先出 route logits
+  - 四个专家一次性都跑完
+  - trainer 再基于既有输出重组 global logits
+- 这类实现更像“后处理重裁决”，而不是 `route-reject-reroute` 的真实推理链。
+- 风险是：
+  - 低置信样本换专家以后，并没有真正进入 System 层的迭代推理控制流
+  - reroute 只是在已有专家输出上改分，不是“重新按新 route 再决策”
+
+### 解决方案
+
+- 将 reroute 控制流上移到 `src/core/system.py`：
+  - `RadarClassificationSystem.forward(..., inference_mode="reroute")`
+  - 先计算共享轨迹表征和 router
+  - 再按 route 逐轮选择、拒绝、惩罚、重试
+  - 各专家提供统一 `acceptance()` 接口：
+    - `LowAltitudeSuspectExpert.acceptance()`
+    - `ConventionalAirExpert.acceptance()`
+    - `GroundTargetExpert.acceptance()`
+    - `RuleBasedHighAltitudeExpert.acceptance()`
+- reroute 的核心不再依赖 trainer 后处理重组，而是由 System 自身完成：
+  - low-altitude 用 traj cosine confidence
+  - conventional air 用 aircraft similarity
+  - ground 用 groundness probability
+  - high-altitude 规则样本直接终止
+- trainer 侧只保留兼容入口：
+  - eval 阶段当 `fusion_mode="reroute"` 时，直接要求模型返回 `reroute_logits`
+  - 旧 `_project_to_global_logits_reroute()` 仅保留为兼容包装，不再自己执行路由循环
+
+### 最终落地
+
+- `src/core/system.py`
+  - 新增 `RerouteConfig`
+  - 新增 `forward(..., inference_mode="reroute")`
+  - 新增 `_forward_reroute()`，实现 System 层 route-reject-reroute 循环
+  - 新增统一 expert accept/reject 接口调用
+  - `RadarSystemOutput` 增加 `reroute_logits` / `reroute_diagnostics`
+- `src/core/experts.py`
+  - 为四个专家补齐统一 `acceptance()` 接口
+- `src/core/system_trainer.py`
+  - eval 阶段改为调用 System 的 reroute forward
+  - trainer 侧不再承担 reroute 控制流
+- 当前设计边界：
+  - 训练仍保持并行专家输出，不启用 reroute
+  - reroute 只在推理 / eval 下启用
+  - 共享表征仍只计算一次，避免重复编码
+  - 为兼容现有评估报告，reroute 后仍补齐专家诊断，但这些补齐不参与 reroute 决策
+
+### 验证
+
+- `python -m compileall src/core/system.py src/core/system_trainer.py src/core/experts.py` 通过。
+- CUDA 随机张量 forward smoke 通过：
+  - `RadarClassificationSystem(..., inference_mode="reroute")`
+  - `reroute_logits.shape = (2, 9)`
+  - `reroute_diagnostics` 包含 `reroute_system_forward` / `reroute_count`
+- CUDA 真实 dataloader batch forward smoke 通过：
+  - 输入 batch shape：`(2, 51, 10)`
+  - `reroute_logits.shape = (2, 9)`
+  - `reroute_system_forward = true`
+- CUDA trainer eval smoke 通过：
+  - `_run_epoch(train=False, fusion_mode="reroute")`
+  - 能拿到 System 层 `reroute_system_forward` 诊断
+  - 该 smoke 使用未训练随机模型，`accuracy=0.0` 只用于验证链路，不作为模型性能结论

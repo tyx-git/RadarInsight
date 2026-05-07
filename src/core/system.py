@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from .data.labels import DEFAULT_VOCAB
 from .experts import (
     ConventionalAirExpert,
     ExpertOutput,
@@ -13,8 +14,12 @@ from .experts import (
     LowAltitudeSuspectExpert,
     RuleBasedHighAltitudeExpert,
 )
-from .router import DeepGatingRouter, RouteDecision
+from .router import DeepGatingRouter, RouteDecision, ROUTE_NAMES
 from .trajectory import TrackRepresentation, TrackRepresentationBuilder
+
+
+GLOBAL_LABEL_TO_INDEX = DEFAULT_VOCAB.label_to_index
+UNKNOWN_INDEX = GLOBAL_LABEL_TO_INDEX["UnknownTarget"]
 
 
 @dataclass(frozen=True)
@@ -30,6 +35,18 @@ class RadarSystemOutput:
     conventional_air_logits: torch.Tensor
     high_altitude_logits: torch.Tensor
     ground_logits: torch.Tensor
+    reroute_logits: torch.Tensor | None = None
+    reroute_diagnostics: dict[str, torch.Tensor] | None = None
+
+
+@dataclass(frozen=True)
+class RerouteConfig:
+    max_passes: int = 3
+    penalty: float = 3.0
+    max_total_penalty: float = 6.0
+    low_altitude_conf_threshold: float = 0.35
+    conventional_air_conf_threshold: float = 0.35
+    ground_conf_threshold: float = 0.50
 
 
 class RadarClassificationSystem(nn.Module):
@@ -81,7 +98,41 @@ class RadarClassificationSystem(nn.Module):
         self.high_altitude_expert = RuleBasedHighAltitudeExpert()
         self.ground_expert = GroundTargetExpert(deep_dim=model_dim, raw_physical_dim=10, dropout=dropout)
 
-    def forward(
+    def _rd_summary(
+        self,
+        sequence_features: torch.Tensor,
+        rd_features: torch.Tensor | None = None,
+        rd_is_multimodal: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if rd_features is not None and rd_features.ndim == 4:
+            amp_range = rd_features[..., 0].mean(dim=1)
+            amp_dopp = rd_features[..., 2].mean(dim=1)
+            return torch.stack(
+                [
+                    amp_range.mean(dim=-1),
+                    amp_range.max(dim=-1).values,
+                    amp_range.min(dim=-1).values,
+                    amp_dopp.mean(dim=-1),
+                    amp_dopp.std(dim=-1),
+                    rd_is_multimodal.float()
+                    if rd_is_multimodal is not None
+                    else torch.ones(
+                        (sequence_features.shape[0],),
+                        dtype=sequence_features.dtype,
+                        device=sequence_features.device,
+                    ),
+                ],
+                dim=-1,
+            )
+        if rd_features is not None:
+            return rd_features.mean(dim=1)
+        return torch.zeros(
+            (sequence_features.shape[0], 6),
+            dtype=sequence_features.dtype,
+            device=sequence_features.device,
+        )
+
+    def _forward_experts(
         self,
         sequence_features: torch.Tensor,
         physical_features: torch.Tensor,
@@ -101,26 +152,11 @@ class RadarClassificationSystem(nn.Module):
             physical_features=physical_features,
             padding_mask=padding_mask,
         )
-        if rd_features is not None and rd_features.ndim == 4:
-            amp_range = rd_features[..., 0].mean(dim=1)
-            amp_dopp = rd_features[..., 2].mean(dim=1)
-            rd_summary = torch.stack(
-                [
-                    amp_range.mean(dim=-1),
-                    amp_range.max(dim=-1).values,
-                    amp_range.min(dim=-1).values,
-                    amp_dopp.mean(dim=-1),
-                    amp_dopp.std(dim=-1),
-                    rd_is_multimodal.float() if rd_is_multimodal is not None else torch.ones((sequence_features.shape[0],), dtype=sequence_features.dtype, device=sequence_features.device),
-                ],
-                dim=-1,
-            )
-        else:
-            rd_summary = rd_features.mean(dim=1) if rd_features is not None else torch.zeros(
-            (sequence_features.shape[0], 6),
-            dtype=sequence_features.dtype,
-            device=sequence_features.device,
-            )
+        rd_summary = self._rd_summary(
+            sequence_features=sequence_features,
+            rd_features=rd_features,
+            rd_is_multimodal=rd_is_multimodal,
+        )
         rd_embedding = self.rd_proj(rd_summary)
         routing = self.router(
             representation.raw_physical_features,
@@ -163,3 +199,286 @@ class RadarClassificationSystem(nn.Module):
             high_altitude_logits=high_altitude.logits,
             ground_logits=ground.logits,
         )
+
+    def _forward_reroute(
+        self,
+        sequence_features: torch.Tensor,
+        physical_features: torch.Tensor,
+        rd_features: torch.Tensor | None = None,
+        rd_patch_features: torch.Tensor | None = None,
+        rd_is_multimodal: torch.Tensor | None = None,
+        padding_mask: torch.Tensor | None = None,
+        rd_padding_mask: torch.Tensor | None = None,
+        rd_patch_padding_mask: torch.Tensor | None = None,
+        source_names: list[str] | None = None,
+        enable_low_altitude_reject: bool = True,
+        reroute_config: RerouteConfig | None = None,
+        num_global_classes: int | None = None,
+    ) -> RadarSystemOutput:
+        config = reroute_config or RerouteConfig()
+        representation = self.representation_builder(
+            sequence_features=sequence_features,
+            physical_features=physical_features,
+            padding_mask=padding_mask,
+        )
+        rd_summary = self._rd_summary(
+            sequence_features=sequence_features,
+            rd_features=rd_features,
+            rd_is_multimodal=rd_is_multimodal,
+        )
+        rd_embedding = self.rd_proj(rd_summary)
+        routing = self.router(
+            representation.raw_physical_features,
+            rule_features=representation.raw_physical_features,
+        )
+        batch_size = sequence_features.shape[0]
+        num_classes = int(num_global_classes or len(DEFAULT_VOCAB.labels))
+        route_logits = routing.route_logits.detach().clone()
+        device = route_logits.device
+        dtype = route_logits.dtype
+        final_logits = torch.full((batch_size, num_classes), fill_value=-6.0, dtype=dtype, device=device)
+        fallback_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        completed_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        reroute_count = torch.zeros((batch_size,), dtype=torch.long, device=device)
+        selected_route = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        total_penalty = torch.zeros((batch_size,), dtype=torch.float32, device=device)
+        last_confidence = torch.zeros((batch_size,), dtype=torch.float32, device=device)
+        route_evaluated = torch.zeros((len(ROUTE_NAMES),), dtype=torch.bool, device=device)
+
+        low_altitude: LowAltitudeFusionOutput | None = None
+        conventional_air: ExpertOutput | None = None
+        high_altitude: ExpertOutput | None = None
+        ground: ExpertOutput | None = None
+
+        def get_low_altitude() -> LowAltitudeFusionOutput:
+            nonlocal low_altitude
+            if low_altitude is None:
+                route_evaluated[ROUTE_NAMES.index("low_altitude_suspect")] = True
+                low_altitude = self.low_altitude_expert(
+                    representation.fused_features,
+                    rd_features=rd_features,
+                    rd_patch_features=rd_patch_features,
+                    rd_context=rd_embedding,
+                    low_altitude_targets=None,
+                    rd_is_multimodal=rd_is_multimodal,
+                    rd_padding_mask=rd_padding_mask,
+                    rd_patch_padding_mask=rd_patch_padding_mask,
+                    enable_reject=enable_low_altitude_reject,
+                    force_rd_activation=False,
+                )
+            return low_altitude
+
+        def get_conventional_air() -> ExpertOutput:
+            nonlocal conventional_air
+            if conventional_air is None:
+                route_evaluated[ROUTE_NAMES.index("conventional_air")] = True
+                conventional_air = self.conventional_air_expert(
+                    representation.sequence_features,
+                    representation.raw_physical_features,
+                    padding_mask=padding_mask,
+                    source_names=source_names,
+                )
+            return conventional_air
+
+        def get_high_altitude() -> ExpertOutput:
+            nonlocal high_altitude
+            if high_altitude is None:
+                route_evaluated[ROUTE_NAMES.index("high_altitude_filter")] = True
+                high_altitude = self.high_altitude_expert(
+                    height_mean=physical_features[:, 0],
+                    speed_mean=physical_features[:, 3],
+                )
+            return high_altitude
+
+        def get_ground() -> ExpertOutput:
+            nonlocal ground
+            if ground is None:
+                route_evaluated[ROUTE_NAMES.index("ground_target")] = True
+                ground = self.ground_expert(representation.deep_features, representation.raw_physical_features)
+            return ground
+
+        def acceptance(route_idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+            route_name = ROUTE_NAMES[route_idx]
+            if route_name == "low_altitude_suspect":
+                detail = get_low_altitude()
+                return self.low_altitude_expert.acceptance(
+                    detail,
+                    threshold=float(config.low_altitude_conf_threshold),
+                )
+            if route_name == "conventional_air":
+                detail = get_conventional_air()
+                return self.conventional_air_expert.acceptance(
+                    detail,
+                    threshold=float(config.conventional_air_conf_threshold),
+                )
+            if route_name == "ground_target":
+                detail = get_ground()
+                return self.ground_expert.acceptance(
+                    detail,
+                    threshold=float(config.ground_conf_threshold),
+                )
+            detail = get_high_altitude()
+            return self.high_altitude_expert.acceptance(detail)
+
+        def global_logits_for_route(route_idx: int) -> torch.Tensor:
+            logits = torch.full((batch_size, num_classes), fill_value=-6.0, dtype=dtype, device=device)
+            route_name = ROUTE_NAMES[route_idx]
+            if route_name == "low_altitude_suspect":
+                local = get_low_altitude().logits
+                logits[:, GLOBAL_LABEL_TO_INDEX["DroneTarget"]] = local[:, 0]
+                logits[:, GLOBAL_LABEL_TO_INDEX["BirdTarget"]] = local[:, 1]
+                logits[:, GLOBAL_LABEL_TO_INDEX["BalloonTarget"]] = local[:, 2]
+                logits[:, GLOBAL_LABEL_TO_INDEX["ClutterTarget"]] = local[:, 3]
+                logits[:, GLOBAL_LABEL_TO_INDEX["UnknownTarget"]] = local[:, 4]
+            elif route_name == "conventional_air":
+                local = get_conventional_air().logits
+                aircraft_column = 1 if local.shape[1] > 1 else 0
+                logits[:, GLOBAL_LABEL_TO_INDEX["AircraftTarget"]] = local[:, aircraft_column]
+            elif route_name == "high_altitude_filter":
+                local = get_high_altitude().logits
+                aircraft_column = 1 if local.shape[1] > 1 else 0
+                high_accept = local[:, aircraft_column] > local[:, 0]
+                logits[high_accept, GLOBAL_LABEL_TO_INDEX["AircraftTarget"]] = local[high_accept, aircraft_column]
+                logits[~high_accept, GLOBAL_LABEL_TO_INDEX["UnknownTarget"]] = 6.0
+            elif route_name == "ground_target":
+                local = get_ground().logits
+                logits[:, GLOBAL_LABEL_TO_INDEX["PeopleTarget"]] = local[:, 0]
+                logits[:, GLOBAL_LABEL_TO_INDEX["CarTarget"]] = local[:, 1]
+                logits[:, GLOBAL_LABEL_TO_INDEX["ShipTarget"]] = local[:, 2]
+            return logits
+
+        rule_route = routing.route_indices
+        high_idx = ROUTE_NAMES.index("high_altitude_filter")
+        ground_idx = ROUTE_NAMES.index("ground_target")
+        rule_terminal = routing.override_mask & ((rule_route == high_idx) | (rule_route == ground_idx))
+        if bool(rule_terminal.any()):
+            completed_mask |= rule_terminal
+            selected_route = torch.where(rule_terminal, rule_route, selected_route)
+
+        for _ in range(max(1, int(config.max_passes))):
+            pending_mask = ~completed_mask & ~fallback_mask
+            if not bool(pending_mask.any()):
+                break
+            route_choice = route_logits.argmax(dim=-1)
+            for route_idx in range(len(ROUTE_NAMES)):
+                route_mask = pending_mask & (route_choice == route_idx)
+                if not bool(route_mask.any()):
+                    continue
+                confidence, accepted = acceptance(route_idx)
+                accept_mask = route_mask & accepted
+                reject_mask = route_mask & ~accepted
+                if bool(accept_mask.any()):
+                    completed_mask |= accept_mask
+                    selected_route = torch.where(
+                        accept_mask,
+                        torch.full_like(selected_route, route_idx),
+                        selected_route,
+                    )
+                    last_confidence = torch.where(accept_mask, confidence, last_confidence)
+                if bool(reject_mask.any()):
+                    reroute_count[reject_mask] += 1
+                    penalty = torch.full_like(total_penalty, float(config.penalty))
+                    remaining = float(config.max_total_penalty) - total_penalty
+                    clipped_penalty = torch.minimum(penalty, remaining.clamp_min(0.0))
+                    route_logits[reject_mask, route_idx] -= clipped_penalty[reject_mask].to(dtype=dtype)
+                    total_penalty[reject_mask] += clipped_penalty[reject_mask]
+                    last_confidence = torch.where(reject_mask, confidence, last_confidence)
+            maxed_penalty = total_penalty >= float(config.max_total_penalty)
+            exhausted = reroute_count >= int(config.max_passes)
+            fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted)
+
+        fallback_mask |= ~completed_mask
+        lazy_expert_eval_count = int(route_evaluated.sum().item())
+        for route_idx in range(len(ROUTE_NAMES)):
+            route_mask = completed_mask & (selected_route == route_idx)
+            if bool(route_mask.any()):
+                route_logits_full = global_logits_for_route(route_idx)
+                final_logits[route_mask] = route_logits_full[route_mask]
+        if bool(fallback_mask.any()):
+            final_logits[fallback_mask] = -6.0
+            final_logits[fallback_mask, UNKNOWN_INDEX] = 6.0
+
+        # Materialize missing experts after the reroute decision so existing
+        # evaluation diagnostics keep working without influencing reroute.
+        low_altitude = get_low_altitude()
+        conventional_air = get_conventional_air()
+        high_altitude = get_high_altitude()
+        ground = get_ground()
+        diagnostics = {
+            "reroute_count": reroute_count.detach(),
+            "reroute_triggered": (reroute_count > 0).detach(),
+            "reroute_fallback": fallback_mask.detach(),
+            "reroute_selected_route": selected_route.detach(),
+            "reroute_final_route_logits": route_logits.detach(),
+            "reroute_total_penalty": total_penalty.detach(),
+            "reroute_accept_confidence": last_confidence.detach(),
+            "reroute_rule_terminal": rule_terminal.detach(),
+            "reroute_system_forward": torch.ones((batch_size,), dtype=torch.bool, device=device),
+            "reroute_lazy_expert_eval_count": torch.full((batch_size,), lazy_expert_eval_count, dtype=torch.long, device=device),
+        }
+        return RadarSystemOutput(
+            representation=representation,
+            routing=routing,
+            rd_features=rd_summary,
+            low_altitude_detail=low_altitude,
+            conventional_air_detail=conventional_air,
+            high_altitude_detail=high_altitude,
+            ground_detail=ground,
+            low_altitude_logits=low_altitude.logits,
+            conventional_air_logits=conventional_air.logits,
+            high_altitude_logits=high_altitude.logits,
+            ground_logits=ground.logits,
+            reroute_logits=final_logits,
+            reroute_diagnostics=diagnostics,
+        )
+
+    def forward(
+        self,
+        sequence_features: torch.Tensor,
+        physical_features: torch.Tensor,
+        rd_features: torch.Tensor | None = None,
+        rd_patch_features: torch.Tensor | None = None,
+        low_altitude_targets: torch.Tensor | None = None,
+        rd_is_multimodal: torch.Tensor | None = None,
+        padding_mask: torch.Tensor | None = None,
+        rd_padding_mask: torch.Tensor | None = None,
+        rd_patch_padding_mask: torch.Tensor | None = None,
+        source_names: list[str] | None = None,
+        enable_low_altitude_reject: bool = True,
+        detach_ground_features: bool = False,
+        inference_mode: str = "parallel",
+        reroute_config: RerouteConfig | None = None,
+        num_global_classes: int | None = None,
+    ) -> RadarSystemOutput:
+        if inference_mode == "reroute":
+            if self.training:
+                raise RuntimeError("inference_mode='reroute' is eval-only; keep training on parallel expert outputs")
+            return self._forward_reroute(
+                sequence_features=sequence_features,
+                physical_features=physical_features,
+                rd_features=rd_features,
+                rd_patch_features=rd_patch_features,
+                rd_is_multimodal=rd_is_multimodal,
+                padding_mask=padding_mask,
+                rd_padding_mask=rd_padding_mask,
+                rd_patch_padding_mask=rd_patch_padding_mask,
+                source_names=source_names,
+                enable_low_altitude_reject=enable_low_altitude_reject,
+                reroute_config=reroute_config,
+                num_global_classes=num_global_classes,
+            )
+        output = self._forward_experts(
+            sequence_features=sequence_features,
+            physical_features=physical_features,
+            rd_features=rd_features,
+            rd_patch_features=rd_patch_features,
+            low_altitude_targets=low_altitude_targets,
+            rd_is_multimodal=rd_is_multimodal,
+            padding_mask=padding_mask,
+            rd_padding_mask=rd_padding_mask,
+            rd_patch_padding_mask=rd_patch_padding_mask,
+            source_names=source_names,
+            enable_low_altitude_reject=enable_low_altitude_reject,
+            detach_ground_features=detach_ground_features,
+        )
+        return output
