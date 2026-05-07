@@ -22,8 +22,12 @@ class Expert1TrainConfig:
     low_altitude_rd_pairwise_aux_weight: float = 0.8
     low_altitude_rd_unknown_pairwise_aux_weight: float = 0.8
     low_altitude_rd_clutter_pairwise_aux_weight: float = 0.8
+    low_altitude_rd_unknown_clutter_pairwise_aux_weight: float = 0.9
     low_altitude_rd_rare_margin_aux_weight: float = 0.6
     low_altitude_rd_rare_margin: float = 0.4
+    low_altitude_rd_calibration_aux_weight: float = 0.15
+    low_altitude_rd_calibration_positive_target: float = 0.62
+    low_altitude_rd_calibration_negative_target: float = 0.32
     low_altitude_rd_forced_fusion_weight: float = 0.6
     low_altitude_rd_gate_aux_weight: float = 0.6
     low_altitude_rd_gate_temperature: float = 0.35
@@ -67,6 +71,13 @@ class Expert1TrainConfig:
     min_rare_rd_recall_for_best: float = 0.05
     min_without_rd_accuracy_for_best: float = 0.72
     min_source_accuracy_for_best: float = 0.50
+    min_source_balanced_accuracy_for_best: float = 0.65
+    min_raw_source_accuracy_for_best: float = 0.50
+    min_rd_raw_source_accuracy_for_best: float = 0.35
+    min_final_minus_traj_macro_f1_for_best: float = -0.01
+    min_source_support_for_hard_gate: int = 8
+    min_rd_source_support_for_hard_gate: int = 8
+    min_rd_class_support_for_hard_gate: int = 4
     require_final_not_worse_than_traj: bool = True
     max_final_traj_f1_drop: float = 0.02
     sequence_encoder_lr_multiplier: float = 0.1

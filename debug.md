@@ -235,8 +235,8 @@
   - `groundness_protection_enabled = true` 时，ground 独立可更高，但系统最终 ground F1 反而下降
   - 回退到 `groundness_protection_enabled = false` 后，系统最终更稳
 - 结论：
-  - 当前 Ground 的主要瓶颈不是简单的保护阈值，而是 System 级仲裁仍会压低 ground 候选
-  - 当前阶段不再继续盲开 groundness 保护
+- 当前 Ground 的主要瓶颈不是简单的保护阈值，而是 System 级仲裁仍会压低 ground 候选
+- 当前阶段不再继续盲开 groundness 保护
 
 - System 侧最近修复：
   - `fusion_mode_selection_policy` 从 `configured` 改为 `validation_score`
@@ -258,6 +258,47 @@
     - 或者把 Ground 重新纳入 calibrated candidate 仲裁
     - 同时继续提升 Expert1 RD 对 Unknown / Clutter / Bird 的分离能力
   - per-class precision / recall / f1 / support
+
+## 2026-05-07 Expert1 源域鲁棒与 RD 二证据修复
+- 这轮聚焦的是 Expert1 不再只看平均分，而要同时压住弱源和 RD 失真。
+- 之前的问题：
+  - `raw_tr_rd` 样本很少，旧版选模会被少量弱源样本过度放大，导致 stage2 候选经常被判死。
+  - RD 分支虽然有多种辅助损失，但 `UnknownTarget` / `ClutterTarget` 仍然没有形成直接对抗边界。
+  - RD 在 `on-RD` 上能救一部分样本，但还不足以被当成稳定的第二证据源。
+- 本轮修复：
+  - 在 `src/core/expert1_trainer.py` 中增加了 `source_support` / `rd_source_support_on_rd` / `rd_class_support_on_rd` 的统计。
+  - 选模改成支持数感知：
+    - 只有当源支持足够时，`raw_tr_rd` / `rd_raw_tr_rd` / `UnknownTarget` / `ClutterTarget` / `BirdTarget` 才会触发硬门槛。
+    - 避免 4 条 `raw_tr_rd` 验证样本把整轮 stage2 候选全部判死。
+  - RD 训练里补了 `UnknownTarget` vs `ClutterTarget` 的直接 pairwise 对抗项。
+  - 保留并强化了：
+    - `source_balanced_accuracy`
+    - `min_source_accuracy`
+    - `rd_macro_f1_on_rd`
+    - `rd_drone_bird_recall_mean`
+    - `rd_unknown_clutter_recall_mean`
+  - 训练入口继续保持 `cuda`，没有回退到 CPU 路径。
+- 落地结果（`20260507-165034/expert1_config_smoke`）：
+  - `accuracy = 0.8613`
+  - `macro_f1 = 0.7708`
+  - `traj_macro_f1 = 0.7644`
+  - `rd_macro_f1_on_rd = 0.4909`
+  - `rd_drone_bird_recall_mean = 0.7975`
+  - `rd_unknown_clutter_recall_mean = 0.1429`
+  - `source_balanced_accuracy = 0.7970`
+  - `min_source_accuracy = 0.7397`
+  - `raw_tr_rd_accuracy = 0.75`
+  - 分源准确率：
+    - `cq08_track = 0.9013`
+    - `excel_track = 0.7397`
+    - `raw_tr_rd = 0.75`
+  - 最终 best 仍是 `fallback_candidate_model.pt`，原因是：
+    - `UnknownTarget` 召回仍然是 0
+    - `rd_min_rare_recall` 仍然没有过线
+- 结论：
+  - 轨迹主干已经稳定，弱源不再明显塌掉。
+  - RD 分支开始像第二证据源，但对 `UnknownTarget` / `ClutterTarget` 还不够硬。
+  - 下一步如果继续追 RD，需要给 `UnknownTarget` 更明确的教师信号，而不是只靠通用 rare margin。
 
 ## 2026-05-07 Ground 仲裁修复与配置统一
 - 问题 1：Ground 在 System 中长期被 `soft_log_weighted` / `ungated` 压制，最终报告里 Ground F1 直接掉到 0。

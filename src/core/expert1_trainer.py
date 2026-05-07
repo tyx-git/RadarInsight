@@ -241,28 +241,64 @@ def _subset_accuracy(logits: torch.Tensor, labels: torch.Tensor, mask: torch.Ten
     return float((preds[mask] == labels[mask]).float().mean().item())
 
 
+def _source_accuracy_dict(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    source_names: list[str],
+    mask: torch.Tensor | None = None,
+) -> dict[str, float]:
+    preds = logits.argmax(dim=-1)
+    if mask is None:
+        mask = torch.ones_like(labels, dtype=torch.bool)
+    result: dict[str, float] = {}
+    for source_name in sorted(set(source_names)):
+        source_mask = torch.tensor([item == source_name for item in source_names], dtype=torch.bool)
+        source_mask = source_mask & mask.cpu()
+        if not bool(source_mask.any()):
+            continue
+        result[source_name] = float((preds[source_mask] == labels[source_mask]).float().mean().item())
+    return result
+
+
+def _source_support_dict(
+    source_names: list[str],
+    mask: torch.Tensor | None = None,
+) -> dict[str, int]:
+    if mask is None:
+        mask = torch.ones((len(source_names),), dtype=torch.bool)
+    mask = mask.cpu()
+    result: dict[str, int] = {}
+    for source_name in sorted(set(source_names)):
+        source_mask = torch.tensor([item == source_name for item in source_names], dtype=torch.bool)
+        count = int((source_mask & mask).sum().item())
+        if count > 0:
+            result[source_name] = count
+    return result
+
+
+def _source_summary_from_dict(values: dict[str, float]) -> dict[str, float]:
+    source_values = list(values.values())
+    return {
+        "source_balanced_accuracy": float(sum(source_values) / len(source_values)) if source_values else 0.0,
+        "min_source_accuracy": float(min(source_values)) if source_values else 0.0,
+        "raw_tr_rd_accuracy": float(values.get("raw_tr_rd", 0.0)),
+    }
+
+
 def _group_accuracy_metrics(
     logits: torch.Tensor,
     labels: torch.Tensor,
     source_names: list[str],
     has_rd: list[bool],
 ) -> dict[str, object]:
-    preds = logits.argmax(dim=-1)
-    by_source: dict[str, float] = {}
-    for source_name in sorted(set(source_names)):
-        indices = [idx for idx, item in enumerate(source_names) if item == source_name]
-        if not indices:
-            continue
-        index_tensor = torch.tensor(indices, dtype=torch.long)
-        by_source[source_name] = float((preds[index_tensor] == labels[index_tensor]).float().mean().item())
-    source_values = list(by_source.values())
-    source_balanced_accuracy = float(sum(source_values) / len(source_values)) if source_values else 0.0
-    min_source_accuracy = float(min(source_values)) if source_values else 0.0
+    by_source = _source_accuracy_dict(logits, labels, source_names)
+    source_summary = _source_summary_from_dict(by_source)
     rd_mask = torch.tensor(has_rd, dtype=torch.bool)
     return {
         "by_source_accuracy": by_source,
-        "source_balanced_accuracy": source_balanced_accuracy,
-        "min_source_accuracy": min_source_accuracy,
+        "source_balanced_accuracy": source_summary["source_balanced_accuracy"],
+        "min_source_accuracy": source_summary["min_source_accuracy"],
+        "raw_tr_rd_accuracy": source_summary["raw_tr_rd_accuracy"],
         "with_rd_accuracy": _subset_accuracy(logits, labels, rd_mask),
         "without_rd_accuracy": _subset_accuracy(logits, labels, ~rd_mask),
     }
@@ -336,6 +372,23 @@ def _target_margin_loss(
     return torch.nn.functional.relu(float(margin) + hardest_negative - positive).mean()
 
 
+def _rd_confidence_calibration_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    positive_target: float,
+    negative_target: float,
+) -> torch.Tensor:
+    if logits.numel() == 0 or labels.numel() == 0:
+        return logits.new_tensor(0.0)
+    probs = torch.softmax(logits, dim=-1)
+    positive = probs.gather(1, labels.unsqueeze(1)).squeeze(1)
+    one_hot = torch.nn.functional.one_hot(labels, num_classes=logits.shape[-1]).bool()
+    hardest_negative = probs.masked_fill(one_hot, -1.0).max(dim=-1).values
+    positive_loss = torch.nn.functional.relu(float(positive_target) - positive).mean()
+    negative_loss = torch.nn.functional.relu(hardest_negative - float(negative_target)).mean()
+    return positive_loss + negative_loss
+
+
 def _fusion_gate_aux_loss(
     output,
     labels: torch.Tensor,
@@ -380,10 +433,13 @@ def _rd_gate_target_loss(
         traj_confidence = torch.softmax(output.traj_logits[mask], dim=-1).max(dim=-1).values
         rd_confidence = torch.softmax(output.rd_logits[mask], dim=-1).max(dim=-1).values
         target = torch.sigmoid((rd_confidence - traj_confidence) / max(float(temperature), 1e-3))
-        rd_rescue = (rd_pred == masked_labels) & (traj_pred != masked_labels)
-        rd_harm = (rd_pred != masked_labels) & (traj_pred == masked_labels)
-        target = torch.where(rd_rescue, torch.full_like(target, 0.75), target)
-        target = torch.where(rd_harm, torch.minimum(target, torch.full_like(target, 0.20)), target)
+        rd_correct = rd_pred == masked_labels
+        traj_correct = traj_pred == masked_labels
+        rd_rescue = rd_correct & ~traj_correct
+        rd_harm = ~rd_correct & traj_correct
+        target = torch.where(~rd_correct, torch.minimum(target, torch.full_like(target, 0.25)), target)
+        target = torch.where(rd_rescue, torch.full_like(target, 0.80), target)
+        target = torch.where(rd_harm, torch.minimum(target, torch.full_like(target, 0.15)), target)
         rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
         rare_indices = {
             LOW_ALTITUDE_CLASSES.index("BirdTarget"),
@@ -402,7 +458,7 @@ def _rd_gate_target_loss(
         }
         for index in hard_pairs:
             hard_pair_mask = hard_pair_mask | (masked_labels == index)
-        rd_confident_hard_pair = hard_pair_mask & (rd_confidence >= 0.45) & ~rd_harm
+        rd_confident_hard_pair = hard_pair_mask & rd_correct & (rd_confidence >= 0.45)
         if bool(rd_confident_hard_pair.any()):
             target = torch.where(
                 rd_confident_hard_pair,
@@ -411,7 +467,7 @@ def _rd_gate_target_loss(
             )
         if bool(rare_mask.any()):
             target = torch.where(
-                rare_mask,
+                rare_mask & rd_correct,
                 torch.maximum(target, torch.full_like(target, float(rare_floor))),
                 target,
             )
@@ -455,6 +511,12 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_raw_tr_rd_accuracy": metrics.get("rd_raw_tr_rd_accuracy", 0.0),
         "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
         "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
+        "by_source_accuracy": metrics.get("by_source_accuracy", {}),
+        "traj_by_source_accuracy": metrics.get("traj_by_source_accuracy", {}),
+        "rd_by_source_accuracy_on_rd": metrics.get("rd_by_source_accuracy_on_rd", {}),
+        "rd_source_balanced_accuracy_on_rd": metrics.get("rd_source_balanced_accuracy_on_rd", 0.0),
+        "rd_min_source_accuracy_on_rd": metrics.get("rd_min_source_accuracy_on_rd", 0.0),
+        "raw_tr_rd_accuracy": metrics.get("raw_tr_rd_accuracy", 0.0),
         "source_balanced_accuracy": metrics.get("source_balanced_accuracy", 0.0),
         "min_source_accuracy": metrics.get("min_source_accuracy", 0.0),
         "with_rd_accuracy": metrics.get("with_rd_accuracy", 0.0),
@@ -597,8 +659,15 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     accuracy = float(metrics.get("accuracy", 0.0))
     source_balanced_accuracy = float(metrics.get("source_balanced_accuracy", 0.0))
     min_source_accuracy = float(metrics.get("min_source_accuracy", 0.0))
+    raw_source_accuracy = float(metrics.get("raw_tr_rd_accuracy", 0.0))
+    rd_raw_source_accuracy = float(metrics.get("rd_raw_tr_rd_accuracy", 0.0))
+    rd_source_balanced_accuracy = float(metrics.get("rd_source_balanced_accuracy_on_rd", 0.0))
+    rd_min_source_accuracy = float(metrics.get("rd_min_source_accuracy_on_rd", 0.0))
     without_rd_accuracy = float(metrics.get("without_rd_accuracy", 0.0))
     final_delta = final_macro - traj_macro
+    source_support = dict(metrics.get("source_support", {}))
+    rd_source_support = dict(metrics.get("rd_source_support_on_rd", {}))
+    rd_class_support = dict(metrics.get("rd_class_support_on_rd", {}))
     rd_recall = dict(metrics.get("rd_per_class_recall_on_rd", {}))
     drone_recall = float(rd_recall.get("DroneTarget", 0.0))
     bird_recall = float(rd_recall.get("BirdTarget", 0.0))
@@ -608,11 +677,16 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_recall = float(rd_recall.get("UnknownTarget", 0.0))
     min_rare_rd_recall = min(balloon_recall, clutter_recall, unknown_recall)
     score = (
-        0.65 * final_macro
+        0.55 * final_macro
         + 0.25 * accuracy
-        + 0.25 * source_balanced_accuracy
+        + 0.35 * source_balanced_accuracy
+        + 0.25 * min_source_accuracy
+        + 0.20 * raw_source_accuracy
         + 0.20 * without_rd_accuracy
-        + 0.70 * rd_macro
+        + 0.80 * rd_macro
+        + 0.18 * rd_source_balanced_accuracy
+        + 0.12 * rd_min_source_accuracy
+        + 0.15 * rd_raw_source_accuracy
         + 0.35 * drone_bird
         + 0.35 * unknown_clutter
         + 0.25 * min_rare_rd_recall
@@ -621,20 +695,40 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     )
     eligible = bool(stage2_enabled) if config.prefer_stage2_checkpoint else True
     if stage2_enabled:
+        enough_raw_source = source_support.get("raw_tr_rd", 0) >= config.min_source_support_for_hard_gate
+        enough_rd_raw_source = rd_source_support.get("raw_tr_rd", 0) >= config.min_rd_source_support_for_hard_gate
+        enough_unknown = rd_class_support.get("UnknownTarget", 0) >= config.min_rd_class_support_for_hard_gate
+        enough_clutter = rd_class_support.get("ClutterTarget", 0) >= config.min_rd_class_support_for_hard_gate
+        enough_bird = rd_class_support.get("BirdTarget", 0) >= config.min_rd_class_support_for_hard_gate
         eligible = eligible and rd_macro >= config.min_rd_macro_f1_for_best
         eligible = eligible and drone_bird >= config.min_drone_bird_rd_recall_for_best
-        eligible = eligible and min_drone_bird_recall >= config.min_drone_bird_single_rd_recall_for_best
-        eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
-        eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
+        if enough_bird:
+            eligible = eligible and min_drone_bird_recall >= config.min_drone_bird_single_rd_recall_for_best
+        if enough_unknown and enough_clutter:
+            eligible = eligible and unknown_clutter >= config.min_unknown_clutter_rd_recall_for_best
+        if enough_unknown and enough_clutter and enough_bird:
+            eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
         eligible = eligible and without_rd_accuracy >= config.min_without_rd_accuracy_for_best
-        eligible = eligible and min_source_accuracy >= config.min_source_accuracy_for_best
+        eligible = eligible and source_balanced_accuracy >= config.min_source_balanced_accuracy_for_best
+        if enough_raw_source:
+            eligible = eligible and raw_source_accuracy >= config.min_raw_source_accuracy_for_best
+            eligible = eligible and min_source_accuracy >= config.min_source_accuracy_for_best
+        if enough_rd_raw_source:
+            eligible = eligible and rd_raw_source_accuracy >= config.min_rd_raw_source_accuracy_for_best
         if config.require_final_not_worse_than_traj:
-            eligible = eligible and final_delta >= -config.max_final_traj_f1_drop
+            eligible = eligible and final_delta >= max(
+                -config.max_final_traj_f1_drop,
+                config.min_final_minus_traj_macro_f1_for_best,
+            )
     return score, eligible, {
         "final_macro_f1": final_macro,
         "accuracy": accuracy,
         "source_balanced_accuracy": source_balanced_accuracy,
         "min_source_accuracy": min_source_accuracy,
+        "raw_tr_rd_accuracy": raw_source_accuracy,
+        "rd_raw_tr_rd_accuracy": rd_raw_source_accuracy,
+        "rd_source_balanced_accuracy_on_rd": rd_source_balanced_accuracy,
+        "rd_min_source_accuracy_on_rd": rd_min_source_accuracy,
         "without_rd_accuracy": without_rd_accuracy,
         "traj_macro_f1": traj_macro,
         "final_minus_traj_macro_f1": final_delta,
@@ -648,6 +742,12 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "rd_clutter_recall": clutter_recall,
         "rd_unknown_recall": unknown_recall,
         "rd_min_rare_recall": min_rare_rd_recall,
+        "source_support": source_support,
+        "rd_source_support_on_rd": rd_source_support,
+        "rd_class_support_on_rd": rd_class_support,
+        "raw_source_gate_active": enough_raw_source if stage2_enabled else False,
+        "rd_raw_source_gate_active": enough_rd_raw_source if stage2_enabled else False,
+        "unknown_clutter_gate_active": bool(enough_unknown and enough_clutter) if stage2_enabled else False,
     }
 
 
@@ -785,6 +885,7 @@ def _run_epoch(
                     focal_gamma=config.low_altitude_rd_focal_gamma,
                 )
                 hard_rd_labels = {
+                    LOW_ALTITUDE_CLASSES.index("BirdTarget"),
                     LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
                     LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
                     LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
@@ -862,11 +963,32 @@ def _run_epoch(
                         weight=torch.tensor([1.0, config.rd_clutter_positive_weight], dtype=torch.float32, device=device),
                     )
                     rd_aux = rd_aux + config.low_altitude_rd_clutter_pairwise_aux_weight * clutter_pairwise_loss
+                unknown_clutter_mask = has_rd_mask & (
+                    (labels == unknown_index) | (labels == clutter_index)
+                )
+                if unknown_clutter_mask.any():
+                    unknown_clutter_targets = (labels[unknown_clutter_mask] == clutter_index).long()
+                    unknown_clutter_logits = output.rd_logits[unknown_clutter_mask][:, [unknown_index, clutter_index]]
+                    unknown_clutter_loss = torch.nn.functional.cross_entropy(
+                        unknown_clutter_logits,
+                        unknown_clutter_targets,
+                        weight=torch.tensor([1.0, 1.5], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_unknown_clutter_pairwise_aux_weight * unknown_clutter_loss
                 rare_margin_loss = (
-                    _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], unknown_index, config.low_altitude_rd_rare_margin)
+                    _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], bird_index, config.low_altitude_rd_rare_margin)
+                    + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], LOW_ALTITUDE_CLASSES.index("BalloonTarget"), config.low_altitude_rd_rare_margin)
+                    + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], unknown_index, config.low_altitude_rd_rare_margin)
                     + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], clutter_index, config.low_altitude_rd_rare_margin)
                 )
                 rd_aux = rd_aux + config.low_altitude_rd_rare_margin_aux_weight * rare_margin_loss
+                rd_calibration_loss = _rd_confidence_calibration_loss(
+                    output.rd_logits[has_rd_mask],
+                    labels[has_rd_mask],
+                    positive_target=config.low_altitude_rd_calibration_positive_target,
+                    negative_target=config.low_altitude_rd_calibration_negative_target,
+                )
+                rd_aux = rd_aux + config.low_altitude_rd_calibration_aux_weight * rd_calibration_loss
                 forced_fusion_loss = _masked_weighted_ce_loss(
                     output.logits[has_rd_mask],
                     labels[has_rd_mask],
@@ -1036,6 +1158,20 @@ def _run_epoch(
     )
     rd_drone_bird = diagnostics["rd_on_rd_drone_bird"]
     rd_unknown_clutter = float(diagnostics["rd_on_rd_unknown_clutter_recall_mean"])
+    traj_by_source_accuracy = _source_accuracy_dict(traj_logits_cat, labels_cat, source_names_all)
+    rd_by_source_accuracy_on_rd = _source_accuracy_dict(
+        rd_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
+    source_support = _source_support_dict(source_names_all)
+    rd_source_support_on_rd = _source_support_dict(source_names_all, mask=has_rd_tensor)
+    rd_class_support_on_rd = {
+        label_name: int((labels_cat[has_rd_tensor] == idx).sum().item())
+        for idx, label_name in enumerate(LOW_ALTITUDE_CLASSES)
+    }
+    rd_by_source_summary = _source_summary_from_dict(rd_by_source_accuracy_on_rd)
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
         "accuracy": metrics.accuracy,
@@ -1066,6 +1202,14 @@ def _run_epoch(
         "rd_fusion_weight_mean": rd_fusion_weight_mean,
         "rd_fusion_weight_on_rd_mean": rd_fusion_weight_on_rd_mean,
         "by_source_accuracy": group_metrics["by_source_accuracy"],
+        "traj_by_source_accuracy": traj_by_source_accuracy,
+        "rd_by_source_accuracy_on_rd": rd_by_source_accuracy_on_rd,
+        "source_support": source_support,
+        "rd_source_support_on_rd": rd_source_support_on_rd,
+        "rd_class_support_on_rd": rd_class_support_on_rd,
+        "rd_source_balanced_accuracy_on_rd": rd_by_source_summary["source_balanced_accuracy"],
+        "rd_min_source_accuracy_on_rd": rd_by_source_summary["min_source_accuracy"],
+        "raw_tr_rd_accuracy": group_metrics["raw_tr_rd_accuracy"],
         "source_balanced_accuracy": group_metrics["source_balanced_accuracy"],
         "min_source_accuracy": group_metrics["min_source_accuracy"],
         "with_rd_accuracy": group_metrics["with_rd_accuracy"],
@@ -1279,6 +1423,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
             "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
             "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
+            "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
+            "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
+            "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
+            "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
+            "min_source_accuracy": test_metrics["min_source_accuracy"],
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
@@ -1351,6 +1500,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
                 "harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
                 "raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
+                "by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
+                "source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
+                "min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
                 "teacher_by_source": test_metrics["rd_teacher_by_source"],
             },
         },
@@ -1440,6 +1592,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
             "rd_fusion_weight_mean": test_metrics["rd_fusion_weight_mean"],
             "rd_fusion_weight_on_rd_mean": test_metrics["rd_fusion_weight_on_rd_mean"],
+            "by_source_accuracy": test_metrics["by_source_accuracy"],
+            "traj_by_source_accuracy": test_metrics["traj_by_source_accuracy"],
+            "rd_by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
+            "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
+            "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
+            "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
             "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
             "min_source_accuracy": test_metrics["min_source_accuracy"],
             "with_rd_accuracy": test_metrics["with_rd_accuracy"],
@@ -1474,6 +1632,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_pairwise_aux_weight": config.low_altitude_rd_pairwise_aux_weight,
         "low_altitude_rd_unknown_pairwise_aux_weight": config.low_altitude_rd_unknown_pairwise_aux_weight,
         "low_altitude_rd_clutter_pairwise_aux_weight": config.low_altitude_rd_clutter_pairwise_aux_weight,
+        "low_altitude_rd_unknown_clutter_pairwise_aux_weight": config.low_altitude_rd_unknown_clutter_pairwise_aux_weight,
         "low_altitude_rd_rare_margin_aux_weight": config.low_altitude_rd_rare_margin_aux_weight,
         "low_altitude_rd_rare_margin": config.low_altitude_rd_rare_margin,
         "low_altitude_rd_forced_fusion_weight": config.low_altitude_rd_forced_fusion_weight,
@@ -1514,6 +1673,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_rare_rd_recall_for_best": config.min_rare_rd_recall_for_best,
             "min_without_rd_accuracy_for_best": config.min_without_rd_accuracy_for_best,
             "min_source_accuracy_for_best": config.min_source_accuracy_for_best,
+            "min_source_balanced_accuracy_for_best": config.min_source_balanced_accuracy_for_best,
+            "min_raw_source_accuracy_for_best": config.min_raw_source_accuracy_for_best,
+            "min_rd_raw_source_accuracy_for_best": config.min_rd_raw_source_accuracy_for_best,
+            "min_final_minus_traj_macro_f1_for_best": config.min_final_minus_traj_macro_f1_for_best,
+            "min_source_support_for_hard_gate": config.min_source_support_for_hard_gate,
+            "min_rd_source_support_for_hard_gate": config.min_rd_source_support_for_hard_gate,
+            "min_rd_class_support_for_hard_gate": config.min_rd_class_support_for_hard_gate,
             "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),
             "max_final_traj_f1_drop": config.max_final_traj_f1_drop,
         },
