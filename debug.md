@@ -258,6 +258,92 @@
     - 或者把 Ground 重新纳入 calibrated candidate 仲裁
     - 同时继续提升 Expert1 RD 对 Unknown / Clutter / Bird 的分离能力
   - per-class precision / recall / f1 / support
+
+## 2026-05-07 Ground 仲裁修复与配置统一
+- 问题 1：Ground 在 System 中长期被 `soft_log_weighted` / `ungated` 压制，最终报告里 Ground F1 直接掉到 0。
+  - 根因：
+    - `ground_expert` 虽然有 `groundness_head`，但 System 训练没有显式 groundness 监督，Ground 分支只靠 class loss 和仲裁残余信号。
+    - `groundness_protection_enabled` 虽存在，但默认策略和训练配置不稳定，容易把错误 Ground 候选放大。
+    - Ground 与 Aircraft、低空候选直接做 raw logits 竞争，分数不可比，导致 Ground 候选经常被压死。
+  - 解决：
+    - 在 `src/core/system_trainer.py` 中新增 groundness 二分类监督和 separation loss：
+      - `system_groundness_loss_weight`
+      - `system_groundness_separation_loss_weight`
+      - `system_groundness_positive_target`
+      - `system_groundness_negative_target`
+    - 给 Ground 分支单独拆 LR：
+      - `ground_backbone`
+      - `ground_classifier`
+      - `groundness_head`
+    - 前若干 epoch 冻结 Ground backbone，只让 head 先适配，再逐步解冻。
+    - 把 Ground 纳入 `calibrated_candidates`，用 `groundness_probability` / `groundness_confidence` 作为 membership 信号，而不是继续让 raw logits 直接拼接。
+    - 在 selection score 中提高 `ground_group_f1` 权重，并对 `ground_group_f1 == 0` 进行硬惩罚，避免 best checkpoint 继续选到 Ground 崩坏模型。
+  - 落地：
+    - `src/core/system_config.py`
+    - `src/core/system_trainer.py`
+    - `src/core/system.py`
+    - `config/config.json`
+    - `src/core/reporting.py`
+  - 结果：
+    - CUDA 训练完整跑通，`selected_fusion_mode = calibrated_candidates`
+    - 测试集：
+      - `accuracy = 0.8133`
+      - `macro_f1 = 0.5757`
+      - `route_macro_recall = 0.7460`
+      - `ground_group_f1 = 0.5641`
+      - `aircraft_precision = 0.3750`
+      - `aircraft_recall = 0.6000`
+    - 验证集 `calibrated_candidates`：
+      - `macro_f1 = 0.6320`
+      - `ground_group_f1 = 0.6667`
+      - `aircraft_precision = 0.2727`
+      - `aircraft_recall = 0.6000`
+    - 对照：
+      - `soft_log_weighted` / `ungated` 仍会把 Ground 压成 `0.0`
+      - `calibrated_candidates` 能把 Ground 从 0 拉回到可用水平
+
+- 问题 2：配置类默认值和 `config/config.json` 不一致。
+  - 根因：
+    - `SystemTrainConfig` 里 `calibrated_aircraft_min_route_weight` 仍是旧默认值。
+    - 这会让直接调用 dataclass 默认值和走 JSON 配置得到不同训练行为。
+  - 解决：
+    - 将 `src/core/system_config.py` 默认值统一到 `0.30`，与 `config/config.json` 保持一致。
+  - 落地：
+    - `src/core/system_config.py`
+  - 结果：
+    - 后续无论从命令行 `--config` 还是直接读取 dataclass，候选仲裁参数一致。
+
+- 问题 3：报告里 Ground 诊断不可见，排查仍要翻 JSON。
+  - 根因：
+    - `critical_metrics` 里已经有 `ground`，但 Markdown 报告没单独渲染 Ground 诊断。
+  - 解决：
+    - 在 `src/core/reporting.py` 增加 `## Ground 仲裁` 小节，直接展示：
+      - `ground_group_precision`
+      - `ground_group_recall`
+      - `ground_group_f1`
+      - `pred_ground_on_non_ground_count`
+      - `groundness_probability` / `groundness_confidence` 的真 Ground 与非 Ground 均值
+      - `ground_high_confidence_count`
+  - 落地：
+    - `src/core/reporting.py`
+    - 新生成报告：`reports/real/20260507-145802/system_config_smoke.md`
+  - 结果：
+    - Ground 诊断在 Markdown 中可直接阅读，不再只埋在 JSON。
+
+- 问题 4：需要验证 Ground 不是只在局部训练环节有效，而是进入系统级最终输出。
+  - 验证：
+    - 完整 CUDA 训练命令：`python -m src.core.train_system --config config/config.json`
+    - 训练产物：
+      - `artifacts/20260507-145802/system_config_smoke/`
+    - 结果：
+      - `selected_fusion_mode = calibrated_candidates`
+      - `best_test_probe` 也显示 `calibrated_candidates` 是当前最优候选
+      - `reroute_rate = 0.0`
+      - Ground 不再是被仲裁器直接压没，而是能在候选打分里拿到有效分数
+
+- 备注：
+  - 当前 `PeopleTarget` 样本仍然极少，单样本类的上限仍在。
+  - 这轮修复的目标是先把 System 从“Ground 直接失活”修成“Ground 可参与候选仲裁并产生增益”，不是宣称已经到最终上限。
   - route confusion matrix
   - per-route support / recall
   - 按 source 的分类准确率

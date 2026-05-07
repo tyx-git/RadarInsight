@@ -44,20 +44,64 @@ def _set_track_encoder_trainable(model: nn.Module, trainable: bool) -> None:
         param.requires_grad = trainable
 
 
+def _set_ground_feature_stack_trainable(model: nn.Module, trainable: bool) -> None:
+    modules = [
+        model.ground_expert.deep_proj,
+        model.ground_expert.physical_input_norm,
+        model.ground_expert.physical_proj,
+        model.ground_expert.gate,
+    ]
+    for module in modules:
+        for param in module.parameters():
+            param.requires_grad = trainable
+
+
 def _build_optimizer(model: nn.Module, config: SystemTrainConfig) -> torch.optim.Optimizer:
     sequence_encoder_param_ids = {
         id(param)
         for param in model.representation_builder.sequence_encoder.parameters()
+    }
+    ground_backbone_param_ids = {
+        id(param)
+        for module in (
+            model.ground_expert.deep_proj,
+            model.ground_expert.physical_input_norm,
+            model.ground_expert.physical_proj,
+            model.ground_expert.gate,
+        )
+        for param in module.parameters()
+    }
+    ground_classifier_param_ids = {
+        id(param)
+        for param in model.ground_expert.classifier.parameters()
+    }
+    groundness_head_param_ids = {
+        id(param)
+        for param in model.ground_expert.groundness_head.parameters()
     }
     sequence_encoder_params = [
         param
         for param in model.representation_builder.sequence_encoder.parameters()
         if param.requires_grad
     ]
+    ground_backbone_params = [
+        param
+        for param in model.parameters()
+        if param.requires_grad and id(param) in ground_backbone_param_ids
+    ]
+    ground_classifier_params = [
+        param
+        for param in model.parameters()
+        if param.requires_grad and id(param) in ground_classifier_param_ids
+    ]
     other_params = [
         param
         for param in model.parameters()
-        if param.requires_grad and id(param) not in sequence_encoder_param_ids
+        if param.requires_grad
+        and id(param) not in sequence_encoder_param_ids
+        and id(param) not in ground_backbone_param_ids
+        and id(param) not in ground_classifier_param_ids
+        and id(param) not in groundness_head_param_ids
     ]
     param_groups: list[dict[str, object]] = []
     if sequence_encoder_params:
@@ -68,15 +112,59 @@ def _build_optimizer(model: nn.Module, config: SystemTrainConfig) -> torch.optim
                 "weight_decay": config.weight_decay,
             }
         )
+    if ground_backbone_params:
+        param_groups.append(
+            {
+                "params": ground_backbone_params,
+                "lr": config.learning_rate * config.ground_expert_lr_multiplier,
+                "weight_decay": config.weight_decay,
+                "group_name": "ground_backbone",
+            }
+        )
+    if ground_classifier_params:
+        param_groups.append(
+            {
+                "params": ground_classifier_params,
+                "lr": config.learning_rate * config.ground_expert_lr_multiplier,
+                "weight_decay": config.weight_decay,
+                "group_name": "ground_classifier",
+            }
+        )
+    groundness_head_params = [
+        param
+        for param in model.parameters()
+        if param.requires_grad and id(param) in groundness_head_param_ids
+    ]
+    if groundness_head_params:
+        param_groups.append(
+            {
+                "params": groundness_head_params,
+                "lr": config.learning_rate * config.ground_expert_lr_multiplier,
+                "weight_decay": config.weight_decay,
+                "group_name": "groundness_head",
+            }
+        )
     if other_params:
         param_groups.append(
             {
                 "params": other_params,
                 "lr": config.learning_rate,
                 "weight_decay": config.weight_decay,
+                "group_name": "other",
             }
         )
     return torch.optim.AdamW(param_groups)
+
+
+def _set_ground_expert_learning_rates(optimizer: torch.optim.Optimizer, config: SystemTrainConfig, epoch: int) -> None:
+    backbone_lr = 0.0 if epoch <= config.freeze_ground_feature_epochs else config.learning_rate * config.ground_expert_lr_multiplier
+    classifier_lr = config.learning_rate * config.ground_expert_lr_multiplier
+    for group in optimizer.param_groups:
+        name = str(group.get("group_name", ""))
+        if name == "ground_backbone":
+            group["lr"] = backbone_lr
+        elif name in {"ground_classifier", "groundness_head"}:
+            group["lr"] = classifier_lr
 
 
 def _set_router_only_warmup(model: nn.Module, router_only: bool) -> None:
@@ -296,6 +384,69 @@ def _build_low_altitude_weights(loaders) -> torch.Tensor:
     return torch.clamp(weights, min=0.25, max=2.0)
 
 
+def _build_groundness_weights(loaders) -> torch.Tensor:
+    ground_indices = {
+        DEFAULT_VOCAB.label_to_index["PeopleTarget"],
+        DEFAULT_VOCAB.label_to_index["CarTarget"],
+        DEFAULT_VOCAB.label_to_index["ShipTarget"],
+    }
+    counts = torch.ones((2,), dtype=torch.float32)
+    for batch in loaders.train_loader:
+        labels = batch.labels
+        ground_mask = torch.zeros_like(labels, dtype=torch.bool)
+        for label_idx in ground_indices:
+            ground_mask |= labels == label_idx
+        counts[1] += ground_mask.sum().to(torch.float32)
+        counts[0] += (~ground_mask).sum().to(torch.float32)
+    weights = torch.rsqrt(counts)
+    weights = weights / weights.mean()
+    return torch.clamp(weights, min=0.25, max=4.0)
+
+
+def _build_groundness_weights_from_labels(labels: torch.Tensor) -> torch.Tensor:
+    ground_targets = _groundness_targets(labels)
+    counts = torch.tensor(
+        [
+            float((~ground_targets.bool()).sum().item()),
+            float(ground_targets.bool().sum().item()),
+        ],
+        dtype=torch.float32,
+        device=labels.device,
+    ).clamp_min(1.0)
+    weights = torch.rsqrt(counts)
+    weights = weights / weights.mean()
+    return torch.clamp(weights, min=0.25, max=4.0)
+
+
+def _groundness_targets(labels: torch.Tensor) -> torch.Tensor:
+    ground_indices = {
+        DEFAULT_VOCAB.label_to_index["PeopleTarget"],
+        DEFAULT_VOCAB.label_to_index["CarTarget"],
+        DEFAULT_VOCAB.label_to_index["ShipTarget"],
+    }
+    target = torch.zeros_like(labels, dtype=torch.long)
+    for label_idx in ground_indices:
+        target = torch.where(labels == label_idx, torch.ones_like(target), target)
+    return target
+
+
+def _groundness_separation_loss(
+    groundness_probability: torch.Tensor,
+    labels: torch.Tensor,
+    positive_target: float,
+    negative_target: float,
+) -> torch.Tensor:
+    ground_target = _groundness_targets(labels).bool()
+    if not bool(ground_target.any()) and not bool((~ground_target).any()):
+        return groundness_probability.new_tensor(0.0)
+    loss = groundness_probability.new_tensor(0.0)
+    if bool(ground_target.any()):
+        loss = loss + torch.nn.functional.relu(float(positive_target) - groundness_probability[ground_target]).mean()
+    if bool((~ground_target).any()):
+        loss = loss + torch.nn.functional.relu(groundness_probability[~ground_target] - float(negative_target)).mean()
+    return loss
+
+
 def _fit_source_feature_stats(loader) -> dict[str, dict[str, torch.Tensor]]:
     buckets: dict[str, list[torch.Tensor]] = {}
     for batch in loader:
@@ -408,7 +559,7 @@ def _project_to_global_logits(
     if fusion_mode == "reroute":
         raise ValueError("fusion_mode='reroute' is inference-only; use _project_to_global_logits_reroute()")
     route_weights = system_output.routing.route_weights
-    route_log_prior = 0.25 * torch.log(route_weights.clamp_min(1e-6))
+    route_log_prior = float(config.calibrated_route_prior_weight) * torch.log(route_weights.clamp_min(1e-6))
     if fusion_mode == "calibrated_candidates":
         low_gate = route_log_prior[:, ROUTE_NAMES.index("low_altitude_suspect")].unsqueeze(-1)
         conventional_gate = route_log_prior[:, ROUTE_NAMES.index("conventional_air")].unsqueeze(-1)
@@ -460,7 +611,14 @@ def _project_to_global_logits(
     conventional_route_weight = route_weights[:, ROUTE_NAMES.index("conventional_air")]
 
     if fusion_mode == "calibrated_candidates":
-        low = torch.log_softmax(system_output.low_altitude_logits, dim=-1) + low_gate
+        low_confidence = system_output.low_altitude_detail.traj_cosine.max(dim=-1).values
+        low_membership = torch.clamp(low_confidence - float(config.low_altitude_reject_threshold), min=-1.0, max=1.0)
+        low = (
+            torch.log_softmax(system_output.low_altitude_logits, dim=-1)
+            / max(float(config.calibrated_low_temperature), 1e-6)
+            + low_gate
+            + float(config.calibrated_low_membership_beta) * low_membership.unsqueeze(-1)
+        )
     else:
         low = system_output.low_altitude_logits + low_gate
     logits[:, global_index["DroneTarget"]] = low[:, 0]
@@ -519,7 +677,21 @@ def _project_to_global_logits(
             torch.zeros_like(adjusted_conventional_gate),
             torch.where(mid_conf, torch.maximum(adjusted_conventional_gate, floor_tensor), adjusted_conventional_gate),
         )
-        aircraft_score = aircraft_log_prob / max(float(config.aircraft_temperature), 1e-6) + adjusted_conventional_gate
+        aircraft_membership = torch.clamp(aircraft_confidence, min=-1.0, max=1.0)
+        aircraft_score = (
+            aircraft_log_prob / max(float(config.aircraft_temperature), 1e-6)
+            + adjusted_conventional_gate
+            + float(config.calibrated_aircraft_membership_beta) * aircraft_membership
+        )
+        calibrated_aircraft_allowed = (
+            (aircraft_confidence >= float(config.calibrated_aircraft_min_confidence))
+            & (conventional_route_weight >= float(config.calibrated_aircraft_min_route_weight))
+        )
+        aircraft_score = torch.where(
+            calibrated_aircraft_allowed,
+            aircraft_score,
+            torch.full_like(aircraft_score, float(config.calibrated_aircraft_suppress_logit)),
+        )
         if apply_source_aircraft_policy and config.aircraft_source_suppress_below_tau:
             aircraft_score = torch.where(
                 source_reject,
@@ -586,10 +758,15 @@ def _project_to_global_logits(
             torch.where(
                 ground_mid_conf,
                 torch.maximum(adjusted_ground_gate, ground_floor_tensor),
-                adjusted_ground_gate - 1.5,
+                adjusted_ground_gate - float(config.calibrated_ground_suppression),
             ),
         )
-        ground = torch.log_softmax(ground_logits, dim=-1) / max(float(config.groundness_temperature), 1e-6) + adjusted_ground_gate.unsqueeze(-1)
+        ground_membership = torch.clamp(groundness_confidence, min=-1.0, max=1.0)
+        ground = (
+            torch.log_softmax(ground_logits, dim=-1) / max(float(config.groundness_temperature), 1e-6)
+            + adjusted_ground_gate.unsqueeze(-1)
+            + float(config.calibrated_ground_membership_beta) * ground_membership.unsqueeze(-1)
+        )
     elif config.groundness_protection_enabled:
         floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
         ground_gate_floor = float(np.log(floor_weight))
@@ -626,6 +803,14 @@ def _project_to_global_logits(
         "expert2_positive": (aircraft_confidence >= 0.0).detach(),
         "aircraft_high_confidence": high_conf.detach(),
         "aircraft_mid_confidence": mid_conf.detach(),
+        "calibrated_aircraft_allowed": (
+            (
+                (aircraft_confidence >= float(config.calibrated_aircraft_min_confidence))
+                & (conventional_route_weight >= float(config.calibrated_aircraft_min_route_weight))
+            )
+            if fusion_mode == "calibrated_candidates"
+            else torch.zeros_like(aircraft_confidence, dtype=torch.bool)
+        ).detach(),
         "high_altitude_rule_positive": high_positive.detach(),
         "high_altitude_allowed": high_allowed.detach(),
         "groundness_probability": groundness_probability.detach(),
@@ -861,7 +1046,23 @@ def _stage_loss_scales(stage_name: str, config: SystemTrainConfig, stage_epoch: 
     }
 
 
-def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, optimizer, device: torch.device, train: bool, skip_non_finite_batch: bool, config: SystemTrainConfig, stage_name: str, stage_epoch: int | None = None, source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None) -> dict[str, object]:
+def _run_epoch(
+    model,
+    loader,
+    class_criterion,
+    route_criterion,
+    low_criterion,
+    optimizer,
+    device: torch.device,
+    train: bool,
+    skip_non_finite_batch: bool,
+    config: SystemTrainConfig,
+    stage_name: str,
+    stage_epoch: int | None = None,
+    source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None,
+    groundness_class_weights: torch.Tensor | None = None,
+    detach_ground_features: bool = False,
+) -> dict[str, object]:
     model.train(mode=train)
     class_logits_all: list[torch.Tensor] = []
     class_logits_without_aircraft_protection_all: list[torch.Tensor] = []
@@ -914,6 +1115,7 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                     if train
                     else config.enable_low_altitude_reject_in_eval
                 ),
+                detach_ground_features=train and detach_ground_features,
             )
             if not train and config.fusion_mode == "reroute":
                 class_logits, reroute_diagnostics = _project_to_global_logits_reroute(
@@ -969,6 +1171,33 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             low_mutual_loss = torch.tensor(0.0, device=device)
             low_contrastive_loss = torch.tensor(0.0, device=device)
             consistency_loss = torch.tensor(0.0, device=device)
+            groundness_loss = torch.tensor(0.0, device=device)
+            groundness_separation_loss = torch.tensor(0.0, device=device)
+            ground_auxiliary = getattr(output.ground_detail, "auxiliary", None) or {}
+            groundness_logits = ground_auxiliary.get("groundness_logits")
+            groundness_probability = ground_auxiliary.get("groundness_probability")
+            if groundness_logits is not None and config.system_groundness_loss_weight > 0.0:
+                groundness_labels = _groundness_targets(labels)
+                if groundness_class_weights is None:
+                    groundness_weights = torch.tensor(
+                        [1.0, 1.0],
+                        dtype=groundness_logits.dtype,
+                        device=device,
+                    )
+                else:
+                    groundness_weights = groundness_class_weights.to(device=device, dtype=groundness_logits.dtype)
+                groundness_loss = torch.nn.functional.cross_entropy(
+                    groundness_logits,
+                    groundness_labels,
+                    weight=groundness_weights,
+                )
+            if groundness_probability is not None and config.system_groundness_separation_loss_weight > 0.0:
+                groundness_separation_loss = _groundness_separation_loss(
+                    groundness_probability,
+                    labels,
+                    positive_target=config.system_groundness_positive_target,
+                    negative_target=config.system_groundness_negative_target,
+                )
             if scales["low_aux"] > 0.0 and low_mask.any():
                 low_local_targets = low_targets[low_mask]
                 traj_logits = output.low_altitude_detail.traj_logits[low_mask]
@@ -1006,6 +1235,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
                 + (config.low_altitude_mutual_weight * scales["low_mutual"]) * low_mutual_loss
                 + (config.low_altitude_contrastive_weight * scales["low_contrastive"]) * low_contrastive_loss
                 + (config.consistency_loss_weight * scales["consistency"]) * consistency_loss
+                + config.system_groundness_loss_weight * groundness_loss
+                + config.system_groundness_separation_loss_weight * groundness_separation_loss
             )
             if train:
                 if not torch.isfinite(loss):
@@ -1051,6 +1282,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             class_loss_values = []
             route_loss_values = []
             route_coarse_loss_values = []
+            groundness_loss_values = []
+            groundness_separation_loss_values = []
             low_aux_loss_values = []
             low_mutual_loss_values = []
             low_contrastive_loss_values = []
@@ -1071,6 +1304,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
         class_loss_values.append(float(class_loss.detach().cpu().item()))
         route_loss_values.append(float(route_loss.detach().cpu().item()))
         route_coarse_loss_values.append(float(route_coarse_loss.detach().cpu().item()))
+        groundness_loss_values.append(float(groundness_loss.detach().cpu().item()))
+        groundness_separation_loss_values.append(float(groundness_separation_loss.detach().cpu().item()))
         low_aux_loss_values.append(float(low_aux_loss.detach().cpu().item()))
         low_mutual_loss_values.append(float(low_mutual_loss.detach().cpu().item()))
         low_contrastive_loss_values.append(float(low_contrastive_loss.detach().cpu().item()))
@@ -1191,6 +1426,8 @@ def _run_epoch(model, loader, class_criterion, route_criterion, low_criterion, o
             "class_loss": float(sum(class_loss_values) / len(class_loss_values)),
             "route_loss": float(sum(route_loss_values) / len(route_loss_values)),
             "route_coarse_loss": float(sum(route_coarse_loss_values) / len(route_coarse_loss_values)),
+            "groundness_loss": float(sum(groundness_loss_values) / len(groundness_loss_values)),
+            "groundness_separation_loss": float(sum(groundness_separation_loss_values) / len(groundness_separation_loss_values)),
             "low_aux_loss": float(sum(low_aux_loss_values) / len(low_aux_loss_values)),
             "low_mutual_loss": float(sum(low_mutual_loss_values) / len(low_mutual_loss_values)),
             "low_contrastive_loss": float(sum(low_contrastive_loss_values) / len(low_contrastive_loss_values)),
@@ -1788,10 +2025,10 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         + 0.15 * drone_bird
         + 0.10 * (unknown_recall + clutter_recall)
         + 0.10 * ground_route
-        + 0.08 * ground_group_f1
-        + 0.06 * aircraft_recall
-        + 0.08 * aircraft_f1
-        + 0.10 * aircraft_precision
+        + 0.24 * ground_group_f1
+        + 0.14 * aircraft_recall
+        + 0.12 * aircraft_f1
+        + 0.05 * aircraft_precision
         + 0.10 * source_balanced_accuracy
         + 0.08 * min_source_accuracy
         - 1.50 * non_aircraft_as_aircraft_rate
@@ -1799,14 +2036,16 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     )
     if ground_route == 0.0:
         score -= 0.10
+    if ground_group_f1 == 0.0:
+        score -= 0.35
     if unknown_recall == 0.0:
         score -= 0.05
     if clutter_recall == 0.0:
         score -= 0.05
-    if aircraft_precision < 0.60:
+    if aircraft_precision < 0.20 and aircraft_recall > 0.0:
         score -= 0.25
     if aircraft_support > 0 and aircraft_recall == 0.0:
-        score -= 0.45
+        score -= 0.60
     elif aircraft_support > 0 and aircraft_recall < 0.40:
         score -= 0.15
     if aircraft_support > 0 and aircraft_f1 == 0.0:
@@ -2004,6 +2243,7 @@ def _evaluate_with_fusion_mode(
 def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
     critical = metrics.get("critical_metrics", {})
     aircraft = critical.get("aircraft", {}) if isinstance(critical, dict) else {}
+    ground = critical.get("ground", {}) if isinstance(critical, dict) else {}
     return {
         "fusion_mode": metrics.get("fusion_mode"),
         "accuracy": float(metrics.get("accuracy", 0.0)),
@@ -2029,6 +2269,21 @@ def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
         "non_aircraft_as_aircraft_rate": float(critical.get("non_aircraft_as_aircraft_rate", 0.0)),
         "ground_group_f1": float(critical.get("ground_group_f1", 0.0)),
         "pred_ground_on_non_ground_count": int(critical.get("pred_ground_on_non_ground_count", 0)),
+        "groundness_probability_mean_true_ground": float(
+            ground.get("groundness_probability_mean_true_ground", 0.0)
+        ) if isinstance(ground, dict) else 0.0,
+        "groundness_probability_mean_non_ground": float(
+            ground.get("groundness_probability_mean_non_ground", 0.0)
+        ) if isinstance(ground, dict) else 0.0,
+        "groundness_confidence_mean_true_ground": float(
+            ground.get("groundness_confidence_mean_true_ground", 0.0)
+        ) if isinstance(ground, dict) else 0.0,
+        "groundness_confidence_mean_non_ground": float(
+            ground.get("groundness_confidence_mean_non_ground", 0.0)
+        ) if isinstance(ground, dict) else 0.0,
+        "ground_high_confidence_count": int(
+            ground.get("ground_high_confidence_count", 0)
+        ) if isinstance(ground, dict) else 0,
         "aircraft_protection_recovered_count": int(
             aircraft.get("aircraft_protection_recovered_count", 0)
         ) if isinstance(aircraft, dict) else 0,
@@ -2091,6 +2346,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     class_weights = _build_class_weights(loaders).to(device)
     route_weights = _build_route_weights(loaders).to(device)
     low_class_weights = _build_low_altitude_weights(loaders).to(device)
+    groundness_class_weights = _build_groundness_weights(loaders).to(device)
     source_feature_stats = None
     checkpoint_source_feature_stats = None
     if config.source_normalization:
@@ -2146,6 +2402,9 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
             _set_router_only_warmup(model, router_only=False)
         if config.freeze_router:
             _set_router_trainable(model, trainable=False)
+        ground_feature_trainable = epoch > config.freeze_ground_feature_epochs
+        _set_ground_feature_stack_trainable(model, trainable=ground_feature_trainable)
+        _set_ground_expert_learning_rates(optimizer, config, epoch)
         track_encoder_trainable = epoch > config.freeze_track_encoder_epochs
         if stage_name == "warmup" and config.freeze_non_router_in_warmup:
             track_encoder_trainable = False
@@ -2155,8 +2414,40 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
             model,
             trainable=track_encoder_trainable,
         )
-        train_metrics = _run_epoch(model, loaders.train_loader, class_criterion, route_criterion, low_criterion, optimizer, device, True, config.skip_non_finite_batch, config, stage_name=stage_name, stage_epoch=stage_epoch, source_feature_stats=source_feature_stats)
-        val_metrics = _run_epoch(model, loaders.val_loader, class_criterion, route_criterion, low_criterion, optimizer, device, False, config.skip_non_finite_batch, config, stage_name=stage_name, stage_epoch=stage_epoch, source_feature_stats=source_feature_stats)
+        train_metrics = _run_epoch(
+            model,
+            loaders.train_loader,
+            class_criterion,
+            route_criterion,
+            low_criterion,
+            optimizer,
+            device,
+            True,
+            config.skip_non_finite_batch,
+            config,
+            stage_name=stage_name,
+            stage_epoch=stage_epoch,
+            source_feature_stats=source_feature_stats,
+            groundness_class_weights=groundness_class_weights,
+            detach_ground_features=not ground_feature_trainable,
+        )
+        val_metrics = _run_epoch(
+            model,
+            loaders.val_loader,
+            class_criterion,
+            route_criterion,
+            low_criterion,
+            optimizer,
+            device,
+            False,
+            config.skip_non_finite_batch,
+            config,
+            stage_name=stage_name,
+            stage_epoch=stage_epoch,
+            source_feature_stats=source_feature_stats,
+            groundness_class_weights=groundness_class_weights,
+            detach_ground_features=False,
+        )
         selection_score, selection_components = _system_selection_score(val_metrics)
         val_metrics["selection_score"] = selection_score
         val_metrics["selection_components"] = selection_components
@@ -2322,6 +2613,21 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "groundness_confidence_tau_low": config.groundness_confidence_tau_low,
         "ground_route_gate_floor": config.ground_route_gate_floor,
         "groundness_temperature": config.groundness_temperature,
+        "calibrated_route_prior_weight": config.calibrated_route_prior_weight,
+        "calibrated_low_membership_beta": config.calibrated_low_membership_beta,
+        "calibrated_aircraft_membership_beta": config.calibrated_aircraft_membership_beta,
+        "calibrated_ground_membership_beta": config.calibrated_ground_membership_beta,
+        "calibrated_low_temperature": config.calibrated_low_temperature,
+        "calibrated_ground_suppression": config.calibrated_ground_suppression,
+        "calibrated_aircraft_min_confidence": config.calibrated_aircraft_min_confidence,
+        "calibrated_aircraft_min_route_weight": config.calibrated_aircraft_min_route_weight,
+        "calibrated_aircraft_suppress_logit": config.calibrated_aircraft_suppress_logit,
+        "ground_expert_lr_multiplier": config.ground_expert_lr_multiplier,
+        "freeze_ground_feature_epochs": config.freeze_ground_feature_epochs,
+        "system_groundness_loss_weight": config.system_groundness_loss_weight,
+        "system_groundness_separation_loss_weight": config.system_groundness_separation_loss_weight,
+        "system_groundness_positive_target": config.system_groundness_positive_target,
+        "system_groundness_negative_target": config.system_groundness_negative_target,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "sequence_encoder_lr_multiplier": config.sequence_encoder_lr_multiplier,
         "sequence_encoder_grad_clip_norm": config.sequence_encoder_grad_clip_norm,
@@ -2353,6 +2659,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "route_weights": route_weights.detach().cpu().tolist(),
         "route_coarse_loss_weight": config.route_coarse_loss_weight,
         "low_altitude_class_weights": low_class_weights.detach().cpu().tolist(),
+        "groundness_class_weights": groundness_class_weights.detach().cpu().tolist(),
         "split_sizes": {
             "train": len(loaders.split.train_ids),
             "val": len(loaders.split.val_ids),

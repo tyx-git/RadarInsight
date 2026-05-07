@@ -55,6 +55,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines.append(f"- route_accuracy: {_format_float(float(summary_metrics['route_accuracy']))}")
     if "route_macro_recall" in summary_metrics:
         lines.append(f"- route_macro_recall: {_format_float(float(summary_metrics['route_macro_recall']))}")
+    if "selected_fusion_mode" in report:
+        lines.append(f"- selected_fusion_mode: {report['selected_fusion_mode']}")
     lines.append(f"- loss: {_format_float(float(summary_metrics['loss']))}")
     if "skipped_non_finite_batches" in summary_metrics:
         lines.append(f"- skipped_non_finite_batches: {summary_metrics['skipped_non_finite_batches']}")
@@ -132,6 +134,35 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             lines.append("|---:|---:|")
             for count, value in sorted(distribution.items(), key=lambda item: int(item[0])):
                 lines.append(f"| {count} | {value} |")
+        lines.append("")
+    ground_metrics = {}
+    if isinstance(critical_metrics, dict):
+        candidate = critical_metrics.get("ground", {})
+        if isinstance(candidate, dict):
+            ground_metrics = candidate
+    if ground_metrics:
+        lines.append("## Ground 仲裁")
+        lines.append("| 指标 | 值 |")
+        lines.append("|---|---:|")
+        metric_labels = [
+            ("ground_group_precision", "Ground precision"),
+            ("ground_group_recall", "Ground recall"),
+            ("ground_group_f1", "Ground F1"),
+            ("pred_ground_on_non_ground_count", "非 Ground 误判 Ground 数"),
+            ("groundness_probability_mean_true_ground", "真 Ground groundness 均值"),
+            ("groundness_probability_mean_non_ground", "非 Ground groundness 均值"),
+            ("groundness_confidence_mean_true_ground", "真 Ground confidence 均值"),
+            ("groundness_confidence_mean_non_ground", "非 Ground confidence 均值"),
+            ("ground_high_confidence_count", "Ground 高置信样本数"),
+        ]
+        for key, label in metric_labels:
+            if key not in ground_metrics:
+                continue
+            value = ground_metrics[key]
+            if isinstance(value, int):
+                lines.append(f"| {label} | {value} |")
+            else:
+                lines.append(f"| {label} | {_format_float(float(value))} |")
         lines.append("")
     lines.append("## 按来源统计")
     if isinstance(critical_metrics, dict):

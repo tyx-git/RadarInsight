@@ -94,6 +94,7 @@ class RadarClassificationSystem(nn.Module):
         rd_patch_padding_mask: torch.Tensor | None = None,
         source_names: list[str] | None = None,
         enable_low_altitude_reject: bool = True,
+        detach_ground_features: bool = False,
     ) -> RadarSystemOutput:
         representation = self.representation_builder(
             sequence_features=sequence_features,
@@ -147,7 +148,8 @@ class RadarClassificationSystem(nn.Module):
             height_mean=physical_features[:, 0],
             speed_mean=physical_features[:, 3],
         )
-        ground = self.ground_expert(representation.deep_features, representation.raw_physical_features)
+        ground_deep_features = representation.deep_features.detach() if detach_ground_features else representation.deep_features
+        ground = self.ground_expert(ground_deep_features, representation.raw_physical_features)
         return RadarSystemOutput(
             representation=representation,
             routing=routing,

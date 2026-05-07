@@ -374,9 +374,16 @@ def _rd_gate_target_loss(
     if not bool(mask.any()):
         return labels.new_tensor(0.0, dtype=torch.float32)
     with torch.no_grad():
+        masked_labels = labels[mask]
+        traj_pred = output.traj_logits[mask].argmax(dim=-1)
+        rd_pred = output.rd_logits[mask].argmax(dim=-1)
         traj_confidence = torch.softmax(output.traj_logits[mask], dim=-1).max(dim=-1).values
         rd_confidence = torch.softmax(output.rd_logits[mask], dim=-1).max(dim=-1).values
         target = torch.sigmoid((rd_confidence - traj_confidence) / max(float(temperature), 1e-3))
+        rd_rescue = (rd_pred == masked_labels) & (traj_pred != masked_labels)
+        rd_harm = (rd_pred != masked_labels) & (traj_pred == masked_labels)
+        target = torch.where(rd_rescue, torch.full_like(target, 0.75), target)
+        target = torch.where(rd_harm, torch.minimum(target, torch.full_like(target, 0.20)), target)
         rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
         rare_indices = {
             LOW_ALTITUDE_CLASSES.index("BirdTarget"),
@@ -385,7 +392,23 @@ def _rd_gate_target_loss(
             LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
         }
         for index in rare_indices:
-            rare_mask = rare_mask | (labels[mask] == index)
+            rare_mask = rare_mask | (masked_labels == index)
+        hard_pair_mask = torch.zeros_like(masked_labels, dtype=torch.bool)
+        hard_pairs = {
+            LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+            LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+            LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+        }
+        for index in hard_pairs:
+            hard_pair_mask = hard_pair_mask | (masked_labels == index)
+        rd_confident_hard_pair = hard_pair_mask & (rd_confidence >= 0.45) & ~rd_harm
+        if bool(rd_confident_hard_pair.any()):
+            target = torch.where(
+                rd_confident_hard_pair,
+                torch.maximum(target, torch.full_like(target, 0.65)),
+                target,
+            )
         if bool(rare_mask.any()):
             target = torch.where(
                 rare_mask,
@@ -421,6 +444,15 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_unknown_clutter_recall_mean": metrics.get("rd_unknown_clutter_recall_mean", 0.0),
         "rd_drone_as_bird_rate": metrics.get("rd_drone_as_bird_rate", 0.0),
         "rd_bird_as_drone_rate": metrics.get("rd_bird_as_drone_rate", 0.0),
+        "rd_rescue_count": metrics.get("rd_rescue_count", 0),
+        "rd_harm_count": metrics.get("rd_harm_count", 0),
+        "rd_rescue_rate_on_rd": metrics.get("rd_rescue_rate_on_rd", 0.0),
+        "rd_harm_rate_on_rd": metrics.get("rd_harm_rate_on_rd", 0.0),
+        "final_rescue_count": metrics.get("final_rescue_count", 0),
+        "final_harm_count": metrics.get("final_harm_count", 0),
+        "final_rescue_rate_on_rd": metrics.get("final_rescue_rate_on_rd", 0.0),
+        "final_harm_rate_on_rd": metrics.get("final_harm_rate_on_rd", 0.0),
+        "rd_raw_tr_rd_accuracy": metrics.get("rd_raw_tr_rd_accuracy", 0.0),
         "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
         "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
         "source_balanced_accuracy": metrics.get("source_balanced_accuracy", 0.0),
@@ -504,6 +536,55 @@ def _expert1_diagnostics(
         f"{prefix}_per_class_recall": recalls,
         f"{prefix}_drone_bird": _drone_bird_metrics(logits, labels),
         f"{prefix}_unknown_clutter_recall_mean": unknown_clutter,
+    }
+
+
+def _rd_teacher_effect_metrics(
+    final_logits: torch.Tensor,
+    traj_logits: torch.Tensor,
+    rd_logits: torch.Tensor,
+    labels: torch.Tensor,
+    has_rd: torch.Tensor,
+    source_names: list[str],
+) -> dict[str, object]:
+    final_preds = final_logits.argmax(dim=-1)
+    traj_preds = traj_logits.argmax(dim=-1)
+    rd_preds = rd_logits.argmax(dim=-1)
+    rd_rescue = has_rd & (traj_preds != labels) & (rd_preds == labels)
+    rd_harm = has_rd & (traj_preds == labels) & (rd_preds != labels)
+    final_rescue = has_rd & (traj_preds != labels) & (final_preds == labels)
+    final_harm = has_rd & (traj_preds == labels) & (final_preds != labels)
+    with_rd_count = int(has_rd.sum().item())
+    by_source: dict[str, dict[str, float | int]] = {}
+    for source_name in sorted(set(source_names)):
+        source_mask = torch.tensor([item == source_name for item in source_names], dtype=torch.bool)
+        source_rd_mask = source_mask & has_rd.cpu()
+        count = int(source_rd_mask.sum().item())
+        if count <= 0:
+            continue
+        by_source[source_name] = {
+            "with_rd_count": count,
+            "rd_accuracy": float((rd_preds.cpu()[source_rd_mask] == labels.cpu()[source_rd_mask]).float().mean().item()),
+            "rd_rescue_count": int(rd_rescue.cpu()[source_rd_mask].sum().item()),
+            "rd_harm_count": int(rd_harm.cpu()[source_rd_mask].sum().item()),
+        }
+    raw_source_mask = torch.tensor([item == "raw_tr_rd" for item in source_names], dtype=torch.bool)
+    raw_rd_mask = raw_source_mask & has_rd.cpu()
+    return {
+        "rd_rescue_count": int(rd_rescue.sum().item()),
+        "rd_harm_count": int(rd_harm.sum().item()),
+        "rd_rescue_rate_on_rd": int(rd_rescue.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "rd_harm_rate_on_rd": int(rd_harm.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "final_rescue_count": int(final_rescue.sum().item()),
+        "final_harm_count": int(final_harm.sum().item()),
+        "final_rescue_rate_on_rd": int(final_rescue.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "final_harm_rate_on_rd": int(final_harm.sum().item()) / with_rd_count if with_rd_count > 0 else 0.0,
+        "rd_raw_tr_rd_accuracy": (
+            float((rd_preds.cpu()[raw_rd_mask] == labels.cpu()[raw_rd_mask]).float().mean().item())
+            if bool(raw_rd_mask.any())
+            else 0.0
+        ),
+        "rd_teacher_by_source": by_source,
     }
 
 
@@ -931,6 +1012,14 @@ def _run_epoch(
     diagnostics.update(_expert1_diagnostics(traj_logits_cat, labels_cat, "traj"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd_on_rd", mask=has_rd_tensor))
+    rd_teacher_effect = _rd_teacher_effect_metrics(
+        logits_cat,
+        traj_logits_cat,
+        rd_logits_cat,
+        labels_cat,
+        has_rd_tensor,
+        source_names_all,
+    )
     group_metrics = _group_accuracy_metrics(logits_cat, labels_cat, source_names_all, has_rd_all)
     rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
     rd_activation_rate_on_rd = (
@@ -966,6 +1055,7 @@ def _run_epoch(
         "rd_unknown_clutter_recall_mean": rd_unknown_clutter,
         "rd_drone_as_bird_rate": float(rd_drone_bird["drone_as_bird_rate"]),
         "rd_bird_as_drone_rate": float(rd_drone_bird["bird_as_drone_rate"]),
+        **rd_teacher_effect,
         "traj_per_class_recall": diagnostics["traj_per_class_recall"],
         "traj_drone_bird": diagnostics["traj_drone_bird"],
         "final_per_class_recall": diagnostics["final_per_class_recall"],
@@ -1180,6 +1270,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
             "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"],
             "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            "rd_rescue_count": test_metrics["rd_rescue_count"],
+            "rd_harm_count": test_metrics["rd_harm_count"],
+            "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
+            "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+            "final_rescue_count": test_metrics["final_rescue_count"],
+            "final_harm_count": test_metrics["final_harm_count"],
+            "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
+            "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
+            "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
@@ -1247,6 +1346,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
                 "drone_bird": test_metrics["rd_drone_bird"],
                 "unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+                "rescue_count": test_metrics["rd_rescue_count"],
+                "harm_count": test_metrics["rd_harm_count"],
+                "rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
+                "harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+                "raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
+                "teacher_by_source": test_metrics["rd_teacher_by_source"],
             },
         },
         "device": device_info,
@@ -1320,6 +1425,16 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
             "rd_per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
             "rd_drone_bird": test_metrics["rd_drone_bird"],
+            "rd_rescue_count": test_metrics["rd_rescue_count"],
+            "rd_harm_count": test_metrics["rd_harm_count"],
+            "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
+            "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+            "final_rescue_count": test_metrics["final_rescue_count"],
+            "final_harm_count": test_metrics["final_harm_count"],
+            "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
+            "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
+            "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
+            "rd_teacher_by_source": test_metrics["rd_teacher_by_source"],
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "rd_activation_rate": test_metrics["rd_activation_rate"],
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
