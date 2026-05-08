@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import math
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -59,7 +61,9 @@ class LowAltitudeFusionOutput:
     rd_unknown_logits: torch.Tensor
     rd_clutter_logits: torch.Tensor
     rd_class_gate_logits: torch.Tensor | None
+    rd_pair_gate_logits: torch.Tensor | None
     rd_class_fusion_weights: torch.Tensor | None
+    rd_pair_fusion_weights: torch.Tensor | None
     logits: torch.Tensor
     fusion_weights: torch.Tensor
     rd_activated: torch.Tensor
@@ -162,6 +166,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_clutter_logit_scale = float(rd_binary_logit_scale if rd_clutter_logit_scale is None else rd_clutter_logit_scale)
         self.rd_class_activation_threshold = float(rd_class_activation_threshold)
         self.rd_model_dim = 512
+        self.rd_stats_input_dim = 8
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
@@ -222,7 +227,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_encoder = nn.TransformerEncoder(rd_layer, num_layers=3)
         self.rd_norm = nn.LayerNorm(self.rd_model_dim)
         self.stats_proj = nn.Sequential(
-            nn.Linear(4, self.rd_stats_dim),
+            nn.Linear(self.rd_stats_input_dim, self.rd_stats_dim),
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(self.rd_stats_dim, self.rd_stats_dim),
@@ -277,6 +282,12 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, len(LOW_ALTITUDE_CLASSES)),
         )
+        self.rd_pair_gate = nn.Sequential(
+            nn.Linear(512 + hidden_dim, 128),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 3),
+        )
         self.fusion_gate = nn.Sequential(
             nn.Linear(len(LOW_ALTITUDE_CLASSES) * 2, 64),
             nn.GELU(),
@@ -288,6 +299,8 @@ class LowAltitudeSuspectExpert(nn.Module):
             self.fusion_gate[-1].bias.copy_(torch.tensor([-bias, bias], dtype=self.fusion_gate[-1].bias.dtype))
             nn.init.zeros_(self.rd_class_gate[-1].weight)
             self.rd_class_gate[-1].bias.fill_(float(initial_rd_class_gate_bias))
+            nn.init.zeros_(self.rd_pair_gate[-1].weight)
+            self.rd_pair_gate[-1].bias.fill_(float(initial_rd_class_gate_bias))
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
@@ -297,7 +310,30 @@ class LowAltitudeSuspectExpert(nn.Module):
         amp_kurt = (centered.pow(4).mean(dim=-1) / amp_std.squeeze(-1).pow(4)).mean(dim=-1, keepdim=True)
         phase_abs_mean = phase_dopp.abs().mean(dim=-1).mean(dim=-1, keepdim=True)
         phase_std = phase_dopp.std(dim=-1).mean(dim=-1, keepdim=True)
-        stats = torch.cat([amp_skew, amp_kurt, phase_abs_mean, phase_std], dim=-1)
+        range_energy = amp_range.abs().clamp_min(0.0) + 1e-6
+        doppler_energy = amp_dopp.abs().clamp_min(0.0) + 1e-6
+        range_prob = range_energy / range_energy.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        doppler_prob = doppler_energy / doppler_energy.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        range_entropy = (-(range_prob * range_prob.log()).sum(dim=-1) / math.log(float(range_prob.shape[-1]))).mean(dim=-1, keepdim=True)
+        doppler_entropy = (-(doppler_prob * doppler_prob.log()).sum(dim=-1) / math.log(float(doppler_prob.shape[-1]))).mean(dim=-1, keepdim=True)
+        peak_to_mean = (range_energy.max(dim=-1).values / range_energy.mean(dim=-1).clamp_min(1e-6)).mean(dim=-1, keepdim=True)
+        if amp_range.shape[1] > 1:
+            temporal_roughness = (amp_range[:, 1:] - amp_range[:, :-1]).abs().mean(dim=(1, 2), keepdim=False).unsqueeze(-1)
+        else:
+            temporal_roughness = amp_range.new_zeros((amp_range.shape[0], 1))
+        stats = torch.cat(
+            [
+                amp_skew,
+                amp_kurt,
+                phase_abs_mean,
+                phase_std,
+                range_entropy,
+                doppler_entropy,
+                peak_to_mean,
+                temporal_roughness,
+            ],
+            dim=-1,
+        )
         stats = torch.nan_to_num(stats, nan=0.0, posinf=0.0, neginf=0.0)
         return stats
 
@@ -386,12 +422,19 @@ class LowAltitudeSuspectExpert(nn.Module):
         return self.rd_patch_cnn(patch_input)
 
     def _apply_reject(self, logits: torch.Tensor, cosine: torch.Tensor, activated: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        max_cosine = cosine.max(dim=-1).values
-        reject_mask = activated & (max_cosine < self.reject_threshold)
+        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+        known_indices = [
+            index
+            for index, label_name in enumerate(LOW_ALTITUDE_CLASSES)
+            if index != unknown_index
+        ]
+        known_cosine = cosine[:, known_indices]
+        max_known_cosine = known_cosine.max(dim=-1).values
+        reject_mask = activated & (max_known_cosine < self.reject_threshold)
         corrected = logits.clone()
         if reject_mask.any():
             corrected[reject_mask] = -6.0
-            corrected[reject_mask, LOW_ALTITUDE_CLASSES.index("UnknownTarget")] = 6.0
+            corrected[reject_mask, unknown_index] = 6.0
         return corrected, reject_mask
 
     def acceptance(self, output: LowAltitudeFusionOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
@@ -407,6 +450,20 @@ class LowAltitudeSuspectExpert(nn.Module):
     ) -> torch.Tensor:
         gate_input = torch.cat([traj_features, rd_features_vec], dim=-1)
         gate_logits = self.rd_class_gate(gate_input)
+        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
+            no_rd = ~rd_is_multimodal.bool()
+            if no_rd.any():
+                gate_logits = torch.where(no_rd.unsqueeze(-1), torch.full_like(gate_logits, -8.0), gate_logits)
+        return gate_logits
+
+    def _rd_pair_gate_logits(
+        self,
+        traj_features: torch.Tensor,
+        rd_features_vec: torch.Tensor,
+        rd_is_multimodal: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        gate_input = torch.cat([traj_features, rd_features_vec], dim=-1)
+        gate_logits = self.rd_pair_gate(gate_input)
         if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
             no_rd = ~rd_is_multimodal.bool()
             if no_rd.any():
@@ -446,6 +503,11 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
             rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
             rd_class_gate_logits = self._rd_class_gate_logits(
+                traj_features,
+                rd_features_vec,
+                rd_is_multimodal=rd_is_multimodal,
+            )
+            rd_pair_gate_logits = self._rd_pair_gate_logits(
                 traj_features,
                 rd_features_vec,
                 rd_is_multimodal=rd_is_multimodal,
@@ -490,22 +552,35 @@ class LowAltitudeSuspectExpert(nn.Module):
                 rd_features_vec,
                 rd_is_multimodal=rd_is_multimodal,
             )
+            rd_pair_gate_logits = self._rd_pair_gate_logits(
+                traj_features,
+                rd_features_vec,
+                rd_is_multimodal=rd_is_multimodal,
+            )
 
         traj_probs = torch.softmax(traj_logits, dim=-1)
         rd_probs = torch.softmax(rd_logits, dim=-1)
         gate_logits = self.fusion_gate(torch.cat([traj_probs, rd_probs], dim=-1))
         fusion_weights = torch.softmax(gate_logits, dim=-1)
         rd_class_fusion_weights = 0.05 + 0.60 * torch.sigmoid(rd_class_gate_logits)
+        rd_pair_fusion_weights = 0.05 + 0.85 * torch.sigmoid(rd_pair_gate_logits)
         if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
             rd_class_fusion_weights = torch.where(
                 rd_is_multimodal.bool().unsqueeze(-1),
                 rd_class_fusion_weights,
                 torch.zeros_like(rd_class_fusion_weights),
             )
+            rd_pair_fusion_weights = torch.where(
+                rd_is_multimodal.bool().unsqueeze(-1),
+                rd_pair_fusion_weights,
+                torch.zeros_like(rd_pair_fusion_weights),
+            )
         fused_logits = traj_logits + rd_class_fusion_weights * (rd_logits - traj_logits)
 
         traj_confidence = traj_probs.max(dim=-1).values
         rd_class_activation = torch.sigmoid(rd_class_gate_logits).max(dim=-1).values
+        rd_pair_gate_probs = torch.sigmoid(rd_pair_gate_logits)
+        rd_pair_activation = rd_pair_gate_probs.max(dim=-1).values
         if rd_is_multimodal is not None:
             has_rd = rd_is_multimodal
         elif rd_features.ndim == 4:
@@ -520,9 +595,50 @@ class LowAltitudeSuspectExpert(nn.Module):
                 forced_rd
                 | (traj_confidence < self.rd_activation_threshold)
                 | (rd_class_activation > self.rd_class_activation_threshold)
+                | (rd_pair_activation > self.rd_class_activation_threshold)
             )
         fused_cosine = 0.5 * (traj_cosine + rd_cosine)
         selected_logits = torch.where(rd_activated.unsqueeze(-1), fused_logits, traj_logits)
+        pair_selected_logits = selected_logits.clone()
+        drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
+        bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
+        balloon_index = LOW_ALTITUDE_CLASSES.index("BalloonTarget")
+        clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
+        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+        pair_specs = [
+            (0, [drone_index, bird_index]),
+            (1, [unknown_index, clutter_index]),
+            (2, [balloon_index]),
+        ]
+        for pair_idx, class_indices in pair_specs:
+            current_pair_logits = pair_selected_logits[:, class_indices]
+            rd_pair_logits = rd_logits[:, class_indices]
+            pair_weight = rd_pair_fusion_weights[:, pair_idx].unsqueeze(-1)
+            pair_rd_margin = rd_pair_logits.max(dim=-1).values - current_pair_logits.max(dim=-1).values
+            pair_active = rd_activated & (
+                (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold)
+                | (pair_rd_margin > 0.05)
+            )
+            strong_pair_takeover = pair_active & (
+                (pair_rd_margin > 0.20)
+                | (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold + 0.15)
+            )
+            proposed_pair_logits = current_pair_logits + pair_weight * (rd_pair_logits - current_pair_logits)
+            adopted_pair_logits = torch.where(
+                strong_pair_takeover.unsqueeze(-1),
+                rd_pair_logits,
+                torch.where(
+                    pair_active.unsqueeze(-1),
+                    proposed_pair_logits,
+                    current_pair_logits,
+                ),
+            )
+            pair_selected_logits[:, class_indices] = torch.where(
+                pair_active.unsqueeze(-1),
+                adopted_pair_logits,
+                current_pair_logits,
+            )
+        selected_logits = pair_selected_logits
         selected_cosine = torch.where(rd_activated.unsqueeze(-1), fused_cosine, traj_cosine)
         if enable_reject:
             final_logits, rejected_unknown = self._apply_reject(selected_logits, selected_cosine, rd_activated)
@@ -540,7 +656,9 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_unknown_logits=rd_unknown_logits,
             rd_clutter_logits=rd_clutter_logits,
             rd_class_gate_logits=rd_class_gate_logits,
+            rd_pair_gate_logits=rd_pair_gate_logits,
             rd_class_fusion_weights=rd_class_fusion_weights,
+            rd_pair_fusion_weights=rd_pair_fusion_weights,
             logits=final_logits,
             fusion_weights=fusion_weights,
             rd_activated=rd_activated,

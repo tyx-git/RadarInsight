@@ -31,6 +31,11 @@ class Expert1TrainConfig:
     low_altitude_rd_forced_fusion_weight: float = 0.6
     low_altitude_rd_gate_aux_weight: float = 0.6
     low_altitude_rd_class_gate_aux_weight: float = 0.3
+    low_altitude_rd_pair_gate_aux_weight: float = 0.35
+    low_altitude_rd_pair_takeover_floor: float = 0.72
+    low_altitude_rd_pair_harm_ceiling: float = 0.10
+    low_altitude_rd_teacher_warmup_epochs: int = 1
+    low_altitude_rd_teacher_aux_boost: float = 1.35
     low_altitude_rd_gate_temperature: float = 0.35
     low_altitude_rd_class_activation_threshold: float = 0.55
     low_altitude_rd_rare_gate_floor: float = 0.25

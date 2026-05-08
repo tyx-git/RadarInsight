@@ -164,6 +164,59 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             else:
                 lines.append(f"| {label} | {_format_float(float(value))} |")
         lines.append("")
+    branch_metrics = report.get("branch_metrics", {})
+    if isinstance(branch_metrics, dict) and "rd" in branch_metrics:
+        final_branch = branch_metrics.get("final", {})
+        traj_branch = branch_metrics.get("trajectory", {})
+        rd_branch = branch_metrics.get("rd", {})
+        if isinstance(final_branch, dict) and isinstance(traj_branch, dict) and isinstance(rd_branch, dict):
+            lines.append("## Expert1 RD 分支")
+            lines.append("| 分支 | accuracy | macro_f1 |")
+            lines.append("|---|---:|---:|")
+            lines.append(
+                f"| final | {_format_float(float(final_branch.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(final_branch.get('macro_f1', 0.0)))} |"
+            )
+            lines.append(
+                f"| trajectory | {_format_float(float(traj_branch.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(traj_branch.get('macro_f1', 0.0)))} |"
+            )
+            lines.append(
+                f"| rd | {_format_float(float(rd_branch.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(rd_branch.get('macro_f1', 0.0)))} |"
+            )
+            if "accuracy_on_rd" in rd_branch or "macro_f1_on_rd" in rd_branch:
+                lines.append(
+                    f"- rd_on_rd: accuracy={_format_float(float(rd_branch.get('accuracy_on_rd', 0.0)))}, "
+                    f"macro_f1={_format_float(float(rd_branch.get('macro_f1_on_rd', 0.0)))}"
+                )
+            lines.append("| RD 贡献指标 | 值 |")
+            lines.append("|---|---:|")
+            for key, label in [
+                ("rescue_count", "rd_rescue_count"),
+                ("harm_count", "rd_harm_count"),
+                ("rescue_rate_on_rd", "rd_rescue_rate_on_rd"),
+                ("harm_rate_on_rd", "rd_harm_rate_on_rd"),
+                ("net_gain_count", "rd_net_gain_count"),
+                ("net_gain_rate_on_rd", "rd_net_gain_rate_on_rd"),
+                ("rescue_unadopted_count", "rd_rescue_unadopted_count"),
+                ("harm_adopted_count", "rd_harm_adopted_count"),
+            ]:
+                if key not in rd_branch:
+                    continue
+                value = rd_branch[key]
+                if isinstance(value, int):
+                    lines.append(f"| {label} | {value} |")
+                else:
+                    lines.append(f"| {label} | {_format_float(float(value))} |")
+            pair_weights = rd_branch.get("pair_fusion_weight_on_rd_by_pair", {})
+            if isinstance(pair_weights, dict) and pair_weights:
+                lines.append("")
+                lines.append("| RD 局部接管 gate | on-RD 平均权重 |")
+                lines.append("|---|---:|")
+                for pair_name, value in pair_weights.items():
+                    lines.append(f"| {pair_name} | {_format_float(float(value))} |")
+            lines.append("")
     lines.append("## 按来源统计")
     if isinstance(critical_metrics, dict):
         if "source_balanced_accuracy" in critical_metrics:

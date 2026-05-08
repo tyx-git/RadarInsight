@@ -2311,3 +2311,115 @@
   - `_run_epoch(train=False, fusion_mode="reroute")`
   - 能拿到 System 层 `reroute_system_forward` 诊断
   - 该 smoke 使用未训练随机模型，`accuracy=0.0` 只用于验证链路，不作为模型性能结论
+
+## 2026-05-08 Expert1 RD 局部接管与 teacher warmup
+
+### 问题
+
+- Expert1 当前整体可用，但 RD 还不是可靠第二证据源：
+  - 轨迹分支已经较强。
+  - RD 分支有局部 rescue，但 `rd_harm_rate_on_rd` 长期高于 `rd_rescue_rate_on_rd`。
+  - 旧融合是全局或类条件插值，能减伤，但不能在 Drone/Bird、Unknown/Clutter、Balloon 难边界上让 RD 局部接管。
+- `UnknownTarget` 仍被当成普通闭集类别参与最大余弦拒识判断：
+  - 如果 Unknown 原型给出高余弦，拒识逻辑会误认为“像某个已知低空类”。
+  - 这和 Unknown 作为低空 residual / reject bucket 的语义不一致。
+- Clutter/Unknown 对 RD 局部纹理和形态更敏感，原 `rd_stats` 只有 skew/kurt/phase 4 个统计，难以表达能量熵、峰值稀疏和时间粗糙度。
+- 工程上，给 `_run_epoch()` 增加 `stage2_epoch` 后，首次短训暴露出调用点参数错位：
+  - `rd_class_weights` 被错位成 `source_feature_stats`。
+  - 训练到 test 阶段触发 `AttributeError: 'dict' object has no attribute 'to'`。
+
+### 解决方案
+
+- 在 `LowAltitudeSuspectExpert` 中增加 RD 局部 pair gate：
+  - `Drone/Bird`
+  - `Unknown/Clutter`
+  - `Balloon`
+- final logits 不再只做全局两权重融合：
+  - 先保留现有 class-wise correction。
+  - 再按局部 pair 判断是否采纳 RD correction。
+  - 当 RD pair margin 足够大，或 pair gate 高置信时，允许该局部类别组切到 RD logits，形成局部强接管。
+- Unknown 改为 reject-style residual：
+  - `_apply_reject()` 只计算 Drone/Bird/Balloon/Clutter 的 known max cosine。
+  - known max 低于阈值时回收到 Unknown。
+  - Unknown 自身不再抬高“已知类置信度”。
+- RD 形态统计从 4 维扩展到 8 维：
+  - skew
+  - kurtosis
+  - phase abs mean
+  - phase std
+  - range entropy
+  - doppler entropy
+  - peak-to-mean
+  - temporal roughness
+- 增加 RD teacher warmup：
+  - `low_altitude_rd_teacher_warmup_epochs`
+  - `low_altitude_rd_teacher_aux_boost`
+  - 第一个 RD stage epoch 先强化 RD 主分类/局部辅助目标，并关闭 mutual/contrastive/gate target 压制。
+  - 目标是先让 RD 本体学出基本边界，再让 pair gate 学会何时采纳。
+- 报告新增 RD 局部 gate 诊断：
+  - `rd_class_fusion_weight_on_rd_mean`
+  - `rd_pair_fusion_weight_on_rd_mean`
+  - `rd_pair_fusion_weight_on_rd_by_pair`
+  - Markdown 报告新增 `Expert1 RD 分支` 小节，直接显示 rescue/harm/net gain 和 pair gate。
+
+### 最终落地
+
+- `src/core/experts.py`
+  - `LowAltitudeFusionOutput` 增加 pair gate 输出。
+  - `LowAltitudeSuspectExpert` 增加 `rd_pair_gate`。
+  - 增加局部 pair adoption / takeover。
+  - Unknown reject 改为 known-class max cosine。
+  - RD stats 扩展到 8 维形态统计。
+- `src/core/expert1_config.py`
+  - 增加 pair gate 和 RD teacher warmup 配置。
+- `src/core/expert1_trainer.py`
+  - 增加 `_rd_pair_gate_target_loss()`。
+  - 增加 `stage2_epoch`，修复 warmup 触发语义。
+  - 增加 pair gate 指标收集、summary/report 落盘。
+  - 修复 `_run_epoch()` 调用点参数错位。
+- `src/core/reporting.py`
+  - Markdown 报告渲染 RD 分支、RD 真实贡献和局部接管 gate。
+- `config/config.json`
+  - 当前配置：
+    - `low_altitude_rd_pair_gate_aux_weight=0.45`
+    - `low_altitude_rd_pair_takeover_floor=0.76`
+    - `low_altitude_rd_pair_harm_ceiling=0.08`
+    - `low_altitude_rd_teacher_warmup_epochs=1`
+    - `low_altitude_rd_teacher_aux_boost=1.35`
+
+### 验证
+
+- `python -m compileall src/core/expert1_trainer.py src/core/expert1_config.py src/core/experts.py src/core/reporting.py` 通过。
+- CUDA synthetic forward/backward smoke 通过：
+  - `logits_shape=(3,5)`
+  - `rd_pair_fusion_weights.shape=(3,3)`
+  - `finite=True`
+- CUDA 单 batch train smoke 通过：
+  - `has_valid_batches=True`
+  - `skipped_non_finite_batches=0`
+- CUDA 2 epoch 短训：
+  - 输出目录：`artifacts/20260508-115913/expert1_pair_gate_short_train_v3`
+  - `accuracy=0.8194`
+  - `macro_f1=0.7006`
+  - `traj_macro_f1=0.6788`
+  - `final - traj macro_f1 = +0.0218`
+  - `rd_macro_f1_on_rd=0.0765`
+  - `rd_rescue_rate_on_rd=0.0759`
+  - `rd_harm_rate_on_rd=0.6709`
+  - `final_rescue_rate_on_rd=0.0169`
+  - `final_harm_rate_on_rd=0.0000`
+  - `final_unknown_clutter_recall_mean=0.6230`
+  - `ClutterTarget recall=0.8571`
+  - `rd_pair_fusion_weight_on_rd_by_pair`：
+    - `DroneBird=0.1287`
+    - `UnknownClutter=0.1463`
+    - `Balloon=0.0830`
+
+### 结论
+
+- 这次结构改动有效提升了 final 相对轨迹分支的净收益，并明显改善 Clutter recall。
+- 但 RD-only 仍然严重偏科：短训中 RD 仍主要学成 Bird detector，`rd_macro_f1_on_rd` 不合格。
+- 因此当前不能把 RD 标记为“已稳定”，只能说：
+  - 局部接管链路已落地。
+  - 报告能暴露 RD 的真实贡献。
+  - 后续应继续做更长 RD teacher stage、source-balanced RD 训练和 Unknown/Clutter 专项，而不是盲目继续提高全局 RD 权重。
