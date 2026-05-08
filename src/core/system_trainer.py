@@ -2230,6 +2230,13 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_altitude_rd_activation_threshold=config.low_altitude_rd_activation_threshold,
         low_altitude_use_rd_patch_cnn=config.low_altitude_use_rd_patch_cnn,
         low_altitude_initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
+        low_altitude_rd_class_activation_threshold=config.low_altitude_rd_class_activation_threshold,
+        rd_bird_logit_scale=config.rd_bird_logit_scale,
+        rd_unknown_logit_scale=config.rd_unknown_logit_scale,
+        rd_clutter_logit_scale=config.rd_clutter_logit_scale,
+        rd_residual_logit_scale=config.rd_residual_logit_scale,
+        rd_unknown_clutter_logit_scale=config.rd_unknown_clutter_logit_scale,
+        rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None

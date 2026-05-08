@@ -1,197 +1,468 @@
-# 基于深度学习的雷达目标分类识别系统——详细项目架构方案
+# RadarInsight 当前架构说明
 
-## 1. 项目目标与数据定义
+本文档记录当前代码已经落地的架构，而不是早期设想稿。旧版方案已备份为 `main.bak001`。
 
-本项目面向低空安防与地面监控场景，利用雷达二维点迹和RD图数据，实现对空中与地面多种目标的分类识别。重点解决无人机、飞鸟、气球等“低慢小”空中目标的精准判别，同时兼顾地面人员、车辆、船只的分类，并滤除常规飞行器（直升机、固定翼）和高空民航机等非威胁目标。系统需满足以下要求：
+当前主线目标不是直接追求口号式 95%，而是把系统稳定推进到可解释、可复现、可调优的多专家雷达分类系统：先确保数据切分无泄漏、训练链路一致、专家接线正确，再逐步提升 Expert1 RD、Ground、Aircraft 和跨源泛化能力。
 
-- **高准确率**：无人机 vs 鸟分类准确率 ≥ 95%；
-- **强鲁棒性**：跨雷达设备、气象条件、地形环境部署后，准确率下降 ≤ 5%；
-- **高吞吐低时延**：RD图数据速率达每秒几十MB，推理需满足实时性；
-- **可解释性**：路由与分类决策可追溯，物理规则兜底；
-- **深度学习全面贯穿**：轨迹粗筛、目标路由和精细分类均须基于深度学习方法，充分利用两个数据集（低慢小数据集 A 含轨迹+RD图；雷达轨迹数据集 B 仅含轨迹，覆盖地面/空中目标）。
+## 1. 项目定位
 
-## 2. 总体架构
+RadarInsight 面向低空安防和雷达目标识别，输入来自统一标准化后的航迹、点迹和 RD 数据，输出全局大类标签。
 
-系统采用 **“深度轨迹粗筛 → 任务导向门控路由 → 多专家并行分类”** 的三级级联架构，核心设计思想是“轨迹先行、RD补位、按需计算”。架构模块与数据流如下：
+当前全局标签体系：
 
-1. **三维轨迹建模与表征**：输入雷达点迹矩阵（含方位、距离、仰角、高度、多普勒速度等），经多目标跟踪、轨迹平滑和规范化后，提取双通道轨迹表征（深度时序特征 + 显式物理特征）。
-2. **深度门控路由网络**：以轨迹表征（尤其是物理特征部分）为输入，通过一个小型MLP输出目标所属专家模型的路由权重，同时由物理规则进行安全兜底。
-3. **专家模型群**：
-   - **专家一**（低空可疑目标鉴别器）：双流结构，包含“轨迹快速分支”（常开）和“RD图精细分支”（按需激活），采用 Multimodal Transformer 配合互学习与对比学习损失，负责无人机、鸟、气球、未知四分类。
-   - **专家二**（常规空中目标鉴别器）：轻量1D-CNN，快速分类直升机、固定翼等。
-   - **专家三**（高空/高速目标鉴别器）：纯规则过滤，极低时延。
-   - **专家四**（地面目标鉴别器）：复用轨迹编码器特征，接轻量分类头，区别人、车、船。
-4. **推理决策**：各专家并行工作（选择性激活），输出带置信度的类别标签，未知目标可触发“unknown”拒绝。
+| 标签 | 说明 |
+|---|---|
+| `AircraftTarget` | 常规空中目标 |
+| `BalloonTarget` | 气球 |
+| `BirdTarget` | 鸟 |
+| `CarTarget` | 车辆 |
+| `ClutterTarget` | 杂波/干扰 |
+| `DroneTarget` | 无人机 |
+| `PeopleTarget` | 人 |
+| `ShipTarget` | 船 |
+| `UnknownTarget` | 低空内部未知/拒识残差 |
 
-## 3. 数据预处理与三维轨迹建模
+当前路线是：
 
-### 3.1 输入数据格式
-雷达前端输出轨迹点迹矩阵 `xb`，包含字段：时间、帧号、方位 `az`、距离 `ds`、径向速度 `vd`、仰角 `ele`、高度 `ht`、幅度 `aMax`、10个波束幅度等。
+1. 统一 manifest 和 grouped split，禁止 RD 帧级随机切分。
+2. 共享轨迹表征作为系统底座。
+3. 物理特征路由器负责粗分流。
+4. 专家一负责低空疑似目标，是当前主攻方向。
+5. 专家二、三、四作为常规空中、高空规则、地面目标支路。
+6. System 训练阶段并行计算专家，推理/评估阶段支持 route-reject-reroute。
 
-### 3.2 多目标跟踪与坐标转换
-- **笛卡尔坐标映射**：直接使用 `ds`、`az`、`ht` 计算三维坐标（x,y,z），其中高度 `ht` 来自雷达内部融合校正，比单纯仰角反算更可靠。
-- **卡尔曼滤波跟踪**：采用常加速度（CA）模型，状态向量为 `[x, y, z, vx, vy, vz, ax, ay, az]`，观测为 `[x, y, z]` 及径向速度 `vd` 作为额外更新项，加速速度收敛。数据关联使用匈牙利算法，代价融合位置与径向速度残差。
-- **航迹管理**：3帧起始，5帧未命中终止。
-- **轨迹平滑与规范化**：RTS平滑器消除滞后误差；固定轨迹长度 T=50 帧（不足外推，超出截断），时间步长统一插值至 0.1s，保证特征计算的物理一致性。
+## 2. 目录职责
 
-### 3.3 双通道轨迹表征
-- **深度时序特征**：使用 2层 Transformer Encoder（4头注意力，隐维128）处理50帧的坐标差分量 `[Δx, Δy, Δz]`，经平均池化得到128维轨迹上下文向量。Transformer能一次性捕捉全局运动模式（如“先悬停后加速”），且适合在仅有轨迹的数据集B上进行掩码轨迹建模预训练。
-- **显式物理特征**：从原始字段和跟踪结果计算15维运动学特征，包括：平均高度、高度标准差、高度趋势斜率、平均地速、地速标准差、最大地速、平均航向变化率、轨迹曲率、加速度标准差、悬停比（低速时间占比）、径向速度标准差、径向速度谱平坦度、幅度均值、幅度标准差、波束间幅度熵（空间扩展度）。这些特征不依赖统计分布，是跨环境鲁棒性的“锚点”。
-- **融合方式**：128维深度特征与15维物理特征拼接成143维复合表征；物理特征同时保留独立副本供路由器使用。
+| 目录/文件 | 职责 |
+|---|---|
+| `src/process` | 原始数据标准化、manifest 构建、训练索引生成 |
+| `src/core/data` | 标准数据读取、RD 读取、DataLoader、grouped split |
+| `src/core/modeling` | 兼容导出层，转发到当前核心模型实现 |
+| `src/core/training` | 兼容训练入口，转发到当前 trainer |
+| `src/core/trajectory.py` | 共享轨迹表征编码器 |
+| `src/core/router.py` | 物理特征路由器和规则覆盖 |
+| `src/core/experts.py` | Expert1/2/3/4 模型 |
+| `src/core/system.py` | RadarClassificationSystem 和推理端 reroute |
+| `src/core/*_trainer.py` | 各阶段训练与评估 |
+| `config/config.json` | 当前训练参数主入口 |
+| `config/configmanager.py` | 配置读取和 dataclass 映射 |
+| `reports/real` | 时间戳分类的真实训练报告 |
+| `artifacts` | 时间戳分类的模型、history、manifest、summary |
+| `debug.md` | 架构问题、解决方案、训练结果追踪 |
 
-## 4. 深度门控路由网络
+## 3. 数据流
 
-路由器承担“按任务分流”的职责，将目标分配给四个专家之一。
+当前使用处理后的 `data` 目录，不直接在训练阶段读取原始 `OriData`。
 
-### 4.1 任务导向的专家定义
-| 专家 | 目标类别 | 核心任务 | 模型复杂度要求 |
-|------|---------|----------|----------------|
-| 专家一 | 无人机、鸟、气球、未知 | 高精度区分混淆目标（系统主战场） | 重（Multimodal Transformer） |
-| 专家二 | 直升机、固定翼飞机 | 快速识别非威胁常规空中目标 | 轻（1D-CNN） |
-| 专家三 | 高空民航机等 | 直接过滤 | 极低（纯规则） |
-| 专家四 | 人、车、船 | 地面目标基本分类（非重点，但需覆盖） | 轻（复用轨迹特征+MLP） |
+已接入数据来源：
 
-### 4.2 路由网络设计
-- **输入**：目标的15维物理特征（选择物理特征而不直接用深度特征，是因为其跨环境稳定性最高，且物理规律对路由具有天然可解释性）。
-- **网络结构**：MLP(15→32→16→4)，输出经 Gumbel-Softmax（温度τ=1.0）得到四个专家的路由权重。
-- **损失函数**：$$\mathcal{L}_{\text{route}} = -\sum_c y_c \log(w_c) + \alpha \cdot \mathcal{L}_{\text{coarse}}$$ 其中 $y_c$ 为真实专家标签，$\mathcal{L}_{\text{coarse}}$ 为辅助粗分类交叉熵（覆盖所有大类），$\alpha=0.3$。
-- **物理规则兜底**：强制执行安全规则，如高度>5000m且速度>100m/s则强制路由至专家三；高度<2m且速度<5m/s且轨迹无垂直分量则优先考虑专家四。网络路由结果若明显违背物理常识，以规则修正，形成可解释性闭环。
+| 来源 | 当前用途 |
+|---|---|
+| `raw_tr_rd` | 原始航迹 + RD，样本少但风险高，是弱源重点 |
+| `excel_track` | Excel 航迹数据，无 RD |
+| `cq08_track` | 23/CQ-08 航迹、点迹、RD mat 标准化结果 |
 
-## 5. 专家模型详细设计
+核心索引：
 
-### 5.1 专家一：低空可疑目标鉴别器（核心攻坚模型）
-该专家负责区分无人机、鸟、气球及未知杂波，采用双流选择性激活架构以兼顾精度与速度。
+| 索引 | 用途 |
+|---|---|
+| `trainable_track_index.csv` | 通用旧入口，逐步降级为兼容索引 |
+| `expert1_track_index.csv` | Expert1 低空五类训练 |
+| `system_trainable_track_index.csv` | System 全局九类训练，包含 CQ08 |
+| `cq08_track_index.csv` | CQ08 单源索引 |
+| `cq08_grouped_split.json` | CQ08 grouped split 依据 |
 
-#### 5.1.1 分支一：轨迹快速分类分支（常开）
-- **网络**：复用轨迹建模的 Transformer Encoder 输出特征（128维），接一个全连接分类头（128→4，Softmax），输出四类别置信度。
-- **训练损失**：$$\mathcal{L}_{\text{traj}} = \mathcal{L}_{\text{CE}}(y, \hat{y}_{\text{traj}}) + \beta \cdot \text{KL}(\hat{y}_{\text{traj}} \| \hat{y}_{\text{rd}})$$ 其中 $\beta=2.0$，$\hat{y}_{\text{rd}}$ 为 RD 分支的预测软标签。互学习损失迫使轨迹分支模仿 RD 分支的“暗知识”，提升独立工作时的精度。此分支推理耗时约 2ms。
+重要数据约束：
 
-#### 5.1.2 分支二：RD图精分分支（按需激活）
-当轨迹分支输出最大置信度 < 0.8 时，从原始数据缓存中切片该目标的 RD 图序列，送入此分支。
+- CQ08 的 RD 来自 `cq08/mat` 标准化后的 mat/npz 结果。
+- CQ08 点迹中的速度、幅度、SNR 已进入标准化轨迹。
+- CQ08 的高度和相位缺失必须以 missing 标记处理，不能当作真实 0。
+- 切分必须按航迹编号、采集批次或等价 group 执行，禁止把同一航迹的 RD 帧随机拆入 train/test。
+- System、Expert1、Router、Pretrain 应尽量使用统一分布索引，避免预训练和最终 System 分布错位。
 
-- **输入**：RD图序列 T=30 帧，每帧为距离-多普勒矩阵，经 CFAR 和归一化。
-- **网络选型**：采用 **Multimodal Transformer**。学术证据表明：标准 Transformer 在绝大多数噪声下优于 LSTM/CNN，但对 Pareto 噪声存在脆弱性；通过额外输入偏度（skewness）和峰度（kurtosis）等统计特征可有效弥补。因此本结构不使用未经实证的双流 LSTM+Transformer 混合，而是基于 Multimodal 路线。
-- **结构**：
-  - **多模态特征提取**：幅度模态、相位模态各映射为 256 维嵌入；偏度、峰度各经小型 MLP 映射为 32 维特征。
-  - **时序建模**：使用 4 层 Transformer Encoder（head=8，d_model=512，ffn=1024）处理幅度+相位拼接嵌入，带位置编码，输出经平均池化得 512 维时序特征。
-  - **多模态融合**：512维时序特征与偏度、峰度特征（64维）拼接，经 LayerNorm + FC(576→256) + GELU 激活。
-  - **分类头**：采用**余弦分类头（CosFace，margin=0.35）**，计算融合特征与各类别原型向量的余弦相似度，输出无人机/鸟/气球/未知四类概率。余弦头对特征幅度不敏感，天然提升跨域鲁棒性。
-- **训练损失**：
-  $$\mathcal{L}_{\text{rd}} = \mathcal{L}_{\text{CE}}^{\text{cos}} + \lambda_1 \mathcal{L}_{\text{cont}} + \lambda_2 \mathcal{L}_{\text{mutual}}$$
-  - $\mathcal{L}_{\text{CE}}^{\text{cos}}$：CosFace 损失，margin=0.35。
-  - $\mathcal{L}_{\text{cont}}$：监督对比损失（SupCon），温度 $\tau=0.1$，拉近同类嵌入，推远异类，增强判别力。
-  - $\mathcal{L}_{\text{mutual}}$：双向互学习损失 $\frac{1}{2}[\text{KL}(\hat{y}_{\text{traj}}\|\hat{y}_{\text{rd}}) + \text{KL}(\hat{y}_{\text{rd}}\|\hat{y}_{\text{traj}})]$，加强双分支一致性。该损失范式源自2026年双波段Mamba方案，已证明可提升混淆类别区分度。
-  - 权重：$\lambda_1=0.5$，$\lambda_2=1.0$。
+## 4. 共享轨迹表征
 
-#### 5.1.3 双流融合与选择性激活
-- **动态权重生成器**：一个小型 MLP 以两分支各自置信度向量（共8维）为输入，输出 2 维融合权重，Softmax 后加权求和得最终概率。
-- **激活逻辑**：
-  - 若轨迹分支 max confidence > 0.8，直接输出，RD 分支不激活（~2ms）；
-  - 否则触发 RD 分支（~8ms），融合后输出。实测中，约75%的目标仅需轨迹分支，平均时延降至约3ms。
+共享轨迹底座由 `TrackRepresentationBuilder` 实现，输入标准化序列特征和物理特征，输出：
 
-### 5.2 专家二：常规空中目标鉴别器
-- **目标**：直升机、固定翼飞机、其他（或未知）。
-- **输入**：复用轨迹建模的 Transformer 特征（128维）+ 15维物理特征，拼接为 143 维向量序列（单帧形式，非多帧序列）。
-- **网络**：采用 **轻量 1D-CNN**（3层 Conv1d，核大小3，通道数32→64→128，全局平均池化后接全连接分类头）。1D-CNN能高效提取局部特征组合，且参数<50K，推理<1ms。
-- **为何不用3D-CNN？**
-  1. **输入不适配**：专家二的输入是经过聚合的1维特征向量，而非多帧图像或体素数据，缺乏卷积三维空间（宽度、高度、时间）。3D-CNN的优势在于从三维时空块中联合学习，与此输入不匹配。
-  2. **算力与实时性矛盾**：3D-CNN 参数量庞大、计算密集（FLOPs远高于1D/2D），会严重拖慢筛选速度，违反专家二“快速筛除”的定位。
-  3. **非因果性限制**：3D-CNN需等待多帧构成时空块，无法逐帧实时处理，不适合在线推理场景。
-- **训练**：交叉熵损失单独训练。
+| 输出 | 用途 |
+|---|---|
+| `sequence_features` | 专家二等时序支路 |
+| `deep_features` | 专家四和 System 共享深特征 |
+| `physical_features` | 归一化物理特征 |
+| `raw_physical_features` | 路由规则和物理规则覆盖 |
+| `fused_features` | Expert1 轨迹分支输入 |
 
-### 5.3 专家三：高空/高速目标鉴别器
-- **实现**：纯规则方法，无深度学习参数。
-- **规则**：高度 > 5000m 且 速度 > 100m/s 则判定为高空民航机，直接过滤。其余情况上报“未知”（实际极少出现）。
-- **理由**：此类目标物理特征极为明显，无需消耗神经网络算力。
+训练稳定性策略：
 
-### 5.4 专家四：地面目标鉴别器
-- **目标**：人、车、船。非系统重点，但需具备分类能力。
-- **输入**：复用轨迹建模的 Transformer 特征（128维）+ 部分物理特征（高度、速度、速度方差、轨迹曲率等共10维），拼接为138维。
-- **网络**：轻量级 MLP（138→64→32→3，ReLU，Dropout 0.2），Softmax 输出三类概率。
-- **路由触发**：由路由器根据“高度<2m且垂直速度≈0且地速非零”等条件初步判定为地面目标后激活。地面目标仅使用轨迹特征即可有效区分（人、车、船的运动速度和轨迹形态差异明显），无需 RD 图，时延<1ms。
-- **训练**：单独使用含地面目标标注的轨迹数据（可从数据集B中筛选），交叉熵损失训练。
+- 支持按 `source_name` 拟合 source normalization。
+- System 可从 Expert1 或轨迹预训练 checkpoint 回灌 shared encoder。
+- Expert2/Expert4 不允许再用私有 representation 覆盖 System shared encoder。
+- System 训练有 sequence encoder 低学习率、独立梯度裁剪和全局梯度裁剪。
 
-## 6. 整体训练流程
+## 5. 路由器
 
-### 6.1 阶段一：轨迹编码器自监督预训练
-- **数据**：仅含轨迹的数据集B（规模大，覆盖地面/空中各类目标）。
-- **任务**：
-  1. **掩码轨迹建模（MTM）**：随机遮挡15%的轨迹帧坐标，训练 Transformer 预测被遮挡帧的位移，损失为 MSE。
-  2. **对比学习（InfoNCE）**：同一目标的不同轨迹段为正对，不同目标为负对，构建判别性轨迹嵌入空间。
-- **作用**：让网络学会物理运动常识，提升泛化能力，充分利用无 RD 数据的资源。
+路由器是 `DeepGatingRouter`，输入物理特征，输出四路 route。
 
-### 6.2 阶段二：专家网络联合训练
-- **数据**：低慢小数据集A（带轨迹和 RD 图）。
-- **组件训练策略**：
-  - 轨迹编码器：加载预训练权重，微调最后两层。
-  - 路由器：从头训练 MLP，损失为路由交叉熵 + 辅助粗分类损失。
-  - 专家一轨迹分支：加载预训练轨迹编码器，接分类头，结合互学习损失训练。
-  - 专家一 RD 分支：从头训练 Multimodal Transformer，用联合损失（CosFace + 对比学习 + 互学习）。
-  - 专家二：从头训练 1D-CNN。
-  - 专家四：从头训练 MLP（若有地面标注数据，可与空中数据混合训练）。
-- **总损失加权和**：
-  $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{route}} + \mathcal{L}_{\text{traj}} + \mathcal{L}_{\text{rd}} + \mathcal{L}_{\text{expert2}} + \mathcal{L}_{\text{expert4}} + \eta\cdot\mathcal{L}_{\text{consistency}}$$
-  其中 $\mathcal{L}_{\text{consistency}}$ 是轨迹嵌入与 RD 嵌入的跨模态 MSE 对齐损失，$\eta=0.3$。
+当前 route：
 
-### 6.3 阶段三：端到端微调
-- 开放所有模块可训练参数，学习率降至 1e-5，AdamW 优化器，weight_decay=1e-4。
-- 早期停止，监控验证集路由准确率和专家一分类准确率。
+| Route | 专家 |
+|---|---|
+| `low_altitude_suspect` | Expert1 |
+| `conventional_air` | Expert2 |
+| `high_altitude_filter` | Expert3 |
+| `ground_target` | Expert4 |
 
-## 7. 鲁棒性增强策略
+当前实现要点：
 
-### 7.1 数据层
-- 多域数据混合训练：不同雷达、环境、天气数据等比混合。
-- 强数据增广：高斯噪声（SNR 0~10dB）、RD图时间拉伸（0.8~1.2倍）、高度抖动（±15%）、随机丢弃RD帧（1~5帧）。这些增广迫使模型学习不变性。
+- Router 网络输入加 `LayerNorm`，避免物理特征量纲爆炸。
+- 规则覆盖仍使用 raw physical，保证高度、速度等物理语义不被归一化破坏。
+- 高空/地面极端规则可直接覆盖 route。
+- 训练指标必须看 `route_macro_recall` 和 per-route recall，不能只看 `route_accuracy`。
+- System 默认不使用 hard route 训练，避免 router 不稳时压死正确专家。
 
-### 7.2 模型层
-- **余弦分类头（CosFace）**：应用于专家一的轨迹分支和 RD 分支输出。余弦距离仅依赖特征方向，不受跨域尺度偏移影响。
-- **Multimodal 输入**：补充偏度、峰度统计特征，弥补标准 Transformer 在 Pareto 等重尾噪声下的弱点。
-- **谱归一化**：施加于 Transformer 的权重矩阵，约束 Lipschitz 常数，提高对输入扰动的平稳性。
-- **LayerNorm**：在所有分类头前插入，消除跨域均值/方差漂移。
+## 6. Expert1 低空专家
 
-### 7.3 特征层
-- **物理特征锚点**：15维运动学特征不依赖数据分布，即使深度特征在极端噪声下退化，物理特征仍可支撑路由器和专家二/四的正常工作。
-- **未知拒绝**：余弦分类头的第4类（未知）原型。若目标与无人机/鸟/气球三类原型的最大余弦相似度 < 0.85，则判为未知，避免错误强分。
+Expert1 是当前核心专家，类别为：
 
-## 8. 工程落地与实时性优化
+`DroneTarget`、`BirdTarget`、`BalloonTarget`、`ClutterTarget`、`UnknownTarget`
 
-### 8.1 算力优化
-- **选择性激活**：轨迹分支常通（2ms），RD分支仅在置信度<0.8时激活（~8ms），地面和常规空中专家仅在路由触发时运行（<1ms）。平均端到端时延约3~5ms。
-- **模型压缩流水线**：对专家一 RD 分支实施：
-  1. 结构化通道剪枝（L1稀疏训练后剪除50%通道）
-  2. 注意力头剪枝（8→4头）
-  3. 知识蒸馏（以未剪枝模型为教师）
-  4. FP16 量化 + TensorRT 优化
-  → 精度损失 <3%，推理速度提升 60%+。
+### 6.1 轨迹分支
 
-### 8.2 部署方案
-- **云端服务器**（T4/A100）：完整模型，吞吐 500+ FPS。
-- **边缘终端**（Jetson Orin）：压缩后模型，FP16，吞吐 100+ FPS，时延 <10ms。
-- **低功耗前端**（FPGA）：轨迹建模、路由器、专家二/四部署于逻辑单元，RD 分支卸载至轻量 NPU。
+轨迹分支只吃 `representation.fused_features`，不拼接 RD summary。这个约束很重要：未来推理时，轨迹分支必须能作为纯轨迹快速分支独立工作。
 
-### 8.3 评估指标
-- 无人机 vs 鸟分类准确率 ≥95%
-- 跨环境准确率下降 ≤5%
-- 推理时延 P50 ≤ 10ms，P99 ≤ 20ms
-- 吞吐量 ≥80 FPS
-- 未知类拒绝率 ≥90%（即真正未知样本被正确拒绝的比例）
-- 地面目标分类准确率 ≥90%（非硬性，但作为辅助目标）
+结构：
 
-## 9. 核心创新点总结
+- `traj_backbone`
+- `CosineMarginHead`
+- `traj_residual_head`
 
-| 创新点 | 层次 | 说明 |
-|--------|------|------|
-| **物理先验驱动的任务导向门控路由** | 架构级 | 以物理特征为输入，可解释、跨环境稳定；物理规则兜底确保安全性。 |
-| **轨迹粗筛 + RD 精分的按需激活范式** | 方法论级 | 打破端到端单阶段惯性，实现“常态低算力，异常高精度”的实时系统。 |
-| **Multimodal Transformer 在 RD 图分类的应用** | 技术改进 | 针对标准 Transformer 的噪声脆弱性，引入统计特征增强，经2025年学术研究验证有效。 |
-| **双通道轨迹表征与掩码轨迹预训练** | 方法创新 | 充分利用仅有轨迹的大数据，自监督预训练提升运动模式理解，跨任务迁移性强。 |
-| **互学习 + 对比学习联合损失在单波段雷达上的适配** | 方法集成 | 继承双波段 Mamba 方案的训练范式，有效提升双分支一致性和表征判别力。 |
-| **地面/低空/常规/高空四专家协同** | 系统设计 | 将非重点地面目标纳入统一架构，实现雷达感知的全域目标分类覆盖。 |
+当前轨迹分支职责：
 
-## 10. 局限性与风险应对
+- 快速低空粗判。
+- 作为 RD 是否需要采纳的 base evidence。
+- 给 Unknown residual 提供轨迹侧残差信号。
 
-- **仿生扑翼机 vs 真鸟混淆**：增加RD图累积帧数（30→60），用更长观测捕捉非生物源的机械振动谐波；可考虑集成基于微动周期的规则后处理。
-- **轨迹预训练域差异**：若数据集B与A的运动模式分布差异大，可在阶段二对轨迹编码器施加领域自适应损失（如MMD）。
-- **专家四地面目标标注稀少**：利用物理先验聚类生成粗粒度伪标签，配合人工抽样校正，以半监督方式扩展训练集。
-- **跨环境退化超预期**：在目标域采集少量有标签数据（每类100~200），采用 LoRA 等参数高效微调方法快速适配。
-- **模型可解释性不足**：在RD分支的Transformer中使用注意力可视化（Attention Rollout），分析模型决策依据，提升用户信任并便于故障排查。
+### 6.2 RD 分支
+
+RD 分支输入包含：
+
+- range amplitude projection
+- range phase projection
+- Doppler amplitude projection
+- Doppler phase projection
+- 轻量 RD patch CNN
+- RD morphology/statistics
+- RD context projection
+
+当前 RD 统计包括：
+
+- skew
+- kurtosis
+- phase abs mean
+- phase std
+- range entropy
+- Doppler entropy
+- peak-to-mean
+- temporal roughness
+
+当前 RD 分支不是简单五分类辅助头，而是第二证据源：
+
+- `rd_head` 做五类 CosFace。
+- `rd_bird_head` 强化 Drone/Bird。
+- `rd_unknown_head` 强化 Unknown one-vs-rest。
+- `rd_clutter_head` 强化 Clutter one-vs-rest。
+- `rd_residual_head` 建模 known-vs-residual。
+- `rd_unknown_clutter_head` 建模 Unknown-vs-Clutter。
+- `rd_clutter_morphology_head` 用 RD morphology/patch 建模 Clutter 局部形态。
+
+### 6.3 Unknown/Clutter 三层建模
+
+Unknown 不再只按普通闭集类理解，而是低空内部 residual/reject bucket。
+
+当前三层结构：
+
+1. `known-vs-residual`：判断是否不像 Drone/Bird/Balloon。
+2. `Unknown-vs-Clutter`：在 residual 内部区分未知与杂波。
+3. `final correction adoption`：通过 class gate 和 pair gate 决定 RD 是否接管局部类别组。
+
+Clutter 依赖局部形态，因此除了全局 RD embedding，还使用 entropy、peak-to-mean、temporal roughness 和 patch CNN 输出。
+
+### 6.4 融合和接管
+
+Expert1 当前不是单一 `(B, 2)` 全局 RD/trajectory 权重。
+
+融合分三层：
+
+- class-wise correction：每个低空类一组 RD correction gate。
+- pair-wise adoption：Drone/Bird、Unknown/Clutter、Balloon 三个局部 pair gate。
+- reject-style residual：当已知类 cosine 低于阈值时，回收到 Unknown 或 Clutter。
+
+训练阶段可以全量计算 RD。推理阶段可按置信度和模式控制是否启用 RD。
+
+## 7. Expert2 常规空中专家
+
+Expert2 已从普通二分类向 open-set Aircraft 原型识别靠拢。
+
+当前职责：
+
+- 只学习 Aircraft 的紧凑原型和相似度边界。
+- NonAircraft 作为默认拒识结果，不再把八个不相关类强行学成一个紧凑负类。
+- 支持 source-specific threshold，尤其压制 `raw_tr_rd` false Aircraft。
+- 训练时不再训练私有 shared encoder，必须使用共享 representation checkpoint。
+
+当前风险：
+
+- Aircraft 样本极少，独立阈值仍容易过激。
+- System 中 Aircraft 会受到跨专家仲裁影响，需要继续校准 candidate arbitration。
+
+## 8. Expert3 高空规则专家
+
+Expert3 是高空/高速规则过滤器。
+
+当前职责：
+
+- 对明确高空高速目标直接判定或过滤。
+- 在 reroute 中属于 terminal route，规则命中后不进入多轮回流。
+
+当前限制：
+
+- 数据中高空样本不足，`high_altitude_filter` 的 recall 指标经常为 0 或无支持。
+- 若后续引入真实高空类别，需要补全标签、训练、评估和全局 logits 映射。
+
+## 9. Expert4 地面专家
+
+Expert4 负责 `PeopleTarget`、`CarTarget`、`ShipTarget`。
+
+当前结构：
+
+- 输入 System shared deep features 和 raw physical features。
+- 使用 ground classifier 输出三类 ground logits。
+- 使用 `groundness_head` 输出是否为 ground 的 membership confidence。
+
+System 训练已接入：
+
+- `system_groundness_loss_weight`
+- `system_groundness_separation_loss_weight`
+- true ground 推向高 groundness。
+- non-ground 推向低 groundness。
+- ground expert 低学习率和前期特征冻结策略。
+
+当前限制：
+
+- People/Ship/Aircraft 样本极少，System macro F1 受长尾明显制约。
+- Groundness protection 默认未开启，当前先报告诊断，避免不稳定 groundness 放大 FP。
+
+## 10. System 级融合
+
+训练期和推理期当前分开处理。
+
+训练期：
+
+- 默认并行计算所有专家。
+- 使用 `_project_to_global_logits()` 做全局 logits 投影。
+- 支持 `soft_log_weighted`、`ungated`、`soft_top2`、`calibrated_candidates` 等 fusion probe。
+- 不把 `reroute` 作为可微训练路径。
+
+评估/推理期：
+
+- 支持 `RadarClassificationSystem.forward(..., inference_mode="reroute")`。
+- Reroute 由 System 内部完成，不再只是 trainer 后处理。
+- 共享表征和 RD projection 只计算一次。
+- 每个专家暴露统一 `acceptance()` 接口。
+
+Reroute 流程：
+
+1. Router 输出初始 route logits。
+2. 选择当前最高 route。
+3. 调用对应专家并读取 membership confidence。
+4. 置信度足够则接受。
+5. 置信度不足则惩罚该 route logits，并进入下一轮。
+6. 达到最大轮数或惩罚上限仍不能接受，则 fallback 到 `UnknownTarget`。
+
+当前 reroute 指标：
+
+- `reroute_rate`
+- `reroute_avg_count`
+- `reroute_recovery_rate`
+- `reroute_fallback_rate`
+- `reroute_worsen_rate`
+- `reroute_count_distribution`
+
+## 11. 训练入口
+
+所有训练参数优先从 `config/config.json` 读取，命令行只保留少量入口参数。
+
+常用命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_pretrain_track --config config/config.json
+.\.venv\Scripts\python.exe -m src.core.train_router --config config/config.json
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config config/config.json
+.\.venv\Scripts\python.exe -m src.core.train_expert2 --config config/config.json
+.\.venv\Scripts\python.exe -m src.core.train_expert4 --config config/config.json
+.\.venv\Scripts\python.exe -m src.core.train_system --config config/config.json
+```
+
+设备策略：
+
+- 默认 `device=cuda`。
+- 当前训练不使用 CPU 作为性能结论。
+- 只有超过约 30 分钟的长训才需要人工确认。
+
+## 12. 评估报告
+
+每次训练按时间戳输出：
+
+- `artifacts/<timestamp>/<experiment>/best_model.pt`
+- `artifacts/<timestamp>/<experiment>/training_history.json`
+- `artifacts/<timestamp>/<experiment>/training_split_manifest.json`
+- `artifacts/<timestamp>/<experiment>/evaluation_report.json`
+- `artifacts/<timestamp>/<experiment>/training_summary.json`
+- `reports/real/<timestamp>/<experiment>.md`
+- `reports/real/<timestamp>/<experiment>.json`
+
+System 报告必须重点看：
+
+- global accuracy / macro F1
+- route macro recall
+- per-route recall
+- Expert1 low-altitude macro F1
+- Unknown / Clutter recall
+- Drone-vs-Bird 混淆指标
+- Ground group F1、Ground FP、Ground recovery
+- Aircraft precision/recall/F1、Aircraft FP by source
+- source-balanced accuracy
+- min source accuracy
+- reroute metrics
+
+Expert1 报告必须重点看：
+
+- final macro F1
+- trajectory macro F1
+- RD macro F1 on RD
+- RD rescue/harm/net gain
+- final rescue/harm/net gain
+- RD per-class recall on RD
+- Drone/Bird recall mean
+- Unknown/Clutter recall mean
+- residual/detail/morphology head accuracy
+- by-source accuracy，尤其 `raw_tr_rd`
+
+## 13. 最近一次 CUDA 训练结果
+
+### 13.1 Expert1
+
+训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config config/config.json
+```
+
+输出目录：
+
+`artifacts/20260508-124356/expert1_config_smoke`
+
+核心指标：
+
+| 指标 | 值 |
+|---|---:|
+| accuracy | 0.8290 |
+| macro F1 | 0.7118 |
+| trajectory macro F1 | 0.7246 |
+| RD macro F1 on RD | 0.5742 |
+| RD Drone/Bird recall mean | 0.7015 |
+| RD Unknown/Clutter recall mean | 0.4190 |
+| RD harm rate on RD | 0.2110 |
+| RD rescue rate on RD | 0.0338 |
+| final harm rate on RD | 0.0084 |
+| final rescue rate on RD | 0.0127 |
+| RD residual accuracy on RD | 0.9072 |
+| RD Unknown/Clutter detail accuracy | 0.7273 |
+| RD clutter morphology accuracy | 0.8182 |
+| raw_tr_rd accuracy | 0.2500 |
+| source balanced accuracy | 0.6064 |
+
+结论：
+
+- residual 和 Clutter morphology 头已经学到有效信号。
+- RD on-RD 宏 F1 有明显改善，但 RD 纯分支净收益仍为负。
+- final 融合能显著减伤，但还没有稳定放大 RD rescue。
+- `raw_tr_rd` 样本过少且最弱，当前是 Expert1 的主要风险入口。
+
+### 13.2 System
+
+训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_system --config config/config.json
+```
+
+输出目录：
+
+`artifacts/20260508-130610/system_config_smoke`
+
+核心指标：
+
+| 指标 | 值 |
+|---|---:|
+| selected fusion mode | `calibrated_candidates` |
+| selected accuracy | 0.8163 |
+| selected macro F1 | 0.5518 |
+| best test probe mode | `soft_log_weighted` |
+| best test probe accuracy | 0.8283 |
+| best test probe macro F1 | 0.5560 |
+| route macro recall | 0.7460 |
+| low-altitude Expert1 macro F1 | 0.7452 |
+| Drone/Bird recall mean | 0.8636 |
+| Unknown recall | 0.6111 |
+| Clutter recall | 0.4286 |
+| Ground group F1 | 0.5641 |
+| Aircraft recall | 0.6000 |
+| Aircraft precision | 0.3750 |
+| source balanced accuracy | 0.6352 |
+| min source accuracy | 0.3636 |
+| skipped non-finite batches | 0 |
+
+结论：
+
+- 新 Expert1 checkpoint 已完整加载到 System，无 missing key。
+- System 的低空能力可用，但全局 macro F1 仍被 Aircraft、Ground 和弱源拖低。
+- `calibrated_candidates` 在 validation 上被选中，但 test probe 上 `soft_log_weighted` 略高，说明仲裁器仍需更稳的校准策略。
+- Reroute 链路可用，但当前默认阈值下 test selected mode 没触发 reroute；后续应单独用 reroute fusion probe 调阈值。
+
+## 14. 当前已实现
+
+- 统一 `config/config.json` 配置入口。
+- UTF-8 BOM 兼容读取。
+- 统一大类/子类标签接口，当前无细分子类时子类等于大类。
+- CQ08 manifest、标准化和 grouped split。
+- System 使用 `system_trainable_track_index.csv`。
+- Expert1 纯轨迹分支和 RD 分支解耦。
+- Expert1 RD patch CNN、RD stats、pair gate、residual/reject-style Unknown、Clutter morphology head。
+- Expert1 选模和报告输出 RD rescue/harm、source-balanced、Unknown/Clutter、Drone/Bird 指标。
+- Expert2 open-set Aircraft 原型和 source threshold。
+- Expert4 groundness head 和 System groundness 监督。
+- System calibrated candidate probe。
+- System forward 层 route-reject-reroute。
+- 时间戳 artifacts 和 reports。
+
+## 15. 当前未达标项
+
+1. Expert1 RD 仍不是稳定正收益分支。
+2. `raw_tr_rd` 样本极少，min source accuracy 不稳。
+3. Unknown/Clutter 有改善，但 Clutter recall 仍偏低。
+4. Aircraft precision 仍不足，Expert2 positive 过多但 System 最终被仲裁压制。
+5. Ground group F1 尚未稳定到 0.60+。
+6. Reroute 已上移到 System forward，但阈值和候选策略还没有带来稳定收益。
+7. 高空 route 数据支持不足，暂时只能保留规则路径。
+8. 长尾样本 People/Ship/Aircraft 太少，宏 F1 的上限受数据约束明显。
+
+## 16. 下一阶段优先级
+
+1. 继续稳 Expert1 RD，目标是先降低 RD harm，再提升 rescue。
+2. 对 Unknown/Clutter 做更强 residual calibration 和 Clutter morphology 约束。
+3. 用 source-aware sampling 和 raw source 回放提升 `raw_tr_rd`。
+4. 修 Expert2 的 precision/recall 阈值平衡，降低 false Aircraft。
+5. 继续 Ground 仲裁器，先验证高置信 Ground protection，再考虑默认开启。
+6. 单独调 reroute threshold，让回流机制产生可测 recovery，而不是只作为可用链路。
+7. 当 Expert1 checkpoint 真正过 RD quality gate 后，再把它作为 System 主力长期训练入口。

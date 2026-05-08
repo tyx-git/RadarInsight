@@ -60,10 +60,16 @@ class LowAltitudeFusionOutput:
     rd_bird_logits: torch.Tensor
     rd_unknown_logits: torch.Tensor
     rd_clutter_logits: torch.Tensor
+    traj_residual_logits: torch.Tensor
+    rd_residual_logits: torch.Tensor
+    rd_unknown_clutter_logits: torch.Tensor
+    rd_clutter_morphology_logits: torch.Tensor
     rd_class_gate_logits: torch.Tensor | None
     rd_pair_gate_logits: torch.Tensor | None
     rd_class_fusion_weights: torch.Tensor | None
     rd_pair_fusion_weights: torch.Tensor | None
+    known_confidence: torch.Tensor
+    residual_score: torch.Tensor
     logits: torch.Tensor
     fusion_weights: torch.Tensor
     rd_activated: torch.Tensor
@@ -153,6 +159,9 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_bird_logit_scale: float | None = None,
         rd_unknown_logit_scale: float | None = None,
         rd_clutter_logit_scale: float | None = None,
+        rd_residual_logit_scale: float = 0.9,
+        rd_unknown_clutter_logit_scale: float = 1.1,
+        rd_clutter_morphology_logit_scale: float = 0.9,
         initial_rd_gate_bias: float = 0.0,
         initial_rd_class_gate_bias: float = -1.1,
         rd_class_activation_threshold: float = 0.55,
@@ -164,7 +173,19 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_bird_logit_scale = float(rd_binary_logit_scale if rd_bird_logit_scale is None else rd_bird_logit_scale)
         self.rd_unknown_logit_scale = float(rd_binary_logit_scale if rd_unknown_logit_scale is None else rd_unknown_logit_scale)
         self.rd_clutter_logit_scale = float(rd_binary_logit_scale if rd_clutter_logit_scale is None else rd_clutter_logit_scale)
+        self.rd_residual_logit_scale = float(rd_residual_logit_scale)
+        self.rd_unknown_clutter_logit_scale = float(rd_unknown_clutter_logit_scale)
+        self.rd_clutter_morphology_logit_scale = float(rd_clutter_morphology_logit_scale)
         self.rd_class_activation_threshold = float(rd_class_activation_threshold)
+        self.known_indices = [
+            LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+            LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
+        ]
+        self.residual_indices = [
+            LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+            LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+        ]
         self.rd_model_dim = 512
         self.rd_stats_input_dim = 8
         self.rd_stats_dim = 64
@@ -186,6 +207,12 @@ class LowAltitudeSuspectExpert(nn.Module):
             num_classes=len(LOW_ALTITUDE_CLASSES),
             scale=cosface_scale,
             margin=cosface_margin,
+        )
+        self.traj_residual_head = nn.Sequential(
+            nn.Linear(hidden_dim, 128),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 2),
         )
         self.range_amplitude_proj = nn.Sequential(
             nn.Linear(512, 512),
@@ -276,6 +303,19 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_bird_head = nn.Linear(512, 2)
         self.rd_unknown_head = nn.Linear(512, 2)
         self.rd_clutter_head = nn.Linear(512, 2)
+        self.rd_residual_head = nn.Sequential(
+            nn.Linear(512, 128),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(128, 2),
+        )
+        self.rd_unknown_clutter_head = nn.Linear(512, 2)
+        self.rd_clutter_morphology_head = nn.Sequential(
+            nn.Linear(self.rd_stats_dim + self.rd_patch_dim, 96),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(96, 2),
+        )
         self.rd_class_gate = nn.Sequential(
             nn.Linear(512 + hidden_dim, 128),
             nn.GELU(),
@@ -423,10 +463,11 @@ class LowAltitudeSuspectExpert(nn.Module):
 
     def _apply_reject(self, logits: torch.Tensor, cosine: torch.Tensor, activated: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+        clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
         known_indices = [
-            index
-            for index, label_name in enumerate(LOW_ALTITUDE_CLASSES)
-            if index != unknown_index
+            LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+            LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
         ]
         known_cosine = cosine[:, known_indices]
         max_known_cosine = known_cosine.max(dim=-1).values
@@ -434,7 +475,15 @@ class LowAltitudeSuspectExpert(nn.Module):
         corrected = logits.clone()
         if reject_mask.any():
             corrected[reject_mask] = -6.0
-            corrected[reject_mask, unknown_index] = 6.0
+            residual_logits = logits[reject_mask][:, [unknown_index, clutter_index]]
+            residual_pred = residual_logits.argmax(dim=-1)
+            reject_indices = reject_mask.nonzero(as_tuple=False).flatten()
+            unknown_rows = reject_indices[residual_pred == 0]
+            clutter_rows = reject_indices[residual_pred == 1]
+            if unknown_rows.numel():
+                corrected[unknown_rows, unknown_index] = 6.0
+            if clutter_rows.numel():
+                corrected[clutter_rows, clutter_index] = 6.0
         return corrected, reject_mask
 
     def acceptance(self, output: LowAltitudeFusionOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
@@ -558,6 +607,49 @@ class LowAltitudeSuspectExpert(nn.Module):
                 rd_is_multimodal=rd_is_multimodal,
             )
 
+        traj_residual_logits = self.traj_residual_head(traj_features)
+        rd_residual_logits = self.rd_residual_head(rd_features_vec)
+        rd_unknown_clutter_logits = self.rd_unknown_clutter_head(rd_features_vec)
+        rd_clutter_morphology_logits = self.rd_clutter_morphology_head(torch.cat([rd_stats, rd_patch], dim=-1))
+        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
+            no_rd = ~rd_is_multimodal.bool()
+            if no_rd.any():
+                rd_residual_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_residual_logits), rd_residual_logits)
+                rd_unknown_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_clutter_logits), rd_unknown_clutter_logits)
+                rd_clutter_morphology_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_morphology_logits), rd_clutter_morphology_logits)
+
+        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+        clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
+        if rd_is_multimodal is not None:
+            has_rd = rd_is_multimodal.bool()
+        elif rd_features.ndim == 4:
+            has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
+        else:
+            has_rd = rd_features[..., -1].amax(dim=1) > 0.5
+        traj_residual_prob = torch.softmax(traj_residual_logits, dim=-1)[:, 1]
+        rd_residual_prob = torch.softmax(rd_residual_logits, dim=-1)[:, 1]
+        residual_score = torch.where(
+            has_rd,
+            0.45 * traj_residual_prob + 0.55 * rd_residual_prob,
+            traj_residual_prob,
+        )
+        known_confidence = torch.softmax(traj_logits, dim=-1)[:, self.known_indices].max(dim=-1).values
+        residual_delta = torch.logit(residual_score.clamp(1e-4, 1.0 - 1e-4))
+        rd_unknown_clutter_delta = rd_unknown_clutter_logits[:, 1] - rd_unknown_clutter_logits[:, 0]
+        rd_clutter_morphology_delta = rd_clutter_morphology_logits[:, 1] - rd_clutter_morphology_logits[:, 0]
+        rd_logits = rd_logits.clone()
+        rd_logits[:, unknown_index] = (
+            rd_logits[:, unknown_index]
+            + self.rd_residual_logit_scale * residual_delta
+            - 0.50 * self.rd_unknown_clutter_logit_scale * rd_unknown_clutter_delta
+        )
+        rd_logits[:, clutter_index] = (
+            rd_logits[:, clutter_index]
+            + self.rd_residual_logit_scale * residual_delta
+            + self.rd_unknown_clutter_logit_scale * rd_unknown_clutter_delta
+            + self.rd_clutter_morphology_logit_scale * rd_clutter_morphology_delta
+        )
+
         traj_probs = torch.softmax(traj_logits, dim=-1)
         rd_probs = torch.softmax(rd_logits, dim=-1)
         gate_logits = self.fusion_gate(torch.cat([traj_probs, rd_probs], dim=-1))
@@ -581,12 +673,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_class_activation = torch.sigmoid(rd_class_gate_logits).max(dim=-1).values
         rd_pair_gate_probs = torch.sigmoid(rd_pair_gate_logits)
         rd_pair_activation = rd_pair_gate_probs.max(dim=-1).values
-        if rd_is_multimodal is not None:
-            has_rd = rd_is_multimodal
-        elif rd_features.ndim == 4:
-            has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
-        else:
-            has_rd = rd_features[..., -1].amax(dim=1) > 0.5
+        has_rd = has_rd.bool()
         if disable_rd_activation:
             rd_activated = torch.zeros_like(has_rd, dtype=torch.bool)
         else:
@@ -603,8 +690,6 @@ class LowAltitudeSuspectExpert(nn.Module):
         drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
         bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
         balloon_index = LOW_ALTITUDE_CLASSES.index("BalloonTarget")
-        clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
-        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
         pair_specs = [
             (0, [drone_index, bird_index]),
             (1, [unknown_index, clutter_index]),
@@ -655,10 +740,16 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_bird_logits=rd_bird_logits,
             rd_unknown_logits=rd_unknown_logits,
             rd_clutter_logits=rd_clutter_logits,
+            traj_residual_logits=traj_residual_logits,
+            rd_residual_logits=rd_residual_logits,
+            rd_unknown_clutter_logits=rd_unknown_clutter_logits,
+            rd_clutter_morphology_logits=rd_clutter_morphology_logits,
             rd_class_gate_logits=rd_class_gate_logits,
             rd_pair_gate_logits=rd_pair_gate_logits,
             rd_class_fusion_weights=rd_class_fusion_weights,
             rd_pair_fusion_weights=rd_pair_fusion_weights,
+            known_confidence=known_confidence,
+            residual_score=residual_score,
             logits=final_logits,
             fusion_weights=fusion_weights,
             rd_activated=rd_activated,

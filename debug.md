@@ -2423,3 +2423,150 @@
   - 局部接管链路已落地。
   - 报告能暴露 RD 的真实贡献。
   - 后续应继续做更长 RD teacher stage、source-balanced RD 训练和 Unknown/Clutter 专项，而不是盲目继续提高全局 RD 权重。
+
+## 2026-05-08 Expert1 Unknown/Clutter residual 三层建模与 System 接线修正
+
+### 问题
+
+- Expert1 的 RD 分支已经有 patch CNN、pair gate 和多项辅助 loss，但 Unknown/Clutter 仍不稳定：
+  - Unknown 语义不是普通闭集单峰类，更接近低空内部 residual / reject bucket。
+  - Clutter 更依赖 RD 局部形态、能量分布、粗糙度和稀疏性。
+  - 只靠五分类 RD logits 和 pairwise loss，容易让 RD 分支“有信息但净收益为负”。
+- 旧 System 配置仍指向 `artifacts/20260504-223648/expert1_config_smoke/best_model.pt`：
+  - 该 checkpoint 没有新增 `traj_residual_head`、`rd_residual_head`、`rd_unknown_clutter_head`、`rd_clutter_morphology_head`。
+  - System 如果加载旧权重，会让这些新增头随机初始化后参与训练/评估。
+- System 内部创建 `LowAltitudeSuspectExpert` 时没有传入 Expert1 训练用的 RD logit scale：
+  - `rd_unknown_logit_scale`
+  - `rd_clutter_logit_scale`
+  - `rd_residual_logit_scale`
+  - `rd_unknown_clutter_logit_scale`
+  - `rd_clutter_morphology_logit_scale`
+  - 这会造成 Expert1 单训和 System 接入行为不一致。
+- 原 `main.md` 仍是早期方案稿，已经不能准确描述当前架构，尤其是：
+  - Expert1 residual/reject-style Unknown。
+  - Clutter morphology head。
+  - System forward 层 reroute。
+  - calibrated candidate probe。
+  - 当前训练结果和未达标项。
+
+### 解决方案
+
+- 在 `LowAltitudeSuspectExpert` 中补齐 Unknown/Clutter 三层建模：
+  - `traj_residual_head`：轨迹侧 known-vs-residual。
+  - `rd_residual_head`：RD 侧 known-vs-residual。
+  - `rd_unknown_clutter_head`：residual 内部 Unknown-vs-Clutter。
+  - `rd_clutter_morphology_head`：用 RD stats + RD patch embedding 强化 Clutter 局部形态。
+- residual 分数用于修正 RD logits：
+  - residual 越强，Unknown/Clutter 候选越强。
+  - Unknown-vs-Clutter detail head 决定 residual 更偏 Unknown 还是 Clutter。
+  - Clutter morphology delta 只增强 Clutter 侧局部形态证据。
+- 对无 RD 样本保持轨迹分支独立：
+  - no-RD 样本的 RD residual/detail/morphology logits 置零。
+  - final 融合仍通过 RD activation/gate 控制，不让无 RD 样本被 RD 分支污染。
+- Expert1 trainer 增加专项 loss：
+  - `low_altitude_residual_aux_weight`
+  - `low_altitude_rd_residual_aux_weight`
+  - `low_altitude_rd_unknown_clutter_aux_weight`
+  - `low_altitude_rd_clutter_morphology_aux_weight`
+- Expert1 选模和报告新增指标：
+  - `traj_residual_accuracy`
+  - `rd_residual_accuracy_on_rd`
+  - `rd_unknown_clutter_detail_accuracy_on_residual_rd`
+  - `rd_clutter_morphology_accuracy_on_residual_rd`
+  - `rd_unknown_clutter_detail_clutter_recall`
+  - `rd_clutter_morphology_clutter_recall`
+  - `residual_score_on_residual_mean`
+- System 接线修正：
+  - `SystemTrainConfig` 增加 Expert1 RD scale 配置。
+  - `RadarClassificationSystem` 初始化 Expert1 时传入同一组 RD scale。
+  - `config/config.json` 的 System `expert1_checkpoint` 改为本轮新 Expert1 checkpoint。
+- 文档更新：
+  - 旧 `main.md` 备份为 `main.bak001`。
+  - 新 `main.md` 按当前实现重写，包含数据、专家、reroute、训练入口、评估指标和未达标项。
+
+### 最终落地
+
+- `src/core/experts.py`
+  - `LowAltitudeFusionOutput` 增加 residual/detail/morphology 输出。
+  - Expert1 增加 residual/detail/morphology heads。
+  - RD logits 增加 Unknown/Clutter residual correction。
+  - known confidence 改为从完整 traj softmax 中取 Drone/Bird/Balloon 最大概率。
+- `src/core/expert1_config.py`
+  - 增加 residual 和 morphology loss/scale 配置。
+- `src/core/expert1_trainer.py`
+  - 增加 residual targets、loss、metrics、summary/report 字段。
+  - Expert1 构造时传入新增 RD scale。
+  - 选模 score 纳入 residual/detail/morphology 指标，但尚未设置为硬门槛。
+- `src/core/reporting.py`
+  - Markdown 报告渲染 residual/detail/morphology 指标。
+- `src/core/system.py`
+  - System 构造 Expert1 时支持新增 RD scale 参数。
+- `src/core/system_config.py`
+  - System 配置 dataclass 增加 Expert1 RD scale。
+- `src/core/system_trainer.py`
+  - System 训练入口将配置传入 `RadarClassificationSystem`。
+- `config/config.json`
+  - Expert1 与 System 参数保持一致。
+  - System `expert1_checkpoint` 指向 `artifacts/20260508-124356/expert1_config_smoke/fallback_candidate_model.pt`。
+- `main.md`
+  - 改为当前实现架构文档。
+- `main.bak001`
+  - 保留旧版主架构方案。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- `git diff --check` 对本轮触碰文件通过。
+- CUDA Expert1 10 epoch 训练通过：
+  - 输出目录：`artifacts/20260508-124356/expert1_config_smoke`
+  - `skipped_non_finite_batches=0`
+  - `accuracy=0.8290`
+  - `macro_f1=0.7118`
+  - `traj_macro_f1=0.7246`
+  - `rd_macro_f1_on_rd=0.5742`
+  - `rd_drone_bird_recall_mean=0.7015`
+  - `rd_unknown_clutter_recall_mean=0.4190`
+  - `rd_harm_rate_on_rd=0.2110`
+  - `rd_rescue_rate_on_rd=0.0338`
+  - `final_harm_rate_on_rd=0.0084`
+  - `final_rescue_rate_on_rd=0.0127`
+  - `rd_residual_accuracy_on_rd=0.9072`
+  - `rd_unknown_clutter_detail_accuracy_on_residual_rd=0.7273`
+  - `rd_clutter_morphology_accuracy_on_residual_rd=0.8182`
+  - `rd_unknown_clutter_detail_clutter_recall=0.8571`
+  - `rd_clutter_morphology_clutter_recall=0.7143`
+  - `raw_tr_rd_accuracy=0.2500`
+  - `source_balanced_accuracy=0.6064`
+- CUDA System 3 epoch 训练通过：
+  - 输出目录：`artifacts/20260508-130610/system_config_smoke`
+  - 新 Expert1 checkpoint 完整加载：`missing_keys=[]`
+  - `skipped_non_finite_batches=0`
+  - selected mode：`calibrated_candidates`
+  - selected `accuracy=0.8163`
+  - selected `macro_f1=0.5518`
+  - best test probe：`soft_log_weighted`
+  - best test probe `accuracy=0.8283`
+  - best test probe `macro_f1=0.5560`
+  - `route_macro_recall=0.7460`
+  - `expert1_low_altitude_macro_f1=0.7452`
+  - `Drone/Bird recall mean=0.8636`
+  - `Unknown recall=0.6111`
+  - `Clutter recall=0.4286`
+  - `Ground group F1=0.5641`
+  - `Aircraft recall=0.6000`
+  - `Aircraft precision=0.3750`
+  - `source_balanced_accuracy=0.6352`
+  - `min_source_accuracy=0.3636`
+
+### 结论
+
+- Unknown/Clutter 三层建模已经落地，新增 residual/detail/morphology heads 在短训中有明确学习信号。
+- System 和 Expert1 的结构/scale/checkpoint 已重新对齐，避免新增头随机初始化进入主线。
+- RD 分支仍未达“稳定正收益”标准：
+  - `rd_harm_rate_on_rd` 仍明显高于 `rd_rescue_rate_on_rd`。
+  - final 融合能减伤，但 rescue 放大不足。
+- 当前 System 宏 F1 仍受 Aircraft precision、Ground F1、`raw_tr_rd` 弱源影响。
+- 下一步应继续围绕三件事推进：
+  - Expert1 RD 降 harm 和提高 rescue。
+  - Aircraft/Ground candidate arbitration 标定。
+  - source-aware training 提升 `raw_tr_rd`。

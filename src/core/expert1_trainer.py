@@ -356,6 +356,17 @@ def _binary_positive_ce_loss(
     )
 
 
+def _residual_targets(labels: torch.Tensor) -> torch.Tensor:
+    residual_indices = {
+        LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
+        LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
+    }
+    return torch.isin(
+        labels,
+        torch.tensor(sorted(residual_indices), dtype=torch.long, device=labels.device),
+    ).long()
+
+
 def _target_margin_loss(
     logits: torch.Tensor,
     labels: torch.Tensor,
@@ -632,6 +643,15 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_pair_fusion_weight_on_rd_mean": metrics.get("rd_pair_fusion_weight_on_rd_mean", 0.0),
         "rd_pair_fusion_weight_by_pair": metrics.get("rd_pair_fusion_weight_by_pair", {}),
         "rd_pair_fusion_weight_on_rd_by_pair": metrics.get("rd_pair_fusion_weight_on_rd_by_pair", {}),
+        "known_confidence_mean": metrics.get("known_confidence_mean", 0.0),
+        "residual_score_mean": metrics.get("residual_score_mean", 0.0),
+        "residual_score_on_residual_mean": metrics.get("residual_score_on_residual_mean", 0.0),
+        "traj_residual_accuracy": metrics.get("traj_residual_accuracy", 0.0),
+        "rd_residual_accuracy_on_rd": metrics.get("rd_residual_accuracy_on_rd", 0.0),
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": metrics.get("rd_unknown_clutter_detail_accuracy_on_residual_rd", 0.0),
+        "rd_clutter_morphology_accuracy_on_residual_rd": metrics.get("rd_clutter_morphology_accuracy_on_residual_rd", 0.0),
+        "rd_unknown_clutter_detail_clutter_recall": metrics.get("rd_unknown_clutter_detail_clutter_recall", 0.0),
+        "rd_clutter_morphology_clutter_recall": metrics.get("rd_clutter_morphology_clutter_recall", 0.0),
         "by_source_accuracy": metrics.get("by_source_accuracy", {}),
         "traj_by_source_accuracy": metrics.get("traj_by_source_accuracy", {}),
         "rd_by_source_accuracy_on_rd": metrics.get("rd_by_source_accuracy_on_rd", {}),
@@ -801,6 +821,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     rd_net_gain_rate = float(metrics.get("rd_net_gain_rate_on_rd", 0.0))
     final_harm_rate = float(metrics.get("final_harm_rate_on_rd", 0.0))
     final_net_gain_rate = float(metrics.get("final_net_gain_rate_on_rd", 0.0))
+    rd_residual_accuracy = float(metrics.get("rd_residual_accuracy_on_rd", 0.0))
+    residual_detail_accuracy = float(metrics.get("rd_unknown_clutter_detail_accuracy_on_residual_rd", 0.0))
+    clutter_morphology_accuracy = float(metrics.get("rd_clutter_morphology_accuracy_on_residual_rd", 0.0))
+    residual_score_on_residual = float(metrics.get("residual_score_on_residual_mean", 0.0))
     final_delta = final_macro - traj_macro
     source_support = dict(metrics.get("source_support", {}))
     rd_source_support = dict(metrics.get("rd_source_support_on_rd", {}))
@@ -829,6 +853,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         + 0.20 * min_rare_rd_recall
         + 0.18 * rd_net_gain_rate
         + 0.18 * final_net_gain_rate
+        + 0.10 * rd_residual_accuracy
+        + 0.10 * residual_detail_accuracy
+        + 0.08 * clutter_morphology_accuracy
+        + 0.05 * residual_score_on_residual
         - 0.35 * rd_harm_rate
         - 0.20 * final_harm_rate
         + 0.25 * traj_macro
@@ -889,6 +917,10 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "rd_net_gain_rate_on_rd": rd_net_gain_rate,
         "final_harm_rate_on_rd": final_harm_rate,
         "final_net_gain_rate_on_rd": final_net_gain_rate,
+        "rd_residual_accuracy_on_rd": rd_residual_accuracy,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": residual_detail_accuracy,
+        "rd_clutter_morphology_accuracy_on_residual_rd": clutter_morphology_accuracy,
+        "residual_score_on_residual_mean": residual_score_on_residual,
         "source_support": source_support,
         "rd_source_support_on_rd": rd_source_support,
         "rd_class_support_on_rd": rd_class_support,
@@ -921,6 +953,12 @@ def _run_epoch(
     logits_all: list[torch.Tensor] = []
     traj_logits_all: list[torch.Tensor] = []
     rd_logits_all: list[torch.Tensor] = []
+    traj_residual_logits_all: list[torch.Tensor] = []
+    rd_residual_logits_all: list[torch.Tensor] = []
+    rd_unknown_clutter_logits_all: list[torch.Tensor] = []
+    rd_clutter_morphology_logits_all: list[torch.Tensor] = []
+    known_confidence_all: list[torch.Tensor] = []
+    residual_score_all: list[torch.Tensor] = []
     labels_all: list[torch.Tensor] = []
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
@@ -994,6 +1032,7 @@ def _run_epoch(
                 disable_rd_activation=bool(train and not stage2_enabled),
             )
             unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+            residual_targets_all = _residual_targets(labels)
             main_loss = _weighted_ce_loss(
                 criterion,
                 output.logits,
@@ -1008,6 +1047,12 @@ def _run_epoch(
                 unknown_index=unknown_index,
                 unknown_weight=config.unknown_loss_weight,
             )
+            residual_loss = _binary_positive_ce_loss(
+                output.traj_residual_logits,
+                residual_targets_all,
+                positive_weight=max(config.rd_unknown_positive_weight, config.rd_clutter_positive_weight),
+            )
+            main_loss = main_loss + config.low_altitude_residual_aux_weight * residual_loss
             anchor_loss = torch.tensor(0.0, device=device)
             if train and config.low_altitude_traj_anchor_weight > 0.0:
                 if not stage2_enabled:
@@ -1065,6 +1110,7 @@ def _run_epoch(
                 bird_binary_targets = (labels[has_rd_mask] == bird_index).long()
                 clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
                 clutter_binary_targets = (labels[has_rd_mask] == clutter_index).long()
+                residual_binary_targets = residual_targets_all[has_rd_mask]
                 bird_binary_loss = torch.nn.functional.cross_entropy(
                     output.rd_bird_logits[has_rd_mask],
                     bird_binary_targets,
@@ -1083,6 +1129,12 @@ def _run_epoch(
                 rd_aux = rd_aux + config.low_altitude_rd_binary_aux_weight * (
                     bird_binary_loss + unknown_binary_loss + clutter_binary_loss
                 )
+                rd_residual_loss = _binary_positive_ce_loss(
+                    output.rd_residual_logits[has_rd_mask],
+                    residual_binary_targets,
+                    positive_weight=max(config.rd_unknown_positive_weight, config.rd_clutter_positive_weight),
+                )
+                rd_aux = rd_aux + config.low_altitude_rd_residual_aux_weight * rd_residual_loss
                 drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
                 drone_bird_mask = has_rd_mask & ((labels == drone_index) | (labels == bird_index))
                 if drone_bird_mask.any():
@@ -1131,6 +1183,18 @@ def _run_epoch(
                         weight=torch.tensor([1.0, 1.5], dtype=torch.float32, device=device),
                     )
                     rd_aux = rd_aux + config.low_altitude_rd_unknown_clutter_pairwise_aux_weight * unknown_clutter_loss
+                    unknown_clutter_detail_loss = torch.nn.functional.cross_entropy(
+                        output.rd_unknown_clutter_logits[unknown_clutter_mask],
+                        unknown_clutter_targets,
+                        weight=torch.tensor([1.0, config.rd_clutter_positive_weight], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_unknown_clutter_aux_weight * unknown_clutter_detail_loss
+                    clutter_morphology_loss = torch.nn.functional.cross_entropy(
+                        output.rd_clutter_morphology_logits[unknown_clutter_mask],
+                        unknown_clutter_targets,
+                        weight=torch.tensor([1.0, config.rd_clutter_positive_weight], dtype=torch.float32, device=device),
+                    )
+                    rd_aux = rd_aux + config.low_altitude_rd_clutter_morphology_aux_weight * clutter_morphology_loss
                 rare_margin_loss = (
                     _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], bird_index, config.low_altitude_rd_rare_margin)
                     + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], LOW_ALTITUDE_CLASSES.index("BalloonTarget"), config.low_altitude_rd_rare_margin)
@@ -1274,6 +1338,12 @@ def _run_epoch(
         logits_all.append(output.logits.detach().cpu())
         traj_logits_all.append(output.traj_logits.detach().cpu())
         rd_logits_all.append(output.rd_logits.detach().cpu())
+        traj_residual_logits_all.append(output.traj_residual_logits.detach().cpu())
+        rd_residual_logits_all.append(output.rd_residual_logits.detach().cpu())
+        rd_unknown_clutter_logits_all.append(output.rd_unknown_clutter_logits.detach().cpu())
+        rd_clutter_morphology_logits_all.append(output.rd_clutter_morphology_logits.detach().cpu())
+        known_confidence_all.append(output.known_confidence.detach().cpu())
+        residual_score_all.append(output.residual_score.detach().cpu())
         labels_all.append(labels.detach().cpu())
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
@@ -1310,12 +1380,23 @@ def _run_epoch(
             "rd_pair_fusion_weight_on_rd_mean": 0.0,
             "rd_pair_fusion_weight_by_pair": {},
             "rd_pair_fusion_weight_on_rd_by_pair": {},
+            "traj_residual_accuracy": 0.0,
+            "rd_residual_accuracy_on_rd": 0.0,
+            "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+            "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
         }
 
     logits_cat = torch.cat(logits_all, dim=0)
     traj_logits_cat = torch.cat(traj_logits_all, dim=0)
     rd_logits_cat = torch.cat(rd_logits_all, dim=0)
+    traj_residual_logits_cat = torch.cat(traj_residual_logits_all, dim=0)
+    rd_residual_logits_cat = torch.cat(rd_residual_logits_all, dim=0)
+    rd_unknown_clutter_logits_cat = torch.cat(rd_unknown_clutter_logits_all, dim=0)
+    rd_clutter_morphology_logits_cat = torch.cat(rd_clutter_morphology_logits_all, dim=0)
+    known_confidence_cat = torch.cat(known_confidence_all, dim=0)
+    residual_score_cat = torch.cat(residual_score_all, dim=0)
     labels_cat = torch.cat(labels_all, dim=0)
+    residual_targets_cat = _residual_targets(labels_cat)
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     traj_metrics = compute_classification_metrics(traj_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     rd_metrics = compute_classification_metrics(rd_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
@@ -1388,6 +1469,46 @@ def _run_epoch(
         )
         for idx, pair_name in enumerate(rd_pair_names)
     }
+    residual_rd_mask = has_rd_tensor & residual_targets_cat.bool()
+    traj_residual_accuracy = float((traj_residual_logits_cat.argmax(dim=-1) == residual_targets_cat).float().mean().item())
+    rd_residual_accuracy_on_rd = (
+        float((rd_residual_logits_cat[has_rd_tensor].argmax(dim=-1) == residual_targets_cat[has_rd_tensor]).float().mean().item())
+        if bool(has_rd_tensor.any())
+        else 0.0
+    )
+    if bool(residual_rd_mask.any()):
+        residual_detail_targets = (labels_cat[residual_rd_mask] == LOW_ALTITUDE_CLASSES.index("ClutterTarget")).long()
+        rd_unknown_clutter_detail_accuracy = float(
+            (rd_unknown_clutter_logits_cat[residual_rd_mask].argmax(dim=-1) == residual_detail_targets).float().mean().item()
+        )
+        rd_clutter_morphology_accuracy = float(
+            (rd_clutter_morphology_logits_cat[residual_rd_mask].argmax(dim=-1) == residual_detail_targets).float().mean().item()
+        )
+        rd_unknown_clutter_detail_clutter_recall = (
+            float(
+                (
+                    rd_unknown_clutter_logits_cat[residual_rd_mask][residual_detail_targets.bool()].argmax(dim=-1)
+                    == 1
+                ).float().mean().item()
+            )
+            if bool(residual_detail_targets.bool().any())
+            else 0.0
+        )
+        rd_clutter_morphology_clutter_recall = (
+            float(
+                (
+                    rd_clutter_morphology_logits_cat[residual_rd_mask][residual_detail_targets.bool()].argmax(dim=-1)
+                    == 1
+                ).float().mean().item()
+            )
+            if bool(residual_detail_targets.bool().any())
+            else 0.0
+        )
+    else:
+        rd_unknown_clutter_detail_accuracy = 0.0
+        rd_clutter_morphology_accuracy = 0.0
+        rd_unknown_clutter_detail_clutter_recall = 0.0
+        rd_clutter_morphology_clutter_recall = 0.0
     rd_drone_bird = diagnostics["rd_on_rd_drone_bird"]
     rd_unknown_clutter = float(diagnostics["rd_on_rd_unknown_clutter_recall_mean"])
     traj_by_source_accuracy = _source_accuracy_dict(traj_logits_cat, labels_cat, source_names_all)
@@ -1439,6 +1560,19 @@ def _run_epoch(
         "rd_pair_fusion_weight_on_rd_mean": rd_pair_fusion_weight_on_rd_mean,
         "rd_pair_fusion_weight_by_pair": rd_pair_weight_by_pair,
         "rd_pair_fusion_weight_on_rd_by_pair": rd_pair_weight_on_rd_by_pair,
+        "known_confidence_mean": float(known_confidence_cat.mean().item()) if known_confidence_cat.numel() else 0.0,
+        "residual_score_mean": float(residual_score_cat.mean().item()) if residual_score_cat.numel() else 0.0,
+        "residual_score_on_residual_mean": (
+            float(residual_score_cat[residual_targets_cat.bool()].mean().item())
+            if bool(residual_targets_cat.bool().any())
+            else 0.0
+        ),
+        "traj_residual_accuracy": traj_residual_accuracy,
+        "rd_residual_accuracy_on_rd": rd_residual_accuracy_on_rd,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": rd_unknown_clutter_detail_accuracy,
+        "rd_clutter_morphology_accuracy_on_residual_rd": rd_clutter_morphology_accuracy,
+        "rd_unknown_clutter_detail_clutter_recall": rd_unknown_clutter_detail_clutter_recall,
+        "rd_clutter_morphology_clutter_recall": rd_clutter_morphology_clutter_recall,
         "by_source_accuracy": group_metrics["by_source_accuracy"],
         "traj_by_source_accuracy": traj_by_source_accuracy,
         "rd_by_source_accuracy_on_rd": rd_by_source_accuracy_on_rd,
@@ -1511,6 +1645,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         rd_bird_logit_scale=config.rd_bird_logit_scale,
         rd_unknown_logit_scale=config.rd_unknown_logit_scale,
         rd_clutter_logit_scale=config.rd_clutter_logit_scale,
+        rd_residual_logit_scale=config.rd_residual_logit_scale,
+        rd_unknown_clutter_logit_scale=config.rd_unknown_clutter_logit_scale,
+        rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
         initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
         rd_class_activation_threshold=config.low_altitude_rd_class_activation_threshold,
     ).to(device)
@@ -1702,6 +1839,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
             "rd_pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+            "known_confidence_mean": test_metrics["known_confidence_mean"],
+            "residual_score_mean": test_metrics["residual_score_mean"],
+            "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
+            "traj_residual_accuracy": test_metrics["traj_residual_accuracy"],
+            "rd_residual_accuracy_on_rd": test_metrics["rd_residual_accuracy_on_rd"],
+            "rd_unknown_clutter_detail_accuracy_on_residual_rd": test_metrics["rd_unknown_clutter_detail_accuracy_on_residual_rd"],
+            "rd_clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
+            "rd_unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
+            "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
@@ -1788,6 +1934,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
                 "pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
                 "pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+                "known_confidence_mean": test_metrics["known_confidence_mean"],
+                "residual_score_mean": test_metrics["residual_score_mean"],
+                "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
+                "traj_residual_accuracy": test_metrics["traj_residual_accuracy"],
+                "residual_accuracy_on_rd": test_metrics["rd_residual_accuracy_on_rd"],
+                "unknown_clutter_detail_accuracy_on_residual_rd": test_metrics["rd_unknown_clutter_detail_accuracy_on_residual_rd"],
+                "clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
+                "unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
+                "clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
             },
         },
         "device": device_info,
@@ -1882,6 +2037,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
             "rd_pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+            "known_confidence_mean": test_metrics["known_confidence_mean"],
+            "residual_score_mean": test_metrics["residual_score_mean"],
+            "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
+            "traj_residual_accuracy": test_metrics["traj_residual_accuracy"],
+            "rd_residual_accuracy_on_rd": test_metrics["rd_residual_accuracy_on_rd"],
+            "rd_unknown_clutter_detail_accuracy_on_residual_rd": test_metrics["rd_unknown_clutter_detail_accuracy_on_residual_rd"],
+            "rd_clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
+            "rd_unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
+            "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
             "by_source_accuracy": test_metrics["by_source_accuracy"],
             "traj_by_source_accuracy": test_metrics["traj_by_source_accuracy"],
             "rd_by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
@@ -1913,6 +2077,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
         "rd_pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
         "rd_pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+        "known_confidence_mean": test_metrics["known_confidence_mean"],
+        "residual_score_mean": test_metrics["residual_score_mean"],
+        "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
+        "traj_residual_accuracy": test_metrics["traj_residual_accuracy"],
+        "rd_residual_accuracy_on_rd": test_metrics["rd_residual_accuracy_on_rd"],
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": test_metrics["rd_unknown_clutter_detail_accuracy_on_residual_rd"],
+        "rd_clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
+        "rd_unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
+        "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
         "low_altitude_rd_class_activation_threshold": config.low_altitude_rd_class_activation_threshold,
         "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
         "low_altitude_rd_pair_gate_aux_weight": config.low_altitude_rd_pair_gate_aux_weight,
@@ -1936,6 +2109,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_unknown_pairwise_aux_weight": config.low_altitude_rd_unknown_pairwise_aux_weight,
         "low_altitude_rd_clutter_pairwise_aux_weight": config.low_altitude_rd_clutter_pairwise_aux_weight,
         "low_altitude_rd_unknown_clutter_pairwise_aux_weight": config.low_altitude_rd_unknown_clutter_pairwise_aux_weight,
+        "low_altitude_residual_aux_weight": config.low_altitude_residual_aux_weight,
+        "low_altitude_rd_residual_aux_weight": config.low_altitude_rd_residual_aux_weight,
+        "low_altitude_rd_unknown_clutter_aux_weight": config.low_altitude_rd_unknown_clutter_aux_weight,
+        "low_altitude_rd_clutter_morphology_aux_weight": config.low_altitude_rd_clutter_morphology_aux_weight,
         "low_altitude_rd_rare_margin_aux_weight": config.low_altitude_rd_rare_margin_aux_weight,
         "low_altitude_rd_rare_margin": config.low_altitude_rd_rare_margin,
         "low_altitude_rd_forced_fusion_weight": config.low_altitude_rd_forced_fusion_weight,
@@ -1952,6 +2129,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_bird_logit_scale": config.rd_bird_logit_scale,
         "rd_unknown_logit_scale": config.rd_unknown_logit_scale,
         "rd_clutter_logit_scale": config.rd_clutter_logit_scale,
+        "rd_residual_logit_scale": config.rd_residual_logit_scale,
+        "rd_unknown_clutter_logit_scale": config.rd_unknown_clutter_logit_scale,
+        "rd_clutter_morphology_logit_scale": config.rd_clutter_morphology_logit_scale,
         "rd_bird_positive_weight": config.rd_bird_positive_weight,
         "rd_unknown_positive_weight": config.rd_unknown_positive_weight,
         "rd_clutter_positive_weight": config.rd_clutter_positive_weight,

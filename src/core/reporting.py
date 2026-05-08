@@ -201,6 +201,15 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 ("net_gain_rate_on_rd", "rd_net_gain_rate_on_rd"),
                 ("rescue_unadopted_count", "rd_rescue_unadopted_count"),
                 ("harm_adopted_count", "rd_harm_adopted_count"),
+                ("known_confidence_mean", "known_confidence_mean"),
+                ("residual_score_mean", "residual_score_mean"),
+                ("residual_score_on_residual_mean", "residual_score_on_residual_mean"),
+                ("traj_residual_accuracy", "traj_residual_accuracy"),
+                ("residual_accuracy_on_rd", "rd_residual_accuracy_on_rd"),
+                ("unknown_clutter_detail_accuracy_on_residual_rd", "rd_unknown_clutter_detail_accuracy_on_residual_rd"),
+                ("clutter_morphology_accuracy_on_residual_rd", "rd_clutter_morphology_accuracy_on_residual_rd"),
+                ("unknown_clutter_detail_clutter_recall", "rd_unknown_clutter_detail_clutter_recall"),
+                ("clutter_morphology_clutter_recall", "rd_clutter_morphology_clutter_recall"),
             ]:
                 if key not in rd_branch:
                     continue

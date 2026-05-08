@@ -34,6 +34,10 @@ class Expert1TrainConfig:
     low_altitude_rd_pair_gate_aux_weight: float = 0.35
     low_altitude_rd_pair_takeover_floor: float = 0.72
     low_altitude_rd_pair_harm_ceiling: float = 0.10
+    low_altitude_residual_aux_weight: float = 0.45
+    low_altitude_rd_residual_aux_weight: float = 0.65
+    low_altitude_rd_unknown_clutter_aux_weight: float = 0.85
+    low_altitude_rd_clutter_morphology_aux_weight: float = 0.75
     low_altitude_rd_teacher_warmup_epochs: int = 1
     low_altitude_rd_teacher_aux_boost: float = 1.35
     low_altitude_rd_gate_temperature: float = 0.35
@@ -52,6 +56,9 @@ class Expert1TrainConfig:
     rd_bird_logit_scale: float = 0.75
     rd_unknown_logit_scale: float = 0.75
     rd_clutter_logit_scale: float = 0.75
+    rd_residual_logit_scale: float = 0.9
+    rd_unknown_clutter_logit_scale: float = 1.1
+    rd_clutter_morphology_logit_scale: float = 0.9
     rd_sample_boost: float = 1.2
     bird_sample_boost: float = 1.0
     raw_source_boost: float = 2.0
