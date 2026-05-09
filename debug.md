@@ -2775,3 +2775,70 @@
 
 - 本轮未重新训练，尚无新 accuracy / macro F1。
 - 旧索引读取已兼容，但建议下一次完整数据处理时重新生成所有 processed index，让落盘字段和运行时推断保持一致。
+
+## 2026-05-09：target 收敛与回退审计指标补齐
+
+### 问题
+
+1. `target.md` 仍保留大量已经落地的设计内容，导致“待做目标”和“已实现架构”混在一起，后续推进容易重复实现。
+2. 回退报告已有 without / with reroute 总体对比，但缺少逐类别 recall before/after，无法判断回退到底救了哪个类别、伤了哪个类别。
+3. 回退样本只有 path 和 reject reason，缺少 helped / harmed 逐样本记录。
+4. Expert1 的 reject score 已在模型内计算，但 System reroute diagnostics 没把组成项带出来，报告端仍只能看到粗粒度 reason。
+
+### 解决方案
+
+1. 重写 `target.md` 为“剩余优化任务”：
+   - 删除已落地的两层标签、基础 dual/deep、基础 reroute graph、基础报告项。
+   - 保留仍需推进的 deep_reroute 强化、RD 净收益、Ground 仲裁、Expert2 校准、跨源泛化、性能测试清单。
+2. `_reroute_comparison()` 增加：
+   - `per_class_before_after_recall`
+   - `sample_outcomes`
+   - `reroute_helped`
+   - `reroute_harmed`
+   - `prediction_changed`
+3. Markdown 报告增加：
+   - 回退前后逐类别 recall delta 表。
+   - 回退样本 helped / harmed 摘要表。
+4. System reroute diagnostics 增加低空 reject 分解：
+   - `low_reject_score`
+   - `low_unknown_bonus`
+   - `low_confusion_pair_bonus`
+   - `low_evidence_conflict_bonus`
+   - `low_margin_bonus`
+   - `low_agreement_confidence_credit`
+   - `low_high_risk_pair`
+   - `low_final_margin`
+   - `low_traj_pred`
+   - `low_rd_pred`
+
+### 最终落地
+
+- `target.md`
+  - 改为仅保留剩余目标。
+- `src/core/system_trainer.py`
+  - 回退对比补齐 per-class 与逐样本审计。
+  - prediction records 写入 reroute helped/harmed 与低空 reject 分解。
+- `src/core/system.py`
+  - reroute diagnostics 输出低空 reject score 组成项。
+- `src/core/reporting.py`
+  - Markdown 显示回退逐类别 recall 变化、样本 helped/harmed、错分样本 low reject score。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- `_reroute_comparison()` smoke 通过，可正确输出：
+  - per-class recall delta
+  - helped / harmed sample outcomes
+- System reroute forward smoke 通过：
+  - `low_reject_score`
+  - `low_unknown_bonus`
+  - `low_confusion_pair_bonus`
+  - `low_traj_pred`
+  - `low_rd_pred`
+  均正常输出。
+- 定向 `git diff --check` 通过。
+
+### 当前边界
+
+- 本轮仍未重新训练，尚无新 accuracy / macro F1。
+- Expert1 `deep_reroute` 仍需继续增强到真正更高分辨率 RD / 更多帧 / deep 专用头。

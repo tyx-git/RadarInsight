@@ -1902,6 +1902,45 @@ def _reroute_reason_distribution(reroute_diagnostics: dict[str, torch.Tensor] | 
     return counts
 
 
+def _route_path_names(reroute_path: torch.Tensor | None, index: int) -> list[str]:
+    if reroute_path is None:
+        return []
+    path_names: list[str] = []
+    for route_idx_value in reroute_path[index].tolist():
+        route_idx_int = int(route_idx_value)
+        if 0 <= route_idx_int < len(ROUTE_NAMES):
+            path_names.append(ROUTE_NAMES[route_idx_int])
+    return path_names
+
+
+def _per_class_before_after_recall(
+    labels: torch.Tensor,
+    without_preds: torch.Tensor,
+    with_preds: torch.Tensor,
+) -> dict[str, dict[str, float | int]]:
+    result: dict[str, dict[str, float | int]] = {}
+    for label_idx, label_name in enumerate(DEFAULT_VOCAB.labels):
+        label_mask = labels == label_idx
+        support = int(label_mask.sum().item())
+        before_correct = (without_preds == label_idx) & label_mask
+        after_correct = (with_preds == label_idx) & label_mask
+        helped = (~before_correct) & after_correct
+        harmed = before_correct & (~after_correct)
+        changed = (without_preds != with_preds) & label_mask
+        before_recall = float(before_correct.sum().item() / support) if support > 0 else 0.0
+        after_recall = float(after_correct.sum().item() / support) if support > 0 else 0.0
+        result[label_name] = {
+            "support": support,
+            "without_recall": before_recall,
+            "with_recall": after_recall,
+            "recall_delta": after_recall - before_recall,
+            "changed_count": int(changed.sum().item()),
+            "helped_count": int(helped.sum().item()),
+            "harmed_count": int(harmed.sum().item()),
+        }
+    return result
+
+
 def _expert1_scope_report(
     class_logits: torch.Tensor,
     class_labels: torch.Tensor,
@@ -1930,6 +1969,37 @@ def _reroute_comparison(without_metrics: dict[str, object], with_metrics: dict[s
     helped = (~before_correct) & after_correct
     harmed = before_correct & (~after_correct)
     changed = without_preds != with_preds
+    reroute_diagnostics = with_metrics.get("reroute_diagnostics", {})
+    reroute_triggered = reroute_diagnostics.get("reroute_triggered") if isinstance(reroute_diagnostics, dict) else None
+    reroute_fallback = reroute_diagnostics.get("reroute_fallback") if isinstance(reroute_diagnostics, dict) else None
+    reroute_count = reroute_diagnostics.get("reroute_count") if isinstance(reroute_diagnostics, dict) else None
+    reroute_path = reroute_diagnostics.get("reroute_path") if isinstance(reroute_diagnostics, dict) else None
+    reject_reason_code = reroute_diagnostics.get("reroute_reject_reason_code") if isinstance(reroute_diagnostics, dict) else None
+    sample_ids = list(with_metrics.get("sample_ids", []))
+    source_names = list(with_metrics.get("source_names", []))
+    sample_outcomes: list[dict[str, object]] = []
+    for idx in range(int(labels.shape[0])):
+        was_triggered = bool(reroute_triggered[idx].item()) if reroute_triggered is not None else False
+        if not (was_triggered or bool(changed[idx].item()) or bool(helped[idx].item()) or bool(harmed[idx].item())):
+            continue
+        reason_code = int(reject_reason_code[idx].item()) if reject_reason_code is not None else 0
+        sample_outcomes.append(
+            {
+                "sample_id": str(sample_ids[idx]) if idx < len(sample_ids) else str(idx),
+                "source_name": str(source_names[idx]) if idx < len(source_names) else "",
+                "true_label": DEFAULT_VOCAB.decode(int(labels[idx].item())),
+                "without_pred": DEFAULT_VOCAB.decode(int(without_preds[idx].item())),
+                "with_pred": DEFAULT_VOCAB.decode(int(with_preds[idx].item())),
+                "reroute_triggered": was_triggered,
+                "reroute_count": int(reroute_count[idx].item()) if reroute_count is not None else 0,
+                "fallback_to_unknown": bool(reroute_fallback[idx].item()) if reroute_fallback is not None else False,
+                "reroute_path": _route_path_names(reroute_path, idx),
+                "reject_reason": REROUTE_REASON_NAMES.get(reason_code, f"unknown_{reason_code}"),
+                "reroute_helped": bool(helped[idx].item()),
+                "reroute_harmed": bool(harmed[idx].item()),
+                "prediction_changed": bool(changed[idx].item()),
+            }
+        )
     return {
         "without_reroute": _metric_summary(without_metrics),
         "with_reroute": _metric_summary(with_metrics),
@@ -1940,6 +2010,8 @@ def _reroute_comparison(without_metrics: dict[str, object], with_metrics: dict[s
         "harmed_count": int(harmed.sum().item()),
         "unchanged_count": int((~changed).sum().item()),
         "reason_distribution": _reroute_reason_distribution(with_metrics.get("reroute_diagnostics", {})),
+        "per_class_before_after_recall": _per_class_before_after_recall(labels, without_preds, with_preds),
+        "sample_outcomes": sample_outcomes,
     }
 
 
@@ -2123,12 +2195,7 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                 final_route = ROUTE_NAMES[reroute_route_idx]
         elif is_fallback:
             final_route = "fallback_unknown"
-        path_names: list[str] = []
-        if reroute_path is not None:
-            for route_idx_value in reroute_path[idx].tolist():
-                route_idx_int = int(route_idx_value)
-                if 0 <= route_idx_int < len(ROUTE_NAMES):
-                    path_names.append(ROUTE_NAMES[route_idx_int])
+        path_names = _route_path_names(reroute_path, idx)
         record = {
             "sample_id": sample_id,
             "source_name": str(epoch_metrics["source_names"][idx]),
@@ -2187,6 +2254,16 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "reroute_low_altitude_deep_accepted",
             "reroute_accept_confidence",
             "reroute_reject_reason_code",
+            "low_reject_score",
+            "low_unknown_bonus",
+            "low_confusion_pair_bonus",
+            "low_evidence_conflict_bonus",
+            "low_margin_bonus",
+            "low_agreement_confidence_credit",
+            "low_high_risk_pair",
+            "low_final_margin",
+            "low_traj_pred",
+            "low_rd_pred",
         ):
             if isinstance(reroute_diagnostics, dict) and diag_name in reroute_diagnostics:
                 value = reroute_diagnostics[diag_name][idx]
@@ -2202,6 +2279,30 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                     record["reroute_reject_reason"] = REROUTE_REASON_NAMES.get(int(value.item()), f"unknown_{int(value.item())}")
         records.append(record)
     return records
+
+
+def _attach_reroute_outcomes_to_predictions(
+    evaluation_report: dict[str, object],
+    reroute_comparison: dict[str, object],
+) -> None:
+    outcomes = {
+        str(item.get("sample_id")): item
+        for item in reroute_comparison.get("sample_outcomes", [])
+        if isinstance(item, dict) and item.get("sample_id") is not None
+    }
+    predictions = evaluation_report.get("predictions", [])
+    if not isinstance(predictions, list):
+        return
+    for record in predictions:
+        if not isinstance(record, dict):
+            continue
+        outcome = outcomes.get(str(record.get("sample_id")))
+        record["reroute_helped"] = bool(outcome.get("reroute_helped", False)) if outcome else False
+        record["reroute_harmed"] = bool(outcome.get("reroute_harmed", False)) if outcome else False
+        record["reroute_prediction_changed"] = bool(outcome.get("prediction_changed", False)) if outcome else False
+        if outcome:
+            record["without_reroute_pred"] = outcome.get("without_pred")
+            record["with_reroute_pred"] = outcome.get("with_pred")
 
 
 def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, object]:
@@ -2609,6 +2710,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     ]
     evaluation_report["best_test_probe"] = _fusion_probe_summary(best_test_probe_metrics)
     evaluation_report["reroute_comparison"] = reroute_comparison
+    _attach_reroute_outcomes_to_predictions(evaluation_report, reroute_comparison)
 
     history_path = output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -585,6 +585,7 @@ class RadarClassificationSystem(nn.Module):
         conventional_air = get_conventional_air()
         high_altitude = get_high_altitude()
         ground = get_ground()
+        low_reject_reasons = low_altitude.reject_reasons or {}
         diagnostics = {
             "reroute_count": reroute_count.detach(),
             "reroute_triggered": (reroute_count > 0).detach(),
@@ -601,6 +602,20 @@ class RadarClassificationSystem(nn.Module):
             "reroute_lazy_expert_eval_count": torch.full((batch_size,), lazy_expert_eval_count, dtype=torch.long, device=device),
             "reroute_low_altitude_deep_used": low_deep_used_mask.detach(),
             "reroute_low_altitude_deep_accepted": low_deep_accept_mask.detach(),
+            "low_reject_score": (
+                low_altitude.reject_score.detach()
+                if low_altitude.reject_score is not None
+                else torch.zeros((batch_size,), dtype=torch.float32, device=device)
+            ),
+            "low_unknown_bonus": low_reject_reasons.get("unknown_trigger", torch.zeros((batch_size,), dtype=torch.bool, device=device)).float().detach(),
+            "low_confusion_pair_bonus": low_reject_reasons.get("confusion_pair_trigger", torch.zeros((batch_size,), dtype=torch.bool, device=device)).float().detach() * 0.75,
+            "low_evidence_conflict_bonus": low_reject_reasons.get("evidence_conflict_trigger", torch.zeros((batch_size,), dtype=torch.bool, device=device)).float().detach() * 0.55,
+            "low_margin_bonus": low_reject_reasons.get("low_margin_trigger", torch.zeros((batch_size,), dtype=torch.bool, device=device)).float().detach() * 0.35,
+            "low_agreement_confidence_credit": low_reject_reasons.get("agreement_confidence_credit", torch.zeros((batch_size,), dtype=torch.bool, device=device)).float().detach() * 0.50,
+            "low_high_risk_pair": low_reject_reasons.get("high_risk_pair", torch.zeros((batch_size,), dtype=torch.bool, device=device)).detach(),
+            "low_final_margin": low_reject_reasons.get("final_margin", torch.zeros((batch_size,), dtype=torch.float32, device=device)).detach(),
+            "low_traj_pred": low_reject_reasons.get("traj_pred", torch.full((batch_size,), -1, dtype=torch.long, device=device)).detach(),
+            "low_rd_pred": low_reject_reasons.get("rd_pred", torch.full((batch_size,), -1, dtype=torch.long, device=device)).detach(),
         }
         return RadarSystemOutput(
             representation=representation,

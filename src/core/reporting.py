@@ -172,6 +172,38 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             f"- changed/helped/harmed: {reroute_comparison.get('changed_count', 0)} / "
             f"{reroute_comparison.get('helped_count', 0)} / {reroute_comparison.get('harmed_count', 0)}"
         )
+        per_class_delta = reroute_comparison.get("per_class_before_after_recall", {})
+        if isinstance(per_class_delta, dict) and per_class_delta:
+            lines.append("")
+            lines.append("| 类别 | support | without recall | with recall | delta | helped | harmed |")
+            lines.append("|---|---:|---:|---:|---:|---:|---:|")
+            for label_name in label_names:
+                item = per_class_delta.get(label_name, {})
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"| {label_name} | {item.get('support', 0)} | "
+                    f"{_format_float(float(item.get('without_recall', 0.0)))} | "
+                    f"{_format_float(float(item.get('with_recall', 0.0)))} | "
+                    f"{_format_float(float(item.get('recall_delta', 0.0)))} | "
+                    f"{item.get('helped_count', 0)} | {item.get('harmed_count', 0)} |"
+                )
+        sample_outcomes = reroute_comparison.get("sample_outcomes", [])
+        if isinstance(sample_outcomes, list) and sample_outcomes:
+            lines.append("")
+            lines.append("| 回退样本 | true | without | with | path | reason | helped | harmed |")
+            lines.append("|---|---|---|---|---|---|---:|---:|")
+            for item in sample_outcomes[:20]:
+                if not isinstance(item, dict):
+                    continue
+                path = " -> ".join(item.get("reroute_path", []))
+                lines.append(
+                    f"| {item.get('sample_id', '')} | {item.get('true_label', '')} | "
+                    f"{item.get('without_pred', '')} | {item.get('with_pred', '')} | "
+                    f"{path} | {item.get('reject_reason', '')} | "
+                    f"{int(bool(item.get('reroute_helped', False)))} | "
+                    f"{int(bool(item.get('reroute_harmed', False)))} |"
+                )
         lines.append("")
     ground_metrics = {}
     if isinstance(critical_metrics, dict):
@@ -296,17 +328,18 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines.append("")
     lines.append("## 典型错分样本（前20条）")
     if wrong_predictions:
-        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 初始路由 | 最终路由 | 回退路径 | reject reason |")
-        lines.append("|---|---|---|---|---|---|---|---|---|")
+        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 初始路由 | 最终路由 | 回退路径 | reject reason | low reject score |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---:|")
         for item in wrong_predictions:
             router_route = item.get("route_name_router_pred", item["route_name_pred"])
             final_route = item.get("route_name_final", item["route_name_pred"])
             reroute_path = " -> ".join(item.get("reroute_path", []))
             reject_reason = item.get("reroute_reject_reason", "")
+            low_reject_score = item.get("low_reject_score", 0.0)
             lines.append(
                 f"| {item['sample_id']} | {item['source_name']} | {item['label_name_true']} | "
                 f"{item['label_name_pred']} | {item['route_name_true']} | {router_route} | {final_route} | "
-                f"{reroute_path} | {reject_reason} |"
+                f"{reroute_path} | {reject_reason} | {_format_float(float(low_reject_score))} |"
             )
     else:
         lines.append("- 当前测试集中无错分样本。")
