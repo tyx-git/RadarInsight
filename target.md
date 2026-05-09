@@ -19,6 +19,15 @@
 - source-balanced macro F1、min source macro F1、source x label precision / recall / F1。
 - System Aircraft / Expert2 仲裁诊断：Expert2 positive but final not Aircraft、final Aircraft but Expert2 not positive、Aircraft FP by source。
 - 回退阈值从 `config` 进入 JSON / Markdown 报告。
+- `calibrated_candidates` 作为 eval-only candidate probe 接入融合模式对比。
+- 专家内部性能报告：
+  - Expert1 trajectory / RD 本地指标。
+  - Expert2 内部二分类混淆矩阵。
+  - Expert3 高空规则命中正确率。
+  - Expert4 地面内部混淆矩阵与 People -> Car 统计。
+- RD 分支 CosFace 原型余弦相似度矩阵。
+- 安全关键误判对回退前后变化。
+- 训练损失组件曲线进入 `training_history.json`。
 
 ## 当前主线
 
@@ -97,7 +106,6 @@ final_macro_f1 >= traj_macro_f1 - 可配置容忍值
 ### 待实现
 
 - Expert2 / Expert4 reject reason 细分，不只记录通用 reject。
-- calibrated candidate score 替代裸 logit 仲裁，至少支持 eval-only 对比。
 
 ### 验收
 
@@ -176,10 +184,6 @@ source_balanced_macro_f1 随整体 macro F1 同步提升
 
 完整性能清单中仍需继续补齐：
 
-- 专家2内部混淆矩阵。
-- 专家3规则命中正确率。
-- 专家4内部混淆矩阵与 People -> Car / background 安全误判。
-- RD 分支 CosFace 原型余弦相似度矩阵。
 - 推理延迟：
   - end-to-end
   - trajectory branch
@@ -187,8 +191,7 @@ source_balanced_macro_f1 随整体 macro F1 同步提升
   - deep_reroute path
   - Expert2 / Expert3 / Expert4
   - RD 预处理
-- 安全关键误判对回退前后变化。
-- 训练损失组件曲线导出。
+- Expert4 People -> background / 非 Ground 的专项安全误判拆分。
 
 ## 八、工程约束
 

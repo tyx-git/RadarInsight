@@ -24,6 +24,22 @@ from .system_metrics import compute_confusion_matrix, compute_per_class_metrics,
 from .physical import PHYSICAL_FEATURE_COLUMNS
 
 
+SAFETY_CRITICAL_PAIRS = [
+    ("DroneTarget", "BirdTarget"),
+    ("BirdTarget", "DroneTarget"),
+    ("BirdTarget", "BalloonTarget"),
+    ("DroneTarget", "UnknownTarget"),
+    ("AircraftTarget", "DroneTarget"),
+    ("AircraftTarget", "BirdTarget"),
+    ("PeopleTarget", "CarTarget"),
+    ("PeopleTarget", "UnknownTarget"),
+    ("CarTarget", "PeopleTarget"),
+    ("ShipTarget", "CarTarget"),
+    ("UnknownTarget", "ClutterTarget"),
+    ("ClutterTarget", "UnknownTarget"),
+]
+
+
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -982,6 +998,7 @@ def _run_epoch(
     route_labels_all: list[torch.Tensor] = []
     aircraft_diagnostics_all: dict[str, list[torch.Tensor]] = {}
     reroute_diagnostics_all: dict[str, list[torch.Tensor]] = {}
+    expert_output_all: dict[str, list[torch.Tensor]] = {}
     loss_values: list[float] = []
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
@@ -1252,6 +1269,19 @@ def _run_epoch(
             aircraft_diagnostics_all.setdefault(diag_name, []).append(diag_value.detach().cpu())
         for diag_name, diag_value in reroute_diagnostics.items():
             reroute_diagnostics_all.setdefault(diag_name, []).append(diag_value.detach().cpu())
+        expert_output_all.setdefault("expert2_logits", []).append(output.conventional_air_logits.detach().cpu())
+        expert_output_all.setdefault("expert3_logits", []).append(output.high_altitude_logits.detach().cpu())
+        expert_output_all.setdefault("expert4_logits", []).append(output.ground_logits.detach().cpu())
+        expert_output_all.setdefault("expert1_traj_logits", []).append(output.low_altitude_detail.traj_logits.detach().cpu())
+        expert_output_all.setdefault("expert1_rd_logits", []).append(output.low_altitude_detail.rd_logits.detach().cpu())
+        expert_output_all.setdefault("expert1_traj_confidence", []).append(
+            output.low_altitude_detail.traj_cosine.max(dim=-1).values.detach().cpu()
+        )
+        expert_output_all.setdefault("expert1_traj_entropy", []).append(
+            torch.distributions.Categorical(logits=output.low_altitude_detail.traj_logits.detach()).entropy().cpu()
+        )
+        expert_output_all.setdefault("expert1_fusion_weights", []).append(output.low_altitude_detail.fusion_weights.detach().cpu())
+        expert_output_all.setdefault("rd_is_multimodal", []).append(rd_is_multimodal.detach().cpu())
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
@@ -1275,6 +1305,7 @@ def _run_epoch(
             "class_logits_without_aircraft_protection": torch.empty((0, len(DEFAULT_VOCAB.labels)), dtype=torch.float32),
             "aircraft_diagnostics": {},
             "reroute_diagnostics": {},
+            "expert_outputs": {},
             "sample_ids": [],
             "source_names": [],
             "label_names": [],
@@ -1302,6 +1333,10 @@ def _run_epoch(
     reroute_diagnostics_cat = {
         name: torch.cat(values, dim=0)
         for name, values in reroute_diagnostics_all.items()
+    }
+    expert_outputs_cat = {
+        name: torch.cat(values, dim=0)
+        for name, values in expert_output_all.items()
     }
     metrics = compute_system_metrics(
         class_logits=class_logits_cat,
@@ -1337,6 +1372,7 @@ def _run_epoch(
         "route_labels": route_labels_cat,
         "aircraft_diagnostics": aircraft_diagnostics_cat,
         "reroute_diagnostics": reroute_diagnostics_cat,
+        "expert_outputs": expert_outputs_cat,
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
@@ -1563,6 +1599,207 @@ def _label_count_dict(preds: torch.Tensor, mask: torch.Tensor) -> dict[str, int]
     return {
         label_name: int(((preds == label_idx) & mask).sum().item())
         for label_idx, label_name in enumerate(DEFAULT_VOCAB.labels)
+    }
+
+
+def _local_expert_report(
+    local_logits: torch.Tensor,
+    global_labels: torch.Tensor,
+    label_names: list[str],
+) -> dict[str, object]:
+    local_to_global = [DEFAULT_VOCAB.label_to_index[label_name] for label_name in label_names]
+    local_labels = torch.full_like(global_labels, fill_value=-1)
+    in_scope = torch.zeros_like(global_labels, dtype=torch.bool)
+    for local_idx, global_idx in enumerate(local_to_global):
+        mask = global_labels == global_idx
+        local_labels[mask] = local_idx
+        in_scope |= mask
+    if not bool(in_scope.any()):
+        return {
+            "scope_label_names": label_names,
+            "in_scope_count": 0,
+            "accuracy": 0.0,
+            "macro_f1": 0.0,
+            "confusion_matrix": [[0 for _ in label_names] for _ in label_names],
+            "per_class": [
+                {
+                    "label_name": label_name,
+                    "support": 0,
+                    "precision": 0.0,
+                    "recall": 0.0,
+                    "f1": 0.0,
+                }
+                for label_name in label_names
+            ],
+        }
+    scoped_logits = local_logits[in_scope]
+    scoped_labels = local_labels[in_scope]
+    metrics = compute_system_metrics(
+        class_logits=scoped_logits,
+        class_labels=scoped_labels,
+        route_logits=torch.zeros((scoped_logits.shape[0], 1)),
+        route_labels=torch.zeros((scoped_logits.shape[0],), dtype=torch.long),
+        num_classes=len(label_names),
+    ).classification
+    per_class = compute_per_class_metrics(scoped_logits, scoped_labels, label_names)
+    confusion = compute_confusion_matrix(scoped_logits, scoped_labels, len(label_names))
+    return {
+        "scope_label_names": label_names,
+        "in_scope_count": int(in_scope.sum().item()),
+        "accuracy": float(metrics.accuracy),
+        "macro_f1": float(metrics.macro_f1),
+        "confusion_matrix": confusion.tolist(),
+        "per_class": [
+            {
+                "label_name": item.label_name,
+                "support": item.support,
+                "precision": item.precision,
+                "recall": item.recall,
+                "f1": item.f1,
+            }
+            for item in per_class
+        ],
+    }
+
+
+def _expert2_internal_report(expert_outputs: dict[str, torch.Tensor], class_labels: torch.Tensor) -> dict[str, object]:
+    logits = expert_outputs.get("expert2_logits")
+    if logits is None:
+        return {}
+    aircraft_idx = DEFAULT_VOCAB.label_to_index["AircraftTarget"]
+    local_preds = logits.argmax(dim=-1)
+    local_labels = (class_labels == aircraft_idx).to(dtype=torch.long)
+    metrics = compute_system_metrics(
+        class_logits=logits,
+        class_labels=local_labels,
+        route_logits=torch.zeros((logits.shape[0], 1)),
+        route_labels=torch.zeros((logits.shape[0],), dtype=torch.long),
+        num_classes=2,
+    ).classification
+    confusion = compute_confusion_matrix(logits, local_labels, 2)
+    per_class = compute_per_class_metrics(logits, local_labels, ["NonAircraft", "Aircraft"])
+    aircraft_mask = class_labels == aircraft_idx
+    non_aircraft_mask = ~aircraft_mask
+    false_aircraft = (local_preds == 1) & non_aircraft_mask
+    return {
+        "label_names": ["NonAircraft", "Aircraft"],
+        "accuracy": float(metrics.accuracy),
+        "macro_f1": float(metrics.macro_f1),
+        "confusion_matrix": confusion.tolist(),
+        "per_class": [
+            {
+                "label_name": item.label_name,
+                "support": item.support,
+                "precision": item.precision,
+                "recall": item.recall,
+                "f1": item.f1,
+            }
+            for item in per_class
+        ],
+        "aircraft_precision": float(per_class[1].precision),
+        "aircraft_recall": float(per_class[1].recall),
+        "false_aircraft_rate": float(false_aircraft.float().sum().item() / non_aircraft_mask.float().sum().item())
+        if bool(non_aircraft_mask.any())
+        else 0.0,
+    }
+
+
+def _expert3_rule_report(
+    expert_outputs: dict[str, torch.Tensor],
+    class_labels: torch.Tensor,
+    route_labels: torch.Tensor,
+) -> dict[str, object]:
+    logits = expert_outputs.get("expert3_logits")
+    if logits is None:
+        return {}
+    high_idx = ROUTE_NAMES.index("high_altitude_filter")
+    selected = logits.argmax(dim=-1) == 1
+    selected_count = int(selected.sum().item())
+    expected = route_labels == high_idx
+    correct = selected & expected
+    selected_label_distribution = {
+        label_name: int((selected & (class_labels == label_idx)).sum().item())
+        for label_idx, label_name in enumerate(DEFAULT_VOCAB.labels)
+        if int((selected & (class_labels == label_idx)).sum().item()) > 0
+    }
+    return {
+        "selected_count": selected_count,
+        "expected_count": int(expected.sum().item()),
+        "correct_count": int(correct.sum().item()),
+        "precision": int(correct.sum().item()) / selected_count if selected_count > 0 else 0.0,
+        "recall": int(correct.sum().item()) / int(expected.sum().item()) if bool(expected.any()) else 0.0,
+        "selected_label_distribution": selected_label_distribution,
+    }
+
+
+def _expert4_internal_report(expert_outputs: dict[str, torch.Tensor], class_labels: torch.Tensor) -> dict[str, object]:
+    logits = expert_outputs.get("expert4_logits")
+    if logits is None:
+        return {}
+    report = _local_expert_report(logits, class_labels, ["PeopleTarget", "CarTarget", "ShipTarget"])
+    people_idx = DEFAULT_VOCAB.label_to_index["PeopleTarget"]
+    car_idx_local = 1
+    local_preds = logits.argmax(dim=-1)
+    people_mask = class_labels == people_idx
+    report["people_as_car_count"] = int(((local_preds == car_idx_local) & people_mask).sum().item())
+    report["people_as_car_rate"] = (
+        int(((local_preds == car_idx_local) & people_mask).sum().item()) / int(people_mask.sum().item())
+        if bool(people_mask.any())
+        else 0.0
+    )
+    return report
+
+
+def _expert1_branch_report(expert_outputs: dict[str, torch.Tensor], class_labels: torch.Tensor) -> dict[str, object]:
+    traj_logits = expert_outputs.get("expert1_traj_logits")
+    rd_logits = expert_outputs.get("expert1_rd_logits")
+    if traj_logits is None or rd_logits is None:
+        return {}
+    low_indices = [DEFAULT_VOCAB.label_to_index[label_name] for label_name in LOW_ALTITUDE_CLASSES]
+    low_mask = torch.zeros_like(class_labels, dtype=torch.bool)
+    local_labels = torch.full_like(class_labels, fill_value=-1)
+    for local_idx, global_idx in enumerate(low_indices):
+        mask = class_labels == global_idx
+        low_mask |= mask
+        local_labels[mask] = local_idx
+    rd_mask = expert_outputs.get("rd_is_multimodal")
+    rd_mask = rd_mask.bool() if rd_mask is not None else torch.zeros_like(class_labels, dtype=torch.bool)
+    trajectory = _local_expert_report(traj_logits, class_labels, LOW_ALTITUDE_CLASSES)
+    rd_all = _local_expert_report(rd_logits, class_labels, LOW_ALTITUDE_CLASSES)
+    rd_on_rd = _local_expert_report(rd_logits[rd_mask], class_labels[rd_mask], LOW_ALTITUDE_CLASSES) if bool(rd_mask.any()) else _local_expert_report(rd_logits[:0], class_labels[:0], LOW_ALTITUDE_CLASSES)
+    traj_confidence = expert_outputs.get("expert1_traj_confidence")
+    traj_entropy = expert_outputs.get("expert1_traj_entropy")
+    fusion_weights = expert_outputs.get("expert1_fusion_weights")
+    high_conf_correct = high_conf_wrong = 0
+    if traj_confidence is not None and bool(low_mask.any()):
+        traj_preds = traj_logits.argmax(dim=-1)
+        high_conf = low_mask & (traj_confidence > 0.8)
+        high_conf_correct = int(((traj_preds == local_labels) & high_conf).sum().item())
+        high_conf_wrong = int(((traj_preds != local_labels) & high_conf).sum().item())
+    return {
+        "trajectory": trajectory,
+        "rd": rd_all,
+        "rd_on_rd": rd_on_rd,
+        "traj_confidence_mean": _mean_or_zero(traj_confidence, low_mask) if traj_confidence is not None else 0.0,
+        "traj_entropy_mean": _mean_or_zero(traj_entropy, low_mask) if traj_entropy is not None else 0.0,
+        "traj_confidence_gt_0_8_correct_count": high_conf_correct,
+        "traj_confidence_gt_0_8_wrong_count": high_conf_wrong,
+        "fusion_weight_mean": fusion_weights.float().mean(dim=0).tolist() if fusion_weights is not None and fusion_weights.numel() > 0 else [],
+    }
+
+
+def _rd_prototype_similarity(model: nn.Module | None) -> dict[str, object]:
+    if model is None or not hasattr(model, "low_altitude_expert"):
+        return {}
+    rd_head = getattr(model.low_altitude_expert, "rd_head", None)
+    if rd_head is None or not hasattr(rd_head, "weight"):
+        return {}
+    with torch.no_grad():
+        weight = torch.nn.functional.normalize(rd_head.weight.detach().cpu(), dim=-1)
+        matrix = weight @ weight.T
+    return {
+        "label_names": LOW_ALTITUDE_CLASSES,
+        "cosine_matrix": matrix.tolist(),
     }
 
 
@@ -1962,6 +2199,32 @@ def _per_class_before_after_recall(
     return result
 
 
+def _safety_critical_pair_changes(
+    labels: torch.Tensor,
+    without_preds: torch.Tensor,
+    with_preds: torch.Tensor,
+) -> dict[str, dict[str, int]]:
+    result: dict[str, dict[str, int]] = {}
+    for true_label, pred_label in SAFETY_CRITICAL_PAIRS:
+        true_idx = DEFAULT_VOCAB.label_to_index.get(true_label)
+        pred_idx = DEFAULT_VOCAB.label_to_index.get(pred_label)
+        if true_idx is None or pred_idx is None:
+            continue
+        before = (labels == true_idx) & (without_preds == pred_idx)
+        after = (labels == true_idx) & (with_preds == pred_idx)
+        reduced = before & ~after
+        introduced = ~before & after
+        key = f"{true_label}->{pred_label}"
+        result[key] = {
+            "before_count": int(before.sum().item()),
+            "after_count": int(after.sum().item()),
+            "delta": int(after.sum().item() - before.sum().item()),
+            "reduced_count": int(reduced.sum().item()),
+            "introduced_count": int(introduced.sum().item()),
+        }
+    return result
+
+
 def _expert1_scope_report(
     class_logits: torch.Tensor,
     class_labels: torch.Tensor,
@@ -2032,6 +2295,7 @@ def _reroute_comparison(without_metrics: dict[str, object], with_metrics: dict[s
         "unchanged_count": int((~changed).sum().item()),
         "reason_distribution": _reroute_reason_distribution(with_metrics.get("reroute_diagnostics", {})),
         "per_class_before_after_recall": _per_class_before_after_recall(labels, without_preds, with_preds),
+        "safety_critical_pairs": _safety_critical_pair_changes(labels, without_preds, with_preds),
         "sample_outcomes": sample_outcomes,
     }
 
@@ -2314,6 +2578,21 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
     return records
 
 
+def _expert_internal_report(epoch_metrics: dict[str, object], model: nn.Module | None = None) -> dict[str, object]:
+    class_labels = epoch_metrics["class_labels"]
+    route_labels = epoch_metrics["route_labels"]
+    expert_outputs = epoch_metrics.get("expert_outputs", {})
+    if not isinstance(expert_outputs, dict):
+        expert_outputs = {}
+    return {
+        "expert1_low_altitude": _expert1_branch_report(expert_outputs, class_labels),
+        "expert2_conventional_air": _expert2_internal_report(expert_outputs, class_labels),
+        "expert3_high_altitude_rule": _expert3_rule_report(expert_outputs, class_labels, route_labels),
+        "expert4_ground": _expert4_internal_report(expert_outputs, class_labels),
+        "rd_prototype_similarity": _rd_prototype_similarity(model),
+    }
+
+
 def _attach_reroute_outcomes_to_predictions(
     evaluation_report: dict[str, object],
     reroute_comparison: dict[str, object],
@@ -2338,7 +2617,7 @@ def _attach_reroute_outcomes_to_predictions(
             record["with_reroute_pred"] = outcome.get("with_pred")
 
 
-def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, object]:
+def _build_evaluation_report(epoch_metrics: dict[str, object], model: nn.Module | None = None) -> dict[str, object]:
     class_logits = epoch_metrics["class_logits"]
     class_labels = epoch_metrics["class_labels"]
     route_logits = epoch_metrics["route_logits"]
@@ -2379,6 +2658,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         "critical_metrics": critical_metrics,
         "aircraft_arbitration": critical_metrics["aircraft"],
         "expert1_low_altitude": _expert1_scope_report(class_logits, class_labels, route_logits, route_labels),
+        "expert_internal": _expert_internal_report(epoch_metrics, model=model),
         "fine_label_distribution": _fine_label_distribution(epoch_metrics.get("fine_label_names", [])),
         "by_source": epoch_metrics.get("source_report") or _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
         "predictions": _prediction_records(epoch_metrics),
@@ -2733,7 +3013,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     reroute_comparison["without_reroute_mode"] = without_reroute_mode
     reroute_comparison["with_reroute_mode"] = with_reroute_mode
     reroute_config = asdict(_system_reroute_config(config))
-    evaluation_report = _build_evaluation_report(test_metrics)
+    evaluation_report = _build_evaluation_report(test_metrics, model=model)
     evaluation_report["device"] = device_info
     evaluation_report["selected_fusion_mode"] = selected_fusion_mode
     evaluation_report["fusion_mode_selection_policy"] = config.fusion_mode_selection_policy

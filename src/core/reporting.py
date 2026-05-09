@@ -223,6 +223,19 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                     f"{int(bool(item.get('reroute_helped', False)))} | "
                     f"{int(bool(item.get('reroute_harmed', False)))} |"
                 )
+        safety_pairs = reroute_comparison.get("safety_critical_pairs", {})
+        if isinstance(safety_pairs, dict) and safety_pairs:
+            lines.append("")
+            lines.append("| 安全关键误判对 | before | after | delta | reduced | introduced |")
+            lines.append("|---|---:|---:|---:|---:|---:|")
+            for pair_name, item in safety_pairs.items():
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"| {pair_name} | {item.get('before_count', 0)} | "
+                    f"{item.get('after_count', 0)} | {item.get('delta', 0)} | "
+                    f"{item.get('reduced_count', 0)} | {item.get('introduced_count', 0)} |"
+                )
         lines.append("")
     ground_metrics = {}
     if isinstance(critical_metrics, dict):
@@ -285,6 +298,88 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             lines.append("|---|---:|")
             for source_name, count in sorted(fp_by_source.items(), key=lambda item: str(item[0])):
                 lines.append(f"| {source_name} | {count} |")
+        lines.append("")
+    expert_internal = report.get("expert_internal", {})
+    if isinstance(expert_internal, dict) and expert_internal:
+        lines.append("## 专家内部性能")
+        expert2 = expert_internal.get("expert2_conventional_air", {})
+        if isinstance(expert2, dict) and expert2:
+            lines.append("### Expert2 常规空中")
+            lines.append(
+                f"- accuracy={_format_float(float(expert2.get('accuracy', 0.0)))}, "
+                f"macro_f1={_format_float(float(expert2.get('macro_f1', 0.0)))}, "
+                f"aircraft_precision={_format_float(float(expert2.get('aircraft_precision', 0.0)))}, "
+                f"aircraft_recall={_format_float(float(expert2.get('aircraft_recall', 0.0)))}"
+            )
+            matrix = expert2.get("confusion_matrix", [])
+            labels = expert2.get("label_names", [])
+            if isinstance(matrix, list) and isinstance(labels, list) and matrix:
+                lines.append("| true/pred | " + " | ".join(str(label) for label in labels) + " |")
+                lines.append("|---" + "|---:" * len(labels) + "|")
+                for idx, row in enumerate(matrix):
+                    label = labels[idx] if idx < len(labels) else str(idx)
+                    lines.append(f"| {label} | " + " | ".join(str(value) for value in row) + " |")
+        expert3 = expert_internal.get("expert3_high_altitude_rule", {})
+        if isinstance(expert3, dict) and expert3:
+            lines.append("### Expert3 高空规则")
+            lines.append(
+                f"- selected={expert3.get('selected_count', 0)}, "
+                f"expected={expert3.get('expected_count', 0)}, "
+                f"precision={_format_float(float(expert3.get('precision', 0.0)))}, "
+                f"recall={_format_float(float(expert3.get('recall', 0.0)))}"
+            )
+        expert4 = expert_internal.get("expert4_ground", {})
+        if isinstance(expert4, dict) and expert4:
+            lines.append("### Expert4 地面")
+            lines.append(
+                f"- accuracy={_format_float(float(expert4.get('accuracy', 0.0)))}, "
+                f"macro_f1={_format_float(float(expert4.get('macro_f1', 0.0)))}, "
+                f"people_as_car_rate={_format_float(float(expert4.get('people_as_car_rate', 0.0)))}"
+            )
+            matrix = expert4.get("confusion_matrix", [])
+            labels = expert4.get("scope_label_names", [])
+            if isinstance(matrix, list) and isinstance(labels, list) and matrix:
+                lines.append("| true/pred | " + " | ".join(str(label) for label in labels) + " |")
+                lines.append("|---" + "|---:" * len(labels) + "|")
+                for idx, row in enumerate(matrix):
+                    label = labels[idx] if idx < len(labels) else str(idx)
+                    lines.append(f"| {label} | " + " | ".join(str(value) for value in row) + " |")
+        expert1 = expert_internal.get("expert1_low_altitude", {})
+        if isinstance(expert1, dict) and expert1:
+            trajectory = expert1.get("trajectory", {})
+            rd_on_rd = expert1.get("rd_on_rd", {})
+            lines.append("### Expert1 轨迹/RD")
+            if isinstance(trajectory, dict):
+                lines.append(
+                    f"- trajectory: accuracy={_format_float(float(trajectory.get('accuracy', 0.0)))}, "
+                    f"macro_f1={_format_float(float(trajectory.get('macro_f1', 0.0)))}"
+                )
+            if isinstance(rd_on_rd, dict):
+                lines.append(
+                    f"- rd_on_rd: accuracy={_format_float(float(rd_on_rd.get('accuracy', 0.0)))}, "
+                    f"macro_f1={_format_float(float(rd_on_rd.get('macro_f1', 0.0)))}"
+                )
+            lines.append(
+                f"- traj_confidence_mean={_format_float(float(expert1.get('traj_confidence_mean', 0.0)))}, "
+                f"traj_entropy_mean={_format_float(float(expert1.get('traj_entropy_mean', 0.0)))}, "
+                f"traj_conf>0.8 correct/wrong={expert1.get('traj_confidence_gt_0_8_correct_count', 0)} / "
+                f"{expert1.get('traj_confidence_gt_0_8_wrong_count', 0)}"
+            )
+        rd_proto = expert_internal.get("rd_prototype_similarity", {})
+        if isinstance(rd_proto, dict) and rd_proto:
+            labels = rd_proto.get("label_names", [])
+            matrix = rd_proto.get("cosine_matrix", [])
+            if isinstance(labels, list) and isinstance(matrix, list) and matrix:
+                lines.append("### RD CosFace 原型相似度")
+                lines.append("| class | " + " | ".join(str(label) for label in labels) + " |")
+                lines.append("|---" + "|---:" * len(labels) + "|")
+                for idx, row in enumerate(matrix):
+                    label = labels[idx] if idx < len(labels) else str(idx)
+                    lines.append(
+                        f"| {label} | "
+                        + " | ".join(_format_float(float(value)) for value in row)
+                        + " |"
+                    )
         lines.append("")
     expert1_scope = report.get("expert1_low_altitude", {})
     if isinstance(expert1_scope, dict) and "routed" in expert1_scope:

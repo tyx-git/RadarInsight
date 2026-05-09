@@ -2904,4 +2904,71 @@
 ### 当前边界
 
 - 本轮仍未重新训练，尚无新的 accuracy / macro F1。
-- Aircraft 独立阈值校准、Expert2 / Expert4 reject reason 细分、calibrated candidate score 仍是后续任务。
+- Aircraft 独立阈值校准、Expert2 / Expert4 reject reason 细分、calibrated candidate 从 eval-only probe 推进到默认仲裁仍是后续任务。
+
+## 2026-05-09：专家内部报告与安全关键回退对比
+
+### 问题
+
+1. `target.md` 的性能清单里还有多项已经可以通过现有 System 前向结果计算，但评估报告没有集中输出：
+   - Expert2 内部混淆矩阵；
+   - Expert3 高空规则命中正确率；
+   - Expert4 地面内部混淆矩阵；
+   - RD CosFace 原型相似度矩阵；
+   - 安全关键误判对在 reroute 前后的变化。
+2. System 端只看最终 9 类指标时，无法判断问题发生在专家本地 head、路由/仲裁，还是最终融合。
+3. Expert1 的轨迹快速分支置信度和熵还没有进入 System 级报告，不利于后续设计 deep_reroute 激活条件。
+
+### 解决方案
+
+1. 在 `_run_epoch()` 中复用已有一次前向结果，聚合本地专家输出，不新增训练路径：
+   - `expert2_logits`
+   - `expert3_logits`
+   - `expert4_logits`
+   - `expert1_traj_logits`
+   - `expert1_rd_logits`
+   - `expert1_traj_confidence`
+   - `expert1_traj_entropy`
+   - `expert1_fusion_weights`
+   - `rd_is_multimodal`
+2. 新增纯评估报告函数：
+   - Expert2 open-set 二分类 local confusion / precision / recall / false aircraft rate。
+   - Expert3 rule selected / expected / precision / recall / selected label distribution。
+   - Expert4 People / Car / Ship local confusion、People -> Car 比例。
+   - Expert1 trajectory / RD / RD-on-RD 本地指标、轨迹高置信正确/错误数量、融合权重均值。
+   - RD CosFace prototype cosine matrix。
+3. `_reroute_comparison()` 增加固定安全关键误判对的 before / after / delta / reduced / introduced。
+4. Markdown 报告新增：
+   - “专家内部性能”章节；
+   - “安全关键误判对”回退前后变化表。
+5. `target.md` 删除上述已落地项，仅保留推理延迟、reject reason 细分、弱源增强、Expert4 People -> background 等未落地任务。
+
+### 最终落地
+
+- `src/core/system_trainer.py`
+  - epoch metrics 增加 `expert_outputs`。
+  - evaluation report 增加 `expert_internal`。
+  - reroute comparison 增加 `safety_critical_pairs`。
+- `src/core/reporting.py`
+  - Markdown 渲染专家内部性能、RD prototype 相似度和安全关键误判对。
+- `target.md`
+  - 移除本轮已完成的报告类任务。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- `_expert_internal_report()` 定向 smoke 通过：
+  - Expert2 local macro F1 可输出；
+  - Expert4 People -> Car 统计可输出；
+  - Expert1 trajectory / RD 字段可输出。
+- `_reroute_comparison()` safety pair smoke 通过，`BirdTarget->DroneTarget` before / after 计数可输出。
+- `build_markdown_report()` 专家内部报告 smoke 通过：
+  - “专家内部性能”章节可渲染；
+  - “安全关键误判对”表可渲染；
+  - “RD CosFace 原型相似度”表可渲染。
+
+### 当前边界
+
+- 本轮仍未重新训练，尚无新的 accuracy / macro F1。
+- 新增的是评估与报告能力，不代表 Expert2/Expert4 本身已完成优化。
+- 推理延迟剖析尚未实现。
