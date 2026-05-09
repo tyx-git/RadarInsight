@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .schema import TRACK_INDEX_COLUMNS, TRACK_SCHEMA_COLUMNS
+from src.core.data.labels import two_layer_label_fields
 
 
 RAW_LABEL_MAP = {
@@ -76,6 +77,13 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
     index_rows: List[Dict[str, object]] = []
     for item in records:
         tr_path = project_root / Path(item["tr_file"])
+        label_name = RAW_LABEL_MAP.get(item["label"], item["label"])
+        label_fields = two_layer_label_fields(
+            label_name,
+            source_name="raw_tr_rd",
+            batch_id=item["segment"],
+            label_name_raw=item["label"],
+        )
         with h5py.File(tr_path, "r") as handle:
             time_raw = np.array(handle["DATA_time"]).reshape(-1)
             azimuth = np.array(handle["A"]).reshape(-1)
@@ -106,7 +114,9 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "longitude": np.nan,
                 "batch_id": item["segment"],
                 "label_name_raw": item["label"],
-                "label_name": RAW_LABEL_MAP.get(item["label"], item["label"]),
+                "label_name": label_name,
+                "coarse_label": label_fields["coarse_label"],
+                "fine_label": label_fields["fine_label"],
                 "label_id": np.nan,
                 "note_text": "",
             }
@@ -123,7 +133,9 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "timestamp": item["timestamp"],
                 "batch_id": item["segment"],
                 "label_name_raw": item["label"],
-                "label_name": RAW_LABEL_MAP.get(item["label"], item["label"]),
+                "label_name": label_name,
+                "coarse_label": label_fields["coarse_label"],
+                "fine_label": label_fields["fine_label"],
                 "record_count": frame_count,
                 "time_seconds_min": float(df["time_seconds"].min()) if frame_count else np.nan,
                 "time_seconds_max": float(df["time_seconds"].max()) if frame_count else np.nan,
@@ -131,6 +143,8 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "rd_path": Path(item["rd_file"]).relative_to(project_root).as_posix(),
                 "rd_summary_csv_path": rd_summary_map.get(item["pair_id"], {}).get("summary_csv_path", ""),
                 "rd_tensor_path": rd_summary_map.get(item["pair_id"], {}).get("rd_tensor_path", ""),
+                "rd_phase_missing": False,
+                "height_missing": True,
             }
         )
     return index_rows
@@ -155,6 +169,18 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
         merged["time_seconds"] = _normalize_time_seconds(merged["Time"].to_numpy(dtype=float))
         merged["label_name_raw"] = merged["MarkType"].fillna("UnknownTarget").astype(str)
         merged["label_name"] = merged["label_name_raw"].map(EXCEL_MARKTYPE_MAP).fillna("UnknownTarget")
+        label_fields = merged.apply(
+            lambda row: two_layer_label_fields(
+                str(row["label_name"]),
+                source_name="excel_track",
+                label_id=row.get("MarkTypeID"),
+                batch_id=row.get("Batch"),
+                label_name_raw=str(row["label_name_raw"]),
+            ),
+            axis=1,
+        )
+        merged["coarse_label"] = label_fields.map(lambda item: item["coarse_label"])
+        merged["fine_label"] = label_fields.map(lambda item: item["fine_label"])
         merged["record_id"] = [
             f"{item['pair_id']}#{idx:04d}" for idx in range(len(merged))
         ]
@@ -181,6 +207,8 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "batch_id": merged["Batch"].astype(str),
                 "label_name_raw": merged["label_name_raw"].astype(str),
                 "label_name": merged["label_name"].astype(str),
+                "coarse_label": merged["coarse_label"].astype(str),
+                "fine_label": merged["fine_label"].astype(str),
                 "label_id": merged["MarkTypeID"],
                 "note_text": merged["Notes"].fillna("").astype(str),
             }
@@ -218,6 +246,19 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                 raw_label_name = raw_label_values[0]
             else:
                 raw_label_name = "MixedLabel"
+            fine_label_values = sorted(
+                {
+                    str(value)
+                    for value in batch_df["fine_label"].dropna().astype(str)
+                    if str(value).strip()
+                }
+            )
+            if not fine_label_values:
+                fine_label = label_name
+            elif len(fine_label_values) == 1:
+                fine_label = fine_label_values[0]
+            else:
+                fine_label = "MixedLabel"
             batch_df["pair_id"] = f"{item['pair_id']}|batch{batch_id}"
             output_path = output_dir / f"{item['pair_id']}__batch_{batch_id}.csv"
             batch_df.to_csv(output_path, index=False, encoding="utf-8")
@@ -231,6 +272,8 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                     "batch_id": batch_id,
                     "label_name_raw": raw_label_name,
                     "label_name": label_name,
+                    "coarse_label": label_name,
+                    "fine_label": fine_label,
                     "record_count": len(batch_df),
                     "time_seconds_min": float(batch_df["time_seconds"].min()) if len(batch_df) else np.nan,
                     "time_seconds_max": float(batch_df["time_seconds"].max()) if len(batch_df) else np.nan,
@@ -238,6 +281,8 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                     "rd_path": "",
                     "rd_summary_csv_path": "",
                     "rd_tensor_path": "",
+                    "rd_phase_missing": True,
+                    "height_missing": False,
                 }
             )
     return index_rows

@@ -74,6 +74,9 @@ class LowAltitudeFusionOutput:
     fusion_weights: torch.Tensor
     rd_activated: torch.Tensor
     rejected_unknown: torch.Tensor
+    reject_score: torch.Tensor | None = None
+    reject_reasons: dict[str, torch.Tensor] | None = None
+    inference_mode: str = "dual_main"
 
 
 
@@ -487,9 +490,21 @@ class LowAltitudeSuspectExpert(nn.Module):
         return corrected, reject_mask
 
     def acceptance(self, output: LowAltitudeFusionOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
-        confidence = output.traj_cosine.max(dim=-1).values
+        traj_confidence = output.traj_cosine.max(dim=-1).values
+        rd_confidence = output.rd_cosine.max(dim=-1).values
+        confidence = torch.where(output.rd_activated, torch.maximum(traj_confidence, rd_confidence), traj_confidence)
         threshold_value = float(self.reject_threshold if threshold is None else threshold)
-        return confidence, confidence >= threshold_value
+        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
+        predicted_unknown = output.logits.argmax(dim=-1) == unknown_index
+        reject_score = output.reject_score
+        if reject_score is None:
+            reject_score = torch.zeros_like(confidence)
+        if output.inference_mode == "deep_reroute":
+            residual_accept = predicted_unknown & (output.residual_score >= 0.55)
+            known_accept = (~predicted_unknown) & (confidence >= threshold_value) & (reject_score < 1.25)
+            return confidence, known_accept | residual_accept
+        accepted = (confidence >= threshold_value) & (~predicted_unknown) & (reject_score < 0.75)
+        return confidence, accepted
 
     def _rd_class_gate_logits(
         self,
@@ -532,7 +547,11 @@ class LowAltitudeSuspectExpert(nn.Module):
         enable_reject: bool = True,
         force_rd_activation: bool = False,
         disable_rd_activation: bool = False,
+        inference_mode: str = "dual_main",
     ) -> LowAltitudeFusionOutput:
+        if inference_mode not in {"dual_main", "deep_reroute"}:
+            raise ValueError(f"unsupported low-altitude inference mode: {inference_mode}")
+        deep_reroute = inference_mode == "deep_reroute"
         traj_features = self.traj_backbone(traj_input)
         traj_cosine, traj_logits = self.traj_head(traj_features, labels=low_altitude_targets)
         rd_context_features = self._encode_rd_context(
@@ -656,6 +675,9 @@ class LowAltitudeSuspectExpert(nn.Module):
         fusion_weights = torch.softmax(gate_logits, dim=-1)
         rd_class_fusion_weights = 0.05 + 0.60 * torch.sigmoid(rd_class_gate_logits)
         rd_pair_fusion_weights = 0.05 + 0.85 * torch.sigmoid(rd_pair_gate_logits)
+        if deep_reroute:
+            rd_class_fusion_weights = torch.clamp(rd_class_fusion_weights + 0.20, max=0.90)
+            rd_pair_fusion_weights = torch.clamp(rd_pair_fusion_weights + 0.20, max=0.98)
         if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
             rd_class_fusion_weights = torch.where(
                 rd_is_multimodal.bool().unsqueeze(-1),
@@ -677,13 +699,15 @@ class LowAltitudeSuspectExpert(nn.Module):
         if disable_rd_activation:
             rd_activated = torch.zeros_like(has_rd, dtype=torch.bool)
         else:
-            forced_rd = torch.full_like(has_rd, bool(force_rd_activation), dtype=torch.bool)
+            forced_rd = torch.full_like(has_rd, bool(force_rd_activation or deep_reroute), dtype=torch.bool)
             rd_activated = has_rd & (
                 forced_rd
                 | (traj_confidence < self.rd_activation_threshold)
                 | (rd_class_activation > self.rd_class_activation_threshold)
                 | (rd_pair_activation > self.rd_class_activation_threshold)
             )
+            if inference_mode == "dual_main":
+                rd_activated = has_rd
         fused_cosine = 0.5 * (traj_cosine + rd_cosine)
         selected_logits = torch.where(rd_activated.unsqueeze(-1), fused_logits, traj_logits)
         pair_selected_logits = selected_logits.clone()
@@ -704,10 +728,17 @@ class LowAltitudeSuspectExpert(nn.Module):
                 (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold)
                 | (pair_rd_margin > 0.05)
             )
+            if deep_reroute:
+                pair_active = rd_activated
             strong_pair_takeover = pair_active & (
                 (pair_rd_margin > 0.20)
                 | (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold + 0.15)
             )
+            if deep_reroute:
+                strong_pair_takeover = pair_active & (
+                    (pair_rd_margin > -0.05)
+                    | (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold - 0.10)
+                )
             proposed_pair_logits = current_pair_logits + pair_weight * (rd_pair_logits - current_pair_logits)
             adopted_pair_logits = torch.where(
                 strong_pair_takeover.unsqueeze(-1),
@@ -730,6 +761,45 @@ class LowAltitudeSuspectExpert(nn.Module):
         else:
             final_logits = selected_logits
             rejected_unknown = torch.zeros_like(has_rd, dtype=torch.bool)
+        final_probs = torch.softmax(final_logits, dim=-1)
+        top2 = final_probs.topk(k=2, dim=-1)
+        top1_idx = top2.indices[:, 0]
+        top2_idx = top2.indices[:, 1]
+        final_margin = top2.values[:, 0] - top2.values[:, 1]
+        traj_pred = traj_logits.argmax(dim=-1)
+        rd_pred = rd_logits.argmax(dim=-1)
+        drone_bird = {LOW_ALTITUDE_CLASSES.index("DroneTarget"), LOW_ALTITUDE_CLASSES.index("BirdTarget")}
+        unknown_clutter = {unknown_index, clutter_index}
+        bird_clutter = {LOW_ALTITUDE_CLASSES.index("BirdTarget"), clutter_index}
+        drone_unknown = {LOW_ALTITUDE_CLASSES.index("DroneTarget"), unknown_index}
+        pair_ids = torch.stack([top1_idx, top2_idx], dim=-1)
+        high_risk_pair = torch.zeros_like(has_rd, dtype=torch.bool)
+        for pair in (drone_bird, unknown_clutter, bird_clutter, drone_unknown):
+            pair_tensor = torch.tensor(sorted(pair), dtype=torch.long, device=traj_input.device)
+            high_risk_pair |= torch.isin(pair_ids, pair_tensor).all(dim=-1)
+        unknown_trigger = top1_idx == unknown_index
+        evidence_conflict = has_rd & (traj_pred != rd_pred) & (rd_cosine.max(dim=-1).values >= 0.45)
+        low_margin = final_margin < 0.20
+        confusion_trigger = high_risk_pair & low_margin
+        agreement_credit = has_rd & (traj_pred == rd_pred) & (final_margin >= 0.35)
+        reject_score = (
+            unknown_trigger.float() * 1.00
+            + confusion_trigger.float() * 0.75
+            + evidence_conflict.float() * 0.55
+            + low_margin.float() * 0.35
+            - agreement_credit.float() * 0.50
+        )
+        reject_reasons = {
+            "unknown_trigger": unknown_trigger.detach(),
+            "confusion_pair_trigger": confusion_trigger.detach(),
+            "evidence_conflict_trigger": evidence_conflict.detach(),
+            "low_margin_trigger": low_margin.detach(),
+            "agreement_confidence_credit": agreement_credit.detach(),
+            "high_risk_pair": high_risk_pair.detach(),
+            "traj_pred": traj_pred.detach(),
+            "rd_pred": rd_pred.detach(),
+            "final_margin": final_margin.detach(),
+        }
         return LowAltitudeFusionOutput(
             traj_features=traj_features,
             rd_features=rd_features_vec,
@@ -754,6 +824,9 @@ class LowAltitudeSuspectExpert(nn.Module):
             fusion_weights=fusion_weights,
             rd_activated=rd_activated,
             rejected_unknown=rejected_unknown,
+            reject_score=reject_score.detach(),
+            reject_reasons=reject_reasons,
+            inference_mode=inference_mode,
         )
 
 

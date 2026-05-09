@@ -6,6 +6,22 @@ from typing import Iterable, Optional
 
 import pandas as pd
 
+from .labels import DEFAULT_VOCAB, FINE_VOCAB, two_layer_label_fields
+
+
+def _clean_text_value(value: object, fallback: str) -> str:
+    if value is None:
+        return fallback
+    try:
+        if pd.isna(value):
+            return fallback
+    except TypeError:
+        pass
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none"}:
+        return fallback
+    return text
+
 
 @dataclass(frozen=True)
 class ProcessedSample:
@@ -17,6 +33,8 @@ class ProcessedSample:
     batch_id: str
     label_name_raw: str
     label_name: str
+    coarse_label: str
+    fine_label: str
     record_count: int
     time_seconds_min: float
     time_seconds_max: float
@@ -43,6 +61,30 @@ class ProcessedTrackDataset:
             self.index_df["rd_phase_missing"] = False
         if "height_missing" not in self.index_df.columns:
             self.index_df["height_missing"] = False
+        coarse_labels: list[str] = []
+        fine_labels: list[str] = []
+        fine_vocab = FINE_VOCAB.label_to_index
+        coarse_vocab = DEFAULT_VOCAB.label_to_index
+        for row in self.index_df.to_dict(orient="records"):
+            fields = two_layer_label_fields(
+                row["label_name"],
+                source_name=row.get("source_name", ""),
+                batch_id=row.get("batch_id"),
+                label_name_raw=row.get("label_name_raw", ""),
+            )
+            coarse_label = _clean_text_value(row.get("coarse_label"), fields["coarse_label"])
+            fine_label = _clean_text_value(row.get("fine_label"), fields["fine_label"])
+            if coarse_label not in coarse_vocab and fields["coarse_label"] in coarse_vocab:
+                coarse_label = fields["coarse_label"]
+            if fine_label not in fine_vocab:
+                if fields["fine_label"] in fine_vocab:
+                    fine_label = fields["fine_label"]
+                elif coarse_label in fine_vocab:
+                    fine_label = coarse_label
+            coarse_labels.append(coarse_label)
+            fine_labels.append(fine_label)
+        self.index_df["coarse_label"] = coarse_labels
+        self.index_df["fine_label"] = fine_labels
 
     def __len__(self) -> int:
         return len(self.index_df)
@@ -76,6 +118,8 @@ class ProcessedTrackDataset:
                 batch_id=str(row["batch_id"]),
                 label_name_raw=str(row.get("label_name_raw", row["label_name"])),
                 label_name=str(row["label_name"]),
+                coarse_label=str(row.get("coarse_label", row["label_name"])),
+                fine_label=str(row.get("fine_label", row["label_name"])),
                 record_count=int(row["record_count"]),
                 time_seconds_min=float(row["time_seconds_min"]),
                 time_seconds_max=float(row["time_seconds_max"]),
@@ -101,6 +145,8 @@ class ProcessedTrackDataset:
             batch_id=str(row["batch_id"]),
             label_name_raw=str(row.get("label_name_raw", row["label_name"])),
             label_name=str(row["label_name"]),
+            coarse_label=str(row.get("coarse_label", row["label_name"])),
+            fine_label=str(row.get("fine_label", row["label_name"])),
             record_count=int(row["record_count"]),
             time_seconds_min=float(row["time_seconds_min"]),
             time_seconds_max=float(row["time_seconds_max"]),

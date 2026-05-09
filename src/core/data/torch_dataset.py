@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import Dataset
 
 from .track_dataset import TrackDataset
-from .features import encode_track_sequence, extract_physical_features, DEFAULT_VOCAB, load_rd_tensor, encode_multimodal_rd, load_rd_summary_frame, encode_rd_summary
+from .features import encode_track_sequence, extract_physical_features, DEFAULT_VOCAB, FINE_VOCAB, load_rd_tensor, encode_multimodal_rd, load_rd_summary_frame, encode_rd_summary
 from ..router import ROUTE_NAMES
 
 
@@ -18,7 +18,10 @@ class TorchTrackItem:
     sample_id: str
     source_name: str
     label_name: str
+    coarse_label: str
+    fine_label: str
     label_index: int
+    fine_label_index: int
     features: torch.Tensor
     rd_features: torch.Tensor
     rd_patch_features: torch.Tensor
@@ -139,7 +142,10 @@ class TorchTrackDataset(Dataset):
             sample_id=sample.sample_id,
             source_name=sample.source_name,
             label_name=sample.label_name,
+            coarse_label=sample.coarse_label,
+            fine_label=sample.fine_label,
             label_index=DEFAULT_VOCAB.encode(sample.label_name),
+            fine_label_index=FINE_VOCAB.encode(sample.fine_label),
             features=torch.from_numpy(encoded.features),
             rd_features=rd_features,
             rd_patch_features=rd_patch_features,

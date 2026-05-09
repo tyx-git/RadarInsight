@@ -963,6 +963,8 @@ def _run_epoch(
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
     label_names_all: list[str] = []
+    coarse_label_names_all: list[str] = []
+    fine_label_names_all: list[str] = []
     has_rd_all: list[bool] = []
     rd_activated_all: list[bool] = []
     fusion_weights_all: list[torch.Tensor] = []
@@ -1348,6 +1350,8 @@ def _run_epoch(
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
+        coarse_label_names_all.extend(batch.coarse_label_names)
+        fine_label_names_all.extend(batch.fine_label_names)
         has_rd_all.extend([bool(x) for x in batch.rd_is_multimodal.tolist()])
         rd_activated_all.extend([bool(x) for x in output.rd_activated.detach().cpu().tolist()])
         fusion_weights_all.append(output.fusion_weights.detach().cpu())
@@ -1370,6 +1374,8 @@ def _run_epoch(
             "sample_ids": sample_ids_all,
             "source_names": source_names_all,
             "label_names": label_names_all,
+            "coarse_label_names": coarse_label_names_all,
+            "fine_label_names": fine_label_names_all,
             "has_rd": has_rd_all,
             "rd_activated": rd_activated_all,
             "rd_fusion_weight_mean": 0.0,
@@ -1853,6 +1859,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
         },
         "label_names": LOW_ALTITUDE_CLASSES,
+        "fine_label_distribution": {
+            str(label_name): int(test_metrics["fine_label_names"].count(label_name))
+            for label_name in sorted(set(test_metrics.get("fine_label_names", [])))
+        },
         "classification_confusion_matrix": compute_confusion_matrix(
             test_metrics["logits"],
             test_metrics["labels"],

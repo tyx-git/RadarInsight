@@ -2570,3 +2570,208 @@
   - Expert1 RD 降 harm 和提高 rescue。
   - Aircraft/Ground candidate arbitration 标定。
   - source-aware training 提升 `raw_tr_rd`。
+
+## 2026-05-08：两层标签与 Expert1 dual/deep 回退接口落地
+
+### 问题
+
+1. 标签只有单层 `label_name`，CQ-08 标签 1/2 的“旋翼无人机”监督信号被合并进 `DroneTarget` 后完全不可见。后续如果直接做细类训练或报告，会缺少稳定接口。
+2. 标签方案不能引入没有数据证据的细类；`VTOLDrone`、`UnknownDroneSubtype` 这类概念不应写入训练标签。
+3. Expert1 低空识别仍带有“RD 是否激活”的旧语义，而当前架构目标是低空默认 `dual_main`：轨迹主干和 RD 主干都作为主证据。
+4. 已有 System reroute 更接近后处理或一次性专家选择，没有明确表达“第一轮 dual_main，reject 后 deep_reroute”的路径，也缺少 deep 使用诊断字段。
+
+### 解决方案
+
+1. 标签只保留两层：
+   - `coarse_label`：最终业务大类。
+   - `fine_label`：训练/诊断细类。
+2. CQ-08 映射最小化：
+   - 标签 1/2 -> `coarse_label=DroneTarget`，`fine_label=RotorDroneTarget`。
+   - 标签 3/4/5/6 分别保持 Bird/Balloon/Clutter/Unknown。
+3. 旧数据兼容：
+   - 旧 CSV/索引没有 `coarse_label/fine_label` 时由数据层自动推导。
+   - `label_name` 继续作为 coarse 训练标签，避免旧训练链路被破坏。
+4. Expert1 增加正式推理模式：
+   - `dual_main`：默认模式，有 RD 的样本默认进入 RD 融合路径。
+   - `deep_reroute`：更强 RD 接管，增加 class/pair fusion 权重，放宽局部 pair takeover。
+5. Expert1 输出 reject diagnostics：
+   - `reject_score`
+   - `unknown_trigger`
+   - `confusion_pair_trigger`
+   - `evidence_conflict_trigger`
+   - `low_margin_trigger`
+   - `high_risk_pair`
+   - `traj_pred`
+   - `rd_pred`
+6. System reroute 低空路径调整为：
+   - 第一轮使用 Expert1 `dual_main`。
+   - 若低空 accept 失败，再运行 Expert1 `deep_reroute`。
+   - 记录 `reroute_low_altitude_deep_used` 与 `reroute_low_altitude_deep_accepted`。
+
+### 最终落地
+
+- `src/core/data/labels.py`
+  - 增加 `FINE_LABELS`、`FINE_VOCAB`、`two_layer_label_fields()`。
+- `src/process/schema.py`
+  - 增加 `coarse_label`、`fine_label` 到 track schema/index schema。
+- `src/process/standardize_cq08.py`
+  - CQ-08 标签 1/2 推导为 `RotorDroneTarget`。
+- `src/process/standardize_tracks.py`
+  - raw/excel 标准化输出两层标签。
+  - 同步补齐 `rd_phase_missing` / `height_missing`，避免干净重建时列不齐。
+- `src/process/build_training_index.py`
+- `src/process/build_system_index.py`
+- `src/process/build_expert1_index.py`
+  - 兼容旧索引并输出 fine label 统计。
+- `src/core/data/processed_dataset.py`
+- `src/core/data/track_dataset.py`
+- `src/core/data/torch_dataset.py`
+- `src/core/data/collate.py`
+  - batch 中增加 `coarse_label_names`、`fine_label_names`、`fine_labels`。
+- `src/core/experts.py`
+  - `LowAltitudeSuspectExpert.forward(..., inference_mode="dual_main|deep_reroute")`。
+  - `dual_main` 下有 RD 默认参与融合。
+  - `deep_reroute` 强化 RD class/pair fusion，并输出 reject diagnostics。
+- `src/core/system.py`
+  - 推理 reroute 中低空先 dual，再 deep。
+  - 回退诊断增加 deep 使用/接受字段。
+- `src/core/system_trainer.py`
+  - evaluation report 增加 fine label 分布和回退 deep 统计。
+- `src/core/expert1_trainer.py`
+  - Expert1 report 增加 fine label 分布。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- dataloader smoke 通过：
+  - 示例 coarse：`['DroneTarget', 'AircraftTarget']`
+  - 示例 fine：`['RotorDroneTarget', 'AircraftTarget']`
+  - fine ids：`[6, 0]`
+- System forward smoke 通过：
+  - parallel low-altitude mode：`dual_main`
+  - 有 RD 样本 `rd_activated=[True, True]`
+  - `reject_score` shape 正常。
+- System reroute forward smoke 通过：
+  - `reroute_logits` shape 为 `(2, 9)`
+  - 输出 `reroute_low_altitude_deep_used`
+  - 输出 `reroute_count`
+
+### 当前边界
+
+- 本轮没有重新训练。
+- 当前 fine label 已进入数据接口和报告，但 loss 仍使用 coarse label；后续需要单独设计 fine label loss 或专家内部细类监督。
+- `deep_reroute` 目前是增强路径接口和策略增强，尚未引入更高分辨率 RD 数据重采样；后续需要继续扩展 RD 数据编码和 deep 专家头。
+
+## 2026-05-09：System 回退评估双口径与有方向 reject graph
+
+### 问题
+
+1. System 报告已有 fusion candidate probe，但没有固定展示“不开回退”和“开回退”的成对对比，无法判断回退机制是否真正提高 accuracy / macro F1。
+2. 旧 reroute 控制流主要依赖 route logits 惩罚后重新 `argmax`，不是 `target.md` 要求的有方向 reject graph。
+3. 回退样本缺少清晰的路径与原因记录，难以定位是 Expert1 Unknown、低空混淆、Aircraft reject、Ground reject 还是高空规则 reject 导致回退。
+4. Expert1 低空报告只有单一口径，无法同时观察“Router 实际分给 Expert1 的样本”和“真实低空样本”的差异。
+
+### 解决方案
+
+1. 测试报告固定生成 `reroute_comparison`：
+   - `without_reroute_mode`
+   - `with_reroute_mode`
+   - `accuracy_delta`
+   - `macro_f1_delta`
+   - `changed_count`
+   - `helped_count`
+   - `harmed_count`
+2. System reroute 改为显式 reject graph：
+   - Expert1 reject：先 dual -> deep；deep 后仍 reject 时按 Aircraft/Ground evidence 转 Expert2/Expert4，否则 fallback Unknown。
+   - Expert2 reject：有 RD / 低空证据时转 Expert1 deep；Ground evidence 高时转 Expert4，否则 fallback Unknown。
+   - Expert4 reject：Aircraft evidence 高时转 Expert2，有 RD 时转 Expert1，否则 fallback Unknown。
+   - Expert3 不再作为普通候选，硬规则不接受则 fallback。
+3. 回退诊断增加：
+   - `reroute_initial_route`
+   - `reroute_path`
+   - `reroute_reject_reason_code`
+   - `reroute_reject_reason`
+   - `reroute_low_altitude_deep_used`
+   - `reroute_low_altitude_deep_accepted`
+4. System 报告 Expert1 增加双口径：
+   - `routed`
+   - `true_low_altitude`
+
+### 最终落地
+
+- `src/core/system.py`
+  - `_forward_reroute()` 引入 `next_route_override` 和 `route_path`。
+  - 新增按 route/reject reason 的 next-route 决策。
+  - 仍保持 eval-only，不进入训练动态控制流。
+- `src/core/system_trainer.py`
+  - 新增 `REROUTE_REASON_NAMES`。
+  - 新增 `_reroute_comparison()`。
+  - 新增 `_expert1_scope_report()`。
+  - prediction records 记录 `reroute_path` 与可读 reject reason。
+- `src/core/reporting.py`
+  - Markdown 显示回退前后对比。
+  - Markdown 显示 reroute reason 分布、Expert1 deep 使用率/接受率。
+  - Markdown 显示 Expert1 routed / true-low-altitude 双口径。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- System reroute forward smoke 通过：
+  - `reroute_logits` shape 正常。
+  - `reroute_path` 正常输出。
+  - `reroute_reject_reason_code` 正常输出。
+  - 随机初始化模型下样本 fallback 是预期行为，不代表训练性能。
+
+### 当前边界
+
+- 本轮仍未重新训练。
+- 有方向 reject graph 已经进入推理/评估路径，但阈值仍沿用当前 config，需要通过训练后验证集调参。
+- `deep_reroute` 仍是现有 RD 表征上的增强路径，尚未引入更高分辨率 RD patch 或更多帧采样。
+
+## 2026-05-09：两层标签旧索引兼容与 reroute 报告补齐
+
+### 问题
+
+1. 两层标签方案要求“没有可靠细类时，子类名等于大类名”，但最初 `FINE_LABELS` 只包含 `RotorDroneTarget`，没有包含 `DroneTarget`。旧索引或无明确旋翼证据的无人机样本会出现 `fine_label=DroneTarget`，训练入口会在 `FINE_VOCAB.encode()` 处抛 `KeyError`。
+2. 读取层只在索引缺少 `coarse_label` / `fine_label` 列时才推断标签。如果列存在但值为空、旧值非法或半重建索引没有更新，仍可能断链。
+3. Markdown 错分样本表只展示初始路由和最终路由，没有展示 `reroute_path` 和 reject reason，回退路径不可审计。
+4. prediction record 中 `reroute_reject_reason_code` 按 float 写入，不利于后续脚本直接聚合。
+
+### 解决方案
+
+1. `FINE_LABELS` 增加 `DroneTarget`，保留默认细类等于大类的能力；只有 `cq08_track` 的明确 1/2 批次或 raw 标注 `Rotary drone` / 小型、轻型旋翼无人机才归入 `RotorDroneTarget`。
+2. 在 `ProcessedTrackDataset` 入口统一清洗两层标签：
+   - 缺列时推断；
+   - 空值、`nan`、`none` 时回退推断；
+   - fine label 不在 `FINE_VOCAB` 时优先用推断结果，否则回退到合法 coarse label。
+3. Markdown 错分样本表增加：
+   - `回退路径`
+   - `reject reason`
+4. prediction record 将包含 `code` 的 reroute 诊断字段按整数保存。
+
+### 最终落地
+
+- `src/core/data/labels.py`
+  - `FINE_LABELS` 支持 `DroneTarget` 与 `RotorDroneTarget` 并存。
+- `src/core/data/processed_dataset.py`
+  - 新增统一标签清洗逻辑，避免旧索引或半重建索引中断训练。
+- `src/core/reporting.py`
+  - 错分样本表展示回退路径和 reject reason。
+- `src/core/system_trainer.py`
+  - reroute reason code 按 int 写入 prediction record。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- 训练入口 dataloader smoke 通过，batch 可输出：
+  - `coarse_label_names`
+  - `fine_label_names`
+  - `fine_labels`
+- System reroute forward smoke 通过：
+  - `reroute_logits` shape 为 `(4, 9)`。
+  - `reroute_path` / `reroute_reject_reason_code` / `reroute_fallback` 正常输出。
+
+### 当前边界
+
+- 本轮未重新训练，尚无新 accuracy / macro F1。
+- 旧索引读取已兼容，但建议下一次完整数据处理时重新生成所有 processed index，让落盘字段和运行时推断保持一致。

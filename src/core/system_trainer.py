@@ -986,6 +986,8 @@ def _run_epoch(
     sample_ids_all: list[str] = []
     source_names_all: list[str] = []
     label_names_all: list[str] = []
+    coarse_label_names_all: list[str] = []
+    fine_label_names_all: list[str] = []
     route_names_all: list[str] = []
     skipped_non_finite_batches = 0
     runtime_config = config
@@ -1253,6 +1255,8 @@ def _run_epoch(
         sample_ids_all.extend(batch.sample_ids)
         source_names_all.extend(batch.source_names)
         label_names_all.extend(batch.label_names)
+        coarse_label_names_all.extend(batch.coarse_label_names)
+        fine_label_names_all.extend(batch.fine_label_names)
         route_names_all.extend(batch.route_names)
 
     if not class_logits_all:
@@ -1274,6 +1278,8 @@ def _run_epoch(
             "sample_ids": [],
             "source_names": [],
             "label_names": [],
+            "coarse_label_names": [],
+            "fine_label_names": [],
             "route_names": [],
             "skipped_non_finite_batches": skipped_non_finite_batches,
             "has_valid_batches": False,
@@ -1333,6 +1339,8 @@ def _run_epoch(
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
+        "coarse_label_names": coarse_label_names_all,
+        "fine_label_names": fine_label_names_all,
         "route_names": route_names_all,
         "source_report": source_report,
         "skipped_non_finite_batches": skipped_non_finite_batches,
@@ -1615,6 +1623,10 @@ def _reroute_report(
             "reroute_recovery_rate": 0.0,
             "reroute_fallback_rate": 0.0,
             "reroute_worsen_rate": 0.0,
+            "low_altitude_deep_used_count": 0,
+            "low_altitude_deep_used_rate": 0.0,
+            "low_altitude_deep_accepted_count": 0,
+            "low_altitude_deep_accept_rate": 0.0,
             "reroute_count_distribution": {},
         }
     preds = class_logits.argmax(dim=-1)
@@ -1629,6 +1641,10 @@ def _reroute_report(
             "reroute_recovery_rate": 0.0,
             "reroute_fallback_rate": 0.0,
             "reroute_worsen_rate": 0.0,
+            "low_altitude_deep_used_count": 0,
+            "low_altitude_deep_used_rate": 0.0,
+            "low_altitude_deep_accepted_count": 0,
+            "low_altitude_deep_accept_rate": 0.0,
             "reroute_count_distribution": {},
         }
     reroute_triggered = reroute_triggered.bool()
@@ -1642,12 +1658,20 @@ def _reroute_report(
     reroute_worsen_mask = reroute_triggered & ~correct & ~reroute_fallback
     reroute_worsen_rate = float(reroute_worsen_mask.float().sum().item() / triggered_count) if triggered_count > 0 else 0.0
     distribution = torch.bincount(reroute_count, minlength=int(reroute_count.max().item()) + 1 if reroute_count.numel() > 0 else 1)
+    low_deep_used = reroute_diagnostics.get("reroute_low_altitude_deep_used")
+    low_deep_accepted = reroute_diagnostics.get("reroute_low_altitude_deep_accepted")
+    low_deep_used_count = int(low_deep_used.bool().sum().item()) if low_deep_used is not None else 0
+    low_deep_accepted_count = int(low_deep_accepted.bool().sum().item()) if low_deep_accepted is not None else 0
     return {
         "reroute_rate": reroute_rate,
         "reroute_avg_count": reroute_avg_count,
         "reroute_recovery_rate": reroute_recovery_rate,
         "reroute_fallback_rate": fallback_count / total if total > 0 else 0.0,
         "reroute_worsen_rate": reroute_worsen_rate,
+        "low_altitude_deep_used_count": low_deep_used_count,
+        "low_altitude_deep_used_rate": low_deep_used_count / total if total > 0 else 0.0,
+        "low_altitude_deep_accepted_count": low_deep_accepted_count,
+        "low_altitude_deep_accept_rate": low_deep_accepted_count / low_deep_used_count if low_deep_used_count > 0 else 0.0,
         "reroute_count_distribution": {
             str(index): int(value.item())
             for index, value in enumerate(distribution)
@@ -1843,6 +1867,82 @@ def _low_altitude_report(class_logits: torch.Tensor, class_labels: torch.Tensor)
     }
 
 
+def _fine_label_distribution(fine_label_names: list[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for label_name in fine_label_names:
+        key = str(label_name)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+REROUTE_REASON_NAMES = {
+    0: "none",
+    1: "low_unknown",
+    2: "low_confusion_pair",
+    3: "low_evidence_conflict",
+    4: "low_margin",
+    5: "low_other_reject",
+    6: "aircraft_reject",
+    7: "ground_reject",
+    8: "high_altitude_reject",
+}
+
+
+def _reroute_reason_distribution(reroute_diagnostics: dict[str, torch.Tensor] | None) -> dict[str, int]:
+    if not reroute_diagnostics or "reroute_reject_reason_code" not in reroute_diagnostics:
+        return {}
+    codes = reroute_diagnostics["reroute_reject_reason_code"].to(dtype=torch.long)
+    triggered = reroute_diagnostics.get("reroute_triggered")
+    if triggered is not None:
+        codes = codes[triggered.bool()]
+    counts: dict[str, int] = {}
+    for code in codes.tolist():
+        name = REROUTE_REASON_NAMES.get(int(code), f"unknown_{int(code)}")
+        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _expert1_scope_report(
+    class_logits: torch.Tensor,
+    class_labels: torch.Tensor,
+    route_logits: torch.Tensor,
+    route_labels: torch.Tensor,
+) -> dict[str, object]:
+    low_route_idx = ROUTE_NAMES.index("low_altitude_suspect")
+    routed_mask = route_logits.argmax(dim=-1) == low_route_idx
+    true_mask = route_labels == low_route_idx
+    return {
+        "routed": _low_altitude_report(class_logits[routed_mask], class_labels[routed_mask]) if bool(routed_mask.any()) else _low_altitude_report(class_logits[:0], class_labels[:0]),
+        "true_low_altitude": _low_altitude_report(class_logits[true_mask], class_labels[true_mask]) if bool(true_mask.any()) else _low_altitude_report(class_logits[:0], class_labels[:0]),
+        "routed_count": int(routed_mask.sum().item()),
+        "true_low_altitude_count": int(true_mask.sum().item()),
+    }
+
+
+def _reroute_comparison(without_metrics: dict[str, object], with_metrics: dict[str, object]) -> dict[str, object]:
+    without_logits = without_metrics["class_logits"]
+    with_logits = with_metrics["class_logits"]
+    labels = with_metrics["class_labels"]
+    without_preds = without_logits.argmax(dim=-1)
+    with_preds = with_logits.argmax(dim=-1)
+    before_correct = without_preds == labels
+    after_correct = with_preds == labels
+    helped = (~before_correct) & after_correct
+    harmed = before_correct & (~after_correct)
+    changed = without_preds != with_preds
+    return {
+        "without_reroute": _metric_summary(without_metrics),
+        "with_reroute": _metric_summary(with_metrics),
+        "accuracy_delta": float(with_metrics.get("accuracy", 0.0)) - float(without_metrics.get("accuracy", 0.0)),
+        "macro_f1_delta": float(with_metrics.get("macro_f1", 0.0)) - float(without_metrics.get("macro_f1", 0.0)),
+        "changed_count": int(changed.sum().item()),
+        "helped_count": int(helped.sum().item()),
+        "harmed_count": int(harmed.sum().item()),
+        "unchanged_count": int((~changed).sum().item()),
+        "reason_distribution": _reroute_reason_distribution(with_metrics.get("reroute_diagnostics", {})),
+    }
+
+
 def _critical_metric_summary(
     class_logits: torch.Tensor,
     class_labels: torch.Tensor,
@@ -1898,6 +1998,7 @@ def _critical_metric_summary(
         "reroute_recovery_rate": reroute["reroute_recovery_rate"],
         "reroute_fallback_rate": reroute["reroute_fallback_rate"],
         "reroute_worsen_rate": reroute["reroute_worsen_rate"],
+        "reroute_reason_distribution": _reroute_reason_distribution(reroute_diagnostics),
         "aircraft": aircraft,
         "aircraft_system_recall": aircraft["aircraft_system_recall"],
         "aircraft_system_precision": aircraft["aircraft_system_precision"],
@@ -2003,6 +2104,7 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
     route_preds = route_logits.argmax(dim=-1).tolist()
     reroute_selected_route = reroute_diagnostics.get("reroute_selected_route") if isinstance(reroute_diagnostics, dict) else None
     reroute_fallback = reroute_diagnostics.get("reroute_fallback") if isinstance(reroute_diagnostics, dict) else None
+    reroute_path = reroute_diagnostics.get("reroute_path") if isinstance(reroute_diagnostics, dict) else None
     diagnostics = epoch_metrics.get("aircraft_diagnostics", {})
     records: list[dict[str, object]] = []
     for idx, sample_id in enumerate(epoch_metrics["sample_ids"]):
@@ -2021,16 +2123,25 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                 final_route = ROUTE_NAMES[reroute_route_idx]
         elif is_fallback:
             final_route = "fallback_unknown"
+        path_names: list[str] = []
+        if reroute_path is not None:
+            for route_idx_value in reroute_path[idx].tolist():
+                route_idx_int = int(route_idx_value)
+                if 0 <= route_idx_int < len(ROUTE_NAMES):
+                    path_names.append(ROUTE_NAMES[route_idx_int])
         record = {
             "sample_id": sample_id,
             "source_name": str(epoch_metrics["source_names"][idx]),
             "label_name_true": true_label,
+            "coarse_label_true": str(epoch_metrics.get("coarse_label_names", epoch_metrics["label_names"])[idx]),
+            "fine_label_true": str(epoch_metrics.get("fine_label_names", epoch_metrics["label_names"])[idx]),
             "label_name_pred": pred_label,
             "label_name_pred_without_aircraft_protection": pred_without_protection,
             "route_name_true": true_route,
             "route_name_router_pred": router_route,
             "route_name_pred": router_route,
             "route_name_final": final_route,
+            "reroute_path": path_names,
             "is_correct": pred_label == true_label,
             "is_route_correct": router_route == true_route,
             "is_router_route_correct": router_route == true_route,
@@ -2065,13 +2176,30 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                     record[diag_name] = bool(value.item())
                 else:
                     record[diag_name] = float(value.item())
-        for diag_name in ("reroute_count", "reroute_triggered", "reroute_fallback", "reroute_selected_route", "reroute_total_penalty"):
+        for diag_name in (
+            "reroute_count",
+            "reroute_triggered",
+            "reroute_fallback",
+            "reroute_selected_route",
+            "reroute_initial_route",
+            "reroute_total_penalty",
+            "reroute_low_altitude_deep_used",
+            "reroute_low_altitude_deep_accepted",
+            "reroute_accept_confidence",
+            "reroute_reject_reason_code",
+        ):
             if isinstance(reroute_diagnostics, dict) and diag_name in reroute_diagnostics:
                 value = reroute_diagnostics[diag_name][idx]
                 if value.dtype == torch.bool:
                     record[diag_name] = bool(value.item())
                 else:
-                    record[diag_name] = int(value.item()) if "count" in diag_name or "route" in diag_name else float(value.item())
+                    record[diag_name] = (
+                        int(value.item())
+                        if "count" in diag_name or "route" in diag_name or "code" in diag_name
+                        else float(value.item())
+                    )
+                if diag_name == "reroute_reject_reason_code":
+                    record["reroute_reject_reason"] = REROUTE_REASON_NAMES.get(int(value.item()), f"unknown_{int(value.item())}")
         records.append(record)
     return records
 
@@ -2115,7 +2243,8 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         "route": _route_report(route_logits, route_labels),
         "critical_metrics": critical_metrics,
         "aircraft_arbitration": critical_metrics["aircraft"],
-        "expert1_low_altitude": _low_altitude_report(class_logits, class_labels),
+        "expert1_low_altitude": _expert1_scope_report(class_logits, class_labels, route_logits, route_labels),
+        "fine_label_distribution": _fine_label_distribution(epoch_metrics.get("fine_label_names", [])),
         "by_source": epoch_metrics.get("source_report") or _source_report(class_logits, class_labels, epoch_metrics["source_names"]),
         "predictions": _prediction_records(epoch_metrics),
     }
@@ -2203,6 +2332,12 @@ def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
         "aircraft_protection_recovered_count": int(
             aircraft.get("aircraft_protection_recovered_count", 0)
         ) if isinstance(aircraft, dict) else 0,
+        "reroute_rate": float(critical.get("reroute_rate", 0.0)),
+        "reroute_recovery_rate": float(critical.get("reroute_recovery_rate", 0.0)),
+        "reroute_fallback_rate": float(critical.get("reroute_fallback_rate", 0.0)),
+        "low_altitude_deep_used_rate": float(
+            critical.get("reroute", {}).get("low_altitude_deep_used_rate", 0.0)
+        ) if isinstance(critical.get("reroute", {}), dict) else 0.0,
     }
 
 
@@ -2452,6 +2587,14 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         test_fusion_metrics,
         key=lambda item: (float(item.get("macro_f1", 0.0)), float(item.get("accuracy", 0.0))),
     )
+    without_reroute_mode = "soft_log_weighted" if "soft_log_weighted" in test_metrics_by_mode else selected_fusion_mode
+    with_reroute_mode = "reroute" if "reroute" in test_metrics_by_mode else selected_fusion_mode
+    reroute_comparison = _reroute_comparison(
+        test_metrics_by_mode[without_reroute_mode],
+        test_metrics_by_mode[with_reroute_mode],
+    )
+    reroute_comparison["without_reroute_mode"] = without_reroute_mode
+    reroute_comparison["with_reroute_mode"] = with_reroute_mode
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
     evaluation_report["selected_fusion_mode"] = selected_fusion_mode
@@ -2465,6 +2608,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         for metrics in test_fusion_metrics
     ]
     evaluation_report["best_test_probe"] = _fusion_probe_summary(best_test_probe_metrics)
+    evaluation_report["reroute_comparison"] = reroute_comparison
 
     history_path = output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -2519,6 +2663,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
             for metrics in test_fusion_metrics
         ],
         "best_test_probe": _fusion_probe_summary(best_test_probe_metrics),
+        "reroute_comparison": reroute_comparison,
         "freeze_router": bool(config.freeze_router),
         "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
         "best_selection_score": best_metric,

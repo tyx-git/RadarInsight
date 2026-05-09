@@ -7,6 +7,7 @@ import pandas as pd
 
 from .processed_dataset import ProcessedTrackDataset
 from .samples import TrackSample
+from .labels import two_layer_label_fields
 
 
 class TrackDataset:
@@ -20,6 +21,9 @@ class TrackDataset:
 
     def labels(self) -> list[str]:
         return sorted(self.index_df["label_name"].dropna().astype(str).unique().tolist())
+
+    def fine_labels(self) -> list[str]:
+        return sorted(self.index_df["fine_label"].dropna().astype(str).unique().tolist())
 
     def sources(self) -> list[str]:
         return sorted(self.index_df["source_name"].dropna().astype(str).unique().tolist())
@@ -36,17 +40,29 @@ class TrackDataset:
         if source_name is not None:
             clone.index_df = clone.index_df[clone.index_df["source_name"] == source_name].copy()
         if label_name is not None:
-            clone.index_df = clone.index_df[clone.index_df["label_name"] == label_name].copy()
+            clone.index_df = clone.index_df[
+                (clone.index_df["label_name"] == label_name)
+                | (clone.index_df["coarse_label"] == label_name)
+                | (clone.index_df["fine_label"] == label_name)
+            ].copy()
         return clone
 
     def iter_samples(self) -> Iterator[TrackSample]:
         project_root = self.data_root.parent
         for row in self.index_df.to_dict(orient="records"):
+            label_fields = two_layer_label_fields(
+                row["label_name"],
+                source_name=row.get("source_name", ""),
+                batch_id=row.get("batch_id"),
+                label_name_raw=row.get("label_name_raw", ""),
+            )
             yield TrackSample(
                 sample_id=str(row["sample_id"]),
                 source_name=str(row["source_name"]),
                 label_name_raw=str(row.get("label_name_raw", row["label_name"])),
                 label_name=str(row["label_name"]),
+                coarse_label=str(row.get("coarse_label", label_fields["coarse_label"])),
+                fine_label=str(row.get("fine_label", label_fields["fine_label"])),
                 csv_path=project_root / str(row["csv_path"]),
                 rd_path=str(row.get("rd_path", "")),
                 rd_summary_csv_path=str(row.get("rd_summary_csv_path", "")),

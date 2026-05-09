@@ -57,6 +57,12 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
         lines.append(f"- route_macro_recall: {_format_float(float(summary_metrics['route_macro_recall']))}")
     if "selected_fusion_mode" in report:
         lines.append(f"- selected_fusion_mode: {report['selected_fusion_mode']}")
+    reroute_comparison = report.get("reroute_comparison", {})
+    if isinstance(reroute_comparison, dict) and reroute_comparison:
+        lines.append(
+            f"- reroute_delta: accuracy={_format_float(float(reroute_comparison.get('accuracy_delta', 0.0)))}, "
+            f"macro_f1={_format_float(float(reroute_comparison.get('macro_f1_delta', 0.0)))}"
+        )
     lines.append(f"- loss: {_format_float(float(summary_metrics['loss']))}")
     if "skipped_non_finite_batches" in summary_metrics:
         lines.append(f"- skipped_non_finite_batches: {summary_metrics['skipped_non_finite_batches']}")
@@ -123,6 +129,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             ("reroute_recovery_rate", "回流后正确率"),
             ("reroute_fallback_rate", "Unknown 兜底率"),
             ("reroute_worsen_rate", "回流后错误率"),
+            ("low_altitude_deep_used_rate", "Expert1 deep 使用率"),
+            ("low_altitude_deep_accept_rate", "Expert1 deep 接受率"),
         ]
         for key, label in metric_labels:
             if key in reroute_metrics:
@@ -134,6 +142,36 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             lines.append("|---:|---:|")
             for count, value in sorted(distribution.items(), key=lambda item: int(item[0])):
                 lines.append(f"| {count} | {value} |")
+        reason_distribution = critical_metrics.get("reroute_reason_distribution", {}) if isinstance(critical_metrics, dict) else {}
+        if isinstance(reason_distribution, dict) and reason_distribution:
+            lines.append("")
+            lines.append("| reject reason | 样本数 |")
+            lines.append("|---|---:|")
+            for reason, value in sorted(reason_distribution.items(), key=lambda item: str(item[0])):
+                lines.append(f"| {reason} | {value} |")
+        lines.append("")
+    if isinstance(reroute_comparison, dict) and reroute_comparison:
+        lines.append("## 回退前后对比")
+        lines.append(f"- without_reroute_mode: {reroute_comparison.get('without_reroute_mode')}")
+        lines.append(f"- with_reroute_mode: {reroute_comparison.get('with_reroute_mode')}")
+        without_reroute = reroute_comparison.get("without_reroute", {})
+        with_reroute = reroute_comparison.get("with_reroute", {})
+        lines.append("| 口径 | accuracy | macro_f1 |")
+        lines.append("|---|---:|---:|")
+        if isinstance(without_reroute, dict):
+            lines.append(
+                f"| without | {_format_float(float(without_reroute.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(without_reroute.get('macro_f1', 0.0)))} |"
+            )
+        if isinstance(with_reroute, dict):
+            lines.append(
+                f"| with | {_format_float(float(with_reroute.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(with_reroute.get('macro_f1', 0.0)))} |"
+            )
+        lines.append(
+            f"- changed/helped/harmed: {reroute_comparison.get('changed_count', 0)} / "
+            f"{reroute_comparison.get('helped_count', 0)} / {reroute_comparison.get('harmed_count', 0)}"
+        )
         lines.append("")
     ground_metrics = {}
     if isinstance(critical_metrics, dict):
@@ -163,6 +201,25 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 lines.append(f"| {label} | {value} |")
             else:
                 lines.append(f"| {label} | {_format_float(float(value))} |")
+        lines.append("")
+    expert1_scope = report.get("expert1_low_altitude", {})
+    if isinstance(expert1_scope, dict) and "routed" in expert1_scope:
+        lines.append("## Expert1 低空双口径")
+        lines.append("| 口径 | count | accuracy | macro_f1 | Unknown recall | Clutter recall |")
+        lines.append("|---|---:|---:|---:|---:|---:|")
+        for key, label in [("routed", "router_assigned"), ("true_low_altitude", "true_low_altitude")]:
+            item = expert1_scope.get(key, {})
+            if not isinstance(item, dict):
+                continue
+            per_class_recall = item.get("per_class_recall", {})
+            count_key = "routed_count" if key == "routed" else "true_low_altitude_count"
+            lines.append(
+                f"| {label} | {expert1_scope.get(count_key, 0)} | "
+                f"{_format_float(float(item.get('accuracy', 0.0)))} | "
+                f"{_format_float(float(item.get('macro_f1', 0.0)))} | "
+                f"{_format_float(float(per_class_recall.get('UnknownTarget', 0.0) if isinstance(per_class_recall, dict) else 0.0))} | "
+                f"{_format_float(float(per_class_recall.get('ClutterTarget', 0.0) if isinstance(per_class_recall, dict) else 0.0))} |"
+            )
         lines.append("")
     branch_metrics = report.get("branch_metrics", {})
     if isinstance(branch_metrics, dict) and "rd" in branch_metrics:
@@ -239,14 +296,17 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines.append("")
     lines.append("## 典型错分样本（前20条）")
     if wrong_predictions:
-        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 初始路由 | 最终路由 |")
-        lines.append("|---|---|---|---|---|---|---|")
+        lines.append("| sample_id | source | 真实类别 | 预测类别 | 真实路由 | 初始路由 | 最终路由 | 回退路径 | reject reason |")
+        lines.append("|---|---|---|---|---|---|---|---|---|")
         for item in wrong_predictions:
             router_route = item.get("route_name_router_pred", item["route_name_pred"])
             final_route = item.get("route_name_final", item["route_name_pred"])
+            reroute_path = " -> ".join(item.get("reroute_path", []))
+            reject_reason = item.get("reroute_reject_reason", "")
             lines.append(
                 f"| {item['sample_id']} | {item['source_name']} | {item['label_name_true']} | "
-                f"{item['label_name_pred']} | {item['route_name_true']} | {router_route} | {final_route} |"
+                f"{item['label_name_pred']} | {item['route_name_true']} | {router_route} | {final_route} | "
+                f"{reroute_path} | {reject_reason} |"
             )
     else:
         lines.append("- 当前测试集中无错分样本。")

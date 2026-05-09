@@ -22,6 +22,8 @@ TRACK_SCHEMA_COLUMNS = [
     "batch_id",
     "label_name_raw",
     "label_name",
+    "coarse_label",
+    "fine_label",
     "label_id",
     "note_text",
 ]
@@ -36,6 +38,8 @@ TRACK_INDEX_COLUMNS = [
     "batch_id",
     "label_name_raw",
     "label_name",
+    "coarse_label",
+    "fine_label",
     "record_count",
     "time_seconds_min",
     "time_seconds_max",

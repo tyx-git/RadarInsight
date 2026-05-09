@@ -187,6 +187,7 @@ class RadarClassificationSystem(nn.Module):
             rd_patch_padding_mask=rd_patch_padding_mask,
             enable_reject=enable_low_altitude_reject,
             force_rd_activation=False,
+            inference_mode="dual_main",
         )
         conventional_air = self.conventional_air_expert(
             representation.sequence_features,
@@ -255,11 +256,18 @@ class RadarClassificationSystem(nn.Module):
         completed_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
         reroute_count = torch.zeros((batch_size,), dtype=torch.long, device=device)
         selected_route = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        initial_route = routing.route_logits.argmax(dim=-1)
         total_penalty = torch.zeros((batch_size,), dtype=torch.float32, device=device)
         last_confidence = torch.zeros((batch_size,), dtype=torch.float32, device=device)
+        low_deep_used_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        low_deep_accept_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        reject_reason_code = torch.zeros((batch_size,), dtype=torch.long, device=device)
+        next_route_override = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        route_path = torch.full((batch_size, int(max(1, config.max_passes)) + 1), fill_value=-1, dtype=torch.long, device=device)
         route_evaluated = torch.zeros((len(ROUTE_NAMES),), dtype=torch.bool, device=device)
 
         low_altitude: LowAltitudeFusionOutput | None = None
+        low_altitude_deep: LowAltitudeFusionOutput | None = None
         conventional_air: ExpertOutput | None = None
         high_altitude: ExpertOutput | None = None
         ground: ExpertOutput | None = None
@@ -279,8 +287,28 @@ class RadarClassificationSystem(nn.Module):
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     enable_reject=enable_low_altitude_reject,
                     force_rd_activation=False,
+                    inference_mode="dual_main",
                 )
             return low_altitude
+
+        def get_low_altitude_deep() -> LowAltitudeFusionOutput:
+            nonlocal low_altitude_deep
+            if low_altitude_deep is None:
+                route_evaluated[ROUTE_NAMES.index("low_altitude_suspect")] = True
+                low_altitude_deep = self.low_altitude_expert(
+                    representation.fused_features,
+                    rd_features=rd_features,
+                    rd_patch_features=rd_patch_features,
+                    rd_context=rd_embedding,
+                    low_altitude_targets=None,
+                    rd_is_multimodal=rd_is_multimodal,
+                    rd_padding_mask=rd_padding_mask,
+                    rd_patch_padding_mask=rd_patch_padding_mask,
+                    enable_reject=enable_low_altitude_reject,
+                    force_rd_activation=True,
+                    inference_mode="deep_reroute",
+                )
+            return low_altitude_deep
 
         def get_conventional_air() -> ExpertOutput:
             nonlocal conventional_air
@@ -311,34 +339,162 @@ class RadarClassificationSystem(nn.Module):
                 ground = self.ground_expert(representation.deep_features, representation.raw_physical_features)
             return ground
 
-        def acceptance(route_idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        def acceptance(route_idx: int, active_mask: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
             route_name = ROUTE_NAMES[route_idx]
             if route_name == "low_altitude_suspect":
                 detail = get_low_altitude()
-                return self.low_altitude_expert.acceptance(
+                confidence, accepted = self.low_altitude_expert.acceptance(
                     detail,
                     threshold=float(config.low_altitude_conf_threshold),
                 )
+                rejected = active_mask & ~accepted
+                if bool(rejected.any()):
+                    deep_detail = get_low_altitude_deep()
+                    deep_confidence, deep_accepted = self.low_altitude_expert.acceptance(
+                        deep_detail,
+                        threshold=float(config.low_altitude_conf_threshold),
+                    )
+                    low_deep_used_mask[:] = low_deep_used_mask | rejected
+                    low_deep_accept_mask[:] = low_deep_accept_mask | (rejected & deep_accepted)
+                    confidence = torch.where(rejected, deep_confidence, confidence)
+                    accepted = accepted | (rejected & deep_accepted)
+                    low_reject_score = detail.reject_score
+                    if low_reject_score is not None:
+                        unknown_trigger = (detail.reject_reasons or {}).get("unknown_trigger")
+                        confusion_trigger = (detail.reject_reasons or {}).get("confusion_pair_trigger")
+                        evidence_trigger = (detail.reject_reasons or {}).get("evidence_conflict_trigger")
+                        low_margin_trigger = (detail.reject_reasons or {}).get("low_margin_trigger")
+                        route_reason = torch.where(
+                            unknown_trigger.bool() if unknown_trigger is not None else torch.zeros_like(rejected),
+                            torch.full_like(reject_reason_code, 1),
+                            torch.where(
+                                confusion_trigger.bool() if confusion_trigger is not None else torch.zeros_like(rejected),
+                                torch.full_like(reject_reason_code, 2),
+                                torch.where(
+                                    evidence_trigger.bool() if evidence_trigger is not None else torch.zeros_like(rejected),
+                                    torch.full_like(reject_reason_code, 3),
+                                    torch.where(
+                                        low_margin_trigger.bool() if low_margin_trigger is not None else torch.zeros_like(rejected),
+                                        torch.full_like(reject_reason_code, 4),
+                                        torch.full_like(reject_reason_code, 5),
+                                    ),
+                                ),
+                            ),
+                        )
+                        reject_reason_code[:] = torch.where(rejected & (reject_reason_code == 0), route_reason, reject_reason_code)
+                return confidence, accepted
             if route_name == "conventional_air":
                 detail = get_conventional_air()
-                return self.conventional_air_expert.acceptance(
+                confidence, accepted = self.conventional_air_expert.acceptance(
                     detail,
                     threshold=float(config.conventional_air_conf_threshold),
                 )
+                rejected = active_mask & ~accepted
+                reject_reason_code[:] = torch.where(rejected & (reject_reason_code == 0), torch.full_like(reject_reason_code, 6), reject_reason_code)
+                return confidence, accepted
             if route_name == "ground_target":
                 detail = get_ground()
-                return self.ground_expert.acceptance(
+                confidence, accepted = self.ground_expert.acceptance(
                     detail,
                     threshold=float(config.ground_conf_threshold),
                 )
+                rejected = active_mask & ~accepted
+                reject_reason_code[:] = torch.where(rejected & (reject_reason_code == 0), torch.full_like(reject_reason_code, 7), reject_reason_code)
+                return confidence, accepted
             detail = get_high_altitude()
-            return self.high_altitude_expert.acceptance(detail)
+            confidence, accepted = self.high_altitude_expert.acceptance(detail)
+            rejected = active_mask & ~accepted
+            reject_reason_code[:] = torch.where(rejected & (reject_reason_code == 0), torch.full_like(reject_reason_code, 8), reject_reason_code)
+            return confidence, accepted
+
+        def next_route_for_reject(route_idx: int, reject_mask: torch.Tensor) -> torch.Tensor:
+            next_route = torch.full_like(selected_route, fill_value=-1)
+            if not bool(reject_mask.any()):
+                return next_route
+            low_idx = ROUTE_NAMES.index("low_altitude_suspect")
+            air_idx = ROUTE_NAMES.index("conventional_air")
+            ground_idx = ROUTE_NAMES.index("ground_target")
+            if route_idx == low_idx:
+                aircraft_detail = get_conventional_air()
+                aircraft_aux = aircraft_detail.auxiliary or {}
+                aircraft_similarity = aircraft_aux.get("aircraft_similarity")
+                aircraft_threshold = aircraft_aux.get("aircraft_threshold")
+                if aircraft_similarity is None:
+                    aircraft_similarity = aircraft_detail.logits[:, 1] if aircraft_detail.logits.shape[1] > 1 else aircraft_detail.logits[:, 0]
+                if aircraft_threshold is None:
+                    aircraft_threshold = torch.full_like(aircraft_similarity, float(config.conventional_air_conf_threshold))
+                aircraft_evidence = (aircraft_similarity - aircraft_threshold) >= 0.0
+                ground_detail = get_ground()
+                ground_probability = (ground_detail.auxiliary or {}).get("groundness_probability")
+                if ground_probability is None:
+                    ground_probability = torch.zeros((batch_size,), dtype=dtype, device=device)
+                ground_evidence = ground_probability >= float(config.ground_conf_threshold)
+                next_route = torch.where(
+                    reject_mask & aircraft_evidence,
+                    torch.full_like(next_route, air_idx),
+                    next_route,
+                )
+                next_route = torch.where(
+                    reject_mask & (next_route < 0) & ground_evidence,
+                    torch.full_like(next_route, ground_idx),
+                    next_route,
+                )
+            elif route_idx == air_idx:
+                ground_detail = get_ground()
+                ground_probability = (ground_detail.auxiliary or {}).get("groundness_probability")
+                if ground_probability is None:
+                    ground_probability = torch.zeros((batch_size,), dtype=dtype, device=device)
+                ground_evidence = ground_probability >= float(config.ground_conf_threshold)
+                has_rd = (
+                    rd_is_multimodal.bool()
+                    if rd_is_multimodal is not None
+                    else torch.ones((batch_size,), dtype=torch.bool, device=device)
+                )
+                next_route = torch.where(
+                    reject_mask & has_rd,
+                    torch.full_like(next_route, low_idx),
+                    next_route,
+                )
+                next_route = torch.where(
+                    reject_mask & (next_route < 0) & ground_evidence,
+                    torch.full_like(next_route, ground_idx),
+                    next_route,
+                )
+            elif route_idx == ground_idx:
+                aircraft_detail = get_conventional_air()
+                aircraft_aux = aircraft_detail.auxiliary or {}
+                aircraft_similarity = aircraft_aux.get("aircraft_similarity")
+                aircraft_threshold = aircraft_aux.get("aircraft_threshold")
+                if aircraft_similarity is None:
+                    aircraft_similarity = aircraft_detail.logits[:, 1] if aircraft_detail.logits.shape[1] > 1 else aircraft_detail.logits[:, 0]
+                if aircraft_threshold is None:
+                    aircraft_threshold = torch.full_like(aircraft_similarity, float(config.conventional_air_conf_threshold))
+                aircraft_evidence = (aircraft_similarity - aircraft_threshold) >= 0.0
+                has_rd = (
+                    rd_is_multimodal.bool()
+                    if rd_is_multimodal is not None
+                    else torch.ones((batch_size,), dtype=torch.bool, device=device)
+                )
+                next_route = torch.where(
+                    reject_mask & aircraft_evidence,
+                    torch.full_like(next_route, air_idx),
+                    next_route,
+                )
+                next_route = torch.where(
+                    reject_mask & (next_route < 0) & has_rd,
+                    torch.full_like(next_route, low_idx),
+                    next_route,
+                )
+            return next_route
 
         def global_logits_for_route(route_idx: int) -> torch.Tensor:
             logits = torch.full((batch_size, num_classes), fill_value=-6.0, dtype=dtype, device=device)
             route_name = ROUTE_NAMES[route_idx]
             if route_name == "low_altitude_suspect":
                 local = get_low_altitude().logits
+                if low_altitude_deep is not None:
+                    deep_local = get_low_altitude_deep().logits
+                    local = torch.where(low_deep_used_mask.unsqueeze(-1), deep_local, local)
                 logits[:, GLOBAL_LABEL_TO_INDEX["DroneTarget"]] = local[:, 0]
                 logits[:, GLOBAL_LABEL_TO_INDEX["BirdTarget"]] = local[:, 1]
                 logits[:, GLOBAL_LABEL_TO_INDEX["BalloonTarget"]] = local[:, 2]
@@ -369,16 +525,18 @@ class RadarClassificationSystem(nn.Module):
             completed_mask |= rule_terminal
             selected_route = torch.where(rule_terminal, rule_route, selected_route)
 
-        for _ in range(max(1, int(config.max_passes))):
+        for pass_idx in range(max(1, int(config.max_passes))):
             pending_mask = ~completed_mask & ~fallback_mask
             if not bool(pending_mask.any()):
                 break
-            route_choice = route_logits.argmax(dim=-1)
+            route_choice = torch.where(next_route_override >= 0, next_route_override, route_logits.argmax(dim=-1))
+            route_path[:, pass_idx] = torch.where(pending_mask, route_choice, route_path[:, pass_idx])
+            next_route_override = torch.full_like(next_route_override, fill_value=-1)
             for route_idx in range(len(ROUTE_NAMES)):
                 route_mask = pending_mask & (route_choice == route_idx)
                 if not bool(route_mask.any()):
                     continue
-                confidence, accepted = acceptance(route_idx)
+                confidence, accepted = acceptance(route_idx, route_mask)
                 accept_mask = route_mask & accepted
                 reject_mask = route_mask & ~accepted
                 if bool(accept_mask.any()):
@@ -391,15 +549,22 @@ class RadarClassificationSystem(nn.Module):
                     last_confidence = torch.where(accept_mask, confidence, last_confidence)
                 if bool(reject_mask.any()):
                     reroute_count[reject_mask] += 1
+                    directed_next_route = next_route_for_reject(route_idx, reject_mask)
+                    next_route_override = torch.where(
+                        reject_mask & (directed_next_route >= 0),
+                        directed_next_route,
+                        next_route_override,
+                    )
                     penalty = torch.full_like(total_penalty, float(config.penalty))
                     remaining = float(config.max_total_penalty) - total_penalty
                     clipped_penalty = torch.minimum(penalty, remaining.clamp_min(0.0))
                     route_logits[reject_mask, route_idx] -= clipped_penalty[reject_mask].to(dtype=dtype)
                     total_penalty[reject_mask] += clipped_penalty[reject_mask]
                     last_confidence = torch.where(reject_mask, confidence, last_confidence)
+            no_directed_next = (~completed_mask) & (~fallback_mask) & (next_route_override < 0)
             maxed_penalty = total_penalty >= float(config.max_total_penalty)
             exhausted = reroute_count >= int(config.max_passes)
-            fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted)
+            fallback_mask |= (~completed_mask) & (maxed_penalty | exhausted | no_directed_next)
 
         fallback_mask |= ~completed_mask
         lazy_expert_eval_count = int(route_evaluated.sum().item())
@@ -415,6 +580,8 @@ class RadarClassificationSystem(nn.Module):
         # Materialize missing experts after the reroute decision so existing
         # evaluation diagnostics keep working without influencing reroute.
         low_altitude = get_low_altitude()
+        if low_altitude_deep is None:
+            low_altitude_deep = low_altitude
         conventional_air = get_conventional_air()
         high_altitude = get_high_altitude()
         ground = get_ground()
@@ -423,12 +590,17 @@ class RadarClassificationSystem(nn.Module):
             "reroute_triggered": (reroute_count > 0).detach(),
             "reroute_fallback": fallback_mask.detach(),
             "reroute_selected_route": selected_route.detach(),
+            "reroute_initial_route": initial_route.detach(),
+            "reroute_path": route_path.detach(),
             "reroute_final_route_logits": route_logits.detach(),
             "reroute_total_penalty": total_penalty.detach(),
             "reroute_accept_confidence": last_confidence.detach(),
+            "reroute_reject_reason_code": reject_reason_code.detach(),
             "reroute_rule_terminal": rule_terminal.detach(),
             "reroute_system_forward": torch.ones((batch_size,), dtype=torch.bool, device=device),
             "reroute_lazy_expert_eval_count": torch.full((batch_size,), lazy_expert_eval_count, dtype=torch.long, device=device),
+            "reroute_low_altitude_deep_used": low_deep_used_mask.detach(),
+            "reroute_low_altitude_deep_accepted": low_deep_accept_mask.detach(),
         }
         return RadarSystemOutput(
             representation=representation,

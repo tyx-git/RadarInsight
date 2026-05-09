@@ -9,6 +9,7 @@ import pandas as pd
 from scipy.io import loadmat
 
 from .schema import TRACK_INDEX_COLUMNS, TRACK_SCHEMA_COLUMNS
+from src.core.data.labels import two_layer_label_fields
 
 
 def _ensure_dir(path: Path) -> None:
@@ -28,6 +29,13 @@ def _load_track_df(track_path: Path, label_name: str, track_id: int, label_id: i
     frame = pd.read_csv(track_path, encoding="gbk")
     point_time = frame["点时间"].map(_parse_time_to_seconds).astype(np.float64)
     point_time = point_time - float(point_time.iloc[0])
+    label_fields = two_layer_label_fields(
+        label_name,
+        source_name="cq08_track",
+        label_id=label_id,
+        batch_id=label_id,
+        label_name_raw=label_name,
+    )
     standardized = pd.DataFrame(
         {
             "source_name": "cq08_track",
@@ -51,6 +59,8 @@ def _load_track_df(track_path: Path, label_name: str, track_id: int, label_id: i
             "batch_id": str(label_id),
             "label_name_raw": label_name,
             "label_name": label_name,
+            "coarse_label": label_fields["coarse_label"],
+            "fine_label": label_fields["fine_label"],
             "label_id": label_id,
             "note_text": "",
         }
@@ -138,6 +148,13 @@ def export_cq08_tracks(project_root: Path, limit: int | None = None) -> list[Dic
         sample_id = f"cq08|track|{int(item['track_id'])}"
         output_path = output_dir / f"{sample_id.replace('|', '__')}.csv"
         df.to_csv(output_path, index=False, encoding="utf-8")
+        label_fields = two_layer_label_fields(
+            str(item["label_name"]),
+            source_name="cq08_track",
+            label_id=int(item["label_id"]),
+            batch_id=str(item["label_id"]),
+            label_name_raw=str(item["label_name"]),
+        )
         index_rows.append(
             {
                 "dataset_name": "cq08_tracks",
@@ -148,6 +165,8 @@ def export_cq08_tracks(project_root: Path, limit: int | None = None) -> list[Dic
                 "batch_id": str(item["label_id"]),
                 "label_name_raw": str(item["label_name"]),
                 "label_name": str(item["label_name"]),
+                "coarse_label": label_fields["coarse_label"],
+                "fine_label": label_fields["fine_label"],
                 "record_count": int(len(df)),
                 "time_seconds_min": float(df["time_seconds"].min()) if len(df) else np.nan,
                 "time_seconds_max": float(df["time_seconds"].max()) if len(df) else np.nan,

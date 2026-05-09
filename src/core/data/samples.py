@@ -14,6 +14,8 @@ class TrackSample:
     source_name: str
     label_name_raw: str
     label_name: str
+    coarse_label: str
+    fine_label: str
     csv_path: Path
     rd_path: str
     rd_summary_csv_path: str

@@ -12,8 +12,11 @@ class TrackBatch:
     sample_ids: list[str]
     source_names: list[str]
     label_names: list[str]
+    coarse_label_names: list[str]
+    fine_label_names: list[str]
     route_names: list[str]
     labels: torch.Tensor
+    fine_labels: torch.Tensor
     route_labels: torch.Tensor
     features: torch.Tensor
     rd_features: torch.Tensor
@@ -57,6 +60,7 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
     rd_padding_mask = torch.ones((batch_size, max_rd_len), dtype=torch.bool)
     rd_patch_padding_mask = torch.ones((batch_size, max_rd_patch_len), dtype=torch.bool)
     labels = torch.zeros((batch_size,), dtype=torch.long)
+    fine_labels = torch.zeros((batch_size,), dtype=torch.long)
     route_labels = torch.zeros((batch_size,), dtype=torch.long)
     lengths = torch.zeros((batch_size,), dtype=torch.long)
     rd_lengths = torch.zeros((batch_size,), dtype=torch.long)
@@ -70,6 +74,8 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
     sample_ids: list[str] = []
     source_names: list[str] = []
     label_names: list[str] = []
+    coarse_label_names: list[str] = []
+    fine_label_names: list[str] = []
     route_names: list[str] = []
 
     for idx, item in enumerate(items):
@@ -83,6 +89,7 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         rd_padding_mask[idx, :rd_len] = False
         rd_patch_padding_mask[idx, :rd_patch_len] = False
         labels[idx] = item.label_index
+        fine_labels[idx] = item.fine_label_index
         route_labels[idx] = item.route_index
         rd_is_multimodal[idx] = item.rd_is_multimodal
         rd_phase_missing[idx] = item.rd_phase_missing
@@ -94,14 +101,19 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         sample_ids.append(item.sample_id)
         source_names.append(item.source_name)
         label_names.append(item.label_name)
+        coarse_label_names.append(item.coarse_label)
+        fine_label_names.append(item.fine_label)
         route_names.append(item.route_name)
 
     return TrackBatch(
         sample_ids=sample_ids,
         source_names=source_names,
         label_names=label_names,
+        coarse_label_names=coarse_label_names,
+        fine_label_names=fine_label_names,
         route_names=route_names,
         labels=labels,
+        fine_labels=fine_labels,
         route_labels=route_labels,
         features=features,
         rd_features=rd_features,

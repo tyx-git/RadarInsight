@@ -6,6 +6,8 @@ from typing import Dict
 
 import pandas as pd
 
+from src.core.data.labels import two_layer_label_fields
+
 
 EXCLUDED_LABELS = {"MixedLabel"}
 
@@ -14,6 +16,18 @@ def build_training_index(project_root: Path) -> Dict[str, object]:
     processed_root = project_root / "data" / "processed"
     track_index_path = processed_root / "track_index.csv"
     index_df = pd.read_csv(track_index_path)
+    if "coarse_label" not in index_df.columns or "fine_label" not in index_df.columns:
+        fields = [
+            two_layer_label_fields(
+                row["label_name"],
+                source_name=row.get("source_name", ""),
+                batch_id=row.get("batch_id"),
+                label_name_raw=row.get("label_name_raw", ""),
+            )
+            for row in index_df.to_dict(orient="records")
+        ]
+        index_df["coarse_label"] = [item["coarse_label"] for item in fields]
+        index_df["fine_label"] = [item["fine_label"] for item in fields]
 
     eligibility = []
     for row in index_df.to_dict(orient="records"):
@@ -48,6 +62,7 @@ def build_training_index(project_root: Path) -> Dict[str, object]:
         "trainable_samples": int(len(trainable_df)),
         "excluded_samples": int(len(eligibility_df) - len(trainable_df)),
         "trainable_label_counts": trainable_df["label_name"].value_counts(dropna=False).to_dict(),
+        "trainable_fine_label_counts": trainable_df["fine_label"].value_counts(dropna=False).to_dict(),
         "excluded_reason_counts": eligibility_df["exclude_reason"].value_counts(dropna=False).to_dict(),
     }
     (processed_root / "trainable_summary.json").write_text(
