@@ -3152,3 +3152,55 @@
 
 - 本轮只补报告和评估可见性，尚未重新训练。
 - RD harm 优先训练约束本身已有基础 gate target 和选模门槛，后续还需继续根据 hard pair 报告做更细的 pair-specific harm penalty。
+
+## 2026-05-09：Ground / Expert4 高置信仲裁保护与诊断
+
+### 问题
+
+1. Ground 类（People / Car / Ship）在 System final 中仍可能被低空专家或 Aircraft 抢分。
+2. 直接堆 Expert4 head 不能解决 heterogeneous experts 的分数不可比问题；核心风险在全局仲裁层。
+3. 旧的 Ground protection 只看 `groundness_confidence` 分层，缺少 Ground local logits margin 与 Router prior 的联合约束，容易把低置信 Ground 候选放大。
+4. 报告里缺少 Ground protection 是否真正救回样本、是否引入非 Ground FP、Ground local margin 是否足够的诊断字段，后续调参容易盲调阈值。
+
+### 解决方案
+
+1. Ground candidate protection 改为高置信三条件：
+   - `groundness_confidence >= groundness_confidence_tau_high`。
+   - `ground_top1_margin >= ground_candidate_margin_tau`。
+   - `ground_route_weight >= ground_route_gate_floor`，即 Router 没有强烈反对 Ground。
+2. 只有满足三条件时，Ground candidate 才能解除 route gate 压制；中置信样本不再自动抬高 gate floor，避免弱 Ground 候选过度参与全局竞争。
+3. `calibrated_candidates` 中仍保留低 groundness 的 suppression，用于 eval probe；普通 `groundness_protection_enabled` 只做高置信保护。
+4. 新增 Ground diagnostics：
+   - `ground_top1_margin`
+   - `ground_candidate_high_confidence`
+   - `ground_route_not_opposed`
+   - `ground_candidate_changed_prediction`
+   - `ground_recovered`
+   - `ground_false_positive_introduced`
+5. Markdown Ground 仲裁段落渲染：
+   - `recovered_count`
+   - `false_positive_introduced_count`
+   - `ground_top1_margin`
+   - `ground_candidate_changed_prediction_count`
+
+### 最终落地
+
+- `src/core/system_config.py`
+  - 新增 `ground_candidate_margin_tau`。
+- `config/config.json`
+  - System 配置增加 `ground_candidate_margin_tau = 0.25`。
+- `src/core/system_trainer.py`
+  - `_project_to_global_logits()` 中 Ground protection 改为三条件高置信触发。
+  - `_ground_report()` 汇总新增 Ground arbitration diagnostics。
+  - prediction records 写入逐样本 Ground candidate 诊断。
+  - summary 写入 `ground_candidate_margin_tau`。
+- `src/core/reporting.py`
+  - Markdown 报告渲染新增 Ground 仲裁指标。
+- `target.md`
+  - 已落地的 Ground 对照测试、三条件保护和 diagnostics 移出待办。
+
+### 当前边界
+
+- 本轮只修仲裁和诊断，不重新训练 Expert4 head。
+- `groundness_protection_enabled` 默认仍为 `false`，避免在未重新验证前改变默认训练/评估路径。
+- 后续必须运行 `tests/test_ground_system_alignment.py` 与 System 训练，确认高置信 candidate protection 不提升 `pred_ground_on_non_ground_count`。

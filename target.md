@@ -38,6 +38,10 @@
   - DroneTarget <-> BirdTarget。
   - UnknownTarget <-> ClutterTarget。
   - BirdTarget <-> ClutterTarget。
+- Ground / Expert4 仲裁基础优化：
+  - `tests/test_ground_system_alignment.py` 保留为常规 CUDA 对照测试，比较 Expert4 standalone、System representation + Expert4 head、System final ground。
+  - Ground candidate protection 改为高置信三条件触发：`groundness` 高、Ground local logits margin 高、Router 没有强烈反对。
+  - Ground diagnostics 固定进入报告：`recovered_count`、`false_positive_introduced_count`、`ground_top1_margin`、`ground_candidate_changed_prediction`。
 
 ## 当前主线
 
@@ -103,16 +107,8 @@ Ground 当前风险仍是被低空或 Aircraft 抢分，不能只堆 Expert4 hea
 
 ### 待实现
 
-- System representation + Expert4 head 对照测试保留为常规测试。
-- Ground candidate protection 只允许高置信触发：
-  - groundness 高
-  - ground logits margin 高
-  - Router 没有强烈反对
-- Ground diagnostics：
-  - recovered_count
-  - false_positive_introduced_count
-  - ground_top1_margin
-  - ground_candidate_changed_prediction
+- 基于新增 diagnostics 重新跑 System 训练和 Ground alignment 测试，确认高置信 candidate protection 不引入明显非 Ground FP。
+- 若 `system_representation_plus_expert4_head` 明显好于 `system_final_global`，继续调 calibrated candidate arbitration；若两者都差，回到 Expert4 head / representation 漂移治理。
 
 ### 验收
 

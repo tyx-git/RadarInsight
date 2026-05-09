@@ -38,6 +38,7 @@ class SystemTrainConfig:
     groundness_confidence_tau_high: float = 0.10
     groundness_confidence_tau_low: float = -0.05
     ground_route_gate_floor: float = 0.10
+    ground_candidate_margin_tau: float = 0.25
     groundness_temperature: float = 1.0
     calibrated_route_prior_weight: float = 0.50
     calibrated_low_membership_beta: float = 0.35

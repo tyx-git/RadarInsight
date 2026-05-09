@@ -214,6 +214,7 @@
     "groundness_confidence_tau_high": 0.1,
     "groundness_confidence_tau_low": -0.05,
     "ground_route_gate_floor": 0.1,
+    "ground_candidate_margin_tau": 0.25,
     "groundness_temperature": 1.0,
     "calibrated_route_prior_weight": 0.5,
     "calibrated_low_membership_beta": 0.35,

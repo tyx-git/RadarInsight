@@ -279,6 +279,14 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             ("groundness_confidence_mean_true_ground", "真 Ground confidence 均值"),
             ("groundness_confidence_mean_non_ground", "非 Ground confidence 均值"),
             ("ground_high_confidence_count", "Ground 高置信样本数"),
+            ("ground_candidate_high_confidence_count", "Ground candidate 高置信样本数"),
+            ("ground_route_not_opposed_count", "Router 未强烈反对 Ground 数"),
+            ("ground_top1_margin", "Ground top1 margin 均值"),
+            ("ground_top1_margin_mean_true_ground", "真 Ground top1 margin 均值"),
+            ("ground_top1_margin_mean_non_ground", "非 Ground top1 margin 均值"),
+            ("ground_candidate_changed_prediction_count", "Ground candidate 改变预测数"),
+            ("recovered_count", "Ground recovered_count"),
+            ("false_positive_introduced_count", "Ground false_positive_introduced_count"),
         ]
         for key, label in metric_labels:
             if key not in ground_metrics:

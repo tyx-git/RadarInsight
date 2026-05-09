@@ -769,23 +769,32 @@ def _project_to_global_logits(
     groundness_threshold = groundness_threshold.to(device=device, dtype=ground_logits.dtype)
     groundness_confidence = groundness_probability - groundness_threshold
     ground_gate_flat = ground_gate.squeeze(-1)
+    ground_route_weight = route_weights[:, ROUTE_NAMES.index("ground_target")]
+    if ground_logits.shape[-1] > 1:
+        ground_top2 = torch.topk(ground_logits, k=2, dim=-1).values
+        ground_top1_margin = ground_top2[:, 0] - ground_top2[:, 1]
+    else:
+        ground_top1_margin = ground_logits.squeeze(-1)
+    ground_route_not_opposed = ground_route_weight >= float(config.ground_route_gate_floor)
     adjusted_ground_gate = ground_gate_flat
     ground_high_conf = groundness_confidence >= float(config.groundness_confidence_tau_high)
     ground_mid_conf = (
         (groundness_confidence >= float(config.groundness_confidence_tau_low))
         & ~ground_high_conf
     )
+    ground_candidate_high_confidence = (
+        ground_high_conf
+        & (ground_top1_margin >= float(config.ground_candidate_margin_tau))
+        & ground_route_not_opposed
+    )
     if fusion_mode == "calibrated_candidates":
-        floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
-        ground_gate_floor = float(np.log(floor_weight))
-        ground_floor_tensor = torch.full_like(adjusted_ground_gate, ground_gate_floor)
         adjusted_ground_gate = torch.where(
-            ground_high_conf,
+            ground_candidate_high_confidence,
             torch.zeros_like(adjusted_ground_gate),
             torch.where(
-                ground_mid_conf,
-                torch.maximum(adjusted_ground_gate, ground_floor_tensor),
+                groundness_confidence < float(config.groundness_confidence_tau_low),
                 adjusted_ground_gate - float(config.calibrated_ground_suppression),
+                adjusted_ground_gate,
             ),
         )
         ground_membership = torch.clamp(groundness_confidence, min=-1.0, max=1.0)
@@ -795,17 +804,10 @@ def _project_to_global_logits(
             + float(config.calibrated_ground_membership_beta) * ground_membership.unsqueeze(-1)
         )
     elif config.groundness_protection_enabled:
-        floor_weight = max(float(config.ground_route_gate_floor), 1e-6)
-        ground_gate_floor = float(np.log(floor_weight))
-        ground_floor_tensor = torch.full_like(adjusted_ground_gate, ground_gate_floor)
         adjusted_ground_gate = torch.where(
-            ground_high_conf,
+            ground_candidate_high_confidence,
             torch.zeros_like(adjusted_ground_gate),
-            torch.where(
-                ground_mid_conf,
-                torch.maximum(adjusted_ground_gate, ground_floor_tensor),
-                adjusted_ground_gate - 1.5,
-            ),
+            adjusted_ground_gate,
         )
         ground = ground_logits / max(float(config.groundness_temperature), 1e-6) + adjusted_ground_gate.unsqueeze(-1)
     else:
@@ -815,6 +817,40 @@ def _project_to_global_logits(
     logits[:, global_index["ShipTarget"]] = ground[:, 2]
     if not return_diagnostics:
         return logits
+    ground_indices = [
+        global_index["PeopleTarget"],
+        global_index["CarTarget"],
+        global_index["ShipTarget"],
+    ]
+    protected_logits = logits.detach()
+    baseline_logits = protected_logits.clone()
+    if fusion_mode == "calibrated_candidates":
+        baseline_ground = (
+            torch.log_softmax(ground_logits, dim=-1) / max(float(config.groundness_temperature), 1e-6)
+            + ground_gate_flat.unsqueeze(-1)
+            + float(config.calibrated_ground_membership_beta) * ground_membership.unsqueeze(-1)
+        )
+    elif config.groundness_protection_enabled:
+        baseline_ground = ground_logits / max(float(config.groundness_temperature), 1e-6) + ground_gate
+    else:
+        baseline_ground = ground_logits + ground_gate
+    baseline_logits[:, global_index["PeopleTarget"]] = baseline_ground[:, 0]
+    baseline_logits[:, global_index["CarTarget"]] = baseline_ground[:, 1]
+    baseline_logits[:, global_index["ShipTarget"]] = baseline_ground[:, 2]
+    protected_preds = protected_logits.argmax(dim=-1)
+    baseline_preds = baseline_logits.argmax(dim=-1)
+    protected_ground = _mask_for_indices(protected_preds, ground_indices)
+    baseline_ground_pred = _mask_for_indices(baseline_preds, ground_indices)
+    true_ground = _mask_for_indices(batch_labels, ground_indices)
+    ground_changed_prediction = protected_preds != baseline_preds
+    ground_candidate_changed_prediction = ground_changed_prediction & protected_ground
+    ground_recovered = true_ground & (baseline_preds != batch_labels) & (protected_preds == batch_labels)
+    ground_false_positive_introduced = (
+        ~true_ground
+        & ~baseline_ground_pred
+        & protected_ground
+        & ground_changed_prediction
+    )
     diagnostics = {
         "aircraft_similarity": aircraft_similarity.detach(),
         "aircraft_threshold": aircraft_threshold.detach(),
@@ -843,11 +879,17 @@ def _project_to_global_logits(
         "groundness_probability": groundness_probability.detach(),
         "groundness_threshold": groundness_threshold.detach(),
         "groundness_confidence": groundness_confidence.detach(),
-        "ground_route_weight": route_weights[:, ROUTE_NAMES.index("ground_target")].detach(),
+        "ground_route_weight": ground_route_weight.detach(),
         "ground_gate": ground_gate_flat.detach(),
         "adjusted_ground_gate": adjusted_ground_gate.detach(),
         "ground_high_confidence": ground_high_conf.detach(),
         "ground_mid_confidence": ground_mid_conf.detach(),
+        "ground_route_not_opposed": ground_route_not_opposed.detach(),
+        "ground_top1_margin": ground_top1_margin.detach(),
+        "ground_candidate_high_confidence": ground_candidate_high_confidence.detach(),
+        "ground_candidate_changed_prediction": ground_candidate_changed_prediction.detach(),
+        "ground_recovered": ground_recovered.detach(),
+        "ground_false_positive_introduced": ground_false_positive_introduced.detach(),
     }
     return logits, diagnostics
 
@@ -1841,6 +1883,36 @@ def _ground_report(
         "ground_high_confidence",
         class_labels,
     ).bool()
+    ground_candidate_high_conf = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_candidate_high_confidence",
+        class_labels,
+    ).bool()
+    ground_changed = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_candidate_changed_prediction",
+        class_labels,
+    ).bool()
+    ground_recovered = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_recovered",
+        class_labels,
+    ).bool()
+    ground_false_positive_introduced = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_false_positive_introduced",
+        class_labels,
+    ).bool()
+    ground_top1_margin = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_top1_margin",
+        class_labels,
+    )
+    ground_route_not_opposed = _safe_diagnostic(
+        aircraft_diagnostics,
+        "ground_route_not_opposed",
+        class_labels,
+    ).bool()
     tp = int((pred_ground_mask & ground_mask).sum().item())
     fp = int((pred_ground_mask & ~ground_mask).sum().item())
     fn = int((~pred_ground_mask & ground_mask).sum().item())
@@ -1857,6 +1929,17 @@ def _ground_report(
         "groundness_confidence_mean_true_ground": _mean_or_zero(groundness_confidence, ground_mask),
         "groundness_confidence_mean_non_ground": _mean_or_zero(groundness_confidence, ~ground_mask),
         "ground_high_confidence_count": int(ground_high_conf.sum().item()),
+        "ground_candidate_high_confidence_count": int(ground_candidate_high_conf.sum().item()),
+        "ground_route_not_opposed_count": int(ground_route_not_opposed.sum().item()),
+        "ground_top1_margin": float(ground_top1_margin.float().mean().item()) if ground_top1_margin.numel() > 0 else 0.0,
+        "ground_top1_margin_mean_true_ground": _mean_or_zero(ground_top1_margin, ground_mask),
+        "ground_top1_margin_mean_non_ground": _mean_or_zero(ground_top1_margin, ~ground_mask),
+        "ground_candidate_changed_prediction": int(ground_changed.sum().item()),
+        "ground_candidate_changed_prediction_count": int(ground_changed.sum().item()),
+        "recovered_count": int(ground_recovered.sum().item()),
+        "false_positive_introduced_count": int(ground_false_positive_introduced.sum().item()),
+        "ground_recovered_count": int(ground_recovered.sum().item()),
+        "ground_false_positive_introduced_count": int(ground_false_positive_introduced.sum().item()),
     }
 
 
@@ -2562,6 +2645,13 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "adjusted_ground_gate",
             "ground_high_confidence",
             "ground_mid_confidence",
+            "ground_route_weight",
+            "ground_route_not_opposed",
+            "ground_top1_margin",
+            "ground_candidate_high_confidence",
+            "ground_candidate_changed_prediction",
+            "ground_recovered",
+            "ground_false_positive_introduced",
         ):
             if isinstance(diagnostics, dict) and diag_name in diagnostics:
                 value = diagnostics[diag_name][idx]
@@ -3157,6 +3247,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "groundness_confidence_tau_high": config.groundness_confidence_tau_high,
         "groundness_confidence_tau_low": config.groundness_confidence_tau_low,
         "ground_route_gate_floor": config.ground_route_gate_floor,
+        "ground_candidate_margin_tau": config.ground_candidate_margin_tau,
         "groundness_temperature": config.groundness_temperature,
         "calibrated_route_prior_weight": config.calibrated_route_prior_weight,
         "calibrated_low_membership_beta": config.calibrated_low_membership_beta,
