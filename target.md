@@ -14,6 +14,11 @@
 - 测试报告中的 without / with reroute 基础对比。
 - Expert1 routed / true-low-altitude 双口径报告。
 - 回退路径、reject reason、deep 使用率、逐类别回退前后 recall 报告。
+- 回退 helped / harmed 逐样本审计。
+- Expert1 low reject score 组成项进入 prediction record。
+- source-balanced macro F1、min source macro F1、source x label precision / recall / F1。
+- System Aircraft / Expert2 仲裁诊断：Expert2 positive but final not Aircraft、final Aircraft but Expert2 not positive、Aircraft FP by source。
+- 回退阈值从 `config` 进入 JSON / Markdown 报告。
 
 ## 当前主线
 
@@ -91,16 +96,8 @@ final_macro_f1 >= traj_macro_f1 - 可配置容忍值
 
 ### 待实现
 
-- Expert1 reject score 的各组成项进入逐样本 prediction record：
-  - unknown_bonus
-  - confusion_pair_bonus
-  - evidence_conflict_bonus
-  - low_margin_bonus
-  - weak_source_bonus
-  - agreement_confidence_credit
 - Expert2 / Expert4 reject reason 细分，不只记录通用 reject。
 - calibrated candidate score 替代裸 logit 仲裁，至少支持 eval-only 对比。
-- 回退阈值从 config 读取并写入报告。
 
 ### 验收
 
@@ -148,10 +145,6 @@ Expert2 已朝 open-set / aircraft prototype 方向推进，但阈值和系统�
   - aircraft_recall
   - false_aircraft_rate
   - raw_tr_rd false aircraft rate
-- System 中记录：
-  - Expert2 positive but final not Aircraft
-  - final Aircraft but Expert2 not positive
-  - Aircraft FP by source
 
 ### 验收
 
@@ -168,9 +161,6 @@ System Aircraft recall >= 0.80
 
 ### 待实现
 
-- source-balanced macro F1。
-- min source macro F1。
-- source x label precision / recall / F1。
 - raw_tr_rd 作为重点弱源验证指标。
 - source-aware sampling / weak-source replay 增强。
 

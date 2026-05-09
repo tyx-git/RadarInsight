@@ -63,6 +63,7 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             f"- reroute_delta: accuracy={_format_float(float(reroute_comparison.get('accuracy_delta', 0.0)))}, "
             f"macro_f1={_format_float(float(reroute_comparison.get('macro_f1_delta', 0.0)))}"
         )
+    reroute_config = report.get("reroute_config", {})
     lines.append(f"- loss: {_format_float(float(summary_metrics['loss']))}")
     if "skipped_non_finite_batches" in summary_metrics:
         lines.append(f"- skipped_non_finite_batches: {summary_metrics['skipped_non_finite_batches']}")
@@ -121,6 +122,24 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             reroute_metrics = candidate
     if reroute_metrics:
         lines.append("## 回流重路由")
+        if isinstance(reroute_config, dict) and reroute_config:
+            lines.append("| 配置项 | 值 |")
+            lines.append("|---|---:|")
+            for key in [
+                "max_passes",
+                "penalty",
+                "max_total_penalty",
+                "low_altitude_conf_threshold",
+                "conventional_air_conf_threshold",
+                "ground_conf_threshold",
+            ]:
+                if key in reroute_config:
+                    value = reroute_config[key]
+                    if isinstance(value, int):
+                        lines.append(f"| {key} | {value} |")
+                    else:
+                        lines.append(f"| {key} | {_format_float(float(value))} |")
+            lines.append("")
         lines.append("| 指标 | 值 |")
         lines.append("|---|---:|")
         metric_labels = [
@@ -234,6 +253,39 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             else:
                 lines.append(f"| {label} | {_format_float(float(value))} |")
         lines.append("")
+    aircraft_metrics = {}
+    if isinstance(critical_metrics, dict):
+        candidate = critical_metrics.get("aircraft", {})
+        if isinstance(candidate, dict):
+            aircraft_metrics = candidate
+    if aircraft_metrics:
+        lines.append("## Aircraft / Expert2 仲裁")
+        lines.append("| 指标 | 值 |")
+        lines.append("|---|---:|")
+        for key, label in [
+            ("aircraft_system_precision", "Aircraft precision"),
+            ("aircraft_system_recall", "Aircraft recall"),
+            ("expert2_positive_system_not_aircraft_count", "Expert2 positive but final not Aircraft"),
+            ("final_aircraft_expert2_not_positive_count", "Final Aircraft but Expert2 not positive"),
+            ("final_aircraft_expert2_not_positive_false_aircraft_count", "Final Aircraft no Expert2 FP"),
+            ("non_aircraft_as_aircraft_count", "NonAircraft -> Aircraft count"),
+            ("non_aircraft_as_aircraft_rate", "NonAircraft -> Aircraft rate"),
+        ]:
+            if key not in aircraft_metrics:
+                continue
+            value = aircraft_metrics[key]
+            if isinstance(value, int):
+                lines.append(f"| {label} | {value} |")
+            else:
+                lines.append(f"| {label} | {_format_float(float(value))} |")
+        fp_by_source = aircraft_metrics.get("aircraft_false_positive_by_source", {})
+        if isinstance(fp_by_source, dict) and fp_by_source:
+            lines.append("")
+            lines.append("| Aircraft FP source | count |")
+            lines.append("|---|---:|")
+            for source_name, count in sorted(fp_by_source.items(), key=lambda item: str(item[0])):
+                lines.append(f"| {source_name} | {count} |")
+        lines.append("")
     expert1_scope = report.get("expert1_low_altitude", {})
     if isinstance(expert1_scope, dict) and "routed" in expert1_scope:
         lines.append("## Expert1 低空双口径")
@@ -321,10 +373,37 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             lines.append(f"- source_balanced_accuracy: {_format_float(float(critical_metrics['source_balanced_accuracy']))}")
         if "min_source_accuracy" in critical_metrics:
             lines.append(f"- min_source_accuracy: {_format_float(float(critical_metrics['min_source_accuracy']))}")
-    lines.append("| 来源 | count | accuracy |")
-    lines.append("|---|---:|---:|")
+        if "source_balanced_macro_f1" in critical_metrics:
+            lines.append(f"- source_balanced_macro_f1: {_format_float(float(critical_metrics['source_balanced_macro_f1']))}")
+        if "min_source_macro_f1" in critical_metrics:
+            lines.append(f"- min_source_macro_f1: {_format_float(float(critical_metrics['min_source_macro_f1']))}")
+    lines.append("| 来源 | count | accuracy | macro_f1 | macro_recall |")
+    lines.append("|---|---:|---:|---:|---:|")
     for source_name, item in by_source.items():
-        lines.append(f"| {source_name} | {item['count']} | {_format_float(float(item['accuracy']))} |")
+        lines.append(
+            f"| {source_name} | {item['count']} | {_format_float(float(item['accuracy']))} | "
+            f"{_format_float(float(item.get('macro_f1', 0.0)))} | "
+            f"{_format_float(float(item.get('macro_recall', 0.0)))} |"
+        )
+    lines.append("")
+    lines.append("## 来源 x 类别指标")
+    lines.append("| 来源 | 类别 | support | predicted | precision | recall | f1 |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|")
+    for source_name, item in by_source.items():
+        per_label = item.get("per_label", {}) if isinstance(item, dict) else {}
+        if not isinstance(per_label, dict):
+            continue
+        for label_name in label_names:
+            label_item = per_label.get(label_name)
+            if not isinstance(label_item, dict):
+                continue
+            lines.append(
+                f"| {source_name} | {label_name} | {label_item.get('support', 0)} | "
+                f"{label_item.get('predicted', 0)} | "
+                f"{_format_float(float(label_item.get('precision', 0.0)))} | "
+                f"{_format_float(float(label_item.get('recall', 0.0)))} | "
+                f"{_format_float(float(label_item.get('f1', 0.0)))} |"
+            )
     lines.append("")
     lines.append("## 典型错分样本（前20条）")
     if wrong_predictions:

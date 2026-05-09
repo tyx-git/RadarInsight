@@ -2842,3 +2842,66 @@
 
 - 本轮仍未重新训练，尚无新 accuracy / macro F1。
 - Expert1 `deep_reroute` 仍需继续增强到真正更高分辨率 RD / 更多帧 / deep 专用头。
+
+## 2026-05-09：System 来源指标、Aircraft 仲裁诊断与回退配置报告
+
+### 问题
+
+1. `target.md` 中仍保留了部分已经进入代码的内容，尤其是 source-balanced macro F1、source x label 指标和 Aircraft / Expert2 仲裁诊断，容易导致后续重复实现。
+2. System 来源报告原先重点是 accuracy，弱源在 macro F1 上是否崩坏不够直观。只看 source accuracy 时，CQ08 高分仍可能掩盖 raw / excel 的类级失败。
+3. Aircraft 仲裁已有 Expert2 positive 但 final not Aircraft 的方向，但缺少反向诊断：final 判 Aircraft 时 Expert2 是否真的给出 positive 证据，以及 Aircraft FP 来自哪个 source。
+4. 回退机制实际使用的 max passes、penalty、各专家接受阈值来自 config，但 JSON / Markdown 报告没有固定记录。后续对比不同回退实验时，需要人工反查配置，容易误读。
+
+### 解决方案
+
+1. 来源统计增加：
+   - per-source `macro_f1`
+   - per-source `macro_recall`
+   - `source_balanced_macro_f1`
+   - `min_source_macro_f1`
+   - source x label precision / recall / F1 / support / predicted
+2. System 选模分数纳入 source-balanced macro F1 与 min source macro F1，让弱源宏指标参与 checkpoint 选择，而不是只在报告里展示。
+3. Aircraft / Expert2 仲裁诊断增加：
+   - `final_aircraft_expert2_not_positive_count`
+   - `final_aircraft_expert2_not_positive_true_aircraft_count`
+   - `final_aircraft_expert2_not_positive_false_aircraft_count`
+   - `aircraft_false_positive_by_source`
+4. 回退配置通过 `_system_reroute_config()` 统一导出到：
+   - `evaluation_report["reroute_config"]`
+   - `training_summary["reroute_config"]`
+   - Markdown “回流重路由”章节
+5. `target.md` 删除已落地项，只保留仍需推进的 Expert2 阈值校准、calibrated candidate 仲裁、Ground 保护、deep_reroute 强化等任务。
+
+### 最终落地
+
+- `src/core/system_trainer.py`
+  - 来源报告、来源 summary、critical metrics、fusion probe 均补齐 source macro F1。
+  - Aircraft 报告补齐反向仲裁诊断与 FP by source。
+  - evaluation report / summary 写入 reroute config。
+- `src/core/reporting.py`
+  - Markdown 渲染 Aircraft / Expert2 仲裁表。
+  - Markdown 渲染 Aircraft FP by source。
+  - Markdown 渲染 source x label 指标。
+  - Markdown 渲染 reroute config。
+- `target.md`
+  - 移除本轮已落地项，保留剩余优化目标。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- `_source_report()` / `_source_summary()` 定向 smoke 通过：
+  - `source_balanced_macro_f1`
+  - `min_source_macro_f1`
+  - source x label `precision` / `recall` / `f1`
+  均可正确输出。
+- `_aircraft_report()` 定向 smoke 通过：
+  - `final_aircraft_expert2_not_positive_count`
+  - `aircraft_false_positive_by_source`
+  - `expert2_positive_system_not_aircraft_count`
+  均可正确输出。
+- `build_markdown_report()` reroute config smoke 通过，Markdown 中可渲染 `max_passes` 与 `low_altitude_conf_threshold`。
+
+### 当前边界
+
+- 本轮仍未重新训练，尚无新的 accuracy / macro F1。
+- Aircraft 独立阈值校准、Expert2 / Expert4 reject reason 细分、calibrated candidate score 仍是后续任务。

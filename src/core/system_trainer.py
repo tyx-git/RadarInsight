@@ -1320,6 +1320,7 @@ def _run_epoch(
         reroute_diagnostics=reroute_diagnostics_cat,
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection_cat,
         source_report=source_report,
+        source_names=source_names_all,
     )
     return {
         "loss": float(sum(loss_values) / len(loss_values)),
@@ -1470,6 +1471,8 @@ def _source_report(
         report[source_name] = {
             "count": len(indices),
             "accuracy": accuracy,
+            "macro_f1": float(sum(float(item["f1"]) for item in per_label.values()) / len(per_label)) if per_label else 0.0,
+            "macro_recall": float(sum(float(item["recall"]) for item in per_label.values()) / len(per_label)) if per_label else 0.0,
             "per_label": per_label,
         }
     return report
@@ -1485,11 +1488,16 @@ def _source_summary(source_report: dict[str, object]) -> dict[str, float]:
         return {
             "source_balanced_accuracy": 0.0,
             "min_source_accuracy": 0.0,
+            "source_balanced_macro_f1": 0.0,
+            "min_source_macro_f1": 0.0,
         }
     accuracies = [float(item["accuracy"]) for item in source_items]
+    macro_f1s = [float(item.get("macro_f1", 0.0)) for item in source_items]
     return {
         "source_balanced_accuracy": float(sum(accuracies) / len(accuracies)),
         "min_source_accuracy": float(min(accuracies)),
+        "source_balanced_macro_f1": float(sum(macro_f1s) / len(macro_f1s)) if macro_f1s else 0.0,
+        "min_source_macro_f1": float(min(macro_f1s)) if macro_f1s else 0.0,
     }
 
 
@@ -1684,6 +1692,7 @@ def _aircraft_report(
     class_labels: torch.Tensor,
     aircraft_diagnostics: dict[str, torch.Tensor] | None = None,
     class_logits_without_aircraft_protection: torch.Tensor | None = None,
+    source_names: list[str] | None = None,
 ) -> dict[str, object]:
     aircraft_idx = DEFAULT_VOCAB.label_to_index["AircraftTarget"]
     low_indices = [DEFAULT_VOCAB.label_to_index[label_name] for label_name in LOW_ALTITUDE_CLASSES]
@@ -1742,7 +1751,15 @@ def _aircraft_report(
     false_positive_introduced = non_aircraft & ~unprotected_aircraft & final_aircraft
     expert2_positive_count = int(expert2_positive.sum().item())
     expert2_positive_system_not_aircraft = expert2_positive & ~final_aircraft
+    final_aircraft_expert2_not_positive = final_aircraft & ~expert2_positive
     non_aircraft_count = int(non_aircraft.sum().item())
+    aircraft_false_positive_by_source: dict[str, int] = {}
+    if source_names is not None:
+        fp_mask = non_aircraft & final_aircraft
+        for idx, source_name in enumerate(source_names):
+            if bool(fp_mask[idx].item()):
+                source_key = str(source_name)
+                aircraft_false_positive_by_source[source_key] = aircraft_false_positive_by_source.get(source_key, 0) + 1
     metrics = _binary_label_metrics(class_logits, class_labels, "AircraftTarget")
     unprotected_metrics = _binary_label_metrics(
         class_logits_without_aircraft_protection,
@@ -1774,6 +1791,10 @@ def _aircraft_report(
         ),
         "expert2_positive_true_aircraft_count": int((expert2_positive & true_aircraft).sum().item()),
         "expert2_positive_false_aircraft_count": int((expert2_positive & non_aircraft).sum().item()),
+        "final_aircraft_expert2_not_positive_count": int(final_aircraft_expert2_not_positive.sum().item()),
+        "final_aircraft_expert2_not_positive_true_aircraft_count": int((final_aircraft_expert2_not_positive & true_aircraft).sum().item()),
+        "final_aircraft_expert2_not_positive_false_aircraft_count": int((final_aircraft_expert2_not_positive & non_aircraft).sum().item()),
+        "aircraft_false_positive_by_source": aircraft_false_positive_by_source,
         "aircraft_high_confidence_count": int(high_confidence.sum().item()),
         "aircraft_mid_confidence_count": int(mid_confidence.sum().item()),
         "aircraft_source_override_count": int(source_override.sum().item()),
@@ -2024,6 +2045,7 @@ def _critical_metric_summary(
     reroute_diagnostics: dict[str, torch.Tensor] | None = None,
     class_logits_without_aircraft_protection: torch.Tensor | None = None,
     source_report: dict[str, object] | None = None,
+    source_names: list[str] | None = None,
 ) -> dict[str, object]:
     route = _route_report(route_logits, route_labels)
     per_route_recall = {
@@ -2046,6 +2068,7 @@ def _critical_metric_summary(
         class_labels,
         aircraft_diagnostics=aircraft_diagnostics,
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
+        source_names=source_names,
     )
     source_summary = _source_summary(source_report or {})
     return {
@@ -2082,10 +2105,14 @@ def _critical_metric_summary(
         "aircraft_source_reject_false_aircraft_count": aircraft["aircraft_source_reject_false_aircraft_count"],
         "expert2_positive_system_not_aircraft_count": aircraft["expert2_positive_system_not_aircraft_count"],
         "expert2_positive_system_not_aircraft_rate": aircraft["expert2_positive_system_not_aircraft_rate"],
+        "final_aircraft_expert2_not_positive_count": aircraft["final_aircraft_expert2_not_positive_count"],
+        "aircraft_false_positive_by_source": aircraft["aircraft_false_positive_by_source"],
         "non_aircraft_as_aircraft_rate": aircraft["non_aircraft_as_aircraft_rate"],
         "source_report": source_report or {},
         "source_balanced_accuracy": source_summary["source_balanced_accuracy"],
         "min_source_accuracy": source_summary["min_source_accuracy"],
+        "source_balanced_macro_f1": source_summary["source_balanced_macro_f1"],
+        "min_source_macro_f1": source_summary["min_source_macro_f1"],
     }
 
 
@@ -2107,6 +2134,8 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
     pred_ground_on_non_ground = float(critical.get("pred_ground_on_non_ground_count", 0.0))
     source_balanced_accuracy = float(critical.get("source_balanced_accuracy", 0.0))
     min_source_accuracy = float(critical.get("min_source_accuracy", 0.0))
+    source_balanced_macro_f1 = float(critical.get("source_balanced_macro_f1", 0.0))
+    min_source_macro_f1 = float(critical.get("min_source_macro_f1", 0.0))
     score = (
         macro_f1
         + 0.20 * route_macro
@@ -2120,6 +2149,8 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         + 0.05 * aircraft_precision
         + 0.10 * source_balanced_accuracy
         + 0.08 * min_source_accuracy
+        + 0.10 * source_balanced_macro_f1
+        + 0.08 * min_source_macro_f1
         - 1.50 * non_aircraft_as_aircraft_rate
         - 0.01 * pred_ground_on_non_ground
     )
@@ -2160,6 +2191,8 @@ def _system_selection_score(epoch_metrics: dict[str, object]) -> tuple[float, di
         "non_aircraft_as_aircraft_rate": non_aircraft_as_aircraft_rate,
         "source_balanced_accuracy": source_balanced_accuracy,
         "min_source_accuracy": min_source_accuracy,
+        "source_balanced_macro_f1": source_balanced_macro_f1,
+        "min_source_macro_f1": min_source_macro_f1,
     }
 
 
@@ -2326,6 +2359,7 @@ def _build_evaluation_report(epoch_metrics: dict[str, object]) -> dict[str, obje
         reroute_diagnostics=epoch_metrics.get("reroute_diagnostics", {}),
         class_logits_without_aircraft_protection=class_logits_without_aircraft_protection,
         source_report=epoch_metrics.get("source_report"),
+        source_names=epoch_metrics.get("source_names"),
     )
     return {
         "summary": _metric_summary(epoch_metrics),
@@ -2413,6 +2447,8 @@ def _fusion_probe_summary(metrics: dict[str, object]) -> dict[str, object]:
             critical.get("expert2_positive_system_not_aircraft_count", 0)
         ),
         "non_aircraft_as_aircraft_rate": float(critical.get("non_aircraft_as_aircraft_rate", 0.0)),
+        "source_balanced_macro_f1": float(critical.get("source_balanced_macro_f1", 0.0)),
+        "min_source_macro_f1": float(critical.get("min_source_macro_f1", 0.0)),
         "ground_group_f1": float(critical.get("ground_group_f1", 0.0)),
         "pred_ground_on_non_ground_count": int(critical.get("pred_ground_on_non_ground_count", 0)),
         "groundness_probability_mean_true_ground": float(
@@ -2696,10 +2732,12 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     )
     reroute_comparison["without_reroute_mode"] = without_reroute_mode
     reroute_comparison["with_reroute_mode"] = with_reroute_mode
+    reroute_config = asdict(_system_reroute_config(config))
     evaluation_report = _build_evaluation_report(test_metrics)
     evaluation_report["device"] = device_info
     evaluation_report["selected_fusion_mode"] = selected_fusion_mode
     evaluation_report["fusion_mode_selection_policy"] = config.fusion_mode_selection_policy
+    evaluation_report["reroute_config"] = reroute_config
     evaluation_report["fusion_validation_probe"] = [
         _fusion_probe_summary(metrics)
         for metrics in val_fusion_metrics
@@ -2766,6 +2804,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         ],
         "best_test_probe": _fusion_probe_summary(best_test_probe_metrics),
         "reroute_comparison": reroute_comparison,
+        "reroute_config": reroute_config,
         "freeze_router": bool(config.freeze_router),
         "low_altitude_use_rd_patch_cnn": bool(config.low_altitude_use_rd_patch_cnn),
         "best_selection_score": best_metric,
