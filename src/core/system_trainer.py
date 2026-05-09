@@ -1021,9 +1021,11 @@ def _run_epoch(
         physical = batch.physical_features.to(device)
         rd_features = batch.rd_features.to(device)
         rd_patch_features = batch.rd_patch_features.to(device)
+        rd_deep_patch_features = batch.rd_deep_patch_features.to(device)
         rd_is_multimodal = batch.rd_is_multimodal.to(device)
         rd_padding_mask = batch.rd_padding_mask.to(device)
         rd_patch_padding_mask = batch.rd_patch_padding_mask.to(device)
+        rd_deep_patch_padding_mask = batch.rd_deep_patch_padding_mask.to(device)
         labels = batch.labels.to(device)
         route_labels = batch.route_labels.to(device)
         padding_mask = batch.padding_mask.to(device)
@@ -1034,11 +1036,13 @@ def _run_epoch(
                 physical,
                 rd_features=rd_features,
                 rd_patch_features=rd_patch_features,
+                rd_deep_patch_features=rd_deep_patch_features,
                 low_altitude_targets=low_targets if train else None,
                 rd_is_multimodal=rd_is_multimodal,
                 padding_mask=padding_mask,
                 rd_padding_mask=rd_padding_mask,
                 rd_patch_padding_mask=rd_patch_padding_mask,
+                rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                 source_names=batch.source_names,
                 enable_low_altitude_reject=(
                     config.enable_low_altitude_reject_in_train

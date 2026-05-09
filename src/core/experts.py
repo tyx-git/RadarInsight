@@ -648,11 +648,13 @@ class LowAltitudeSuspectExpert(nn.Module):
         traj_input: torch.Tensor,
         rd_features: torch.Tensor,
         rd_patch_features: torch.Tensor | None = None,
+        rd_deep_patch_features: torch.Tensor | None = None,
         rd_context: torch.Tensor | None = None,
         low_altitude_targets: torch.Tensor | None = None,
         rd_is_multimodal: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
+        rd_deep_patch_padding_mask: torch.Tensor | None = None,
         enable_reject: bool = True,
         force_rd_activation: bool = False,
         disable_rd_activation: bool = False,
@@ -674,7 +676,12 @@ class LowAltitudeSuspectExpert(nn.Module):
             patch_source = rd_patch_features if rd_patch_features is not None else rd_features
             patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
             rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
-            deep_rd_patch = self._encode_deep_rd_patch(patch_source, rd_padding_mask=patch_mask) if deep_reroute else traj_input.new_zeros((traj_input.shape[0], self.deep_rd_patch_dim))
+            if deep_reroute:
+                deep_patch_source = rd_deep_patch_features if rd_deep_patch_features is not None else patch_source
+                deep_patch_mask = rd_deep_patch_padding_mask if rd_deep_patch_features is not None else patch_mask
+                deep_rd_patch = self._encode_deep_rd_patch(deep_patch_source, rd_padding_mask=deep_patch_mask)
+            else:
+                deep_rd_patch = traj_input.new_zeros((traj_input.shape[0], self.deep_rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
             if deep_reroute:
                 rd_features_vec = self.deep_rd_refine(torch.cat([rd_features_vec, deep_rd_patch], dim=-1))

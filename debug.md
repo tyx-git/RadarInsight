@@ -3039,3 +3039,68 @@
 - 本轮仍未重新训练，尚无新的 accuracy / macro F1。
 - deep 专用头是新参数，需要后续训练验证；旧 checkpoint 加载时如果严格加载可能需要重新训练或使用兼容加载路径。
 - “更多 RD 帧采样策略”尚未做成数据层可配置策略，仍保留在 `target.md`。
+
+## 2026-05-09：Expert1 deep_reroute 独立 RD 帧采样视图
+
+### 问题
+
+1. `deep_reroute` 已经有更深的 RD patch CNN、pair correction head 和 Unknown / Clutter residual head，但它仍然复用 `dual_main` 的同一套 `rd_patch_features`。
+2. 当前 `encode_multimodal_rd()` 对 3D RD 体数据统一插值成 128 帧，优点是稳定，缺点是 deep 路径没有看到更偏事件、更偏微动、更偏局部纹理的高信息密度帧序列。
+3. 如果直接把默认 RD patch 全局改成更多帧，会影响 `dual_main` 的稳定主路径，也会增加训练显存和时延，不符合“默认 dual_main 稳定，deep_reroute 更强纠错”的设计。
+
+### 解决方案
+
+1. 保留原有 `rd_patch_features`：
+   - 继续作为 `dual_main` 和常规 RD 分支的稳定输入；
+   - 仍为 128 帧均匀时间插值视图。
+2. 新增 `rd_deep_patch_features`：
+   - 只供 `deep_reroute` 使用；
+   - 3D RD 样本生成 160 帧 hybrid event deep patch；
+   - 2D RD / summary RD 没有真实 Doppler 体数据时安全回退到原 patch。
+3. hybrid event 采样策略：
+   - `uniform`：保留全局轨迹覆盖；
+   - `energy_peak`：采集强回波窗口；
+   - `temporal_delta`：采集帧间变化大的窗口；
+   - `doppler_entropy + roughness`：采集 Doppler 分布复杂和局部粗糙片段；
+   - `low_energy_context`：保留少量弱回波上下文，避免只学习强能量片段。
+4. 每类事件不是单点采样，而是 anchor 周围小窗口采样，再按原始时间排序，降低破坏时序连续性的风险。
+5. 训练期增加 deep_reroute 辅助监督：
+   - 不做动态回退控制流；
+   - stage2 且样本有 RD 时额外前向一次 `inference_mode="deep_reroute"`；
+   - 对 deep final logits 和 deep RD logits 加权监督，保证 deep patch CNN、deep pair correction、deep Unknown / Clutter residual 能收到梯度。
+
+### 最终落地
+
+- `src/core/data/rd.py`
+  - `EncodedRDSequence` 增加 `deep_patch_features` / `deep_patch_valid_length`。
+  - 新增 `MULTIMODAL_RD_DEEP_PATCH_TIME_BINS = 160`。
+  - 新增 hybrid frame index 选择逻辑。
+  - 3D RD 额外生成 deep patch tensor。
+- `src/core/data/torch_dataset.py`
+  - `TorchTrackItem` 增加 `rd_deep_patch_features` / `rd_deep_patch_valid_length`。
+- `src/core/data/collate.py`
+  - `TrackBatch` 增加 `rd_deep_patch_features` / `rd_deep_patch_lengths` / `rd_deep_patch_padding_mask`。
+- `src/core/experts.py`
+  - `LowAltitudeSuspectExpert.forward()` 增加 `rd_deep_patch_features` / `rd_deep_patch_padding_mask`。
+  - `dual_main` 仍使用普通 patch；
+  - `deep_reroute` 优先使用 deep patch，缺失时回退普通 patch。
+- `src/core/system.py`
+  - parallel / reroute 前向均透传 deep patch；
+  - 低空 deep reroute 调用能实际吃到独立 deep RD 视图。
+- `src/core/expert1_trainer.py`
+  - Expert1 训练和评估传入 deep patch。
+  - Expert1 stage2 训练增加 `low_altitude_deep_reroute_aux_weight` 控制的 deep 辅助损失。
+- `src/core/expert1_config.py`
+  - 新增 `low_altitude_deep_reroute_aux_weight`。
+- `config/config.json`
+  - Expert1 配置增加 `low_altitude_deep_reroute_aux_weight = 0.35`。
+- `src/core/system_trainer.py`
+  - System 训练和评估传入 deep patch。
+- `target.md`
+  - 删除“更多 RD 帧采样策略”待办，移入已落地清单。
+
+### 当前边界
+
+- deep patch 目前是 deterministic 采样，暂未加入训练期 stochastic jitter。
+- 本轮是结构落地，尚未重新训练，因此没有新的 accuracy / macro F1。
+- deep patch 会增加 deep_reroute 计算量，但 `dual_main` 路径不使用它，默认主路径稳定性不受影响。

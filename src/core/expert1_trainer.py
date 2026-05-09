@@ -988,9 +988,11 @@ def _run_epoch(
         physical = batch.physical_features.to(device)
         rd_features = batch.rd_features.to(device)
         rd_patch_features = batch.rd_patch_features.to(device)
+        rd_deep_patch_features = batch.rd_deep_patch_features.to(device)
         rd_is_multimodal = batch.rd_is_multimodal.to(device)
         rd_padding_mask = batch.rd_padding_mask.to(device)
         rd_patch_padding_mask = batch.rd_patch_padding_mask.to(device)
+        rd_deep_patch_padding_mask = batch.rd_deep_patch_padding_mask.to(device)
         labels = torch.tensor(
             [LOW_ALTITUDE_GLOBAL_TO_LOCAL[int(label)] for label in batch.labels.tolist()],
             dtype=torch.long,
@@ -1024,11 +1026,13 @@ def _run_epoch(
                 rep.fused_features,
                 rd_features=rd_features,
                 rd_patch_features=rd_patch_features,
+                rd_deep_patch_features=rd_deep_patch_features,
                 rd_context=rd_embedding,
                 low_altitude_targets=labels if train else None,
                 rd_is_multimodal=rd_is_multimodal,
                 rd_padding_mask=rd_padding_mask,
                 rd_patch_padding_mask=rd_patch_padding_mask,
+                rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                 enable_reject=(config.enable_reject_in_train if train else config.enable_reject_in_eval) and stage2_enabled,
                 force_rd_activation=bool(train and stage2_enabled),
                 disable_rd_activation=bool(train and not stage2_enabled),
@@ -1079,6 +1083,21 @@ def _run_epoch(
                         anchor_loss = torch.nn.functional.kl_div(log_probs, target_probs, reduction="batchmean")
             has_rd_mask = rd_is_multimodal.bool()
             if stage2_enabled and has_rd_mask.any():
+                deep_output = model(
+                    rep.fused_features,
+                    rd_features=rd_features,
+                    rd_patch_features=rd_patch_features,
+                    rd_deep_patch_features=rd_deep_patch_features,
+                    rd_context=rd_embedding,
+                    low_altitude_targets=labels if train else None,
+                    rd_is_multimodal=rd_is_multimodal,
+                    rd_padding_mask=rd_padding_mask,
+                    rd_patch_padding_mask=rd_patch_padding_mask,
+                    rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
+                    enable_reject=False,
+                    force_rd_activation=True,
+                    inference_mode="deep_reroute",
+                )
                 rd_aux = _masked_weighted_ce_loss(
                     output.rd_logits[has_rd_mask],
                     labels[has_rd_mask],
@@ -1220,6 +1239,25 @@ def _run_epoch(
                     focal_gamma=config.low_altitude_rd_focal_gamma,
                 )
                 main_loss = main_loss + config.low_altitude_rd_forced_fusion_weight * forced_fusion_loss
+                deep_reroute_loss = _masked_weighted_ce_loss(
+                    deep_output.logits[has_rd_mask],
+                    labels[has_rd_mask],
+                    rd_class_weights.to(device),
+                    unknown_index=unknown_index,
+                    unknown_weight=config.unknown_loss_weight,
+                    focal_gamma=config.low_altitude_rd_focal_gamma,
+                )
+                deep_reroute_rd_loss = _masked_weighted_ce_loss(
+                    deep_output.rd_logits[has_rd_mask],
+                    labels[has_rd_mask],
+                    rd_class_weights.to(device),
+                    unknown_index=unknown_index,
+                    unknown_weight=config.unknown_loss_weight,
+                    focal_gamma=config.low_altitude_rd_focal_gamma,
+                )
+                main_loss = main_loss + config.low_altitude_deep_reroute_aux_weight * (
+                    deep_reroute_loss + 0.5 * deep_reroute_rd_loss
+                )
                 gate_loss = _fusion_gate_aux_loss(
                     output,
                     labels,
@@ -2099,6 +2137,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_class_activation_threshold": config.low_altitude_rd_class_activation_threshold,
         "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
         "low_altitude_rd_pair_gate_aux_weight": config.low_altitude_rd_pair_gate_aux_weight,
+        "low_altitude_deep_reroute_aux_weight": config.low_altitude_deep_reroute_aux_weight,
         "low_altitude_rd_pair_takeover_floor": config.low_altitude_rd_pair_takeover_floor,
         "low_altitude_rd_pair_harm_ceiling": config.low_altitude_rd_pair_harm_ceiling,
         "low_altitude_rd_teacher_warmup_epochs": config.low_altitude_rd_teacher_warmup_epochs,
@@ -2129,6 +2168,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_gate_aux_weight": config.low_altitude_rd_gate_aux_weight,
         "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
         "low_altitude_rd_pair_gate_aux_weight": config.low_altitude_rd_pair_gate_aux_weight,
+        "low_altitude_deep_reroute_aux_weight": config.low_altitude_deep_reroute_aux_weight,
         "low_altitude_rd_teacher_warmup_epochs": config.low_altitude_rd_teacher_warmup_epochs,
         "low_altitude_rd_teacher_aux_boost": config.low_altitude_rd_teacher_aux_boost,
         "low_altitude_rd_gate_temperature": config.low_altitude_rd_gate_temperature,

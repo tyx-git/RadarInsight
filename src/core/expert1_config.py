@@ -32,6 +32,7 @@ class Expert1TrainConfig:
     low_altitude_rd_gate_aux_weight: float = 0.6
     low_altitude_rd_class_gate_aux_weight: float = 0.3
     low_altitude_rd_pair_gate_aux_weight: float = 0.35
+    low_altitude_deep_reroute_aux_weight: float = 0.35
     low_altitude_rd_pair_takeover_floor: float = 0.72
     low_altitude_rd_pair_harm_ceiling: float = 0.10
     low_altitude_residual_aux_weight: float = 0.45

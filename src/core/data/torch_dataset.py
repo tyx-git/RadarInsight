@@ -25,8 +25,10 @@ class TorchTrackItem:
     features: torch.Tensor
     rd_features: torch.Tensor
     rd_patch_features: torch.Tensor
+    rd_deep_patch_features: torch.Tensor
     rd_valid_length: int
     rd_patch_valid_length: int
+    rd_deep_patch_valid_length: int
     rd_is_multimodal: bool
     rd_phase_missing: bool
     height_missing: bool
@@ -104,8 +106,10 @@ class TorchTrackDataset(Dataset):
         route_name = infer_route_name(sample.label_name)
         rd_features = torch.zeros((1, 512, 4), dtype=torch.float32)
         rd_patch_features = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+        rd_deep_patch_features = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
         rd_valid_length = 1
         rd_patch_valid_length = 1
+        rd_deep_patch_valid_length = 1
         rd_is_multimodal = False
         rd_tensor_path = str(sample.rd_tensor_path).strip()
         rd_summary_csv_path = str(sample.rd_summary_csv_path).strip()
@@ -118,8 +122,14 @@ class TorchTrackDataset(Dataset):
                 if rd_encoded.patch_features is not None
                 else torch.zeros((rd_encoded.valid_length, 64, 64, 3), dtype=torch.float32)
             )
+            rd_deep_patch_features = (
+                rd_encoded.deep_patch_features
+                if rd_encoded.deep_patch_features is not None
+                else rd_patch_features
+            )
             rd_valid_length = rd_encoded.valid_length
             rd_patch_valid_length = rd_encoded.patch_valid_length or int(rd_patch_features.shape[0])
+            rd_deep_patch_valid_length = rd_encoded.deep_patch_valid_length or int(rd_deep_patch_features.shape[0])
             rd_is_multimodal = True
         elif rd_summary_csv_path and rd_summary_csv_path.lower() not in {"nan", "none", ""}:
             rd_frame = load_rd_summary_frame(self.track_dataset.data_root, rd_summary_csv_path)
@@ -136,8 +146,14 @@ class TorchTrackDataset(Dataset):
                 if rd_encoded.patch_features is not None
                 else torch.zeros((rd_encoded.valid_length, 64, 64, 3), dtype=torch.float32)
             )
+            rd_deep_patch_features = (
+                rd_encoded.deep_patch_features
+                if rd_encoded.deep_patch_features is not None
+                else rd_patch_features
+            )
             rd_valid_length = int(expanded.shape[0])
             rd_patch_valid_length = int(rd_patch_features.shape[0])
+            rd_deep_patch_valid_length = int(rd_deep_patch_features.shape[0])
         item = TorchTrackItem(
             sample_id=sample.sample_id,
             source_name=sample.source_name,
@@ -149,8 +165,10 @@ class TorchTrackDataset(Dataset):
             features=torch.from_numpy(encoded.features),
             rd_features=rd_features,
             rd_patch_features=rd_patch_features,
+            rd_deep_patch_features=rd_deep_patch_features,
             rd_valid_length=rd_valid_length,
             rd_patch_valid_length=rd_patch_valid_length,
+            rd_deep_patch_valid_length=rd_deep_patch_valid_length,
             rd_is_multimodal=rd_is_multimodal,
             rd_phase_missing=sample.rd_phase_missing,
             height_missing=sample.height_missing,

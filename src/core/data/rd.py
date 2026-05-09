@@ -15,6 +15,8 @@ class EncodedRDSequence:
     valid_length: int
     patch_features: torch.Tensor | None = None
     patch_valid_length: int = 0
+    deep_patch_features: torch.Tensor | None = None
+    deep_patch_valid_length: int = 0
 
 
 MULTIMODAL_RD_COLUMNS = [
@@ -29,6 +31,7 @@ MULTIMODAL_RD_DOPPLER_BINS = 64
 MULTIMODAL_RD_TIME_BINS = 128
 MULTIMODAL_RD_PATCH_RANGE_BINS = 64
 MULTIMODAL_RD_PATCH_DOPPLER_BINS = 64
+MULTIMODAL_RD_DEEP_PATCH_TIME_BINS = 160
 
 RD_SUMMARY_COLUMNS = [
     "frame_energy_mean",
@@ -56,6 +59,81 @@ def _temporal_delta(values: torch.Tensor) -> torch.Tensor:
     if values.shape[0] > 1:
         delta[1:] = values[1:] - values[:-1]
     return delta
+
+
+def _resample_indices(frame_count: int, target_count: int) -> torch.Tensor:
+    if frame_count <= 1:
+        return torch.zeros((max(1, target_count),), dtype=torch.long)
+    return torch.linspace(0, frame_count - 1, steps=max(1, target_count)).round().long().clamp(0, frame_count - 1)
+
+
+def _topk_window_indices(scores: torch.Tensor, count: int, frame_count: int, radius: int = 2) -> list[int]:
+    if count <= 0 or frame_count <= 0:
+        return []
+    clean_scores = torch.nan_to_num(scores.float(), nan=0.0, posinf=0.0, neginf=0.0)
+    topk = min(max(1, count), int(clean_scores.numel()))
+    anchors = torch.topk(clean_scores, k=topk).indices.tolist()
+    selected: list[int] = []
+    for anchor in anchors:
+        start = max(0, int(anchor) - radius)
+        end = min(frame_count - 1, int(anchor) + radius)
+        selected.extend(range(start, end + 1))
+        if len(selected) >= count:
+            break
+    return selected[:count]
+
+
+def _hybrid_deep_frame_indices(amplitude_frames: torch.Tensor, target_count: int = MULTIMODAL_RD_DEEP_PATCH_TIME_BINS) -> torch.Tensor:
+    if amplitude_frames.ndim == 2:
+        frames = amplitude_frames.unsqueeze(-1)
+    elif amplitude_frames.ndim == 3:
+        frames = amplitude_frames
+    else:
+        raise ValueError("amplitude_frames must be [frame, range] or [frame, range, doppler]")
+    frame_count = int(frames.shape[0])
+    if frame_count <= 0:
+        return torch.zeros((max(1, target_count),), dtype=torch.long)
+    if frame_count <= target_count:
+        base = torch.arange(frame_count, dtype=torch.long)
+        if frame_count == target_count:
+            return base
+        pad = _resample_indices(frame_count, target_count - frame_count)
+        return torch.sort(torch.cat([base, pad], dim=0)).values
+
+    energy = frames.abs().mean(dim=(1, 2))
+    if frame_count > 1:
+        delta = torch.zeros_like(energy)
+        delta[1:] = (frames[1:] - frames[:-1]).abs().mean(dim=(1, 2))
+    else:
+        delta = torch.zeros_like(energy)
+    doppler_energy = frames.abs().mean(dim=1).clamp_min(1.0e-6)
+    doppler_prob = doppler_energy / doppler_energy.sum(dim=-1, keepdim=True).clamp_min(1.0e-6)
+    doppler_entropy = -(doppler_prob * doppler_prob.log()).sum(dim=-1)
+    mean_energy = energy.mean().clamp_min(1.0e-6)
+    roughness = delta / mean_energy
+
+    uniform_count = int(round(target_count * 0.30))
+    energy_count = int(round(target_count * 0.25))
+    delta_count = int(round(target_count * 0.20))
+    entropy_count = int(round(target_count * 0.15))
+    context_count = max(0, target_count - uniform_count - energy_count - delta_count - entropy_count)
+
+    selected: list[int] = []
+    selected.extend(_resample_indices(frame_count, uniform_count).tolist())
+    selected.extend(_topk_window_indices(energy, energy_count, frame_count, radius=2))
+    selected.extend(_topk_window_indices(delta, delta_count, frame_count, radius=2))
+    selected.extend(_topk_window_indices(doppler_entropy + roughness, entropy_count, frame_count, radius=2))
+    selected.extend(torch.topk(-energy, k=min(context_count, frame_count)).indices.tolist())
+
+    if not selected:
+        return _resample_indices(frame_count, target_count)
+    unique_sorted = sorted(set(int(idx) for idx in selected if 0 <= int(idx) < frame_count))
+    if len(unique_sorted) >= target_count:
+        positions = _resample_indices(len(unique_sorted), target_count)
+        return torch.tensor([unique_sorted[int(pos)] for pos in positions.tolist()], dtype=torch.long)
+    filler = _resample_indices(frame_count, target_count - len(unique_sorted)).tolist()
+    merged = sorted(unique_sorted + [int(idx) for idx in filler])
+    return torch.tensor(merged[:target_count], dtype=torch.long)
 
 
 def load_rd_summary_frame(data_root: Path | str, summary_csv_path: str) -> pd.DataFrame:
@@ -107,6 +185,8 @@ def encode_rd_summary(frame: pd.DataFrame) -> EncodedRDSequence:
         valid_length=int(tensor.shape[0]),
         patch_features=patch,
         patch_valid_length=int(patch.shape[0]),
+        deep_patch_features=patch,
+        deep_patch_valid_length=int(patch.shape[0]),
     )
 
 
@@ -150,6 +230,11 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         patch_phase = patch_phase.unsqueeze(-1).repeat(1, 1, MULTIMODAL_RD_PATCH_DOPPLER_BINS)
         patch_delta = _temporal_delta(patch_amp)
         patch_tensor = torch.stack([patch_amp, patch_phase, patch_delta], dim=-1).to(torch.float32)
+        deep_indices = _hybrid_deep_frame_indices(torch.tensor(amplitude, dtype=torch.float32), MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
+        deep_patch_amp = patch_amp.index_select(0, deep_indices)
+        deep_patch_phase = patch_phase.index_select(0, deep_indices)
+        deep_patch_delta = _temporal_delta(deep_patch_amp)
+        deep_patch_tensor = torch.stack([deep_patch_amp, deep_patch_phase, deep_patch_delta], dim=-1).to(torch.float32)
     elif amplitude.ndim == 3 and phase.ndim == 3:
         frame_count, range_bins, doppler_bins = amplitude.shape
         amplitude_t = torch.tensor(amplitude, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
@@ -216,16 +301,40 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         phase_patch = phase_patch / np.pi
         patch_delta = _temporal_delta(amp_patch)
         patch_tensor = torch.stack([amp_patch, phase_patch, patch_delta], dim=-1).to(torch.float32)
+        deep_indices = _hybrid_deep_frame_indices(amplitude_t.squeeze(1), MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
+        deep_amp = amplitude_t.squeeze(1).index_select(0, deep_indices)
+        deep_phase = phase_t.squeeze(1).index_select(0, deep_indices)
+        deep_amp = F.interpolate(
+            deep_amp.unsqueeze(1),
+            size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
+            mode="bilinear",
+            align_corners=False,
+        ).squeeze(1)
+        deep_phase = F.interpolate(
+            deep_phase.unsqueeze(1),
+            size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
+            mode="bilinear",
+            align_corners=False,
+        ).squeeze(1)
+        deep_amp_mean = deep_amp.mean()
+        deep_amp_std = deep_amp.std().clamp_min(1e-6)
+        deep_amp = (deep_amp - deep_amp_mean) / deep_amp_std
+        deep_phase = deep_phase / np.pi
+        deep_delta = _temporal_delta(deep_amp)
+        deep_patch_tensor = torch.stack([deep_amp, deep_phase, deep_delta], dim=-1).to(torch.float32)
     else:
         raise ValueError("rd tensor must be 2D [range_bin, frame] or 3D [frame, range_bin, doppler_bin]")
 
     tensor = torch.tensor(stacked, dtype=torch.float32)
     patch_tensor = torch.nan_to_num(patch_tensor, nan=0.0, posinf=0.0, neginf=0.0)
+    deep_patch_tensor = torch.nan_to_num(deep_patch_tensor, nan=0.0, posinf=0.0, neginf=0.0)
     return EncodedRDSequence(
         features=tensor,
         valid_length=int(tensor.shape[0]),
         patch_features=patch_tensor,
         patch_valid_length=int(patch_tensor.shape[0]),
+        deep_patch_features=deep_patch_tensor,
+        deep_patch_valid_length=int(deep_patch_tensor.shape[0]),
     )
 
 
@@ -235,6 +344,7 @@ __all__ = [
     "MULTIMODAL_RD_RANGE_BINS",
     "MULTIMODAL_RD_PATCH_RANGE_BINS",
     "MULTIMODAL_RD_PATCH_DOPPLER_BINS",
+    "MULTIMODAL_RD_DEEP_PATCH_TIME_BINS",
     "RD_SUMMARY_COLUMNS",
     "load_rd_summary_frame",
     "load_rd_tensor",

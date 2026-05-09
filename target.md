@@ -30,6 +30,7 @@
 - 训练损失组件曲线进入 `training_history.json`。
 - Expert1 `deep_reroute` 独立增强路径：
   - 更高分辨率 deep RD patch CNN。
+  - 更多 RD 帧采样策略：`dual_main` 保持均匀 128 帧，`deep_reroute` 使用 160 帧 hybrid event deep patch。
   - deep 专用局部 pair correction head。
   - deep 专用 Unknown / Clutter residual head。
   - deep 样本报告：pass1 prediction、deep prediction、final prediction、helped / harmed、accept reason。
@@ -53,23 +54,7 @@ Ground group F1 >= 0.60
 Expert1 RD net gain >= 0
 ```
 
-## 一、Expert1 deep_reroute 仍需增强
-
-当前 `deep_reroute` 已有独立模式和更强 gate 策略，但仍主要复用同一套 RD 表征。下一步必须让它真正比 `dual_main` 更强。
-
-### 待实现
-
-- 更多 RD 帧采样策略。
-
-### 验收
-
-```text
-deep_reroute 在触发样本上的 recovery_rate > harm_rate
-Unknown / Clutter recall 不低于 dual_main
-Drone / Bird 混淆减少
-```
-
-## 二、Expert1 RD 主干净收益
+## 一、Expert1 RD 主干净收益
 
 RD 已作为低空第二主证据参与，但仍需从“能参与”推进到“稳定贡献”。
 
@@ -95,7 +80,7 @@ rd_unknown_clutter_recall_mean 提升
 final_macro_f1 >= traj_macro_f1 - 可配置容忍值
 ```
 
-## 三、跨专家回退继续收敛
+## 二、跨专家回退继续收敛
 
 基础 reroute graph 已落地，但仍需从“可运行”推进到“可调优、可审计、可部署”。
 
@@ -112,7 +97,7 @@ fallback_to_unknown 可解释
 Aircraft recall / precision 不因 reroute 下滑
 ```
 
-## 四、Ground / Expert4 仲裁继续优化
+## 三、Ground / Expert4 仲裁继续优化
 
 Ground 当前风险仍是被低空或 Aircraft 抢分，不能只堆 Expert4 head。
 
@@ -138,7 +123,7 @@ Car recall >= 0.70
 pred_ground_on_non_ground_count 不明显增加
 ```
 
-## 五、Expert2 Open-Set 继续校准
+## 四、Expert2 Open-Set 继续校准
 
 Expert2 已朝 open-set / aircraft prototype 方向推进，但阈值和系统仲裁仍需继续验证。
 
@@ -159,7 +144,7 @@ System Aircraft precision >= 0.80
 System Aircraft recall >= 0.80
 ```
 
-## 六、跨源泛化与选模
+## 五、跨源泛化与选模
 
 当前不能只看整体 accuracy。弱源和 RD 源必须有硬约束。
 
@@ -176,7 +161,7 @@ raw_tr_rd accuracy 不被 cq08 高分掩盖
 source_balanced_macro_f1 随整体 macro F1 同步提升
 ```
 
-## 七、性能测试清单剩余项
+## 六、性能测试清单剩余项
 
 完整性能清单中仍需继续补齐：
 
@@ -189,7 +174,7 @@ source_balanced_macro_f1 随整体 macro F1 同步提升
   - RD 预处理
 - Expert4 People -> background / 非 Ground 的专项安全误判拆分。
 
-## 八、工程约束
+## 七、工程约束
 
 - 不写冗余代码和冗余函数。
 - 不新增没有训练意义的标签字段。
