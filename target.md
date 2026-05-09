@@ -28,6 +28,11 @@
 - RD 分支 CosFace 原型余弦相似度矩阵。
 - 安全关键误判对回退前后变化。
 - 训练损失组件曲线进入 `training_history.json`。
+- Expert1 `deep_reroute` 独立增强路径：
+  - 更高分辨率 deep RD patch CNN。
+  - deep 专用局部 pair correction head。
+  - deep 专用 Unknown / Clutter residual head。
+  - deep 样本报告：pass1 prediction、deep prediction、final prediction、helped / harmed、accept reason。
 
 ## 当前主线
 
@@ -54,16 +59,7 @@ Expert1 RD net gain >= 0
 
 ### 待实现
 
-- 更高分辨率 RD patch 路径。
 - 更多 RD 帧采样策略。
-- deep 专用局部 pair correction head。
-- deep 专用 Unknown / Clutter residual head。
-- deep 专用报告：
-  - pass1 prediction
-  - deep prediction
-  - final prediction
-  - deep helped / harmed
-  - deep accept reason
 
 ### 验收
 

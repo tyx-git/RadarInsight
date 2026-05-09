@@ -285,9 +285,33 @@ class LowAltitudeSuspectExpert(nn.Module):
                 nn.LayerNorm(self.rd_patch_dim),
             )
             self.rd_patch_temporal_pool = TemporalAttentionPool(self.rd_patch_dim, hidden_dim=64)
+            self.deep_rd_patch_dim = 96
+            self.deep_rd_patch_cnn = nn.Sequential(
+                nn.Conv2d(self.rd_patch_input_dim, 24, kernel_size=3, padding=1),
+                nn.GELU(),
+                nn.Conv2d(24, 48, kernel_size=3, padding=1),
+                nn.GELU(),
+                nn.Conv2d(48, 64, kernel_size=3, padding=1),
+                nn.GELU(),
+                nn.AdaptiveAvgPool2d((8, 8)),
+                nn.Flatten(),
+                nn.Linear(64 * 8 * 8, self.deep_rd_patch_dim),
+                nn.GELU(),
+                nn.LayerNorm(self.deep_rd_patch_dim),
+            )
+            self.deep_rd_patch_temporal_pool = TemporalAttentionPool(self.deep_rd_patch_dim, hidden_dim=96)
+            self.deep_rd_patch_fuse = nn.Sequential(
+                nn.Linear(self.deep_rd_patch_dim * 3, self.deep_rd_patch_dim),
+                nn.GELU(),
+                nn.LayerNorm(self.deep_rd_patch_dim),
+            )
         else:
             self.rd_patch_cnn = None
             self.rd_patch_temporal_pool = None
+            self.deep_rd_patch_dim = 0
+            self.deep_rd_patch_cnn = None
+            self.deep_rd_patch_temporal_pool = None
+            self.deep_rd_patch_fuse = None
         self.rd_backbone = nn.Sequential(
             nn.Linear(self.rd_model_dim + self.rd_stats_dim + self.rd_context_hidden_dim + self.rd_patch_dim, 512),
             nn.GELU(),
@@ -295,6 +319,13 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.Linear(512, 512),
             nn.GELU(),
             nn.Dropout(dropout),
+            nn.LayerNorm(512),
+        )
+        self.deep_rd_refine = nn.Sequential(
+            nn.Linear(512 + self.deep_rd_patch_dim, 512),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, 512),
             nn.LayerNorm(512),
         )
         self.rd_head = CosineMarginHead(
@@ -318,6 +349,18 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(96, 2),
+        )
+        self.deep_pair_correction_head = nn.Sequential(
+            nn.Linear(512 + hidden_dim + self.deep_rd_patch_dim, 256),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(256, len(LOW_ALTITUDE_CLASSES)),
+        )
+        self.deep_unknown_clutter_residual_head = nn.Sequential(
+            nn.Linear(512 + self.rd_stats_dim + self.deep_rd_patch_dim, 160),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(160, 3),
         )
         self.rd_class_gate = nn.Sequential(
             nn.Linear(512 + hidden_dim, 128),
@@ -460,9 +503,75 @@ class LowAltitudeSuspectExpert(nn.Module):
                     patch_input.shape[2],
                     patch_input.shape[3],
                 )
-            )
+                )
             patch_input = torch.cat([patch_input, pad], dim=1)
         return self.rd_patch_cnn(patch_input)
+
+    def _encode_deep_rd_patch(self, rd_features: torch.Tensor, rd_padding_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if self.deep_rd_patch_cnn is None:
+            return torch.zeros((rd_features.shape[0], 0), dtype=rd_features.dtype, device=rd_features.device)
+        patch_input = torch.nan_to_num(rd_features, nan=0.0, posinf=0.0, neginf=0.0)
+        if rd_padding_mask is not None:
+            while rd_padding_mask.shape[1] != patch_input.shape[1]:
+                if rd_padding_mask.shape[1] > patch_input.shape[1]:
+                    rd_padding_mask = rd_padding_mask[:, : patch_input.shape[1]]
+                else:
+                    pad = torch.ones(
+                        (rd_padding_mask.shape[0], patch_input.shape[1] - rd_padding_mask.shape[1]),
+                        dtype=rd_padding_mask.dtype,
+                        device=rd_padding_mask.device,
+                    )
+                    rd_padding_mask = torch.cat([rd_padding_mask, pad], dim=1)
+            patch_input = patch_input.masked_fill(rd_padding_mask.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1), 0.0)
+        if patch_input.ndim == 5:
+            batch_size, time_steps, range_bins, doppler_bins, channels = patch_input.shape
+            frames = patch_input.reshape(batch_size * time_steps, range_bins, doppler_bins, channels)
+            frames = frames.permute(0, 3, 1, 2).contiguous()
+            if frames.shape[1] > self.rd_patch_input_dim:
+                frames = frames[:, : self.rd_patch_input_dim]
+            elif frames.shape[1] < self.rd_patch_input_dim:
+                pad = frames.new_zeros(
+                    (
+                        frames.shape[0],
+                        self.rd_patch_input_dim - frames.shape[1],
+                        frames.shape[2],
+                        frames.shape[3],
+                    )
+                )
+                frames = torch.cat([frames, pad], dim=1)
+            encoded = torch.cat([self.deep_rd_patch_cnn(chunk) for chunk in frames.split(32, dim=0)], dim=0)
+            frame_features = encoded.view(batch_size, time_steps, self.deep_rd_patch_dim)
+            if rd_padding_mask is not None:
+                valid = ~rd_padding_mask.bool()
+            else:
+                valid = torch.ones((batch_size, time_steps), dtype=torch.bool, device=frame_features.device)
+            valid_float = valid.float().unsqueeze(-1)
+            mean_pool = (frame_features * valid_float).sum(dim=1) / valid_float.sum(dim=1).clamp_min(1.0)
+            max_pool = frame_features.masked_fill(~valid.unsqueeze(-1), -1.0e4).max(dim=1).values
+            max_pool = torch.where(valid.any(dim=1).unsqueeze(-1), max_pool, torch.zeros_like(max_pool))
+            if self.deep_rd_patch_temporal_pool is None:
+                attn_pool = mean_pool
+            else:
+                attn_pool = self.deep_rd_patch_temporal_pool(frame_features, padding_mask=~valid)
+            if self.deep_rd_patch_fuse is None:
+                return attn_pool
+            return self.deep_rd_patch_fuse(torch.cat([attn_pool, mean_pool, max_pool], dim=-1))
+        if patch_input.ndim == 4:
+            patch_input = patch_input.permute(0, 3, 1, 2).contiguous()
+            if patch_input.shape[1] > self.rd_patch_input_dim:
+                patch_input = patch_input[:, : self.rd_patch_input_dim]
+            elif patch_input.shape[1] < self.rd_patch_input_dim:
+                pad = patch_input.new_zeros(
+                    (
+                        patch_input.shape[0],
+                        self.rd_patch_input_dim - patch_input.shape[1],
+                        patch_input.shape[2],
+                        patch_input.shape[3],
+                    )
+                )
+                patch_input = torch.cat([patch_input, pad], dim=1)
+            return self.deep_rd_patch_cnn(patch_input)
+        raise ValueError("rd patch features must be [B,T,R,D,C] or [B,T,R,C]")
 
     def _apply_reject(self, logits: torch.Tensor, cosine: torch.Tensor, activated: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
@@ -565,7 +674,10 @@ class LowAltitudeSuspectExpert(nn.Module):
             patch_source = rd_patch_features if rd_patch_features is not None else rd_features
             patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
             rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
+            deep_rd_patch = self._encode_deep_rd_patch(patch_source, rd_padding_mask=patch_mask) if deep_reroute else traj_input.new_zeros((traj_input.shape[0], self.deep_rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
+            if deep_reroute:
+                rd_features_vec = self.deep_rd_refine(torch.cat([rd_features_vec, deep_rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
             rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
@@ -606,11 +718,15 @@ class LowAltitudeSuspectExpert(nn.Module):
                     rd_bird_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_bird_logits), rd_bird_logits)
                     rd_unknown_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_logits), rd_unknown_logits)
                     rd_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_logits), rd_clutter_logits)
+                    deep_rd_patch = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(deep_rd_patch), deep_rd_patch)
         else:
             rd_encoded = traj_input.new_zeros((traj_input.shape[0], self.rd_model_dim))
             rd_stats = traj_input.new_zeros((traj_input.shape[0], self.rd_stats_dim))
             rd_patch = traj_input.new_zeros((traj_input.shape[0], self.rd_patch_dim))
+            deep_rd_patch = traj_input.new_zeros((traj_input.shape[0], self.deep_rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
+            if deep_reroute:
+                rd_features_vec = self.deep_rd_refine(torch.cat([rd_features_vec, deep_rd_patch], dim=-1))
             rd_cosine, rd_logits = self.rd_head(rd_features_vec, labels=low_altitude_targets)
             rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
@@ -630,12 +746,16 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_residual_logits = self.rd_residual_head(rd_features_vec)
         rd_unknown_clutter_logits = self.rd_unknown_clutter_head(rd_features_vec)
         rd_clutter_morphology_logits = self.rd_clutter_morphology_head(torch.cat([rd_stats, rd_patch], dim=-1))
+        deep_pair_correction_logits = self.deep_pair_correction_head(torch.cat([rd_features_vec, traj_features, deep_rd_patch], dim=-1))
+        deep_unknown_clutter_residual_logits = self.deep_unknown_clutter_residual_head(torch.cat([rd_features_vec, rd_stats, deep_rd_patch], dim=-1))
         if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
             no_rd = ~rd_is_multimodal.bool()
             if no_rd.any():
                 rd_residual_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_residual_logits), rd_residual_logits)
                 rd_unknown_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_clutter_logits), rd_unknown_clutter_logits)
                 rd_clutter_morphology_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_morphology_logits), rd_clutter_morphology_logits)
+                deep_pair_correction_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(deep_pair_correction_logits), deep_pair_correction_logits)
+                deep_unknown_clutter_residual_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(deep_unknown_clutter_residual_logits), deep_unknown_clutter_residual_logits)
 
         unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
         clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
@@ -668,6 +788,13 @@ class LowAltitudeSuspectExpert(nn.Module):
             + self.rd_unknown_clutter_logit_scale * rd_unknown_clutter_delta
             + self.rd_clutter_morphology_logit_scale * rd_clutter_morphology_delta
         )
+        if deep_reroute:
+            deep_known_delta = deep_unknown_clutter_residual_logits[:, 0]
+            deep_unknown_delta = deep_unknown_clutter_residual_logits[:, 1] - deep_known_delta
+            deep_clutter_delta = deep_unknown_clutter_residual_logits[:, 2] - deep_known_delta
+            rd_logits = rd_logits + 0.35 * deep_pair_correction_logits
+            rd_logits[:, unknown_index] = rd_logits[:, unknown_index] + 0.55 * deep_unknown_delta
+            rd_logits[:, clutter_index] = rd_logits[:, clutter_index] + 0.65 * deep_clutter_delta
 
         traj_probs = torch.softmax(traj_logits, dim=-1)
         rd_probs = torch.softmax(rd_logits, dim=-1)
@@ -799,6 +926,9 @@ class LowAltitudeSuspectExpert(nn.Module):
             "traj_pred": traj_pred.detach(),
             "rd_pred": rd_pred.detach(),
             "final_margin": final_margin.detach(),
+            "deep_pair_correction_max": deep_pair_correction_logits.abs().max(dim=-1).values.detach(),
+            "deep_unknown_clutter_pred": deep_unknown_clutter_residual_logits.argmax(dim=-1).detach(),
+            "deep_unknown_clutter_confidence": torch.softmax(deep_unknown_clutter_residual_logits, dim=-1).max(dim=-1).values.detach(),
         }
         return LowAltitudeFusionOutput(
             traj_features=traj_features,

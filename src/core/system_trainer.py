@@ -1905,8 +1905,28 @@ def _reroute_report(
     distribution = torch.bincount(reroute_count, minlength=int(reroute_count.max().item()) + 1 if reroute_count.numel() > 0 else 1)
     low_deep_used = reroute_diagnostics.get("reroute_low_altitude_deep_used")
     low_deep_accepted = reroute_diagnostics.get("reroute_low_altitude_deep_accepted")
+    low_deep_helped = reroute_diagnostics.get("reroute_low_altitude_deep_helped")
+    low_deep_harmed = reroute_diagnostics.get("reroute_low_altitude_deep_harmed")
+    pass1_pred = reroute_diagnostics.get("reroute_low_altitude_pass1_pred")
+    deep_pred = reroute_diagnostics.get("reroute_low_altitude_deep_pred")
     low_deep_used_count = int(low_deep_used.bool().sum().item()) if low_deep_used is not None else 0
     low_deep_accepted_count = int(low_deep_accepted.bool().sum().item()) if low_deep_accepted is not None else 0
+    low_deep_helped_count = int(low_deep_helped.bool().sum().item()) if low_deep_helped is not None else 0
+    low_deep_harmed_count = int(low_deep_harmed.bool().sum().item()) if low_deep_harmed is not None else 0
+    low_local_labels = torch.full_like(class_labels, fill_value=-1)
+    for local_idx, label_name in enumerate(LOW_ALTITUDE_CLASSES):
+        low_local_labels[class_labels == DEFAULT_VOCAB.label_to_index[label_name]] = local_idx
+    deep_truth_mask = (
+        low_deep_used.bool() & (low_local_labels >= 0)
+        if low_deep_used is not None
+        else torch.zeros_like(class_labels, dtype=torch.bool)
+    )
+    if pass1_pred is not None and deep_pred is not None and bool(deep_truth_mask.any()):
+        pass1_correct = pass1_pred.to(dtype=torch.long) == low_local_labels
+        deep_correct = deep_pred.to(dtype=torch.long) == low_local_labels
+        low_deep_helped_count = int((deep_truth_mask & ~pass1_correct & deep_correct).sum().item())
+        low_deep_harmed_count = int((deep_truth_mask & pass1_correct & ~deep_correct).sum().item())
+    low_deep_truth_count = int(deep_truth_mask.sum().item())
     return {
         "reroute_rate": reroute_rate,
         "reroute_avg_count": reroute_avg_count,
@@ -1917,6 +1937,11 @@ def _reroute_report(
         "low_altitude_deep_used_rate": low_deep_used_count / total if total > 0 else 0.0,
         "low_altitude_deep_accepted_count": low_deep_accepted_count,
         "low_altitude_deep_accept_rate": low_deep_accepted_count / low_deep_used_count if low_deep_used_count > 0 else 0.0,
+        "low_altitude_deep_truth_count": low_deep_truth_count,
+        "low_altitude_deep_helped_count": low_deep_helped_count,
+        "low_altitude_deep_harmed_count": low_deep_harmed_count,
+        "low_altitude_deep_recovery_rate": low_deep_helped_count / low_deep_truth_count if low_deep_truth_count > 0 else 0.0,
+        "low_altitude_deep_harm_rate": low_deep_harmed_count / low_deep_truth_count if low_deep_truth_count > 0 else 0.0,
         "reroute_count_distribution": {
             str(index): int(value.item())
             for index, value in enumerate(distribution)
@@ -2549,6 +2574,12 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "reroute_total_penalty",
             "reroute_low_altitude_deep_used",
             "reroute_low_altitude_deep_accepted",
+            "reroute_low_altitude_deep_helped",
+            "reroute_low_altitude_deep_harmed",
+            "reroute_low_altitude_pass1_pred",
+            "reroute_low_altitude_deep_pred",
+            "reroute_low_altitude_final_pred",
+            "reroute_low_altitude_deep_accept_reason_code",
             "reroute_accept_confidence",
             "reroute_reject_reason_code",
             "low_reject_score",
@@ -2561,6 +2592,9 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
             "low_final_margin",
             "low_traj_pred",
             "low_rd_pred",
+            "low_deep_pair_correction_max",
+            "low_deep_unknown_clutter_pred",
+            "low_deep_unknown_clutter_confidence",
         ):
             if isinstance(reroute_diagnostics, dict) and diag_name in reroute_diagnostics:
                 value = reroute_diagnostics[diag_name][idx]
@@ -2569,11 +2603,29 @@ def _prediction_records(epoch_metrics: dict[str, object]) -> list[dict[str, obje
                 else:
                     record[diag_name] = (
                         int(value.item())
-                        if "count" in diag_name or "route" in diag_name or "code" in diag_name
+                        if "count" in diag_name or "route" in diag_name or "code" in diag_name or "pred" in diag_name
                         else float(value.item())
                     )
                 if diag_name == "reroute_reject_reason_code":
                     record["reroute_reject_reason"] = REROUTE_REASON_NAMES.get(int(value.item()), f"unknown_{int(value.item())}")
+                if diag_name == "reroute_low_altitude_deep_accept_reason_code":
+                    record["reroute_low_altitude_deep_accept_reason"] = {
+                        0: "none",
+                        1: "deep_confident_known",
+                        2: "deep_residual_unknown",
+                    }.get(int(value.item()), f"unknown_{int(value.item())}")
+        for diag_name in (
+            "reroute_low_altitude_pass1_pred",
+            "reroute_low_altitude_deep_pred",
+            "reroute_low_altitude_final_pred",
+            "low_traj_pred",
+            "low_rd_pred",
+            "low_deep_unknown_clutter_pred",
+        ):
+            if diag_name in record and isinstance(record[diag_name], int):
+                local_idx = int(record[diag_name])
+                if 0 <= local_idx < len(LOW_ALTITUDE_CLASSES):
+                    record[f"{diag_name}_label"] = LOW_ALTITUDE_CLASSES[local_idx]
         records.append(record)
     return records
 

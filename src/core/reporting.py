@@ -150,6 +150,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             ("reroute_worsen_rate", "回流后错误率"),
             ("low_altitude_deep_used_rate", "Expert1 deep 使用率"),
             ("low_altitude_deep_accept_rate", "Expert1 deep 接受率"),
+            ("low_altitude_deep_recovery_rate", "Expert1 deep recovery 率"),
+            ("low_altitude_deep_harm_rate", "Expert1 deep harm 率"),
         ]
         for key, label in metric_labels:
             if key in reroute_metrics:
@@ -236,6 +238,27 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                     f"{item.get('after_count', 0)} | {item.get('delta', 0)} | "
                     f"{item.get('reduced_count', 0)} | {item.get('introduced_count', 0)} |"
                 )
+        lines.append("")
+    deep_records = [
+        item for item in predictions
+        if item.get("reroute_low_altitude_deep_used")
+    ]
+    if deep_records:
+        lines.append("## Expert1 deep_reroute 样本")
+        lines.append("| sample_id | true | pass1 | deep | final | accept reason | helped | harmed | pair_delta | residual_conf |")
+        lines.append("|---|---|---|---|---|---|---:|---:|---:|---:|")
+        for item in deep_records[:20]:
+            lines.append(
+                f"| {item.get('sample_id', '')} | {item.get('label_name_true', '')} | "
+                f"{item.get('reroute_low_altitude_pass1_pred_label', '')} | "
+                f"{item.get('reroute_low_altitude_deep_pred_label', '')} | "
+                f"{item.get('reroute_low_altitude_final_pred_label', '')} | "
+                f"{item.get('reroute_low_altitude_deep_accept_reason', '')} | "
+                f"{int(bool(item.get('reroute_low_altitude_deep_helped', False)))} | "
+                f"{int(bool(item.get('reroute_low_altitude_deep_harmed', False)))} | "
+                f"{_format_float(float(item.get('low_deep_pair_correction_max', 0.0)))} | "
+                f"{_format_float(float(item.get('low_deep_unknown_clutter_confidence', 0.0)))} |"
+            )
         lines.append("")
     ground_metrics = {}
     if isinstance(critical_metrics, dict):

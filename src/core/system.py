@@ -10,6 +10,7 @@ from .experts import (
     ConventionalAirExpert,
     ExpertOutput,
     GroundTargetExpert,
+    LOW_ALTITUDE_CLASSES,
     LowAltitudeFusionOutput,
     LowAltitudeSuspectExpert,
     RuleBasedHighAltitudeExpert,
@@ -20,6 +21,7 @@ from .trajectory import TrackRepresentation, TrackRepresentationBuilder
 
 GLOBAL_LABEL_TO_INDEX = DEFAULT_VOCAB.label_to_index
 UNKNOWN_INDEX = GLOBAL_LABEL_TO_INDEX["UnknownTarget"]
+LOW_LOCAL_UNKNOWN_INDEX = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
 
 
 @dataclass(frozen=True)
@@ -261,6 +263,12 @@ class RadarClassificationSystem(nn.Module):
         last_confidence = torch.zeros((batch_size,), dtype=torch.float32, device=device)
         low_deep_used_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
         low_deep_accept_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        low_deep_helped_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        low_deep_harmed_mask = torch.zeros((batch_size,), dtype=torch.bool, device=device)
+        low_pass1_pred = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        low_deep_pred = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        low_final_pred = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
+        low_deep_accept_reason_code = torch.zeros((batch_size,), dtype=torch.long, device=device)
         reject_reason_code = torch.zeros((batch_size,), dtype=torch.long, device=device)
         next_route_override = torch.full((batch_size,), fill_value=-1, dtype=torch.long, device=device)
         route_path = torch.full((batch_size, int(max(1, config.max_passes)) + 1), fill_value=-1, dtype=torch.long, device=device)
@@ -354,8 +362,27 @@ class RadarClassificationSystem(nn.Module):
                         deep_detail,
                         threshold=float(config.low_altitude_conf_threshold),
                     )
+                    pass1_pred = detail.logits.argmax(dim=-1)
+                    deep_pred = deep_detail.logits.argmax(dim=-1)
+                    pass1_unknown = pass1_pred == LOW_LOCAL_UNKNOWN_INDEX
+                    deep_unknown = deep_pred == LOW_LOCAL_UNKNOWN_INDEX
+                    deep_confident = deep_confidence >= float(config.low_altitude_conf_threshold)
                     low_deep_used_mask[:] = low_deep_used_mask | rejected
                     low_deep_accept_mask[:] = low_deep_accept_mask | (rejected & deep_accepted)
+                    low_pass1_pred[:] = torch.where(rejected, pass1_pred, low_pass1_pred)
+                    low_deep_pred[:] = torch.where(rejected, deep_pred, low_deep_pred)
+                    low_deep_helped_mask[:] = low_deep_helped_mask | (rejected & pass1_unknown & deep_accepted & ~deep_unknown)
+                    low_deep_harmed_mask[:] = low_deep_harmed_mask | (rejected & ~pass1_unknown & deep_accepted & deep_unknown)
+                    reason = torch.where(
+                        deep_unknown & deep_accepted,
+                        torch.full_like(low_deep_accept_reason_code, 2),
+                        torch.where(
+                            deep_confident & deep_accepted,
+                            torch.full_like(low_deep_accept_reason_code, 1),
+                            torch.zeros_like(low_deep_accept_reason_code),
+                        ),
+                    )
+                    low_deep_accept_reason_code[:] = torch.where(rejected & deep_accepted, reason, low_deep_accept_reason_code)
                     confidence = torch.where(rejected, deep_confidence, confidence)
                     accepted = accepted | (rejected & deep_accepted)
                     low_reject_score = detail.reject_score
@@ -586,6 +613,21 @@ class RadarClassificationSystem(nn.Module):
         high_altitude = get_high_altitude()
         ground = get_ground()
         low_reject_reasons = low_altitude.reject_reasons or {}
+        low_deep_reject_reasons = low_altitude_deep.reject_reasons or {}
+        low_route_idx = ROUTE_NAMES.index("low_altitude_suspect")
+        low_final_route_mask = completed_mask & (selected_route == low_route_idx)
+        if bool(low_final_route_mask.any()):
+            low_final_pred = torch.where(
+                low_final_route_mask,
+                final_logits[:, [
+                    GLOBAL_LABEL_TO_INDEX["DroneTarget"],
+                    GLOBAL_LABEL_TO_INDEX["BirdTarget"],
+                    GLOBAL_LABEL_TO_INDEX["BalloonTarget"],
+                    GLOBAL_LABEL_TO_INDEX["ClutterTarget"],
+                    GLOBAL_LABEL_TO_INDEX["UnknownTarget"],
+                ]].argmax(dim=-1),
+                low_final_pred,
+            )
         diagnostics = {
             "reroute_count": reroute_count.detach(),
             "reroute_triggered": (reroute_count > 0).detach(),
@@ -602,6 +644,12 @@ class RadarClassificationSystem(nn.Module):
             "reroute_lazy_expert_eval_count": torch.full((batch_size,), lazy_expert_eval_count, dtype=torch.long, device=device),
             "reroute_low_altitude_deep_used": low_deep_used_mask.detach(),
             "reroute_low_altitude_deep_accepted": low_deep_accept_mask.detach(),
+            "reroute_low_altitude_deep_helped": low_deep_helped_mask.detach(),
+            "reroute_low_altitude_deep_harmed": low_deep_harmed_mask.detach(),
+            "reroute_low_altitude_pass1_pred": low_pass1_pred.detach(),
+            "reroute_low_altitude_deep_pred": low_deep_pred.detach(),
+            "reroute_low_altitude_final_pred": low_final_pred.detach(),
+            "reroute_low_altitude_deep_accept_reason_code": low_deep_accept_reason_code.detach(),
             "low_reject_score": (
                 low_altitude.reject_score.detach()
                 if low_altitude.reject_score is not None
@@ -616,6 +664,9 @@ class RadarClassificationSystem(nn.Module):
             "low_final_margin": low_reject_reasons.get("final_margin", torch.zeros((batch_size,), dtype=torch.float32, device=device)).detach(),
             "low_traj_pred": low_reject_reasons.get("traj_pred", torch.full((batch_size,), -1, dtype=torch.long, device=device)).detach(),
             "low_rd_pred": low_reject_reasons.get("rd_pred", torch.full((batch_size,), -1, dtype=torch.long, device=device)).detach(),
+            "low_deep_pair_correction_max": low_deep_reject_reasons.get("deep_pair_correction_max", torch.zeros((batch_size,), dtype=torch.float32, device=device)).detach(),
+            "low_deep_unknown_clutter_pred": low_deep_reject_reasons.get("deep_unknown_clutter_pred", torch.full((batch_size,), -1, dtype=torch.long, device=device)).detach(),
+            "low_deep_unknown_clutter_confidence": low_deep_reject_reasons.get("deep_unknown_clutter_confidence", torch.zeros((batch_size,), dtype=torch.float32, device=device)).detach(),
         }
         return RadarSystemOutput(
             representation=representation,

@@ -2660,7 +2660,7 @@
 
 - 本轮没有重新训练。
 - 当前 fine label 已进入数据接口和报告，但 loss 仍使用 coarse label；后续需要单独设计 fine label loss 或专家内部细类监督。
-- `deep_reroute` 目前是增强路径接口和策略增强，尚未引入更高分辨率 RD 数据重采样；后续需要继续扩展 RD 数据编码和 deep 专家头。
+- `deep_reroute` 当时只是增强路径接口和策略增强；模型侧更高分辨率 deep patch / deep 专家头已在 2026-05-09 后续补齐，数据层更多帧采样策略仍需继续扩展。
 
 ## 2026-05-09：System 回退评估双口径与有方向 reject graph
 
@@ -2726,7 +2726,7 @@
 
 - 本轮仍未重新训练。
 - 有方向 reject graph 已经进入推理/评估路径，但阈值仍沿用当前 config，需要通过训练后验证集调参。
-- `deep_reroute` 仍是现有 RD 表征上的增强路径，尚未引入更高分辨率 RD patch 或更多帧采样。
+- `deep_reroute` 当时仍是现有 RD 表征上的增强路径；更高分辨率 deep RD patch 已在 2026-05-09 后续补齐，更多帧采样策略仍未落地。
 
 ## 2026-05-09：两层标签旧索引兼容与 reroute 报告补齐
 
@@ -2972,3 +2972,70 @@
 - 本轮仍未重新训练，尚无新的 accuracy / macro F1。
 - 新增的是评估与报告能力，不代表 Expert2/Expert4 本身已完成优化。
 - 推理延迟剖析尚未实现。
+
+## 2026-05-09：Expert1 deep_reroute 独立增强路径
+
+### 问题
+
+1. `deep_reroute` 虽然已有独立 inference mode，但主要复用 `dual_main` 的 RD 表征，只是提高 gate / takeover 倾向。它还不是一个真正更强的二次纠错路径。
+2. deep 路径缺少专用局部 correction head，无法在 Drone/Bird、Unknown/Clutter、Balloon 等局部边界上更强接管。
+3. Unknown / Clutter 的 residual 判断仍复用普通 RD 头和已有辅助头，deep reroute 阶段缺少更明确的 residual / clutter 判别信号。
+4. 报告中看不到 pass1 prediction、deep prediction、final prediction、deep helped / harmed、deep accept reason，无法判断 deep reroute 是否真的在纠错。
+
+### 解决方案
+
+1. 在 `LowAltitudeSuspectExpert` 内新增 deep 专用 RD patch 路径：
+   - 24/48/64 channel 的更深 2D CNN；
+   - `AdaptiveAvgPool2d((8, 8))` 保留比普通 patch 更高的局部纹理分辨率；
+   - attention / mean / max 三路多帧聚合后融合，作为 deep patch embedding。
+2. deep reroute 模式下，将 deep patch embedding 与原 RD embedding 融合进 `deep_rd_refine`，得到 deep 专用 RD 表征。
+3. 新增 deep 专用头：
+   - `deep_pair_correction_head`：输出 5 类局部 correction delta，用于 deep 阶段强化局部 pair correction；
+   - `deep_unknown_clutter_residual_head`：输出 known / unknown / clutter 三路 residual 判断，用于 Unknown / Clutter 二次裁决。
+4. deep 模式下：
+   - RD logits 叠加 deep pair correction；
+   - Unknown / Clutter 额外叠加 deep residual delta；
+   - 保持 `dual_main` 轨迹快速路径不受 RD summary 污染。
+5. System reroute 诊断新增：
+   - `reroute_low_altitude_pass1_pred`
+   - `reroute_low_altitude_deep_pred`
+   - `reroute_low_altitude_final_pred`
+   - `reroute_low_altitude_deep_helped`
+   - `reroute_low_altitude_deep_harmed`
+   - `reroute_low_altitude_deep_accept_reason_code`
+   - `low_deep_pair_correction_max`
+   - `low_deep_unknown_clutter_pred`
+   - `low_deep_unknown_clutter_confidence`
+6. Markdown 报告新增 “Expert1 deep_reroute 样本” 表，直接展示 pass1 / deep / final / accept reason / helped / harmed。
+
+### 最终落地
+
+- `src/core/experts.py`
+  - 增加 deep patch CNN、多帧聚合、deep RD refine、deep pair correction、deep Unknown/Clutter residual。
+- `src/core/system.py`
+  - reroute 记录 pass1/deep/final 预测、deep helped/harmed 和 accept reason。
+- `src/core/system_trainer.py`
+  - deep 诊断写入 prediction record。
+  - `_reroute_report()` 使用真实标签计算 deep recovery / harm 率。
+- `src/core/reporting.py`
+  - Markdown 输出 deep reroute 样本明细。
+- `target.md`
+  - 删除已落地的 deep patch、deep pair correction、deep residual、deep 报告项。
+
+### 验证
+
+- `python -m compileall src` 通过。
+- `LowAltitudeSuspectExpert` 双模式 smoke 通过：
+  - `dual_main` 输出 shape `(2, 5)`；
+  - `deep_reroute` 输出 shape `(2, 5)`；
+  - deep pair / Unknown-Clutter 诊断 shape 正常。
+- `RadarClassificationSystem.forward(inference_mode='reroute')` smoke 通过：
+  - `reroute_logits` shape `(2, 9)`；
+  - `reroute_low_altitude_pass1_pred` / `deep_pred` / `deep_accept_reason_code` 正常输出。
+- `build_markdown_report()` deep 表格 smoke 通过。
+
+### 当前边界
+
+- 本轮仍未重新训练，尚无新的 accuracy / macro F1。
+- deep 专用头是新参数，需要后续训练验证；旧 checkpoint 加载时如果严格加载可能需要重新训练或使用兼容加载路径。
+- “更多 RD 帧采样策略”尚未做成数据层可配置策略，仍保留在 `target.md`。
