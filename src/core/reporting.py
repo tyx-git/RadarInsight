@@ -484,6 +484,22 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 lines.append("|---|---:|")
                 for pair_name, value in pair_weights.items():
                     lines.append(f"| {pair_name} | {_format_float(float(value))} |")
+            hard_pair_report = rd_branch.get("hard_pair_report", {})
+            if isinstance(hard_pair_report, dict) and hard_pair_report:
+                lines.append("")
+                lines.append("| RD hard pair | support | traj acc | rd acc | final acc | rd rescue | rd harm | rd net | final net |")
+                lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+                for pair_name, item in hard_pair_report.items():
+                    if not isinstance(item, dict):
+                        continue
+                    lines.append(
+                        f"| {pair_name} | {item.get('support', 0)} | "
+                        f"{_format_float(float(item.get('traj_accuracy', 0.0)))} | "
+                        f"{_format_float(float(item.get('rd_accuracy', 0.0)))} | "
+                        f"{_format_float(float(item.get('final_accuracy', 0.0)))} | "
+                        f"{item.get('rd_rescue_count', 0)} | {item.get('rd_harm_count', 0)} | "
+                        f"{item.get('rd_net_gain_count', 0)} | {item.get('final_net_gain_count', 0)} |"
+                    )
             lines.append("")
     lines.append("## 按来源统计")
     if isinstance(critical_metrics, dict):

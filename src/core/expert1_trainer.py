@@ -715,6 +715,97 @@ def _drone_bird_metrics(logits: torch.Tensor, labels: torch.Tensor) -> dict[str,
     }
 
 
+def _pair_name(a: str, b: str) -> str:
+    return f"{a}__vs__{b}"
+
+
+def _hard_pair_report(
+    logits: torch.Tensor,
+    traj_logits: torch.Tensor,
+    rd_logits: torch.Tensor,
+    labels: torch.Tensor,
+    has_rd: torch.Tensor,
+) -> dict[str, dict[str, float | int]]:
+    report: dict[str, dict[str, float | int]] = {}
+    final_preds = logits.argmax(dim=-1) if logits.numel() else torch.empty((0,), dtype=torch.long)
+    traj_preds = traj_logits.argmax(dim=-1) if traj_logits.numel() else torch.empty((0,), dtype=torch.long)
+    rd_preds = rd_logits.argmax(dim=-1) if rd_logits.numel() else torch.empty((0,), dtype=torch.long)
+    pairs = [
+        ("DroneTarget", "BirdTarget"),
+        ("UnknownTarget", "ClutterTarget"),
+        ("BirdTarget", "ClutterTarget"),
+    ]
+    for left_name, right_name in pairs:
+        left_idx = LOW_ALTITUDE_CLASSES.index(left_name)
+        right_idx = LOW_ALTITUDE_CLASSES.index(right_name)
+        pair_mask = has_rd & ((labels == left_idx) | (labels == right_idx))
+        support = int(pair_mask.sum().item())
+        if support <= 0:
+            report[_pair_name(left_name, right_name)] = {
+                "support": 0,
+                "rd_accuracy": 0.0,
+                "traj_accuracy": 0.0,
+                "final_accuracy": 0.0,
+                "rd_rescue_count": 0,
+                "rd_harm_count": 0,
+                "final_rescue_count": 0,
+                "final_harm_count": 0,
+                "rd_net_gain_count": 0,
+                "final_net_gain_count": 0,
+                "rd_net_gain_rate": 0.0,
+                "final_net_gain_rate": 0.0,
+                f"{left_name}_recall": 0.0,
+                f"{right_name}_recall": 0.0,
+                f"{left_name}_as_{right_name}_count": 0,
+                f"{right_name}_as_{left_name}_count": 0,
+            }
+            continue
+        pair_labels = labels[pair_mask]
+        pair_rd_preds = rd_preds[pair_mask]
+        pair_traj_preds = traj_preds[pair_mask]
+        pair_final_preds = final_preds[pair_mask]
+        left_mask = pair_labels == left_idx
+        right_mask = pair_labels == right_idx
+        rd_correct = pair_rd_preds == pair_labels
+        traj_correct = pair_traj_preds == pair_labels
+        final_correct = pair_final_preds == pair_labels
+        rd_rescue = (~traj_correct) & rd_correct
+        rd_harm = traj_correct & (~rd_correct)
+        final_rescue = (~traj_correct) & final_correct
+        final_harm = traj_correct & (~final_correct)
+        rd_rescue_count = int(rd_rescue.sum().item())
+        rd_harm_count = int(rd_harm.sum().item())
+        final_rescue_count = int(final_rescue.sum().item())
+        final_harm_count = int(final_harm.sum().item())
+        report[_pair_name(left_name, right_name)] = {
+            "support": support,
+            "rd_accuracy": float(rd_correct.float().mean().item()),
+            "traj_accuracy": float(traj_correct.float().mean().item()),
+            "final_accuracy": float(final_correct.float().mean().item()),
+            "rd_rescue_count": rd_rescue_count,
+            "rd_harm_count": rd_harm_count,
+            "final_rescue_count": final_rescue_count,
+            "final_harm_count": final_harm_count,
+            "rd_net_gain_count": rd_rescue_count - rd_harm_count,
+            "final_net_gain_count": final_rescue_count - final_harm_count,
+            "rd_net_gain_rate": (rd_rescue_count - rd_harm_count) / support,
+            "final_net_gain_rate": (final_rescue_count - final_harm_count) / support,
+            f"{left_name}_recall": (
+                float((pair_rd_preds[left_mask] == left_idx).float().mean().item())
+                if bool(left_mask.any())
+                else 0.0
+            ),
+            f"{right_name}_recall": (
+                float((pair_rd_preds[right_mask] == right_idx).float().mean().item())
+                if bool(right_mask.any())
+                else 0.0
+            ),
+            f"{left_name}_as_{right_name}_count": int(((pair_rd_preds == right_idx) & left_mask).sum().item()),
+            f"{right_name}_as_{left_name}_count": int(((pair_rd_preds == left_idx) & right_mask).sum().item()),
+        }
+    return report
+
+
 def _expert1_diagnostics(
     logits: torch.Tensor,
     labels: torch.Tensor,
@@ -1456,6 +1547,13 @@ def _run_epoch(
     diagnostics.update(_expert1_diagnostics(traj_logits_cat, labels_cat, "traj"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd"))
     diagnostics.update(_expert1_diagnostics(rd_logits_cat, labels_cat, "rd_on_rd", mask=has_rd_tensor))
+    rd_hard_pair_report = _hard_pair_report(
+        logits_cat,
+        traj_logits_cat,
+        rd_logits_cat,
+        labels_cat,
+        has_rd_tensor,
+    )
     rd_teacher_effect = _rd_teacher_effect_metrics(
         logits_cat,
         traj_logits_cat,
@@ -1588,6 +1686,7 @@ def _run_epoch(
         "rd_unknown_clutter_recall_mean": rd_unknown_clutter,
         "rd_drone_as_bird_rate": float(rd_drone_bird["drone_as_bird_rate"]),
         "rd_bird_as_drone_rate": float(rd_drone_bird["bird_as_drone_rate"]),
+        "rd_hard_pair_report": rd_hard_pair_report,
         **rd_teacher_effect,
         "traj_per_class_recall": diagnostics["traj_per_class_recall"],
         "traj_drone_bird": diagnostics["traj_drone_bird"],
@@ -1857,6 +1956,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
             "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"],
             "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            "rd_hard_pair_report": test_metrics["rd_hard_pair_report"],
             "rd_rescue_count": test_metrics["rd_rescue_count"],
             "rd_harm_count": test_metrics["rd_harm_count"],
             "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
@@ -1963,6 +2063,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
                 "drone_bird": test_metrics["rd_drone_bird"],
                 "unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+                "hard_pair_report": test_metrics["rd_hard_pair_report"],
                 "rescue_count": test_metrics["rd_rescue_count"],
                 "harm_count": test_metrics["rd_harm_count"],
                 "rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
@@ -2064,6 +2165,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
             "rd_per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
             "rd_drone_bird": test_metrics["rd_drone_bird"],
+            "rd_hard_pair_report": test_metrics["rd_hard_pair_report"],
             "rd_rescue_count": test_metrics["rd_rescue_count"],
             "rd_harm_count": test_metrics["rd_harm_count"],
             "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],

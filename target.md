@@ -34,6 +34,10 @@
   - deep 专用局部 pair correction head。
   - deep 专用 Unknown / Clutter residual head。
   - deep 样本报告：pass1 prediction、deep prediction、final prediction、helped / harmed、accept reason。
+- Expert1 RD-only hard pair 固定报告：
+  - DroneTarget <-> BirdTarget。
+  - UnknownTarget <-> ClutterTarget。
+  - BirdTarget <-> ClutterTarget。
 
 ## 当前主线
 
@@ -60,10 +64,6 @@ RD 已作为低空第二主证据参与，但仍需从“能参与”推进到�
 
 ### 待实现
 
-- RD-only hard pair 分析固定进入报告：
-  - DroneTarget <-> BirdTarget
-  - UnknownTarget <-> ClutterTarget
-  - BirdTarget <-> ClutterTarget
 - RD harm 优先约束：
   - 优先压 `rd_harm_rate_on_rd`
   - 保持 `rd_rescue_count`

@@ -3104,3 +3104,51 @@
 - deep patch 目前是 deterministic 采样，暂未加入训练期 stochastic jitter。
 - 本轮是结构落地，尚未重新训练，因此没有新的 accuracy / macro F1。
 - deep patch 会增加 deep_reroute 计算量，但 `dual_main` 路径不使用它，默认主路径稳定性不受影响。
+
+## 2026-05-09：Expert1 RD hard-pair 固定报告
+
+### 问题
+
+1. Expert1 已经有 `rd_harm_rate_on_rd`、`rd_rescue_count`、`rd_net_gain_rate_on_rd` 等整体 RD 净收益指标。
+2. 代码里也已经对 Drone/Bird、Unknown/Clutter、Bird/Clutter 等 hard pair 有部分训练约束或混淆触发逻辑。
+3. 但报告层没有固定输出三组 hard pair 的 RD-only 局部表现：
+   - `DroneTarget <-> BirdTarget`
+   - `UnknownTarget <-> ClutterTarget`
+   - `BirdTarget <-> ClutterTarget`
+4. 后续调参如果只看整体 `rd_harm_rate_on_rd`，容易看不到 RD 到底在哪个局部边界救了样本、在哪个边界伤了样本。
+
+### 解决方案
+
+1. 新增 `_hard_pair_report()`，对每组 pair 统计：
+   - support
+   - trajectory accuracy
+   - RD-only accuracy
+   - final accuracy
+   - RD rescue / harm / net gain
+   - final rescue / harm / net gain
+   - pair 内两个类别的 RD recall
+   - pair 内互相误判次数
+2. 将 hard pair report 写入：
+   - `test_metrics["rd_hard_pair_report"]`
+   - `evaluation_report["summary"]["rd_hard_pair_report"]`
+   - `evaluation_report["branch_metrics"]["rd"]["hard_pair_report"]`
+   - `summary["test_metrics"]["rd_hard_pair_report"]`
+3. Markdown 报告在 “Expert1 RD 分支” 中渲染 RD hard pair 表。
+4. `target.md` 删除“RD-only hard pair 分析固定进入报告”待办，并移入已落地清单。
+
+### 最终落地
+
+- `src/core/expert1_trainer.py`
+  - 新增 `_pair_name()`。
+  - 新增 `_hard_pair_report()`。
+  - `_run_epoch()` 汇总 `rd_hard_pair_report`。
+  - Expert1 evaluation report 和 summary 写入 hard pair 指标。
+- `src/core/reporting.py`
+  - Markdown 渲染 RD hard pair 局部净收益表。
+- `target.md`
+  - 移除已落地 hard pair report 待办。
+
+### 当前边界
+
+- 本轮只补报告和评估可见性，尚未重新训练。
+- RD harm 优先训练约束本身已有基础 gate target 和选模门槛，后续还需继续根据 hard pair 报告做更细的 pair-specific harm penalty。
