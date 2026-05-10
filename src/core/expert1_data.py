@@ -42,6 +42,9 @@ def build_expert1_dataloaders(
     raw_source_boost: float = 2.0,
     excel_source_boost: float = 1.0,
     cq08_source_boost: float = 1.0,
+    source_balance_power: float = 0.5,
+    source_label_balance_power: float = 0.25,
+    max_sampler_weight: float = 12.0,
     unknown_sample_boost: float = 1.0,
     clutter_sample_boost: float = 2.0,
     bird_sample_boost: float = 1.0,
@@ -86,25 +89,44 @@ def build_expert1_dataloaders(
 
     train_weights = []
     train_meta = train_ds.index_df.reset_index(drop=True)
+    source_counts = train_meta["source_name"].astype(str).value_counts().to_dict()
+    source_label_counts = (
+        train_meta.assign(
+            source_name=train_meta["source_name"].astype(str),
+            label_name=train_meta["label_name"].astype(str),
+        )
+        .groupby(["source_name", "label_name"])
+        .size()
+        .to_dict()
+    )
+    max_source_count = max(source_counts.values()) if source_counts else 1
+    max_source_label_count = max(source_label_counts.values()) if source_label_counts else 1
     for row in train_meta.to_dict(orient="records"):
         weight = 1.0
         source_name = str(row.get("source_name", ""))
+        label_name = str(row.get("label_name", ""))
         if source_name == "raw_tr_rd":
             weight *= raw_source_boost
         elif source_name == "excel_track":
             weight *= excel_source_boost
         elif source_name == "cq08_track":
             weight *= cq08_source_boost
+        if source_balance_power > 0.0:
+            source_count = max(1, int(source_counts.get(source_name, 1)))
+            weight *= (max_source_count / source_count) ** float(source_balance_power)
+        if source_label_balance_power > 0.0:
+            source_label_count = max(1, int(source_label_counts.get((source_name, label_name), 1)))
+            weight *= (max_source_label_count / source_label_count) ** float(source_label_balance_power)
         rd_tensor_path = str(row.get("rd_tensor_path", "")).strip().lower()
         if rd_tensor_path not in {"", "nan", "none"}:
             weight *= rd_sample_boost
-        if str(row.get("label_name", "")) == "UnknownTarget":
+        if label_name == "UnknownTarget":
             weight *= unknown_sample_boost
-        if str(row.get("label_name", "")) == "ClutterTarget":
+        if label_name == "ClutterTarget":
             weight *= clutter_sample_boost
-        if str(row.get("label_name", "")) == "BirdTarget":
+        if label_name == "BirdTarget":
             weight *= bird_sample_boost
-        train_weights.append(weight)
+        train_weights.append(min(float(weight), float(max_sampler_weight)))
     sampler = WeightedRandomSampler(
         weights=torch.tensor(train_weights, dtype=torch.double),
         num_samples=len(train_weights),

@@ -38,6 +38,11 @@
   - DroneTarget <-> BirdTarget。
   - UnknownTarget <-> ClutterTarget。
   - BirdTarget <-> ClutterTarget。
+- Expert1 跨源泛化选模强化：
+  - source-balanced macro F1、min source macro F1 进入 Expert1 checkpoint selection。
+  - `raw_tr_rd_macro_f1` 与 `excel_track_macro_f1` 作为弱源硬门槛。
+  - Expert1 sampler 增加 source-aware / source-label-aware weighting，并用 `max_sampler_weight` 限制过采样上限。
+  - Expert1 JSON / Markdown 报告补齐 source accuracy / macro precision / macro recall / macro F1 与 source x label per-class 指标。
 - Ground / Expert4 仲裁基础优化：
   - `tests/test_ground_system_alignment.py` 保留为常规 CUDA 对照测试，比较 Expert4 standalone、System representation + Expert4 head、System final ground。
   - Ground candidate protection 改为高置信三条件触发：`groundness` 高、Ground local logits margin 高、Router 没有强烈反对。
@@ -146,8 +151,8 @@ System Aircraft recall >= 0.80
 
 ### 待实现
 
-- raw_tr_rd 作为重点弱源验证指标。
-- source-aware sampling / weak-source replay 增强。
+- 基于新 source-aware sampler 重新训练 Expert1，观察 `raw_tr_rd_macro_f1`、`excel_track_macro_f1`、`source_balanced_macro_f1` 是否同步提升。
+- 若弱源仍不稳，再做 weak-source replay 或 source-specific calibration，不再继续只提高总体 loss 权重。
 
 ### 验收
 

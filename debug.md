@@ -259,6 +259,30 @@
     - 同时继续提升 Expert1 RD 对 Unknown / Clutter / Bird 的分离能力
   - per-class precision / recall / f1 / support
 
+## 2026-05-10 Expert1 精度与泛化优先修复
+
+问题：
+- Expert1 独立训练虽然总体 accuracy / macro F1 可用，但弱源表现被 `cq08_track` 高分掩盖；历史产物里 `raw_tr_rd` 与 `excel_track` 的 macro F1 明显偏低。
+- 旧选模主要约束 source accuracy，缺少 source-level macro F1 硬门槛，容易选中“多数类/强源好看、弱源细类崩”的 checkpoint。
+- Expert1 训练采样主要依靠固定 `raw_source_boost` / `excel_source_boost`，没有按 source 分布和 source+label 长尾动态补偿。
+- 报告里 Expert1 by-source 只有有限字段，无法直接定位弱源是整体错还是具体标签错。
+
+方案：
+- 将 `source_balanced_macro_f1`、`min_source_macro_f1`、`raw_tr_rd_macro_f1`、`excel_track_macro_f1` 接入 Expert1 训练/验证/测试指标。
+- 将 `source_balanced_macro_f1`、`raw_tr_rd_macro_f1`、`excel_track_macro_f1` 纳入 Expert1 best checkpoint 候选门槛，避免只凭整体 macro F1 选模。
+- 在 Expert1 dataloader 中新增 source-aware 与 source-label-aware sampling，根据训练集源域和源内标签频次自动补偿弱源/弱标签，同时用 `max_sampler_weight` 控制重复采样上限。
+- Expert1 evaluation report 增加 `critical_metrics`，并在 `by_source` 中输出 accuracy / macro precision / macro recall / macro F1 / trajectory source metrics / RD-on-RD source metrics / per-label metrics。
+
+落地：
+- `src/core/expert1_config.py`：新增 `source_balance_power`、`source_label_balance_power`、`max_sampler_weight` 以及 source macro F1 选模门槛。
+- `src/core/expert1_data.py`：WeightedRandomSampler 增加 source 与 source+label 动态权重。
+- `src/core/expert1_trainer.py`：新增 source macro F1 统计、source metrics 报告、critical metrics、选模打分和合格门槛。
+- `config/config.json`：Expert1 默认启用 source-aware sampler 和弱源 macro F1 门槛；保留当前用户设置的 batch size 与训练 epoch。
+
+下一步验证：
+- 使用 CUDA 跑 Expert1 短训练或完整训练，重点观察 `source_balanced_macro_f1`、`raw_tr_rd_macro_f1`、`excel_track_macro_f1`、`rd_harm_rate_on_rd`、`rd_net_gain_rate_on_rd`。
+- 若弱源 macro F1 提升但总体 macro F1 明显下降，再收紧 `max_sampler_weight` 或降低 `source_label_balance_power`。
+
 ## 2026-05-07 Expert1 源域鲁棒与 RD 二证据修复
 - 这轮聚焦的是 Expert1 不再只看平均分，而要同时压住弱源和 RD 失真。
 - 之前的问题：

@@ -260,6 +260,59 @@ def _source_accuracy_dict(
     return result
 
 
+def _source_macro_f1_dict(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    source_names: list[str],
+    mask: torch.Tensor | None = None,
+) -> dict[str, float]:
+    if mask is None:
+        mask = torch.ones_like(labels, dtype=torch.bool)
+    result: dict[str, float] = {}
+    cpu_mask = mask.cpu()
+    for source_name in sorted(set(source_names)):
+        source_mask = torch.tensor([item == source_name for item in source_names], dtype=torch.bool)
+        source_mask = source_mask & cpu_mask
+        if not bool(source_mask.any()):
+            continue
+        metrics = compute_classification_metrics(
+            logits[source_mask],
+            labels[source_mask],
+            num_classes=len(LOW_ALTITUDE_CLASSES),
+        )
+        result[source_name] = float(metrics.macro_f1)
+    return result
+
+
+def _source_metric_dict(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    source_names: list[str],
+    mask: torch.Tensor | None = None,
+) -> dict[str, dict[str, float]]:
+    if mask is None:
+        mask = torch.ones_like(labels, dtype=torch.bool)
+    result: dict[str, dict[str, float]] = {}
+    cpu_mask = mask.cpu()
+    for source_name in sorted(set(source_names)):
+        source_mask = torch.tensor([item == source_name for item in source_names], dtype=torch.bool)
+        source_mask = source_mask & cpu_mask
+        if not bool(source_mask.any()):
+            continue
+        metrics = compute_classification_metrics(
+            logits[source_mask],
+            labels[source_mask],
+            num_classes=len(LOW_ALTITUDE_CLASSES),
+        )
+        result[source_name] = {
+            "accuracy": float(metrics.accuracy),
+            "macro_precision": float(metrics.macro_precision),
+            "macro_recall": float(metrics.macro_recall),
+            "macro_f1": float(metrics.macro_f1),
+        }
+    return result
+
+
 def _source_support_dict(
     source_names: list[str],
     mask: torch.Tensor | None = None,
@@ -285,6 +338,16 @@ def _source_summary_from_dict(values: dict[str, float]) -> dict[str, float]:
     }
 
 
+def _source_macro_f1_summary(values: dict[str, float]) -> dict[str, float]:
+    source_values = list(values.values())
+    return {
+        "source_balanced_macro_f1": float(sum(source_values) / len(source_values)) if source_values else 0.0,
+        "min_source_macro_f1": float(min(source_values)) if source_values else 0.0,
+        "raw_tr_rd_macro_f1": float(values.get("raw_tr_rd", 0.0)),
+        "excel_track_macro_f1": float(values.get("excel_track", 0.0)),
+    }
+
+
 def _group_accuracy_metrics(
     logits: torch.Tensor,
     labels: torch.Tensor,
@@ -292,13 +355,20 @@ def _group_accuracy_metrics(
     has_rd: list[bool],
 ) -> dict[str, object]:
     by_source = _source_accuracy_dict(logits, labels, source_names)
+    by_source_macro_f1 = _source_macro_f1_dict(logits, labels, source_names)
     source_summary = _source_summary_from_dict(by_source)
+    source_macro_f1_summary = _source_macro_f1_summary(by_source_macro_f1)
     rd_mask = torch.tensor(has_rd, dtype=torch.bool)
     return {
         "by_source_accuracy": by_source,
+        "by_source_macro_f1": by_source_macro_f1,
         "source_balanced_accuracy": source_summary["source_balanced_accuracy"],
         "min_source_accuracy": source_summary["min_source_accuracy"],
         "raw_tr_rd_accuracy": source_summary["raw_tr_rd_accuracy"],
+        "source_balanced_macro_f1": source_macro_f1_summary["source_balanced_macro_f1"],
+        "min_source_macro_f1": source_macro_f1_summary["min_source_macro_f1"],
+        "raw_tr_rd_macro_f1": source_macro_f1_summary["raw_tr_rd_macro_f1"],
+        "excel_track_macro_f1": source_macro_f1_summary["excel_track_macro_f1"],
         "with_rd_accuracy": _subset_accuracy(logits, labels, rd_mask),
         "without_rd_accuracy": _subset_accuracy(logits, labels, ~rd_mask),
     }
@@ -652,14 +722,26 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_clutter_morphology_accuracy_on_residual_rd": metrics.get("rd_clutter_morphology_accuracy_on_residual_rd", 0.0),
         "rd_unknown_clutter_detail_clutter_recall": metrics.get("rd_unknown_clutter_detail_clutter_recall", 0.0),
         "rd_clutter_morphology_clutter_recall": metrics.get("rd_clutter_morphology_clutter_recall", 0.0),
+        "by_source_metrics": metrics.get("by_source_metrics", {}),
+        "traj_by_source_metrics": metrics.get("traj_by_source_metrics", {}),
+        "rd_by_source_metrics_on_rd": metrics.get("rd_by_source_metrics_on_rd", {}),
         "by_source_accuracy": metrics.get("by_source_accuracy", {}),
+        "by_source_macro_f1": metrics.get("by_source_macro_f1", {}),
         "traj_by_source_accuracy": metrics.get("traj_by_source_accuracy", {}),
+        "traj_by_source_macro_f1": metrics.get("traj_by_source_macro_f1", {}),
         "rd_by_source_accuracy_on_rd": metrics.get("rd_by_source_accuracy_on_rd", {}),
+        "rd_by_source_macro_f1_on_rd": metrics.get("rd_by_source_macro_f1_on_rd", {}),
         "rd_source_balanced_accuracy_on_rd": metrics.get("rd_source_balanced_accuracy_on_rd", 0.0),
         "rd_min_source_accuracy_on_rd": metrics.get("rd_min_source_accuracy_on_rd", 0.0),
+        "rd_source_balanced_macro_f1_on_rd": metrics.get("rd_source_balanced_macro_f1_on_rd", 0.0),
+        "rd_min_source_macro_f1_on_rd": metrics.get("rd_min_source_macro_f1_on_rd", 0.0),
         "raw_tr_rd_accuracy": metrics.get("raw_tr_rd_accuracy", 0.0),
         "source_balanced_accuracy": metrics.get("source_balanced_accuracy", 0.0),
         "min_source_accuracy": metrics.get("min_source_accuracy", 0.0),
+        "raw_tr_rd_macro_f1": metrics.get("raw_tr_rd_macro_f1", 0.0),
+        "excel_track_macro_f1": metrics.get("excel_track_macro_f1", 0.0),
+        "source_balanced_macro_f1": metrics.get("source_balanced_macro_f1", 0.0),
+        "min_source_macro_f1": metrics.get("min_source_macro_f1", 0.0),
         "with_rd_accuracy": metrics.get("with_rd_accuracy", 0.0),
         "without_rd_accuracy": metrics.get("without_rd_accuracy", 0.0),
         "selection_score": metrics.get("selection_score", 0.0),
@@ -904,9 +986,15 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     source_balanced_accuracy = float(metrics.get("source_balanced_accuracy", 0.0))
     min_source_accuracy = float(metrics.get("min_source_accuracy", 0.0))
     raw_source_accuracy = float(metrics.get("raw_tr_rd_accuracy", 0.0))
+    source_balanced_macro_f1 = float(metrics.get("source_balanced_macro_f1", 0.0))
+    min_source_macro_f1 = float(metrics.get("min_source_macro_f1", 0.0))
+    raw_source_macro_f1 = float(metrics.get("raw_tr_rd_macro_f1", 0.0))
+    excel_source_macro_f1 = float(metrics.get("excel_track_macro_f1", 0.0))
     rd_raw_source_accuracy = float(metrics.get("rd_raw_tr_rd_accuracy", 0.0))
     rd_source_balanced_accuracy = float(metrics.get("rd_source_balanced_accuracy_on_rd", 0.0))
     rd_min_source_accuracy = float(metrics.get("rd_min_source_accuracy_on_rd", 0.0))
+    rd_source_balanced_macro_f1 = float(metrics.get("rd_source_balanced_macro_f1_on_rd", 0.0))
+    rd_min_source_macro_f1 = float(metrics.get("rd_min_source_macro_f1_on_rd", 0.0))
     without_rd_accuracy = float(metrics.get("without_rd_accuracy", 0.0))
     rd_harm_rate = float(metrics.get("rd_harm_rate_on_rd", 0.0))
     rd_net_gain_rate = float(metrics.get("rd_net_gain_rate_on_rd", 0.0))
@@ -934,10 +1022,16 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         + 0.35 * source_balanced_accuracy
         + 0.25 * min_source_accuracy
         + 0.20 * raw_source_accuracy
+        + 0.35 * source_balanced_macro_f1
+        + 0.22 * min_source_macro_f1
+        + 0.18 * raw_source_macro_f1
+        + 0.16 * excel_source_macro_f1
         + 0.20 * without_rd_accuracy
         + 0.80 * rd_macro
         + 0.18 * rd_source_balanced_accuracy
         + 0.12 * rd_min_source_accuracy
+        + 0.18 * rd_source_balanced_macro_f1
+        + 0.10 * rd_min_source_macro_f1
         + 0.15 * rd_raw_source_accuracy
         + 0.28 * drone_bird
         + 0.32 * unknown_clutter
@@ -970,9 +1064,13 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
             eligible = eligible and min_rare_rd_recall >= config.min_rare_rd_recall_for_best
         eligible = eligible and without_rd_accuracy >= config.min_without_rd_accuracy_for_best
         eligible = eligible and source_balanced_accuracy >= config.min_source_balanced_accuracy_for_best
+        eligible = eligible and source_balanced_macro_f1 >= config.min_source_balanced_macro_f1_for_best
         if enough_raw_source:
             eligible = eligible and raw_source_accuracy >= config.min_raw_source_accuracy_for_best
+            eligible = eligible and raw_source_macro_f1 >= config.min_raw_source_macro_f1_for_best
             eligible = eligible and min_source_accuracy >= config.min_source_accuracy_for_best
+        if source_support.get("excel_track", 0) >= config.min_source_support_for_hard_gate:
+            eligible = eligible and excel_source_macro_f1 >= config.min_excel_source_macro_f1_for_best
         if enough_rd_raw_source:
             eligible = eligible and rd_raw_source_accuracy >= config.min_rd_raw_source_accuracy_for_best
         eligible = eligible and rd_harm_rate <= config.max_rd_harm_rate_for_best
@@ -988,9 +1086,15 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "source_balanced_accuracy": source_balanced_accuracy,
         "min_source_accuracy": min_source_accuracy,
         "raw_tr_rd_accuracy": raw_source_accuracy,
+        "source_balanced_macro_f1": source_balanced_macro_f1,
+        "min_source_macro_f1": min_source_macro_f1,
+        "raw_tr_rd_macro_f1": raw_source_macro_f1,
+        "excel_track_macro_f1": excel_source_macro_f1,
         "rd_raw_tr_rd_accuracy": rd_raw_source_accuracy,
         "rd_source_balanced_accuracy_on_rd": rd_source_balanced_accuracy,
         "rd_min_source_accuracy_on_rd": rd_min_source_accuracy,
+        "rd_source_balanced_macro_f1_on_rd": rd_source_balanced_macro_f1,
+        "rd_min_source_macro_f1_on_rd": rd_min_source_macro_f1,
         "without_rd_accuracy": without_rd_accuracy,
         "traj_macro_f1": traj_macro,
         "final_minus_traj_macro_f1": final_delta,
@@ -1562,6 +1666,14 @@ def _run_epoch(
         has_rd_tensor,
         source_names_all,
     )
+    by_source_metrics = _source_metric_dict(logits_cat, labels_cat, source_names_all)
+    traj_by_source_metrics = _source_metric_dict(traj_logits_cat, labels_cat, source_names_all)
+    rd_by_source_metrics_on_rd = _source_metric_dict(
+        rd_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
     group_metrics = _group_accuracy_metrics(logits_cat, labels_cat, source_names_all, has_rd_all)
     rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
     rd_activation_rate_on_rd = (
@@ -1654,7 +1766,14 @@ def _run_epoch(
     rd_drone_bird = diagnostics["rd_on_rd_drone_bird"]
     rd_unknown_clutter = float(diagnostics["rd_on_rd_unknown_clutter_recall_mean"])
     traj_by_source_accuracy = _source_accuracy_dict(traj_logits_cat, labels_cat, source_names_all)
+    traj_by_source_macro_f1 = _source_macro_f1_dict(traj_logits_cat, labels_cat, source_names_all)
     rd_by_source_accuracy_on_rd = _source_accuracy_dict(
+        rd_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
+    rd_by_source_macro_f1_on_rd = _source_macro_f1_dict(
         rd_logits_cat,
         labels_cat,
         source_names_all,
@@ -1667,6 +1786,7 @@ def _run_epoch(
         for idx, label_name in enumerate(LOW_ALTITUDE_CLASSES)
     }
     rd_by_source_summary = _source_summary_from_dict(rd_by_source_accuracy_on_rd)
+    rd_by_source_macro_f1_summary = _source_macro_f1_summary(rd_by_source_macro_f1_on_rd)
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
         "accuracy": metrics.accuracy,
@@ -1716,17 +1836,29 @@ def _run_epoch(
         "rd_clutter_morphology_accuracy_on_residual_rd": rd_clutter_morphology_accuracy,
         "rd_unknown_clutter_detail_clutter_recall": rd_unknown_clutter_detail_clutter_recall,
         "rd_clutter_morphology_clutter_recall": rd_clutter_morphology_clutter_recall,
+        "by_source_metrics": by_source_metrics,
+        "traj_by_source_metrics": traj_by_source_metrics,
+        "rd_by_source_metrics_on_rd": rd_by_source_metrics_on_rd,
         "by_source_accuracy": group_metrics["by_source_accuracy"],
+        "by_source_macro_f1": group_metrics["by_source_macro_f1"],
         "traj_by_source_accuracy": traj_by_source_accuracy,
+        "traj_by_source_macro_f1": traj_by_source_macro_f1,
         "rd_by_source_accuracy_on_rd": rd_by_source_accuracy_on_rd,
+        "rd_by_source_macro_f1_on_rd": rd_by_source_macro_f1_on_rd,
         "source_support": source_support,
         "rd_source_support_on_rd": rd_source_support_on_rd,
         "rd_class_support_on_rd": rd_class_support_on_rd,
         "rd_source_balanced_accuracy_on_rd": rd_by_source_summary["source_balanced_accuracy"],
         "rd_min_source_accuracy_on_rd": rd_by_source_summary["min_source_accuracy"],
+        "rd_source_balanced_macro_f1_on_rd": rd_by_source_macro_f1_summary["source_balanced_macro_f1"],
+        "rd_min_source_macro_f1_on_rd": rd_by_source_macro_f1_summary["min_source_macro_f1"],
         "raw_tr_rd_accuracy": group_metrics["raw_tr_rd_accuracy"],
         "source_balanced_accuracy": group_metrics["source_balanced_accuracy"],
         "min_source_accuracy": group_metrics["min_source_accuracy"],
+        "raw_tr_rd_macro_f1": group_metrics["raw_tr_rd_macro_f1"],
+        "excel_track_macro_f1": group_metrics["excel_track_macro_f1"],
+        "source_balanced_macro_f1": group_metrics["source_balanced_macro_f1"],
+        "min_source_macro_f1": group_metrics["min_source_macro_f1"],
         "with_rd_accuracy": group_metrics["with_rd_accuracy"],
         "without_rd_accuracy": group_metrics["without_rd_accuracy"],
         "skipped_non_finite_batches": skipped_non_finite_batches,
@@ -1756,6 +1888,9 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         raw_source_boost=config.raw_source_boost,
         excel_source_boost=config.excel_source_boost,
         cq08_source_boost=config.cq08_source_boost,
+        source_balance_power=config.source_balance_power,
+        source_label_balance_power=config.source_label_balance_power,
+        max_sampler_weight=config.max_sampler_weight,
         unknown_sample_boost=config.unknown_sample_boost,
         clutter_sample_boost=config.clutter_sample_boost,
         bird_sample_boost=config.bird_sample_boost,
@@ -1974,9 +2109,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
             "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
             "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
+            "rd_source_balanced_macro_f1_on_rd": test_metrics["rd_source_balanced_macro_f1_on_rd"],
+            "rd_min_source_macro_f1_on_rd": test_metrics["rd_min_source_macro_f1_on_rd"],
             "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
             "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
             "min_source_accuracy": test_metrics["min_source_accuracy"],
+            "raw_tr_rd_macro_f1": test_metrics["raw_tr_rd_macro_f1"],
+            "excel_track_macro_f1": test_metrics["excel_track_macro_f1"],
+            "source_balanced_macro_f1": test_metrics["source_balanced_macro_f1"],
+            "min_source_macro_f1": test_metrics["min_source_macro_f1"],
             "rd_class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"],
             "rd_class_fusion_weight_on_rd_mean": test_metrics["rd_class_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_mean": test_metrics["rd_pair_fusion_weight_mean"],
@@ -1995,6 +2136,30 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
+        },
+        "critical_metrics": {
+            "accuracy": test_metrics["accuracy"],
+            "macro_f1": test_metrics["macro_f1"],
+            "traj_accuracy": test_metrics["traj_accuracy"],
+            "traj_macro_f1": test_metrics["traj_macro_f1"],
+            "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
+            "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
+            "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+            "rd_net_gain_rate_on_rd": test_metrics["rd_net_gain_rate_on_rd"],
+            "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
+            "final_net_gain_rate_on_rd": test_metrics["final_net_gain_rate_on_rd"],
+            "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
+            "min_source_accuracy": test_metrics["min_source_accuracy"],
+            "source_balanced_macro_f1": test_metrics["source_balanced_macro_f1"],
+            "min_source_macro_f1": test_metrics["min_source_macro_f1"],
+            "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
+            "raw_tr_rd_macro_f1": test_metrics["raw_tr_rd_macro_f1"],
+            "excel_track_macro_f1": test_metrics["excel_track_macro_f1"],
+            "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
+            "rd_source_balanced_macro_f1_on_rd": test_metrics["rd_source_balanced_macro_f1_on_rd"],
+            "rd_min_source_macro_f1_on_rd": test_metrics["rd_min_source_macro_f1_on_rd"],
+            "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
+            "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
         },
         "label_names": LOW_ALTITUDE_CLASSES,
         "fine_label_distribution": {
@@ -2035,7 +2200,18 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "by_source": {
             source_name: {
                 "count": sum(1 for x in test_metrics["source_names"] if x == source_name),
-                "accuracy": 0.0,
+                "accuracy": float(test_metrics["by_source_metrics"].get(source_name, {}).get("accuracy", 0.0)),
+                "macro_precision": float(test_metrics["by_source_metrics"].get(source_name, {}).get("macro_precision", 0.0)),
+                "macro_recall": float(test_metrics["by_source_metrics"].get(source_name, {}).get("macro_recall", 0.0)),
+                "macro_f1": float(test_metrics["by_source_metrics"].get(source_name, {}).get("macro_f1", 0.0)),
+                "traj_accuracy": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("accuracy", 0.0)),
+                "traj_macro_precision": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_precision", 0.0)),
+                "traj_macro_recall": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_recall", 0.0)),
+                "traj_macro_f1": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_f1", 0.0)),
+                "rd_accuracy_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
+                "rd_macro_precision_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
+                "rd_macro_recall_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
+                "rd_macro_f1_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_f1", 0.0)),
             }
             for source_name in sorted(set(test_metrics["source_names"]))
         },
@@ -2074,8 +2250,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "harm_adopted_count": test_metrics["rd_harm_adopted_count"],
                 "raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
                 "by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
+                "by_source_macro_f1_on_rd": test_metrics["rd_by_source_macro_f1_on_rd"],
                 "source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
                 "min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
+                "source_balanced_macro_f1_on_rd": test_metrics["rd_source_balanced_macro_f1_on_rd"],
+                "min_source_macro_f1_on_rd": test_metrics["rd_min_source_macro_f1_on_rd"],
                 "teacher_by_source": test_metrics["rd_teacher_by_source"],
                 "class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"],
                 "class_fusion_weight_on_rd_mean": test_metrics["rd_class_fusion_weight_on_rd_mean"],
@@ -2123,12 +2302,22 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             if name == source_name
         ]
         if source_indices:
-            correct = 0
-            for idx in source_indices:
-                pred_idx = int(test_metrics["logits"][idx].argmax().item())
-                if LOW_ALTITUDE_CLASSES[pred_idx] == test_metrics["label_names"][idx]:
-                    correct += 1
-            evaluation_report["by_source"][source_name]["accuracy"] = correct / len(source_indices)
+            source_logits = test_metrics["logits"][source_indices]
+            source_labels = test_metrics["labels"][source_indices]
+            evaluation_report["by_source"][source_name]["per_label"] = [
+                {
+                    "label_name": item.label_name,
+                    "support": item.support,
+                    "precision": item.precision,
+                    "recall": item.recall,
+                    "f1": item.f1,
+                }
+                for item in compute_per_class_metrics(
+                    source_logits,
+                    source_labels,
+                    LOW_ALTITUDE_CLASSES,
+                )
+            ]
 
     rd_mask = torch.tensor(test_metrics["has_rd"], dtype=torch.bool)
     evaluation_report["by_rd_presence"] = {
@@ -2196,14 +2385,26 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
             "rd_unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
             "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
+            "by_source_metrics": test_metrics["by_source_metrics"],
+            "traj_by_source_metrics": test_metrics["traj_by_source_metrics"],
+            "rd_by_source_metrics_on_rd": test_metrics["rd_by_source_metrics_on_rd"],
             "by_source_accuracy": test_metrics["by_source_accuracy"],
             "traj_by_source_accuracy": test_metrics["traj_by_source_accuracy"],
             "rd_by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
+            "rd_by_source_macro_f1_on_rd": test_metrics["rd_by_source_macro_f1_on_rd"],
             "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
             "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
+            "rd_source_balanced_macro_f1_on_rd": test_metrics["rd_source_balanced_macro_f1_on_rd"],
+            "rd_min_source_macro_f1_on_rd": test_metrics["rd_min_source_macro_f1_on_rd"],
             "raw_tr_rd_accuracy": test_metrics["raw_tr_rd_accuracy"],
             "source_balanced_accuracy": test_metrics["source_balanced_accuracy"],
             "min_source_accuracy": test_metrics["min_source_accuracy"],
+            "by_source_macro_f1": test_metrics["by_source_macro_f1"],
+            "traj_by_source_macro_f1": test_metrics["traj_by_source_macro_f1"],
+            "raw_tr_rd_macro_f1": test_metrics["raw_tr_rd_macro_f1"],
+            "excel_track_macro_f1": test_metrics["excel_track_macro_f1"],
+            "source_balanced_macro_f1": test_metrics["source_balanced_macro_f1"],
+            "min_source_macro_f1": test_metrics["min_source_macro_f1"],
             "with_rd_accuracy": test_metrics["with_rd_accuracy"],
             "without_rd_accuracy": test_metrics["without_rd_accuracy"],
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
@@ -2288,6 +2489,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_unknown_positive_weight": config.rd_unknown_positive_weight,
         "rd_clutter_positive_weight": config.rd_clutter_positive_weight,
         "low_altitude_mutual_exclude_rare_classes": bool(config.low_altitude_mutual_exclude_rare_classes),
+        "rd_sample_boost": config.rd_sample_boost,
+        "raw_source_boost": config.raw_source_boost,
+        "excel_source_boost": config.excel_source_boost,
+        "cq08_source_boost": config.cq08_source_boost,
+        "source_balance_power": config.source_balance_power,
+        "source_label_balance_power": config.source_label_balance_power,
+        "max_sampler_weight": config.max_sampler_weight,
         "bird_sample_boost": config.bird_sample_boost,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,
         "split_sizes": {
@@ -2313,7 +2521,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_without_rd_accuracy_for_best": config.min_without_rd_accuracy_for_best,
             "min_source_accuracy_for_best": config.min_source_accuracy_for_best,
             "min_source_balanced_accuracy_for_best": config.min_source_balanced_accuracy_for_best,
+            "min_source_balanced_macro_f1_for_best": config.min_source_balanced_macro_f1_for_best,
             "min_raw_source_accuracy_for_best": config.min_raw_source_accuracy_for_best,
+            "min_raw_source_macro_f1_for_best": config.min_raw_source_macro_f1_for_best,
+            "min_excel_source_macro_f1_for_best": config.min_excel_source_macro_f1_for_best,
             "min_rd_raw_source_accuracy_for_best": config.min_rd_raw_source_accuracy_for_best,
             "min_final_minus_traj_macro_f1_for_best": config.min_final_minus_traj_macro_f1_for_best,
             "min_source_support_for_hard_gate": config.min_source_support_for_hard_gate,

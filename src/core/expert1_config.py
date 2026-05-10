@@ -65,6 +65,9 @@ class Expert1TrainConfig:
     raw_source_boost: float = 2.0
     excel_source_boost: float = 2.0
     cq08_source_boost: float = 1.0
+    source_balance_power: float = 0.5
+    source_label_balance_power: float = 0.25
+    max_sampler_weight: float = 12.0
     unknown_sample_boost: float = 1.0
     clutter_sample_boost: float = 2.0
     source_normalization: bool = True
@@ -87,6 +90,9 @@ class Expert1TrainConfig:
     min_without_rd_accuracy_for_best: float = 0.72
     min_source_accuracy_for_best: float = 0.50
     min_source_balanced_accuracy_for_best: float = 0.65
+    min_source_balanced_macro_f1_for_best: float = 0.55
+    min_raw_source_macro_f1_for_best: float = 0.35
+    min_excel_source_macro_f1_for_best: float = 0.35
     min_raw_source_accuracy_for_best: float = 0.50
     min_rd_raw_source_accuracy_for_best: float = 0.35
     max_rd_harm_rate_for_best: float = 0.28
