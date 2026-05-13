@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Expert1TrainConfig:
     data_root: str = "data"
+    index_name: str = "expert1_track_index.csv"
     output_dir: str = "artifacts/expert1_v1"
     batch_size: int = 8
     num_workers: int = 0
@@ -63,6 +64,7 @@ class Expert1TrainConfig:
     cq08_source_boost: float = 1.0
     source_balance_power: float = 0.5
     source_label_balance_power: float = 0.25
+    parent_window_balance_power: float = 0.5
     max_sampler_weight: float = 12.0
     unknown_sample_boost: float = 1.0
     clutter_sample_boost: float = 2.0

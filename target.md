@@ -1,6 +1,6 @@
 # 阶段性目标：Expert1 V2 与 System 收敛路线
 
-更新时间：2026-05-12
+更新时间：2026-05-13
 
 ## 当前主线
 
@@ -173,6 +173,147 @@ Ground group F1 >= 0.60
 所有后续 Expert1 V2 训练都能和 20260510-105622 对齐比较
 trajectory-only 指标不会因为 V2 joint 改造被覆盖或丢失
 ```
+
+## P0.5：真实部署窗口化切分
+
+目标：把 Expert1 训练 / 验证从“整段离线 track”扩展到“真实部署数据流窗口”，解决当前整段样本与在线识别场景不一致的问题。
+
+### 背景判断
+
+当前整段样本切分适合做架构离线对比，但不适合作为最终部署指标：
+
+- CQ08 样本通常是几十秒轨迹。
+- Excel 样本可能是几十到数百秒轨迹。
+- raw TR/RD 是 0.1 秒量级短片段。
+- 三类来源的时间尺度差异会混入模型学习，导致 source 泛化、低空 Drone/Bird、Bird/Unknown、Unknown/Clutter 召回不稳定。
+
+部署场景应按“数据流 -> 滑动窗口 -> 实时判断 -> 轨迹级聚合”评估，而不是只看整段 track 一次性分类。
+
+### 切分原则
+
+- 保留当前 `expert1_track_index.csv` 作为整段基线，不破坏历史可比性。
+- 新增窗口化索引，不直接覆盖旧索引：
+  - `data/processed/expert1_window_index.csv`
+  - `data/manifests/expert1_window_split_manifest.json`
+  - `data/processed/expert1_window_summary.json`
+- 切分必须按原始 track / batch group 做 train / val / test，禁止同一条原始轨迹切出的窗口同时进入训练和测试。
+- 真实部署主口径先采用：
+
+```text
+window_seconds = 10
+stride_seconds = 2
+min_points_per_window = 5
+short_sample_policy = keep_one_full_window_for_raw
+split_group_key = source_name + original sample_id
+```
+
+### 数据格式约束
+
+- 窗口样本必须写成普通 CSV，复用现有 `TorchTrackDataset` 读取链路。
+- 窗口 CSV 保留现有 `TRACK_SCHEMA_COLUMNS`。
+- 窗口索引必须兼容当前 index 字段，并新增部署字段：
+  - `parent_sample_id`
+  - `window_id`
+  - `window_start_seconds`
+  - `window_end_seconds`
+  - `window_duration_seconds`
+  - `window_point_count`
+  - `window_mode`
+  - `split_group_id`
+- 有 RD 的 raw / CQ08 样本暂时继承父样本 RD tensor；后续再做 RD 时间对齐裁切。
+- 无 RD 的 Excel 窗口必须走 trajectory-only path。
+
+### 评估口径
+
+窗口级指标：
+
+```text
+window_accuracy
+window_macro_f1
+window_macro_recall
+Drone/Bird/Unknown/Clutter per-class recall
+without-RD window accuracy
+source-balanced window macro F1
+```
+
+轨迹级聚合指标：
+
+```text
+parent_track_majority_vote_accuracy
+parent_track_mean_logit_accuracy
+parent_track_macro_f1
+early_window_accuracy@first_10s
+stable_decision_latency_seconds
+```
+
+### 验收
+
+```text
+expert1_window_index.csv 可生成
+window split 无 parent leakage
+window label/source/RD 覆盖统计进入 summary
+窗口级报告能同时输出 precision、recall、macro F1
+Bird recall、Unknown recall、Clutter recall 不被 overall accuracy 掩盖
+raw 样本因时长不足保留为短窗诊断，不作为唯一淘汰依据
+```
+
+### 当前落地状态
+
+已完成：
+
+- 新增 `src/process/build_expert1_window_index.py`。
+- 已生成部署窗口索引：
+  - `data/processed/expert1_window_index.csv`
+  - `data/manifests/expert1_window_split_manifest.json`
+  - `data/processed/expert1_window_summary.json`
+- 当前默认切分：
+
+```text
+window_seconds = 10
+stride_seconds = 2
+min_points = 5
+split_group_key = source_name|parent_sample_id
+```
+
+- 当前窗口统计：
+
+| 指标 | 值 |
+|---|---:|
+| total windows | 16271 |
+| trainable windows | 15793 |
+| diagnostic windows | 478 |
+| parent tracks | 2048 |
+| parent leakage count | 0 |
+| train / val / test trainable windows | 11426 / 2300 / 2067 |
+| with RD / without RD windows | 6154 / 10117 |
+| sliding / short_full / diagnostic_sparse_full / short_full_below_min_points | 15118 / 675 / 446 / 32 |
+
+校验结果：
+
+```text
+trainable duration > 10s = 0
+trainable point_count < 5 = 0
+non-trainable but duration<=10s and point_count>=5 = 0
+```
+
+训练链路已完成：
+
+- `Expert1TrainConfig.index_name` 支持显式选择索引。
+- 默认仍使用 `expert1_track_index.csv`，不破坏历史整轨迹基线。
+- 新增窗口训练配置 `tmp/expert1_v2_window_stable_full_config.json`，使用 `expert1_window_index.csv`。
+- `build_expert1_dataloaders` 支持窗口索引内置 `split_name`，并过滤 `is_trainable=false` 诊断窗。
+- 训练采样加入 `parent_window_balance_power`，避免长轨迹被大量滑窗重复放大。
+- Expert1 测试报告新增 `window_evaluation.parent_aggregation`：
+  - parent mean-logit
+  - parent majority-vote
+  - first-window
+  - stable-decision latency
+
+仍需保留为下一步：
+
+- 有 RD 的 CQ08 / raw 窗口当前继承父样本 RD tensor，尚未做 RD 时间对齐裁切。
+- 当前 10 秒窗在 CQ08 / Excel 上常见只有 5 个轨迹点，训练后必须重点观察 Bird / Unknown / Clutter recall；若召回不足，再对比 14 秒窗或多尺度窗口。
+- 窗口级训练完成后，必须同时比较窗口级指标和父轨迹聚合指标，不能只看窗口 accuracy。
 
 ## P1：Expert1 V2 架构落地
 

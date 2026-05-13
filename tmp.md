@@ -279,3 +279,97 @@ UAVDetect 论文按 batch=10 报告了 RAD-DAR / UAVDetect / VGG 在 edge/GPU �
 参考：
 
 - UAVDetect: A Channel Attention based CNN for Improving UAV Classification in Radar. `https://www.mdpi.com/1424-8220/24/17/5805`
+
+---
+
+# 2026-05-13 Expert1 部署式窗口切分暂存
+
+## 生成窗口索引
+
+```powershell
+.\.venv\Scripts\python.exe -m src.process.build_expert1_window_index --window-seconds 10 --stride-seconds 2 --min-points 5
+```
+
+输出：
+
+```text
+data/processed/expert1_window_index.csv
+data/manifests/expert1_window_split_manifest.json
+data/processed/expert1_window_summary.json
+```
+
+当前统计：
+
+```text
+total_windows = 16271
+trainable_windows = 15793
+diagnostic_windows = 478
+parent_tracks = 2048
+parent_leakage_count = 0
+trainable train/val/test = 11426 / 2300 / 2067
+```
+
+校验命令：
+
+```powershell
+.\.venv\Scripts\python.exe -c "import pandas as pd; df=pd.read_csv('data/processed/expert1_window_index.csv'); train=df[df.is_trainable.astype(str).str.lower().isin(['true','1','yes'])]; print(len(train[train.window_duration_seconds>10.000001])); print(len(train[train.window_point_count<5])); print(df.groupby('split_group_id').split_name.nunique().gt(1).sum())"
+```
+
+期望输出：
+
+```text
+0
+0
+0
+```
+
+## 窗口全量训练配置
+
+配置文件：
+
+```text
+tmp/expert1_v2_window_stable_full_config.json
+```
+
+关键参数：
+
+```text
+index_name = expert1_window_index.csv
+output_dir = artifacts/expert1_v2_window_stable_full
+epochs = 18
+batch_size = 8
+stage1_traj_only_epochs = 3
+stage2_ramp_epochs = 4
+parent_window_balance_power = 0.5
+```
+
+训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_window_stable_full_config.json
+```
+
+本轮训练结束后保存性能快照到：
+
+```text
+performance_records/<timestamp>/expert1_v2_window_stable_full/
+```
+
+必须保存：
+
+- `training_summary.json`
+- `evaluation_report.json`
+- `training_history.json`
+- `training_split_manifest.json`
+- `reports/real/<timestamp>/expert1_v2_window_stable_full.md`
+- `reports/real/<timestamp>/expert1_v2_window_stable_full.json`
+- `tmp/expert1_v2_window_stable_full_config.json`
+
+重点看：
+
+- 窗口级 macro F1 / macro recall。
+- Bird / Unknown / Clutter recall。
+- without-RD window accuracy。
+- source-balanced window macro F1。
+- parent mean-logit / majority-vote / first-window。
+- stable decision latency。

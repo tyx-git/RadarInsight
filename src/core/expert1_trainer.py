@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import random
 from dataclasses import asdict
@@ -954,6 +955,192 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     }
 
 
+def _parse_window_number(sample_id: str) -> int:
+    marker = "|win"
+    if marker not in sample_id:
+        return 0
+    suffix = sample_id.rsplit(marker, 1)[-1]
+    digits = "".join(char for char in suffix if char.isdigit())
+    return int(digits) if digits else 0
+
+
+def _parent_sample_id(sample_id: str) -> str:
+    marker = "|win"
+    if marker in sample_id:
+        return sample_id.rsplit(marker, 1)[0]
+    return sample_id
+
+
+def _load_window_metadata(data_root: str, index_name: str) -> dict[str, dict[str, object]]:
+    if "window" not in str(index_name):
+        return {}
+    index_path = Path(data_root) / "processed" / index_name
+    if not index_path.exists():
+        return {}
+    metadata: dict[str, dict[str, object]] = {}
+    with index_path.open("r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            sample_id = str(row.get("sample_id", ""))
+            if not sample_id:
+                continue
+            metadata[sample_id] = {
+                "parent_sample_id": str(row.get("parent_sample_id") or _parent_sample_id(sample_id)),
+                "source_name": str(row.get("source_name", "")),
+                "label_name": str(row.get("label_name", "")),
+                "window_number": _parse_window_number(sample_id),
+                "window_start_seconds": float(row.get("window_start_seconds") or 0.0),
+                "window_end_seconds": float(row.get("window_end_seconds") or 0.0),
+                "window_duration_seconds": float(row.get("window_duration_seconds") or 0.0),
+                "window_point_count": int(float(row.get("window_point_count") or 0)),
+                "window_mode": str(row.get("window_mode", "")),
+            }
+    return metadata
+
+
+def _parent_window_aggregation_metrics(
+    metrics: dict[str, object],
+    window_metadata: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    sample_ids = [str(item) for item in metrics.get("sample_ids", [])]
+    if not sample_ids or not any("|win" in sample_id for sample_id in sample_ids):
+        return {}
+    logits = metrics.get("logits")
+    labels = metrics.get("labels")
+    if not isinstance(logits, torch.Tensor) or not isinstance(labels, torch.Tensor):
+        return {}
+    if logits.numel() == 0 or labels.numel() == 0:
+        return {}
+
+    groups: dict[str, list[int]] = {}
+    for index, sample_id in enumerate(sample_ids):
+        meta = window_metadata.get(sample_id, {})
+        parent_id = str(meta.get("parent_sample_id") or _parent_sample_id(sample_id))
+        groups.setdefault(parent_id, []).append(index)
+    if not groups:
+        return {}
+
+    parent_labels: list[int] = []
+    parent_sources: list[str] = []
+    parent_has_rd: list[bool] = []
+    mean_logits: list[torch.Tensor] = []
+    vote_logits: list[torch.Tensor] = []
+    first_logits: list[torch.Tensor] = []
+    window_counts: list[int] = []
+    stable_latencies: list[float] = []
+    stable_correct: list[bool] = []
+    num_classes = len(LOW_ALTITUDE_CLASSES)
+    has_rd_values = [bool(item) for item in metrics.get("has_rd", [])]
+    source_values = [str(item) for item in metrics.get("source_names", [])]
+
+    for parent_id, raw_indices in groups.items():
+        indices = sorted(
+            raw_indices,
+            key=lambda item: (
+                float(window_metadata.get(sample_ids[item], {}).get("window_start_seconds", _parse_window_number(sample_ids[item]))),
+                _parse_window_number(sample_ids[item]),
+            ),
+        )
+        label_values = labels[indices].to(torch.long)
+        parent_start = min(
+            float(window_metadata.get(sample_ids[item], {}).get("window_start_seconds", 0.0))
+            for item in indices
+        )
+        label_counts = torch.bincount(label_values, minlength=num_classes)
+        parent_label = int(label_counts.argmax().item())
+        parent_logits = logits[indices]
+        parent_mean_logits = parent_logits.mean(dim=0)
+        window_preds = parent_logits.argmax(dim=-1)
+        pred_counts = torch.bincount(window_preds, minlength=num_classes).to(torch.float32)
+        vote_score = pred_counts + parent_mean_logits.detach().cpu().to(torch.float32) * 1e-6
+        parent_labels.append(parent_label)
+        mean_logits.append(parent_mean_logits)
+        vote_logits.append(vote_score)
+        first_logits.append(parent_logits[0])
+        window_counts.append(len(indices))
+        parent_sources.append(source_values[indices[0]] if indices[0] < len(source_values) else "")
+        parent_has_rd.append(any(has_rd_values[idx] for idx in indices if idx < len(has_rd_values)))
+
+        stable_index = 0
+        for offset, pred in enumerate(window_preds.tolist()):
+            if all(other == pred for other in window_preds.tolist()[offset:]):
+                stable_index = offset
+                break
+        stable_sample_id = sample_ids[indices[stable_index]]
+        stable_meta = window_metadata.get(stable_sample_id, {})
+        latency = float(stable_meta.get("window_end_seconds") or stable_index + 1) - parent_start
+        stable_latencies.append(latency)
+        stable_correct.append(int(window_preds[stable_index].item()) == parent_label)
+
+    parent_label_tensor = torch.tensor(parent_labels, dtype=torch.long)
+    mean_logits_tensor = torch.stack(mean_logits)
+    vote_logits_tensor = torch.stack(vote_logits)
+    first_logits_tensor = torch.stack(first_logits)
+    mean_metrics = compute_classification_metrics(mean_logits_tensor, parent_label_tensor, num_classes=num_classes)
+    vote_metrics = compute_classification_metrics(vote_logits_tensor, parent_label_tensor, num_classes=num_classes)
+    first_metrics = compute_classification_metrics(first_logits_tensor, parent_label_tensor, num_classes=num_classes)
+    parent_has_rd_tensor = torch.tensor(parent_has_rd, dtype=torch.bool)
+    by_source: dict[str, dict[str, float | int]] = {}
+    for source_name in sorted(set(parent_sources)):
+        source_mask = torch.tensor([item == source_name for item in parent_sources], dtype=torch.bool)
+        if not bool(source_mask.any()):
+            continue
+        source_metrics = compute_classification_metrics(
+            mean_logits_tensor[source_mask],
+            parent_label_tensor[source_mask],
+            num_classes=num_classes,
+        )
+        by_source[source_name] = {
+            "count": int(source_mask.sum().item()),
+            "mean_logit_accuracy": float(source_metrics.accuracy),
+            "mean_logit_macro_f1": float(source_metrics.macro_f1),
+        }
+    per_class = [
+        {
+            "label_name": item.label_name,
+            "support": item.support,
+            "precision": item.precision,
+            "recall": item.recall,
+            "f1": item.f1,
+        }
+        for item in compute_per_class_metrics(mean_logits_tensor, parent_label_tensor, LOW_ALTITUDE_CLASSES)
+    ]
+    return {
+        "parent_count": len(groups),
+        "window_count": len(sample_ids),
+        "mean_windows_per_parent": float(np.mean(window_counts)) if window_counts else 0.0,
+        "max_windows_per_parent": int(max(window_counts)) if window_counts else 0,
+        "with_rd_parent_count": int(parent_has_rd_tensor.sum().item()),
+        "without_rd_parent_count": int((~parent_has_rd_tensor).sum().item()),
+        "mean_logit": {
+            "accuracy": float(mean_metrics.accuracy),
+            "macro_precision": float(mean_metrics.macro_precision),
+            "macro_recall": float(mean_metrics.macro_recall),
+            "macro_f1": float(mean_metrics.macro_f1),
+        },
+        "majority_vote": {
+            "accuracy": float(vote_metrics.accuracy),
+            "macro_precision": float(vote_metrics.macro_precision),
+            "macro_recall": float(vote_metrics.macro_recall),
+            "macro_f1": float(vote_metrics.macro_f1),
+        },
+        "early_window": {
+            "accuracy": float(first_metrics.accuracy),
+            "macro_precision": float(first_metrics.macro_precision),
+            "macro_recall": float(first_metrics.macro_recall),
+            "macro_f1": float(first_metrics.macro_f1),
+        },
+        "stable_decision": {
+            "accuracy": float(sum(stable_correct) / len(stable_correct)) if stable_correct else 0.0,
+            "latency_seconds_mean": float(np.mean(stable_latencies)) if stable_latencies else 0.0,
+            "latency_seconds_p50": float(np.quantile(stable_latencies, 0.50)) if stable_latencies else 0.0,
+            "latency_seconds_p90": float(np.quantile(stable_latencies, 0.90)) if stable_latencies else 0.0,
+        },
+        "by_source": by_source,
+        "per_class_mean_logit": per_class,
+    }
+
+
 def _run_epoch(
     representation_builder: TrackRepresentationBuilder,
     rd_proj: nn.Module,
@@ -1807,6 +1994,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     run_paths = prepare_run_output_dir(config.output_dir)
     loaders = build_expert1_dataloaders(
         data_root=config.data_root,
+        index_name=config.index_name,
         batch_size=config.batch_size,
         seed=config.seed,
         num_workers=config.num_workers,
@@ -1816,6 +2004,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         cq08_source_boost=config.cq08_source_boost,
         source_balance_power=config.source_balance_power,
         source_label_balance_power=config.source_label_balance_power,
+        parent_window_balance_power=config.parent_window_balance_power,
         max_sampler_weight=config.max_sampler_weight,
         unknown_sample_boost=config.unknown_sample_boost,
         clutter_sample_boost=config.clutter_sample_boost,
@@ -2034,6 +2223,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         source_feature_stats,
         compute_aux_loss=config.compute_eval_aux_loss,
     )
+    window_metadata = _load_window_metadata(config.data_root, config.index_name)
+    parent_aggregation_metrics = _parent_window_aggregation_metrics(test_metrics, window_metadata)
 
     history_path = run_paths.output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -2116,6 +2307,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
             "route_accuracy": 1.0,
             "skipped_non_finite_batches": test_metrics["skipped_non_finite_batches"],
+        },
+        "window_evaluation": {
+            "index_name": config.index_name,
+            "is_window_index": bool(parent_aggregation_metrics),
+            "parent_aggregation": parent_aggregation_metrics,
         },
         "critical_metrics": {
             "accuracy": test_metrics["accuracy"],
@@ -2274,6 +2470,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "predictions": [
             {
                 "sample_id": sid,
+                "parent_sample_id": str(window_metadata.get(str(sid), {}).get("parent_sample_id", _parent_sample_id(str(sid)))),
+                "window_start_seconds": window_metadata.get(str(sid), {}).get("window_start_seconds"),
+                "window_end_seconds": window_metadata.get(str(sid), {}).get("window_end_seconds"),
+                "window_point_count": window_metadata.get(str(sid), {}).get("window_point_count"),
+                "window_mode": window_metadata.get(str(sid), {}).get("window_mode"),
                 "source_name": src,
                 "label_name_true": true_label,
                 "label_name_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["logits"][idx].argmax().item())],
@@ -2431,6 +2632,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         },
         "run_timestamp": run_paths.timestamp_label,
         "experiment_name": run_paths.experiment_name,
+        "index_name": config.index_name,
+        "window_evaluation": evaluation_report["window_evaluation"],
         "device": device_info,
         "taxonomy": {label: idx for idx, label in enumerate(LOW_ALTITUDE_CLASSES)},
         "trainable_parameters": _count_trainable_parameters(representation_builder) + _count_trainable_parameters(rd_proj) + _count_trainable_parameters(model),
@@ -2524,6 +2727,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "cq08_source_boost": config.cq08_source_boost,
         "source_balance_power": config.source_balance_power,
         "source_label_balance_power": config.source_label_balance_power,
+        "parent_window_balance_power": config.parent_window_balance_power,
         "max_sampler_weight": config.max_sampler_weight,
         "bird_sample_boost": config.bird_sample_boost,
         "freeze_track_encoder_epochs": config.freeze_track_encoder_epochs,

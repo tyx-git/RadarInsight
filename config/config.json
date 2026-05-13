@@ -20,6 +20,8 @@
     "processed_root": "data/processed",
     "system_index": "system_trainable_track_index.csv",
     "expert1_index": "expert1_track_index.csv",
+    "expert1_window_index": "expert1_window_index.csv",
+    "expert1_window_split_manifest": "data/manifests/expert1_window_split_manifest.json",
     "cq08_grouped_split": "data/manifests/cq08_grouped_split.json",
     "split_policy": "grouped_cq08_plus_stratified_other",
     "forbidden": [
@@ -58,6 +60,7 @@
     ]
   },
   "expert1": {
+    "index_name": "expert1_track_index.csv",
     "output_dir": "artifacts/expert1_v2_tr_rd_stable_full",
     "epochs": 18,
     "batch_size": 8,
@@ -135,6 +138,7 @@
     "cq08_source_boost": 1.0,
     "source_balance_power": 0.5,
     "source_label_balance_power": 0.25,
+    "parent_window_balance_power": 0.5,
     "max_sampler_weight": 12.0,
     "unknown_sample_boost": 2.0,
     "clutter_sample_boost": 2.8,

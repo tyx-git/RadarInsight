@@ -32,6 +32,7 @@ LOW_ALTITUDE_GLOBAL_TO_LOCAL = {
 
 def build_expert1_dataloaders(
     data_root: Path | str,
+    index_name: str = "expert1_track_index.csv",
     batch_size: int = 8,
     seed: int = 42,
     train_ratio: float = 0.7,
@@ -44,19 +45,30 @@ def build_expert1_dataloaders(
     cq08_source_boost: float = 1.0,
     source_balance_power: float = 0.5,
     source_label_balance_power: float = 0.25,
+    parent_window_balance_power: float = 0.5,
     max_sampler_weight: float = 12.0,
     unknown_sample_boost: float = 1.0,
     clutter_sample_boost: float = 2.0,
     bird_sample_boost: float = 1.0,
 ) -> Expert1LoaderBundle:
-    dataset = TrackDataset(data_root, trainable_only=False, index_name="expert1_track_index.csv")
+    dataset = TrackDataset(data_root, trainable_only=False, index_name=index_name)
     frame = dataset.to_frame().copy()
     frame = frame[frame["label_name"].astype(str).isin(LOW_ALTITUDE_CLASSES)].copy()
+    if "is_trainable" in frame.columns:
+        trainable_mask = frame["is_trainable"].map(lambda value: str(value).strip().lower() in {"true", "1", "yes"})
+        frame = frame[trainable_mask].copy()
     project_root = Path(data_root).parent
     csv_exists = frame["csv_path"].astype(str).map(lambda rel: (project_root / rel).exists())
     frame = frame[csv_exists].copy()
     cq08_split_path = Path(data_root) / "manifests" / "cq08_grouped_split.json"
-    if cq08_split_path.exists():
+    if "split_name" in frame.columns:
+        split_frame = frame[frame["split_name"].astype(str).isin({"train", "val", "test"})].copy()
+        split = SplitResult(
+            train_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "train"]["sample_id"].astype(str).tolist()),
+            val_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "val"]["sample_id"].astype(str).tolist()),
+            test_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "test"]["sample_id"].astype(str).tolist()),
+        )
+    elif index_name == "expert1_track_index.csv" and cq08_split_path.exists():
         payload = json.loads(cq08_split_path.read_text(encoding="utf-8"))
         cq08_df = frame[frame["source_name"].astype(str) == "cq08_track"].copy()
         other_df = frame[frame["source_name"].astype(str) != "cq08_track"].copy()
@@ -83,9 +95,9 @@ def build_expert1_dataloaders(
             val_ratio=val_ratio,
             test_ratio=test_ratio,
         )
-    train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, trainable_only=False, index_name="expert1_track_index.csv")
-    val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, trainable_only=False, index_name="expert1_track_index.csv")
-    test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, trainable_only=False, index_name="expert1_track_index.csv")
+    train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, trainable_only=False, index_name=index_name)
+    val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, trainable_only=False, index_name=index_name)
+    test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, trainable_only=False, index_name=index_name)
 
     train_weights = []
     train_meta = train_ds.index_df.reset_index(drop=True)
@@ -101,6 +113,11 @@ def build_expert1_dataloaders(
     )
     max_source_count = max(source_counts.values()) if source_counts else 1
     max_source_label_count = max(source_label_counts.values()) if source_label_counts else 1
+    parent_window_counts = (
+        train_meta["parent_sample_id"].astype(str).value_counts().to_dict()
+        if "parent_sample_id" in train_meta.columns
+        else {}
+    )
     for row in train_meta.to_dict(orient="records"):
         weight = 1.0
         source_name = str(row.get("source_name", ""))
@@ -117,6 +134,10 @@ def build_expert1_dataloaders(
         if source_label_balance_power > 0.0:
             source_label_count = max(1, int(source_label_counts.get((source_name, label_name), 1)))
             weight *= (max_source_label_count / source_label_count) ** float(source_label_balance_power)
+        if parent_window_balance_power > 0.0 and parent_window_counts:
+            parent_id = str(row.get("parent_sample_id", row.get("sample_id", "")))
+            parent_count = max(1, int(parent_window_counts.get(parent_id, 1)))
+            weight *= (1.0 / parent_count) ** float(parent_window_balance_power)
         rd_tensor_path = str(row.get("rd_tensor_path", "")).strip().lower()
         if rd_tensor_path not in {"", "nan", "none"}:
             weight *= rd_sample_boost

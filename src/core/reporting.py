@@ -78,6 +78,55 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
         if "cuda_device_name" in device_info:
             lines.append(f"- cuda_device_name: {device_info.get('cuda_device_name')}")
     lines.append("")
+    window_evaluation = report.get("window_evaluation", {})
+    if isinstance(window_evaluation, dict) and window_evaluation.get("is_window_index"):
+        parent_aggregation = window_evaluation.get("parent_aggregation", {})
+        if isinstance(parent_aggregation, dict) and parent_aggregation:
+            mean_logit = parent_aggregation.get("mean_logit", {})
+            majority_vote = parent_aggregation.get("majority_vote", {})
+            early_window = parent_aggregation.get("early_window", {})
+            stable_decision = parent_aggregation.get("stable_decision", {})
+            lines.append("## 窗口与父轨迹聚合")
+            lines.append(f"- index_name: {window_evaluation.get('index_name')}")
+            lines.append(f"- parent_count: {parent_aggregation.get('parent_count', 0)}")
+            lines.append(f"- window_count: {parent_aggregation.get('window_count', 0)}")
+            lines.append(f"- mean_windows_per_parent: {_format_float(float(parent_aggregation.get('mean_windows_per_parent', 0.0)))}")
+            lines.append("| 口径 | accuracy | macro_precision | macro_recall | macro_f1 |")
+            lines.append("|---|---:|---:|---:|---:|")
+            for item, label in [
+                (mean_logit, "parent mean-logit"),
+                (majority_vote, "parent majority-vote"),
+                (early_window, "first window"),
+            ]:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(
+                    f"| {label} | {_format_float(float(item.get('accuracy', 0.0)))} | "
+                    f"{_format_float(float(item.get('macro_precision', 0.0)))} | "
+                    f"{_format_float(float(item.get('macro_recall', 0.0)))} | "
+                    f"{_format_float(float(item.get('macro_f1', 0.0)))} |"
+                )
+            if isinstance(stable_decision, dict) and stable_decision:
+                lines.append(
+                    f"- stable_decision: accuracy={_format_float(float(stable_decision.get('accuracy', 0.0)))}, "
+                    f"latency_mean={_format_float(float(stable_decision.get('latency_seconds_mean', 0.0)))}s, "
+                    f"latency_p50={_format_float(float(stable_decision.get('latency_seconds_p50', 0.0)))}s, "
+                    f"latency_p90={_format_float(float(stable_decision.get('latency_seconds_p90', 0.0)))}s"
+                )
+            by_source_parent = parent_aggregation.get("by_source", {})
+            if isinstance(by_source_parent, dict) and by_source_parent:
+                lines.append("")
+                lines.append("| parent source | count | mean-logit accuracy | mean-logit macro_f1 |")
+                lines.append("|---|---:|---:|---:|")
+                for source_name, item in by_source_parent.items():
+                    if not isinstance(item, dict):
+                        continue
+                    lines.append(
+                        f"| {source_name} | {item.get('count', 0)} | "
+                        f"{_format_float(float(item.get('mean_logit_accuracy', 0.0)))} | "
+                        f"{_format_float(float(item.get('mean_logit_macro_f1', 0.0)))} |"
+                    )
+            lines.append("")
     lines.append("## 训练产物")
     for label, key in [
         ("best_checkpoint", "best_checkpoint"),

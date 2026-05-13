@@ -4792,3 +4792,140 @@ raw_tr_rd: Drone=1, Bird=3, Balloon=0, Clutter=0, Unknown=0
    - `low_altitude_deep_reroute_aux_weight` 从 0.20 提到 0.28。
    - 加入 Bird/Unknown calibration，抑制 Bird -> Unknown。
 4. 在训练前优先增加 loss component logging，避免继续只靠总 loss 判断 RD/joint 哪一项退化。
+
+## 2026-05-13：Expert1 真实部署窗口化切分落地
+
+本轮先保存当前基线 git 记录，commit：
+
+```text
+6d63d22 Record Expert1 V2 stable full baseline
+```
+
+commit 记录的关键参数：
+
+```text
+accuracy=0.8645
+macro_f1=0.7526
+trajectory_macro_f1=0.7358
+joint_on_rd_macro_f1=0.7618
+rd_on_rd_macro_f1=0.5677
+with_rd_accuracy=0.8734
+without_rd_accuracy=0.8356
+source_balanced_macro_f1=0.5217
+```
+
+本轮优化目标：
+
+- 不再只用整段 track 作为 Expert1 唯一训练/验证单位。
+- 增加真实部署口径：数据流按固定时间窗切片，窗口级判断，再做父轨迹聚合。
+- 保留旧 `expert1_track_index.csv` 作为历史基线，不覆盖。
+
+新增代码：
+
+- `src/process/build_expert1_window_index.py`
+  - 从 `data/processed/expert1_track_index.csv` 生成窗口 CSV 和窗口索引。
+  - 输出 `data/processed/expert1_window_index.csv`。
+  - 输出 `data/manifests/expert1_window_split_manifest.json`。
+  - 输出 `data/processed/expert1_window_summary.json`。
+- `src/core/expert1_config.py`
+  - 新增 `index_name`。
+  - 新增 `parent_window_balance_power`。
+- `src/core/expert1_data.py`
+  - Expert1 dataloader 支持任意 index_name。
+  - 窗口索引按内置 `split_name` 训练/验证/测试。
+  - 过滤 `is_trainable=false` 的诊断窗。
+  - 训练采样按父轨迹窗口数降权，避免长轨迹因滑窗数量过多主导训练。
+- `src/core/expert1_trainer.py`
+  - 训练 summary 记录 `index_name`。
+  - 测试报告新增窗口到父轨迹聚合指标。
+- `src/core/reporting.py`
+  - Markdown 报告新增“窗口与父轨迹聚合”小节。
+
+窗口策略：
+
+```text
+window_seconds = 10
+stride_seconds = 2
+min_points = 5
+split_group_key = source_name|parent_sample_id
+```
+
+生成结果：
+
+| 指标 | 值 |
+|---|---:|
+| total_windows | 16271 |
+| trainable_windows | 15793 |
+| diagnostic_windows | 478 |
+| parent_tracks | 2048 |
+| parent_leakage_count | 0 |
+| trainable train / val / test | 11426 / 2300 / 2067 |
+| with RD / without RD | 6154 / 10117 |
+| cq08 trainable windows | 5763 |
+| excel trainable windows | 9995 |
+| raw trainable windows | 35 |
+
+窗口模式：
+
+| window_mode | count |
+|---|---:|
+| sliding | 15118 |
+| short_full | 675 |
+| diagnostic_sparse_full | 446 |
+| short_full_below_min_points | 32 |
+
+关键校验：
+
+```text
+trainable duration > 10s = 0
+trainable point_count < 5 = 0
+parent leakage = 0
+```
+
+重要修正：
+
+- 初版窗口脚本存在错误：长稀疏轨迹中若单个 10 秒窗点数不足，会退回整条轨迹作为训练窗口。
+- 已修正为：
+  - 长轨迹只输出满足 `point_count >= 5` 的 10 秒滑窗。
+  - 长轨迹没有合格窗口时，只输出 `diagnostic_sparse_full`，不进入训练。
+  - 短轨迹保留 `short_full`；若点数不足则进入诊断，不进入训练。
+
+数据判断：
+
+- CQ08 / Excel 的轨迹采样间隔大多接近 2 秒，因此 10 秒窗常见只有 5 个点。
+- 这符合最低可用的真实部署窗口，但会增加 Bird / Unknown / Clutter 的召回压力。
+- raw TR/RD 时长通常约 0.1 秒，但点数密集，因此保留为 `short_full` 训练/诊断样本。
+- 当前有 RD 的 CQ08 / raw 窗口仍继承父样本 RD tensor，尚未做 RD 时间同步裁切；这必须作为后续风险单独处理。
+
+新增窗口训练配置：
+
+```text
+tmp/expert1_v2_window_stable_full_config.json
+index_name = expert1_window_index.csv
+output_dir = artifacts/expert1_v2_window_stable_full
+epochs = 18
+stage1_traj_only_epochs = 3
+stage2_ramp_epochs = 4
+parent_window_balance_power = 0.5
+```
+
+建议下一次训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_window_stable_full_config.json
+```
+
+训练后必须同时看：
+
+- window-level accuracy / macro F1 / macro recall。
+- Drone / Bird / Unknown / Clutter recall。
+- without-RD window accuracy。
+- source-balanced window macro F1。
+- parent mean-logit / majority-vote / first-window 指标。
+- stable decision latency。
+
+当前结论：
+
+- 切分策略已经从“离线整段轨迹”推进到“部署式滑窗 + 父轨迹聚合”。
+- 这一步会让离线指标更难看，但更接近真实部署。
+- 如果窗口训练 macro F1 下降，需要先判断是窗口信息量不足还是模型对短序列不适配；不要直接回退到整段 track 指标。
