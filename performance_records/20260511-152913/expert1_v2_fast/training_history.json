@@ -1,0 +1,2022 @@
+[
+  {
+    "epoch": 1,
+    "stage2_enabled": false,
+    "stage2_scale": 0.0,
+    "stage2_epoch": 0,
+    "rd_teacher_warmup": false,
+    "train": {
+      "loss": 2.3786545925300215,
+      "accuracy": 0.333798885345459,
+      "macro_precision": 0.30704656868232744,
+      "macro_recall": 0.33668771053334456,
+      "macro_f1": 0.3165901349693758,
+      "traj_accuracy": 0.333798885345459,
+      "traj_macro_f1": 0.3165901349693758,
+      "traj_accuracy_on_rd": 0.3840177655220032,
+      "traj_macro_f1_on_rd": 0.37446891259962584,
+      "joint_accuracy": 0.11731843650341034,
+      "joint_macro_f1": 0.11787144222238422,
+      "joint_accuracy_on_rd": 0.11431742459535599,
+      "joint_macro_f1_on_rd": 0.1144640645969445,
+      "joint_minus_traj_macro_f1_on_rd": -0.2600048480026813,
+      "rd_accuracy": 0.125,
+      "rd_macro_f1": 0.0765550285964656,
+      "rd_accuracy_on_rd": 0.0011098779505118728,
+      "rd_macro_f1_on_rd": 0.0005602240896358543,
+      "rd_drone_bird_recall_mean": 0.0,
+      "rd_unknown_clutter_recall_mean": 0.004807692486792803,
+      "rd_drone_as_bird_rate": 0.22580645161290322,
+      "rd_bird_as_drone_rate": 0.0761904761904762,
+      "rd_rescue_count": 1,
+      "rd_harm_count": 346,
+      "rd_rescue_rate_on_rd": 0.0011098779134295228,
+      "rd_harm_rate_on_rd": 0.38401775804661487,
+      "rd_net_gain_count": -345,
+      "rd_net_gain_rate_on_rd": -0.38290788013318533,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 1,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.0,
+      "rd_fusion_weight_mean": 0.0,
+      "rd_fusion_weight_on_rd_mean": 0.0,
+      "rd_class_fusion_weight_mean": 0.0,
+      "rd_class_fusion_weight_on_rd_mean": 0.0,
+      "rd_pair_fusion_weight_mean": 0.0,
+      "rd_pair_fusion_weight_on_rd_mean": 0.0,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.0,
+        "UnknownClutter": 0.0,
+        "Balloon": 0.0
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.0,
+        "UnknownClutter": 0.0,
+        "Balloon": 0.0
+      },
+      "joint_rd_weight_mean": 0.0,
+      "joint_rd_weight_on_rd_mean": 0.0,
+      "known_confidence_mean": 0.6161537170410156,
+      "residual_score_mean": 0.3934362828731537,
+      "residual_score_on_residual_mean": 0.5846086740493774,
+      "traj_residual_accuracy": 0.7716480493545532,
+      "rd_residual_accuracy_on_rd": 0.6281908750534058,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.5126903653144836,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.5076141953468323,
+      "rd_unknown_clutter_detail_clutter_recall": 0.7634408473968506,
+      "rd_clutter_morphology_clutter_recall": 0.05376344174146652,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.40361446142196655,
+          "macro_precision": 0.3929109683512566,
+          "macro_recall": 0.3952814378483562,
+          "macro_f1": 0.39128432277401065
+        },
+        "excel_track": {
+          "accuracy": 0.24858756363391876,
+          "macro_precision": 0.1371996084139431,
+          "macro_recall": 0.13922480620155037,
+          "macro_f1": 0.12423378638382154
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.15492957830429077,
+          "macro_precision": 0.07809523809523809,
+          "macro_recall": 0.06427432216905901,
+          "macro_f1": 0.06530817610062893
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.40361446142196655,
+          "macro_precision": 0.3929109683512566,
+          "macro_recall": 0.3952814378483562,
+          "macro_f1": 0.39128432277401065
+        },
+        "excel_track": {
+          "accuracy": 0.24858756363391876,
+          "macro_precision": 0.1371996084139431,
+          "macro_recall": 0.13922480620155037,
+          "macro_f1": 0.12423378638382154
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.15492957830429077,
+          "macro_precision": 0.07809523809523809,
+          "macro_recall": 0.06427432216905901,
+          "macro_f1": 0.06530817610062893
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0012048193020746112,
+          "macro_precision": 0.00033955857385398983,
+          "macro_recall": 0.0019230769230769232,
+          "macro_f1": 0.0005772005772005772
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.40361446142196655,
+        "excel_track": 0.24858756363391876,
+        "raw_tr_rd": 0.15492957830429077
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.39128432277401065,
+        "excel_track": 0.12423378638382154,
+        "raw_tr_rd": 0.06530817610062893
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.40361446142196655,
+        "excel_track": 0.24858756363391876,
+        "raw_tr_rd": 0.15492957830429077
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.39128432277401065,
+        "excel_track": 0.12423378638382154,
+        "raw_tr_rd": 0.06530817610062893
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0012048193020746112,
+        "raw_tr_rd": 0.0
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.0005772005772005772,
+        "raw_tr_rd": 0.0
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.0006024096510373056,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.0002886002886002886,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.15492957830429077,
+      "source_balanced_accuracy": 0.26904386778672534,
+      "min_source_accuracy": 0.15492957830429077,
+      "raw_tr_rd_macro_f1": 0.06530817610062893,
+      "excel_track_macro_f1": 0.12423378638382154,
+      "source_balanced_macro_f1": 0.19360876175282038,
+      "min_source_macro_f1": 0.06530817610062893,
+      "with_rd_accuracy": 0.3840177655220032,
+      "without_rd_accuracy": 0.24858756363391876,
+      "selection_score": 0.0,
+      "selection_eligible": false,
+      "selection_components": {},
+      "evaluated_batches": 179,
+      "max_batches": 0,
+      "validation_scope": "",
+      "rd_activation_rate": 0.0,
+      "rd_activation_rate_on_rd": 0.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    },
+    "val": {
+      "loss": 0.889967248464624,
+      "accuracy": 0.78125,
+      "macro_precision": 0.29704918032786887,
+      "macro_recall": 0.3227324913892078,
+      "macro_f1": 0.3064549180327869,
+      "traj_accuracy": 0.78125,
+      "traj_macro_f1": 0.3064549180327869,
+      "traj_accuracy_on_rd": 0.9285714030265808,
+      "traj_macro_f1_on_rd": 0.2923076923076923,
+      "joint_accuracy": 0.0729166641831398,
+      "joint_macro_f1": 0.0368421052631579,
+      "joint_accuracy_on_rd": 0.0,
+      "joint_macro_f1_on_rd": 0.0,
+      "joint_minus_traj_macro_f1_on_rd": -0.2923076923076923,
+      "rd_accuracy": 0.4583333432674408,
+      "rd_macro_f1": 0.14933586337760912,
+      "rd_accuracy_on_rd": 0.1071428582072258,
+      "rd_macro_f1_on_rd": 0.1291005291005291,
+      "rd_drone_bird_recall_mean": 0.5192307699471712,
+      "rd_unknown_clutter_recall_mean": 0.0,
+      "rd_drone_as_bird_rate": 0.11538461538461539,
+      "rd_bird_as_drone_rate": 0.0,
+      "rd_rescue_count": 2,
+      "rd_harm_count": 25,
+      "rd_rescue_rate_on_rd": 0.07142857142857142,
+      "rd_harm_rate_on_rd": 0.8928571428571429,
+      "rd_net_gain_count": -23,
+      "rd_net_gain_rate_on_rd": -0.8214285714285714,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 2,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.5,
+      "rd_fusion_weight_mean": 0.0347675196826458,
+      "rd_fusion_weight_on_rd_mean": 0.11920292675495148,
+      "rd_class_fusion_weight_mean": 0.0347675196826458,
+      "rd_class_fusion_weight_on_rd_mean": 0.11920291185379028,
+      "rd_pair_fusion_weight_mean": 0.0347675159573555,
+      "rd_pair_fusion_weight_on_rd_mean": 0.11920291185379028,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.0347675196826458,
+        "UnknownClutter": 0.0347675196826458,
+        "Balloon": 0.0347675196826458
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.11920292675495148,
+        "UnknownClutter": 0.11920292675495148,
+        "Balloon": 0.11920292675495148
+      },
+      "joint_rd_weight_mean": 0.0347675196826458,
+      "joint_rd_weight_on_rd_mean": 0.11920292675495148,
+      "known_confidence_mean": 0.928445041179657,
+      "residual_score_mean": 0.12481357902288437,
+      "residual_score_on_residual_mean": 0.02799617499113083,
+      "traj_residual_accuracy": 0.9791666865348816,
+      "rd_residual_accuracy_on_rd": 1.0,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+      "rd_unknown_clutter_detail_clutter_recall": 0.0,
+      "rd_clutter_morphology_clutter_recall": 0.0,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.720588207244873,
+          "macro_precision": 0.2869264069264069,
+          "macro_recall": 0.308130081300813,
+          "macro_f1": 0.2929824561403509
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.720588207244873,
+          "macro_precision": 0.2869264069264069,
+          "macro_recall": 0.308130081300813,
+          "macro_f1": 0.2929824561403509
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.5,
+          "macro_precision": 0.27999999999999997,
+          "macro_recall": 0.25,
+          "macro_f1": 0.1942857142857143
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.720588207244873,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.2929824561403509,
+        "raw_tr_rd": 0.25
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.720588207244873,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.2929824561403509,
+        "raw_tr_rd": 0.25
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.5
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.1942857142857143
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.25,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.09714285714285716,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.6666666865348816,
+      "source_balanced_accuracy": 0.7957516312599182,
+      "min_source_accuracy": 0.6666666865348816,
+      "raw_tr_rd_macro_f1": 0.25,
+      "excel_track_macro_f1": 0.2929824561403509,
+      "source_balanced_macro_f1": 0.24766081871345028,
+      "min_source_macro_f1": 0.2,
+      "with_rd_accuracy": 0.9285714030265808,
+      "without_rd_accuracy": 0.720588207244873,
+      "selection_score": 1.4128590543327948,
+      "selection_eligible": false,
+      "selection_components": {
+        "final_macro_f1": 0.3064549180327869,
+        "accuracy": 0.78125,
+        "source_balanced_accuracy": 0.7957516312599182,
+        "min_source_accuracy": 0.6666666865348816,
+        "raw_tr_rd_accuracy": 0.6666666865348816,
+        "source_balanced_macro_f1": 0.24766081871345028,
+        "min_source_macro_f1": 0.2,
+        "raw_tr_rd_macro_f1": 0.25,
+        "excel_track_macro_f1": 0.2929824561403509,
+        "rd_raw_tr_rd_accuracy": 0.5,
+        "rd_source_balanced_accuracy_on_rd": 0.25,
+        "rd_min_source_accuracy_on_rd": 0.0,
+        "rd_source_balanced_macro_f1_on_rd": 0.09714285714285716,
+        "rd_min_source_macro_f1_on_rd": 0.0,
+        "without_rd_accuracy": 0.720588207244873,
+        "traj_macro_f1": 0.3064549180327869,
+        "final_minus_traj_macro_f1": 0.0,
+        "rd_macro_f1_on_rd": 0.1291005291005291,
+        "rd_drone_bird_recall_mean": 0.5192307699471712,
+        "rd_drone_recall": 0.03846153989434242,
+        "rd_bird_recall": 1.0,
+        "rd_min_drone_bird_recall": 0.03846153989434242,
+        "rd_unknown_clutter_recall_mean": 0.0,
+        "rd_balloon_recall": 0.0,
+        "rd_clutter_recall": 0.0,
+        "rd_unknown_recall": 0.0,
+        "rd_min_rare_recall": 0.0,
+        "rd_harm_rate_on_rd": 0.8928571428571429,
+        "rd_net_gain_rate_on_rd": -0.8214285714285714,
+        "final_harm_rate_on_rd": 0.0,
+        "final_net_gain_rate_on_rd": 0.0,
+        "rd_residual_accuracy_on_rd": 1.0,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+        "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+        "residual_score_on_residual_mean": 0.02799617499113083,
+        "source_support": {
+          "cq08_track": 22,
+          "excel_track": 68,
+          "raw_tr_rd": 6
+        },
+        "rd_source_support_on_rd": {
+          "cq08_track": 22,
+          "raw_tr_rd": 6
+        },
+        "rd_class_support_on_rd": {
+          "DroneTarget": 26,
+          "BirdTarget": 2,
+          "BalloonTarget": 0,
+          "ClutterTarget": 0,
+          "UnknownTarget": 0
+        },
+        "raw_source_gate_active": false,
+        "rd_raw_source_gate_active": false,
+        "unknown_clutter_gate_active": false
+      },
+      "evaluated_batches": 12,
+      "max_batches": 12,
+      "validation_scope": "quick",
+      "rd_activation_rate": 0.2916666567325592,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    }
+  },
+  {
+    "epoch": 2,
+    "stage2_enabled": true,
+    "stage2_scale": 0.5,
+    "stage2_epoch": 1,
+    "rd_teacher_warmup": true,
+    "train": {
+      "loss": 7.560495260707493,
+      "accuracy": 0.5188547372817993,
+      "macro_precision": 0.5160670118185323,
+      "macro_recall": 0.5381392027531646,
+      "macro_f1": 0.5258652407386216,
+      "traj_accuracy": 0.5188547372817993,
+      "traj_macro_f1": 0.5258652407386216,
+      "traj_accuracy_on_rd": 0.5883644223213196,
+      "traj_macro_f1_on_rd": 0.5811376465330664,
+      "joint_accuracy": 0.2178770899772644,
+      "joint_macro_f1": 0.15848450701844288,
+      "joint_accuracy_on_rd": 0.18551042675971985,
+      "joint_macro_f1_on_rd": 0.1523805148815311,
+      "joint_minus_traj_macro_f1_on_rd": -0.42875713165153534,
+      "rd_accuracy": 0.1375698298215866,
+      "rd_macro_f1": 0.08055266868076535,
+      "rd_accuracy_on_rd": 0.0010976948542520404,
+      "rd_macro_f1_on_rd": 0.00202020202020202,
+      "rd_drone_bird_recall_mean": 0.0,
+      "rd_unknown_clutter_recall_mean": 0.0060240961611270905,
+      "rd_drone_as_bird_rate": 0.7839721254355401,
+      "rd_bird_as_drone_rate": 0.036544850498338874,
+      "rd_rescue_count": 1,
+      "rd_harm_count": 536,
+      "rd_rescue_rate_on_rd": 0.0010976948408342481,
+      "rd_harm_rate_on_rd": 0.5883644346871569,
+      "rd_net_gain_count": -535,
+      "rd_net_gain_rate_on_rd": -0.5872667398463227,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 1,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.0,
+      "rd_fusion_weight_mean": 0.08259879052639008,
+      "rd_fusion_weight_on_rd_mean": 0.12983697652816772,
+      "rd_class_fusion_weight_mean": 0.08259880542755127,
+      "rd_class_fusion_weight_on_rd_mean": 0.12983697652816772,
+      "rd_pair_fusion_weight_mean": 0.08259879797697067,
+      "rd_pair_fusion_weight_on_rd_mean": 0.12983696162700653,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.08259879052639008,
+        "UnknownClutter": 0.08259879052639008,
+        "Balloon": 0.08259879052639008
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.12983697652816772,
+        "UnknownClutter": 0.12983697652816772,
+        "Balloon": 0.12983697652816772
+      },
+      "joint_rd_weight_mean": 0.08259879797697067,
+      "joint_rd_weight_on_rd_mean": 0.12983697652816772,
+      "known_confidence_mean": 0.6963170766830444,
+      "residual_score_mean": 0.2649506628513336,
+      "residual_score_on_residual_mean": 0.543500542640686,
+      "traj_residual_accuracy": 0.8840782046318054,
+      "rd_residual_accuracy_on_rd": 0.7661910057067871,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.4623115658760071,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.4974874258041382,
+      "rd_unknown_clutter_detail_clutter_recall": 0.27710843086242676,
+      "rd_clutter_morphology_clutter_recall": 0.5180723071098328,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.6042653918266296,
+          "macro_precision": 0.5869360038778991,
+          "macro_recall": 0.6021531811706973,
+          "macro_f1": 0.5930445745829048
+        },
+        "excel_track": {
+          "accuracy": 0.39731284976005554,
+          "macro_precision": 0.178412303516906,
+          "macro_recall": 0.1712350035285815,
+          "macro_f1": 0.17463836764437968
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.38805970549583435,
+          "macro_precision": 0.1697674418604651,
+          "macro_recall": 0.16355311355311355,
+          "macro_f1": 0.15663818979450475
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.6042653918266296,
+          "macro_precision": 0.5869360038778991,
+          "macro_recall": 0.6021531811706973,
+          "macro_f1": 0.5930445745829048
+        },
+        "excel_track": {
+          "accuracy": 0.39731284976005554,
+          "macro_precision": 0.178412303516906,
+          "macro_recall": 0.1712350035285815,
+          "macro_f1": 0.17463836764437968
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.38805970549583435,
+          "macro_precision": 0.1697674418604651,
+          "macro_recall": 0.16355311355311355,
+          "macro_f1": 0.15663818979450475
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0011848341673612595,
+          "macro_precision": 0.0018181818181818182,
+          "macro_recall": 0.0024096385542168677,
+          "macro_f1": 0.002072538860103627
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.6042653918266296,
+        "excel_track": 0.39731284976005554,
+        "raw_tr_rd": 0.38805970549583435
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.5930445745829048,
+        "excel_track": 0.17463836764437968,
+        "raw_tr_rd": 0.15663818979450475
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.6042653918266296,
+        "excel_track": 0.39731284976005554,
+        "raw_tr_rd": 0.38805970549583435
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.5930445745829048,
+        "excel_track": 0.17463836764437968,
+        "raw_tr_rd": 0.15663818979450475
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0011848341673612595,
+        "raw_tr_rd": 0.0
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.002072538860103627,
+        "raw_tr_rd": 0.0
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.0005924170836806297,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.0010362694300518134,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.38805970549583435,
+      "source_balanced_accuracy": 0.46321264902750653,
+      "min_source_accuracy": 0.38805970549583435,
+      "raw_tr_rd_macro_f1": 0.15663818979450475,
+      "excel_track_macro_f1": 0.17463836764437968,
+      "source_balanced_macro_f1": 0.3081070440072631,
+      "min_source_macro_f1": 0.15663818979450475,
+      "with_rd_accuracy": 0.5883644223213196,
+      "without_rd_accuracy": 0.39731284976005554,
+      "selection_score": 0.0,
+      "selection_eligible": false,
+      "selection_components": {},
+      "evaluated_batches": 179,
+      "max_batches": 0,
+      "validation_scope": "",
+      "rd_activation_rate": 0.6361731886863708,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    },
+    "val": {
+      "loss": 1.1661323120739933,
+      "accuracy": 0.7708333134651184,
+      "macro_precision": 0.2982683982683983,
+      "macro_recall": 0.3056257175660161,
+      "macro_f1": 0.3017543859649123,
+      "traj_accuracy": 0.7708333134651184,
+      "traj_macro_f1": 0.3017543859649123,
+      "traj_accuracy_on_rd": 0.9642857313156128,
+      "traj_macro_f1_on_rd": 0.329559748427673,
+      "joint_accuracy": 0.1770833283662796,
+      "joint_macro_f1": 0.10087318087318087,
+      "joint_accuracy_on_rd": 0.0714285746216774,
+      "joint_macro_f1_on_rd": 0.0383442265795207,
+      "joint_minus_traj_macro_f1_on_rd": -0.2912155218481523,
+      "rd_accuracy": 0.4479166567325592,
+      "rd_macro_f1": 0.13720287451630736,
+      "rd_accuracy_on_rd": 0.0714285746216774,
+      "rd_macro_f1_on_rd": 0.026666666666666665,
+      "rd_drone_bird_recall_mean": 0.5,
+      "rd_unknown_clutter_recall_mean": 0.0,
+      "rd_drone_as_bird_rate": 1.0,
+      "rd_bird_as_drone_rate": 0.0,
+      "rd_rescue_count": 1,
+      "rd_harm_count": 26,
+      "rd_rescue_rate_on_rd": 0.03571428571428571,
+      "rd_harm_rate_on_rd": 0.9285714285714286,
+      "rd_net_gain_count": -25,
+      "rd_net_gain_rate_on_rd": -0.8928571428571429,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 1,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+      "rd_fusion_weight_mean": 0.026880165562033653,
+      "rd_fusion_weight_on_rd_mean": 0.09216056764125824,
+      "rd_class_fusion_weight_mean": 0.026880165562033653,
+      "rd_class_fusion_weight_on_rd_mean": 0.09216056019067764,
+      "rd_pair_fusion_weight_mean": 0.026880165562033653,
+      "rd_pair_fusion_weight_on_rd_mean": 0.09216055274009705,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.026880165562033653,
+        "UnknownClutter": 0.026880165562033653,
+        "Balloon": 0.026880165562033653
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.09216056764125824,
+        "UnknownClutter": 0.09216056764125824,
+        "Balloon": 0.09216056764125824
+      },
+      "joint_rd_weight_mean": 0.026880165562033653,
+      "joint_rd_weight_on_rd_mean": 0.09216056764125824,
+      "known_confidence_mean": 0.9307708144187927,
+      "residual_score_mean": 0.10350731015205383,
+      "residual_score_on_residual_mean": 0.027013171464204788,
+      "traj_residual_accuracy": 0.96875,
+      "rd_residual_accuracy_on_rd": 1.0,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+      "rd_unknown_clutter_detail_clutter_recall": 0.0,
+      "rd_clutter_morphology_clutter_recall": 0.0,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.6911764740943909,
+          "macro_precision": 0.2797720797720798,
+          "macro_recall": 0.2880081300813008,
+          "macro_f1": 0.2833333333333333
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.8333333134651184,
+          "macro_precision": 0.36,
+          "macro_recall": 0.3,
+          "macro_f1": 0.3111111111111111
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.6911764740943909,
+          "macro_precision": 0.2797720797720798,
+          "macro_recall": 0.2880081300813008,
+          "macro_f1": 0.2833333333333333
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.8333333134651184,
+          "macro_precision": 0.36,
+          "macro_recall": 0.3,
+          "macro_f1": 0.3111111111111111
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.3333333432674408,
+          "macro_precision": 0.06666666666666667,
+          "macro_recall": 0.2,
+          "macro_f1": 0.1
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.6911764740943909,
+        "raw_tr_rd": 0.8333333134651184
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.2833333333333333,
+        "raw_tr_rd": 0.3111111111111111
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.6911764740943909,
+        "raw_tr_rd": 0.8333333134651184
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.2833333333333333,
+        "raw_tr_rd": 0.3111111111111111
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.3333333432674408
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.1
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.1666666716337204,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.05,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.8333333134651184,
+      "source_balanced_accuracy": 0.8415032625198364,
+      "min_source_accuracy": 0.6911764740943909,
+      "raw_tr_rd_macro_f1": 0.3111111111111111,
+      "excel_track_macro_f1": 0.2833333333333333,
+      "source_balanced_macro_f1": 0.26481481481481484,
+      "min_source_macro_f1": 0.2,
+      "with_rd_accuracy": 0.9642857313156128,
+      "without_rd_accuracy": 0.6911764740943909,
+      "selection_score": 1.3103222821506137,
+      "selection_eligible": false,
+      "selection_components": {
+        "final_macro_f1": 0.3017543859649123,
+        "accuracy": 0.7708333134651184,
+        "source_balanced_accuracy": 0.8415032625198364,
+        "min_source_accuracy": 0.6911764740943909,
+        "raw_tr_rd_accuracy": 0.8333333134651184,
+        "source_balanced_macro_f1": 0.26481481481481484,
+        "min_source_macro_f1": 0.2,
+        "raw_tr_rd_macro_f1": 0.3111111111111111,
+        "excel_track_macro_f1": 0.2833333333333333,
+        "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+        "rd_source_balanced_accuracy_on_rd": 0.1666666716337204,
+        "rd_min_source_accuracy_on_rd": 0.0,
+        "rd_source_balanced_macro_f1_on_rd": 0.05,
+        "rd_min_source_macro_f1_on_rd": 0.0,
+        "without_rd_accuracy": 0.6911764740943909,
+        "traj_macro_f1": 0.3017543859649123,
+        "final_minus_traj_macro_f1": 0.0,
+        "rd_macro_f1_on_rd": 0.026666666666666665,
+        "rd_drone_bird_recall_mean": 0.5,
+        "rd_drone_recall": 0.0,
+        "rd_bird_recall": 1.0,
+        "rd_min_drone_bird_recall": 0.0,
+        "rd_unknown_clutter_recall_mean": 0.0,
+        "rd_balloon_recall": 0.0,
+        "rd_clutter_recall": 0.0,
+        "rd_unknown_recall": 0.0,
+        "rd_min_rare_recall": 0.0,
+        "rd_harm_rate_on_rd": 0.9285714285714286,
+        "rd_net_gain_rate_on_rd": -0.8928571428571429,
+        "final_harm_rate_on_rd": 0.0,
+        "final_net_gain_rate_on_rd": 0.0,
+        "rd_residual_accuracy_on_rd": 1.0,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+        "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+        "residual_score_on_residual_mean": 0.027013171464204788,
+        "source_support": {
+          "cq08_track": 22,
+          "excel_track": 68,
+          "raw_tr_rd": 6
+        },
+        "rd_source_support_on_rd": {
+          "cq08_track": 22,
+          "raw_tr_rd": 6
+        },
+        "rd_class_support_on_rd": {
+          "DroneTarget": 26,
+          "BirdTarget": 2,
+          "BalloonTarget": 0,
+          "ClutterTarget": 0,
+          "UnknownTarget": 0
+        },
+        "raw_source_gate_active": true,
+        "rd_raw_source_gate_active": true,
+        "unknown_clutter_gate_active": false
+      },
+      "evaluated_batches": 12,
+      "max_batches": 12,
+      "validation_scope": "quick",
+      "rd_activation_rate": 0.2916666567325592,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    }
+  },
+  {
+    "epoch": 3,
+    "stage2_enabled": true,
+    "stage2_scale": 1.0,
+    "stage2_epoch": 2,
+    "rd_teacher_warmup": false,
+    "train": {
+      "loss": 11.604111763352122,
+      "accuracy": 0.333798885345459,
+      "macro_precision": 0.3877451883786265,
+      "macro_recall": 0.4016867110541993,
+      "macro_f1": 0.3896987277494169,
+      "traj_accuracy": 0.33449721336364746,
+      "traj_macro_f1": 0.3909969496857382,
+      "traj_accuracy_on_rd": 0.3419913351535797,
+      "traj_macro_f1_on_rd": 0.3937701432298182,
+      "joint_accuracy": 0.20670391619205475,
+      "joint_macro_f1": 0.14467506521451678,
+      "joint_accuracy_on_rd": 0.18831168115139008,
+      "joint_macro_f1_on_rd": 0.1459393316816726,
+      "joint_minus_traj_macro_f1_on_rd": -0.24783081154814557,
+      "rd_accuracy": 0.1347765326499939,
+      "rd_macro_f1": 0.0823529411764706,
+      "rd_accuracy_on_rd": 0.0010822510812431574,
+      "rd_macro_f1_on_rd": 0.002312138728323699,
+      "rd_drone_bird_recall_mean": 0.0,
+      "rd_unknown_clutter_recall_mean": 0.005319148767739534,
+      "rd_drone_as_bird_rate": 0.9888888888888889,
+      "rd_bird_as_drone_rate": 0.15463917525773196,
+      "rd_rescue_count": 0,
+      "rd_harm_count": 315,
+      "rd_rescue_rate_on_rd": 0.0,
+      "rd_harm_rate_on_rd": 0.3409090909090909,
+      "rd_net_gain_count": -315,
+      "rd_net_gain_rate_on_rd": -0.3409090909090909,
+      "final_rescue_count": 0,
+      "final_harm_count": 1,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0010822510822510823,
+      "final_net_gain_count": -1,
+      "final_net_gain_rate_on_rd": -0.0010822510822510823,
+      "rd_rescue_unadopted_count": 0,
+      "rd_harm_adopted_count": 1,
+      "rd_raw_tr_rd_accuracy": 0.0,
+      "rd_fusion_weight_mean": 0.09710582345724106,
+      "rd_fusion_weight_on_rd_mean": 0.15049301087856293,
+      "rd_class_fusion_weight_mean": 0.09710583090782166,
+      "rd_class_fusion_weight_on_rd_mean": 0.15049301087856293,
+      "rd_pair_fusion_weight_mean": 0.09710582345724106,
+      "rd_pair_fusion_weight_on_rd_mean": 0.15049301087856293,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.09710582345724106,
+        "UnknownClutter": 0.09710582345724106,
+        "Balloon": 0.09710582345724106
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.15049301087856293,
+        "UnknownClutter": 0.15049301087856293,
+        "Balloon": 0.15049301087856293
+      },
+      "joint_rd_weight_mean": 0.09710582345724106,
+      "joint_rd_weight_on_rd_mean": 0.15049301087856293,
+      "known_confidence_mean": 0.574927031993866,
+      "residual_score_mean": 0.20494793355464935,
+      "residual_score_on_residual_mean": 0.5094810128211975,
+      "traj_residual_accuracy": 0.8945530652999878,
+      "rd_residual_accuracy_on_rd": 0.7727272510528564,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.4952380955219269,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.5952380895614624,
+      "rd_unknown_clutter_detail_clutter_recall": 0.563829779624939,
+      "rd_clutter_morphology_clutter_recall": 0.585106372833252,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.35722678899765015,
+          "macro_precision": 0.42153241249974094,
+          "macro_recall": 0.401886647001297,
+          "macro_f1": 0.4016381462978423
+        },
+        "excel_track": {
+          "accuracy": 0.3208661377429962,
+          "macro_precision": 0.20891352796476137,
+          "macro_recall": 0.26844932844932845,
+          "macro_f1": 0.22548910168054773
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.15068493783473969,
+          "macro_precision": 0.06533333333333333,
+          "macro_recall": 0.06168929110105581,
+          "macro_f1": 0.061842105263157886
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.358401894569397,
+          "macro_precision": 0.4235361474799089,
+          "macro_recall": 0.4036107849323315,
+          "macro_f1": 0.40328140296570003
+        },
+        "excel_track": {
+          "accuracy": 0.3208661377429962,
+          "macro_precision": 0.20891352796476137,
+          "macro_recall": 0.26844932844932845,
+          "macro_f1": 0.22548910168054773
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.15068493783473969,
+          "macro_precision": 0.06533333333333333,
+          "macro_recall": 0.06168929110105581,
+          "macro_f1": 0.061842105263157886
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0011750881094485521,
+          "macro_precision": 0.002564102564102564,
+          "macro_recall": 0.002127659574468085,
+          "macro_f1": 0.002325581395348837
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.35722678899765015,
+        "excel_track": 0.3208661377429962,
+        "raw_tr_rd": 0.15068493783473969
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.4016381462978423,
+        "excel_track": 0.22548910168054773,
+        "raw_tr_rd": 0.061842105263157886
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.358401894569397,
+        "excel_track": 0.3208661377429962,
+        "raw_tr_rd": 0.15068493783473969
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.40328140296570003,
+        "excel_track": 0.22548910168054773,
+        "raw_tr_rd": 0.061842105263157886
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0011750881094485521,
+        "raw_tr_rd": 0.0
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.002325581395348837,
+        "raw_tr_rd": 0.0
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.0005875440547242761,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.0011627906976744186,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.15068493783473969,
+      "source_balanced_accuracy": 0.27625928819179535,
+      "min_source_accuracy": 0.15068493783473969,
+      "raw_tr_rd_macro_f1": 0.061842105263157886,
+      "excel_track_macro_f1": 0.22548910168054773,
+      "source_balanced_macro_f1": 0.22965645108051594,
+      "min_source_macro_f1": 0.061842105263157886,
+      "with_rd_accuracy": 0.34090909361839294,
+      "without_rd_accuracy": 0.3208661377429962,
+      "selection_score": 0.0,
+      "selection_eligible": false,
+      "selection_components": {},
+      "evaluated_batches": 179,
+      "max_batches": 0,
+      "validation_scope": "",
+      "rd_activation_rate": 0.6452513933181763,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    },
+    "val": {
+      "loss": 0.9580831618454212,
+      "accuracy": 0.8169934749603271,
+      "macro_precision": 0.7269757639620653,
+      "macro_recall": 0.719578360226529,
+      "macro_f1": 0.7179173759661566,
+      "traj_accuracy": 0.8169934749603271,
+      "traj_macro_f1": 0.7179173759661566,
+      "traj_accuracy_on_rd": 0.8613445162773132,
+      "traj_macro_f1_on_rd": 0.7478444784270027,
+      "joint_accuracy": 0.1111111119389534,
+      "joint_macro_f1": 0.06532576158244607,
+      "joint_accuracy_on_rd": 0.0714285746216774,
+      "joint_macro_f1_on_rd": 0.03627873563218391,
+      "joint_minus_traj_macro_f1_on_rd": -0.7115657427948189,
+      "rd_accuracy": 0.3104575276374817,
+      "rd_macro_f1": 0.2193312766405684,
+      "rd_accuracy_on_rd": 0.22689075767993927,
+      "rd_macro_f1_on_rd": 0.1536388140161725,
+      "rd_drone_bird_recall_mean": 0.4166666567325592,
+      "rd_unknown_clutter_recall_mean": 0.30000001192092896,
+      "rd_drone_as_bird_rate": 0.9908256880733946,
+      "rd_bird_as_drone_rate": 0.0,
+      "rd_rescue_count": 6,
+      "rd_harm_count": 157,
+      "rd_rescue_rate_on_rd": 0.025210084033613446,
+      "rd_harm_rate_on_rd": 0.6596638655462185,
+      "rd_net_gain_count": -151,
+      "rd_net_gain_rate_on_rd": -0.634453781512605,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 6,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+      "rd_fusion_weight_mean": 0.1176525205373764,
+      "rd_fusion_weight_on_rd_mean": 0.15126751363277435,
+      "rd_class_fusion_weight_mean": 0.11765250563621521,
+      "rd_class_fusion_weight_on_rd_mean": 0.15126751363277435,
+      "rd_pair_fusion_weight_mean": 0.1176525130867958,
+      "rd_pair_fusion_weight_on_rd_mean": 0.15126751363277435,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.1176525205373764,
+        "UnknownClutter": 0.1176525205373764,
+        "Balloon": 0.1176525205373764
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.15126751363277435,
+        "UnknownClutter": 0.15126751363277435,
+        "Balloon": 0.15126751363277435
+      },
+      "joint_rd_weight_mean": 0.11765250563621521,
+      "joint_rd_weight_on_rd_mean": 0.15126751363277435,
+      "known_confidence_mean": 0.8164819478988647,
+      "residual_score_mean": 0.07382902503013611,
+      "residual_score_on_residual_mean": 0.31748077273368835,
+      "traj_residual_accuracy": 0.9248365759849548,
+      "rd_residual_accuracy_on_rd": 0.9033613204956055,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.6521739363670349,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.6086956262588501,
+      "rd_unknown_clutter_detail_clutter_recall": 0.0,
+      "rd_clutter_morphology_clutter_recall": 0.375,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.8620689511299133,
+          "macro_precision": 0.758203281312525,
+          "macro_recall": 0.7565201465201465,
+          "macro_f1": 0.7490173772107496
+        },
+        "excel_track": {
+          "accuracy": 0.6617646813392639,
+          "macro_precision": 0.45586080586080585,
+          "macro_recall": 0.4664634146341463,
+          "macro_f1": 0.46038461538461545
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.8333333134651184,
+          "macro_precision": 0.36,
+          "macro_recall": 0.3,
+          "macro_f1": 0.3111111111111111
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.8620689511299133,
+          "macro_precision": 0.758203281312525,
+          "macro_recall": 0.7565201465201465,
+          "macro_f1": 0.7490173772107496
+        },
+        "excel_track": {
+          "accuracy": 0.6617646813392639,
+          "macro_precision": 0.45586080586080585,
+          "macro_recall": 0.4664634146341463,
+          "macro_f1": 0.46038461538461545
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.8333333134651184,
+          "macro_precision": 0.36,
+          "macro_recall": 0.3,
+          "macro_f1": 0.3111111111111111
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.22413793206214905,
+          "macro_precision": 0.10861788617886178,
+          "macro_recall": 0.28538461538461535,
+          "macro_f1": 0.1526403557531962
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.3333333432674408,
+          "macro_precision": 0.06666666666666667,
+          "macro_recall": 0.2,
+          "macro_f1": 0.1
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.8620689511299133,
+        "excel_track": 0.6617646813392639,
+        "raw_tr_rd": 0.8333333134651184
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.7490173772107496,
+        "excel_track": 0.46038461538461545,
+        "raw_tr_rd": 0.3111111111111111
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.8620689511299133,
+        "excel_track": 0.6617646813392639,
+        "raw_tr_rd": 0.8333333134651184
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.7490173772107496,
+        "excel_track": 0.46038461538461545,
+        "raw_tr_rd": 0.3111111111111111
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.22413793206214905,
+        "raw_tr_rd": 0.3333333432674408
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.1526403557531962,
+        "raw_tr_rd": 0.1
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.2787356376647949,
+      "rd_min_source_accuracy_on_rd": 0.22413793206214905,
+      "rd_source_balanced_macro_f1_on_rd": 0.1263201778765981,
+      "rd_min_source_macro_f1_on_rd": 0.1,
+      "raw_tr_rd_accuracy": 0.8333333134651184,
+      "source_balanced_accuracy": 0.7857223153114319,
+      "min_source_accuracy": 0.6617646813392639,
+      "raw_tr_rd_macro_f1": 0.3111111111111111,
+      "excel_track_macro_f1": 0.46038461538461545,
+      "source_balanced_macro_f1": 0.506837701235492,
+      "min_source_macro_f1": 0.3111111111111111,
+      "with_rd_accuracy": 0.8613445162773132,
+      "without_rd_accuracy": 0.6617646813392639,
+      "selection_score": 2.263968527364093,
+      "selection_eligible": false,
+      "selection_components": {
+        "final_macro_f1": 0.7179173759661566,
+        "accuracy": 0.8169934749603271,
+        "source_balanced_accuracy": 0.7857223153114319,
+        "min_source_accuracy": 0.6617646813392639,
+        "raw_tr_rd_accuracy": 0.8333333134651184,
+        "source_balanced_macro_f1": 0.506837701235492,
+        "min_source_macro_f1": 0.3111111111111111,
+        "raw_tr_rd_macro_f1": 0.3111111111111111,
+        "excel_track_macro_f1": 0.46038461538461545,
+        "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+        "rd_source_balanced_accuracy_on_rd": 0.2787356376647949,
+        "rd_min_source_accuracy_on_rd": 0.22413793206214905,
+        "rd_source_balanced_macro_f1_on_rd": 0.1263201778765981,
+        "rd_min_source_macro_f1_on_rd": 0.1,
+        "without_rd_accuracy": 0.6617646813392639,
+        "traj_macro_f1": 0.7179173759661566,
+        "final_minus_traj_macro_f1": 0.0,
+        "rd_macro_f1_on_rd": 0.1536388140161725,
+        "rd_drone_bird_recall_mean": 0.4166666567325592,
+        "rd_drone_recall": 0.0,
+        "rd_bird_recall": 0.8333333134651184,
+        "rd_min_drone_bird_recall": 0.0,
+        "rd_unknown_clutter_recall_mean": 0.30000001192092896,
+        "rd_balloon_recall": 0.0,
+        "rd_clutter_recall": 0.0,
+        "rd_unknown_recall": 0.6000000238418579,
+        "rd_min_rare_recall": 0.0,
+        "rd_harm_rate_on_rd": 0.6596638655462185,
+        "rd_net_gain_rate_on_rd": -0.634453781512605,
+        "final_harm_rate_on_rd": 0.0,
+        "final_net_gain_rate_on_rd": 0.0,
+        "rd_residual_accuracy_on_rd": 0.9033613204956055,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.6521739363670349,
+        "rd_clutter_morphology_accuracy_on_residual_rd": 0.6086956262588501,
+        "residual_score_on_residual_mean": 0.31748077273368835,
+        "source_support": {
+          "cq08_track": 232,
+          "excel_track": 68,
+          "raw_tr_rd": 6
+        },
+        "rd_source_support_on_rd": {
+          "cq08_track": 232,
+          "raw_tr_rd": 6
+        },
+        "rd_class_support_on_rd": {
+          "DroneTarget": 109,
+          "BirdTarget": 54,
+          "BalloonTarget": 52,
+          "ClutterTarget": 8,
+          "UnknownTarget": 15
+        },
+        "raw_source_gate_active": true,
+        "rd_raw_source_gate_active": true,
+        "unknown_clutter_gate_active": true
+      },
+      "evaluated_batches": 39,
+      "max_batches": 0,
+      "validation_scope": "full",
+      "rd_activation_rate": 0.7777777910232544,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    }
+  },
+  {
+    "epoch": 4,
+    "stage2_enabled": true,
+    "stage2_scale": 1.0,
+    "stage2_epoch": 3,
+    "rd_teacher_warmup": false,
+    "train": {
+      "loss": 10.694824176127684,
+      "accuracy": 0.33798882365226746,
+      "macro_precision": 0.37339827089960403,
+      "macro_recall": 0.38329209521641033,
+      "macro_f1": 0.37473638246828783,
+      "traj_accuracy": 0.33798882365226746,
+      "traj_macro_f1": 0.37473638246828783,
+      "traj_accuracy_on_rd": 0.2989921569824219,
+      "traj_macro_f1_on_rd": 0.3475356260931604,
+      "joint_accuracy": 0.21368715167045593,
+      "joint_macro_f1": 0.1360766006822352,
+      "joint_accuracy_on_rd": 0.167973130941391,
+      "joint_macro_f1_on_rd": 0.11942709560260076,
+      "joint_minus_traj_macro_f1_on_rd": -0.22810853049055965,
+      "rd_accuracy": 0.1410614550113678,
+      "rd_macro_f1": 0.08265525871602351,
+      "rd_accuracy_on_rd": 0.0,
+      "rd_macro_f1_on_rd": 0.0,
+      "rd_drone_bird_recall_mean": 0.0,
+      "rd_unknown_clutter_recall_mean": 0.0,
+      "rd_drone_as_bird_rate": 0.9626865671641791,
+      "rd_bird_as_drone_rate": 0.10452961672473868,
+      "rd_rescue_count": 0,
+      "rd_harm_count": 267,
+      "rd_rescue_rate_on_rd": 0.0,
+      "rd_harm_rate_on_rd": 0.2989921612541993,
+      "rd_net_gain_count": -267,
+      "rd_net_gain_rate_on_rd": -0.2989921612541993,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 0,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.0,
+      "rd_fusion_weight_mean": 0.0934196338057518,
+      "rd_fusion_weight_on_rd_mean": 0.1498061716556549,
+      "rd_class_fusion_weight_mean": 0.0934196338057518,
+      "rd_class_fusion_weight_on_rd_mean": 0.1498061865568161,
+      "rd_pair_fusion_weight_mean": 0.0934196412563324,
+      "rd_pair_fusion_weight_on_rd_mean": 0.1498061865568161,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.0934196338057518,
+        "UnknownClutter": 0.0934196338057518,
+        "Balloon": 0.0934196338057518
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.1498061716556549,
+        "UnknownClutter": 0.1498061716556549,
+        "Balloon": 0.1498061716556549
+      },
+      "joint_rd_weight_mean": 0.0934196338057518,
+      "joint_rd_weight_on_rd_mean": 0.1498061716556549,
+      "known_confidence_mean": 0.5444398522377014,
+      "residual_score_mean": 0.16560526192188263,
+      "residual_score_on_residual_mean": 0.48878470063209534,
+      "traj_residual_accuracy": 0.9134078025817871,
+      "rd_residual_accuracy_on_rd": 0.7771556377410889,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.5175879597663879,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.6532663106918335,
+      "rd_unknown_clutter_detail_clutter_recall": 0.4888888895511627,
+      "rd_clutter_morphology_clutter_recall": 0.8666666746139526,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.3161131739616394,
+          "macro_precision": 0.37804411025139517,
+          "macro_recall": 0.35962330616450944,
+          "macro_f1": 0.35817392622373057
+        },
+        "excel_track": {
+          "accuracy": 0.4025973975658417,
+          "macro_precision": 0.25894071843920824,
+          "macro_recall": 0.29203816163722174,
+          "macro_f1": 0.2720064257782932
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.125,
+          "macro_precision": 0.05268817204301075,
+          "macro_recall": 0.05053158223889931,
+          "macro_f1": 0.05123456790123456
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.3161131739616394,
+          "macro_precision": 0.37804411025139517,
+          "macro_recall": 0.35962330616450944,
+          "macro_f1": 0.35817392622373057
+        },
+        "excel_track": {
+          "accuracy": 0.4025973975658417,
+          "macro_precision": 0.25894071843920824,
+          "macro_recall": 0.29203816163722174,
+          "macro_f1": 0.2720064257782932
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.125,
+          "macro_precision": 0.05268817204301075,
+          "macro_recall": 0.05053158223889931,
+          "macro_f1": 0.05123456790123456
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.3161131739616394,
+        "excel_track": 0.4025973975658417,
+        "raw_tr_rd": 0.125
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.35817392622373057,
+        "excel_track": 0.2720064257782932,
+        "raw_tr_rd": 0.05123456790123456
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.3161131739616394,
+        "excel_track": 0.4025973975658417,
+        "raw_tr_rd": 0.125
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.35817392622373057,
+        "excel_track": 0.2720064257782932,
+        "raw_tr_rd": 0.05123456790123456
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.0
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.0
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.0,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.0,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.125,
+      "source_balanced_accuracy": 0.281236857175827,
+      "min_source_accuracy": 0.125,
+      "raw_tr_rd_macro_f1": 0.05123456790123456,
+      "excel_track_macro_f1": 0.2720064257782932,
+      "source_balanced_macro_f1": 0.22713830663441945,
+      "min_source_macro_f1": 0.05123456790123456,
+      "with_rd_accuracy": 0.2989921569824219,
+      "without_rd_accuracy": 0.4025973975658417,
+      "selection_score": 0.0,
+      "selection_eligible": false,
+      "selection_components": {},
+      "evaluated_batches": 179,
+      "max_batches": 0,
+      "validation_scope": "",
+      "rd_activation_rate": 0.623603343963623,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    },
+    "val": {
+      "loss": 1.1315147504210472,
+      "accuracy": 0.78125,
+      "macro_precision": 0.49824561403508766,
+      "macro_recall": 0.5244546498277842,
+      "macro_f1": 0.505241935483871,
+      "traj_accuracy": 0.78125,
+      "traj_macro_f1": 0.505241935483871,
+      "traj_accuracy_on_rd": 0.9285714030265808,
+      "traj_macro_f1_on_rd": 0.2923076923076923,
+      "joint_accuracy": 0.2291666716337204,
+      "joint_macro_f1": 0.1419014084507042,
+      "joint_accuracy_on_rd": 0.1071428582072258,
+      "joint_macro_f1_on_rd": 0.04240102171136654,
+      "joint_minus_traj_macro_f1_on_rd": -0.2499066705963258,
+      "rd_accuracy": 0.4479166567325592,
+      "rd_macro_f1": 0.1362962962962963,
+      "rd_accuracy_on_rd": 0.0714285746216774,
+      "rd_macro_f1_on_rd": 0.026666666666666665,
+      "rd_drone_bird_recall_mean": 0.5,
+      "rd_unknown_clutter_recall_mean": 0.0,
+      "rd_drone_as_bird_rate": 1.0,
+      "rd_bird_as_drone_rate": 0.0,
+      "rd_rescue_count": 1,
+      "rd_harm_count": 25,
+      "rd_rescue_rate_on_rd": 0.03571428571428571,
+      "rd_harm_rate_on_rd": 0.8928571428571429,
+      "rd_net_gain_count": -24,
+      "rd_net_gain_rate_on_rd": -0.8571428571428571,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 1,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+      "rd_fusion_weight_mean": 0.0331839993596077,
+      "rd_fusion_weight_on_rd_mean": 0.11377371102571487,
+      "rd_class_fusion_weight_mean": 0.0331839993596077,
+      "rd_class_fusion_weight_on_rd_mean": 0.11377371102571487,
+      "rd_pair_fusion_weight_mean": 0.0331839956343174,
+      "rd_pair_fusion_weight_on_rd_mean": 0.11377371102571487,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.0331839993596077,
+        "UnknownClutter": 0.0331839993596077,
+        "Balloon": 0.0331839993596077
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.11377371102571487,
+        "UnknownClutter": 0.11377371102571487,
+        "Balloon": 0.11377371102571487
+      },
+      "joint_rd_weight_mean": 0.0331839956343174,
+      "joint_rd_weight_on_rd_mean": 0.11377371102571487,
+      "known_confidence_mean": 0.8753483295440674,
+      "residual_score_mean": 0.02359657920897007,
+      "residual_score_on_residual_mean": 0.0038046196568757296,
+      "traj_residual_accuracy": 0.9791666865348816,
+      "rd_residual_accuracy_on_rd": 1.0,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+      "rd_unknown_clutter_detail_clutter_recall": 0.0,
+      "rd_clutter_morphology_clutter_recall": 0.0,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.720588207244873,
+          "macro_precision": 0.4908602150537634,
+          "macro_recall": 0.5067073170731707,
+          "macro_f1": 0.49000000000000005
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 1.0,
+          "macro_precision": 0.2,
+          "macro_recall": 0.2,
+          "macro_f1": 0.2
+        },
+        "excel_track": {
+          "accuracy": 0.720588207244873,
+          "macro_precision": 0.4908602150537634,
+          "macro_recall": 0.5067073170731707,
+          "macro_f1": 0.49000000000000005
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.3333333432674408,
+          "macro_precision": 0.06666666666666667,
+          "macro_recall": 0.2,
+          "macro_f1": 0.1
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.720588207244873,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.49000000000000005,
+        "raw_tr_rd": 0.25
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 1.0,
+        "excel_track": 0.720588207244873,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.2,
+        "excel_track": 0.49000000000000005,
+        "raw_tr_rd": 0.25
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.3333333432674408
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.0,
+        "raw_tr_rd": 0.1
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.1666666716337204,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.05,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.6666666865348816,
+      "source_balanced_accuracy": 0.7957516312599182,
+      "min_source_accuracy": 0.6666666865348816,
+      "raw_tr_rd_macro_f1": 0.25,
+      "excel_track_macro_f1": 0.49000000000000005,
+      "source_balanced_macro_f1": 0.31333333333333335,
+      "min_source_macro_f1": 0.2,
+      "with_rd_accuracy": 0.9285714030265808,
+      "without_rd_accuracy": 0.720588207244873,
+      "selection_score": 1.4829412887990545,
+      "selection_eligible": false,
+      "selection_components": {
+        "final_macro_f1": 0.505241935483871,
+        "accuracy": 0.78125,
+        "source_balanced_accuracy": 0.7957516312599182,
+        "min_source_accuracy": 0.6666666865348816,
+        "raw_tr_rd_accuracy": 0.6666666865348816,
+        "source_balanced_macro_f1": 0.31333333333333335,
+        "min_source_macro_f1": 0.2,
+        "raw_tr_rd_macro_f1": 0.25,
+        "excel_track_macro_f1": 0.49000000000000005,
+        "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+        "rd_source_balanced_accuracy_on_rd": 0.1666666716337204,
+        "rd_min_source_accuracy_on_rd": 0.0,
+        "rd_source_balanced_macro_f1_on_rd": 0.05,
+        "rd_min_source_macro_f1_on_rd": 0.0,
+        "without_rd_accuracy": 0.720588207244873,
+        "traj_macro_f1": 0.505241935483871,
+        "final_minus_traj_macro_f1": 0.0,
+        "rd_macro_f1_on_rd": 0.026666666666666665,
+        "rd_drone_bird_recall_mean": 0.5,
+        "rd_drone_recall": 0.0,
+        "rd_bird_recall": 1.0,
+        "rd_min_drone_bird_recall": 0.0,
+        "rd_unknown_clutter_recall_mean": 0.0,
+        "rd_balloon_recall": 0.0,
+        "rd_clutter_recall": 0.0,
+        "rd_unknown_recall": 0.0,
+        "rd_min_rare_recall": 0.0,
+        "rd_harm_rate_on_rd": 0.8928571428571429,
+        "rd_net_gain_rate_on_rd": -0.8571428571428571,
+        "final_harm_rate_on_rd": 0.0,
+        "final_net_gain_rate_on_rd": 0.0,
+        "rd_residual_accuracy_on_rd": 1.0,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
+        "rd_clutter_morphology_accuracy_on_residual_rd": 0.0,
+        "residual_score_on_residual_mean": 0.0038046196568757296,
+        "source_support": {
+          "cq08_track": 22,
+          "excel_track": 68,
+          "raw_tr_rd": 6
+        },
+        "rd_source_support_on_rd": {
+          "cq08_track": 22,
+          "raw_tr_rd": 6
+        },
+        "rd_class_support_on_rd": {
+          "DroneTarget": 26,
+          "BirdTarget": 2,
+          "BalloonTarget": 0,
+          "ClutterTarget": 0,
+          "UnknownTarget": 0
+        },
+        "raw_source_gate_active": true,
+        "rd_raw_source_gate_active": true,
+        "unknown_clutter_gate_active": false
+      },
+      "evaluated_batches": 12,
+      "max_batches": 12,
+      "validation_scope": "quick",
+      "rd_activation_rate": 0.2916666567325592,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    }
+  },
+  {
+    "epoch": 5,
+    "stage2_enabled": true,
+    "stage2_scale": 1.0,
+    "stage2_epoch": 4,
+    "rd_teacher_warmup": false,
+    "train": {
+      "loss": 10.326892770202466,
+      "accuracy": 0.37150838971138,
+      "macro_precision": 0.4019437820393928,
+      "macro_recall": 0.41589555403425243,
+      "macro_f1": 0.4056194512252526,
+      "traj_accuracy": 0.37150838971138,
+      "traj_macro_f1": 0.4055899872967509,
+      "traj_accuracy_on_rd": 0.3671548068523407,
+      "traj_macro_f1_on_rd": 0.4044356023318956,
+      "joint_accuracy": 0.19692736864089966,
+      "joint_macro_f1": 0.13803210750751072,
+      "joint_accuracy_on_rd": 0.17154811322689056,
+      "joint_macro_f1_on_rd": 0.13182856777468543,
+      "joint_minus_traj_macro_f1_on_rd": -0.2726070345572102,
+      "rd_accuracy": 0.17877094447612762,
+      "rd_macro_f1": 0.10930522972534015,
+      "rd_accuracy_on_rd": 0.05857740715146065,
+      "rd_macro_f1_on_rd": 0.06525639554892738,
+      "rd_drone_bird_recall_mean": 0.08483754843473434,
+      "rd_unknown_clutter_recall_mean": 0.040909089148044586,
+      "rd_drone_as_bird_rate": 0.7617328519855595,
+      "rd_bird_as_drone_rate": 0.15017064846416384,
+      "rd_rescue_count": 16,
+      "rd_harm_count": 311,
+      "rd_rescue_rate_on_rd": 0.016736401673640166,
+      "rd_harm_rate_on_rd": 0.3253138075313807,
+      "rd_net_gain_count": -295,
+      "rd_net_gain_rate_on_rd": -0.30857740585774057,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 16,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.0,
+      "rd_fusion_weight_mean": 0.1097661629319191,
+      "rd_fusion_weight_on_rd_mean": 0.16441960632801056,
+      "rd_class_fusion_weight_mean": 0.1097661703824997,
+      "rd_class_fusion_weight_on_rd_mean": 0.16441962122917175,
+      "rd_pair_fusion_weight_mean": 0.1097661629319191,
+      "rd_pair_fusion_weight_on_rd_mean": 0.16441962122917175,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.1097661629319191,
+        "UnknownClutter": 0.1097661629319191,
+        "Balloon": 0.1097661629319191
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.16441960632801056,
+        "UnknownClutter": 0.16441960632801056,
+        "Balloon": 0.16441960632801056
+      },
+      "joint_rd_weight_mean": 0.10976617783308029,
+      "joint_rd_weight_on_rd_mean": 0.16441960632801056,
+      "known_confidence_mean": 0.5200920701026917,
+      "residual_score_mean": 0.15705330669879913,
+      "residual_score_on_residual_mean": 0.4555608928203583,
+      "traj_residual_accuracy": 0.917597770690918,
+      "rd_residual_accuracy_on_rd": 0.73221755027771,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.53125,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.69921875,
+      "rd_unknown_clutter_detail_clutter_recall": 0.8545454740524292,
+      "rd_clutter_morphology_clutter_recall": 0.8454545736312866,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.38079094886779785,
+          "macro_precision": 0.4324119510284392,
+          "macro_recall": 0.41315522895455353,
+          "macro_f1": 0.4149186175382657
+        },
+        "excel_track": {
+          "accuracy": 0.38025209307670593,
+          "macro_precision": 0.25277887035871616,
+          "macro_recall": 0.29730215321826664,
+          "macro_f1": 0.2691697862258682
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.19718310236930847,
+          "macro_precision": 0.08093126385809313,
+          "macro_recall": 0.07710651828298888,
+          "macro_f1": 0.07783882783882784
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.38079094886779785,
+          "macro_precision": 0.4317042389127314,
+          "macro_recall": 0.41315522895455353,
+          "macro_f1": 0.4147599941588821
+        },
+        "excel_track": {
+          "accuracy": 0.38025209307670593,
+          "macro_precision": 0.25277887035871616,
+          "macro_recall": 0.29730215321826664,
+          "macro_f1": 0.2691697862258682
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.19718310236930847,
+          "macro_precision": 0.08093126385809313,
+          "macro_recall": 0.07710651828298888,
+          "macro_f1": 0.07783882783882784
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.06327683478593826,
+          "macro_precision": 0.12430232558139534,
+          "macro_recall": 0.05504676393565282,
+          "macro_f1": 0.07279503105590061
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.38079094886779785,
+        "excel_track": 0.38025209307670593,
+        "raw_tr_rd": 0.19718310236930847
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.4149186175382657,
+        "excel_track": 0.2691697862258682,
+        "raw_tr_rd": 0.07783882783882784
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.38079094886779785,
+        "excel_track": 0.38025209307670593,
+        "raw_tr_rd": 0.19718310236930847
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.4147599941588821,
+        "excel_track": 0.2691697862258682,
+        "raw_tr_rd": 0.07783882783882784
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.06327683478593826,
+        "raw_tr_rd": 0.0
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.07279503105590061,
+        "raw_tr_rd": 0.0
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.03163841739296913,
+      "rd_min_source_accuracy_on_rd": 0.0,
+      "rd_source_balanced_macro_f1_on_rd": 0.03639751552795031,
+      "rd_min_source_macro_f1_on_rd": 0.0,
+      "raw_tr_rd_accuracy": 0.19718310236930847,
+      "source_balanced_accuracy": 0.31940871477127075,
+      "min_source_accuracy": 0.19718310236930847,
+      "raw_tr_rd_macro_f1": 0.07783882783882784,
+      "excel_track_macro_f1": 0.2691697862258682,
+      "source_balanced_macro_f1": 0.2539757438676539,
+      "min_source_macro_f1": 0.07783882783882784,
+      "with_rd_accuracy": 0.3671548068523407,
+      "without_rd_accuracy": 0.38025209307670593,
+      "selection_score": 0.0,
+      "selection_eligible": false,
+      "selection_components": {},
+      "evaluated_batches": 179,
+      "max_batches": 0,
+      "validation_scope": "",
+      "rd_activation_rate": 0.667597770690918,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    },
+    "val": {
+      "loss": 1.0427914436620016,
+      "accuracy": 0.7973856329917908,
+      "macro_precision": 0.7056661678202489,
+      "macro_recall": 0.7607915421611315,
+      "macro_f1": 0.7239157566956573,
+      "traj_accuracy": 0.7973856329917908,
+      "traj_macro_f1": 0.7239157566956573,
+      "traj_accuracy_on_rd": 0.8403361439704895,
+      "traj_macro_f1_on_rd": 0.7545348679756263,
+      "joint_accuracy": 0.14705882966518402,
+      "joint_macro_f1": 0.08895104895104895,
+      "joint_accuracy_on_rd": 0.10924369841814041,
+      "joint_macro_f1_on_rd": 0.0563609022556391,
+      "joint_minus_traj_macro_f1_on_rd": -0.6981739657199872,
+      "rd_accuracy": 0.529411792755127,
+      "rd_macro_f1": 0.3530454376870759,
+      "rd_accuracy_on_rd": 0.529411792755127,
+      "rd_macro_f1_on_rd": 0.385480943738657,
+      "rd_drone_bird_recall_mean": 0.7236663401126862,
+      "rd_unknown_clutter_recall_mean": 0.5083333402872086,
+      "rd_drone_as_bird_rate": 0.30275229357798167,
+      "rd_bird_as_drone_rate": 0.0,
+      "rd_rescue_count": 8,
+      "rd_harm_count": 82,
+      "rd_rescue_rate_on_rd": 0.03361344537815126,
+      "rd_harm_rate_on_rd": 0.3445378151260504,
+      "rd_net_gain_count": -74,
+      "rd_net_gain_rate_on_rd": -0.31092436974789917,
+      "final_rescue_count": 0,
+      "final_harm_count": 0,
+      "final_rescue_rate_on_rd": 0.0,
+      "final_harm_rate_on_rd": 0.0,
+      "final_net_gain_count": 0,
+      "final_net_gain_rate_on_rd": 0.0,
+      "rd_rescue_unadopted_count": 8,
+      "rd_harm_adopted_count": 0,
+      "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+      "rd_fusion_weight_mean": 0.14660611748695374,
+      "rd_fusion_weight_on_rd_mean": 0.188493549823761,
+      "rd_class_fusion_weight_mean": 0.14660611748695374,
+      "rd_class_fusion_weight_on_rd_mean": 0.18849356472492218,
+      "rd_pair_fusion_weight_mean": 0.14660611748695374,
+      "rd_pair_fusion_weight_on_rd_mean": 0.18849357962608337,
+      "rd_pair_fusion_weight_by_pair": {
+        "DroneBird": 0.14660611748695374,
+        "UnknownClutter": 0.14660611748695374,
+        "Balloon": 0.14660611748695374
+      },
+      "rd_pair_fusion_weight_on_rd_by_pair": {
+        "DroneBird": 0.188493549823761,
+        "UnknownClutter": 0.188493549823761,
+        "Balloon": 0.188493549823761
+      },
+      "joint_rd_weight_mean": 0.14660610258579254,
+      "joint_rd_weight_on_rd_mean": 0.188493549823761,
+      "known_confidence_mean": 0.8203620910644531,
+      "residual_score_mean": 0.0974581390619278,
+      "residual_score_on_residual_mean": 0.33452996611595154,
+      "traj_residual_accuracy": 0.9052287340164185,
+      "rd_residual_accuracy_on_rd": 0.9033613204956055,
+      "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.3913043439388275,
+      "rd_clutter_morphology_accuracy_on_residual_rd": 0.47826087474823,
+      "rd_unknown_clutter_detail_clutter_recall": 1.0,
+      "rd_clutter_morphology_clutter_recall": 0.75,
+      "by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.8448275923728943,
+          "macro_precision": 0.7400869236583522,
+          "macro_recall": 0.7987545787545788,
+          "macro_f1": 0.7577924531369392
+        },
+        "excel_track": {
+          "accuracy": 0.6470588445663452,
+          "macro_precision": 0.2616541353383458,
+          "macro_recall": 0.26991869918699185,
+          "macro_f1": 0.26484907497565724
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "traj_by_source_metrics": {
+        "cq08_track": {
+          "accuracy": 0.8448275923728943,
+          "macro_precision": 0.7400869236583522,
+          "macro_recall": 0.7987545787545788,
+          "macro_f1": 0.7577924531369392
+        },
+        "excel_track": {
+          "accuracy": 0.6470588445663452,
+          "macro_precision": 0.2616541353383458,
+          "macro_recall": 0.26991869918699185,
+          "macro_f1": 0.26484907497565724
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.6666666865348816,
+          "macro_precision": 0.25,
+          "macro_recall": 0.25,
+          "macro_f1": 0.25
+        }
+      },
+      "rd_by_source_metrics_on_rd": {
+        "cq08_track": {
+          "accuracy": 0.5344827771186829,
+          "macro_precision": 0.3853522695627959,
+          "macro_recall": 0.4961904761904762,
+          "macro_f1": 0.38859955952843633
+        },
+        "raw_tr_rd": {
+          "accuracy": 0.3333333432674408,
+          "macro_precision": 0.06666666666666667,
+          "macro_recall": 0.2,
+          "macro_f1": 0.1
+        }
+      },
+      "by_source_accuracy": {
+        "cq08_track": 0.8448275923728943,
+        "excel_track": 0.6470588445663452,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "by_source_macro_f1": {
+        "cq08_track": 0.7577924531369392,
+        "excel_track": 0.26484907497565724,
+        "raw_tr_rd": 0.25
+      },
+      "traj_by_source_accuracy": {
+        "cq08_track": 0.8448275923728943,
+        "excel_track": 0.6470588445663452,
+        "raw_tr_rd": 0.6666666865348816
+      },
+      "traj_by_source_macro_f1": {
+        "cq08_track": 0.7577924531369392,
+        "excel_track": 0.26484907497565724,
+        "raw_tr_rd": 0.25
+      },
+      "rd_by_source_accuracy_on_rd": {
+        "cq08_track": 0.5344827771186829,
+        "raw_tr_rd": 0.3333333432674408
+      },
+      "rd_by_source_macro_f1_on_rd": {
+        "cq08_track": 0.38859955952843633,
+        "raw_tr_rd": 0.1
+      },
+      "rd_source_balanced_accuracy_on_rd": 0.43390806019306183,
+      "rd_min_source_accuracy_on_rd": 0.3333333432674408,
+      "rd_source_balanced_macro_f1_on_rd": 0.24429977976421818,
+      "rd_min_source_macro_f1_on_rd": 0.1,
+      "raw_tr_rd_accuracy": 0.6666666865348816,
+      "source_balanced_accuracy": 0.719517707824707,
+      "min_source_accuracy": 0.6470588445663452,
+      "raw_tr_rd_macro_f1": 0.25,
+      "excel_track_macro_f1": 0.26484907497565724,
+      "source_balanced_macro_f1": 0.4242138427041988,
+      "min_source_macro_f1": 0.25,
+      "with_rd_accuracy": 0.8403361439704895,
+      "without_rd_accuracy": 0.6470588445663452,
+      "selection_score": 2.6493254515167903,
+      "selection_eligible": false,
+      "selection_components": {
+        "final_macro_f1": 0.7239157566956573,
+        "accuracy": 0.7973856329917908,
+        "source_balanced_accuracy": 0.719517707824707,
+        "min_source_accuracy": 0.6470588445663452,
+        "raw_tr_rd_accuracy": 0.6666666865348816,
+        "source_balanced_macro_f1": 0.4242138427041988,
+        "min_source_macro_f1": 0.25,
+        "raw_tr_rd_macro_f1": 0.25,
+        "excel_track_macro_f1": 0.26484907497565724,
+        "rd_raw_tr_rd_accuracy": 0.3333333432674408,
+        "rd_source_balanced_accuracy_on_rd": 0.43390806019306183,
+        "rd_min_source_accuracy_on_rd": 0.3333333432674408,
+        "rd_source_balanced_macro_f1_on_rd": 0.24429977976421818,
+        "rd_min_source_macro_f1_on_rd": 0.1,
+        "without_rd_accuracy": 0.6470588445663452,
+        "traj_macro_f1": 0.7239157566956573,
+        "final_minus_traj_macro_f1": 0.0,
+        "rd_macro_f1_on_rd": 0.385480943738657,
+        "rd_drone_bird_recall_mean": 0.7236663401126862,
+        "rd_drone_recall": 0.6880733966827393,
+        "rd_bird_recall": 0.7592592835426331,
+        "rd_min_drone_bird_recall": 0.6880733966827393,
+        "rd_unknown_clutter_recall_mean": 0.5083333402872086,
+        "rd_balloon_recall": 0.0,
+        "rd_clutter_recall": 0.75,
+        "rd_unknown_recall": 0.2666666805744171,
+        "rd_min_rare_recall": 0.0,
+        "rd_harm_rate_on_rd": 0.3445378151260504,
+        "rd_net_gain_rate_on_rd": -0.31092436974789917,
+        "final_harm_rate_on_rd": 0.0,
+        "final_net_gain_rate_on_rd": 0.0,
+        "rd_residual_accuracy_on_rd": 0.9033613204956055,
+        "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.3913043439388275,
+        "rd_clutter_morphology_accuracy_on_residual_rd": 0.47826087474823,
+        "residual_score_on_residual_mean": 0.33452996611595154,
+        "source_support": {
+          "cq08_track": 232,
+          "excel_track": 68,
+          "raw_tr_rd": 6
+        },
+        "rd_source_support_on_rd": {
+          "cq08_track": 232,
+          "raw_tr_rd": 6
+        },
+        "rd_class_support_on_rd": {
+          "DroneTarget": 109,
+          "BirdTarget": 54,
+          "BalloonTarget": 52,
+          "ClutterTarget": 8,
+          "UnknownTarget": 15
+        },
+        "raw_source_gate_active": true,
+        "rd_raw_source_gate_active": true,
+        "unknown_clutter_gate_active": true
+      },
+      "evaluated_batches": 39,
+      "max_batches": 0,
+      "validation_scope": "full",
+      "rd_activation_rate": 0.7777777910232544,
+      "rd_activation_rate_on_rd": 1.0,
+      "skipped_non_finite_batches": 0,
+      "has_valid_batches": true
+    }
+  }
+]

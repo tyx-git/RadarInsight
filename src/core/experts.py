@@ -45,11 +45,90 @@ class TemporalAttentionPool(nn.Module):
         return torch.sum(sequence * weights, dim=1)
 
 
+class CrossModalFusionBlock(nn.Module):
+    def __init__(self, dim: int, num_heads: int = 8, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.track_to_rd = nn.MultiheadAttention(
+            embed_dim=dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.rd_to_track = nn.MultiheadAttention(
+            embed_dim=dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.track_norm1 = nn.LayerNorm(dim)
+        self.rd_norm1 = nn.LayerNorm(dim)
+        self.track_norm2 = nn.LayerNorm(dim)
+        self.rd_norm2 = nn.LayerNorm(dim)
+        self.track_ffn = nn.Sequential(
+            nn.Linear(dim, dim * 4),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim * 4, dim),
+            nn.Dropout(dropout),
+        )
+        self.rd_ffn = nn.Sequential(
+            nn.Linear(dim, dim * 4),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(dim * 4, dim),
+            nn.Dropout(dropout),
+        )
+
+    @staticmethod
+    def _safe_mask(mask: torch.Tensor | None) -> torch.Tensor | None:
+        if mask is None:
+            return None
+        safe = mask.bool()
+        all_masked = safe.all(dim=1)
+        if bool(all_masked.any()):
+            safe = safe.clone()
+            safe[all_masked] = False
+        return safe
+
+    def forward(
+        self,
+        track_tokens: torch.Tensor,
+        rd_tokens: torch.Tensor,
+        track_padding_mask: torch.Tensor | None = None,
+        rd_padding_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        safe_track_mask = self._safe_mask(track_padding_mask)
+        safe_rd_mask = self._safe_mask(rd_padding_mask)
+        track_cross, _ = self.track_to_rd(
+            track_tokens,
+            rd_tokens,
+            rd_tokens,
+            key_padding_mask=safe_rd_mask,
+            need_weights=False,
+        )
+        rd_cross, _ = self.rd_to_track(
+            rd_tokens,
+            track_tokens,
+            track_tokens,
+            key_padding_mask=safe_track_mask,
+            need_weights=False,
+        )
+        track_tokens = self.track_norm1(track_tokens + track_cross)
+        rd_tokens = self.rd_norm1(rd_tokens + rd_cross)
+        track_tokens = self.track_norm2(track_tokens + self.track_ffn(track_tokens))
+        rd_tokens = self.rd_norm2(rd_tokens + self.rd_ffn(rd_tokens))
+        if track_padding_mask is not None:
+            track_tokens = track_tokens.masked_fill(track_padding_mask.bool().unsqueeze(-1), 0.0)
+        if rd_padding_mask is not None:
+            rd_tokens = rd_tokens.masked_fill(rd_padding_mask.bool().unsqueeze(-1), 0.0)
+        return track_tokens, rd_tokens
+
+
 
 @dataclass(frozen=True)
 class LowAltitudeFusionOutput:
     """
-    低海拔融合输出类，包含轨迹特征、径向速度特征、轨迹余弦相似度、径向速度余弦相似度、轨迹分类 logits、径向速度分类 logits、融合 logits、融合权重、径向速度是否激活、是否拒绝未知目标等信息。
+    Expert1 V2 输出：无 RD 样本走 trajectory-only，有 RD 样本走 TR+RD joint；RD-only heads 仅作为 evidence/diagnostic。
     """
     traj_features: torch.Tensor
     rd_features: torch.Tensor
@@ -64,19 +143,26 @@ class LowAltitudeFusionOutput:
     rd_residual_logits: torch.Tensor
     rd_unknown_clutter_logits: torch.Tensor
     rd_clutter_morphology_logits: torch.Tensor
-    rd_class_gate_logits: torch.Tensor | None
-    rd_pair_gate_logits: torch.Tensor | None
     rd_class_fusion_weights: torch.Tensor | None
     rd_pair_fusion_weights: torch.Tensor | None
     known_confidence: torch.Tensor
     residual_score: torch.Tensor
     logits: torch.Tensor
     fusion_weights: torch.Tensor
-    rd_activated: torch.Tensor
+    tr_rd_active: torch.Tensor
     rejected_unknown: torch.Tensor
     reject_score: torch.Tensor | None = None
     reject_reasons: dict[str, torch.Tensor] | None = None
-    inference_mode: str = "dual_main"
+    inference_mode: str = "v2_joint"
+    joint_logits: torch.Tensor | None = None
+    joint_reliability_logits: torch.Tensor | None = None
+    joint_rd_weight: torch.Tensor | None = None
+    joint_track_weight: torch.Tensor | None = None
+
+    @property
+    def rd_activated(self) -> torch.Tensor:
+        """Backward-compatible alias; V2 semantics are TR+RD path presence."""
+        return self.tr_rd_active
 
 
 
@@ -152,12 +238,12 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_patch_input_dim: int = 2,
         rd_context_dim: int = 0,
         use_rd_patch_cnn: bool = True,
+        traj_sequence_dim: int = 128,
         hidden_dim: int = 512,
         dropout: float = 0.1,
         cosface_scale: float = 16.0,
         cosface_margin: float = 0.2,
         reject_threshold: float = 0.35,
-        rd_activation_threshold: float = 0.8,
         rd_binary_logit_scale: float = 0.75,
         rd_bird_logit_scale: float | None = None,
         rd_unknown_logit_scale: float | None = None,
@@ -165,12 +251,11 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_residual_logit_scale: float = 0.9,
         rd_unknown_clutter_logit_scale: float = 1.1,
         rd_clutter_morphology_logit_scale: float = 0.9,
-        initial_rd_gate_bias: float = 0.0,
-        initial_rd_class_gate_bias: float = -1.1,
-        rd_class_activation_threshold: float = 0.55,
+        joint_logit_delta_scale: float = 1.0,
+        rd_specialist_residual_scale: float = 0.35,
+        joint_agreement_prior_scale: float = 0.25,
     ) -> None:
         super().__init__()
-        self.rd_activation_threshold = rd_activation_threshold
         self.reject_threshold = reject_threshold
         self.rd_binary_logit_scale = rd_binary_logit_scale
         self.rd_bird_logit_scale = float(rd_binary_logit_scale if rd_bird_logit_scale is None else rd_bird_logit_scale)
@@ -179,7 +264,9 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_residual_logit_scale = float(rd_residual_logit_scale)
         self.rd_unknown_clutter_logit_scale = float(rd_unknown_clutter_logit_scale)
         self.rd_clutter_morphology_logit_scale = float(rd_clutter_morphology_logit_scale)
-        self.rd_class_activation_threshold = float(rd_class_activation_threshold)
+        self.joint_logit_delta_scale = float(joint_logit_delta_scale)
+        self.rd_specialist_residual_scale = float(rd_specialist_residual_scale)
+        self.joint_agreement_prior_scale = float(joint_agreement_prior_scale)
         self.known_indices = [
             LOW_ALTITUDE_CLASSES.index("DroneTarget"),
             LOW_ALTITUDE_CLASSES.index("BirdTarget"),
@@ -196,6 +283,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
         self.rd_patch_dim = 64 if use_rd_patch_cnn else 0
         self.rd_patch_input_dim = int(max(1, rd_patch_input_dim))
+        self.traj_sequence_dim = int(max(1, traj_sequence_dim))
         self.traj_backbone = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.GELU(),
@@ -350,6 +438,48 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(96, 2),
         )
+        self.joint_dim = 512
+        if hidden_dim == self.joint_dim:
+            self.joint_traj_proj = nn.LayerNorm(self.joint_dim)
+        else:
+            self.joint_traj_proj = nn.Sequential(
+                nn.LayerNorm(hidden_dim),
+                nn.Linear(hidden_dim, self.joint_dim),
+                nn.GELU(),
+                nn.LayerNorm(self.joint_dim),
+            )
+        self.joint_rd_proj = nn.LayerNorm(self.joint_dim)
+        self.joint_track_token_proj = nn.Sequential(
+            nn.LayerNorm(self.traj_sequence_dim),
+            nn.Linear(self.traj_sequence_dim, self.joint_dim),
+            nn.GELU(),
+            nn.LayerNorm(self.joint_dim),
+        )
+        self.joint_fusion = CrossModalFusionBlock(self.joint_dim, num_heads=8, dropout=dropout)
+        self.joint_quality_dim = 12
+        self.joint_quality_proj = nn.Sequential(
+            nn.Linear(self.joint_quality_dim, 64),
+            nn.GELU(),
+            nn.LayerNorm(64),
+        )
+        joint_input_dim = self.joint_dim * 6 + self.rd_stats_dim + self.rd_patch_dim + 64
+        self.joint_head = nn.Sequential(
+            nn.LayerNorm(joint_input_dim),
+            nn.Linear(joint_input_dim, 512),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, 256),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(256, len(LOW_ALTITUDE_CLASSES)),
+        )
+        self.joint_reliability_head = nn.Sequential(
+            nn.LayerNorm(joint_input_dim),
+            nn.Linear(joint_input_dim, 192),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(192, 2),
+        )
         self.deep_pair_correction_head = nn.Sequential(
             nn.Linear(512 + hidden_dim + self.deep_rd_patch_dim, 256),
             nn.GELU(),
@@ -362,31 +492,11 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(160, 3),
         )
-        self.rd_class_gate = nn.Sequential(
-            nn.Linear(512 + hidden_dim, 128),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(128, len(LOW_ALTITUDE_CLASSES)),
-        )
-        self.rd_pair_gate = nn.Sequential(
-            nn.Linear(512 + hidden_dim, 128),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(128, 3),
-        )
-        self.fusion_gate = nn.Sequential(
-            nn.Linear(len(LOW_ALTITUDE_CLASSES) * 2, 64),
-            nn.GELU(),
-            nn.Linear(64, 2),
-        )
-        nn.init.zeros_(self.fusion_gate[-1].weight)
         with torch.no_grad():
-            bias = float(initial_rd_gate_bias)
-            self.fusion_gate[-1].bias.copy_(torch.tensor([-bias, bias], dtype=self.fusion_gate[-1].bias.dtype))
-            nn.init.zeros_(self.rd_class_gate[-1].weight)
-            self.rd_class_gate[-1].bias.fill_(float(initial_rd_class_gate_bias))
-            nn.init.zeros_(self.rd_pair_gate[-1].weight)
-            self.rd_pair_gate[-1].bias.fill_(float(initial_rd_class_gate_bias))
+            nn.init.zeros_(self.joint_reliability_head[-1].weight)
+            self.joint_reliability_head[-1].bias.copy_(
+                torch.tensor([1.0, -1.0], dtype=self.joint_reliability_head[-1].bias.dtype)
+            )
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
@@ -423,7 +533,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         stats = torch.nan_to_num(stats, nan=0.0, posinf=0.0, neginf=0.0)
         return stats
 
-    def _encode_rd(self, rd_features: torch.Tensor, rd_padding_mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
+    def _encode_rd(self, rd_features: torch.Tensor, rd_padding_mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         amp_range = rd_features[:, :, :, 0]
         phase_range = rd_features[:, :, :, 1]
         amp_dopp = rd_features[:, :, :, 2]
@@ -442,7 +552,24 @@ class LowAltitudeSuspectExpert(nn.Module):
             denom = valid.sum(dim=1).clamp_min(1.0)
             encoded = (hidden * valid).sum(dim=1) / denom
         stats = self.stats_proj(self._rd_statistics(amp_range, phase_range, amp_dopp, phase_dopp))
-        return encoded, stats
+        return encoded, stats, hidden
+
+    def _traj_joint_tokens(
+        self,
+        traj_features: torch.Tensor,
+        traj_sequence_features: torch.Tensor | None,
+    ) -> torch.Tensor:
+        if traj_sequence_features is None:
+            return self.joint_traj_proj(traj_features).unsqueeze(1)
+        return self.joint_track_token_proj(traj_sequence_features)
+
+    @staticmethod
+    def _masked_mean(tokens: torch.Tensor, padding_mask: torch.Tensor | None = None) -> torch.Tensor:
+        if padding_mask is None:
+            return tokens.mean(dim=1)
+        valid = (~padding_mask.bool()).float().unsqueeze(-1)
+        denom = valid.sum(dim=1).clamp_min(1.0)
+        return (tokens * valid).sum(dim=1) / denom
 
     def _encode_rd_context(self, rd_context: torch.Tensor | None, batch_size: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         if self.rd_context_proj is None:
@@ -600,8 +727,8 @@ class LowAltitudeSuspectExpert(nn.Module):
 
     def acceptance(self, output: LowAltitudeFusionOutput, threshold: float | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         traj_confidence = output.traj_cosine.max(dim=-1).values
-        rd_confidence = output.rd_cosine.max(dim=-1).values
-        confidence = torch.where(output.rd_activated, torch.maximum(traj_confidence, rd_confidence), traj_confidence)
+        final_confidence = torch.softmax(output.logits, dim=-1).max(dim=-1).values
+        confidence = torch.where(output.tr_rd_active, torch.maximum(traj_confidence, final_confidence), traj_confidence)
         threshold_value = float(self.reject_threshold if threshold is None else threshold)
         unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
         predicted_unknown = output.logits.argmax(dim=-1) == unknown_index
@@ -615,52 +742,25 @@ class LowAltitudeSuspectExpert(nn.Module):
         accepted = (confidence >= threshold_value) & (~predicted_unknown) & (reject_score < 0.75)
         return confidence, accepted
 
-    def _rd_class_gate_logits(
-        self,
-        traj_features: torch.Tensor,
-        rd_features_vec: torch.Tensor,
-        rd_is_multimodal: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        gate_input = torch.cat([traj_features, rd_features_vec], dim=-1)
-        gate_logits = self.rd_class_gate(gate_input)
-        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
-            no_rd = ~rd_is_multimodal.bool()
-            if no_rd.any():
-                gate_logits = torch.where(no_rd.unsqueeze(-1), torch.full_like(gate_logits, -8.0), gate_logits)
-        return gate_logits
-
-    def _rd_pair_gate_logits(
-        self,
-        traj_features: torch.Tensor,
-        rd_features_vec: torch.Tensor,
-        rd_is_multimodal: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        gate_input = torch.cat([traj_features, rd_features_vec], dim=-1)
-        gate_logits = self.rd_pair_gate(gate_input)
-        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
-            no_rd = ~rd_is_multimodal.bool()
-            if no_rd.any():
-                gate_logits = torch.where(no_rd.unsqueeze(-1), torch.full_like(gate_logits, -8.0), gate_logits)
-        return gate_logits
-
     def forward(
         self,
         traj_input: torch.Tensor,
         rd_features: torch.Tensor,
+        traj_sequence_features: torch.Tensor | None = None,
         rd_patch_features: torch.Tensor | None = None,
         rd_deep_patch_features: torch.Tensor | None = None,
         rd_context: torch.Tensor | None = None,
         low_altitude_targets: torch.Tensor | None = None,
         rd_is_multimodal: torch.Tensor | None = None,
+        traj_padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         rd_deep_patch_padding_mask: torch.Tensor | None = None,
         enable_reject: bool = True,
-        force_rd_activation: bool = False,
-        disable_rd_activation: bool = False,
-        inference_mode: str = "dual_main",
+        disable_tr_rd_fusion: bool = False,
+        inference_mode: str = "v2_joint",
     ) -> LowAltitudeFusionOutput:
-        if inference_mode not in {"dual_main", "deep_reroute"}:
+        if inference_mode not in {"v2_joint", "deep_reroute"}:
             raise ValueError(f"unsupported low-altitude inference mode: {inference_mode}")
         deep_reroute = inference_mode == "deep_reroute"
         traj_features = self.traj_backbone(traj_input)
@@ -672,7 +772,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             dtype=traj_input.dtype,
         )
         if rd_features.ndim == 4:
-            rd_encoded, rd_stats = self._encode_rd(rd_features, rd_padding_mask=rd_padding_mask)
+            rd_encoded, rd_stats, rd_tokens = self._encode_rd(rd_features, rd_padding_mask=rd_padding_mask)
             patch_source = rd_patch_features if rd_patch_features is not None else rd_features
             patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
             rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
@@ -689,16 +789,6 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
             rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
-            rd_class_gate_logits = self._rd_class_gate_logits(
-                traj_features,
-                rd_features_vec,
-                rd_is_multimodal=rd_is_multimodal,
-            )
-            rd_pair_gate_logits = self._rd_pair_gate_logits(
-                traj_features,
-                rd_features_vec,
-                rd_is_multimodal=rd_is_multimodal,
-            )
             bird_delta = rd_bird_logits[:, 1] - rd_bird_logits[:, 0]
             unknown_delta = rd_unknown_logits[:, 1] - rd_unknown_logits[:, 0]
             clutter_delta = rd_clutter_logits[:, 1] - rd_clutter_logits[:, 0]
@@ -726,9 +816,11 @@ class LowAltitudeSuspectExpert(nn.Module):
                     rd_unknown_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_unknown_logits), rd_unknown_logits)
                     rd_clutter_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(rd_clutter_logits), rd_clutter_logits)
                     deep_rd_patch = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(deep_rd_patch), deep_rd_patch)
+                    rd_tokens = torch.where(no_rd.view(-1, 1, 1), torch.zeros_like(rd_tokens), rd_tokens)
         else:
             rd_encoded = traj_input.new_zeros((traj_input.shape[0], self.rd_model_dim))
             rd_stats = traj_input.new_zeros((traj_input.shape[0], self.rd_stats_dim))
+            rd_tokens = traj_input.new_zeros((traj_input.shape[0], 1, self.rd_model_dim))
             rd_patch = traj_input.new_zeros((traj_input.shape[0], self.rd_patch_dim))
             deep_rd_patch = traj_input.new_zeros((traj_input.shape[0], self.deep_rd_patch_dim))
             rd_features_vec = self.rd_backbone(torch.cat([rd_encoded, rd_stats, rd_context_features, rd_patch], dim=-1))
@@ -738,16 +830,6 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_bird_logits = self.rd_bird_head(rd_features_vec)
             rd_unknown_logits = self.rd_unknown_head(rd_features_vec)
             rd_clutter_logits = self.rd_clutter_head(rd_features_vec)
-            rd_class_gate_logits = self._rd_class_gate_logits(
-                traj_features,
-                rd_features_vec,
-                rd_is_multimodal=rd_is_multimodal,
-            )
-            rd_pair_gate_logits = self._rd_pair_gate_logits(
-                traj_features,
-                rd_features_vec,
-                rd_is_multimodal=rd_is_multimodal,
-            )
 
         traj_residual_logits = self.traj_residual_head(traj_features)
         rd_residual_logits = self.rd_residual_head(rd_features_vec)
@@ -772,6 +854,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
         else:
             has_rd = rd_features[..., -1].amax(dim=1) > 0.5
+        has_rd = has_rd.bool()
         traj_residual_prob = torch.softmax(traj_residual_logits, dim=-1)[:, 1]
         rd_residual_prob = torch.softmax(rd_residual_logits, dim=-1)[:, 1]
         residual_score = torch.where(
@@ -805,45 +888,113 @@ class LowAltitudeSuspectExpert(nn.Module):
 
         traj_probs = torch.softmax(traj_logits, dim=-1)
         rd_probs = torch.softmax(rd_logits, dim=-1)
-        gate_logits = self.fusion_gate(torch.cat([traj_probs, rd_probs], dim=-1))
-        fusion_weights = torch.softmax(gate_logits, dim=-1)
-        rd_class_fusion_weights = 0.05 + 0.60 * torch.sigmoid(rd_class_gate_logits)
-        rd_pair_fusion_weights = 0.05 + 0.85 * torch.sigmoid(rd_pair_gate_logits)
-        if deep_reroute:
-            rd_class_fusion_weights = torch.clamp(rd_class_fusion_weights + 0.20, max=0.90)
-            rd_pair_fusion_weights = torch.clamp(rd_pair_fusion_weights + 0.20, max=0.98)
-        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
-            rd_class_fusion_weights = torch.where(
-                rd_is_multimodal.bool().unsqueeze(-1),
-                rd_class_fusion_weights,
-                torch.zeros_like(rd_class_fusion_weights),
-            )
-            rd_pair_fusion_weights = torch.where(
-                rd_is_multimodal.bool().unsqueeze(-1),
-                rd_pair_fusion_weights,
-                torch.zeros_like(rd_pair_fusion_weights),
-            )
-        fused_logits = traj_logits + rd_class_fusion_weights * (rd_logits - traj_logits)
-
         traj_confidence = traj_probs.max(dim=-1).values
-        rd_class_activation = torch.sigmoid(rd_class_gate_logits).max(dim=-1).values
-        rd_pair_gate_probs = torch.sigmoid(rd_pair_gate_logits)
-        rd_pair_activation = rd_pair_gate_probs.max(dim=-1).values
-        has_rd = has_rd.bool()
-        if disable_rd_activation:
-            rd_activated = torch.zeros_like(has_rd, dtype=torch.bool)
+        rd_confidence = rd_probs.max(dim=-1).values
+        traj_pred = traj_probs.argmax(dim=-1)
+        rd_pred = rd_probs.argmax(dim=-1)
+        evidence_agreement = traj_pred == rd_pred
+        rd_cosine_confidence = rd_cosine.max(dim=-1).values
+        traj_entropy = -(traj_probs.clamp_min(1e-6) * traj_probs.clamp_min(1e-6).log()).sum(dim=-1) / math.log(float(traj_probs.shape[-1]))
+        rd_entropy = -(rd_probs.clamp_min(1e-6) * rd_probs.clamp_min(1e-6).log()).sum(dim=-1) / math.log(float(rd_probs.shape[-1]))
+        patch_norm = rd_patch.norm(dim=-1) if rd_patch.numel() else torch.zeros_like(traj_confidence)
+        quality_features = torch.stack(
+            [
+                has_rd.float(),
+                traj_confidence,
+                rd_confidence,
+                rd_cosine_confidence,
+                torch.abs(traj_confidence - rd_confidence),
+                evidence_agreement.float(),
+                residual_score,
+                traj_entropy,
+                rd_entropy,
+                rd_stats.mean(dim=-1),
+                rd_stats.std(dim=-1),
+                patch_norm,
+            ],
+            dim=-1,
+        )
+        quality_features = torch.nan_to_num(quality_features, nan=0.0, posinf=0.0, neginf=0.0)
+        joint_quality = self.joint_quality_proj(quality_features)
+        joint_traj_anchor = self.joint_traj_proj(traj_features)
+        joint_rd_anchor = self.joint_rd_proj(rd_features_vec)
+        joint_track_tokens = self._traj_joint_tokens(traj_features, traj_sequence_features)
+        if traj_sequence_features is None:
+            joint_track_padding_mask = None
         else:
-            forced_rd = torch.full_like(has_rd, bool(force_rd_activation or deep_reroute), dtype=torch.bool)
-            rd_activated = has_rd & (
-                forced_rd
-                | (traj_confidence < self.rd_activation_threshold)
-                | (rd_class_activation > self.rd_class_activation_threshold)
-                | (rd_pair_activation > self.rd_class_activation_threshold)
+            joint_track_padding_mask = traj_padding_mask
+        joint_rd_tokens = rd_tokens
+        joint_rd_padding_mask = rd_padding_mask if rd_features.ndim == 4 else None
+        fused_track_tokens, fused_rd_tokens = self.joint_fusion(
+            joint_track_tokens,
+            joint_rd_tokens,
+            track_padding_mask=joint_track_padding_mask,
+            rd_padding_mask=joint_rd_padding_mask,
+        )
+        joint_traj = self._masked_mean(fused_track_tokens, joint_track_padding_mask)
+        joint_rd = self._masked_mean(fused_rd_tokens, joint_rd_padding_mask)
+        joint_rd = torch.where(has_rd.unsqueeze(-1), joint_rd, torch.zeros_like(joint_rd))
+        joint_input = torch.cat(
+            [
+                joint_traj_anchor,
+                joint_rd_anchor,
+                joint_traj,
+                joint_rd,
+                torch.abs(joint_traj - joint_rd),
+                joint_traj * joint_rd,
+                rd_stats,
+                rd_patch,
+                joint_quality,
+            ],
+            dim=-1,
+        )
+        joint_logits = self.joint_head(joint_input)
+        if self.joint_agreement_prior_scale > 0.0:
+            agreement_strength = (
+                self.joint_agreement_prior_scale
+                * has_rd.float()
+                * evidence_agreement.float()
+                * torch.minimum(traj_confidence, rd_confidence)
             )
-            if inference_mode == "dual_main":
-                rd_activated = has_rd
+            agreement_prior = torch.zeros_like(joint_logits)
+            agreement_prior.scatter_(1, traj_pred.unsqueeze(-1), agreement_strength.unsqueeze(-1))
+            joint_logits = joint_logits + agreement_prior
+        joint_reliability_logits = self.joint_reliability_head(joint_input)
+        if deep_reroute:
+            joint_reliability_logits = joint_reliability_logits.clone()
+            joint_reliability_logits[:, 1] = joint_reliability_logits[:, 1] + 0.35
+        joint_weights = torch.softmax(joint_reliability_logits, dim=-1)
+        joint_track_weight = joint_weights[:, 0]
+        joint_rd_weight = joint_weights[:, 1]
+
+        if disable_tr_rd_fusion:
+            tr_rd_active = torch.zeros_like(has_rd, dtype=torch.bool)
+        else:
+            tr_rd_active = has_rd
+        if disable_tr_rd_fusion:
+            joint_rd_weight = torch.zeros_like(joint_rd_weight)
+        joint_rd_cap = 0.65 if deep_reroute else 0.45
+        joint_rd_weight = torch.clamp(joint_rd_weight, min=0.0, max=joint_rd_cap)
+        if rd_is_multimodal is not None:
+            joint_rd_weight = torch.where(
+                rd_is_multimodal.bool(),
+                joint_rd_weight,
+                torch.zeros_like(joint_rd_weight),
+            )
+        joint_rd_weight = torch.where(tr_rd_active, joint_rd_weight, torch.zeros_like(joint_rd_weight))
+        joint_track_weight = 1.0 - joint_rd_weight
+        fusion_weights = torch.stack([joint_track_weight, joint_rd_weight], dim=-1)
+        rd_class_fusion_weights = joint_rd_weight.unsqueeze(-1).expand_as(rd_logits)
+        rd_pair_fusion_weights = joint_rd_weight.unsqueeze(-1).expand(-1, 3)
+        joint_delta_scale = max(0.0, float(self.joint_logit_delta_scale))
+        if joint_delta_scale >= 1.0:
+            joint_selected_logits = joint_logits
+        elif joint_delta_scale <= 0.0:
+            joint_selected_logits = traj_logits
+        else:
+            joint_selected_logits = traj_logits + joint_delta_scale * (joint_logits - traj_logits)
         fused_cosine = 0.5 * (traj_cosine + rd_cosine)
-        selected_logits = torch.where(rd_activated.unsqueeze(-1), fused_logits, traj_logits)
+        selected_logits = torch.where(tr_rd_active.unsqueeze(-1), joint_selected_logits, traj_logits)
         pair_selected_logits = selected_logits.clone()
         drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
         bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
@@ -853,45 +1004,26 @@ class LowAltitudeSuspectExpert(nn.Module):
             (1, [unknown_index, clutter_index]),
             (2, [balloon_index]),
         ]
+        residual_scale = (0.10 if not deep_reroute else 0.16) * max(0.0, float(self.rd_specialist_residual_scale))
         for pair_idx, class_indices in pair_specs:
             current_pair_logits = pair_selected_logits[:, class_indices]
             rd_pair_logits = rd_logits[:, class_indices]
             pair_weight = rd_pair_fusion_weights[:, pair_idx].unsqueeze(-1)
             pair_rd_margin = rd_pair_logits.max(dim=-1).values - current_pair_logits.max(dim=-1).values
-            pair_active = rd_activated & (
-                (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold)
-                | (pair_rd_margin > 0.05)
-            )
+            pair_active = tr_rd_active & (pair_rd_margin > 0.05)
             if deep_reroute:
-                pair_active = rd_activated
-            strong_pair_takeover = pair_active & (
-                (pair_rd_margin > 0.20)
-                | (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold + 0.15)
-            )
-            if deep_reroute:
-                strong_pair_takeover = pair_active & (
-                    (pair_rd_margin > -0.05)
-                    | (rd_pair_gate_probs[:, pair_idx] > self.rd_class_activation_threshold - 0.10)
-                )
-            proposed_pair_logits = current_pair_logits + pair_weight * (rd_pair_logits - current_pair_logits)
-            adopted_pair_logits = torch.where(
-                strong_pair_takeover.unsqueeze(-1),
-                rd_pair_logits,
-                torch.where(
-                    pair_active.unsqueeze(-1),
-                    proposed_pair_logits,
-                    current_pair_logits,
-                ),
-            )
+                pair_active = tr_rd_active
+            proposed_pair_logits = current_pair_logits + residual_scale * pair_weight * (rd_pair_logits - current_pair_logits)
+            adopted_pair_logits = torch.where(pair_active.unsqueeze(-1), proposed_pair_logits, current_pair_logits)
             pair_selected_logits[:, class_indices] = torch.where(
                 pair_active.unsqueeze(-1),
                 adopted_pair_logits,
                 current_pair_logits,
             )
         selected_logits = pair_selected_logits
-        selected_cosine = torch.where(rd_activated.unsqueeze(-1), fused_cosine, traj_cosine)
+        selected_cosine = torch.where(tr_rd_active.unsqueeze(-1), fused_cosine, traj_cosine)
         if enable_reject:
-            final_logits, rejected_unknown = self._apply_reject(selected_logits, selected_cosine, rd_activated)
+            final_logits, rejected_unknown = self._apply_reject(selected_logits, selected_cosine, tr_rd_active)
         else:
             final_logits = selected_logits
             rejected_unknown = torch.zeros_like(has_rd, dtype=torch.bool)
@@ -900,8 +1032,6 @@ class LowAltitudeSuspectExpert(nn.Module):
         top1_idx = top2.indices[:, 0]
         top2_idx = top2.indices[:, 1]
         final_margin = top2.values[:, 0] - top2.values[:, 1]
-        traj_pred = traj_logits.argmax(dim=-1)
-        rd_pred = rd_logits.argmax(dim=-1)
         drone_bird = {LOW_ALTITUDE_CLASSES.index("DroneTarget"), LOW_ALTITUDE_CLASSES.index("BirdTarget")}
         unknown_clutter = {unknown_index, clutter_index}
         bird_clutter = {LOW_ALTITUDE_CLASSES.index("BirdTarget"), clutter_index}
@@ -951,19 +1081,21 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_residual_logits=rd_residual_logits,
             rd_unknown_clutter_logits=rd_unknown_clutter_logits,
             rd_clutter_morphology_logits=rd_clutter_morphology_logits,
-            rd_class_gate_logits=rd_class_gate_logits,
-            rd_pair_gate_logits=rd_pair_gate_logits,
             rd_class_fusion_weights=rd_class_fusion_weights,
             rd_pair_fusion_weights=rd_pair_fusion_weights,
             known_confidence=known_confidence,
             residual_score=residual_score,
             logits=final_logits,
             fusion_weights=fusion_weights,
-            rd_activated=rd_activated,
+            tr_rd_active=tr_rd_active,
             rejected_unknown=rejected_unknown,
             reject_score=reject_score.detach(),
             reject_reasons=reject_reasons,
             inference_mode=inference_mode,
+            joint_logits=joint_logits,
+            joint_reliability_logits=joint_reliability_logits,
+            joint_rd_weight=joint_rd_weight,
+            joint_track_weight=joint_track_weight,
         )
 
 

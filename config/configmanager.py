@@ -67,7 +67,17 @@ def _make_dataclass(config_type: type[T], values: dict[str, Any]) -> T:
 
 def load_expert1_config(path: str | Path = "config/config.json") -> Expert1TrainConfig:
     payload = load_config_file(path)
-    return _make_dataclass(Expert1TrainConfig, _clean_section(payload, "expert1"))
+    values = _clean_section(payload, "expert1")
+    legacy_key_map = {
+        "min_rd_macro_f1_for_best": "min_rd_evidence_macro_f1_for_best",
+    }
+    for old_key, new_key in legacy_key_map.items():
+        if old_key in values and new_key not in values:
+            values[new_key] = values[old_key]
+        values.pop(old_key, None)
+    values.pop("min_rd_net_gain_rate_for_best", None)
+    values.pop("max_rd_harm_rate_for_best", None)
+    return _make_dataclass(Expert1TrainConfig, values)
 
 
 def load_expert2_config(path: str | Path = "config/config.json") -> ExpertOtherTrainConfig:

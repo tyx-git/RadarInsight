@@ -29,9 +29,10 @@ class Expert1TrainConfig:
     low_altitude_rd_calibration_positive_target: float = 0.62
     low_altitude_rd_calibration_negative_target: float = 0.32
     low_altitude_rd_forced_fusion_weight: float = 0.6
-    low_altitude_rd_gate_aux_weight: float = 0.6
-    low_altitude_rd_class_gate_aux_weight: float = 0.3
-    low_altitude_rd_pair_gate_aux_weight: float = 0.35
+    low_altitude_traj_supervision_weight: float = 0.45
+    low_altitude_joint_aux_weight: float = 0.35
+    low_altitude_joint_agreement_prior_scale: float = 0.25
+    low_altitude_joint_reliability_aux_weight: float = 0.12
     low_altitude_deep_reroute_aux_weight: float = 0.35
     low_altitude_rd_pair_takeover_floor: float = 0.72
     low_altitude_rd_pair_harm_ceiling: float = 0.10
@@ -41,10 +42,6 @@ class Expert1TrainConfig:
     low_altitude_rd_clutter_morphology_aux_weight: float = 0.75
     low_altitude_rd_teacher_warmup_epochs: int = 1
     low_altitude_rd_teacher_aux_boost: float = 1.35
-    low_altitude_rd_gate_temperature: float = 0.35
-    low_altitude_rd_class_activation_threshold: float = 0.55
-    low_altitude_rd_rare_gate_floor: float = 0.25
-    low_altitude_initial_rd_gate_bias: float = 0.0
     low_altitude_traj_anchor_weight: float = 0.5
     low_altitude_traj_anchor_start_epoch: int = 2
     low_altitude_mutual_weight: float = 1.0
@@ -53,7 +50,6 @@ class Expert1TrainConfig:
     cosface_scale: float = 16.0
     cosface_margin: float = 0.2
     reject_threshold: float = 0.35
-    rd_activation_threshold: float = 0.82
     rd_bird_logit_scale: float = 0.75
     rd_unknown_logit_scale: float = 0.75
     rd_clutter_logit_scale: float = 0.75
@@ -82,7 +78,7 @@ class Expert1TrainConfig:
     stage2_ramp_epochs: int = 6
     prefer_stage2_checkpoint: bool = True
     use_rd_patch_cnn: bool = True
-    min_rd_macro_f1_for_best: float = 0.22
+    min_rd_evidence_macro_f1_for_best: float = 0.22
     min_drone_bird_rd_recall_for_best: float = 0.30
     min_drone_bird_single_rd_recall_for_best: float = 0.15
     min_unknown_clutter_rd_recall_for_best: float = 0.10
@@ -95,8 +91,9 @@ class Expert1TrainConfig:
     min_excel_source_macro_f1_for_best: float = 0.35
     min_raw_source_accuracy_for_best: float = 0.50
     min_rd_raw_source_accuracy_for_best: float = 0.35
-    max_rd_harm_rate_for_best: float = 0.28
-    min_rd_net_gain_rate_for_best: float = 0.0
+    min_joint_minus_traj_macro_f1_on_rd_for_best: float = 0.0
+    min_final_net_gain_rate_on_rd_for_best: float = 0.0
+    max_final_harm_rate_on_rd_for_best: float = 0.08
     min_final_minus_traj_macro_f1_for_best: float = -0.01
     min_source_support_for_hard_gate: int = 4
     min_rd_source_support_for_hard_gate: int = 4
@@ -107,5 +104,13 @@ class Expert1TrainConfig:
     pretrained_track_checkpoint: str = ""
     freeze_track_encoder_epochs: int = 0
     skip_non_finite_batch: bool = True
+    enable_batch_parameter_rollback: bool = False
+    compute_eval_aux_loss: bool = False
+    max_train_batches_per_epoch: int = 0
+    quick_val_max_batches: int = 0
+    full_val_interval_epochs: int = 1
+    full_val_on_last_epoch: bool = True
+    joint_logit_delta_scale: float = 1.0
+    rd_specialist_residual_scale: float = 0.35
     seed: int = 42
     device: str = "cuda"

@@ -126,23 +126,49 @@ Expert1 是当前核心专家，类别为：
 
 `DroneTarget`、`BirdTarget`、`BalloonTarget`、`ClutterTarget`、`UnknownTarget`
 
-### 6.1 轨迹分支
+### 6.1 Expert1 V2 总体原则
 
-轨迹分支只吃 `representation.fused_features`，不拼接 RD summary。这个约束很重要：未来推理时，轨迹分支必须能作为纯轨迹快速分支独立工作。
+下一版 Expert1 不再采用“trajectory logits 后接 RD logits correction”的主结构。
+
+新的主结构改为二路径：
+
+```text
+no RD / RD invalid:
+    trajectory-only branch -> final logits
+
+has RD:
+    trajectory tokens + RD tokens -> TR+RD cross-modal fusion branch -> final logits
+```
+
+核心约束：
+
+- 当前轨迹分支精度高于历史版本，必须选择性保留。
+- RD 仍是第二证据源，有 RD 时默认进入 TR+RD 混合判断。
+- RD 五分类 logits 不再直接做 `traj_logits -> rd_logits` 的全类插值。
+- RD hard-pair / residual / morphology heads 作为 auxiliary evidence 或小权重 residual。
+- 有 RD 时默认激活 TR+RD joint branch；没有 RD 时必须退化为纯轨迹，不制造伪 RD。
+- Joint branch 不再只是后期 logits correction；主分类 loss 直接监督 TR+RD 混合分支。
+- Reliability weight 主要用于 residual / 诊断限幅；无 RD 时强制归零。
+
+### 6.2 轨迹分支
+
+轨迹分支只吃 `representation.fused_features`，不拼接 RD summary。这个约束继续保留：推理时没有 RD 的样本必须能独立输出。
 
 结构：
 
 - `traj_backbone`
 - `CosineMarginHead`
 - `traj_residual_head`
+- `traj_embedding` / `traj_logits` / `traj_confidence`
 
 当前轨迹分支职责：
 
-- 快速低空粗判。
-- 作为 RD 是否需要采纳的 base evidence。
+- 无 RD 样本的最终分类器。
+- 有 RD 样本的 trajectory anchor。
+- 给 TR+RD joint branch 提供运动先验。
 - 给 Unknown residual 提供轨迹侧残差信号。
 
-### 6.2 RD 分支
+### 6.3 RD evidence 分支
 
 RD 分支输入包含：
 
@@ -165,9 +191,10 @@ RD 分支输入包含：
 - peak-to-mean
 - temporal roughness
 
-当前 RD 分支不是简单五分类辅助头，而是第二证据源：
+RD evidence 分支不再作为直接接管 final logits 的分类器，而是提供 joint evidence：
 
-- `rd_head` 做五类 CosFace。
+- `rd_embedding` 进入 TR+RD joint branch。
+- `rd_head` 做五类 CosFace auxiliary。
 - `rd_bird_head` 强化 Drone/Bird。
 - `rd_unknown_head` 强化 Unknown one-vs-rest。
 - `rd_clutter_head` 强化 Clutter one-vs-rest。
@@ -175,7 +202,51 @@ RD 分支输入包含：
 - `rd_unknown_clutter_head` 建模 Unknown-vs-Clutter。
 - `rd_clutter_morphology_head` 用 RD morphology/patch 建模 Clutter 局部形态。
 
-### 6.3 Unknown/Clutter 三层建模
+### 6.4 TR+RD 混合分支
+
+当样本有有效 RD 时，Expert1 使用 TR+RD cross-modal fusion branch 作为主输出路径。
+
+Joint 输入建议：
+
+- `trajectory sequence tokens`
+- `RD sequence tokens`
+- cross-attention 后的 `traj_fused_embedding`
+- cross-attention 后的 `rd_fused_embedding`
+- 原始 `traj_embedding`
+- 原始 `rd_embedding`
+- `abs(traj_embedding - rd_embedding)`
+- `traj_embedding * rd_embedding`
+- RD morphology/statistics
+- source / missing-modality quality embedding
+- trajectory confidence、RD auxiliary confidence、entropy、trajectory/RD agreement、RD cosine confidence、residual score
+
+Joint 输出：
+
+- `joint_logits`
+- `track_weight`
+- `rd_weight`
+- `joint_confidence`
+
+Reliability 约束：
+
+- `rd_weight = 0` when no RD。
+- `rd_weight` 初始上限建议 0.35 到 0.45。
+- `rd_weight` 必须 source-aware，弱源和低质量 RD 不能默认高权重。
+- 轨迹和 RD 预测一致时，joint head 可给 agreed class 一个小 prior，但不能绕过主分类监督。
+最终路径：
+
+```text
+if no RD:
+    final_logits = traj_logits
+else:
+    final_logits = tr_rd_joint_logits
+                 + small_rd_weighted_residual
+```
+
+其中 `small_rd_weighted_residual` 只允许来自 hard-pair / residual / morphology heads，并且必须乘 bounded `rd_weight`；当前默认 `rd_specialist_residual_scale = 0.35`，避免退回 RD-only 接管。
+训练期必须让有 RD 样本的主分类 loss 直接作用在 `tr_rd_joint_logits` 上，不能把 joint 分支只作为隔离诊断头。
+
+### 6.5 Unknown/Clutter 三层建模
 
 Unknown 不再只按普通闭集类理解，而是低空内部 residual/reject bucket。
 
@@ -183,21 +254,46 @@ Unknown 不再只按普通闭集类理解，而是低空内部 residual/reject b
 
 1. `known-vs-residual`：判断是否不像 Drone/Bird/Balloon。
 2. `Unknown-vs-Clutter`：在 residual 内部区分未知与杂波。
-3. `final correction adoption`：通过 class gate 和 pair gate 决定 RD 是否接管局部类别组。
+3. `joint residual calibration`：在 TR+RD joint 表征下校准 Unknown / Clutter，而不是让 RD logits 直接接管。
 
 Clutter 依赖局部形态，因此除了全局 RD embedding，还使用 entropy、peak-to-mean、temporal roughness 和 patch CNN 输出。
 
-### 6.4 融合和接管
+### 6.6 训练路径
 
-Expert1 当前不是单一 `(B, 2)` 全局 RD/trajectory 权重。
+Expert1 V2 建议分阶段训练：
 
-融合分三层：
+1. Trajectory anchor stage：
+   - 保留并稳定当前高精度轨迹分支。
+   - 轨迹分支必须单独达到或接近当前 `traj_macro_f1` 基线。
+2. RD evidence stage：
+   - 冻结或低学习率训练 trajectory encoder。
+   - 训练 RD embedding、RD auxiliary heads、hard-pair heads。
+   - RD auxiliary 指标用于诊断，不直接决定 final。
+3. Joint fusion stage：
+   - 有 RD 样本训练 TR+RD joint head。
+   - 无 RD 样本继续训练/回放 trajectory-only path，避免无 RD 路径退化。
+   - `rd_weight` ramp-up，禁止一开始强融合。
+4. Calibration / selection stage：
+   - 按 V2 joint/final 指标选模，不再用 RD-only 净收益否决 joint checkpoint。
 
-- class-wise correction：每个低空类一组 RD correction gate。
-- pair-wise adoption：Drone/Bird、Unknown/Clutter、Balloon 三个局部 pair gate。
-- reject-style residual：当已知类 cosine 低于阈值时，回收到 Unknown 或 Clutter。
+必须同时报告：
 
-训练阶段可以全量计算 RD。推理阶段可按置信度和模式控制是否启用 RD。
+- trajectory-only metrics。
+- joint-on-RD metrics。
+- final metrics。
+- final minus trajectory。
+- RD evidence rescue / harm / net gain。
+- final rescue / harm / net gain on RD。
+- joint-on-RD minus trajectory-on-RD。
+- hard-pair final net gain。
+- by-source final-vs-trajectory。
+
+当前 V2 选模门槛：
+
+- `joint_minus_traj_macro_f1_on_rd >= 0`。
+- `final_net_gain_rate_on_rd >= 0`。
+- `final_harm_rate_on_rd` 不超过配置阈值。
+- RD-only 分支只作为 evidence 质量诊断，保留最低 macro F1 要求，不再要求 RD-only 净收益为正。
 
 ## 7. Expert2 常规空中专家
 
@@ -339,9 +435,11 @@ Expert1 报告必须重点看：
 
 - final macro F1
 - trajectory macro F1
-- RD macro F1 on RD
-- RD rescue/harm/net gain
-- final rescue/harm/net gain
+- joint macro F1 on RD
+- joint minus trajectory macro F1 on RD
+- RD evidence macro F1 on RD
+- RD evidence rescue/harm/net gain
+- final rescue/harm/net gain on RD
 - RD per-class recall on RD
 - Drone/Bird recall mean
 - Unknown/Clutter recall mean
@@ -360,34 +458,32 @@ Expert1 报告必须重点看：
 
 输出目录：
 
-`artifacts/20260508-124356/expert1_config_smoke`
+`artifacts/20260511-224549/expert1_v2_tr_rd_full`
 
 核心指标：
 
 | 指标 | 值 |
 |---|---:|
-| accuracy | 0.8290 |
-| macro F1 | 0.7118 |
-| trajectory macro F1 | 0.7246 |
-| RD macro F1 on RD | 0.5742 |
-| RD Drone/Bird recall mean | 0.7015 |
-| RD Unknown/Clutter recall mean | 0.4190 |
-| RD harm rate on RD | 0.2110 |
-| RD rescue rate on RD | 0.0338 |
-| final harm rate on RD | 0.0084 |
-| final rescue rate on RD | 0.0127 |
-| RD residual accuracy on RD | 0.9072 |
-| RD Unknown/Clutter detail accuracy | 0.7273 |
-| RD clutter morphology accuracy | 0.8182 |
-| raw_tr_rd accuracy | 0.2500 |
-| source balanced accuracy | 0.6064 |
+| accuracy | 0.8710 |
+| macro F1 | 0.7971 |
+| trajectory accuracy / macro F1 | 0.8161 / 0.7614 |
+| trajectory macro F1 on RD | 0.7756 |
+| joint macro F1 on RD | 0.8216 |
+| joint - trajectory macro F1 on RD | +0.0460 |
+| RD evidence macro F1 on RD | 0.6431 |
+| final rescue / harm / net on RD | 22 / 5 / +17 |
+| RD evidence rescue / harm / net on RD | 12 / 45 / -33 |
+| cq08_track macro F1 | 0.8287 |
+| excel_track macro F1 | 0.5881 |
+| raw_tr_rd macro F1 | 0.0800 |
+| source balanced macro F1 | 0.4990 |
 
 结论：
 
-- residual 和 Clutter morphology 头已经学到有效信号。
-- RD on-RD 宏 F1 有明显改善，但 RD 纯分支净收益仍为负。
-- final 融合能显著减伤，但还没有稳定放大 RD rescue。
-- `raw_tr_rd` 样本过少且最弱，当前是 Expert1 的主要风险入口。
+- TR+RD joint 在有 RD 样本上明显超过 trajectory，V2 联合方向成立。
+- RD evidence 单独分支净收益仍为负，只适合做 auxiliary evidence 和质量诊断。
+- final 在 RD 样本上已经产生正净收益，但 `raw_tr_rd` 样本过少且仍有误伤。
+- 当前代码已把选模切换到 `v2_selection_gate`；该训练产物生成时仍使用旧 selection reason，后续需用同一全量配置复训确认。
 
 ### 13.2 System
 
@@ -438,8 +534,9 @@ Expert1 报告必须重点看：
 - CQ08 manifest、标准化和 grouped split。
 - System 使用 `system_trainable_track_index.csv`。
 - Expert1 纯轨迹分支和 RD 分支解耦。
-- Expert1 RD patch CNN、RD stats、pair gate、residual/reject-style Unknown、Clutter morphology head。
-- Expert1 选模和报告输出 RD rescue/harm、source-balanced、Unknown/Clutter、Drone/Bird 指标。
+- Expert1 `v2_joint` 路径：无 RD 走纯轨迹，有 RD 走 TR+RD cross-modal fusion。
+- Expert1 RD patch CNN、RD stats、residual/reject-style Unknown、Clutter morphology head。
+- Expert1 V2 选模和报告输出 joint-on-RD、final rescue/harm、source-balanced、Unknown/Clutter、Drone/Bird 指标。
 - Expert2 open-set Aircraft 原型和 source threshold。
 - Expert4 groundness head 和 System groundness 监督。
 - System calibrated candidate probe。
@@ -448,7 +545,7 @@ Expert1 报告必须重点看：
 
 ## 15. 当前未达标项
 
-1. Expert1 RD 仍不是稳定正收益分支。
+1. Expert1 V2 joint 已在 CQ08 上产生正收益，但 raw 弱源仍不稳。
 2. `raw_tr_rd` 样本极少，min source accuracy 不稳。
 3. Unknown/Clutter 有改善，但 Clutter recall 仍偏低。
 4. Aircraft precision 仍不足，Expert2 positive 过多但 System 最终被仲裁压制。
@@ -459,10 +556,10 @@ Expert1 报告必须重点看：
 
 ## 16. 下一阶段优先级
 
-1. 继续稳 Expert1 RD，目标是先降低 RD harm，再提升 rescue。
+1. 继续稳 Expert1 V2 joint，目标是维持 joint-on-RD 正收益并压低 raw 弱源误伤。
 2. 对 Unknown/Clutter 做更强 residual calibration 和 Clutter morphology 约束。
 3. 用 source-aware sampling 和 raw source 回放提升 `raw_tr_rd`。
 4. 修 Expert2 的 precision/recall 阈值平衡，降低 false Aircraft。
 5. 继续 Ground 仲裁器，先验证高置信 Ground protection，再考虑默认开启。
 6. 单独调 reroute threshold，让回流机制产生可测 recovery，而不是只作为可用链路。
-7. 当 Expert1 checkpoint 真正过 RD quality gate 后，再把它作为 System 主力长期训练入口。
+7. 当 Expert1 checkpoint 真正过 `v2_selection_gate` 后，再把它作为 System 主力长期训练入口。

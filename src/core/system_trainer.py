@@ -2925,16 +2925,15 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_altitude_cosface_scale=config.low_altitude_cosface_scale,
         low_altitude_cosface_margin=config.low_altitude_cosface_margin,
         low_altitude_reject_threshold=config.low_altitude_reject_threshold,
-        low_altitude_rd_activation_threshold=config.low_altitude_rd_activation_threshold,
         low_altitude_use_rd_patch_cnn=config.low_altitude_use_rd_patch_cnn,
-        low_altitude_initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
-        low_altitude_rd_class_activation_threshold=config.low_altitude_rd_class_activation_threshold,
         rd_bird_logit_scale=config.rd_bird_logit_scale,
         rd_unknown_logit_scale=config.rd_unknown_logit_scale,
         rd_clutter_logit_scale=config.rd_clutter_logit_scale,
         rd_residual_logit_scale=config.rd_residual_logit_scale,
         rd_unknown_clutter_logit_scale=config.rd_unknown_clutter_logit_scale,
         rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
+        low_altitude_joint_agreement_prior_scale=config.low_altitude_joint_agreement_prior_scale,
+        low_altitude_rd_specialist_residual_scale=config.low_altitude_rd_specialist_residual_scale,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None
@@ -3288,8 +3287,6 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         "stage_finetune_consistency_scale": config.stage_finetune_consistency_scale,
         "enable_low_altitude_reject_in_train": bool(config.enable_low_altitude_reject_in_train),
         "enable_low_altitude_reject_in_eval": bool(config.enable_low_altitude_reject_in_eval),
-        "low_altitude_rd_activation_threshold": config.low_altitude_rd_activation_threshold,
-        "low_altitude_initial_rd_gate_bias": config.low_altitude_initial_rd_gate_bias,
         "consistency_loss_weight": config.consistency_loss_weight,
         "class_weights": class_weights.detach().cpu().tolist(),
         "route_weights": route_weights.detach().cpu().tolist(),

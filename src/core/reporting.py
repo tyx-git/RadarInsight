@@ -39,6 +39,7 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     by_source = report["by_source"]
     predictions = report["predictions"]
     critical_metrics = report.get("critical_metrics", {})
+    test_metrics = summary.get("test_metrics", {}) if isinstance(summary, dict) else {}
 
     top_confusions = _top_confusions(label_names, confusion, top_k=10)
     wrong_predictions = [item for item in predictions if not item["is_correct"]]
@@ -76,12 +77,16 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
         lines.append(f"- cuda_available: {device_info.get('cuda_available')}")
         if "cuda_device_name" in device_info:
             lines.append(f"- cuda_device_name: {device_info.get('cuda_device_name')}")
-        lines.append("")
+    lines.append("")
     lines.append("## 训练产物")
-    lines.append(f"- best_checkpoint: {summary['best_checkpoint']}")
-    lines.append(f"- history_file: {summary['history_file']}")
-    lines.append(f"- manifest_file: {summary['manifest_file']}")
-    lines.append(f"- evaluation_report: {summary['evaluation_report']}")
+    for label, key in [
+        ("best_checkpoint", "best_checkpoint"),
+        ("history_file", "history_file"),
+        ("manifest_file", "manifest_file"),
+        ("evaluation_report", "evaluation_report"),
+    ]:
+        if key in summary:
+            lines.append(f"- {label}: {summary[key]}")
     lines.append("")
     lines.append("## 各类别指标")
     lines.append("| 类别 | support | precision | recall | f1 |")
@@ -435,9 +440,21 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     if isinstance(branch_metrics, dict) and "rd" in branch_metrics:
         final_branch = branch_metrics.get("final", {})
         traj_branch = branch_metrics.get("trajectory", {})
+        joint_branch = branch_metrics.get("joint", {})
+        if (not isinstance(joint_branch, dict) or not joint_branch) and isinstance(summary_metrics, dict):
+            joint_branch = {
+                "accuracy": summary_metrics.get("joint_accuracy", test_metrics.get("joint_accuracy", 0.0)),
+                "macro_f1": summary_metrics.get("joint_macro_f1", test_metrics.get("joint_macro_f1", 0.0)),
+                "accuracy_on_rd": summary_metrics.get("joint_accuracy_on_rd", test_metrics.get("joint_accuracy_on_rd", 0.0)),
+                "macro_f1_on_rd": summary_metrics.get("joint_macro_f1_on_rd", test_metrics.get("joint_macro_f1_on_rd", 0.0)),
+                "minus_traj_macro_f1_on_rd": summary_metrics.get(
+                    "joint_minus_traj_macro_f1_on_rd",
+                    test_metrics.get("joint_minus_traj_macro_f1_on_rd", 0.0),
+                ),
+            }
         rd_branch = branch_metrics.get("rd", {})
         if isinstance(final_branch, dict) and isinstance(traj_branch, dict) and isinstance(rd_branch, dict):
-            lines.append("## Expert1 RD 分支")
+            lines.append("## Expert1 V2 分支")
             lines.append("| 分支 | accuracy | macro_f1 |")
             lines.append("|---|---:|---:|")
             lines.append(
@@ -448,16 +465,27 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 f"| trajectory | {_format_float(float(traj_branch.get('accuracy', 0.0)))} | "
                 f"{_format_float(float(traj_branch.get('macro_f1', 0.0)))} |"
             )
+            if isinstance(joint_branch, dict) and joint_branch:
+                lines.append(
+                    f"| TR+RD joint | {_format_float(float(joint_branch.get('accuracy', 0.0)))} | "
+                    f"{_format_float(float(joint_branch.get('macro_f1', 0.0)))} |"
+                )
             lines.append(
-                f"| rd | {_format_float(float(rd_branch.get('accuracy', 0.0)))} | "
+                f"| RD evidence | {_format_float(float(rd_branch.get('accuracy', 0.0)))} | "
                 f"{_format_float(float(rd_branch.get('macro_f1', 0.0)))} |"
             )
+            if isinstance(joint_branch, dict) and joint_branch:
+                lines.append(
+                    f"- joint_on_rd: accuracy={_format_float(float(joint_branch.get('accuracy_on_rd', 0.0)))}, "
+                    f"macro_f1={_format_float(float(joint_branch.get('macro_f1_on_rd', 0.0)))}, "
+                    f"minus_traj_macro_f1={_format_float(float(joint_branch.get('minus_traj_macro_f1_on_rd', 0.0)))}"
+                )
             if "accuracy_on_rd" in rd_branch or "macro_f1_on_rd" in rd_branch:
                 lines.append(
-                    f"- rd_on_rd: accuracy={_format_float(float(rd_branch.get('accuracy_on_rd', 0.0)))}, "
+                    f"- rd_evidence_on_rd: accuracy={_format_float(float(rd_branch.get('accuracy_on_rd', 0.0)))}, "
                     f"macro_f1={_format_float(float(rd_branch.get('macro_f1_on_rd', 0.0)))}"
                 )
-            lines.append("| RD 贡献指标 | 值 |")
+            lines.append("| RD evidence 贡献指标 | 值 |")
             lines.append("|---|---:|")
             for key, label in [
                 ("rescue_count", "rd_rescue_count"),
@@ -488,7 +516,7 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             pair_weights = rd_branch.get("pair_fusion_weight_on_rd_by_pair", {})
             if isinstance(pair_weights, dict) and pair_weights:
                 lines.append("")
-                lines.append("| RD 局部接管 gate | on-RD 平均权重 |")
+                lines.append("| bounded RD residual 权重 | on-RD 平均权重 |")
                 lines.append("|---|---:|")
                 for pair_name, value in pair_weights.items():
                     lines.append(f"| {pair_name} | {_format_float(float(value))} |")
@@ -519,13 +547,16 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             lines.append(f"- source_balanced_macro_f1: {_format_float(float(critical_metrics['source_balanced_macro_f1']))}")
         if "min_source_macro_f1" in critical_metrics:
             lines.append(f"- min_source_macro_f1: {_format_float(float(critical_metrics['min_source_macro_f1']))}")
-    lines.append("| 来源 | count | accuracy | macro_f1 | macro_recall |")
-    lines.append("|---|---:|---:|---:|---:|")
+    lines.append("| 来源 | count | final acc | final F1 | traj F1 | joint F1 | joint-on-RD F1 | RD-evidence-on-RD F1 |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
     for source_name, item in by_source.items():
         lines.append(
             f"| {source_name} | {item['count']} | {_format_float(float(item['accuracy']))} | "
             f"{_format_float(float(item.get('macro_f1', 0.0)))} | "
-            f"{_format_float(float(item.get('macro_recall', 0.0)))} |"
+            f"{_format_float(float(item.get('traj_macro_f1', 0.0)))} | "
+            f"{_format_float(float(item.get('joint_macro_f1', 0.0)))} | "
+            f"{_format_float(float(item.get('joint_macro_f1_on_rd', 0.0)))} | "
+            f"{_format_float(float(item.get('rd_macro_f1_on_rd', 0.0)))} |"
         )
     lines.append("")
     lines.append("## 来源 x 类别指标")

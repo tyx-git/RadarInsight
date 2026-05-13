@@ -21,3 +21,5 @@ tools/
 logs/
 OriData/
 .history/
+main.md*
+.cc-connect/

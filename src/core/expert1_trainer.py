@@ -470,202 +470,6 @@ def _rd_confidence_calibration_loss(
     return positive_loss + negative_loss
 
 
-def _fusion_gate_aux_loss(
-    output,
-    labels: torch.Tensor,
-    mask: torch.Tensor,
-    rare_indices: set[int],
-    temperature: float,
-    rare_gate_floor: float,
-) -> torch.Tensor:
-    if not bool(mask.any()):
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    with torch.no_grad():
-        traj_ce = torch.nn.functional.cross_entropy(output.traj_logits[mask], labels[mask], reduction="none")
-        rd_ce = torch.nn.functional.cross_entropy(output.rd_logits[mask], labels[mask], reduction="none")
-        rd_target = torch.sigmoid((traj_ce - rd_ce) / max(float(temperature), 1e-3))
-        rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
-        for index in rare_indices:
-            rare_mask = rare_mask | (labels[mask] == index)
-        if bool(rare_mask.any()):
-            rd_target = torch.where(
-                rare_mask,
-                torch.maximum(rd_target, torch.full_like(rd_target, float(rare_gate_floor))),
-                rd_target,
-            )
-        target = torch.stack([1.0 - rd_target, rd_target], dim=-1)
-    log_weights = torch.log(output.fusion_weights[mask].clamp_min(1e-6))
-    return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
-
-
-def _rd_gate_target_loss(
-    output,
-    labels: torch.Tensor,
-    mask: torch.Tensor,
-    temperature: float,
-    rare_floor: float,
-) -> torch.Tensor:
-    if not bool(mask.any()):
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    with torch.no_grad():
-        masked_labels = labels[mask]
-        traj_pred = output.traj_logits[mask].argmax(dim=-1)
-        rd_pred = output.rd_logits[mask].argmax(dim=-1)
-        traj_confidence = torch.softmax(output.traj_logits[mask], dim=-1).max(dim=-1).values
-        rd_confidence = torch.softmax(output.rd_logits[mask], dim=-1).max(dim=-1).values
-        target = torch.sigmoid((rd_confidence - traj_confidence) / max(float(temperature), 1e-3))
-        rd_correct = rd_pred == masked_labels
-        traj_correct = traj_pred == masked_labels
-        rd_rescue = rd_correct & ~traj_correct
-        rd_harm = ~rd_correct & traj_correct
-        target = torch.where(~rd_correct, torch.minimum(target, torch.full_like(target, 0.25)), target)
-        target = torch.where(rd_rescue, torch.full_like(target, 0.80), target)
-        target = torch.where(rd_harm, torch.minimum(target, torch.full_like(target, 0.15)), target)
-        rare_mask = torch.zeros_like(labels[mask], dtype=torch.bool)
-        rare_indices = {
-            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
-            LOW_ALTITUDE_CLASSES.index("BalloonTarget"),
-            LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
-            LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
-        }
-        for index in rare_indices:
-            rare_mask = rare_mask | (masked_labels == index)
-        hard_pair_mask = torch.zeros_like(masked_labels, dtype=torch.bool)
-        hard_pairs = {
-            LOW_ALTITUDE_CLASSES.index("DroneTarget"),
-            LOW_ALTITUDE_CLASSES.index("BirdTarget"),
-            LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
-            LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
-        }
-        for index in hard_pairs:
-            hard_pair_mask = hard_pair_mask | (masked_labels == index)
-        rd_confident_hard_pair = hard_pair_mask & rd_correct & (rd_confidence >= 0.45)
-        if bool(rd_confident_hard_pair.any()):
-            target = torch.where(
-                rd_confident_hard_pair,
-                torch.maximum(target, torch.full_like(target, 0.65)),
-                target,
-            )
-        if bool(rare_mask.any()):
-            target = torch.where(
-                rare_mask & rd_correct,
-                torch.maximum(target, torch.full_like(target, float(rare_floor))),
-                target,
-            )
-        target = torch.stack([1.0 - target, target], dim=-1)
-    log_weights = torch.log(output.fusion_weights[mask].clamp_min(1e-6))
-    return torch.nn.functional.kl_div(log_weights, target, reduction="batchmean")
-
-
-def _rd_class_gate_target_loss(
-    output,
-    labels: torch.Tensor,
-    mask: torch.Tensor,
-    traj_logits: torch.Tensor,
-    rd_logits: torch.Tensor,
-    rare_floor: float,
-) -> torch.Tensor:
-    if not bool(mask.any()):
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    gate_logits = output.rd_class_gate_logits
-    if gate_logits is None:
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    with torch.no_grad():
-        traj_pred = traj_logits[mask].argmax(dim=-1)
-        rd_pred = rd_logits[mask].argmax(dim=-1)
-        traj_conf = torch.softmax(traj_logits[mask], dim=-1).max(dim=-1).values
-        rd_conf = torch.softmax(rd_logits[mask], dim=-1).max(dim=-1).values
-        masked_labels = labels[mask]
-        target = torch.full_like(gate_logits[mask], 0.05)
-        row_indices = torch.arange(target.shape[0], dtype=torch.long, device=labels.device)
-        true_cols = masked_labels.clamp(min=0, max=target.shape[-1] - 1)
-        rd_rescue = (traj_pred != masked_labels) & (rd_pred == masked_labels)
-        rd_harm = (traj_pred == masked_labels) & (rd_pred != masked_labels)
-        if bool(rd_rescue.any()):
-            target[row_indices[rd_rescue], true_cols[rd_rescue]] = 0.72
-        if bool(rd_harm.any()):
-            target[rd_harm] = 0.12
-        hard_pairs = torch.tensor(
-            [
-                LOW_ALTITUDE_CLASSES.index("DroneTarget"),
-                LOW_ALTITUDE_CLASSES.index("BirdTarget"),
-                LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
-                LOW_ALTITUDE_CLASSES.index("UnknownTarget"),
-            ],
-            dtype=torch.long,
-            device=labels.device,
-        )
-        hard_pair_mask = torch.isin(masked_labels, hard_pairs)
-        hard_pair_high = hard_pair_mask & rd_rescue & (rd_conf >= 0.45)
-        if bool(hard_pair_high.any()):
-            target[row_indices[hard_pair_high], true_cols[hard_pair_high]] = torch.maximum(
-                target[row_indices[hard_pair_high], true_cols[hard_pair_high]],
-                torch.full_like(target[row_indices[hard_pair_high], true_cols[hard_pair_high]], 0.65),
-            )
-        uncertain = ((rd_conf < 0.40) | (traj_conf > rd_conf + 0.15)) & (~rd_rescue)
-        if bool(uncertain.any()):
-            target[uncertain] = torch.minimum(target[uncertain], torch.full_like(target[uncertain], float(rare_floor)))
-    probs = torch.sigmoid(gate_logits[mask])
-    return torch.nn.functional.mse_loss(probs, target)
-
-
-def _rd_pair_gate_target_loss(
-    output,
-    labels: torch.Tensor,
-    mask: torch.Tensor,
-    traj_logits: torch.Tensor,
-    rd_logits: torch.Tensor,
-    takeover_floor: float,
-    harm_ceiling: float,
-) -> torch.Tensor:
-    if not bool(mask.any()):
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    gate_logits = output.rd_pair_gate_logits
-    if gate_logits is None:
-        return labels.new_tensor(0.0, dtype=torch.float32)
-    with torch.no_grad():
-        masked_labels = labels[mask]
-        traj_pred = traj_logits[mask].argmax(dim=-1)
-        rd_pred = rd_logits[mask].argmax(dim=-1)
-        traj_conf = torch.softmax(traj_logits[mask], dim=-1).max(dim=-1).values
-        rd_conf = torch.softmax(rd_logits[mask], dim=-1).max(dim=-1).values
-        target = torch.full_like(gate_logits[mask], 0.06)
-        drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
-        bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
-        balloon_index = LOW_ALTITUDE_CLASSES.index("BalloonTarget")
-        clutter_index = LOW_ALTITUDE_CLASSES.index("ClutterTarget")
-        unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
-        pair_masks = [
-            (masked_labels == drone_index) | (masked_labels == bird_index),
-            (masked_labels == unknown_index) | (masked_labels == clutter_index),
-            masked_labels == balloon_index,
-        ]
-        rd_rescue = (traj_pred != masked_labels) & (rd_pred == masked_labels)
-        rd_harm = (traj_pred == masked_labels) & (rd_pred != masked_labels)
-        rd_clearer = rd_conf > traj_conf + 0.08
-        for pair_idx, pair_mask in enumerate(pair_masks):
-            high = pair_mask & rd_rescue & rd_clearer
-            if bool(high.any()):
-                target[high, pair_idx] = float(takeover_floor)
-            medium = pair_mask & rd_rescue & ~rd_clearer
-            if bool(medium.any()):
-                target[medium, pair_idx] = torch.maximum(
-                    target[medium, pair_idx],
-                    torch.full_like(target[medium, pair_idx], 0.55),
-                )
-            harmful = pair_mask & rd_harm
-            if bool(harmful.any()):
-                target[harmful, pair_idx] = torch.minimum(
-                    target[harmful, pair_idx],
-                    torch.full_like(target[harmful, pair_idx], float(harm_ceiling)),
-                )
-        uncertain = (rd_conf < 0.40) | (traj_conf > rd_conf + 0.15)
-        if bool(uncertain.any()):
-            target[uncertain] = torch.minimum(target[uncertain], torch.full_like(target[uncertain], 0.08))
-    probs = torch.sigmoid(gate_logits[mask])
-    return torch.nn.functional.mse_loss(probs, target)
-
-
 def _rel(path: Path) -> str:
     try:
         return str(path.resolve().relative_to(Path.cwd().resolve()))
@@ -682,6 +486,13 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "macro_f1": metrics["macro_f1"],
         "traj_accuracy": metrics.get("traj_accuracy", 0.0),
         "traj_macro_f1": metrics.get("traj_macro_f1", 0.0),
+        "traj_accuracy_on_rd": metrics.get("traj_accuracy_on_rd", 0.0),
+        "traj_macro_f1_on_rd": metrics.get("traj_macro_f1_on_rd", 0.0),
+        "joint_accuracy": metrics.get("joint_accuracy", 0.0),
+        "joint_macro_f1": metrics.get("joint_macro_f1", 0.0),
+        "joint_accuracy_on_rd": metrics.get("joint_accuracy_on_rd", 0.0),
+        "joint_macro_f1_on_rd": metrics.get("joint_macro_f1_on_rd", 0.0),
+        "joint_minus_traj_macro_f1_on_rd": metrics.get("joint_minus_traj_macro_f1_on_rd", 0.0),
         "rd_accuracy": metrics.get("rd_accuracy", 0.0),
         "rd_macro_f1": metrics.get("rd_macro_f1", 0.0),
         "rd_accuracy_on_rd": metrics.get("rd_accuracy_on_rd", 0.0),
@@ -713,6 +524,8 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_pair_fusion_weight_on_rd_mean": metrics.get("rd_pair_fusion_weight_on_rd_mean", 0.0),
         "rd_pair_fusion_weight_by_pair": metrics.get("rd_pair_fusion_weight_by_pair", {}),
         "rd_pair_fusion_weight_on_rd_by_pair": metrics.get("rd_pair_fusion_weight_on_rd_by_pair", {}),
+        "joint_rd_weight_mean": metrics.get("joint_rd_weight_mean", 0.0),
+        "joint_rd_weight_on_rd_mean": metrics.get("joint_rd_weight_on_rd_mean", 0.0),
         "known_confidence_mean": metrics.get("known_confidence_mean", 0.0),
         "residual_score_mean": metrics.get("residual_score_mean", 0.0),
         "residual_score_on_residual_mean": metrics.get("residual_score_on_residual_mean", 0.0),
@@ -724,11 +537,17 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "rd_clutter_morphology_clutter_recall": metrics.get("rd_clutter_morphology_clutter_recall", 0.0),
         "by_source_metrics": metrics.get("by_source_metrics", {}),
         "traj_by_source_metrics": metrics.get("traj_by_source_metrics", {}),
+        "joint_by_source_metrics": metrics.get("joint_by_source_metrics", {}),
+        "joint_by_source_metrics_on_rd": metrics.get("joint_by_source_metrics_on_rd", {}),
         "rd_by_source_metrics_on_rd": metrics.get("rd_by_source_metrics_on_rd", {}),
         "by_source_accuracy": metrics.get("by_source_accuracy", {}),
         "by_source_macro_f1": metrics.get("by_source_macro_f1", {}),
         "traj_by_source_accuracy": metrics.get("traj_by_source_accuracy", {}),
         "traj_by_source_macro_f1": metrics.get("traj_by_source_macro_f1", {}),
+        "joint_by_source_accuracy": metrics.get("joint_by_source_accuracy", {}),
+        "joint_by_source_macro_f1": metrics.get("joint_by_source_macro_f1", {}),
+        "joint_by_source_accuracy_on_rd": metrics.get("joint_by_source_accuracy_on_rd", {}),
+        "joint_by_source_macro_f1_on_rd": metrics.get("joint_by_source_macro_f1_on_rd", {}),
         "rd_by_source_accuracy_on_rd": metrics.get("rd_by_source_accuracy_on_rd", {}),
         "rd_by_source_macro_f1_on_rd": metrics.get("rd_by_source_macro_f1_on_rd", {}),
         "rd_source_balanced_accuracy_on_rd": metrics.get("rd_source_balanced_accuracy_on_rd", 0.0),
@@ -747,8 +566,13 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "selection_score": metrics.get("selection_score", 0.0),
         "selection_eligible": metrics.get("selection_eligible", False),
         "selection_components": metrics.get("selection_components", {}),
-        "rd_activation_rate": metrics.get("rd_activation_rate", 0.0),
-        "rd_activation_rate_on_rd": metrics.get("rd_activation_rate_on_rd", 0.0),
+        "evaluated_batches": metrics.get("evaluated_batches", 0),
+        "max_batches": metrics.get("max_batches", 0),
+        "validation_scope": metrics.get("validation_scope", ""),
+        "tr_rd_path_rate": metrics.get("tr_rd_path_rate", metrics.get("rd_activation_rate", 0.0)),
+        "tr_rd_path_rate_on_rd": metrics.get("tr_rd_path_rate_on_rd", metrics.get("rd_activation_rate_on_rd", 0.0)),
+        "rd_activation_rate": metrics.get("rd_activation_rate", metrics.get("tr_rd_path_rate", 0.0)),
+        "rd_activation_rate_on_rd": metrics.get("rd_activation_rate_on_rd", metrics.get("tr_rd_path_rate_on_rd", 0.0)),
         "skipped_non_finite_batches": metrics["skipped_non_finite_batches"],
         "has_valid_batches": metrics["has_valid_batches"],
     }
@@ -982,6 +806,8 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_clutter = float(metrics.get("rd_unknown_clutter_recall_mean", 0.0))
     final_macro = float(metrics.get("macro_f1", 0.0))
     traj_macro = float(metrics.get("traj_macro_f1", 0.0))
+    joint_macro_on_rd = float(metrics.get("joint_macro_f1_on_rd", 0.0))
+    joint_minus_traj_on_rd = float(metrics.get("joint_minus_traj_macro_f1_on_rd", 0.0))
     accuracy = float(metrics.get("accuracy", 0.0))
     source_balanced_accuracy = float(metrics.get("source_balanced_accuracy", 0.0))
     min_source_accuracy = float(metrics.get("min_source_accuracy", 0.0))
@@ -1017,7 +843,7 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     unknown_recall = float(rd_recall.get("UnknownTarget", 0.0))
     min_rare_rd_recall = min(balloon_recall, clutter_recall, unknown_recall)
     score = (
-        0.55 * final_macro
+        0.70 * final_macro
         + 0.25 * accuracy
         + 0.35 * source_balanced_accuracy
         + 0.25 * min_source_accuracy
@@ -1027,7 +853,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         + 0.18 * raw_source_macro_f1
         + 0.16 * excel_source_macro_f1
         + 0.20 * without_rd_accuracy
-        + 0.80 * rd_macro
+        + 0.35 * joint_macro_on_rd
+        + 0.40 * joint_minus_traj_on_rd
+        + 0.35 * rd_macro
         + 0.18 * rd_source_balanced_accuracy
         + 0.12 * rd_min_source_accuracy
         + 0.18 * rd_source_balanced_macro_f1
@@ -1036,14 +864,12 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         + 0.28 * drone_bird
         + 0.32 * unknown_clutter
         + 0.20 * min_rare_rd_recall
-        + 0.18 * rd_net_gain_rate
-        + 0.18 * final_net_gain_rate
+        + 0.35 * final_net_gain_rate
         + 0.10 * rd_residual_accuracy
         + 0.10 * residual_detail_accuracy
         + 0.08 * clutter_morphology_accuracy
         + 0.05 * residual_score_on_residual
-        - 0.35 * rd_harm_rate
-        - 0.20 * final_harm_rate
+        - 0.35 * final_harm_rate
         + 0.25 * traj_macro
         + 0.25 * final_delta
     )
@@ -1054,7 +880,7 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         enough_unknown = rd_class_support.get("UnknownTarget", 0) >= config.min_rd_class_support_for_hard_gate
         enough_clutter = rd_class_support.get("ClutterTarget", 0) >= config.min_rd_class_support_for_hard_gate
         enough_bird = rd_class_support.get("BirdTarget", 0) >= config.min_rd_class_support_for_hard_gate
-        eligible = eligible and rd_macro >= config.min_rd_macro_f1_for_best
+        eligible = eligible and rd_macro >= config.min_rd_evidence_macro_f1_for_best
         eligible = eligible and drone_bird >= config.min_drone_bird_rd_recall_for_best
         if enough_bird:
             eligible = eligible and min_drone_bird_recall >= config.min_drone_bird_single_rd_recall_for_best
@@ -1073,8 +899,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
             eligible = eligible and excel_source_macro_f1 >= config.min_excel_source_macro_f1_for_best
         if enough_rd_raw_source:
             eligible = eligible and rd_raw_source_accuracy >= config.min_rd_raw_source_accuracy_for_best
-        eligible = eligible and rd_harm_rate <= config.max_rd_harm_rate_for_best
-        eligible = eligible and rd_net_gain_rate >= config.min_rd_net_gain_rate_for_best
+        eligible = eligible and joint_minus_traj_on_rd >= config.min_joint_minus_traj_macro_f1_on_rd_for_best
+        eligible = eligible and final_net_gain_rate >= config.min_final_net_gain_rate_on_rd_for_best
+        eligible = eligible and final_harm_rate <= config.max_final_harm_rate_on_rd_for_best
         if config.require_final_not_worse_than_traj:
             eligible = eligible and final_delta >= max(
                 -config.max_final_traj_f1_drop,
@@ -1098,6 +925,8 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "without_rd_accuracy": without_rd_accuracy,
         "traj_macro_f1": traj_macro,
         "final_minus_traj_macro_f1": final_delta,
+        "joint_macro_f1_on_rd": joint_macro_on_rd,
+        "joint_minus_traj_macro_f1_on_rd": joint_minus_traj_on_rd,
         "rd_macro_f1_on_rd": rd_macro,
         "rd_drone_bird_recall_mean": drone_bird,
         "rd_drone_recall": drone_recall,
@@ -1141,6 +970,8 @@ def _run_epoch(
     rd_class_weights: torch.Tensor,
     source_feature_stats: dict[str, dict[str, torch.Tensor]] | None = None,
     anchor_traj_logits: dict[str, torch.Tensor] | None = None,
+    max_batches: int = 0,
+    compute_aux_loss: bool | None = None,
 ) -> dict[str, object]:
     representation_builder.train(mode=train)
     rd_proj.train(mode=train)
@@ -1161,10 +992,12 @@ def _run_epoch(
     coarse_label_names_all: list[str] = []
     fine_label_names_all: list[str] = []
     has_rd_all: list[bool] = []
-    rd_activated_all: list[bool] = []
+    tr_rd_active_all: list[bool] = []
     fusion_weights_all: list[torch.Tensor] = []
     rd_class_fusion_weights_all: list[torch.Tensor] = []
     rd_pair_fusion_weights_all: list[torch.Tensor] = []
+    joint_logits_all: list[torch.Tensor] = []
+    joint_rd_weights_all: list[torch.Tensor] = []
     loss_values: list[float] = []
     skipped_non_finite_batches = 0
     if anchor_traj_logits is None:
@@ -1176,7 +1009,10 @@ def _run_epoch(
         and stage2_epoch <= config.low_altitude_rd_teacher_warmup_epochs
     )
 
-    for batch in loader:
+    should_compute_aux_loss = train if compute_aux_loss is None else bool(compute_aux_loss)
+    for batch_index, batch in enumerate(loader, start=1):
+        if max_batches > 0 and batch_index > max_batches:
+            break
         features = batch.features.to(device)
         if config.source_normalization and source_feature_stats is not None:
             features = _apply_source_feature_norm(features, batch.source_names, source_feature_stats)
@@ -1220,17 +1056,18 @@ def _run_epoch(
             output = model(
                 rep.fused_features,
                 rd_features=rd_features,
+                traj_sequence_features=rep.sequence_features,
                 rd_patch_features=rd_patch_features,
                 rd_deep_patch_features=rd_deep_patch_features,
                 rd_context=rd_embedding,
                 low_altitude_targets=labels if train else None,
                 rd_is_multimodal=rd_is_multimodal,
+                traj_padding_mask=batch.padding_mask.to(device),
                 rd_padding_mask=rd_padding_mask,
                 rd_patch_padding_mask=rd_patch_padding_mask,
                 rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                 enable_reject=(config.enable_reject_in_train if train else config.enable_reject_in_eval) and stage2_enabled,
-                force_rd_activation=bool(train and stage2_enabled),
-                disable_rd_activation=bool(train and not stage2_enabled),
+                disable_tr_rd_fusion=bool(train and not stage2_enabled),
             )
             unknown_index = LOW_ALTITUDE_CLASSES.index("UnknownTarget")
             residual_targets_all = _residual_targets(labels)
@@ -1248,6 +1085,7 @@ def _run_epoch(
                 unknown_index=unknown_index,
                 unknown_weight=config.unknown_loss_weight,
             )
+            traj_supervision_loss = aux_loss
             residual_loss = _binary_positive_ce_loss(
                 output.traj_residual_logits,
                 residual_targets_all,
@@ -1263,7 +1101,7 @@ def _run_epoch(
                             for sample_id, logits_row in zip(batch.sample_ids, output.traj_logits.detach().cpu())
                         }
                     )
-                elif anchor_traj_logits:
+                elif anchor_traj_logits and stage2_epoch >= config.low_altitude_traj_anchor_start_epoch:
                     matched_indices: list[int] = []
                     target_rows: list[torch.Tensor] = []
                     for batch_index, sample_id in enumerate(batch.sample_ids):
@@ -1277,22 +1115,25 @@ def _run_epoch(
                         log_probs = torch.log_softmax(output.traj_logits[index_tensor], dim=-1)
                         anchor_loss = torch.nn.functional.kl_div(log_probs, target_probs, reduction="batchmean")
             has_rd_mask = rd_is_multimodal.bool()
-            if stage2_enabled and has_rd_mask.any():
-                deep_output = model(
-                    rep.fused_features,
-                    rd_features=rd_features,
-                    rd_patch_features=rd_patch_features,
-                    rd_deep_patch_features=rd_deep_patch_features,
-                    rd_context=rd_embedding,
-                    low_altitude_targets=labels if train else None,
-                    rd_is_multimodal=rd_is_multimodal,
-                    rd_padding_mask=rd_padding_mask,
-                    rd_patch_padding_mask=rd_patch_padding_mask,
-                    rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
-                    enable_reject=False,
-                    force_rd_activation=True,
-                    inference_mode="deep_reroute",
-                )
+            if stage2_enabled and has_rd_mask.any() and should_compute_aux_loss:
+                deep_output = None
+                if config.low_altitude_deep_reroute_aux_weight > 0.0:
+                    deep_output = model(
+                        rep.fused_features,
+                        rd_features=rd_features,
+                        traj_sequence_features=rep.sequence_features,
+                        rd_patch_features=rd_patch_features,
+                        rd_deep_patch_features=rd_deep_patch_features,
+                        rd_context=rd_embedding,
+                        low_altitude_targets=labels if train else None,
+                        rd_is_multimodal=rd_is_multimodal,
+                        traj_padding_mask=batch.padding_mask.to(device),
+                        rd_padding_mask=rd_padding_mask,
+                        rd_patch_padding_mask=rd_patch_padding_mask,
+                        rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
+                        enable_reject=False,
+                        inference_mode="deep_reroute",
+                    )
                 rd_aux = _masked_weighted_ce_loss(
                     output.rd_logits[has_rd_mask],
                     labels[has_rd_mask],
@@ -1433,60 +1274,54 @@ def _run_epoch(
                     unknown_weight=config.unknown_loss_weight,
                     focal_gamma=config.low_altitude_rd_focal_gamma,
                 )
-                main_loss = main_loss + config.low_altitude_rd_forced_fusion_weight * forced_fusion_loss
-                deep_reroute_loss = _masked_weighted_ce_loss(
-                    deep_output.logits[has_rd_mask],
-                    labels[has_rd_mask],
-                    rd_class_weights.to(device),
-                    unknown_index=unknown_index,
-                    unknown_weight=config.unknown_loss_weight,
-                    focal_gamma=config.low_altitude_rd_focal_gamma,
-                )
-                deep_reroute_rd_loss = _masked_weighted_ce_loss(
-                    deep_output.rd_logits[has_rd_mask],
-                    labels[has_rd_mask],
-                    rd_class_weights.to(device),
-                    unknown_index=unknown_index,
-                    unknown_weight=config.unknown_loss_weight,
-                    focal_gamma=config.low_altitude_rd_focal_gamma,
-                )
-                main_loss = main_loss + config.low_altitude_deep_reroute_aux_weight * (
-                    deep_reroute_loss + 0.5 * deep_reroute_rd_loss
-                )
-                gate_loss = _fusion_gate_aux_loss(
-                    output,
-                    labels,
-                    has_rd_mask,
-                    rare_indices={unknown_index, clutter_index},
-                    temperature=config.low_altitude_rd_gate_temperature,
-                    rare_gate_floor=config.low_altitude_rd_rare_gate_floor,
-                )
-                main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * gate_loss
-                rd_gate_target_loss = _rd_gate_target_loss(
-                    output,
-                    labels,
-                    has_rd_mask,
-                    temperature=max(config.low_altitude_rd_gate_temperature, 0.1),
-                    rare_floor=config.low_altitude_rd_rare_gate_floor,
-                )
-                main_loss = main_loss + config.low_altitude_rd_gate_aux_weight * rd_gate_target_loss
-                rd_class_gate_loss = _rd_class_gate_target_loss(
-                    output,
-                    labels,
-                    has_rd_mask,
-                    output.traj_logits,
-                    output.rd_logits,
-                    config.low_altitude_rd_rare_gate_floor,
-                )
-                rd_pair_gate_loss = _rd_pair_gate_target_loss(
-                    output,
-                    labels,
-                    has_rd_mask,
-                    output.traj_logits,
-                    output.rd_logits,
-                    takeover_floor=config.low_altitude_rd_pair_takeover_floor,
-                    harm_ceiling=config.low_altitude_rd_pair_harm_ceiling,
-                )
+                main_loss = main_loss + (config.low_altitude_rd_forced_fusion_weight * stage2_scale) * forced_fusion_loss
+                if output.joint_logits is not None and config.low_altitude_joint_aux_weight > 0.0:
+                    joint_aux_loss = _masked_weighted_ce_loss(
+                        output.joint_logits[has_rd_mask],
+                        labels[has_rd_mask],
+                        rd_class_weights.to(device),
+                        unknown_index=unknown_index,
+                        unknown_weight=config.unknown_loss_weight,
+                        focal_gamma=config.low_altitude_rd_focal_gamma,
+                    )
+                    main_loss = main_loss + (config.low_altitude_joint_aux_weight * stage2_scale) * joint_aux_loss
+                if output.joint_reliability_logits is not None and config.low_altitude_joint_reliability_aux_weight > 0.0:
+                    with torch.no_grad():
+                        traj_pred = output.traj_logits.argmax(dim=-1)
+                        rd_pred = output.rd_logits.argmax(dim=-1)
+                        traj_correct = traj_pred == labels
+                        rd_correct = rd_pred == labels
+                        rd_rescue = rd_correct & ~traj_correct
+                        rd_harm = ~rd_correct & traj_correct
+                        reliability_target = torch.full_like(output.joint_rd_weight, 0.20)
+                        reliability_target = torch.where(rd_rescue, torch.full_like(reliability_target, 0.40), reliability_target)
+                        reliability_target = torch.where(rd_harm, torch.full_like(reliability_target, 0.05), reliability_target)
+                        reliability_target = torch.where(~has_rd_mask, torch.zeros_like(reliability_target), reliability_target)
+                    reliability_loss = torch.nn.functional.mse_loss(
+                        output.joint_rd_weight[has_rd_mask],
+                        reliability_target[has_rd_mask],
+                    )
+                    main_loss = main_loss + (config.low_altitude_joint_reliability_aux_weight * stage2_scale) * reliability_loss
+                if deep_output is not None:
+                    deep_reroute_loss = _masked_weighted_ce_loss(
+                        deep_output.logits[has_rd_mask],
+                        labels[has_rd_mask],
+                        rd_class_weights.to(device),
+                        unknown_index=unknown_index,
+                        unknown_weight=config.unknown_loss_weight,
+                        focal_gamma=config.low_altitude_rd_focal_gamma,
+                    )
+                    deep_reroute_rd_loss = _masked_weighted_ce_loss(
+                        deep_output.rd_logits[has_rd_mask],
+                        labels[has_rd_mask],
+                        rd_class_weights.to(device),
+                        unknown_index=unknown_index,
+                        unknown_weight=config.unknown_loss_weight,
+                        focal_gamma=config.low_altitude_rd_focal_gamma,
+                    )
+                    main_loss = main_loss + (config.low_altitude_deep_reroute_aux_weight * stage2_scale) * (
+                        deep_reroute_loss + 0.5 * deep_reroute_rd_loss
+                    )
                 if rd_teacher_warmup:
                     aux_loss = (
                         config.low_altitude_traj_aux_ratio * aux_loss
@@ -1527,15 +1362,12 @@ def _run_epoch(
                     contrastive_loss = torch.tensor(0.0, device=device)
                 if rd_teacher_warmup:
                     contrastive_loss = torch.tensor(0.0, device=device)
-                    rd_class_gate_loss = torch.tensor(0.0, device=device)
-                    rd_pair_gate_loss = torch.tensor(0.0, device=device)
-                main_loss = main_loss + config.low_altitude_rd_class_gate_aux_weight * rd_class_gate_loss
-                main_loss = main_loss + config.low_altitude_rd_pair_gate_aux_weight * rd_pair_gate_loss
             else:
                 mutual_loss = torch.tensor(0.0, device=device)
                 contrastive_loss = torch.tensor(0.0, device=device)
             loss = (
                 main_loss
+                + config.low_altitude_traj_supervision_weight * traj_supervision_loss
                 + (config.low_altitude_aux_weight * stage2_scale) * aux_loss
                 + (config.low_altitude_traj_anchor_weight * stage2_scale) * anchor_loss
                 + (config.low_altitude_mutual_weight * stage2_scale) * mutual_loss
@@ -1543,7 +1375,11 @@ def _run_epoch(
             )
 
             if train:
-                prev_state = _clone_bundle_state_to_cpu(representation_builder, rd_proj, model)
+                prev_state = (
+                    _clone_bundle_state_to_cpu(representation_builder, rd_proj, model)
+                    if config.enable_batch_parameter_rollback
+                    else None
+                )
                 if not torch.isfinite(loss):
                     if config.skip_non_finite_batch:
                         skipped_non_finite_batches += 1
@@ -1557,7 +1393,9 @@ def _run_epoch(
                     max_norm=1.0,
                 )
                 optimizer.step()
-                if not _parameters_are_finite_bundle(representation_builder, rd_proj, model):
+                if config.enable_batch_parameter_rollback and not _parameters_are_finite_bundle(representation_builder, rd_proj, model):
+                    if prev_state is None:
+                        raise RuntimeError("missing rollback state after non-finite parameter detection")
                     representation_builder.load_state_dict(prev_state["representation_builder_state_dict"])
                     rd_proj.load_state_dict(prev_state["rd_proj_state_dict"])
                     model.load_state_dict(prev_state["model_state_dict"])
@@ -1586,8 +1424,12 @@ def _run_epoch(
         coarse_label_names_all.extend(batch.coarse_label_names)
         fine_label_names_all.extend(batch.fine_label_names)
         has_rd_all.extend([bool(x) for x in batch.rd_is_multimodal.tolist()])
-        rd_activated_all.extend([bool(x) for x in output.rd_activated.detach().cpu().tolist()])
+        tr_rd_active_all.extend([bool(x) for x in output.tr_rd_active.detach().cpu().tolist()])
         fusion_weights_all.append(output.fusion_weights.detach().cpu())
+        if output.joint_logits is not None:
+            joint_logits_all.append(output.joint_logits.detach().cpu())
+        if output.joint_rd_weight is not None:
+            joint_rd_weights_all.append(output.joint_rd_weight.detach().cpu())
         if output.rd_class_fusion_weights is not None:
             rd_class_fusion_weights_all.append(output.rd_class_fusion_weights.detach().cpu())
         if output.rd_pair_fusion_weights is not None:
@@ -1602,7 +1444,12 @@ def _run_epoch(
             "macro_f1": 0.0,
             "skipped_non_finite_batches": skipped_non_finite_batches,
             "has_valid_batches": False,
+            "evaluated_batches": 0,
+            "max_batches": int(max_batches),
             "logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
+            "traj_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
+            "joint_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
+            "rd_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "labels": torch.empty((0,), dtype=torch.long),
             "sample_ids": sample_ids_all,
             "source_names": source_names_all,
@@ -1610,7 +1457,12 @@ def _run_epoch(
             "coarse_label_names": coarse_label_names_all,
             "fine_label_names": fine_label_names_all,
             "has_rd": has_rd_all,
-            "rd_activated": rd_activated_all,
+            "tr_rd_active": tr_rd_active_all,
+            "rd_activated": tr_rd_active_all,
+            "tr_rd_path_rate": 0.0,
+            "tr_rd_path_rate_on_rd": 0.0,
+            "rd_activation_rate": 0.0,
+            "rd_activation_rate_on_rd": 0.0,
             "rd_fusion_weight_mean": 0.0,
             "rd_fusion_weight_on_rd_mean": 0.0,
             "rd_class_fusion_weight_mean": 0.0,
@@ -1619,6 +1471,15 @@ def _run_epoch(
             "rd_pair_fusion_weight_on_rd_mean": 0.0,
             "rd_pair_fusion_weight_by_pair": {},
             "rd_pair_fusion_weight_on_rd_by_pair": {},
+            "joint_accuracy": 0.0,
+            "joint_macro_f1": 0.0,
+            "joint_accuracy_on_rd": 0.0,
+            "joint_macro_f1_on_rd": 0.0,
+            "traj_accuracy_on_rd": 0.0,
+            "traj_macro_f1_on_rd": 0.0,
+            "joint_minus_traj_macro_f1_on_rd": 0.0,
+            "joint_rd_weight_mean": 0.0,
+            "joint_rd_weight_on_rd_mean": 0.0,
             "traj_residual_accuracy": 0.0,
             "rd_residual_accuracy_on_rd": 0.0,
             "rd_unknown_clutter_detail_accuracy_on_residual_rd": 0.0,
@@ -1639,8 +1500,20 @@ def _run_epoch(
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     traj_metrics = compute_classification_metrics(traj_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     rd_metrics = compute_classification_metrics(rd_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    joint_logits_cat = torch.cat(joint_logits_all, dim=0) if joint_logits_all else logits_cat
     has_rd_tensor = torch.tensor(has_rd_all, dtype=torch.bool)
-    rd_activated_tensor = torch.tensor(rd_activated_all, dtype=torch.bool)
+    tr_rd_active_tensor = torch.tensor(tr_rd_active_all, dtype=torch.bool)
+    joint_metrics = compute_classification_metrics(joint_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    traj_metrics_on_rd = (
+        compute_classification_metrics(traj_logits_cat[has_rd_tensor], labels_cat[has_rd_tensor], num_classes=len(LOW_ALTITUDE_CLASSES))
+        if bool(has_rd_tensor.any())
+        else None
+    )
+    joint_metrics_on_rd = (
+        compute_classification_metrics(joint_logits_cat[has_rd_tensor], labels_cat[has_rd_tensor], num_classes=len(LOW_ALTITUDE_CLASSES))
+        if bool(has_rd_tensor.any())
+        else None
+    )
     rd_metrics_on_rd = (
         compute_classification_metrics(rd_logits_cat[has_rd_tensor], labels_cat[has_rd_tensor], num_classes=len(LOW_ALTITUDE_CLASSES))
         if bool(has_rd_tensor.any())
@@ -1668,6 +1541,13 @@ def _run_epoch(
     )
     by_source_metrics = _source_metric_dict(logits_cat, labels_cat, source_names_all)
     traj_by_source_metrics = _source_metric_dict(traj_logits_cat, labels_cat, source_names_all)
+    joint_by_source_metrics = _source_metric_dict(joint_logits_cat, labels_cat, source_names_all)
+    joint_by_source_metrics_on_rd = _source_metric_dict(
+        joint_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
     rd_by_source_metrics_on_rd = _source_metric_dict(
         rd_logits_cat,
         labels_cat,
@@ -1675,18 +1555,25 @@ def _run_epoch(
         mask=has_rd_tensor,
     )
     group_metrics = _group_accuracy_metrics(logits_cat, labels_cat, source_names_all, has_rd_all)
-    rd_activation_rate = float(rd_activated_tensor.float().mean().item()) if rd_activated_tensor.numel() else 0.0
-    rd_activation_rate_on_rd = (
-        float(rd_activated_tensor[has_rd_tensor].float().mean().item())
+    tr_rd_path_rate = float(tr_rd_active_tensor.float().mean().item()) if tr_rd_active_tensor.numel() else 0.0
+    tr_rd_path_rate_on_rd = (
+        float(tr_rd_active_tensor[has_rd_tensor].float().mean().item())
         if bool(has_rd_tensor.any())
         else 0.0
     )
     fusion_weights_cat = torch.cat(fusion_weights_all, dim=0) if fusion_weights_all else torch.empty((0, 2), dtype=torch.float32)
+    joint_rd_weights_cat = torch.cat(joint_rd_weights_all, dim=0) if joint_rd_weights_all else torch.empty((0,), dtype=torch.float32)
     rd_fusion_weight_mean = float(fusion_weights_cat[:, 1].mean().item()) if fusion_weights_cat.numel() else 0.0
     rd_fusion_weight_on_rd_mean = (
         float(fusion_weights_cat[has_rd_tensor, 1].mean().item())
         if bool(has_rd_tensor.any()) and fusion_weights_cat.numel()
         else 0.0
+    )
+    joint_rd_weight_mean = float(joint_rd_weights_cat.mean().item()) if joint_rd_weights_cat.numel() else rd_fusion_weight_mean
+    joint_rd_weight_on_rd_mean = (
+        float(joint_rd_weights_cat[has_rd_tensor].mean().item())
+        if bool(has_rd_tensor.any()) and joint_rd_weights_cat.numel()
+        else rd_fusion_weight_on_rd_mean
     )
     rd_class_weights_cat = (
         torch.cat(rd_class_fusion_weights_all, dim=0)
@@ -1767,6 +1654,20 @@ def _run_epoch(
     rd_unknown_clutter = float(diagnostics["rd_on_rd_unknown_clutter_recall_mean"])
     traj_by_source_accuracy = _source_accuracy_dict(traj_logits_cat, labels_cat, source_names_all)
     traj_by_source_macro_f1 = _source_macro_f1_dict(traj_logits_cat, labels_cat, source_names_all)
+    joint_by_source_accuracy = _source_accuracy_dict(joint_logits_cat, labels_cat, source_names_all)
+    joint_by_source_macro_f1 = _source_macro_f1_dict(joint_logits_cat, labels_cat, source_names_all)
+    joint_by_source_accuracy_on_rd = _source_accuracy_dict(
+        joint_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
+    joint_by_source_macro_f1_on_rd = _source_macro_f1_dict(
+        joint_logits_cat,
+        labels_cat,
+        source_names_all,
+        mask=has_rd_tensor,
+    )
     rd_by_source_accuracy_on_rd = _source_accuracy_dict(
         rd_logits_cat,
         labels_cat,
@@ -1789,12 +1690,25 @@ def _run_epoch(
     rd_by_source_macro_f1_summary = _source_macro_f1_summary(rd_by_source_macro_f1_on_rd)
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
+        "evaluated_batches": len(loss_values),
+        "max_batches": int(max_batches),
         "accuracy": metrics.accuracy,
         "macro_precision": metrics.macro_precision,
         "macro_recall": metrics.macro_recall,
         "macro_f1": metrics.macro_f1,
         "traj_accuracy": traj_metrics.accuracy,
         "traj_macro_f1": traj_metrics.macro_f1,
+        "traj_accuracy_on_rd": traj_metrics_on_rd.accuracy if traj_metrics_on_rd is not None else 0.0,
+        "traj_macro_f1_on_rd": traj_metrics_on_rd.macro_f1 if traj_metrics_on_rd is not None else 0.0,
+        "joint_accuracy": joint_metrics.accuracy,
+        "joint_macro_f1": joint_metrics.macro_f1,
+        "joint_accuracy_on_rd": joint_metrics_on_rd.accuracy if joint_metrics_on_rd is not None else 0.0,
+        "joint_macro_f1_on_rd": joint_metrics_on_rd.macro_f1 if joint_metrics_on_rd is not None else 0.0,
+        "joint_minus_traj_macro_f1_on_rd": (
+            (joint_metrics_on_rd.macro_f1 - traj_metrics_on_rd.macro_f1)
+            if joint_metrics_on_rd is not None and traj_metrics_on_rd is not None
+            else 0.0
+        ),
         "rd_accuracy": rd_metrics.accuracy,
         "rd_macro_f1": rd_metrics.macro_f1,
         "rd_accuracy_on_rd": rd_metrics_on_rd.accuracy if rd_metrics_on_rd is not None else 0.0,
@@ -1813,8 +1727,10 @@ def _run_epoch(
         "final_per_class_recall": diagnostics["final_per_class_recall"],
         "final_drone_bird": diagnostics["final_drone_bird"],
         "final_unknown_clutter_recall_mean": diagnostics["final_unknown_clutter_recall_mean"],
-        "rd_activation_rate": rd_activation_rate,
-        "rd_activation_rate_on_rd": rd_activation_rate_on_rd,
+        "tr_rd_path_rate": tr_rd_path_rate,
+        "tr_rd_path_rate_on_rd": tr_rd_path_rate_on_rd,
+        "rd_activation_rate": tr_rd_path_rate,
+        "rd_activation_rate_on_rd": tr_rd_path_rate_on_rd,
         "rd_fusion_weight_mean": rd_fusion_weight_mean,
         "rd_fusion_weight_on_rd_mean": rd_fusion_weight_on_rd_mean,
         "rd_class_fusion_weight_mean": rd_class_fusion_weight_mean,
@@ -1823,6 +1739,8 @@ def _run_epoch(
         "rd_pair_fusion_weight_on_rd_mean": rd_pair_fusion_weight_on_rd_mean,
         "rd_pair_fusion_weight_by_pair": rd_pair_weight_by_pair,
         "rd_pair_fusion_weight_on_rd_by_pair": rd_pair_weight_on_rd_by_pair,
+        "joint_rd_weight_mean": joint_rd_weight_mean,
+        "joint_rd_weight_on_rd_mean": joint_rd_weight_on_rd_mean,
         "known_confidence_mean": float(known_confidence_cat.mean().item()) if known_confidence_cat.numel() else 0.0,
         "residual_score_mean": float(residual_score_cat.mean().item()) if residual_score_cat.numel() else 0.0,
         "residual_score_on_residual_mean": (
@@ -1838,11 +1756,17 @@ def _run_epoch(
         "rd_clutter_morphology_clutter_recall": rd_clutter_morphology_clutter_recall,
         "by_source_metrics": by_source_metrics,
         "traj_by_source_metrics": traj_by_source_metrics,
+        "joint_by_source_metrics": joint_by_source_metrics,
+        "joint_by_source_metrics_on_rd": joint_by_source_metrics_on_rd,
         "rd_by_source_metrics_on_rd": rd_by_source_metrics_on_rd,
         "by_source_accuracy": group_metrics["by_source_accuracy"],
         "by_source_macro_f1": group_metrics["by_source_macro_f1"],
         "traj_by_source_accuracy": traj_by_source_accuracy,
         "traj_by_source_macro_f1": traj_by_source_macro_f1,
+        "joint_by_source_accuracy": joint_by_source_accuracy,
+        "joint_by_source_macro_f1": joint_by_source_macro_f1,
+        "joint_by_source_accuracy_on_rd": joint_by_source_accuracy_on_rd,
+        "joint_by_source_macro_f1_on_rd": joint_by_source_macro_f1_on_rd,
         "rd_by_source_accuracy_on_rd": rd_by_source_accuracy_on_rd,
         "rd_by_source_macro_f1_on_rd": rd_by_source_macro_f1_on_rd,
         "source_support": source_support,
@@ -1865,13 +1789,15 @@ def _run_epoch(
         "has_valid_batches": True,
         "logits": logits_cat,
         "traj_logits": traj_logits_cat,
+        "joint_logits": joint_logits_cat,
         "rd_logits": rd_logits_cat,
         "labels": labels_cat,
         "sample_ids": sample_ids_all,
         "source_names": source_names_all,
         "label_names": label_names_all,
         "has_rd": has_rd_all,
-        "rd_activated": rd_activated_all,
+        "tr_rd_active": tr_rd_active_all,
+        "rd_activated": tr_rd_active_all,
     }
 
 
@@ -1914,20 +1840,21 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         rd_input_dim=4,
         rd_patch_input_dim=3,
         rd_context_dim=rd_dim,
+        traj_sequence_dim=128,
         use_rd_patch_cnn=config.use_rd_patch_cnn,
         dropout=config.dropout,
         cosface_scale=config.cosface_scale,
         cosface_margin=config.cosface_margin,
         reject_threshold=config.reject_threshold,
-        rd_activation_threshold=config.rd_activation_threshold,
         rd_bird_logit_scale=config.rd_bird_logit_scale,
         rd_unknown_logit_scale=config.rd_unknown_logit_scale,
         rd_clutter_logit_scale=config.rd_clutter_logit_scale,
         rd_residual_logit_scale=config.rd_residual_logit_scale,
         rd_unknown_clutter_logit_scale=config.rd_unknown_clutter_logit_scale,
         rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
-        initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
-        rd_class_activation_threshold=config.low_altitude_rd_class_activation_threshold,
+        joint_logit_delta_scale=config.joint_logit_delta_scale,
+        rd_specialist_residual_scale=config.rd_specialist_residual_scale,
+        joint_agreement_prior_scale=config.low_altitude_joint_agreement_prior_scale,
     ).to(device)
     pretrained_track_info = None
     if config.pretrained_track_checkpoint:
@@ -1962,10 +1889,51 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         stage2_scale = _stage2_scale(epoch, config)
         stage2_epoch = max(0, epoch - config.stage1_traj_only_epochs)
         _set_track_encoder_trainable(representation_builder, epoch > config.freeze_track_encoder_epochs)
-        train_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.train_loader, criterion, optimizer, device, True, config, stage2_enabled, stage2_scale, stage2_epoch, rd_class_weights, source_feature_stats, anchor_traj_logits)
+        train_metrics = _run_epoch(
+            representation_builder,
+            rd_proj,
+            model,
+            loaders.train_loader,
+            criterion,
+            optimizer,
+            device,
+            True,
+            config,
+            stage2_enabled,
+            stage2_scale,
+            stage2_epoch,
+            rd_class_weights,
+            source_feature_stats,
+            anchor_traj_logits,
+            max_batches=config.max_train_batches_per_epoch,
+        )
         if not train_metrics["has_valid_batches"]:
             break
-        val_metrics = _run_epoch(representation_builder, rd_proj, model, loaders.val_loader, criterion, optimizer, device, False, config, stage2_enabled, stage2_scale, stage2_epoch, rd_class_weights, source_feature_stats)
+        full_val_due = (
+            config.full_val_interval_epochs <= 1
+            or epoch % config.full_val_interval_epochs == 0
+            or (config.full_val_on_last_epoch and epoch == config.epochs)
+        )
+        val_max_batches = 0 if full_val_due else config.quick_val_max_batches
+        val_metrics = _run_epoch(
+            representation_builder,
+            rd_proj,
+            model,
+            loaders.val_loader,
+            criterion,
+            optimizer,
+            device,
+            False,
+            config,
+            stage2_enabled,
+            stage2_scale,
+            stage2_epoch,
+            rd_class_weights,
+            source_feature_stats,
+            max_batches=val_max_batches,
+            compute_aux_loss=config.compute_eval_aux_loss,
+        )
+        val_metrics["validation_scope"] = "full" if val_max_batches <= 0 else "quick"
         val_selection_score, val_selection_eligible, val_selection_components = _expert1_selection_score(
             val_metrics,
             config,
@@ -1995,11 +1963,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             f"rd_warmup={'on' if stage2_enabled and stage2_epoch > 0 and stage2_epoch <= config.low_altitude_rd_teacher_warmup_epochs else 'off'} "
             f"scale={stage2_scale:.2f} "
             f"train_loss={train_metrics['loss']:.4f} "
-            f"val_f1={val_metrics['macro_f1']:.4f}"
+            f"val_f1={val_metrics['macro_f1']:.4f} "
+            f"val_scope={val_metrics['validation_scope']} "
+            f"val_batches={val_metrics.get('evaluated_batches', 0)}"
         )
-        can_replace_best = val_selection_eligible and val_selection_score > best_val
-        selection_reason = "stage2_rd_composite" if stage2_enabled else "traj_composite"
-        if val_selection_score > fallback_candidate_score:
+        can_replace_best = full_val_due and val_selection_eligible and val_selection_score > best_val
+        selection_reason = "stage2_v2_joint_composite" if stage2_enabled else "trajectory_anchor_composite"
+        if full_val_due and val_selection_score > fallback_candidate_score:
             fallback_candidate_score = float(val_selection_score)
             fallback_candidate_epoch = epoch
             fallback_candidate_components = val_selection_components
@@ -2039,7 +2009,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         best_epoch = int(fallback_candidate_epoch)
         best_val = float(fallback_candidate_score)
         best_selection_components = dict(fallback_candidate_components)
-        best_selection_reason = "fallback_no_rd_quality_checkpoint"
+        best_selection_reason = "fallback_v2_selection_checkpoint"
         best_path = fallback_candidate_path
 
     if best_path.exists():
@@ -2062,6 +2032,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         config.low_altitude_rd_teacher_warmup_epochs + 1,
         rd_class_weights,
         source_feature_stats,
+        compute_aux_loss=config.compute_eval_aux_loss,
     )
 
     history_path = run_paths.output_dir / "training_history.json"
@@ -2085,6 +2056,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "macro_f1": test_metrics["macro_f1"],
             "traj_accuracy": test_metrics["traj_accuracy"],
             "traj_macro_f1": test_metrics["traj_macro_f1"],
+            "traj_accuracy_on_rd": test_metrics["traj_accuracy_on_rd"],
+            "traj_macro_f1_on_rd": test_metrics["traj_macro_f1_on_rd"],
+            "joint_accuracy": test_metrics["joint_accuracy"],
+            "joint_macro_f1": test_metrics["joint_macro_f1"],
+            "joint_accuracy_on_rd": test_metrics["joint_accuracy_on_rd"],
+            "joint_macro_f1_on_rd": test_metrics["joint_macro_f1_on_rd"],
+            "joint_minus_traj_macro_f1_on_rd": test_metrics["joint_minus_traj_macro_f1_on_rd"],
             "rd_accuracy": test_metrics["rd_accuracy"],
             "rd_macro_f1": test_metrics["rd_macro_f1"],
             "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
@@ -2124,6 +2102,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
             "rd_pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+            "joint_rd_weight_mean": test_metrics["joint_rd_weight_mean"],
+            "joint_rd_weight_on_rd_mean": test_metrics["joint_rd_weight_on_rd_mean"],
             "known_confidence_mean": test_metrics["known_confidence_mean"],
             "residual_score_mean": test_metrics["residual_score_mean"],
             "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
@@ -2208,6 +2188,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "traj_macro_precision": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_precision", 0.0)),
                 "traj_macro_recall": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_recall", 0.0)),
                 "traj_macro_f1": float(test_metrics["traj_by_source_metrics"].get(source_name, {}).get("macro_f1", 0.0)),
+                "joint_accuracy": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("accuracy", 0.0)),
+                "joint_macro_precision": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_precision", 0.0)),
+                "joint_macro_recall": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_recall", 0.0)),
+                "joint_macro_f1": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_f1", 0.0)),
+                "joint_accuracy_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
+                "joint_macro_precision_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
+                "joint_macro_recall_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
+                "joint_macro_f1_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_f1", 0.0)),
                 "rd_accuracy_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
                 "rd_macro_precision_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
                 "rd_macro_recall_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
@@ -2229,6 +2217,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "macro_f1": test_metrics["traj_macro_f1"],
                 "per_class_recall": test_metrics["traj_per_class_recall"],
                 "drone_bird": test_metrics["traj_drone_bird"],
+            },
+            "joint": {
+                "accuracy": test_metrics["joint_accuracy"],
+                "macro_f1": test_metrics["joint_macro_f1"],
+                "accuracy_on_rd": test_metrics["joint_accuracy_on_rd"],
+                "macro_f1_on_rd": test_metrics["joint_macro_f1_on_rd"],
+                "minus_traj_macro_f1_on_rd": test_metrics["joint_minus_traj_macro_f1_on_rd"],
+                "rd_weight_mean": test_metrics["joint_rd_weight_mean"],
+                "rd_weight_on_rd_mean": test_metrics["joint_rd_weight_on_rd_mean"],
             },
             "rd": {
                 "accuracy": test_metrics["rd_accuracy"],
@@ -2281,6 +2278,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "label_name_true": true_label,
                 "label_name_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["logits"][idx].argmax().item())],
                 "label_name_traj_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["traj_logits"][idx].argmax().item())],
+                "label_name_joint_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["joint_logits"][idx].argmax().item())],
                 "label_name_rd_pred": LOW_ALTITUDE_CLASSES[int(test_metrics["rd_logits"][idx].argmax().item())],
                 "route_name_true": "low_altitude_suspect",
                 "route_name_pred": "low_altitude_suspect",
@@ -2359,15 +2357,28 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_harm_count": test_metrics["rd_harm_count"],
             "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
             "rd_harm_rate_on_rd": test_metrics["rd_harm_rate_on_rd"],
+            "rd_net_gain_count": test_metrics["rd_net_gain_count"],
+            "rd_net_gain_rate_on_rd": test_metrics["rd_net_gain_rate_on_rd"],
             "final_rescue_count": test_metrics["final_rescue_count"],
             "final_harm_count": test_metrics["final_harm_count"],
             "final_rescue_rate_on_rd": test_metrics["final_rescue_rate_on_rd"],
             "final_harm_rate_on_rd": test_metrics["final_harm_rate_on_rd"],
+            "final_net_gain_count": test_metrics["final_net_gain_count"],
+            "final_net_gain_rate_on_rd": test_metrics["final_net_gain_rate_on_rd"],
             "rd_raw_tr_rd_accuracy": test_metrics["rd_raw_tr_rd_accuracy"],
             "rd_teacher_by_source": test_metrics["rd_teacher_by_source"],
             "final_unknown_clutter_recall_mean": test_metrics["final_unknown_clutter_recall_mean"],
+            "tr_rd_path_rate": test_metrics["tr_rd_path_rate"],
+            "tr_rd_path_rate_on_rd": test_metrics["tr_rd_path_rate_on_rd"],
             "rd_activation_rate": test_metrics["rd_activation_rate"],
             "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
+            "traj_accuracy_on_rd": test_metrics["traj_accuracy_on_rd"],
+            "traj_macro_f1_on_rd": test_metrics["traj_macro_f1_on_rd"],
+            "joint_accuracy": test_metrics["joint_accuracy"],
+            "joint_macro_f1": test_metrics["joint_macro_f1"],
+            "joint_accuracy_on_rd": test_metrics["joint_accuracy_on_rd"],
+            "joint_macro_f1_on_rd": test_metrics["joint_macro_f1_on_rd"],
+            "joint_minus_traj_macro_f1_on_rd": test_metrics["joint_minus_traj_macro_f1_on_rd"],
             "rd_fusion_weight_mean": test_metrics["rd_fusion_weight_mean"],
             "rd_fusion_weight_on_rd_mean": test_metrics["rd_fusion_weight_on_rd_mean"],
             "rd_class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"],
@@ -2376,6 +2387,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_by_pair": test_metrics["rd_pair_fusion_weight_by_pair"],
             "rd_pair_fusion_weight_on_rd_by_pair": test_metrics["rd_pair_fusion_weight_on_rd_by_pair"],
+            "joint_rd_weight_mean": test_metrics["joint_rd_weight_mean"],
+            "joint_rd_weight_on_rd_mean": test_metrics["joint_rd_weight_on_rd_mean"],
             "known_confidence_mean": test_metrics["known_confidence_mean"],
             "residual_score_mean": test_metrics["residual_score_mean"],
             "residual_score_on_residual_mean": test_metrics["residual_score_on_residual_mean"],
@@ -2387,10 +2400,16 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
             "by_source_metrics": test_metrics["by_source_metrics"],
             "traj_by_source_metrics": test_metrics["traj_by_source_metrics"],
+            "joint_by_source_metrics": test_metrics["joint_by_source_metrics"],
+            "joint_by_source_metrics_on_rd": test_metrics["joint_by_source_metrics_on_rd"],
             "rd_by_source_metrics_on_rd": test_metrics["rd_by_source_metrics_on_rd"],
             "by_source_accuracy": test_metrics["by_source_accuracy"],
             "traj_by_source_accuracy": test_metrics["traj_by_source_accuracy"],
+            "joint_by_source_accuracy": test_metrics["joint_by_source_accuracy"],
+            "joint_by_source_accuracy_on_rd": test_metrics["joint_by_source_accuracy_on_rd"],
             "rd_by_source_accuracy_on_rd": test_metrics["rd_by_source_accuracy_on_rd"],
+            "joint_by_source_macro_f1": test_metrics["joint_by_source_macro_f1"],
+            "joint_by_source_macro_f1_on_rd": test_metrics["joint_by_source_macro_f1_on_rd"],
             "rd_by_source_macro_f1_on_rd": test_metrics["rd_by_source_macro_f1_on_rd"],
             "rd_source_balanced_accuracy_on_rd": test_metrics["rd_source_balanced_accuracy_on_rd"],
             "rd_min_source_accuracy_on_rd": test_metrics["rd_min_source_accuracy_on_rd"],
@@ -2419,7 +2438,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_class_weights": rd_class_weights.detach().cpu().tolist(),
         "unknown_loss_weight": config.unknown_loss_weight,
         "unknown_sample_boost": config.unknown_sample_boost,
-        "rd_activation_threshold": config.rd_activation_threshold,
+        "tr_rd_path_rate": test_metrics["tr_rd_path_rate"],
+        "tr_rd_path_rate_on_rd": test_metrics["tr_rd_path_rate_on_rd"],
         "rd_activation_rate": test_metrics["rd_activation_rate"],
         "rd_activation_rate_on_rd": test_metrics["rd_activation_rate_on_rd"],
         "rd_class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"],
@@ -2437,10 +2457,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "rd_clutter_morphology_accuracy_on_residual_rd": test_metrics["rd_clutter_morphology_accuracy_on_residual_rd"],
         "rd_unknown_clutter_detail_clutter_recall": test_metrics["rd_unknown_clutter_detail_clutter_recall"],
         "rd_clutter_morphology_clutter_recall": test_metrics["rd_clutter_morphology_clutter_recall"],
-        "low_altitude_rd_class_activation_threshold": config.low_altitude_rd_class_activation_threshold,
-        "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
-        "low_altitude_rd_pair_gate_aux_weight": config.low_altitude_rd_pair_gate_aux_weight,
         "low_altitude_deep_reroute_aux_weight": config.low_altitude_deep_reroute_aux_weight,
+        "low_altitude_joint_aux_weight": config.low_altitude_joint_aux_weight,
+        "low_altitude_joint_agreement_prior_scale": config.low_altitude_joint_agreement_prior_scale,
+        "low_altitude_joint_reliability_aux_weight": config.low_altitude_joint_reliability_aux_weight,
         "low_altitude_rd_pair_takeover_floor": config.low_altitude_rd_pair_takeover_floor,
         "low_altitude_rd_pair_harm_ceiling": config.low_altitude_rd_pair_harm_ceiling,
         "low_altitude_rd_teacher_warmup_epochs": config.low_altitude_rd_teacher_warmup_epochs,
@@ -2452,6 +2472,17 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "pretrained_track_checkpoint": config.pretrained_track_checkpoint,
         "pretrained_track_info": pretrained_track_info,
         "use_rd_patch_cnn": bool(config.use_rd_patch_cnn),
+        "speed_controls": {
+            "enable_batch_parameter_rollback": bool(config.enable_batch_parameter_rollback),
+            "compute_eval_aux_loss": bool(config.compute_eval_aux_loss),
+            "max_train_batches_per_epoch": int(config.max_train_batches_per_epoch),
+            "quick_val_max_batches": int(config.quick_val_max_batches),
+            "full_val_interval_epochs": int(config.full_val_interval_epochs),
+            "full_val_on_last_epoch": bool(config.full_val_on_last_epoch),
+            "joint_logit_delta_scale": float(config.joint_logit_delta_scale),
+            "rd_specialist_residual_scale": float(config.rd_specialist_residual_scale),
+            "joint_agreement_prior_scale": float(config.low_altitude_joint_agreement_prior_scale),
+        },
         "low_altitude_traj_aux_ratio": config.low_altitude_traj_aux_ratio,
         "low_altitude_rd_aux_ratio": config.low_altitude_rd_aux_ratio,
         "low_altitude_rd_hard_aux_weight": config.low_altitude_rd_hard_aux_weight,
@@ -2468,15 +2499,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "low_altitude_rd_rare_margin_aux_weight": config.low_altitude_rd_rare_margin_aux_weight,
         "low_altitude_rd_rare_margin": config.low_altitude_rd_rare_margin,
         "low_altitude_rd_forced_fusion_weight": config.low_altitude_rd_forced_fusion_weight,
-        "low_altitude_rd_gate_aux_weight": config.low_altitude_rd_gate_aux_weight,
-        "low_altitude_rd_class_gate_aux_weight": config.low_altitude_rd_class_gate_aux_weight,
-        "low_altitude_rd_pair_gate_aux_weight": config.low_altitude_rd_pair_gate_aux_weight,
+        "low_altitude_traj_supervision_weight": config.low_altitude_traj_supervision_weight,
+        "low_altitude_joint_aux_weight": config.low_altitude_joint_aux_weight,
+        "low_altitude_joint_agreement_prior_scale": config.low_altitude_joint_agreement_prior_scale,
+        "low_altitude_joint_reliability_aux_weight": config.low_altitude_joint_reliability_aux_weight,
         "low_altitude_deep_reroute_aux_weight": config.low_altitude_deep_reroute_aux_weight,
         "low_altitude_rd_teacher_warmup_epochs": config.low_altitude_rd_teacher_warmup_epochs,
         "low_altitude_rd_teacher_aux_boost": config.low_altitude_rd_teacher_aux_boost,
-        "low_altitude_rd_gate_temperature": config.low_altitude_rd_gate_temperature,
-        "low_altitude_rd_rare_gate_floor": config.low_altitude_rd_rare_gate_floor,
-        "low_altitude_initial_rd_gate_bias": config.low_altitude_initial_rd_gate_bias,
         "low_altitude_traj_anchor_weight": config.low_altitude_traj_anchor_weight,
         "low_altitude_traj_anchor_start_epoch": config.low_altitude_traj_anchor_start_epoch,
         "rd_bird_logit_scale": config.rd_bird_logit_scale,
@@ -2512,8 +2541,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "best_selection_score": best_val,
         "best_selection_reason": best_selection_reason,
         "best_selection_components": best_selection_components,
-        "rd_quality_gate": {
-            "min_rd_macro_f1_for_best": config.min_rd_macro_f1_for_best,
+        "v2_selection_gate": {
+            "min_rd_evidence_macro_f1_for_best": config.min_rd_evidence_macro_f1_for_best,
             "min_drone_bird_rd_recall_for_best": config.min_drone_bird_rd_recall_for_best,
             "min_drone_bird_single_rd_recall_for_best": config.min_drone_bird_single_rd_recall_for_best,
             "min_unknown_clutter_rd_recall_for_best": config.min_unknown_clutter_rd_recall_for_best,
@@ -2526,12 +2555,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_raw_source_macro_f1_for_best": config.min_raw_source_macro_f1_for_best,
             "min_excel_source_macro_f1_for_best": config.min_excel_source_macro_f1_for_best,
             "min_rd_raw_source_accuracy_for_best": config.min_rd_raw_source_accuracy_for_best,
+            "min_joint_minus_traj_macro_f1_on_rd_for_best": config.min_joint_minus_traj_macro_f1_on_rd_for_best,
+            "min_final_net_gain_rate_on_rd_for_best": config.min_final_net_gain_rate_on_rd_for_best,
+            "max_final_harm_rate_on_rd_for_best": config.max_final_harm_rate_on_rd_for_best,
             "min_final_minus_traj_macro_f1_for_best": config.min_final_minus_traj_macro_f1_for_best,
             "min_source_support_for_hard_gate": config.min_source_support_for_hard_gate,
             "min_rd_source_support_for_hard_gate": config.min_rd_source_support_for_hard_gate,
             "min_rd_class_support_for_hard_gate": config.min_rd_class_support_for_hard_gate,
-            "max_rd_harm_rate_for_best": config.max_rd_harm_rate_for_best,
-            "min_rd_net_gain_rate_for_best": config.min_rd_net_gain_rate_for_best,
             "require_final_not_worse_than_traj": bool(config.require_final_not_worse_than_traj),
             "max_final_traj_f1_drop": config.max_final_traj_f1_drop,
         },

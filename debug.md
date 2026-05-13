@@ -3228,3 +3228,1567 @@
 - 本轮只修仲裁和诊断，不重新训练 Expert4 head。
 - `groundness_protection_enabled` 默认仍为 `false`，避免在未重新验证前改变默认训练/评估路径。
 - 后续必须运行 `tests/test_ground_system_alignment.py` 与 System 训练，确认高置信 candidate protection 不提升 `pred_ground_on_non_ground_count`。
+
+## 2026-05-10：Expert1 20260510-105622 训练复盘与架构问题
+
+### 训练产物
+
+- 目录：`artifacts/20260510-105622/expert1_config_smoke`
+- checkpoint：`fallback_candidate_model.pt`
+- best epoch：12
+- best selection reason：`fallback_no_rd_quality_checkpoint`
+- best selection score：3.5879309831
+- 设备：NVIDIA GeForce RTX 4060 Laptop GPU
+- trainable parameters：15,900,564
+- 预训练轨迹 checkpoint：`artifacts/main_pipeline_config_smoke/20260501-225130/pretrain_track/best_model.pt`
+
+### 数据切分和 RD 覆盖
+
+| split | samples | with RD | without RD |
+|---|---:|---:|---:|
+| train | 1432 | 912 | 520 |
+| val | 306 | 238 | 68 |
+| test | 310 | 237 | 73 |
+
+### 本次关键配置
+
+当前 `config/config.json` 覆盖了 `Expert1TrainConfig` 中更保守的默认节奏：
+
+- `stage1_traj_only_epochs = 1`
+- `stage2_ramp_epochs = 1`
+- `low_altitude_rd_forced_fusion_weight = 0.9`
+- `rd_sample_boost = 2.0`
+- `raw_source_boost = 2.0`
+- `excel_source_boost = 2.0`
+- `unknown_sample_boost = 2.2`
+- `clutter_sample_boost = 3.2`
+- `bird_sample_boost = 1.9`
+- `low_altitude_rd_pair_gate_aux_weight = 0.45`
+- `low_altitude_rd_pair_takeover_floor = 0.76`
+- `low_altitude_rd_pair_harm_ceiling = 0.08`
+- `low_altitude_traj_anchor_weight = 0.15`
+- `rd_unknown_logit_scale = 1.0`
+- `rd_clutter_logit_scale = 1.3`
+- `rd_bird_positive_weight = 4.5`
+- `rd_unknown_positive_weight = 4.5`
+- `rd_clutter_positive_weight = 8.0`
+
+### Test 指标
+
+| 指标 | 值 |
+|---|---:|
+| final accuracy | 0.8548 |
+| final macro F1 | 0.7327 |
+| trajectory accuracy | 0.8581 |
+| trajectory macro F1 | 0.7486 |
+| final - trajectory macro F1 | -0.0159 |
+| RD accuracy | 0.6645 |
+| RD macro F1 | 0.5547 |
+| RD accuracy on RD | 0.7173 |
+| RD macro F1 on RD | 0.6174 |
+| RD Drone/Bird recall mean | 0.7246 |
+| RD Unknown/Clutter recall mean | 0.5810 |
+| RD rescue / harm / net | 7 / 47 / -40 |
+| RD net gain rate on RD | -0.1688 |
+| final rescue / harm / net | 2 / 3 / -1 |
+| final net gain rate on RD | -0.0042 |
+| RD activation rate | 0.7645 |
+| RD activation rate on RD | 1.0000 |
+| RD fusion weight mean on RD | 0.4582 |
+| RD class fusion weight mean on RD | 0.3087 |
+| RD pair fusion weight mean on RD | 0.1054 |
+| RD pair weight Drone/Bird on RD | 0.1307 |
+| RD pair weight Unknown/Clutter on RD | 0.0785 |
+| RD pair weight Balloon on RD | 0.1069 |
+
+RD per-class recall on RD：
+
+| class | recall |
+|---|---:|
+| DroneTarget | 0.7170 |
+| BirdTarget | 0.7321 |
+| BalloonTarget | 0.7358 |
+| ClutterTarget | 0.4286 |
+| UnknownTarget | 0.7333 |
+
+Source 指标：
+
+| source | final accuracy | final macro F1 | RD accuracy on RD | RD macro F1 on RD |
+|---|---:|---:|---:|---:|
+| cq08_track | 0.8927 | 0.7615 | 0.7210 | 0.6193 |
+| excel_track | 0.7671 | 0.5948 | N/A | N/A |
+| raw_tr_rd | 0.2500 | 0.0800 | 0.5000 | 0.1333 |
+
+汇总：
+
+- source balanced accuracy：0.6366
+- source balanced macro F1：0.4788
+- min source accuracy：0.2500
+- min source macro F1：0.0800
+- with RD accuracy：0.8819
+- without RD accuracy：0.7671
+
+### Hard pair 结论
+
+| pair | support | traj acc | RD acc | final acc | RD rescue/harm/net | final rescue/harm/net |
+|---|---:|---:|---:|---:|---:|---:|
+| DroneTarget vs BirdTarget | 162 | 0.8827 | 0.7222 | 0.8827 | 5 / 31 / -26 | 2 / 2 / 0 |
+| UnknownTarget vs ClutterTarget | 22 | 0.7727 | 0.6364 | 0.7273 | 1 / 4 / -3 | 0 / 1 / -1 |
+| BirdTarget vs ClutterTarget | 63 | 0.7143 | 0.6984 | 0.6984 | 4 / 5 / -1 | 1 / 2 / -1 |
+
+逐类混淆矩阵 rows=true, cols=pred：
+
+| true \ pred | Drone | Bird | Balloon | Clutter | Unknown |
+|---|---:|---:|---:|---:|---:|
+| Drone | 136 | 10 | 1 | 0 | 4 |
+| Bird | 6 | 60 | 1 | 5 | 8 |
+| Balloon | 0 | 1 | 51 | 2 | 0 |
+| Clutter | 0 | 0 | 0 | 4 | 3 |
+| Unknown | 1 | 1 | 0 | 2 | 14 |
+
+### Raw 源逐样本
+
+test 中 `raw_tr_rd` 只有 4 条，因此不能把 0.25 accuracy 当作稳定总体结论，但错误形态必须重视：
+
+| sample | true | traj | RD | final | 结论 |
+|---|---|---|---|---|---|
+| `20230824104942|Rotary drone|04|1971` | Drone | Drone | Bird | Bird | RD/fusion 伤害 |
+| `20230929161757|Bird|12|6527` | Bird | Bird | Bird | Bird | 正确 |
+| `20231014161536|Bird|13|15` | Bird | Drone | Bird | Drone | RD rescue 未采纳 |
+| `20231114155403|Bird|01|8175` | Bird | Bird | Drone | Drone | RD/fusion 伤害 |
+
+### 和 20260508-124356 对比
+
+- final macro F1：0.7118 -> 0.7327，整体有提升。
+- RD macro F1 on RD：0.5742 -> 0.6174，RD 表征有提升。
+- RD Unknown/Clutter recall mean：0.4190 -> 0.5810，Unknown/Clutter 局部有所改善。
+- raw_tr_rd accuracy：仍为 0.2500，弱源没有改善。
+- final net gain：由约 +1 变为 -1。
+- `rd_harm_adopted_count` 从 0 变为 3，说明新模型更敢采纳 RD，但采纳策略还不安全。
+
+### 架构问题
+
+1. `dual_main` 推理绕过了 RD activation gate。
+   - `src/core/experts.py` 中先按 `force_rd_activation`、trajectory confidence、class gate、pair gate 计算 `rd_activated`。
+   - 但随后在 `inference_mode == "dual_main"` 时直接执行 `rd_activated = has_rd`。
+   - 结果是所有有 RD 的样本都会进入融合路径，`rd_class_activation_threshold` 和 `rd_activation_threshold` 不能真正阻断 RD，只能间接影响融合强度。
+   - 本次 test `rd_activation_rate_on_rd = 1.0`，与这个逻辑一致。
+
+2. 训练阶段对 RD 过早、过强。
+   - `src/core/expert1_trainer.py` 在 stage2 训练时传入 `force_rd_activation=True`。
+   - 当前配置只有 1 个 epoch 纯轨迹、1 个 epoch ramp，而 dataclass 默认是 12 / 6。
+   - 这会让模型还没建立稳定 trajectory anchor 就开始承受 RD aux、hard pair、binary head、forced fusion、gate 等多重目标。
+
+3. RD 分支变强不等于最终融合安全。
+   - RD on-RD macro F1 已到 0.6174，但 trajectory macro F1 是 0.7486。
+   - 如果没有严格的采纳门控，RD 会在大量 trajectory 正确样本上提供错误修正。
+   - 当前 hard pair 中 Drone/Bird 的 RD 净收益为 -26，是最大伤害来源。
+
+4. Pair gate 是局部接管器，但不是可靠安全闸。
+   - Pair gate 权重均值并不高，Drone/Bird on-RD 约 0.1307。
+   - 但 class-wise fused logits 已经先进入 `selected_logits`，pair gate 后续再做局部覆盖，无法完全撤销前面 RD 对全类 logits 的扰动。
+   - `strong_pair_takeover` 仍以 RD margin 和 gate prob 为主，没有显式要求“采纳后不低于 trajectory 置信安全边界”。
+
+5. Reject / residual 结构存在，但默认没有真正参与最终安全闭环。
+   - `enable_reject_in_eval=false`，Expert1 eval 不启用 `_apply_reject()`。
+   - Unknown/Clutter residual、detail、morphology head 指标有诊断价值，但最终路径主要还是依赖 fusion/pair gate。
+
+6. 选模 gate 是必要的，目前正确阻止了坏 checkpoint 晋级。
+   - validation 上 final macro F1 0.7983，但 source balanced macro F1 0.5412、raw macro F1 0.3111，未过硬门槛。
+   - validation RD net gain rate 为 -0.1723，也未过 `min_rd_net_gain_rate_for_best = 0`。
+   - 因此保存 fallback 是合理行为，不能把这次 checkpoint 直接当作 System 主力。
+
+7. System 当前仍没有消费这次 Expert1。
+   - `config/config.json` 里的 `expert1_checkpoint` 仍指向 `artifacts/20260508-124356/.../fallback_candidate_model.pt`。
+   - 最新 System 目录 `20260510-084208` 也使用旧 Expert1，不是 `20260510-105622`。
+   - 旧 checkpoint 对当前 System 低空 deep reroute 结构存在 missing deep keys 风险；在 Expert1 未过 gate 前，不应打开 reroute 作为默认收益路径。
+
+8. Raw 源样本太少，当前只能作为强风险诊断，不能作为统计充分的泛化结论。
+   - Expert1 总样本中 raw 只有 35 条。
+   - test raw 只有 4 条，且三条错误都集中在 Drone/Bird 边界。
+   - 后续需要 raw holdout / bootstrap / leave-source 诊断，而不是只继续提高 source weight。
+
+### 当前判断
+
+这次训练说明 Expert1 的 RD 表征和 Unknown/Clutter 局部头确实继续进步，但核心架构矛盾没有解决：RD 是“第二主证据”，却还没有“可靠采纳条件”。因此 final macro F1 低于 trajectory macro F1，且 RD final net gain 变为负数。
+
+下一轮不应先继续加 RD head 或继续提高 rare/source 权重，而应先修 RD 采纳安全：
+
+1. 让 `dual_main` 下的 RD activation gate 真正生效，至少新增 safe-fusion candidate 做 A/B。
+2. 降低或延后 forced fusion，恢复更长 trajectory-only 和 ramp。
+3. 增加 final-vs-trajectory、hard-pair、source-aware 的采纳损失或选模门槛。
+4. Expert1 过 RD quality gate 后，再更新 System 的 `expert1_checkpoint` 并重新训练 System。
+
+## 2026-05-10：历史 TR+RD 架构对照
+
+### 对照来源
+
+主要查看 `.history/001`：
+
+- `.history/001/mermory.md`
+- `.history/001/arch.md`
+- `.history/001/train.json`
+- `.history/001/src/models/fusion_classifier.py`
+- `.history/001/src/models/session_bag_classifier.py`
+- `.history/001/src/training/trainer.py`
+
+`.history/002` 更接近当前多专家配置文档快照，核心可执行 TR+RD 实现仍以 `.history/001` 为主。
+
+### 历史版关键事实
+
+- 数据是 paired TR/RD-only：`pro/raw -> data/sessions`。
+- `pro/excel` 被保留审查，但不进入当时的 supervised dual-modal 训练。
+- 当前 paired sessions：77，且 TR/RD fully paired。
+- 标签是 4 类：`AircraftTarget`、`BirdTarget`、`DroneTarget`、`ShipTarget`。
+- 历史最佳参考：`artifacts/202604141227-12-4-cuda`
+  - independent evaluation：accuracy 0.8529，macro F1 0.8645。
+  - session-level evaluation：accuracy 0.8750，macro F1 0.8810。
+- 当时文档明确写了：
+  - Track role：coarse routing and motion prior。
+  - RD role：hard boundary discrimination。
+  - Weak specialist policy：保留 specialist heads 作为 auxiliary supervision，避免强 direct residual injection 到 final logits。
+
+### 为什么历史版“RD 默认第二证据”没有同样的问题
+
+1. 历史版的 RD 默认参与是 feature-level joint evidence，不是 post-hoc logit 接管。
+   - `fusion_classifier.py` 先用 track encoder 和 RD encoder 得到两个 embedding。
+   - 通过 bidirectional cross-attention 让两个模态交互。
+   - 再拼接 `weighted_track_feature`、`weighted_rd_feature`、`abs(diff)`、`product`，交给同一个 hierarchical head 学 final logits。
+   - 这意味着 final classifier 从训练开始就学习“TR+RD 联合表征”，不是先独立得到 RD 类别，再把 RD logits 插到最终结果里。
+
+2. 历史版 RD 权重是 reliability softmax，并且有上限和 mask。
+   - `rd_reliability` 和 `track_reliability` 经 softmax 得到 `track_weight` / `rd_weight`。
+   - `rd_mask` 缺失时，RD reliability 被置为 `-1e4`，RD feature 和 RD weight 都归零。
+   - `rd_floor` 即使启用也被 clamp 到最高 0.45，然后再和 track weight 归一化。
+   - 所以 RD 可以默认作为第二证据，但不是“有 RD 就改写结果”。
+
+3. 历史版 residual 是小权重、受权重约束的。
+   - final logits 上的 unimodal residual 为：
+     - track residual：`track_logits * track_weight`
+     - RD residual：`rd_logits * rd_weight * rd_unimodal_logit_residual_weight`
+   - 当时默认 `rd_unimodal_logit_residual_weight` 是 0.18 级别。
+   - Bird/Drone RD specialist residual 也是 0.08 级别。
+   - Ship specialist residual 默认甚至可以为 0。
+   - 这和当前 `traj_logits + rd_class_weight * (rd_logits - traj_logits)` 的直接 logit interpolation 风险不同。
+
+4. 历史版主问题其实是 RD collapse，而不是 RD harm。
+   - 历史诊断写明：旧 fusion path 在 test 上 `track_weight` 接近 1.0，`rd_weight` 接近 0.0。
+   - anti-collapse fusion 在离线评估有帮助，但 full train-time anti-collapse 在小数据规模下不稳定。
+   - 最终偏好的路线是：train-time 保持稳定 weighted fusion，evaluation / inference 再做 anti-collapse override。
+   - 这说明历史版“没问题”的原因之一，是 RD 默认参与但模型仍能学会忽略弱 RD；它不是强制 RD 接管。
+
+5. 历史版后期把 final target 上移到 session-level。
+   - `SessionBagRadarClassifier` 先跑 clip-level TR/RD fusion model，再把 clip embedding 送入 session encoder / attention pooling / stat pooling。
+   - `train.json` 中 session route 使用 `session_loss_weight = 1.0`、`clip_loss_weight = 0.0`。
+   - 单个 clip 的 RD 错误不会直接等价于最终 session 错误；session attention 可以学习哪些 clip 更可信。
+   - 当前 Expert1 是 sample-level 直接五分类，单条 RD 错误会直接伤 final prediction。
+
+6. 历史版数据条件更干净。
+   - 当时训练源是 fully paired TR/RD，同源、同标签体系、同任务口径。
+   - 当前 Expert1 混合 `cq08_track`、`excel_track`、`raw_tr_rd`：
+     - `excel_track` 没 RD。
+     - `raw_tr_rd` 样本极少。
+     - `cq08_track` 主导总体分布。
+   - 在这种条件下，默认 RD 参与会引入 source/missing-modality calibration 问题。
+
+7. 历史版任务更窄。
+   - 历史 4 类任务主要是 Aircraft/Bird/Drone/Ship。
+   - 当前 Expert1 低空 5 类加入 Balloon、Clutter、Unknown，其中 Unknown 是 residual/reject bucket，Clutter 是低支持形态类。
+   - Unknown/Clutter 不是普通闭集边界，直接 RD logit correction 更容易制造误伤。
+
+### 当前版和历史版的本质差异
+
+| 维度 | 历史 TR+RD | 当前 Expert1 |
+|---|---|---|
+| RD 进入方式 | joint feature fusion | independent RD logits correction |
+| RD 是否硬激活 | soft reliability weight | `dual_main` 下 `rd_activated = has_rd` |
+| RD 残差强度 | 小权重且乘 `rd_weight` | class-wise interpolation 到 RD logits |
+| 主损失对象 | 联合 head / session head | sample-level final logits |
+| 缺失 RD 处理 | `rd_mask` 权重归零 | Excel 无 RD，RD 样本和无 RD 样本分布混训 |
+| 数据口径 | fully paired TR/RD | CQ08 + Excel + raw 混合 |
+| 历史主要风险 | RD 被忽略 | RD 误伤 trajectory |
+
+### 结论
+
+历史版并不能证明“RD 默认作为第二证据一定安全”。它证明的是另一件事：
+
+```text
+RD 可以默认进入联合表征，但必须被 reliability weight、mask、弱 residual、joint head 和 session aggregation 约束。
+```
+
+当前版把 RD 从“受限联合证据”改成了“独立分支对 trajectory logits 的后验修正”。这才是现在出问题的根因。
+
+下一步 Expert1 更合理的方向不是简单回退到纯 trajectory，也不是继续堆 RD head，而是借回历史版的安全原则：
+
+1. RD branch 继续保留为第二证据源。
+2. RD logits 不再直接全类 interpolation 到 trajectory logits。
+3. 增加 joint feature fusion candidate：
+   - `traj_feature`
+   - `rd_feature`
+   - `abs(traj_feature - rd_feature)`
+   - `traj_feature * rd_feature`
+   - reliability `track_weight / rd_weight`
+4. RD specialist heads 只作为 auxiliary evidence 或小 residual，必须乘以 bounded `rd_weight`。
+5. final-vs-trajectory、hard-pair net gain、source-aware net gain 作为选择门槛。
+
+## 2026-05-10：Expert1 V2 架构决策
+
+### 用户决策
+
+Expert1 下一版采用：
+
+```text
+无 RD：纯轨迹分支。
+有 RD：激活 TR+RD joint 分支。
+```
+
+当前轨迹分支精度高于历史版本，因此轨迹分支不重写，作为 trajectory anchor 选择性保留。
+
+### 为什么主线选择联合，而不是只做 RD 选择性激活
+
+RD 选择性激活可以作为短期安全阀，但不适合作为主架构。原因：
+
+1. 它仍然把问题建模成“这条样本要不要用 RD”，容易退化为阈值工程。
+2. 当前 source 混合、RD 支持不均衡，gate 很难稳定判断 RD 是否可信。
+3. 一旦激活后仍然是 RD logits correction，旧的误伤路径还在。
+4. 历史高精度版本证明更有效的是受限联合表征，而不是强后验接管。
+
+### Expert1 V2 结构
+
+1. Trajectory-only path
+   - 输入：`representation.fused_features`。
+   - 输出：`traj_embedding`、`traj_logits`、`traj_residual_logits`。
+   - 用途：无 RD 样本最终输出；有 RD 样本的 anchor。
+
+2. RD evidence path
+   - 输入：RD sequence、RD patch、RD stats、RD context。
+   - 输出：`rd_embedding`、`rd_logits`、hard-pair logits、Unknown/Clutter residual evidence、Clutter morphology evidence。
+   - 用途：训练 RD 表征和局部证据；不再直接全类覆盖 trajectory。
+
+3. TR+RD joint path
+   - 仅对 `has_rd=true` 样本启用。
+   - 输入：
+     - `traj_embedding`
+     - `rd_embedding`
+     - `abs(traj_embedding - rd_embedding)`
+     - `traj_embedding * rd_embedding`
+     - RD morphology/statistics
+     - source / quality embedding
+     - trajectory confidence / RD auxiliary confidence
+   - 输出：
+     - `joint_logits`
+     - `track_weight`
+     - `rd_weight`
+     - `joint_confidence`
+
+4. Final selection
+
+```text
+if no RD:
+    final_logits = traj_logits
+else:
+    final_logits = traj_logits
+                 + rd_weight * (joint_logits - traj_logits)
+                 + bounded_rd_specialist_residual
+```
+
+约束：
+
+- `rd_weight` 初始上限建议 0.35 到 0.45。
+- `rd_weight` 必须能按 source / RD quality 降到 0。
+- `bounded_rd_specialist_residual` 必须乘 `rd_weight`，并只允许小权重。
+- 当前 class-wise `traj_logits + w * (rd_logits - traj_logits)` 不再作为主路径。
+
+### 训练方案
+
+1. Stage A：Trajectory anchor
+   - 复用当前强轨迹分支。
+   - 可冻结或低学习率微调。
+   - 目标是保持 `traj_macro_f1` 不低于当前稳定基线。
+
+2. Stage B：RD evidence
+   - 训练 RD embedding、RD auxiliary、hard-pair、Unknown/Clutter、morphology heads。
+   - RD auxiliary 不直接决定 final。
+
+3. Stage C：TR+RD joint
+   - 有 RD 样本训练 joint head。
+   - 无 RD 样本回放 trajectory-only path，防止纯轨迹路径退化。
+   - `rd_weight` ramp-up，不允许开局强融合。
+
+4. Stage D：Calibration / selection
+   - 验收不只看 final macro F1。
+   - 必须同时看：
+     - trajectory-only macro F1。
+     - joint-on-RD macro F1。
+     - final-vs-trajectory macro F1。
+     - RD rescue / harm / net gain。
+     - Drone/Bird、Unknown/Clutter、Bird/Clutter final net gain。
+     - by-source final-vs-trajectory。
+
+### 设计结论
+
+Expert1 V2 的核心不是“RD 是否激活”，而是：
+
+```text
+无 RD 时，trajectory 独立可靠；
+有 RD 时，TR+RD 联合表征必须比 trajectory anchor 提供正收益；
+RD 独立 logits 只能提供证据，不能直接接管最终分类。
+```
+
+## 2026-05-10：Expert1 V2 代码首版落地
+
+### 暂存
+
+- 已在 `tmp.md` 写入 Expert1 V2 暂存实施计划。
+- `.history` 未改动。
+- 本轮没有启动正式训练，因此没有新增训练性能快照；下一次训练完成后必须写入可被 git 跟踪的完整性能记录。
+
+### 代码改动
+
+1. `src/core/experts.py`
+   - `LowAltitudeFusionOutput` 新增：
+     - `joint_logits`
+     - `joint_reliability_logits`
+     - `joint_rd_weight`
+     - `joint_track_weight`
+   - `LowAltitudeSuspectExpert` 新增 TR+RD joint branch：
+     - `joint_traj_proj`
+     - `joint_rd_proj`
+     - `joint_head`
+     - `joint_reliability_head`
+   - joint 输入为：
+     - `traj_features`
+     - `rd_features_vec`
+     - `abs(traj_features - rd_features_vec)`
+     - `traj_features * rd_features_vec`
+     - `rd_stats`
+     - `rd_patch`
+   - `dual_main` final path 改为：
+
+```text
+joint_selected_logits = traj_logits + rd_weight * (joint_logits - traj_logits)
+```
+
+   - 无 RD 或 `rd_is_multimodal=false` 时：
+
+```text
+rd_weight = 0
+final_logits = traj_logits
+```
+
+   - `rd_weight` 当前上限：
+     - `dual_main`：0.45
+     - `deep_reroute`：0.65
+   - 原 hard-pair 强接管逻辑已降级为小 residual：
+     - `dual_main` residual scale：0.10
+     - `deep_reroute` residual scale：0.16
+
+2. `src/core/expert1_trainer.py`
+   - `_run_epoch()` 记录 joint logits 与 joint RD weight。
+   - 新增训练 / 验证 / 测试指标：
+     - `joint_accuracy`
+     - `joint_macro_f1`
+     - `joint_accuracy_on_rd`
+     - `joint_macro_f1_on_rd`
+     - `traj_accuracy_on_rd`
+     - `traj_macro_f1_on_rd`
+     - `joint_minus_traj_macro_f1_on_rd`
+     - `joint_rd_weight_mean`
+     - `joint_rd_weight_on_rd_mean`
+   - gate auxiliary target clamp 到 0.45，和 V2 bounded `rd_weight` 保持一致。
+   - `training_history.json`、`training_summary.json`、`evaluation_report.json` 会输出 joint-on-RD 对照指标。
+
+3. `tests/test_expert1_evidence.py`
+   - 本地结构测试更新为 V2：
+     - 混合 RD / 无 RD batch。
+     - 检查 `joint_logits` 和 `joint_rd_weight` 存在。
+     - 检查无 RD 样本 final 等于 trajectory。
+     - 检查 `rd_weight <= 0.45`。
+     - 检查 hard-pair residual 被小权重约束。
+
+### 验证
+
+使用项目虚拟环境 `.venv`：
+
+```text
+.venv torch version: 2.5.1+cu121
+python -m compileall -q src\core tests：通过
+python -m unittest tests.test_expert1_evidence.Expert1EvidenceTests.test_fusion_uses_bounded_joint_branch_with_trajectory_fallback：通过
+```
+
+独立 mixed RD smoke：
+
+```text
+logits shape = (3, 5)
+joint_logits shape = (3, 5)
+rd_weight = [0.11920291185379028, 0.0, 0.11920291185379028]
+rd_activated = [True, False, True]
+no-RD final == trajectory: True
+```
+
+### 当前风险
+
+- 这只是结构首版，尚未证明训练后 joint-on-RD 能超过 trajectory-on-RD。
+- 当前 joint head 仍缺少显式 source embedding / RD quality embedding，只接入了 RD stats 和 patch；后续若 raw_tr_rd 继续误伤，需要补 source-aware calibration。
+- 旧 `fusion_gate` 模块暂时保留，避免 checkpoint / System 兼容路径出现无谓破坏，但 final path 已不再使用它。
+- 当前 `config/config.json` 中 Expert1 epoch 变为 5；该改动不是本轮代码修改，需要训练前确认这是预期短训配置还是临时改动。
+
+## 2026-05-11：Expert1 V2 首轮训练尝试与 checkpoint 评估
+
+### 执行记录
+
+1. 正式配置训练
+   - 命令：`.venv\Scripts\python.exe -m src.core.train_expert1 --config config/config.json`
+   - 当前 `config/config.json` 中 Expert1 epochs = 5。
+   - 运行 1 小时后超时中断。
+   - 产物：`artifacts/20260511-002434/expert1_config_smoke/fallback_candidate_model.pt`
+   - 未生成 `training_summary.json` / `evaluation_report.json`，不作为有效完整训练结果。
+
+2. V2 试训配置
+   - 临时配置：`tmp/expert1_v2_trial_config.json`
+   - 输出目录：`artifacts/20260511-012750/expert1_v2_trial`
+   - 配置重点：
+     - epochs = 2
+     - `stage1_traj_only_epochs = 0`
+     - `stage2_ramp_epochs = 1`
+   - 运行 1 小时后超时中断。
+   - 产物：`fallback_candidate_model.pt`
+   - checkpoint metadata：
+     - `selection_reason = stage2_rd_composite`
+     - `selection_eligible = false`
+
+3. Checkpoint 评估
+   - 评估脚本：`tmp/evaluate_expert1_checkpoint.py`
+   - test 输出：`artifacts/20260511-012750/expert1_v2_trial/checkpoint_eval_test.json`
+   - val 输出：`artifacts/20260511-012750/expert1_v2_trial/checkpoint_eval_val.json`
+   - 性能快照归档：
+     - `performance_records/20260511-012750/expert1_v2_trial/README.md`
+     - `performance_records/20260511-012750/expert1_v2_trial/checkpoint_eval_test.json`
+     - `performance_records/20260511-012750/expert1_v2_trial/checkpoint_eval_val.json`
+     - `performance_records/20260511-012750/expert1_v2_trial/expert1_v2_trial_config.json`
+
+### Test 指标
+
+| 指标 | 值 |
+|---|---:|
+| final accuracy | 0.7581 |
+| final macro F1 | 0.6392 |
+| trajectory macro F1 | 0.6428 |
+| trajectory macro F1 on RD | 0.6659 |
+| joint macro F1 on RD | 0.4255 |
+| joint - trajectory macro F1 on RD | -0.2403 |
+| RD macro F1 on RD | 0.0765 |
+| RD harm rate on RD | 0.5865 |
+| final net gain rate on RD | 0.0042 |
+| joint RD weight mean on RD | 0.4500 |
+| with RD accuracy | 0.7975 |
+| without RD accuracy | 0.6301 |
+
+### Val 指标
+
+| 指标 | 值 |
+|---|---:|
+| final accuracy | 0.7614 |
+| final macro F1 | 0.5975 |
+| trajectory macro F1 | 0.6138 |
+| trajectory macro F1 on RD | 0.6254 |
+| joint macro F1 on RD | 0.4978 |
+| joint - trajectory macro F1 on RD | -0.1277 |
+| RD macro F1 on RD | 0.0740 |
+| RD harm rate on RD | 0.5798 |
+| final net gain rate on RD | -0.0042 |
+| joint RD weight mean on RD | 0.4500 |
+| with RD accuracy | 0.7815 |
+| without RD accuracy | 0.6912 |
+
+### 结论
+
+这次 V2 试训不合格，不能进入 System：
+
+1. joint branch 明显弱于 trajectory anchor。
+   - test `joint_minus_traj_macro_f1_on_rd = -0.2403`
+   - val `joint_minus_traj_macro_f1_on_rd = -0.1277`
+
+2. reliability head 退化为“总是顶到上限”。
+   - val/test `joint_rd_weight_on_rd_mean = 0.45`
+   - 说明 reliability 不是在学习何时相信 RD，而是被 gate aux / 强 Stage2 推到 cap。
+
+3. RD evidence branch 在该试训中严重崩坏。
+   - test `rd_macro_f1_on_rd = 0.0765`
+   - val `rd_macro_f1_on_rd = 0.0740`
+   - 这远低于 20260510-105622 的 `rd_macro_f1_on_rd = 0.6174`。
+
+4. 训练课程是主要问题之一。
+   - `stage1_traj_only_epochs = 0` 直接让 joint/RD 从第一轮参与 final。
+   - 新增 joint head 还未学到稳定联合表征，就被 bounded weight 直接推入 final path。
+   - 这不是“TR+RD 联合架构失败”，而是“未经过 anchor/evidence/joint 分阶段训练的联合分支失败”。
+
+### 下一轮调整
+
+1. 恢复分阶段训练：
+   - Stage A：至少 1 到 2 epoch trajectory anchor。
+   - Stage B：RD evidence 单独恢复到 `rd_macro_f1_on_rd >= 0.55/0.60`。
+   - Stage C：再打开 joint final。
+
+2. 降低 joint 初始影响：
+   - reliability final bias 继续 trajectory-biased。
+   - 增加训练期 RD cap schedule：
+     - warmup：0.00 或 0.05
+     - early joint：0.10 到 0.20
+     - stable joint：最高再到 0.45
+   - 若 `joint_rd_weight_on_rd_mean` 贴近 cap 且 `joint_minus_traj_macro_f1_on_rd < 0`，该 checkpoint 直接失败。
+
+3. 修 RD evidence 被 joint 训练拖垮的问题：
+   - RD auxiliary 和 joint final 不应同一阶段全权重启动。
+   - Stage B 先训练 RD evidence，不让 RD logits 进入 final。
+   - Stage C 只训练 joint head / reliability head 或给 backbone 更低 LR。
+
+4. 训练速度也需要处理：
+   - 当前 2 epoch 试训 1 小时仍未完整收尾。
+   - 下一次应先做 batch-level profiler 或缩短评估频率，避免每轮 val/test/report 成为主要耗时。
+
+## 2026-05-11：Expert1 训练耗时优化
+
+### 问题定位
+
+首轮 V2 训练非常慢，不只是完整 val/test 的问题。`_run_epoch()` 在每个训练 batch 都执行：
+
+```text
+prev_state = _clone_bundle_state_to_cpu(representation_builder, rd_proj, model)
+...
+_parameters_are_finite_bundle(...)
+```
+
+这会把整套模型权重逐 batch 拷贝到 CPU，并在 optimizer step 后扫描全部参数。V2 新增 joint 分支后参数更多，这个保护逻辑成为明显瓶颈。
+
+评估阶段也存在额外成本：即使 `train=False`，原逻辑只要 `stage2_enabled` 就会计算 RD/deep auxiliary loss，包括第二次 `deep_reroute` forward。评估只需要主前向和指标，这部分不应默认运行。
+
+### 已改代码
+
+1. `src/core/expert1_config.py` 新增速度控制项：
+   - `enable_batch_parameter_rollback: bool = False`
+   - `compute_eval_aux_loss: bool = False`
+   - `max_train_batches_per_epoch: int = 0`
+   - `quick_val_max_batches: int = 0`
+   - `full_val_interval_epochs: int = 1`
+   - `full_val_on_last_epoch: bool = True`
+
+2. `src/core/expert1_trainer.py`
+   - 默认不再逐 batch 克隆整套模型到 CPU。
+   - 保留 non-finite loss 检查、梯度裁剪和 optional rollback。
+   - `_run_epoch()` 支持 `max_batches`。
+   - `_run_epoch()` 支持 `compute_aux_loss`，评估默认跳过 RD/deep auxiliary loss。
+   - 训练循环支持 quick val / full val：
+     - quick val 只用于观察趋势。
+     - 只有 full val 才允许保存 best / fallback checkpoint。
+   - history 中记录：
+     - `evaluated_batches`
+     - `max_batches`
+     - `validation_scope`
+   - summary 中记录 `speed_controls`。
+
+3. 新增快速迭代配置：
+   - `tmp/expert1_v2_fast_config.json`
+   - 输出目录：`artifacts/expert1_v2_fast`
+   - epochs = 4
+   - stage1 trajectory anchor = 1 epoch
+   - stage2 ramp = 2 epochs
+   - quick val = 12 batches
+   - full val 只在最后一轮执行
+
+### 验证
+
+```text
+.venv\Scripts\python.exe -m compileall -q src\core tmp\evaluate_expert1_checkpoint.py
+.venv\Scripts\python.exe -c "from config.configmanager import load_expert1_config; c=load_expert1_config('tmp/expert1_v2_fast_config.json'); print(c.output_dir, c.epochs, c.stage1_traj_only_epochs, c.quick_val_max_batches, c.full_val_interval_epochs, c.enable_batch_parameter_rollback, c.compute_eval_aux_loss)"
+```
+
+输出确认：
+
+```text
+artifacts/expert1_v2_fast 4 1 12 99 False False
+```
+
+### 手动训练命令
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_fast_config.json
+```
+
+训练完成后必须把 `artifacts/<timestamp>/expert1_v2_fast/training_summary.json`、`evaluation_report.json`、`training_history.json` 的完整指标复制到 `performance_records/<timestamp>/expert1_v2_fast/`。
+
+## 2026-05-11：Expert1 V2 smoke 训练与二次修正
+
+### 训练 1：joint 直接进入 final
+
+- 配置：`tmp/expert1_v2_smoke_config.json`
+- 输出：`artifacts/20260511-132710/expert1_v2_smoke`
+- 性能快照：`performance_records/20260511-132710/expert1_v2_smoke`
+- 速度设置：
+  - epochs = 5
+  - `max_train_batches_per_epoch = 32`
+  - `quick_val_max_batches = 12`
+  - `low_altitude_deep_reroute_aux_weight = 0.0`
+
+Test 指标：
+
+| 指标 | 值 |
+|---|---:|
+| final macro F1 | 0.6004 |
+| trajectory macro F1 | 0.5914 |
+| trajectory macro F1 on RD | 0.6172 |
+| joint macro F1 on RD | 0.3932 |
+| joint - trajectory macro F1 on RD | -0.2241 |
+| RD macro F1 on RD | 0.1478 |
+| RD harm rate on RD | 0.5907 |
+| joint RD weight mean on RD | 0.4500 |
+
+结论：
+
+- 训练速度已可控，5 epoch smoke 约 6 分钟完整结束。
+- 但 joint 分支仍明显弱于 trajectory。
+- reliability 继续顶到 0.45 cap，说明 joint 直接参与 final 仍不安全。
+
+### 代码修正
+
+新增两个配置项：
+
+- `joint_logit_delta_scale`
+- `rd_specialist_residual_scale`
+
+对应代码：
+
+- `src/core/expert1_config.py`
+- `src/core/experts.py`
+- `src/core/expert1_trainer.py`
+
+目的：
+
+```text
+joint_logits 可以继续训练和报告，
+但是否进入 final logits 由 joint_logit_delta_scale 控制。
+```
+
+fast/smoke 配置当前设置：
+
+```text
+joint_logit_delta_scale = 0.0
+rd_specialist_residual_scale = 0.5
+```
+
+### 训练 2：joint 隔离 final
+
+- 输出：`artifacts/20260511-133618/expert1_v2_smoke`
+- 性能快照：`performance_records/20260511-133618/expert1_v2_smoke`
+
+Test 指标：
+
+| 指标 | 值 |
+|---|---:|
+| final macro F1 | 0.5972 |
+| trajectory macro F1 | 0.5972 |
+| trajectory macro F1 on RD | 0.6409 |
+| joint macro F1 on RD | 0.0159 |
+| joint - trajectory macro F1 on RD | -0.6250 |
+| RD macro F1 on RD | 0.1449 |
+| RD harm rate on RD | 0.5781 |
+| joint RD weight mean on RD | 0.2035 |
+| with RD accuracy | 0.7342 |
+| without RD accuracy | 0.4795 |
+
+结论：
+
+- joint 隔离后 final 不再被 joint 直接拖垮，final 与 trajectory 完全一致。
+- RD weight 不再顶到 0.45，下降到约 0.2035。
+- 但 32 batch smoke 不足以训练出可用 joint/RD evidence。
+- 下一轮应使用同样的安全 final path，去掉 `max_train_batches_per_epoch` 跑全量 5 epoch；如果仍太慢，再优化数据加载或精简 RD auxiliary，而不是重新让未成熟 joint logits 进入 final。
+
+## 2026-05-11：Expert1 V2 fast 20260511-152913 深入复盘
+
+### 训练产物
+
+- 输出目录：`artifacts/20260511-152913/expert1_v2_fast`
+- Markdown：`reports/real/20260511-152913/expert1_v2_fast.md`
+- JSON：`reports/real/20260511-152913/expert1_v2_fast.json`
+- 性能快照：`performance_records/20260511-152913/expert1_v2_fast`
+- best checkpoint：`fallback_candidate_model.pt`
+- best epoch：5
+- best selection reason：`fallback_no_rd_quality_checkpoint`
+
+### 关键配置
+
+```text
+epochs = 5
+stage1_traj_only_epochs = 1
+stage2_ramp_epochs = 2
+compute_eval_aux_loss = false
+enable_batch_parameter_rollback = false
+quick_val_max_batches = 12
+full_val_interval_epochs = 3
+joint_logit_delta_scale = 0.0
+rd_specialist_residual_scale = 0.5
+low_altitude_deep_reroute_aux_weight = 0.0
+low_altitude_rd_forced_fusion_weight = 0.45
+low_altitude_rd_gate_aux_weight = 0.18
+low_altitude_rd_class_gate_aux_weight = 0.15
+low_altitude_rd_pair_gate_aux_weight = 0.20
+```
+
+### 和 20260510-105622 对比
+
+| 指标 | 20260510-105622 | 20260511-152913 | 差值 |
+|---|---:|---:|---:|
+| final accuracy | 0.8548 | 0.7903 | -0.0645 |
+| final macro F1 | 0.7327 | 0.6922 | -0.0405 |
+| trajectory accuracy | 0.8581 | 0.7903 | -0.0677 |
+| trajectory macro F1 | 0.7486 | 0.6922 | -0.0564 |
+| RD accuracy on RD | 0.7173 | 0.5527 | -0.1646 |
+| RD macro F1 on RD | 0.6174 | 0.4481 | -0.1693 |
+| with RD accuracy | 0.8819 | 0.8397 | -0.0422 |
+| without RD accuracy | 0.7671 | 0.6301 | -0.1370 |
+| source balanced macro F1 | 0.4788 | 0.4281 | -0.0507 |
+| excel_track macro F1 | 0.5948 | 0.4594 | -0.1354 |
+| raw_tr_rd macro F1 | 0.0800 | 0.0800 | 0.0000 |
+
+逐类变化：
+
+| class | F1 差值 | recall 差值 |
+|---|---:|---:|
+| DroneTarget | -0.0497 | -0.0397 |
+| BirdTarget | -0.1228 | -0.1125 |
+| BalloonTarget | -0.0390 | -0.0556 |
+| ClutterTarget | +0.1263 | +0.1429 |
+| UnknownTarget | -0.1175 | -0.1667 |
+
+逐源变化：
+
+| source | accuracy 差值 | macro F1 差值 |
+|---|---:|---:|
+| cq08_track | -0.0429 | -0.0166 |
+| excel_track | -0.1370 | -0.1354 |
+| raw_tr_rd | 0.0000 | 0.0000 |
+
+### 根因判断
+
+1. 这次 final 不是被 RD/joint 拖坏。
+   - `final macro F1 = trajectory macro F1 = 0.6922`
+   - `final accuracy = trajectory accuracy = 0.7903`
+   - `joint_logit_delta_scale = 0.0`
+   - `final_harm_rate_on_rd = 0`
+   - 说明 final 基本就是 trajectory anchor，joint 没进入 final。
+
+2. 真正退化的是 trajectory anchor。
+   - 20260510 trajectory macro F1：0.7486。
+   - 20260511 trajectory macro F1：0.6922。
+   - 差值 -0.0564。
+   - without RD accuracy 从 0.7671 掉到 0.6301，说明 Excel/无 RD 轨迹路径明显变弱。
+
+3. Excel 是最大可见退化源。
+   - Excel macro F1 从 0.5948 掉到 0.4594。
+   - Excel 没有 RD，无法被 RD/joint 解释。
+   - 这说明问题主要在轨迹训练配方，而不是多模态融合本身。
+
+4. RD evidence 也明显退化。
+   - RD macro F1 on RD 从 0.6174 掉到 0.4481。
+   - RD harm rate on RD 从约 0.1983 升到 0.3418。
+   - RD Drone/Bird still usable partly，但 Balloon 为 0，整体不足以作为第二证据。
+
+5. joint branch 仍不可用。
+   - `joint_accuracy_on_rd = 0.0844`
+   - `joint_macro_f1_on_rd = 0.0434`
+   - `joint_minus_traj_macro_f1_on_rd = -0.6958`
+   - 因为 joint 被隔离，这个结果没有伤 final，但证明 joint head 尚未学会。
+
+6. 当前 fast 配置为了安全和速度削弱了太多训练信号。
+   - 20260510 是 12 epoch；本次是 5 epoch。
+   - deep reroute auxiliary 从 0.35 改为 0。
+   - forced fusion 从 0.9 改为 0.45。
+   - gate/class/pair gate auxiliary 权重整体减半左右。
+   - `joint_logit_delta_scale=0` 是正确安全设置，但也意味着 final 完全吃不到任何可能的 RD 正收益。
+   - `rd_specialist_residual_scale=0.5` 进一步减少了 RD 对 final 的实际影响。
+
+### 结论
+
+这次数据差的核心不是“V2 联合架构把模型搞坏”，而是：
+
+```text
+为了防止 joint 误伤，我们把 final 退回到了纯 trajectory；
+但同时 fast 配方又削弱了 trajectory/RD evidence 的训练强度；
+结果 final 只能反映一个训练不足的 trajectory anchor。
+```
+
+因此这版“一点不能用”是合理判断。它不能进入 System，也不能作为 Expert1 候选。
+
+### 下一步修正
+
+1. 保留安全原则：
+   - `joint_logit_delta_scale = 0`
+   - joint-on-RD 没超过 trajectory-on-RD 前，joint 不进 final。
+
+2. 恢复强 trajectory/RD evidence 训练：
+   - epochs 至少回到 10 到 12。
+   - 恢复 `low_altitude_deep_reroute_aux_weight = 0.35` 或至少 0.2。
+   - 恢复 `low_altitude_rd_forced_fusion_weight = 0.9`，但它只训练 final/evidence，不让 joint logits 直接进 final。
+   - 旧 gate/class/pair gate auxiliary 后续已清理，不再恢复；同类约束改由 joint/final 选模指标承接。
+
+3. 训练速度不要靠削弱关键 loss 解决：
+   - 保持关闭 batch parameter rollback。
+   - eval 继续不算 auxiliary loss。
+   - quick val 继续只用于观察。
+   - full val 至少在 epoch 5、10、last 执行。
+
+4. 选模要求：
+   - trajectory macro F1 必须先回到 0.74 附近。
+   - RD macro F1 on RD 必须回到 0.60 附近。
+   - Excel macro F1 不能低于 0.55。
+   - raw_tr_rd 仍只能作为风险诊断，4 条样本不足以主导总体选择。
+
+### 已执行修正
+
+- `target.md` 已记录 `20260511-152913/expert1_v2_fast` 为失败样本，不允许进入 Expert1/System 候选。
+- `tmp/expert1_v2_fast_config.json` 已从弱 fast 配方改为恢复型配方：
+  - `epochs = 12`
+  - `stage2_ramp_epochs = 1`
+  - `low_altitude_deep_reroute_aux_weight = 0.35`
+  - `low_altitude_rd_forced_fusion_weight = 0.9`
+  - 旧 RD gate / class gate / pair gate auxiliary 已删除，不再恢复。
+  - `low_altitude_traj_anchor_weight = 0.15`
+- 仍保留工程侧加速：
+  - `enable_batch_parameter_rollback = false`
+  - `compute_eval_aux_loss = false`
+  - `quick_val_max_batches = 12`
+  - `full_val_interval_epochs = 3`
+- 仍保留安全隔离：
+  - 该 fast 失败版不作为候选。
+  - 后续候选全量训练改用 `joint_logit_delta_scale = 1.0`，让有 RD 样本的主 loss 直接监督 TR+RD joint。
+
+## 2026-05-11：Expert1 V2 TR+RD 混合判断决策与代码修正
+
+用户确认 Expert1 主结构：
+
+```text
+if no RD:
+    使用当前强 trajectory branch 判断
+else:
+    进入 TR+RD 混合判断
+```
+
+本次修正的核心原因：
+
+- 上一版 `joint_logit_delta_scale = 0.0` 后，joint 分支不会从有 RD 样本的主分类 loss 得到有效监督。
+- 这会导致 joint-on-RD 指标极差，不能说明 TR+RD 联合方向错误，只说明 joint head 没被当作主路径训练。
+- 现在有 RD 样本必须直接用 TR+RD 混合分支承接主 loss；无 RD 样本继续由 trajectory-only 分支承接主 loss。
+
+代码修正：
+
+- `src/core/experts.py`
+  - 新增 `CrossModalFusionBlock`。
+  - `LowAltitudeSuspectExpert.forward()` 新增 `traj_sequence_features` 与 `traj_padding_mask`。
+  - Joint 分支从简单 `traj_embedding + rd_embedding` 拼接，升级为：
+    - trajectory sequence tokens
+    - RD sequence tokens
+    - TR->RD / RD->TR cross-attention
+    - fused trajectory embedding
+    - fused RD embedding
+    - 原始 trajectory / RD anchor embedding
+    - abs diff / product / RD stats / RD patch
+  - `joint_logit_delta_scale >= 1.0` 时，有 RD 样本 final 使用 `joint_logits` 作为主输出。
+  - 无 RD / 非多模态 RD 样本 `joint_rd_weight = 0`，final 保持 `traj_logits`。
+- `src/core/expert1_trainer.py`
+  - Expert1 训练时传入 `rep.sequence_features` 与 `padding_mask`。
+  - 有 RD 样本的主 loss 现在可以直接监督 TR+RD 混合分支。
+- `src/core/system.py`
+  - System 调用 Expert1 时同步传入 `representation.sequence_features` 与 `padding_mask`，保持 standalone / system 架构一致。
+- `tests/test_expert1_evidence.py`
+  - 结构测试更新为：有 RD 样本使用 joint logits；无 RD 样本回退到 trajectory logits。
+
+全量训练配置：
+
+- `tmp/expert1_v2_tr_rd_full_config.json` 已保存为全量候选配置：
+  - `output_dir = artifacts/expert1_v2_tr_rd_full`
+  - `epochs = 12`
+  - `max_train_batches_per_epoch = 0`
+  - `quick_val_max_batches = 0`
+  - `full_val_interval_epochs = 1`
+  - `joint_logit_delta_scale = 1.0`
+  - `low_altitude_deep_reroute_aux_weight = 0.35`
+  - `low_altitude_rd_forced_fusion_weight = 0.9`
+  - 旧 RD gate / class gate / pair gate auxiliary 参数不再存在。
+
+后续只跑全量训练，不再用轻量快速训练作为候选结论。
+
+## 2026-05-11：Expert1 V2 架构变更后的冗余代码清理
+
+清理范围：当前代码中的 Expert1 历史遗留路径；未触碰 `.history`。
+
+删除 / 停用的旧路径：
+
+- `LowAltitudeSuspectExpert` 中旧的 RD activation gate。
+- `fusion_gate`、`rd_class_gate`、`rd_pair_gate` 网络。
+- trainer 中旧的 gate auxiliary loss：
+  - `_fusion_gate_aux_loss`
+  - `_rd_gate_target_loss`
+  - `_rd_class_gate_target_loss`
+  - `_rd_pair_gate_target_loss`
+- `rd_activation_threshold`、`low_altitude_initial_rd_gate_bias`、`low_altitude_rd_class_activation_threshold` 等旧配置入口。
+- `low_altitude_rd_gate_aux_weight`、class gate / pair gate auxiliary 权重。
+- System / diagnostics 中对旧 gate 参数的传参。
+
+保留内容：
+
+- RD auxiliary heads：
+  - `rd_head`
+  - `rd_bird_head`
+  - `rd_unknown_head`
+  - `rd_clutter_head`
+  - `rd_residual_head`
+  - `rd_unknown_clutter_head`
+  - `rd_clutter_morphology_head`
+- TR+RD cross-modal fusion branch。
+- `joint_reliability_head` 与 `joint_rd_weight`，用于 residual 限幅和诊断。
+- hard-pair 报告与 RD rescue / harm / net gain 诊断。
+- 小权重 bounded RD specialist residual。
+
+当前语义：
+
+```text
+rd_activated = has_valid_rd and not disable_tr_rd_fusion
+```
+
+它不再表示“RD gate 选择性激活”，只表示样本是否进入 TR+RD 混合分支。
+
+验证：
+
+- `tests.test_expert1_evidence.Expert1EvidenceTests.test_rd_samples_use_joint_branch_and_no_rd_falls_back_to_trajectory` 通过。
+- `tests.test_expert1_evidence.Expert1EvidenceTests.test_rd_activation_now_means_tr_rd_path_presence` 通过。
+- System 前向 sanity check 通过：低空输出为 5 类，无 RD 样本 final 仍等于 `traj_logits`。
+- `tmp/expert1_v2_tr_rd_full_config.json` 与 `config/config.json` 可正常加载。
+
+## 2026-05-12：Expert1 V2 TR+RD full 训练复盘
+
+本次全量训练产物：
+
+- real report markdown：`reports/real/20260511-224549/expert1_v2_tr_rd_full.md`
+- real report json：`reports/real/20260511-224549/expert1_v2_tr_rd_full.json`
+- artifact：`artifacts/20260511-224549/expert1_v2_tr_rd_full`
+- 性能快照：`performance_records/20260511-224549/expert1_v2_tr_rd_full`
+
+训练设置：
+
+- `epochs = 12`
+- `stage1_traj_only_epochs = 1`
+- `stage2_ramp_epochs = 1`
+- `joint_logit_delta_scale = 1.0`
+- `rd_specialist_residual_scale = 0.5`
+- 每轮 full validation，不使用 quick val。
+- split：train / val / test = 1432 / 306 / 310。
+- RD 覆盖：train 913/1432，val 238/306，test 237/310。
+- 可训练参数：24,409,745。
+
+### 结果对比
+
+| 版本 | final acc | final macro F1 | traj macro F1 | RD-only macro F1 on RD | joint macro F1 on RD | joint - traj on RD | final RD rescue / harm / net |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 20260510 stable fallback | 0.8548 | 0.7327 | 0.7486 | 0.6174 | - | - | 2 / 3 / -1 |
+| 20260511 fast failed | 0.7903 | 0.6922 | 0.6922 | 0.4481 | 0.0434 | -0.6958 | 0 / 0 / 0 |
+| 20260511 full TR+RD | 0.8710 | 0.7971 | 0.7614 | 0.6431 | 0.8216 | +0.0460 | 22 / 5 / +17 |
+
+这次不是 fast 版那种失败。核心变化是：
+
+- final macro F1 达到 0.7971，超过 20260510 的 0.7327。
+- trajectory macro F1 达到 0.7614，也略高于 20260510 的 0.7486。
+- RD-only on-RD macro F1 达到 0.6431，略高于 20260510 的 0.6174，但 RD-only rescue/harm/net 仍是 12/45/-33，不能直接作为主判断。
+- joint-on-RD macro F1 达到 0.8216，高于 trajectory-on-RD 0.7756。
+- final 在 RD 样本上 rescue/harm/net 为 22/5/+17，说明 TR+RD joint 作为主路径确实学到了有效联合特征。
+
+### 分支结论
+
+纯轨迹分支：
+
+- 全测试集：accuracy 0.8161，macro F1 0.7614。
+- on-RD：accuracy 0.8312，macro F1 0.7756。
+- no-RD 73 条样本 final 与 trajectory 等价，accuracy 0.7671。
+
+TR+RD joint 分支：
+
+- 全测试集 joint macro F1 0.7899。
+- on-RD accuracy 0.9030，macro F1 0.8216。
+- 相比 trajectory-on-RD 提升 +0.0460 macro F1。
+- 这证明“有 RD 则进入 TR+RD 混合判断，无 RD 则走轨迹分支”的架构方向成立。
+
+RD-only 分支：
+
+- on-RD accuracy 0.6920，macro F1 0.6431。
+- RD-only rescue/harm/net = 12/45/-33。
+- 结论：RD-only 仍适合做 auxiliary evidence，不适合作为最终接管分支，也不适合作为新架构选模的主硬门槛。
+
+### Hard Pair
+
+| hard pair | support | trajectory acc | RD-only acc | final acc | final net |
+|---|---:|---:|---:|---:|---:|
+| DroneTarget vs BirdTarget | 162 | 0.7901 | 0.6728 | 0.8951 | +17 |
+| UnknownTarget vs ClutterTarget | 22 | 0.7727 | 0.7727 | 0.7727 | 0 |
+| BirdTarget vs ClutterTarget | 63 | 0.7460 | 0.6508 | 0.7778 | +2 |
+
+最关键的 Drone/Bird 对已经被 TR+RD joint 明显拉开，这是这次训练最有价值的信号。
+
+### 跨源问题
+
+| source | count | final acc | final macro F1 | trajectory macro F1 | 结论 |
+|---|---:|---:|---:|---:|---|
+| cq08_track | 233 | 0.9142 | 0.8287 | 0.7791 | joint 明显提升 |
+| excel_track | 73 | 0.7671 | 0.5881 | 0.5881 | 无 RD，保持轨迹路径；略低于 20260510 的 0.5948 |
+| raw_tr_rd | 4 | 0.2500 | 0.0800 | 0.1333 | joint 对弱源仍有误伤 |
+
+按 RD 样本逐源看：
+
+- `cq08_track`：trajectory 195/233 对，final 213/233 对，final rescue/harm = 22/4。
+- `raw_tr_rd`：trajectory 2/4 对，final 1/4 对，final rescue/harm = 0/1。
+
+因此当前模型可以作为 Expert1 V2 standalone 候选，但还不能直接接入 System 主力。主要风险不是总体精度，而是 raw 弱源样本太少且不稳。
+
+### 训练曲线
+
+关键验证轮次：
+
+| epoch | val final F1 | val traj F1 | val joint-on-RD F1 | val RD-only on-RD F1 | eligible |
+|---:|---:|---:|---:|---:|---|
+| 2 | 0.7694 | 0.7573 | 0.7924 | 0.1580 | false |
+| 5 | 0.7301 | 0.5841 | 0.7586 | 0.4817 | false |
+| 8 | 0.8117 | 0.7240 | 0.8386 | 0.4276 | false |
+| 11 | 0.8405 | 0.7748 | 0.8655 | 0.5914 | false |
+| 12 | 0.7667 | 0.7345 | 0.7986 | 0.5412 | false |
+
+第 5 轮仍不稳定，第 8 到 11 轮才出现高质量 joint 表现，说明之前用 5 epoch fast 训练做结论是不可靠的。最佳验证点在 epoch 11，但由于旧 quality gate 仍要求 RD-only net gain 非负，所以 `best_selection_reason` 仍是 `fallback_no_rd_quality_checkpoint`。
+
+### 架构判断
+
+当前 Expert1 V2 应继续坚持联合路线：
+
+```text
+no RD:
+    trajectory-only final
+
+has RD:
+    TR tokens + RD tokens cross-modal fusion -> joint final
+    RD-only heads 只做 auxiliary evidence / residual 诊断
+```
+
+需要修正的是选模和报告语义：
+
+- 旧规则把 `rd_net_gain_rate_on_rd >= 0` 当硬门槛，这适用于“RD 默认第二证据/接管”的历史架构。
+- 新架构中 final 主路径是 joint，因此候选硬门槛应改成：
+  - `joint_minus_traj_macro_f1_on_rd >= 0`
+  - `final_net_gain_rate_on_rd >= 0`
+  - `final_harm_rate_on_rd` 不超过阈值
+  - hard-pair final net 不为负
+- RD-only 只保留最低表征质量门槛，例如 `rd_macro_f1_on_rd`、Drone/Bird recall、Unknown/Clutter recall，不再要求 RD-only 净收益为正。
+
+下一步优先级：
+
+1. 修改 Expert1 selection gate，让它按 joint/final 选择 checkpoint，而不是被 RD-only net gain 否决。
+2. 报告补充 source x joint metrics、source x final-vs-traj rescue/harm/net。
+3. 针对 raw_tr_rd 做 leave-source / bootstrap 诊断，不让 4 条 raw 样本直接主导总体结论，但也不能忽略 raw 误伤。
+4. 在 selection gate 修正后，用同一全量配置复训一次，确认 best checkpoint 不再落入 fallback reason。
+
+## 2026-05-12：Expert1 旧架构逻辑第二轮清理，切换到 V2 语义
+
+本轮目标是把代码和当前文档从旧 RD-only 选模语义切换到 V2 joint/final 语义；`.history` 未触碰。
+
+代码清理：
+
+- `LowAltitudeSuspectExpert` 默认推理模式从旧 `dual_main` 改为 `v2_joint`。
+- System 调用 Expert1 时同步使用 `v2_joint`，保持 standalone / system 路径一致。
+- Expert1 acceptance 不再用 RD-only cosine confidence 作为有 RD 样本的主置信度，而是使用 final logits confidence。
+- 旧 RD-only selection hard gate 移除：
+  - `min_rd_macro_f1_for_best` 改为 `min_rd_evidence_macro_f1_for_best`。
+  - `min_rd_net_gain_rate_for_best` 和 `max_rd_harm_rate_for_best` 只保留 legacy config 丢弃兼容，不再进入选模。
+- 新 `v2_selection_gate` 选模指标：
+  - `joint_minus_traj_macro_f1_on_rd`。
+  - `final_net_gain_rate_on_rd`。
+  - `final_harm_rate_on_rd`。
+  - `final_minus_traj_macro_f1`。
+  - RD-only macro F1 仅作为 evidence 质量下限。
+- `selection_reason` 从 `stage2_rd_composite` 切到 `stage2_v2_joint_composite`，fallback reason 切到 `fallback_v2_selection_checkpoint`。
+- 新增 `tr_rd_active` / `tr_rd_path_rate` 作为 V2 诊断名；`rd_activated` / `rd_activation_rate` 仅作为旧报告和测试脚本兼容别名保留。
+
+报告与指标清理：
+
+- Expert1 epoch/test metrics 新增 joint by-source、joint-on-RD、joint minus trajectory-on-RD。
+- Markdown 报告中的旧“RD 分支”改为“V2 分支”，展示 `TR+RD joint` 和 `RD evidence` 两套指标。
+- prediction record 新增 `label_name_joint_pred`，便于审计 joint 与 final 的差异。
+- 报告 summary 补齐 final/RD net gain rate 字段，避免测试从旧 artifact 读取时缺字段。
+
+文档清理：
+
+- `target.md` 当前目标改为 `v2_joint` / `v2_selection_gate`。
+- `main.md` 增加 V2 选模门槛，明确 RD-only 分支不再以净收益作为 checkpoint 否决条件。
+- 历史报告中的 `fallback_no_rd_quality_checkpoint` 保留为历史事实，不改写旧训练结论。
+
+验证：
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_expert1_evidence
+```
+
+结果：10 个测试通过，1 个测试按预期跳过，原因是当前最新 artifact 生成于 `v2_selection_gate` 代码清理前。
+
+```powershell
+.\.venv\Scripts\python.exe -m py_compile src/core/expert1_config.py src/core/expert1_trainer.py src/core/experts.py src/core/system.py src/core/reporting.py config/configmanager.py tests/test_expert1_evidence.py
+```
+
+结果：通过。
+
+```powershell
+.\.venv\Scripts\python.exe -c "from config.configmanager import load_expert1_config; c=load_expert1_config('config/config.json'); print(c.min_rd_evidence_macro_f1_for_best, c.min_joint_minus_traj_macro_f1_on_rd_for_best, c.min_final_net_gain_rate_on_rd_for_best, c.max_final_harm_rate_on_rd_for_best, c.joint_logit_delta_scale)"
+```
+
+结果：`0.22 0.0 0.0 0.08 1.0`。
+
+后续动作：
+
+1. 使用同一全量配置重新训练 Expert1 V2，确认新 best checkpoint 不再被旧 RD-only gate 否决。
+2. 重点看 `stage2_v2_joint_composite` 是否出现，以及 test 上 joint/final 是否继续保持正收益。
+3. 若 raw_tr_rd 仍被误伤，下一轮不回退 RD-only 选择性激活，而是做 source-aware calibration / raw replay。
+
+## 2026-05-12：Expert1 V2.1 joint 质量特征与 residual 收缩
+
+本轮继续优化新架构，目标是保留 “有 RD -> TR+RD joint” 主线，但降低 raw 弱源被 RD-only residual 二次误伤的风险。
+
+发现的问题：
+
+- 20260511-224549 全量模型中，`raw_tr_rd` 只有 4 条；trajectory 2/4 对，RD evidence 2/4 对，但 final 只有 1/4 对。
+- 其中一条 raw Bird 样本 trajectory 和 RD evidence 都预测 Bird，但 final 变成 Drone，说明 joint/final 路径仍缺少显式的一致性保护。
+- 原先 joint 输入主要是 fused embeddings、RD stats 和 patch，不直接看到 trajectory/RD 置信度、熵、agreement、RD cosine confidence、residual score 等质量特征。
+- RD specialist residual 虽然已 bounded，但默认 scale 仍偏大，容易在样本极少的 raw 源上把 RD-only logits 的负收益带回 final。
+
+代码优化：
+
+- `LowAltitudeSuspectExpert` 新增 `joint_quality_proj`。
+- TR+RD joint 输入新增 12 维质量特征：
+  - `has_rd`
+  - trajectory confidence
+  - RD confidence
+  - RD cosine confidence
+  - trajectory/RD confidence gap
+  - trajectory/RD agreement
+  - residual score
+  - trajectory entropy
+  - RD entropy
+  - RD stats mean / std
+  - RD patch norm
+- 新增 `low_altitude_joint_agreement_prior_scale = 0.25`：
+  - 当 trajectory 与 RD evidence 预测一致时，给 agreed class 一个小 prior。
+  - 该 prior 只进入 joint logits，不能替代主分类 loss。
+- 新增 `low_altitude_joint_aux_weight = 0.35`：
+  - 训练期对有 RD 样本的 `joint_logits` 直接加权 CE。
+  - 目的：避免 final loss 被 residual/reject 细节稀释，确保 joint head 本身学会 TR+RD 判断。
+- 新增 `low_altitude_joint_reliability_aux_weight = 0.12`：
+  - 只监督 `joint_rd_weight` 这个 bounded residual 权重。
+  - RD rescue 时允许 residual 权重略高，RD harm 时压低，避免 residual 变成旧式 RD 接管。
+- `rd_specialist_residual_scale` 默认从 1.0 / 0.5 收缩到 0.35。
+- System 初始化新增：
+  - `low_altitude_joint_agreement_prior_scale`
+  - `low_altitude_rd_specialist_residual_scale`
+
+配置同步：
+
+- `config/config.json` 已加入：
+  - `low_altitude_joint_aux_weight = 0.35`
+  - `low_altitude_joint_agreement_prior_scale = 0.25`
+  - `low_altitude_joint_reliability_aux_weight = 0.12`
+  - `rd_specialist_residual_scale = 0.35`
+- `tmp/expert1_v2_tr_rd_full_config.json` 已同步上述参数，仍为 12 epoch、full validation、非快速训练。
+
+下一次全量训练重点看：
+
+```text
+joint_macro_f1_on_rd > traj_macro_f1_on_rd
+final_net_gain_rate_on_rd >= 0
+final_harm_rate_on_rd <= 0.08
+raw_tr_rd final >= raw_tr_rd trajectory
+joint_rd_weight_on_rd_mean 不贴上限
+best_selection_reason = stage2_v2_joint_composite
+```
+
+建议训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp/expert1_v2_tr_rd_full_config.json
+```
+
+主配置 `config/config.json` 的 Expert1 段也已同步为全量 V2 训练参数，因此也可以使用：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config config/config.json
+```
+
+## 2026-05-12：Expert1 V2 full 20260512-124930 复盘与 stable-stage 修复
+
+本轮全量训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp/expert1_v2_tr_rd_full_config.json
+```
+
+训练输出：
+
+- real report markdown：`reports/real/20260512-124930/expert1_v2_tr_rd_full.md`
+- real report json：`reports/real/20260512-124930/expert1_v2_tr_rd_full.json`
+- artifact：`artifacts/20260512-124930/expert1_v2_tr_rd_full`
+- 性能快照：`performance_records/20260512-124930/expert1_v2_tr_rd_full`
+
+核心结果：
+
+| 指标 | 值 |
+|---|---:|
+| best validation epoch | 11 |
+| final accuracy / macro F1 | 0.8613 / 0.7706 |
+| trajectory accuracy / macro F1 | 0.7774 / 0.6993 |
+| joint-on-RD accuracy / macro F1 | 0.8987 / 0.7964 |
+| joint-on-RD - trajectory-on-RD macro F1 | +0.0863 |
+| RD-only on-RD macro F1 | 0.6627 |
+| final rescue / harm / net on RD | 31 / 5 / +26 |
+| RD-only rescue / harm / net on RD | 21 / 41 / -20 |
+| source-balanced macro F1 | 0.5228 |
+| cq08 / excel / raw macro F1 | 0.8007 / 0.5677 / 0.2000 |
+
+判断：
+
+- 架构方向成立：TR+RD joint 在有 RD 样本上明显高于 trajectory，final 对 RD 样本是正净收益。
+- 模型还不能接入 System：整体 macro F1 低于 20260511 候选，Unknown/Clutter 与弱源仍拖后腿。
+- 本轮最主要问题不是 joint 无效，而是训练过程破坏了 trajectory anchor：
+  - `stage1_traj_only_epochs = 1`
+  - `stage2_ramp_epochs = 1`
+  - 第 2 轮直接全量打开 RD/joint/deep auxiliary，训练 loss 从 2.4309 跳到 13.3065。
+  - 无 RD 的 `excel_track` 只能走 trajectory path，因此 trajectory 退化会直接压低 without-RD 表现。
+
+代码修复：
+
+- `Expert1TrainConfig` 新增 `low_altitude_traj_supervision_weight`。
+- Expert1 训练 loss 新增持续 trajectory supervised CE：
+
+```text
+loss =
+    final main loss
+    + low_altitude_traj_supervision_weight * CE(traj_logits, label)
+    + stage2_scale * auxiliary losses
+```
+
+- `low_altitude_traj_anchor_start_epoch` 现在真正生效；只有达到指定 stage2 epoch 后才启用 trajectory KL anchor。
+- `low_altitude_rd_forced_fusion_weight`、`low_altitude_joint_aux_weight`、`low_altitude_joint_reliability_aux_weight`、`low_altitude_deep_reroute_aux_weight` 全部乘 `stage2_scale`，避免 stage2 第一轮强冲击。
+
+下一轮 stable full 配置：
+
+- `output_dir = artifacts/expert1_v2_tr_rd_stable_full`
+- `epochs = 18`
+- `stage1_traj_only_epochs = 3`
+- `stage2_ramp_epochs = 4`
+- `low_altitude_traj_supervision_weight = 0.55`
+- `low_altitude_traj_aux_ratio = 0.55`
+- `low_altitude_rd_aux_ratio = 0.45`
+- `low_altitude_rd_forced_fusion_weight = 0.45`
+- `low_altitude_deep_reroute_aux_weight = 0.20`
+- `low_altitude_traj_anchor_weight = 0.35`
+- `low_altitude_traj_anchor_start_epoch = 2`
+- `low_altitude_rd_teacher_warmup_epochs = 2`
+- `excel_source_boost = 2.6`
+- `raw_source_boost = 2.5`
+
+下一轮训练重点看：
+
+```text
+trajectory macro F1 是否回升
+without_rd accuracy 是否回升
+excel_track macro F1 是否回升
+joint-on-RD macro F1 是否仍然 > trajectory-on-RD
+final net gain on RD 是否保持 >= 0
+stage2 第 4-7 轮是否不再出现 loss 突跳
+```
+
+## 2026-05-12：Expert1 V2 代码全量审查与数据归因
+
+审查对象：
+
+- 代码路径：`src/core/expert1_data.py`、`src/core/experts.py`、`src/core/expert1_trainer.py`、`config/config.json`、`tmp/expert1_v2_tr_rd_stable_full_config.json`
+- 训练产物：`artifacts/20260512-124930/expert1_v2_tr_rd_full`
+- 报告：`reports/real/20260512-124930/expert1_v2_tr_rd_full.md/json`
+- 性能快照：`performance_records/20260512-124930/expert1_v2_tr_rd_full`
+
+外部依据：
+
+- Scientific Reports 2018：无人机螺旋桨和飞鸟扑翼都会产生 micro-Doppler，低空无人机与飞鸟需要依赖微多普勒差异进行区分。链接：`https://www.nature.com/articles/s41598-018-35880-9`
+- Signals 2023：鸟和无人机 RCS 接近，单靠 RCS/HRRP/SAR 容易困难；micro-Doppler 二分类可到约 96%，但五类细分约 85%，并指出真实数据不足会限制识别。链接：`https://www.mdpi.com/2624-6120/4/2/18`
+
+代码审查结论：
+
+1. 当前 V2 主路径逻辑正确，已经是“无 RD 走 trajectory，有 RD 走 TR+RD joint”：
+   - `LowAltitudeSuspectExpert.forward` 中 `tr_rd_active = has_rd`。
+   - `selected_logits = torch.where(tr_rd_active, joint_selected_logits, traj_logits)`。
+   - 无 RD 样本的 RD logits、RD tokens、joint RD weight 均被置零。
+2. 20260512-124930 的训练配置存在明确问题：
+   - `stage1_traj_only_epochs = 1`，`stage2_ramp_epochs = 1`。
+   - 第 2 轮 stage2 直接 scale=1.00，train loss 从 2.4309 跳到 13.3065。
+   - 训练 summary 中 `low_altitude_rd_forced_fusion_weight = 0.9`，`low_altitude_rd_aux_ratio = 0.65`，RD/joint/deep 监督过强。
+3. 已修复的训练风险：
+   - 新增持续 `low_altitude_traj_supervision_weight * CE(traj_logits, label)`。
+   - `low_altitude_traj_anchor_start_epoch` 已实际控制 anchor KL 启动。
+   - forced fusion、joint aux、joint reliability、deep reroute direct loss 已全部乘 `stage2_scale`。
+4. 仍需观察的风险：
+   - `main_loss` 对 RD 样本监督的是 final/joint logits，而 trajectory backbone 与 joint 共享上游表征；如果 stable full 后 trajectory 仍低，应冻结 track encoder 前几轮或继续降低 sequence encoder LR。
+   - 训练历史没有细粒度 loss component 曲线，难以精确区分 RD aux、forced fusion、joint aux、deep reroute 哪一项造成 loss 冲击。下一轮若仍震荡，需要把 loss components 写入 `training_history.json`。
+   - selection gate 对 raw 的 hard gate 最小支持数是 4，而 test raw 只有 4 条，raw 指标统计方差极大，适合作为诊断项，不适合单独决定主模型质量。
+
+数据审查结论：
+
+| split | count | cq08 | excel | raw | with RD | no RD |
+|---|---:|---:|---:|---:|---:|---:|
+| train | 1432 | 1084 | 323 | 25 | 1109 | 323 |
+| val | 306 | 232 | 68 | 6 | 238 | 68 |
+| test | 310 | 233 | 73 | 4 | 237 | 73 |
+
+test 类别分布：
+
+```text
+DroneTarget=151
+BirdTarget=80
+BalloonTarget=54
+ClutterTarget=7
+UnknownTarget=18
+```
+
+test 来源 x 类别：
+
+```text
+cq08_track: Drone=105, Bird=53, Balloon=53, Clutter=7, Unknown=15
+excel_track: Drone=45, Bird=24, Balloon=1, Clutter=0, Unknown=3
+raw_tr_rd: Drone=1, Bird=3, Balloon=0, Clutter=0, Unknown=0
+```
+
+性能归因：
+
+1. 总 accuracy=0.8613 不是完全失效，主要被 cq08 与 Balloon 抬高；macro F1=0.7706 偏低，是因为 Unknown/Clutter 和弱源表现低。
+2. 有 RD 样本表现明显优于无 RD 样本：
+   - with-RD accuracy=0.8987
+   - without-RD accuracy=0.7397
+   - no-RD 主要就是 excel_track，所以 Excel 直接暴露 trajectory 分支下限。
+3. TR+RD joint 是有效的：
+   - trajectory-on-RD macro F1=0.7101
+   - joint-on-RD macro F1=0.7964
+   - final on RD rescue/harm/net = 31/5/+26
+4. RD-only 不是可靠教师：
+   - RD-only on-RD macro F1=0.6627
+   - RD-only rescue/harm/net = 21/41/-20
+   - RD residual accuracy on RD=0.4895
+   - 因此 RD 应保留为 joint evidence，不应回到旧式 RD 接管主路径。
+5. 低召回主要来自三类：
+   - Drone recall=0.8675，主要错成 Bird：17 次。
+   - Unknown recall=0.6111，support 只有 18，且会错到 Bird/Drone/Clutter。
+   - Clutter recall=0.7143，support 只有 7，precision=0.5000，宏平均被明显拉低。
+6. 来源域问题非常明显：
+   - cq08 final macro F1=0.8007。
+   - excel final macro F1=0.5677，且无 RD，只能验证 trajectory。
+   - raw final macro F1=0.2000，但 test 只有 4 条，不能过度解释。
+
+阶段判断：
+
+- 架构继续采用“轨迹保底 + 有 RD 进入 TR+RD joint”。
+- 当前低精度/低召回的主要原因不是联合架构错误，而是旧 full 配方 stage2 打开过猛、轨迹分支被联合训练牵动、弱源/稀有类支持不足。
+- 下一轮必须先运行 stable full 配方，不再基于 20260512-124930 继续微调旧强冲击配置。
+
+下一步：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_tr_rd_stable_full_config.json
+```
+
+若 stable full 后仍未恢复：
+
+1. `freeze_track_encoder_epochs` 提到 3-5。
+2. `sequence_encoder_lr_multiplier` 从 0.1 降到 0.05。
+3. 记录 loss components 到 `training_history.json`。
+4. 将 raw hard gate 改为 support >= 8 或仅作为 diagnostic gate。
+5. 对 Unknown/Clutter 增补样本或改成 source-aware residual calibration。
+
+## 2026-05-13：Expert1 V2 stable full 20260512-204012 复盘
+
+本轮训练命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_tr_rd_stable_full_config.json
+```
+
+训练输出：
+
+- real report markdown：`reports/real/20260512-204012/expert1_v2_tr_rd_stable_full.md`
+- real report json：`reports/real/20260512-204012/expert1_v2_tr_rd_stable_full.json`
+- artifact：`artifacts/20260512-204012/expert1_v2_tr_rd_stable_full`
+- 性能快照：`performance_records/20260512-204012/expert1_v2_tr_rd_stable_full`
+
+核心结果：
+
+| 指标 | 值 |
+|---|---:|
+| best epoch / selection reason | 14 / `stage2_v2_joint_composite` |
+| final accuracy / macro F1 | 0.8645 / 0.7526 |
+| trajectory accuracy / macro F1 | 0.8581 / 0.7358 |
+| trajectory macro F1 on RD | 0.7459 |
+| joint macro F1 on RD | 0.7618 |
+| joint-on-RD - trajectory-on-RD macro F1 | +0.0158 |
+| RD-only on-RD macro F1 | 0.5677 |
+| final rescue / harm / net on RD | 7 / 5 / +2 |
+| RD-only rescue / harm / net on RD | 9 / 52 / -43 |
+| with RD / without RD accuracy | 0.8734 / 0.8356 |
+| cq08 / excel / raw macro F1 | 0.7659 / 0.5991 / 0.2000 |
+| source-balanced macro F1 | 0.5217 |
+
+与 20260512-124930 对比：
+
+| 指标 | 124930 full | 204012 stable | 变化 |
+|---|---:|---:|---:|
+| accuracy | 0.8613 | 0.8645 | +0.0032 |
+| macro F1 | 0.7706 | 0.7526 | -0.0180 |
+| trajectory macro F1 | 0.6993 | 0.7358 | +0.0365 |
+| trajectory-on-RD macro F1 | 0.7101 | 0.7459 | +0.0359 |
+| joint-on-RD macro F1 | 0.7964 | 0.7618 | -0.0346 |
+| joint-on-RD minus trajectory-on-RD | +0.0863 | +0.0158 | -0.0705 |
+| RD-only on-RD macro F1 | 0.6627 | 0.5677 | -0.0950 |
+| with-RD accuracy | 0.8987 | 0.8734 | -0.0253 |
+| without-RD accuracy | 0.7397 | 0.8356 | +0.0959 |
+| final net gain rate on RD | +0.1097 | +0.0084 | -0.1013 |
+| source-balanced macro F1 | 0.5228 | 0.5217 | -0.0011 |
+| excel macro F1 | 0.5677 | 0.5991 | +0.0314 |
+
+判断：
+
+- stable full 成功修复了 trajectory / without-RD / Excel 下限：
+  - trajectory macro F1 从 0.6993 回到 0.7358。
+  - without-RD accuracy 从 0.7397 到 0.8356。
+  - excel macro F1 从 0.5677 到 0.5991。
+- 但本轮不是更好的 System 候选：
+  - final macro F1 低于 20260512-124930。
+  - joint-on-RD 增益从 +0.0863 缩到 +0.0158。
+  - final RD 净收益从 +26 缩到 +2。
+  - RD-only evidence 明显退化，RD harm 更多。
+- 当前模型学成了“安全轨迹保底”，但没有学出足够强的 TR+RD 深融合；这说明继续只加大 trajectory protection 会让 RD/joint 分支失去贡献。
+
+错误形态：
+
+- Drone recall 升高到 0.9338，但 Bird recall 降到 0.7125。
+- Bird 主要错成 Unknown 11 次、Drone 10 次。
+- Unknown recall 升到 0.7778，但 precision 只有 0.4375，说明 Unknown 倾向偏强。
+- Clutter support 只有 7，recall 从 0.7143 降到 0.5714，precision 仍低。
+
+下一步建议：
+
+1. 不接入 System。
+2. 保留 stable full 作为“trajectory/without-RD 下限修复”证据。
+3. 下一轮不是继续加强 trajectory，而是恢复 RD/joint 学习能力，同时保持 trajectory anchor：
+   - 保持 `stage1_traj_only_epochs = 3`、`stage2_ramp_epochs = 4`。
+   - `low_altitude_traj_supervision_weight` 从 0.55 降到 0.45。
+   - `low_altitude_rd_aux_ratio` 从 0.45 回到 0.55。
+   - `low_altitude_rd_forced_fusion_weight` 从 0.45 提到 0.60。
+   - `low_altitude_joint_aux_weight` 从 0.35 提到 0.45。
+   - `low_altitude_deep_reroute_aux_weight` 从 0.20 提到 0.28。
+   - 加入 Bird/Unknown calibration，抑制 Bird -> Unknown。
+4. 在训练前优先增加 loss component logging，避免继续只靠总 loss 判断 RD/joint 哪一项退化。

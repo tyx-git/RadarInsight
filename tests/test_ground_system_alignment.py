@@ -159,9 +159,7 @@ def _build_system_model(config, checkpoint: dict[str, Any], device: torch.device
         low_altitude_cosface_scale=config.low_altitude_cosface_scale,
         low_altitude_cosface_margin=config.low_altitude_cosface_margin,
         low_altitude_reject_threshold=config.low_altitude_reject_threshold,
-        low_altitude_rd_activation_threshold=config.low_altitude_rd_activation_threshold,
         low_altitude_use_rd_patch_cnn=config.low_altitude_use_rd_patch_cnn,
-        low_altitude_initial_rd_gate_bias=config.low_altitude_initial_rd_gate_bias,
     ).to(device)
     load_result = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
     allowed_missing_prefixes = ("low_altitude_expert.deep_",)

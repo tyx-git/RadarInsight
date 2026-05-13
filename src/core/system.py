@@ -61,17 +61,16 @@ class RadarClassificationSystem(nn.Module):
         low_altitude_cosface_scale: float = 16.0,
         low_altitude_cosface_margin: float = 0.2,
         low_altitude_reject_threshold: float = 0.35,
-        low_altitude_rd_activation_threshold: float = 0.8,
         low_altitude_use_rd_patch_cnn: bool = True,
         low_altitude_rd_patch_input_dim: int = 3,
-        low_altitude_initial_rd_gate_bias: float = 0.0,
-        low_altitude_rd_class_activation_threshold: float = 0.55,
         rd_bird_logit_scale: float = 0.75,
         rd_unknown_logit_scale: float = 0.75,
         rd_clutter_logit_scale: float = 0.75,
         rd_residual_logit_scale: float = 0.9,
         rd_unknown_clutter_logit_scale: float = 1.1,
         rd_clutter_morphology_logit_scale: float = 0.9,
+        low_altitude_joint_agreement_prior_scale: float = 0.25,
+        low_altitude_rd_specialist_residual_scale: float = 0.35,
     ) -> None:
         super().__init__()
         rd_dim = 16
@@ -95,20 +94,20 @@ class RadarClassificationSystem(nn.Module):
             rd_input_dim=4,
             rd_patch_input_dim=low_altitude_rd_patch_input_dim,
             rd_context_dim=rd_dim,
+            traj_sequence_dim=model_dim,
             dropout=dropout,
             cosface_scale=low_altitude_cosface_scale,
             cosface_margin=low_altitude_cosface_margin,
             reject_threshold=low_altitude_reject_threshold,
-            rd_activation_threshold=low_altitude_rd_activation_threshold,
             use_rd_patch_cnn=low_altitude_use_rd_patch_cnn,
-            initial_rd_gate_bias=low_altitude_initial_rd_gate_bias,
-            rd_class_activation_threshold=low_altitude_rd_class_activation_threshold,
             rd_bird_logit_scale=rd_bird_logit_scale,
             rd_unknown_logit_scale=rd_unknown_logit_scale,
             rd_clutter_logit_scale=rd_clutter_logit_scale,
             rd_residual_logit_scale=rd_residual_logit_scale,
             rd_unknown_clutter_logit_scale=rd_unknown_clutter_logit_scale,
             rd_clutter_morphology_logit_scale=rd_clutter_morphology_logit_scale,
+            joint_agreement_prior_scale=low_altitude_joint_agreement_prior_scale,
+            rd_specialist_residual_scale=low_altitude_rd_specialist_residual_scale,
         )
         self.conventional_air_expert = ConventionalAirExpert(sequence_dim=model_dim, physical_dim=physical_input_dim, dropout=dropout)
         self.high_altitude_expert = RuleBasedHighAltitudeExpert()
@@ -183,17 +182,18 @@ class RadarClassificationSystem(nn.Module):
         low_altitude = self.low_altitude_expert(
             representation.fused_features,
             rd_features=rd_features,
+            traj_sequence_features=representation.sequence_features,
             rd_patch_features=rd_patch_features,
             rd_deep_patch_features=rd_deep_patch_features,
             rd_context=rd_embedding,
             low_altitude_targets=low_altitude_targets,
             rd_is_multimodal=rd_is_multimodal,
+            traj_padding_mask=padding_mask,
             rd_padding_mask=rd_padding_mask,
             rd_patch_padding_mask=rd_patch_padding_mask,
             rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
             enable_reject=enable_low_altitude_reject,
-            force_rd_activation=False,
-            inference_mode="dual_main",
+            inference_mode="v2_joint",
         )
         conventional_air = self.conventional_air_expert(
             representation.sequence_features,
@@ -293,17 +293,18 @@ class RadarClassificationSystem(nn.Module):
                 low_altitude = self.low_altitude_expert(
                     representation.fused_features,
                     rd_features=rd_features,
+                    traj_sequence_features=representation.sequence_features,
                     rd_patch_features=rd_patch_features,
                     rd_deep_patch_features=rd_deep_patch_features,
                     rd_context=rd_embedding,
                     low_altitude_targets=None,
                     rd_is_multimodal=rd_is_multimodal,
+                    traj_padding_mask=padding_mask,
                     rd_padding_mask=rd_padding_mask,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                     enable_reject=enable_low_altitude_reject,
-                    force_rd_activation=False,
-                    inference_mode="dual_main",
+                    inference_mode="v2_joint",
                 )
             return low_altitude
 
@@ -314,16 +315,17 @@ class RadarClassificationSystem(nn.Module):
                 low_altitude_deep = self.low_altitude_expert(
                     representation.fused_features,
                     rd_features=rd_features,
+                    traj_sequence_features=representation.sequence_features,
                     rd_patch_features=rd_patch_features,
                     rd_deep_patch_features=rd_deep_patch_features,
                     rd_context=rd_embedding,
                     low_altitude_targets=None,
                     rd_is_multimodal=rd_is_multimodal,
+                    traj_padding_mask=padding_mask,
                     rd_padding_mask=rd_padding_mask,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                     enable_reject=enable_low_altitude_reject,
-                    force_rd_activation=True,
                     inference_mode="deep_reroute",
                 )
             return low_altitude_deep
