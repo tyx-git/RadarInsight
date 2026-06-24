@@ -16,7 +16,8 @@ artifacts/
 docs/
 needtosettle/
 reports/
-tests/
+/tests/*
+!/tests/test_expert1_rd_segment_store_smoke.py
 tools/
 logs/
 OriData/

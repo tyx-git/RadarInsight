@@ -1,8 +1,8 @@
 # RadarInsight 当前架构说明
 
-本文档记录当前代码已经落地的架构，而不是早期设想稿。旧版方案已备份为 `main.bak001`。
+本文档记录当前代码已经落地的架构，旧版方案已备份为 `main.bak001`。
 
-当前主线目标不是直接追求口号式 95%，而是把系统稳定推进到可解释、可复现、可调优的多专家雷达分类系统：先确保数据切分无泄漏、训练链路一致、专家接线正确，再逐步提升 Expert1 RD、Ground、Aircraft 和跨源泛化能力。
+把系统稳定推进到可解释、可复现、可调优的多专家雷达分类系统：先确保数据切分无泄漏、训练链路一致、专家接线正确，再逐步提升 Expert1 RD、Ground、Aircraft 和跨源泛化能力。
 
 ## 1. 项目定位
 
@@ -403,7 +403,6 @@ Reroute 流程：
 
 - 默认 `device=cuda`。
 - 当前训练不使用 CPU 作为性能结论。
-- 只有超过约 30 分钟的长训才需要人工确认。
 
 ## 12. 评估报告
 
@@ -485,46 +484,6 @@ Expert1 报告必须重点看：
 - final 在 RD 样本上已经产生正净收益，但 `raw_tr_rd` 样本过少且仍有误伤。
 - 当前代码已把选模切换到 `v2_selection_gate`；该训练产物生成时仍使用旧 selection reason，后续需用同一全量配置复训确认。
 
-### 13.2 System
-
-训练命令：
-
-```powershell
-.\.venv\Scripts\python.exe -m src.core.train_system --config config/config.json
-```
-
-输出目录：
-
-`artifacts/20260508-130610/system_config_smoke`
-
-核心指标：
-
-| 指标 | 值 |
-|---|---:|
-| selected fusion mode | `calibrated_candidates` |
-| selected accuracy | 0.8163 |
-| selected macro F1 | 0.5518 |
-| best test probe mode | `soft_log_weighted` |
-| best test probe accuracy | 0.8283 |
-| best test probe macro F1 | 0.5560 |
-| route macro recall | 0.7460 |
-| low-altitude Expert1 macro F1 | 0.7452 |
-| Drone/Bird recall mean | 0.8636 |
-| Unknown recall | 0.6111 |
-| Clutter recall | 0.4286 |
-| Ground group F1 | 0.5641 |
-| Aircraft recall | 0.6000 |
-| Aircraft precision | 0.3750 |
-| source balanced accuracy | 0.6352 |
-| min source accuracy | 0.3636 |
-| skipped non-finite batches | 0 |
-
-结论：
-
-- 新 Expert1 checkpoint 已完整加载到 System，无 missing key。
-- System 的低空能力可用，但全局 macro F1 仍被 Aircraft、Ground 和弱源拖低。
-- `calibrated_candidates` 在 validation 上被选中，但 test probe 上 `soft_log_weighted` 略高，说明仲裁器仍需更稳的校准策略。
-- Reroute 链路可用，但当前默认阈值下 test selected mode 没触发 reroute；后续应单独用 reroute fusion probe 调阈值。
 
 ## 14. 当前已实现
 

@@ -373,3 +373,182 @@ performance_records/<timestamp>/expert1_v2_window_stable_full/
 - source-balanced window macro F1。
 - parent mean-logit / majority-vote / first-window。
 - stable decision latency。
+
+## Expert1 RD pipeline 首轮优化暂存
+
+配置文件：
+
+```text
+tmp/expert1_v2_window_stable_full_config.json
+```
+
+新增关键参数：
+
+```text
+rd_encoded_cache_size = 256
+enable_window_rd_time_crop = true
+rd_window_crop_min_frames = 2
+rd_joint_segment_count = 5
+enable_rd_segment_joint_tokens = true
+```
+
+本轮已实现：
+
+- 同一父 RD tensor / summary 只加载和编码一次，窗口样本复用编码结果。
+- 窗口化索引下按窗口时间范围裁切 RD，避免每个 10 秒窗口继承完整父 RD。
+- TR+RD joint cross-attention 前将 RD token 聚合成最多 5 个 segment token。
+- Expert1 报告写入 `rd_pipeline` 配置，System 接回链路同步接入 segment token 参数。
+
+已做验证：
+
+```text
+.\.venv\Scripts\python.exe -m compileall -q src\core\data\torch_dataset.py src\core\expert1_data.py src\core\expert1_config.py src\core\expert1_trainer.py src\core\experts.py src\core\system.py src\core\system_config.py src\core\system_trainer.py
+```
+
+结果：
+
+```text
+通过
+```
+
+小 batch 前向结果：
+
+```text
+logits (2, 5)
+joint_logits (2, 5)
+tr_rd_active [True, True]
+rd_lengths 示例 [44, 47]
+rd_patch_lengths 示例 [44, 47]
+rd_deep_patch_lengths 示例 [54, 58]
+```
+
+注意：
+
+- 不要把这版理解成最终 RD segment embedding cache；当前是训练可用的首轮内存缓存和 token 聚合。
+- 下一轮若继续优化，应优先做持久化 segment embedding、显式 RD 时间轴对齐、deep patch 降采样消融、异步预取。
+
+---
+
+# 2026-05-15 Expert1 RD Segment Store Smoke 暂存
+
+新增测试文件：
+
+```text
+tests/test_expert1_rd_segment_store_smoke.py
+```
+
+覆盖链路：
+
+```text
+build_expert1_rd_segment_store
+  -> build_window_segment_map
+  -> WindowAssembler
+  -> TorchTrackDataset(use_rd_segment_store=True)
+  -> collate_track_batch
+```
+
+已修复问题：
+
+- CSV manifest 中的 `"False"` 字符串不能通过 `bool("False")` 判断，否则 summary RD 会被错误标记为多模态 RD。
+- RD segment store 使用 `overwrite=True` 重建时，需要清理当前 store 目录内旧的 `*_segments.pt`，避免残留 shard 干扰部署排查。
+
+验证结果：
+
+```text
+.\.venv\Scripts\python.exe -m compileall -q src\process\build_expert1_rd_segment_store.py src\core\data\rd_segment_store.py src\core\data\torch_dataset.py tests\test_expert1_rd_segment_store_smoke.py
+通过
+
+.\.venv\Scripts\python.exe -m unittest tests.test_expert1_rd_segment_store_smoke -v
+Ran 4 tests in 1.215s
+OK
+```
+
+---
+
+# 2026-05-15 Expert1 窗口训练加速暂存
+
+已落地：
+
+- 训练前统计不再扫真实 DataLoader：
+  - class weights -> `index_df`
+  - RD class weights -> `index_df`
+  - RD coverage -> `index_df`
+- source normalization stats 改为只读轨迹 CSV，并缓存到：
+
+```text
+data/processed/expert1_window_index_source_feature_stats.json
+```
+
+- DataLoader 配置新增：
+
+```text
+pin_memory
+persistent_workers
+prefetch_factor
+```
+
+- 训练器 CUDA 搬运新增：
+
+```text
+non_blocking_h2d
+```
+
+- 验证节奏新增：
+
+```text
+full_val_warmup_epochs
+full_val_interval_epochs = 3
+quick_val_max_batches = 80
+```
+
+- 专家一新增整 batch 无 RD 快路径：
+
+```text
+batch 内全部 rd_is_multimodal=false -> 直接 trajectory-only，不运行 RD encoder / patch CNN / joint fusion
+```
+
+验证：
+
+```text
+compileall 通过
+tests.test_expert1_rd_segment_store_smoke: Ran 6 tests, OK
+tmp/expert1_v2_window_speed_smoke_config.json: 1-batch 训练 smoke 完整写出 summary/report
+```
+
+注意：
+
+- 正式 RD segment store 已构建完成：1228 个 parent shard、9994 个 2s segment，store 总大小约 18.68GB，`failed_parent_count=0`。
+- 正式 `expert1_window_segment_map.csv` 已生成完成：5798 个有 RD 可训练窗口全部映射成功，`missing_window_count=0`。
+- `tmp/expert1_v2_window_stable_full_config.json` 已切到 `use_rd_segment_store=true`。
+- 前向 smoke 通过：同一 batch 中 RD 样本 `tr_rd_active=True`、纯轨迹样本 `tr_rd_active=False`，`logits_shape=(2,5)`。
+
+---
+
+# 2026-05-16 Expert1 stage2 降速暂存
+
+结论：
+
+- epoch 1-3 快，是因为 `stage2=off`。
+- epoch 4 之后慢，是因为 `stage2=on` 后每个含 RD batch 额外跑 `deep_reroute` 辅助前向。
+- 短 profiling 显示主瓶颈不是 DataLoader：`get_batch` 约 0.07s 到 0.20s。
+- 修改前 deep auxiliary batch 常见 5s 到 8s，极端 20s+。
+
+已改：
+
+```text
+low_altitude_deep_reroute_aux_interval = 4
+low_altitude_deep_reroute_max_frames = 32
+```
+
+- `deep_reroute` auxiliary 每 4 个 batch 运行一次。
+- deep auxiliary 输入最多 32 帧。
+- RD / patch / deep patch 各自独立下采样，避免时间轴长度不同导致 CUDA index 越界。
+- stage1 `disable_tr_rd_fusion=True` 时直接 trajectory-only，不再跑 RD 分支。
+
+验证：
+
+```text
+compileall 通过
+tests.test_expert1_rd_segment_store_smoke: Ran 6 tests, OK
+stage2 profiling：batch 约 0.2s 到 0.35s
+```

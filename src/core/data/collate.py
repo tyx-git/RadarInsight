@@ -30,6 +30,7 @@ class TrackBatch:
     rd_deep_patch_padding_mask: torch.Tensor
     rd_is_multimodal: torch.Tensor
     rd_phase_missing: torch.Tensor
+    rd_time_sync_status: list[str]
     height_missing: torch.Tensor
     physical_features: torch.Tensor
     lengths: torch.Tensor
@@ -97,6 +98,7 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
     coarse_label_names: list[str] = []
     fine_label_names: list[str] = []
     route_names: list[str] = []
+    rd_time_sync_status: list[str] = []
 
     for idx, item in enumerate(items):
         seq_len = item.valid_length
@@ -128,6 +130,7 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         coarse_label_names.append(item.coarse_label)
         fine_label_names.append(item.fine_label)
         route_names.append(item.route_name)
+        rd_time_sync_status.append(item.rd_time_sync_status)
 
     return TrackBatch(
         sample_ids=sample_ids,
@@ -151,6 +154,7 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
         rd_is_multimodal=rd_is_multimodal,
         rd_phase_missing=rd_phase_missing,
+        rd_time_sync_status=rd_time_sync_status,
         height_missing=height_missing,
         physical_features=physical_features,
         lengths=lengths,

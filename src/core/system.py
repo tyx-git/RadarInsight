@@ -71,6 +71,8 @@ class RadarClassificationSystem(nn.Module):
         rd_clutter_morphology_logit_scale: float = 0.9,
         low_altitude_joint_agreement_prior_scale: float = 0.25,
         low_altitude_rd_specialist_residual_scale: float = 0.35,
+        low_altitude_rd_joint_segment_count: int = 5,
+        low_altitude_enable_rd_segment_joint_tokens: bool = True,
     ) -> None:
         super().__init__()
         rd_dim = 16
@@ -108,6 +110,8 @@ class RadarClassificationSystem(nn.Module):
             rd_clutter_morphology_logit_scale=rd_clutter_morphology_logit_scale,
             joint_agreement_prior_scale=low_altitude_joint_agreement_prior_scale,
             rd_specialist_residual_scale=low_altitude_rd_specialist_residual_scale,
+            rd_joint_segment_count=low_altitude_rd_joint_segment_count,
+            enable_rd_segment_joint_tokens=low_altitude_enable_rd_segment_joint_tokens,
         )
         self.conventional_air_expert = ConventionalAirExpert(sequence_dim=model_dim, physical_dim=physical_input_dim, dropout=dropout)
         self.high_altitude_expert = RuleBasedHighAltitudeExpert()

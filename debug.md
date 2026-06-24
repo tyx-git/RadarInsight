@@ -4929,3 +4929,181 @@ parent_window_balance_power = 0.5
 - 切分策略已经从“离线整段轨迹”推进到“部署式滑窗 + 父轨迹聚合”。
 - 这一步会让离线指标更难看，但更接近真实部署。
 - 如果窗口训练 macro F1 下降，需要先判断是窗口信息量不足还是模型对短序列不适配；不要直接回退到整段 track 指标。
+
+## 2026-05-14：Expert1 RD 流式化首轮优化
+
+本轮目标：
+
+- 按 `target.md` 新 P0，把 Expert1 的 RD 路径从“窗口级重复完整 RD”推进到“父级 RD 复用 + 窗口 RD 裁切 + joint segment token 聚合”。
+- 保持现有 Expert1 V2 训练链路可用，不直接破坏旧 checkpoint 结构。
+
+已完成代码改动：
+
+- `src/core/data/torch_dataset.py`
+  - 新增父级 RD 编码 LRU cache。
+  - 同一 `rd_tensor_path` / `rd_summary_csv_path` 只加载和编码一次。
+  - 新增 `enable_window_rd_time_crop`，窗口索引下按 `parent_sample_id` 的时间范围估计窗口比例，只取当前窗口对应 RD 片段。
+  - 新增 `rd_window_crop_min_frames`，避免极短窗裁切成空 RD。
+- `src/core/experts.py`
+  - 新增 `rd_joint_segment_count`。
+  - 新增 `enable_rd_segment_joint_tokens`。
+  - TR+RD cross-attention 前将 RD frame tokens 聚合为最多 5 个 segment tokens，降低 joint attention 的 RD token 数。
+- `src/core/expert1_config.py`
+  - 新增 RD pipeline 配置字段。
+- `src/core/expert1_data.py`
+  - dataloader 将 RD cache / crop 配置传给 `TorchTrackDataset`。
+- `src/core/expert1_trainer.py`
+  - Expert1 构造接入 RD segment joint token 参数。
+  - 训练报告新增 `rd_pipeline` 字段。
+- `src/core/system.py` / `src/core/system_config.py` / `src/core/system_trainer.py`
+  - System 接回链路同步接入 RD segment joint token 参数。
+- `tmp/expert1_v2_window_stable_full_config.json`
+  - 打开首轮 RD pipeline 开关：
+
+```text
+rd_encoded_cache_size = 256
+enable_window_rd_time_crop = true
+rd_window_crop_min_frames = 2
+rd_joint_segment_count = 5
+enable_rd_segment_joint_tokens = true
+```
+
+验证结果：
+
+```text
+compileall 通过
+Expert1 window dataloader 可正常 collate
+小 batch 前向通过：logits=(2,5), joint_logits=(2,5)
+抽样 CQ08 窗口 RD 长度从完整 128 / 160 帧降至约 40-60 帧
+```
+
+重要边界：
+
+- 这不是最终的持久化 RD segment embedding cache，只是首轮训练可用的内存级 RD 编码复用和 joint token 聚合。
+- 当前 RD 时间裁切使用父轨迹窗口范围的比例映射，适合先修正“完整父 RD 泄漏到每个窗口”的问题；后续仍要做 CQ08 / raw 的显式时间轴对齐。
+- deep patch 仍未做降采样或移除，下一轮必须用消融判断其收益是否值得当前搬运成本。
+
+## 2026-05-15 Expert1 RD Segment Store Smoke 测试重写
+
+目标：
+
+- 将 RD segment store / WindowAssembler / segment-store Dataset 接入可重复 smoke 测试。
+- 通过测试固定数据链路中的隐蔽 bug，避免后续切到正式 `use_rd_segment_store=true` 后才发现。
+
+新增测试：
+
+- `tests/test_expert1_rd_segment_store_smoke.py`
+  - 构建 1 个 parent 的临时 RD segment store。
+  - 验证 `overwrite=True` 会清理目标 store 目录内过期 `*_segments.pt`。
+  - 生成临时 window-to-segment map，并检查 coverage / segment_count。
+  - 使用 `TorchTrackDataset(use_rd_segment_store=True)` 读取真实 CQ08 窗口样本。
+  - 使用 `collate_track_batch` 验证 RD batch shape、length、padding mask、`rd_is_multimodal`。
+  - 用合成 manifest 固定 CSV 字符串 `"False"` 不得被误判为 True。
+
+修复：
+
+- `WindowAssembler` 使用显式布尔解析，避免 CSV 字符串 False 误激活多模态 RD。
+- `build_expert1_rd_segment_store(..., overwrite=True)` 会清理当前 output 目录内旧的 `*_segments.pt`，避免 manifest 已刷新但过期 shard 残留。
+
+验证命令：
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q src\process\build_expert1_rd_segment_store.py src\core\data\rd_segment_store.py src\core\data\torch_dataset.py tests\test_expert1_rd_segment_store_smoke.py
+.\.venv\Scripts\python.exe -m unittest tests.test_expert1_rd_segment_store_smoke -v
+```
+
+验证结果：
+
+```text
+compileall 通过
+Ran 4 tests in 1.215s
+OK
+```
+
+## 2026-05-15 Expert1 窗口训练启动加速
+
+问题：
+
+- `expert1_v2_window_stable_full_config.json` 的窗口训练两天未完成，根因是窗口数放大后仍在训练前和每个窗口上重复触发数据/RD处理。
+- 训练前 class weights、RD class weights、source normalization stats、RD coverage 会扫真实 DataLoader。
+- 当前正式配置已切到 `use_rd_segment_store=true`；下一轮 full 训练将直接验证 segment-store 模式下的速度与精度。
+
+已完成改动：
+
+- class weights / RD class weights / RD coverage 改为 index 级统计，不再读取 RD。
+- source normalization stats 改为只读轨迹 CSV，并按 index 缓存到 `data/processed/<index>_source_feature_stats.json`。
+- DataLoader 增加 `pin_memory` / `persistent_workers` / `prefetch_factor` 参数。
+- 训练器 CUDA 搬运改为支持 `non_blocking_h2d`。
+- 验证节奏增加 `full_val_warmup_epochs`，窗口配置改为 warmup full val + 后续每 3 epoch full val + quick val。
+- `LowAltitudeSuspectExpert` 增加整 batch 无 RD 快路径，全部无 RD 时不再运行 RD encoder / patch CNN / joint fusion。
+- `use_rd_segment_store=true` 默认不再静默回退，缺正式 manifest/map 会直接报错。
+
+验证：
+
+```text
+.\.venv\Scripts\python.exe -m compileall -q src\core\expert1_config.py src\core\expert1_data.py src\core\data\torch_dataset.py src\core\expert1_trainer.py src\core\experts.py tests\test_expert1_rd_segment_store_smoke.py
+通过
+
+.\.venv\Scripts\python.exe -m unittest tests.test_expert1_rd_segment_store_smoke -v
+Ran 6 tests in 1.796s
+OK
+
+.\.venv\Scripts\python.exe -m src.core.train_expert1 --config tmp\expert1_v2_window_speed_smoke_config.json
+1-batch smoke 完整写出 summary/report
+```
+
+限制：
+
+- 沙盒内 `num_workers=2` 性能采样触发 Windows `PermissionError: [WinError 5]`，因此本轮只在 `num_workers=0` 下完成 DataLoader 功能采样。
+- 正式 RD segment store 已构建完成：1228 个 parent shard、9994 个 2s segment，store 总大小约 18.68GB，`failed_parent_count=0`。
+- 正式 window-to-segment map 已生成完成：5798 个有 RD 可训练窗口全部映射成功，`missing_window_count=0`，平均每窗 4.6342 个 segment，平均 RD coverage 为 1.0。
+- `tmp/expert1_v2_window_stable_full_config.json` 已切到 `use_rd_segment_store=true`。
+- 前向 smoke 通过：同一 batch 中 RD 样本 `tr_rd_active=True`、纯轨迹样本 `tr_rd_active=False`，`logits_shape=(2,5)`。
+
+## 2026-05-16 Expert1 stage2 训练降速定位与修复
+
+现象：
+
+- `expert1_v2_window_stable_full_config.json` 训练前三个 epoch 较快。
+- 第 4 个 epoch 开始明显变慢，GPU 风扇停转，表象像 DataLoader 等数据。
+- 训练日志对应阶段切换：epoch 1-3 为 `stage2=off`，epoch 4 起 `stage2=on`。
+
+定位结果：
+
+- 短 profiling 显示 DataLoader 取 batch 通常为 0.07s 到 0.20s，不是主瓶颈。
+- stage2 打开后，含 RD batch 会额外执行一次 `inference_mode="deep_reroute"`。
+- 该 deep reroute auxiliary 会把完整 `rd_deep_patch_features` 送入 deep patch CNN，典型 deep length 约 160 帧。
+- 修改前 stage2 含 deep auxiliary 的 batch 常见 5s 到 8s，极端 batch 超过 20s。
+
+修复：
+
+- `LowAltitudeSuspectExpert.forward(disable_tr_rd_fusion=True)` 直接走 trajectory-only 快路径，stage1 不再做无意义 RD backbone / patch CNN。
+- 新增配置：
+
+```text
+low_altitude_deep_reroute_aux_interval = 4
+low_altitude_deep_reroute_max_frames = 32
+```
+
+- deep reroute auxiliary 改为按 batch 间隔抽样，并对 RD / patch / deep patch 各自时间轴独立下采样，避免不同 RD 张量长度不一致导致索引越界。
+- 报告 summary 记录上述两个速度控制参数。
+
+验证：
+
+```text
+compileall 通过
+tests.test_expert1_rd_segment_store_smoke: Ran 6 tests, OK
+```
+
+短 profiling 对比：
+
+```text
+修改前：stage2 + deep auxiliary batch 常见 5s 到 8s，极端 20s+
+修改后：stage2 batch 约 0.2s 到 0.35s；deep auxiliary batch 也保持在 0.3s 左右
+DataLoader get_batch 仍约 0.07s 到 0.20s
+```
+
+结论：
+
+- 本次“前三轮快、后面慢”的直接原因不是 RD segment store 读取慢，而是 stage2 打开后 deep reroute 全量辅助监督计算过重。
+- 下一轮 full 训练可以从头重跑，不需要继续沿用已中断的旧进程。

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -10,6 +10,7 @@ class Expert1TrainConfig:
     output_dir: str = "artifacts/expert1_v1"
     batch_size: int = 8
     num_workers: int = 0
+    eval_num_workers: int = -1
     epochs: int = 20
     learning_rate: float = 2e-4
     weight_decay: float = 1e-4
@@ -43,6 +44,8 @@ class Expert1TrainConfig:
     low_altitude_rd_clutter_morphology_aux_weight: float = 0.75
     low_altitude_rd_teacher_warmup_epochs: int = 1
     low_altitude_rd_teacher_aux_boost: float = 1.35
+    low_altitude_deep_reroute_aux_interval: int = 1
+    low_altitude_deep_reroute_max_frames: int = 0
     low_altitude_traj_anchor_weight: float = 0.5
     low_altitude_traj_anchor_start_epoch: int = 2
     low_altitude_mutual_weight: float = 1.0
@@ -65,6 +68,9 @@ class Expert1TrainConfig:
     source_balance_power: float = 0.5
     source_label_balance_power: float = 0.25
     parent_window_balance_power: float = 0.5
+    stage2_rd_aware_sampling: bool = True
+    stage2_rd_batch_fraction: float = 0.55
+    stage2_rd_shard_local_sampling: bool = False
     max_sampler_weight: float = 12.0
     unknown_sample_boost: float = 1.0
     clutter_sample_boost: float = 2.0
@@ -97,6 +103,19 @@ class Expert1TrainConfig:
     min_final_net_gain_rate_on_rd_for_best: float = 0.0
     max_final_harm_rate_on_rd_for_best: float = 0.08
     min_final_minus_traj_macro_f1_for_best: float = -0.01
+    min_final_unknown_recall_for_best: float = 0.50
+    min_final_clutter_recall_for_best: float = 0.50
+    min_final_unknown_clutter_recall_mean_for_best: float = 0.55
+    min_release_macro_f1: float = 0.78
+    min_release_final_minus_traj_macro_f1: float = -0.003
+    min_release_joint_minus_traj_macro_f1_on_rd: float = 0.015
+    min_release_rd_evidence_macro_f1_on_rd: float = 0.62
+    min_release_final_net_gain_rate_on_rd: float = 0.015
+    max_release_final_harm_rate_on_rd: float = 0.05
+    min_release_parent_macro_f1: float = 0.82
+    min_release_unknown_recall: float = 0.55
+    min_release_clutter_recall: float = 0.50
+    min_release_without_rd_accuracy: float = 0.84
     min_source_support_for_hard_gate: int = 4
     min_rd_source_support_for_hard_gate: int = 4
     min_rd_class_support_for_hard_gate: int = 4
@@ -111,8 +130,26 @@ class Expert1TrainConfig:
     max_train_batches_per_epoch: int = 0
     quick_val_max_batches: int = 0
     full_val_interval_epochs: int = 1
+    full_val_warmup_epochs: int = 0
     full_val_on_last_epoch: bool = True
+    pin_memory: bool = True
+    persistent_workers: bool = True
+    prefetch_factor: int = 2
+    non_blocking_h2d: bool = True
     joint_logit_delta_scale: float = 1.0
+    joint_logit_delta_eval_scales: list[float] = field(default_factory=lambda: [0.0, 0.25, 0.5, 0.75, 1.0])
+    joint_logit_delta_selection_metric: str = "macro_f1_weak_class_guard"
     rd_specialist_residual_scale: float = 0.35
+    dataset_cache_size: int = 64
+    rd_encoded_cache_size: int = 256
+    enable_window_rd_time_crop: bool = True
+    rd_window_crop_min_frames: int = 2
+    rd_joint_segment_count: int = 5
+    enable_rd_segment_joint_tokens: bool = True
+    use_rd_segment_store: bool = False
+    rd_segment_manifest_name: str = "expert1_rd_segment_manifest.csv"
+    window_segment_map_name: str = "expert1_window_segment_map.csv"
+    rd_segment_store_cache_size: int = 64
+    allow_rd_segment_store_fallback: bool = False
     seed: int = 42
     device: str = "cuda"

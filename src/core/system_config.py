@@ -87,6 +87,8 @@ class SystemTrainConfig:
     rd_clutter_morphology_logit_scale: float = 0.9
     low_altitude_joint_agreement_prior_scale: float = 0.25
     low_altitude_rd_specialist_residual_scale: float = 0.35
+    low_altitude_rd_joint_segment_count: int = 5
+    low_altitude_enable_rd_segment_joint_tokens: bool = True
     enable_low_altitude_reject_in_train: bool = False
     enable_low_altitude_reject_in_eval: bool = False
     consistency_loss_weight: float = 0.3

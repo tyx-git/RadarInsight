@@ -356,6 +356,26 @@ def _load_expert1_bundle(model: nn.Module, checkpoint_path: str, device: torch.d
         info["rd_proj"] = _load_compatible_state_dict(model.rd_proj, checkpoint["rd_proj_state_dict"])
     model_key = checkpoint.get("model_state_dict", {})
     info["expert_module"] = _load_compatible_state_dict(model.low_altitude_expert, model_key)
+    checkpoint_config = checkpoint.get("config", {})
+    selected_joint_logit_delta_scale = checkpoint.get("selected_joint_logit_delta_scale")
+    if selected_joint_logit_delta_scale is None and isinstance(checkpoint_config, dict):
+        selected_joint_logit_delta_scale = checkpoint_config.get(
+            "selected_joint_logit_delta_scale",
+            checkpoint_config.get("joint_logit_delta_scale"),
+        )
+    if selected_joint_logit_delta_scale is not None and hasattr(model.low_altitude_expert, "joint_logit_delta_scale"):
+        selected_joint_logit_delta_scale = float(selected_joint_logit_delta_scale)
+        model.low_altitude_expert.joint_logit_delta_scale = selected_joint_logit_delta_scale
+        info["selected_joint_logit_delta_scale"] = selected_joint_logit_delta_scale
+    precision_logit_bias = checkpoint.get("precision_logit_bias")
+    if precision_logit_bias is None and isinstance(checkpoint_config, dict):
+        precision_logit_bias = checkpoint_config.get("precision_logit_bias")
+    if precision_logit_bias is not None and hasattr(model.low_altitude_expert, "set_precision_logit_bias"):
+        model.low_altitude_expert.set_precision_logit_bias(precision_logit_bias)
+        info["precision_logit_bias"] = [
+            float(item)
+            for item in getattr(model.low_altitude_expert, "precision_logit_bias", []) or []
+        ]
     return info
 
 
@@ -2934,6 +2954,8 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
         low_altitude_joint_agreement_prior_scale=config.low_altitude_joint_agreement_prior_scale,
         low_altitude_rd_specialist_residual_scale=config.low_altitude_rd_specialist_residual_scale,
+        low_altitude_rd_joint_segment_count=config.low_altitude_rd_joint_segment_count,
+        low_altitude_enable_rd_segment_joint_tokens=config.low_altitude_enable_rd_segment_joint_tokens,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None
