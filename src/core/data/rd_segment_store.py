@@ -63,9 +63,9 @@ def resolve_processed_path(data_root: Path | str, path_name: str) -> Path:
 
 def _load_torch_payload(path: Path) -> dict[str, Any]:
     try:
-        return torch.load(path, map_location="cpu", weights_only=False)
+        return torch.load(path, map_location="cpu", weights_only=False, mmap=True)
     except TypeError:
-        return torch.load(path, map_location="cpu")
+        return torch.load(path, map_location="cpu", mmap=True)
 
 
 def _json_list(value: object) -> list[Any]:
@@ -233,7 +233,12 @@ class WindowAssembler:
         )
         return selected_rows, assembly
 
-    def assemble(self, row: pd.Series | dict[str, object]) -> tuple[EncodedRDSequence | None, bool, WindowSegmentAssembly | None]:
+    def assemble(
+        self,
+        row: pd.Series | dict[str, object],
+        max_patch_frames: int = 0,
+        skip_deep_patch: bool = False,
+    ) -> tuple[EncodedRDSequence | None, bool, WindowSegmentAssembly | None]:
         selected_rows, assembly = self.select_segment_rows(row)
         if not selected_rows or assembly is None:
             return None, False, None
@@ -263,8 +268,15 @@ class WindowAssembler:
             if rd_len > 0:
                 features.append(segment["rd_features"][:rd_len].to(torch.float32).contiguous())
             if patch_len > 0:
-                patch_features.append(segment["rd_patch_features"][:patch_len].to(torch.float32).contiguous())
-            if deep_len > 0:
+                # Limit frames loaded from disk: subsample BEFORE contiguous()
+                # to minimise mmap page reads
+                if max_patch_frames > 0 and patch_len > max_patch_frames:
+                    step = max(1, patch_len // max_patch_frames)
+                    patch_src = segment["rd_patch_features"][:patch_len:step][:max_patch_frames]
+                else:
+                    patch_src = segment["rd_patch_features"][:patch_len]
+                patch_features.append(patch_src.to(torch.float32).contiguous())
+            if not skip_deep_patch and deep_len > 0:
                 deep_patch_features.append(segment["rd_deep_patch_features"][:deep_len].to(torch.float32).contiguous())
         if not features:
             return None, False, None

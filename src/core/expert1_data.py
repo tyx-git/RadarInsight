@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from collections import defaultdict
 from dataclasses import dataclass
+import functools
 from pathlib import Path
 import json
 import random
@@ -123,6 +124,7 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
         rd_fraction: float = 0.55,
         seed: int = 42,
         shard_keys_by_index: dict[int, str] | None = None,
+        shard_group_batches: int = 4,
     ) -> None:
         self.rd_indices = [int(item) for item in rd_indices]
         self.no_rd_indices = [int(item) for item in no_rd_indices]
@@ -131,6 +133,7 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
         self.rd_fraction = float(min(1.0, max(0.0, rd_fraction)))
         self.seed = int(seed)
         self.shard_keys_by_index = dict(shard_keys_by_index or {})
+        self.shard_group_batches = int(max(1, shard_group_batches))
         if not self.rd_indices or not self.no_rd_indices:
             self.num_batches = 0
             self._shard_keys: list[str] = []
@@ -163,8 +166,17 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
         if self.num_batches <= 0:
             return
         rng = random.Random(self.seed)
-        for _ in range(self.num_batches):
-            shard_key = rng.choices(self._shard_keys, weights=self._shard_weights, k=1)[0]
+        # Build shard visit order: each shard gets shard_group_batches
+        # consecutive batches before moving to the next shard.
+        # This maximises LRU cache hits for shard payloads.
+        shard_order: list[str] = []
+        for shard_key in self._shard_keys:
+            shard_order.extend([shard_key] * self.shard_group_batches)
+        rng.shuffle(shard_order)
+        yield_count = 0
+        for shard_key in shard_order:
+            if yield_count >= self.num_batches:
+                break
             shard_indices = self._rd_by_shard[shard_key]
             rd_weights = [max(1.0e-6, self.sample_weights[item]) for item in shard_indices]
             batch: list[int] = []
@@ -185,6 +197,7 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
             batch.extend(rng.choices(self.no_rd_indices, weights=self.no_rd_weights, k=self.no_rd_per_batch))
             rng.shuffle(batch)
             yield batch
+            yield_count += 1
 
     def __len__(self) -> int:
         return int(self.num_batches)
@@ -328,6 +341,7 @@ def build_expert1_dataloaders(
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
+    validate_csv_files: bool = True,
 ) -> Expert1LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name=index_name)
     frame = dataset.to_frame().copy()
@@ -336,8 +350,9 @@ def build_expert1_dataloaders(
         trainable_mask = frame["is_trainable"].map(lambda value: str(value).strip().lower() in {"true", "1", "yes"})
         frame = frame[trainable_mask].copy()
     project_root = Path(data_root).parent
-    csv_exists = frame["csv_path"].astype(str).map(lambda rel: (project_root / rel).exists())
-    frame = frame[csv_exists].copy()
+    if validate_csv_files:
+        csv_exists = frame["csv_path"].astype(str).map(lambda rel: (project_root / rel).exists())
+        frame = frame[csv_exists].copy()
     cq08_split_path = Path(data_root) / "manifests" / "cq08_grouped_split.json"
     if "split_name" in frame.columns:
         split_frame = frame[frame["split_name"].astype(str).isin({"train", "val", "test"})].copy()
@@ -385,6 +400,8 @@ def build_expert1_dataloaders(
         "window_segment_map_name": window_segment_map_name,
         "rd_segment_store_cache_size": rd_segment_store_cache_size,
         "allow_rd_segment_store_fallback": allow_rd_segment_store_fallback,
+        "max_patch_frames": 32,
+        "skip_deep_patch": True,
     }
     train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, load_rd=False, **dataset_kwargs)
     stage2_train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, load_rd=True, **dataset_kwargs)
@@ -441,9 +458,10 @@ def build_expert1_dataloaders(
 
     worker_count = int(max(0, num_workers))
     eval_worker_count = worker_count if int(eval_num_workers) < 0 else int(max(0, eval_num_workers))
+    _collate = functools.partial(collate_track_batch, max_deep_patch_frames=32)
     train_loader_kwargs = {
         "num_workers": worker_count,
-        "collate_fn": collate_track_batch,
+        "collate_fn": _collate,
         "pin_memory": bool(pin_memory),
     }
     if worker_count > 0:
@@ -451,7 +469,7 @@ def build_expert1_dataloaders(
         train_loader_kwargs["prefetch_factor"] = int(max(1, prefetch_factor))
     eval_loader_kwargs = {
         "num_workers": eval_worker_count,
-        "collate_fn": collate_track_batch,
+        "collate_fn": _collate,
         "pin_memory": bool(pin_memory),
     }
     if eval_worker_count > 0:
@@ -493,6 +511,7 @@ def build_expert1_dataloaders(
                     data_root,
                     window_segment_map_name,
                 ),
+                shard_group_batches=4,
             )
         else:
             stage2_batch_sampler = RDAwareBatchSampler(

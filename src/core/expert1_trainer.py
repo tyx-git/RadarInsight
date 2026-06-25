@@ -3,6 +3,8 @@ from __future__ import annotations
 import csv
 import json
 import random
+import sys
+import time as _time
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -3514,7 +3516,17 @@ def _run_epoch(
     )
 
     should_compute_aux_loss = train if compute_aux_loss is None else bool(compute_aux_loss)
+    _phase = "train" if train else "val"
+    _total_batches = max_batches if max_batches > 0 else len(loader)
+    _epoch_t0 = _time.time()
+    _batch_t0 = _epoch_t0
+    sys.stderr.write(f"  [{_phase}] entering loop: {_total_batches} batches, loader_len={len(loader)}\n")
+    sys.stderr.flush()
     for batch_index, batch in enumerate(loader, start=1):
+        if batch_index == 1:
+            _first_batch_t = _time.time() - _epoch_t0
+            sys.stderr.write(f"  [{_phase}] first batch loaded in {_first_batch_t:.2f}s\n")
+            sys.stderr.flush()
         if max_batches > 0 and batch_index > max_batches:
             break
         non_blocking_h2d = bool(config.non_blocking_h2d)
@@ -3964,6 +3976,26 @@ def _run_epoch(
             rd_class_fusion_weights_all.append(output.rd_class_fusion_weights.detach().cpu())
         if output.rd_pair_fusion_weights is not None:
             rd_pair_fusion_weights_all.append(output.rd_pair_fusion_weights.detach().cpu())
+
+        # Progress logging every 50 batches (or every batch if < 50 total)
+        _log_interval = max(1, min(50, _total_batches // 4))
+        if batch_index % _log_interval == 0 or batch_index == _total_batches:
+            _batch_elapsed = _time.time() - _batch_t0
+            _epoch_elapsed = _time.time() - _epoch_t0
+            _avg_batch = _epoch_elapsed / batch_index
+            _eta = _avg_batch * (_total_batches - batch_index)
+            _has_rd_count = sum(1 for x in batch.rd_is_multimodal.tolist() if x)
+            print(
+                f"  [{_phase}] batch {batch_index}/{_total_batches} "
+                f"batch_time={_batch_elapsed:.1f}s "
+                f"avg={_avg_batch:.1f}s/batch "
+                f"elapsed={_epoch_elapsed:.0f}s "
+                f"ETA={_eta:.0f}s "
+                f"loss={float(loss.detach().cpu()):.4f} "
+                f"rd={_has_rd_count}/{len(batch.rd_is_multimodal)}",
+                flush=True,
+            )
+            _batch_t0 = _time.time()
 
     if not logits_all:
         precision_logit_bias = _normalize_precision_logit_bias(getattr(model, "precision_logit_bias", None))
@@ -4421,6 +4453,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         pin_memory=config.pin_memory,
         persistent_workers=config.persistent_workers,
         prefetch_factor=config.prefetch_factor,
+        validate_csv_files=False,
     )
     representation_builder = TrackRepresentationBuilder(
         sequence_input_dim=10,
@@ -4719,6 +4752,17 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         stage2_epoch = max(0, epoch - config.stage1_traj_only_epochs)
         _set_track_encoder_trainable(representation_builder, epoch > config.freeze_track_encoder_epochs)
         train_loader = loaders.stage2_train_loader if stage2_enabled else loaders.train_loader
+        _n_batches = len(train_loader) if config.max_train_batches_per_epoch <= 0 else min(config.max_train_batches_per_epoch, len(train_loader))
+        sys.stderr.write(f"[epoch={epoch:02d}] about to call _run_epoch(train), loader={'stage2' if stage2_enabled else 'stage1'}, len={len(train_loader)}, max={config.max_train_batches_per_epoch}\n")
+        sys.stderr.flush()
+        print(
+            f"[*] epoch={epoch:02d} START  "
+            f"stage2={'on' if stage2_enabled else 'off'} "
+            f"scale={stage2_scale:.2f} "
+            f"batches={_n_batches} "
+            f"loader={'stage2' if stage2_enabled else 'stage1'}",
+            flush=True,
+        )
         train_metrics = _run_epoch(
             representation_builder,
             rd_proj,
@@ -4737,6 +4781,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             anchor_traj_logits,
             max_batches=config.max_train_batches_per_epoch,
         )
+        sys.stderr.write(f"[epoch={epoch:02d}] train _run_epoch returned: loss={train_metrics.get('loss', 'N/A')}, batches={train_metrics.get('evaluated_batches', 0)}\n")
+        sys.stderr.flush()
         train_metrics["stage2_rd_aware_sampling"] = bool(stage2_enabled and config.stage2_rd_aware_sampling)
         train_metrics["stage2_rd_shard_local_sampling"] = bool(
             stage2_enabled
@@ -4752,6 +4798,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             or (config.full_val_on_last_epoch and epoch == config.epochs)
         )
         val_max_batches = 0 if full_val_due else config.quick_val_max_batches
+        sys.stderr.write(f"[epoch={epoch:02d}] about to call _run_epoch(val), full_val_due={full_val_due}, max={val_max_batches}\n")
+        sys.stderr.flush()
         val_metrics = _run_epoch(
             representation_builder,
             rd_proj,
@@ -4770,6 +4818,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             max_batches=val_max_batches,
             compute_aux_loss=config.compute_eval_aux_loss,
         )
+        sys.stderr.write(f"[epoch={epoch:02d}] val _run_epoch returned: f1={val_metrics.get('macro_f1', 'N/A')}, batches={val_metrics.get('evaluated_batches', 0)}\n")
+        sys.stderr.flush()
         val_metrics["validation_scope"] = "full" if val_max_batches <= 0 else "quick"
         if full_val_due and window_metadata:
             val_parent_aggregation = _parent_window_aggregation_metrics(val_metrics, window_metadata)
@@ -4815,7 +4865,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             }
         )
         print(
-            f"[*] epoch={epoch:02d} "
+            f"[*] epoch={epoch:02d} END    "
             f"stage2={'on' if stage2_enabled else 'off'} "
             f"rd_warmup={'on' if stage2_enabled and stage2_epoch > 0 and stage2_epoch <= config.low_altitude_rd_teacher_warmup_epochs else 'off'} "
             f"scale={stage2_scale:.2f} "
@@ -4823,7 +4873,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             f"train_loss={train_metrics['loss']:.4f} "
             f"val_f1={val_metrics['macro_f1']:.4f} "
             f"val_scope={val_metrics['validation_scope']} "
-            f"val_batches={val_metrics.get('evaluated_batches', 0)}"
+            f"val_batches={val_metrics.get('evaluated_batches', 0)}",
+            flush=True,
         )
         can_replace_best = full_val_due and val_selection_eligible and val_selection_score > best_val
         selection_reason = "stage2_v2_joint_composite" if stage2_enabled else "trajectory_anchor_composite"

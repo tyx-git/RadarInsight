@@ -69,7 +69,11 @@ class TorchTrackDataset(Dataset):
         rd_segment_store_cache_size: int = 64,
         allow_rd_segment_store_fallback: bool = False,
         load_rd: bool = True,
+        max_patch_frames: int = 32,
+        skip_deep_patch: bool = True,
     ) -> None:
+        self._max_patch_frames = int(max_patch_frames)
+        self._skip_deep_patch = bool(skip_deep_patch)
         base_dataset = TrackDataset(data_root, trainable_only=trainable_only, index_name=index_name)
         index_df = base_dataset.to_frame()
         if sample_ids is not None:
@@ -235,7 +239,11 @@ class TorchTrackDataset(Dataset):
     def _load_segment_store_rd(self, row) -> tuple[EncodedRDSequence | None, bool, str]:
         if self._window_assembler is None:
             return None, False, ""
-        encoded, rd_is_multimodal, assembly = self._window_assembler.assemble(row)
+        encoded, rd_is_multimodal, assembly = self._window_assembler.assemble(
+            row,
+            max_patch_frames=self._max_patch_frames,
+            skip_deep_patch=self._skip_deep_patch,
+        )
         if encoded is None:
             return None, False, ""
         status_counts = assembly.rd_time_sync_status_counts if assembly is not None else {}

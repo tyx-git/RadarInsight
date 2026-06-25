@@ -37,7 +37,10 @@ class TrackBatch:
     padding_mask: torch.Tensor
 
 
-def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
+def collate_track_batch(
+    items: list[TorchTrackItem],
+    max_deep_patch_frames: int = 32,
+) -> TrackBatch:
     if not items:
         raise ValueError("cannot collate empty batch")
     max_len = max(item.valid_length for item in items)
@@ -45,6 +48,8 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
     max_rd_len = max(item.rd_valid_length for item in items)
     max_rd_patch_len = max(item.rd_patch_valid_length for item in items)
     max_rd_deep_patch_len = max(item.rd_deep_patch_valid_length for item in items)
+    if max_deep_patch_frames > 0 and max_rd_deep_patch_len > max_deep_patch_frames:
+        max_rd_deep_patch_len = max_deep_patch_frames
     batch_size = len(items)
 
     features = torch.zeros((batch_size, max_len, feature_dim), dtype=torch.float32)
@@ -108,11 +113,20 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         features[idx, :seq_len] = item.features
         rd_features[idx, :rd_len] = item.rd_features
         rd_patch_features[idx, :rd_patch_len] = item.rd_patch_features
-        rd_deep_patch_features[idx, :rd_deep_patch_len] = item.rd_deep_patch_features
+        # Deep patch: subsample frames if source has more than max_deep_patch_frames
+        if max_deep_patch_frames > 0 and rd_deep_patch_len > max_deep_patch_frames:
+            step = max(1, rd_deep_patch_len // max_deep_patch_frames)
+            src = item.rd_deep_patch_features[:rd_deep_patch_len:step][:max_deep_patch_frames]
+            sub_len = src.shape[0]
+            rd_deep_patch_features[idx, :sub_len] = src
+            rd_deep_patch_lengths[idx] = sub_len
+        else:
+            rd_deep_patch_features[idx, :rd_deep_patch_len] = item.rd_deep_patch_features
+            rd_deep_patch_lengths[idx] = rd_deep_patch_len
         padding_mask[idx, :seq_len] = False
         rd_padding_mask[idx, :rd_len] = False
         rd_patch_padding_mask[idx, :rd_patch_len] = False
-        rd_deep_patch_padding_mask[idx, :rd_deep_patch_len] = False
+        rd_deep_patch_padding_mask[idx, :rd_deep_patch_lengths[idx]] = False
         labels[idx] = item.label_index
         fine_labels[idx] = item.fine_label_index
         route_labels[idx] = item.route_index
@@ -123,7 +137,6 @@ def collate_track_batch(items: list[TorchTrackItem]) -> TrackBatch:
         lengths[idx] = seq_len
         rd_lengths[idx] = rd_len
         rd_patch_lengths[idx] = rd_patch_len
-        rd_deep_patch_lengths[idx] = rd_deep_patch_len
         sample_ids.append(item.sample_id)
         source_names.append(item.source_name)
         label_names.append(item.label_name)
