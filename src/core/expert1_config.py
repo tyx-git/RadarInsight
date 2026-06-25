@@ -22,6 +22,7 @@ class Expert1TrainConfig:
     low_altitude_rd_focal_gamma: float = 1.5
     low_altitude_rd_binary_aux_weight: float = 0.4
     low_altitude_rd_pairwise_aux_weight: float = 0.8
+    low_altitude_traj_pairwise_aux_weight: float = 0.3
     low_altitude_rd_unknown_pairwise_aux_weight: float = 0.8
     low_altitude_rd_clutter_pairwise_aux_weight: float = 0.8
     low_altitude_rd_unknown_clutter_pairwise_aux_weight: float = 0.9

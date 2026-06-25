@@ -3516,6 +3516,8 @@ def _run_epoch(
     )
 
     should_compute_aux_loss = train if compute_aux_loss is None else bool(compute_aux_loss)
+    drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
+    bird_index = LOW_ALTITUDE_CLASSES.index("BirdTarget")
     _phase = "train" if train else "val"
     _total_batches = max_batches if max_batches > 0 else len(loader)
     _epoch_t0 = _time.time()
@@ -3904,6 +3906,18 @@ def _run_epoch(
             else:
                 mutual_loss = torch.tensor(0.0, device=device)
                 contrastive_loss = torch.tensor(0.0, device=device)
+            # Trajectory Drone-Bird pairwise: covers ALL samples (including no-RD excel_track)
+            if should_compute_aux_loss and config.low_altitude_traj_pairwise_aux_weight > 0.0:
+                _t_db_mask = (labels == drone_index) | (labels == bird_index)
+                if _t_db_mask.any():
+                    _t_db_targets = (labels[_t_db_mask] == bird_index).long()
+                    _t_db_logits = output.traj_logits[_t_db_mask][:, [drone_index, bird_index]]
+                    _t_db_loss = torch.nn.functional.cross_entropy(
+                        _t_db_logits,
+                        _t_db_targets,
+                        weight=torch.tensor([1.0, 1.5], dtype=torch.float32, device=device),
+                    )
+                    main_loss = main_loss + config.low_altitude_traj_pairwise_aux_weight * _t_db_loss
             loss = (
                 main_loss
                 + config.low_altitude_traj_supervision_weight * traj_supervision_loss
