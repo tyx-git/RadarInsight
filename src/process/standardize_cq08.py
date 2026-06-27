@@ -88,10 +88,16 @@ def _load_rd_stack(rd_mat_files: list[str]) -> tuple[np.ndarray, np.ndarray]:
     target_shape: tuple[int, int] | None = None
     for mat_file in rd_mat_files:
         payload = loadmat(mat_file)
-        rd = np.asarray(payload["data_proc_MTD_result_db"], dtype=np.float32)
-        rd = np.nan_to_num(rd, nan=0.0, posinf=0.0, neginf=0.0)
-        amplitude = rd
-        phase = np.zeros_like(amplitude, dtype=np.float32)
+        # Amplitude: use the pre-computed dB version (unchanged behavior).
+        amplitude = np.asarray(payload["data_proc_MTD_result_db"], dtype=np.float32)
+        amplitude = np.nan_to_num(amplitude, nan=0.0, posinf=0.0, neginf=0.0)
+        # Phase: extract from complex data when available.
+        if "data_proc_MTD_result" in payload:
+            complex_rd = np.asarray(payload["data_proc_MTD_result"], dtype=np.complex128)
+            phase = np.angle(complex_rd).astype(np.float32)
+            phase = np.nan_to_num(phase, nan=0.0, posinf=0.0, neginf=0.0)
+        else:
+            phase = np.zeros_like(amplitude, dtype=np.float32)
         if target_shape is None:
             target_shape = tuple(int(x) for x in amplitude.shape)
         if tuple(amplitude.shape) != target_shape:
@@ -174,7 +180,7 @@ def export_cq08_tracks(project_root: Path, limit: int | None = None) -> list[Dic
                 "rd_path": str(item["raw_echo_file"]),
                 "rd_summary_csv_path": f"data/processed/cq08_rd/{sample_id.replace('|', '__')}_rd_summary.csv",
                 "rd_tensor_path": f"data/processed/cq08_rd/{sample_id.replace('|', '__')}_rd_tensor.npz",
-                "rd_phase_missing": True,
+                "rd_phase_missing": False,
                 "height_missing": True,
             }
         )
