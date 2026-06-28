@@ -282,7 +282,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
         ]
         self.rd_model_dim = 512
-        self.rd_stats_input_dim = 8
+        self.rd_stats_input_dim = 16
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
@@ -504,6 +504,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             )
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
+        # amp_range: [B, T, R], phase_range: [B, T, R], amp_dopp: [B, T, D], phase_dopp: [B, T, D]
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
         amp_std = amp_range.std(dim=-1, keepdim=True).clamp_min(1e-6)
         centered = amp_range - amp_mean
@@ -522,16 +523,64 @@ class LowAltitudeSuspectExpert(nn.Module):
             temporal_roughness = (amp_range[:, 1:] - amp_range[:, :-1]).abs().mean(dim=(1, 2), keepdim=False).unsqueeze(-1)
         else:
             temporal_roughness = amp_range.new_zeros((amp_range.shape[0], 1))
+
+        # --- New features: range/doppler centroid dynamics ---
+        range_bins = torch.arange(1, range_energy.shape[-1] + 1, device=range_energy.device, dtype=range_energy.dtype)
+        doppler_bins = torch.arange(1, doppler_energy.shape[-1] + 1, device=doppler_energy.device, dtype=doppler_energy.dtype)
+        range_centroid = (range_energy * range_bins).sum(dim=-1) / range_energy.sum(dim=-1).clamp_min(1e-6)  # [B, T]
+        doppler_centroid = (doppler_energy * doppler_bins).sum(dim=-1) / doppler_energy.sum(dim=-1).clamp_min(1e-6)  # [B, T]
+        range_centroid_std = range_centroid.std(dim=-1, keepdim=True)  # [B, 1]
+        doppler_centroid_std = doppler_centroid.std(dim=-1, keepdim=True)  # [B, 1]
+
+        # --- Temporal autocorrelation of frame energy ---
+        frame_energy = amp_range.mean(dim=-1)  # [B, T]
+        if frame_energy.shape[1] > 2:
+            fe_mean = frame_energy.mean(dim=-1, keepdim=True)
+            fe_centered = frame_energy - fe_mean
+            fe_var = fe_centered.pow(2).mean(dim=-1).clamp_min(1e-8)
+            autocorr_lag1 = (fe_centered[:, 1:] * fe_centered[:, :-1]).mean(dim=-1) / fe_var  # [B]
+            temporal_autocorr = autocorr_lag1.unsqueeze(-1)
+        else:
+            temporal_autocorr = amp_range.new_zeros((amp_range.shape[0], 1))
+
+        # --- Spectral bandwidth of range energy ---
+        range_energy_mean = range_energy.mean(dim=1)  # [B, R]
+        re_norm = range_energy_mean / range_energy_mean.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        range_centroid_global = (re_norm * range_bins).sum(dim=-1, keepdim=True)
+        spectral_bandwidth = ((re_norm * (range_bins - range_centroid_global).pow(2)).sum(dim=-1)).sqrt().unsqueeze(-1)
+
+        # --- Energy temporal burstiness (std/mean of frame energy) ---
+        energy_burstiness = (frame_energy.std(dim=-1) / frame_energy.mean(dim=-1).clamp_min(1e-6)).unsqueeze(-1)
+
+        # --- Top-bin concentration: fraction of energy in top 10% bins ---
+        range_sorted, _ = range_energy.mean(dim=1).sort(dim=-1, descending=True)
+        top_k_r = max(1, range_sorted.shape[-1] // 10)
+        range_top10_conc = range_sorted[:, :top_k_r].sum(dim=-1) / range_sorted.sum(dim=-1).clamp_min(1e-6)
+        range_top10_conc = range_top10_conc.unsqueeze(-1)
+
+        doppler_sorted, _ = doppler_energy.mean(dim=1).sort(dim=-1, descending=True)
+        top_k_d = max(1, doppler_sorted.shape[-1] // 10)
+        doppler_top10_conc = doppler_sorted[:, :top_k_d].sum(dim=-1) / doppler_sorted.sum(dim=-1).clamp_min(1e-6)
+        doppler_top10_conc = doppler_top10_conc.unsqueeze(-1)
+
         stats = torch.cat(
             [
-                amp_skew,
-                amp_kurt,
-                phase_abs_mean,
-                phase_std,
-                range_entropy,
-                doppler_entropy,
-                peak_to_mean,
-                temporal_roughness,
+                amp_skew,               # 0: amplitude skewness
+                amp_kurt,               # 1: amplitude kurtosis
+                phase_abs_mean,         # 2: phase coherence
+                phase_std,              # 3: phase stability
+                range_entropy,          # 4: range energy spread
+                doppler_entropy,        # 5: doppler energy spread
+                peak_to_mean,           # 6: range peak spikiness
+                temporal_roughness,     # 7: frame-to-frame amplitude change
+                range_centroid_std,     # 8: range centroid temporal variation
+                doppler_centroid_std,   # 9: doppler centroid temporal variation
+                temporal_autocorr,      # 10: frame energy lag-1 autocorrelation
+                spectral_bandwidth,     # 11: range spectral bandwidth
+                energy_burstiness,      # 12: temporal energy burstiness
+                range_top10_conc,       # 13: range top-10% energy concentration
+                doppler_top10_conc,     # 14: doppler top-10% energy concentration
+                amp_range.new_zeros((amp_range.shape[0], 1)),  # 15: reserved
             ],
             dim=-1,
         )
