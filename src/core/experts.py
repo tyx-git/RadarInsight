@@ -158,6 +158,7 @@ class LowAltitudeFusionOutput:
     joint_reliability_logits: torch.Tensor | None = None
     joint_rd_weight: torch.Tensor | None = None
     joint_track_weight: torch.Tensor | None = None
+    drone_bird_micro_doppler_logits: torch.Tensor | None = None
 
     @property
     def rd_activated(self) -> torch.Tensor:
@@ -282,7 +283,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
         ]
         self.rd_model_dim = 512
-        self.rd_stats_input_dim = 22
+        self.rd_stats_input_dim = 16
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
@@ -443,6 +444,13 @@ class LowAltitudeSuspectExpert(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(96, 2),
         )
+        # Drone/Bird micro-Doppler auxiliary head (6 features → 2-class: Drone vs Bird)
+        self.drone_bird_micro_doppler_head = nn.Sequential(
+            nn.Linear(6, 32),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 2),
+        )
         self.joint_dim = 512
         if hidden_dim == self.joint_dim:
             self.joint_traj_proj = nn.LayerNorm(self.joint_dim)
@@ -568,53 +576,10 @@ class LowAltitudeSuspectExpert(nn.Module):
         doppler_top10_conc = doppler_sorted[:, :top_k_d].sum(dim=-1) / doppler_sorted.sum(dim=-1).clamp_min(1e-6)
         doppler_top10_conc = doppler_top10_conc.unsqueeze(-1)
 
-        # --- Micro-Doppler features: spectral shape per frame ---
-        # Doppler spectral moments (per frame, then averaged over time)
-        dopp_mean_per_frame = doppler_energy.mean(dim=-1, keepdim=True)  # [B, T, 1]
-        dopp_std_per_frame = doppler_energy.std(dim=-1, keepdim=True).clamp_min(1e-6)
-        dopp_centered = doppler_energy - dopp_mean_per_frame
-        # Spectral skewness: asymmetry of doppler spectrum
-        doppler_spectral_skew = (dopp_centered.pow(3).mean(dim=-1) / dopp_std_per_frame.squeeze(-1).pow(3)).mean(dim=-1, keepdim=True)
-        # Spectral kurtosis: peakedness of doppler spectrum
-        doppler_spectral_kurt = (dopp_centered.pow(4).mean(dim=-1) / dopp_std_per_frame.squeeze(-1).pow(4)).mean(dim=-1, keepdim=True)
-
-        # 3dB bandwidth of doppler spectrum per frame
-        dopp_peak = doppler_energy.max(dim=-1, keepdim=True).values  # [B, T, 1]
-        dopp_half_max = dopp_peak * 0.5
-        dopp_above_half = (doppler_energy >= dopp_half_max).float()  # [B, T, D]
-        # Count contiguous bins above half-max (approximate bandwidth)
-        doppler_bw = dopp_above_half.sum(dim=-1).float()  # [B, T]
-        doppler_bw_mean = doppler_bw.mean(dim=-1, keepdim=True)  # [B, 1]
-        # Temporal variation of doppler bandwidth
-        if doppler_bw.shape[1] > 1:
-            doppler_bw_temporal_std = doppler_bw.std(dim=-1, keepdim=True)
-        else:
-            doppler_bw_temporal_std = amp_range.new_zeros((amp_range.shape[0], 1))
-
-        # --- RCS scintillation: amplitude temporal variation ---
-        # Coefficient of variation of per-frame mean amplitude
-        frame_amp_mean = amp_range.mean(dim=-1)  # [B, T]
-        rcs_scintillation = (frame_amp_mean.std(dim=-1) / frame_amp_mean.mean(dim=-1).clamp_min(1e-6)).unsqueeze(-1)
-
-        # --- Frame-to-frame RD patch correlation ---
-        # Normalize each frame's range profile, compute lag-1 correlation
-        if amp_range.shape[1] > 1:
-            amp_norm = amp_range - amp_range.mean(dim=-1, keepdim=True)
-            amp_norm = amp_norm / amp_norm.pow(2).sum(dim=-1, keepdim=True).sqrt().clamp_min(1e-6)
-            # Correlation between adjacent frames: sum of element-wise product
-            frame_corr = (amp_norm[:, 1:] * amp_norm[:, :-1]).sum(dim=-1)  # [B, T-1]
-            frame_rd_correlation = frame_corr.mean(dim=-1, keepdim=True)  # [B, 1]
-        else:
-            frame_rd_correlation = amp_range.new_zeros((amp_range.shape[0], 1))
-
         # --- Zero out doppler features for 2D data (no doppler dimension) ---
         doppler_entropy = doppler_entropy * doppler_valid
         doppler_centroid_std = doppler_centroid_std * doppler_valid
         doppler_top10_conc = doppler_top10_conc * doppler_valid
-        doppler_spectral_skew = doppler_spectral_skew * doppler_valid
-        doppler_spectral_kurt = doppler_spectral_kurt * doppler_valid
-        doppler_bw_mean = doppler_bw_mean * doppler_valid
-        doppler_bw_temporal_std = doppler_bw_temporal_std * doppler_valid
 
         stats = torch.cat(
             [
@@ -633,18 +598,62 @@ class LowAltitudeSuspectExpert(nn.Module):
                 energy_burstiness,      # 12: temporal energy burstiness
                 range_top10_conc,       # 13: range top-10% energy concentration
                 doppler_top10_conc,     # 14: doppler top-10% energy concentration
-                doppler_spectral_skew,  # 15: doppler spectral skewness
-                doppler_spectral_kurt,  # 16: doppler spectral kurtosis
-                doppler_bw_mean,        # 17: mean doppler 3dB bandwidth (bins)
-                doppler_bw_temporal_std,# 18: doppler bandwidth temporal variation
-                rcs_scintillation,      # 19: amplitude coefficient of variation
-                frame_rd_correlation,   # 20: inter-frame RD correlation
-                amp_range.new_zeros((amp_range.shape[0], 1)),  # 21: reserved
+                amp_range.new_zeros((amp_range.shape[0], 1)),  # 15: reserved
             ],
             dim=-1,
         )
         stats = torch.nan_to_num(stats, nan=0.0, posinf=0.0, neginf=0.0)
         return stats
+
+    def _micro_doppler_features(self, rd_features: torch.Tensor) -> torch.Tensor:
+        """Extract 6 micro-Doppler features for Drone/Bird discrimination.
+        Only meaningful for 3D RD data (CQ08). Returns [B, 6] features."""
+        amp_range = rd_features[:, :, :, 0]   # [B, T, R]
+        amp_dopp = rd_features[:, :, :, 2]    # [B, T, D]
+
+        B = amp_range.shape[0]
+        doppler_energy = amp_dopp.abs().clamp_min(0.0) + 1e-6
+
+        # Doppler validity: 2D data has amp_dopp all zeros
+        doppler_valid = (amp_dopp.abs().sum(dim=(1, 2)) > 0.5).float().unsqueeze(-1)  # [B, 1]
+
+        # 1. Doppler spectral skewness
+        dopp_mean = doppler_energy.mean(dim=-1, keepdim=True)
+        dopp_std = doppler_energy.std(dim=-1, keepdim=True).clamp_min(1e-6)
+        dopp_centered = doppler_energy - dopp_mean
+        dopp_skew = (dopp_centered.pow(3).mean(dim=-1) / dopp_std.squeeze(-1).pow(3)).mean(dim=-1, keepdim=True)
+
+        # 2. Doppler spectral kurtosis
+        dopp_kurt = (dopp_centered.pow(4).mean(dim=-1) / dopp_std.squeeze(-1).pow(4)).mean(dim=-1, keepdim=True)
+
+        # 3. Mean 3dB bandwidth (bins)
+        dopp_peak = doppler_energy.max(dim=-1, keepdim=True).values
+        dopp_above_half = (doppler_energy >= dopp_peak * 0.5).float()
+        dopp_bw = dopp_above_half.sum(dim=-1).float()  # [B, T]
+        dopp_bw_mean = dopp_bw.mean(dim=-1, keepdim=True)
+
+        # 4. Bandwidth temporal variation
+        if dopp_bw.shape[1] > 1:
+            dopp_bw_std = dopp_bw.std(dim=-1, keepdim=True)
+        else:
+            dopp_bw_std = amp_range.new_zeros((B, 1))
+
+        # 5. RCS scintillation (amplitude CV)
+        frame_amp = amp_range.mean(dim=-1)  # [B, T]
+        rcs_scint = (frame_amp.std(dim=-1) / frame_amp.mean(dim=-1).clamp_min(1e-6)).unsqueeze(-1)
+
+        # 6. Inter-frame RD correlation
+        if amp_range.shape[1] > 1:
+            amp_norm = amp_range - amp_range.mean(dim=-1, keepdim=True)
+            amp_norm = amp_norm / amp_norm.pow(2).sum(dim=-1, keepdim=True).sqrt().clamp_min(1e-6)
+            frame_corr = (amp_norm[:, 1:] * amp_norm[:, :-1]).sum(dim=-1)  # [B, T-1]
+            rd_corr = frame_corr.mean(dim=-1, keepdim=True)
+        else:
+            rd_corr = amp_range.new_zeros((B, 1))
+
+        features = torch.cat([dopp_skew, dopp_kurt, dopp_bw_mean, dopp_bw_std, rcs_scint, rd_corr], dim=-1)
+        features = features * doppler_valid  # zero out for 2D data
+        return torch.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)  # [B, 6]
 
     def _encode_rd(self, rd_features: torch.Tensor, rd_padding_mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         amp_range = rd_features[:, :, :, 0]
@@ -1011,6 +1020,7 @@ class LowAltitudeSuspectExpert(nn.Module):
                 rd_residual_logits=rd_residual_logits,
                 rd_unknown_clutter_logits=rd_unknown_clutter_logits,
                 rd_clutter_morphology_logits=rd_clutter_morphology_logits,
+                drone_bird_micro_doppler_logits=traj_input.new_zeros((batch_size, 2)),
                 rd_class_fusion_weights=joint_rd_weight.unsqueeze(-1).expand_as(rd_logits),
                 rd_pair_fusion_weights=joint_rd_weight.unsqueeze(-1).expand(-1, 3),
                 known_confidence=known_confidence,
@@ -1096,6 +1106,13 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_residual_logits = self.rd_residual_head(rd_features_vec)
         rd_unknown_clutter_logits = self.rd_unknown_clutter_head(rd_features_vec)
         rd_clutter_morphology_logits = self.rd_clutter_morphology_head(torch.cat([rd_stats, rd_patch], dim=-1))
+        # Drone/Bird micro-Doppler auxiliary head (only meaningful for 3D RD data)
+        micro_doppler_features = self._micro_doppler_features(rd_features)  # [B, 6]
+        drone_bird_micro_doppler_logits = self.drone_bird_micro_doppler_head(micro_doppler_features)  # [B, 2]
+        if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
+            no_rd = ~rd_is_multimodal.bool()
+            if no_rd.any():
+                drone_bird_micro_doppler_logits = torch.where(no_rd.unsqueeze(-1), torch.zeros_like(drone_bird_micro_doppler_logits), drone_bird_micro_doppler_logits)
         deep_pair_correction_logits = self.deep_pair_correction_head(torch.cat([rd_features_vec, traj_features, deep_rd_patch], dim=-1))
         deep_unknown_clutter_residual_logits = self.deep_unknown_clutter_residual_head(torch.cat([rd_features_vec, rd_stats, deep_rd_patch], dim=-1))
         if rd_is_multimodal is not None and not bool(rd_is_multimodal.all()):
@@ -1337,6 +1354,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             rd_residual_logits=rd_residual_logits,
             rd_unknown_clutter_logits=rd_unknown_clutter_logits,
             rd_clutter_morphology_logits=rd_clutter_morphology_logits,
+            drone_bird_micro_doppler_logits=drone_bird_micro_doppler_logits,
             rd_class_fusion_weights=rd_class_fusion_weights,
             rd_pair_fusion_weights=rd_pair_fusion_weights,
             known_confidence=known_confidence,

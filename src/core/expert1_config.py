@@ -43,6 +43,7 @@ class Expert1TrainConfig:
     low_altitude_rd_residual_aux_weight: float = 0.65
     low_altitude_rd_unknown_clutter_aux_weight: float = 0.85
     low_altitude_rd_clutter_morphology_aux_weight: float = 0.75
+    low_altitude_drone_bird_micro_doppler_aux_weight: float = 0.3
     low_altitude_rd_teacher_warmup_epochs: int = 1
     low_altitude_rd_teacher_aux_boost: float = 1.35
     low_altitude_deep_reroute_aux_interval: int = 1

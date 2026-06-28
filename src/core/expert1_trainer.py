@@ -3793,6 +3793,17 @@ def _run_epoch(
                         weight=torch.tensor([1.0, config.rd_clutter_positive_weight], dtype=torch.float32, device=device),
                     )
                     rd_aux = rd_aux + config.low_altitude_rd_clutter_morphology_aux_weight * clutter_morphology_loss
+                # Drone/Bird micro-Doppler auxiliary loss (only on Drone/Bird samples with RD)
+                if output.drone_bird_micro_doppler_logits is not None and config.low_altitude_drone_bird_micro_doppler_aux_weight > 0.0:
+                    db_micro_mask = has_rd_mask & ((labels == drone_index) | (labels == bird_index))
+                    if db_micro_mask.any():
+                        db_micro_targets = (labels[db_micro_mask] == bird_index).long()
+                        db_micro_loss = torch.nn.functional.cross_entropy(
+                            output.drone_bird_micro_doppler_logits[db_micro_mask],
+                            db_micro_targets,
+                            weight=torch.tensor([1.0, 1.5], dtype=torch.float32, device=device),
+                        )
+                        rd_aux = rd_aux + config.low_altitude_drone_bird_micro_doppler_aux_weight * db_micro_loss
                 rare_margin_loss = (
                     _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], bird_index, config.low_altitude_rd_rare_margin)
                     + _target_margin_loss(output.rd_logits[has_rd_mask], labels[has_rd_mask], LOW_ALTITUDE_CLASSES.index("BalloonTarget"), config.low_altitude_rd_rare_margin)
