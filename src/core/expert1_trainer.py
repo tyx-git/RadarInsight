@@ -323,10 +323,10 @@ def _subsample_deep_reroute_inputs(
     rd_deep_patch_padding_mask: torch.Tensor,
     max_frames: int,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    deep_rd_features, _ = _subsample_time_axis(rd_features, max_frames)
+    deep_rd_features, deep_rd_indices = _subsample_time_axis(rd_features, max_frames)
     deep_rd_patch_features, patch_indices = _subsample_time_axis(rd_patch_features, max_frames)
     deep_rd_deep_patch_features, deep_patch_indices = _subsample_time_axis(rd_deep_patch_features, max_frames)
-    deep_rd_padding_mask, _ = _subsample_time_axis(rd_padding_mask, max_frames)
+    deep_rd_padding_mask, _ = _subsample_time_axis(rd_padding_mask, max_frames, deep_rd_indices)
     deep_rd_patch_padding_mask, _ = _subsample_time_axis(rd_patch_padding_mask, max_frames, patch_indices)
     deep_rd_deep_patch_padding_mask, _ = _subsample_time_axis(
         rd_deep_patch_padding_mask,

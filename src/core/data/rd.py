@@ -237,6 +237,7 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         deep_patch_tensor = torch.stack([deep_patch_amp, deep_patch_phase, deep_patch_delta], dim=-1).to(torch.float32)
     elif amplitude.ndim == 3 and phase.ndim == 3:
         frame_count, range_bins, doppler_bins = amplitude.shape
+        amplitude = _prepare_amplitude(amplitude.reshape(frame_count, -1)).reshape(frame_count, range_bins, doppler_bins)
         amplitude_t = torch.tensor(amplitude, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         phase_t = torch.tensor(phase, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         amplitude_t = F.interpolate(
@@ -259,10 +260,12 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         ph_range = F.interpolate(ph_range, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
         amp_dopp = F.interpolate(amp_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
         ph_dopp = F.interpolate(ph_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        amp_range_mean = amp_range.mean(axis=0, keepdims=True)
-        amp_range_std = np.where(amp_range.std(axis=0, keepdims=True) < 1e-6, 1.0, amp_range.std(axis=0, keepdims=True))
-        amp_dopp_mean = amp_dopp.mean(axis=0, keepdims=True)
-        amp_dopp_std = np.where(amp_dopp.std(axis=0, keepdims=True) < 1e-6, 1.0, amp_dopp.std(axis=0, keepdims=True))
+        amp_range_mean = amp_range.mean(axis=1, keepdims=True)
+        amp_range_std = amp_range.std(axis=1, keepdims=True)
+        amp_range_std = np.where(amp_range_std < 1e-6, 1.0, amp_range_std)
+        amp_dopp_mean = amp_dopp.mean(axis=1, keepdims=True)
+        amp_dopp_std = amp_dopp.std(axis=1, keepdims=True)
+        amp_dopp_std = np.where(amp_dopp_std < 1e-6, 1.0, amp_dopp_std)
         amp_range = (amp_range - amp_range_mean) / amp_range_std
         amp_dopp = (amp_dopp - amp_dopp_mean) / amp_dopp_std
         ph_range = ph_range / np.pi
@@ -295,8 +298,8 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
             mode="trilinear",
             align_corners=False,
         ).squeeze(0).squeeze(0)
-        amp_patch_mean = amp_patch.mean()
-        amp_patch_std = amp_patch.std().clamp_min(1e-6)
+        amp_patch_mean = amp_patch.mean(dim=0, keepdim=True)
+        amp_patch_std = amp_patch.std(dim=0, keepdim=True).clamp_min(1e-6)
         amp_patch = (amp_patch - amp_patch_mean) / amp_patch_std
         phase_patch = phase_patch / np.pi
         patch_delta = _temporal_delta(amp_patch)
@@ -316,8 +319,8 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
             mode="bilinear",
             align_corners=False,
         ).squeeze(1)
-        deep_amp_mean = deep_amp.mean()
-        deep_amp_std = deep_amp.std().clamp_min(1e-6)
+        deep_amp_mean = deep_amp.mean(dim=0, keepdim=True)
+        deep_amp_std = deep_amp.std(dim=0, keepdim=True).clamp_min(1e-6)
         deep_amp = (deep_amp - deep_amp_mean) / deep_amp_std
         deep_phase = deep_phase / np.pi
         deep_delta = _temporal_delta(deep_amp)

@@ -25,6 +25,8 @@ RAW_LABEL_MAP = {
 
 EXCEL_MARKTYPE_MAP = {
     "无人机": "DroneTarget",
+    "小型旋翼无人机": "DroneTarget",
+    "轻型旋翼无人机": "DroneTarget",
     "飞鸟": "BirdTarget",
     "鸟": "BirdTarget",
     "疑似气球": "BalloonTarget",
