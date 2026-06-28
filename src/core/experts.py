@@ -282,7 +282,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             LOW_ALTITUDE_CLASSES.index("ClutterTarget"),
         ]
         self.rd_model_dim = 512
-        self.rd_stats_input_dim = 16
+        self.rd_stats_input_dim = 22
         self.rd_stats_dim = 64
         self.rd_context_dim = int(max(0, rd_context_dim))
         self.rd_context_hidden_dim = 32 if self.rd_context_dim > 0 else 0
@@ -563,6 +563,45 @@ class LowAltitudeSuspectExpert(nn.Module):
         doppler_top10_conc = doppler_sorted[:, :top_k_d].sum(dim=-1) / doppler_sorted.sum(dim=-1).clamp_min(1e-6)
         doppler_top10_conc = doppler_top10_conc.unsqueeze(-1)
 
+        # --- Micro-Doppler features: spectral shape per frame ---
+        # Doppler spectral moments (per frame, then averaged over time)
+        dopp_mean_per_frame = doppler_energy.mean(dim=-1, keepdim=True)  # [B, T, 1]
+        dopp_std_per_frame = doppler_energy.std(dim=-1, keepdim=True).clamp_min(1e-6)
+        dopp_centered = doppler_energy - dopp_mean_per_frame
+        # Spectral skewness: asymmetry of doppler spectrum
+        doppler_spectral_skew = (dopp_centered.pow(3).mean(dim=-1) / dopp_std_per_frame.squeeze(-1).pow(3)).mean(dim=-1, keepdim=True)
+        # Spectral kurtosis: peakedness of doppler spectrum
+        doppler_spectral_kurt = (dopp_centered.pow(4).mean(dim=-1) / dopp_std_per_frame.squeeze(-1).pow(4)).mean(dim=-1, keepdim=True)
+
+        # 3dB bandwidth of doppler spectrum per frame
+        dopp_peak = doppler_energy.max(dim=-1, keepdim=True).values  # [B, T, 1]
+        dopp_half_max = dopp_peak * 0.5
+        dopp_above_half = (doppler_energy >= dopp_half_max).float()  # [B, T, D]
+        # Count contiguous bins above half-max (approximate bandwidth)
+        doppler_bw = dopp_above_half.sum(dim=-1).float()  # [B, T]
+        doppler_bw_mean = doppler_bw.mean(dim=-1, keepdim=True)  # [B, 1]
+        # Temporal variation of doppler bandwidth
+        if doppler_bw.shape[1] > 1:
+            doppler_bw_temporal_std = doppler_bw.std(dim=-1, keepdim=True)
+        else:
+            doppler_bw_temporal_std = amp_range.new_zeros((amp_range.shape[0], 1))
+
+        # --- RCS scintillation: amplitude temporal variation ---
+        # Coefficient of variation of per-frame mean amplitude
+        frame_amp_mean = amp_range.mean(dim=-1)  # [B, T]
+        rcs_scintillation = (frame_amp_mean.std(dim=-1) / frame_amp_mean.mean(dim=-1).clamp_min(1e-6)).unsqueeze(-1)
+
+        # --- Frame-to-frame RD patch correlation ---
+        # Normalize each frame's range profile, compute lag-1 correlation
+        if amp_range.shape[1] > 1:
+            amp_norm = amp_range - amp_range.mean(dim=-1, keepdim=True)
+            amp_norm = amp_norm / amp_norm.pow(2).sum(dim=-1, keepdim=True).sqrt().clamp_min(1e-6)
+            # Correlation between adjacent frames: sum of element-wise product
+            frame_corr = (amp_norm[:, 1:] * amp_norm[:, :-1]).sum(dim=-1)  # [B, T-1]
+            frame_rd_correlation = frame_corr.mean(dim=-1, keepdim=True)  # [B, 1]
+        else:
+            frame_rd_correlation = amp_range.new_zeros((amp_range.shape[0], 1))
+
         stats = torch.cat(
             [
                 amp_skew,               # 0: amplitude skewness
@@ -580,7 +619,13 @@ class LowAltitudeSuspectExpert(nn.Module):
                 energy_burstiness,      # 12: temporal energy burstiness
                 range_top10_conc,       # 13: range top-10% energy concentration
                 doppler_top10_conc,     # 14: doppler top-10% energy concentration
-                amp_range.new_zeros((amp_range.shape[0], 1)),  # 15: reserved
+                doppler_spectral_skew,  # 15: doppler spectral skewness
+                doppler_spectral_kurt,  # 16: doppler spectral kurtosis
+                doppler_bw_mean,        # 17: mean doppler 3dB bandwidth (bins)
+                doppler_bw_temporal_std,# 18: doppler bandwidth temporal variation
+                rcs_scintillation,      # 19: amplitude coefficient of variation
+                frame_rd_correlation,   # 20: inter-frame RD correlation
+                amp_range.new_zeros((amp_range.shape[0], 1)),  # 21: reserved
             ],
             dim=-1,
         )
