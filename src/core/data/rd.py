@@ -193,7 +193,8 @@ def encode_rd_summary(frame: pd.DataFrame) -> EncodedRDSequence:
 def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
     amplitude = np.asarray(rd_tensor["amplitude"], dtype=np.float32)
     phase = np.asarray(rd_tensor["phase"], dtype=np.float32)
-    amplitude = _prepare_amplitude(amplitude)
+    if amplitude.ndim == 2:
+        amplitude = _prepare_amplitude(amplitude)
     phase = np.nan_to_num(phase, nan=0.0, posinf=0.0, neginf=0.0)
 
     if amplitude.ndim == 2 and phase.ndim == 2:
@@ -260,11 +261,11 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         ph_range = F.interpolate(ph_range, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
         amp_dopp = F.interpolate(amp_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
         ph_dopp = F.interpolate(ph_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        amp_range_mean = amp_range.mean(axis=1, keepdims=True)
-        amp_range_std = amp_range.std(axis=1, keepdims=True)
+        amp_range_mean = amp_range.mean(axis=0, keepdims=True)
+        amp_range_std = amp_range.std(axis=0, keepdims=True)
         amp_range_std = np.where(amp_range_std < 1e-6, 1.0, amp_range_std)
-        amp_dopp_mean = amp_dopp.mean(axis=1, keepdims=True)
-        amp_dopp_std = amp_dopp.std(axis=1, keepdims=True)
+        amp_dopp_mean = amp_dopp.mean(axis=0, keepdims=True)
+        amp_dopp_std = amp_dopp.std(axis=0, keepdims=True)
         amp_dopp_std = np.where(amp_dopp_std < 1e-6, 1.0, amp_dopp_std)
         amp_range = (amp_range - amp_range_mean) / amp_range_std
         amp_dopp = (amp_dopp - amp_dopp_mean) / amp_dopp_std

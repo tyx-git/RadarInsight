@@ -3608,7 +3608,7 @@ def _run_epoch(
             residual_loss = _binary_positive_ce_loss(
                 output.traj_residual_logits,
                 residual_targets_all,
-                positive_weight=max(config.rd_unknown_positive_weight, config.rd_clutter_positive_weight),
+                positive_weight=config.low_altitude_rd_residual_positive_weight,
             )
             main_loss = main_loss + config.low_altitude_residual_aux_weight * residual_loss
             anchor_loss = torch.tensor(0.0, device=device)
@@ -3730,7 +3730,7 @@ def _run_epoch(
                 rd_residual_loss = _binary_positive_ce_loss(
                     output.rd_residual_logits[has_rd_mask],
                     residual_binary_targets,
-                    positive_weight=max(config.rd_unknown_positive_weight, config.rd_clutter_positive_weight),
+                    positive_weight=config.low_altitude_rd_residual_positive_weight,
                 )
                 rd_aux = rd_aux + config.low_altitude_rd_residual_aux_weight * rd_residual_loss
                 drone_index = LOW_ALTITUDE_CLASSES.index("DroneTarget")
