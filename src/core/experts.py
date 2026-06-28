@@ -505,6 +505,11 @@ class LowAltitudeSuspectExpert(nn.Module):
 
     def _rd_statistics(self, amp_range: torch.Tensor, phase_range: torch.Tensor, amp_dopp: torch.Tensor, phase_dopp: torch.Tensor) -> torch.Tensor:
         # amp_range: [B, T, R], phase_range: [B, T, R], amp_dopp: [B, T, D], phase_dopp: [B, T, D]
+        B = amp_range.shape[0]
+
+        # --- Doppler validity detection: 2D data has amp_dopp all zeros ---
+        doppler_valid = (amp_dopp.abs().sum(dim=(1, 2)) > 0.5).float().unsqueeze(-1)  # [B, 1]
+
         amp_mean = amp_range.mean(dim=-1, keepdim=True)
         amp_std = amp_range.std(dim=-1, keepdim=True).clamp_min(1e-6)
         centered = amp_range - amp_mean
@@ -601,6 +606,15 @@ class LowAltitudeSuspectExpert(nn.Module):
             frame_rd_correlation = frame_corr.mean(dim=-1, keepdim=True)  # [B, 1]
         else:
             frame_rd_correlation = amp_range.new_zeros((amp_range.shape[0], 1))
+
+        # --- Zero out doppler features for 2D data (no doppler dimension) ---
+        doppler_entropy = doppler_entropy * doppler_valid
+        doppler_centroid_std = doppler_centroid_std * doppler_valid
+        doppler_top10_conc = doppler_top10_conc * doppler_valid
+        doppler_spectral_skew = doppler_spectral_skew * doppler_valid
+        doppler_spectral_kurt = doppler_spectral_kurt * doppler_valid
+        doppler_bw_mean = doppler_bw_mean * doppler_valid
+        doppler_bw_temporal_std = doppler_bw_temporal_std * doppler_valid
 
         stats = torch.cat(
             [
