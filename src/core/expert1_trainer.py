@@ -2241,7 +2241,7 @@ _PRECISION_CANDIDATE_THRESHOLDS = {
     "final_unknown_recall": 0.7000,
     "final_clutter_recall": 0.5000,
     "parent_mean_logit_macro_f1": 0.8000,
-    "joint_minus_traj_macro_f1_on_rd": -0.0100,
+    "joint_minus_traj_macro_f1_on_rd": -0.0500,
 }
 
 
@@ -2564,7 +2564,7 @@ def _precision_candidate_score(
         - 0.30 * final_harm
         + 0.10 * source_supported
         + 0.08 * joint_gain
-        - 0.015 * len(failures)
+        - 0.50 * len(failures)
     )
 
 
