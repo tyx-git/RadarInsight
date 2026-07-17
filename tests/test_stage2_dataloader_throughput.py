@@ -180,8 +180,8 @@ class TestRDShardLocalBatchSamplerGrouping(unittest.TestCase):
 
         # 120 RD indices across 3 shards, 80 no-RD indices
         # → num_batches = max(ceil(120/4), ceil(80/4)) = 30
-        # → shard_order = 3 shards × 4 copies = 12 entries, shuffled
-        # With 30 batches, each shard group of 4 should be fully consumed
+        # → three shard groups of four visits are independently shuffled
+        #    and repeated as cycles until all 30 batches are produced
         rd_indices = list(range(120))
         no_rd_indices = list(range(120, 200))
         weights = [1.0] * 200
@@ -212,17 +212,59 @@ class TestRDShardLocalBatchSamplerGrouping(unittest.TestCase):
                     return s
             return None
 
-        # At least some consecutive pairs must share a shard
-        consecutive_shared = 0
-        for i in range(len(batches) - 1):
-            s1 = _rd_shard(batches[i])
-            s2 = _rd_shard(batches[i + 1])
-            if s1 is not None and s1 == s2:
-                consecutive_shared += 1
-        self.assertGreater(
-            consecutive_shared,
-            0,
-            "No consecutive batches share a shard — shard_group_batches not working",
+        self.assertEqual(len(batches), len(sampler))
+        for batch in batches:
+            self.assertEqual(len(batch), 8)
+            self.assertEqual(sum(idx < 120 for idx in batch), 4)
+            self.assertEqual(sum(idx >= 120 for idx in batch), 4)
+
+        # Each group contains four visits to one shard. The final group is
+        # truncated only because the sampler stops at its reported length.
+        batch_shards = [_rd_shard(batch) for batch in batches]
+        for start in range(0, len(batch_shards), 4):
+            group = batch_shards[start:start + 4]
+            self.assertTrue(all(shard is not None for shard in group))
+            self.assertEqual(len(set(group)), 1)
+
+    def test_sampler_yields_exactly_reported_batch_count(self):
+        from src.core.expert1_data import RDShardLocalBatchSampler
+
+        sampler = RDShardLocalBatchSampler(
+            rd_indices=list(range(4)),
+            no_rd_indices=list(range(4, 44)),
+            sample_weights=[1.0] * 44,
+            batch_size=4,
+            rd_fraction=0.5,
+            seed=42,
+            shard_keys_by_index={index: f"shard_{index}" for index in range(4)},
+            shard_group_batches=2,
+        )
+
+        batches = list(sampler)
+        self.assertEqual(len(batches), len(sampler))
+        self.assertEqual(len(sampler), 20)
+        for batch in batches:
+            self.assertEqual(len(batch), 4)
+            self.assertEqual(sum(index < 4 for index in batch), 2)
+            self.assertEqual(sum(index >= 4 for index in batch), 2)
+
+    def test_sampler_is_deterministic_for_fixed_seed(self):
+        from src.core.expert1_data import RDShardLocalBatchSampler
+
+        kwargs = {
+            "rd_indices": list(range(12)),
+            "no_rd_indices": list(range(12, 36)),
+            "sample_weights": [1.0] * 36,
+            "batch_size": 6,
+            "rd_fraction": 0.5,
+            "seed": 17,
+            "shard_keys_by_index": {index: f"shard_{index // 4}" for index in range(12)},
+            "shard_group_batches": 3,
+        }
+
+        self.assertEqual(
+            list(RDShardLocalBatchSampler(**kwargs)),
+            list(RDShardLocalBatchSampler(**kwargs)),
         )
 
     def test_all_rd_samples_covered(self):

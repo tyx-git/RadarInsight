@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import random
 import sys
 import time as _time
@@ -3150,6 +3151,94 @@ def _precision_calibration_probe(
     }
 
 
+def _locked_precision_parameters(
+    validation_probe: dict[str, object] | None,
+    *,
+    default_scale: float,
+) -> dict[str, object]:
+    try:
+        safe_default_scale = float(default_scale)
+    except (TypeError, ValueError):
+        safe_default_scale = 1.0
+    if not math.isfinite(safe_default_scale) or not 0.0 <= safe_default_scale <= 1.0:
+        safe_default_scale = 1.0
+    fallback = {
+        "source": "config_default",
+        "joint_logit_delta_scale": safe_default_scale,
+        "precision_logit_bias": _normalize_precision_logit_bias(None),
+    }
+    probe = validation_probe if isinstance(validation_probe, dict) else {}
+    recommended = probe.get("recommended", {})
+    if not probe.get("ready", False) or not isinstance(recommended, dict):
+        return fallback
+    try:
+        scale = float(probe.get("selected_scale", safe_default_scale))
+        bias = _normalize_precision_logit_bias(recommended.get("precision_logit_bias"))
+    except (TypeError, ValueError):
+        return fallback
+    if (
+        not math.isfinite(scale)
+        or not 0.0 <= scale <= 1.0
+        or any(not math.isfinite(float(value)) for value in bias)
+    ):
+        return fallback
+    return {
+        "source": "validation",
+        "joint_logit_delta_scale": scale,
+        "precision_logit_bias": bias,
+    }
+
+
+def _build_expert1_checkpoint_payload(
+    *,
+    representation_builder_state_dict: dict[str, object],
+    rd_proj_state_dict: dict[str, object],
+    model_state_dict: dict[str, object],
+    config_payload: dict[str, object],
+    source_feature_stats: object,
+    selection_reason: str,
+    eligible: bool,
+    epoch: int,
+    components: dict[str, float],
+    joint_logit_delta_probe: dict[str, object] | None,
+    locked_precision: dict[str, object],
+    validation_precision_probe: dict[str, object] | None,
+) -> dict[str, object]:
+    checkpoint_probe = dict(joint_logit_delta_probe or {})
+    checkpoint_probe.pop("selected_metrics", None)
+    validation_probe = dict(validation_precision_probe or {})
+    validation_probe.pop("results", None)
+    precision_logit_bias = _normalize_precision_logit_bias(
+        locked_precision.get("precision_logit_bias")
+    )
+    selected_scale = float(locked_precision["joint_logit_delta_scale"])
+    locked_payload = {
+        "source": str(locked_precision["source"]),
+        "joint_logit_delta_scale": selected_scale,
+        "precision_logit_bias": precision_logit_bias,
+    }
+    return {
+        "representation_builder_state_dict": representation_builder_state_dict,
+        "rd_proj_state_dict": rd_proj_state_dict,
+        "model_state_dict": model_state_dict,
+        "config": config_payload,
+        "labels": LOW_ALTITUDE_CLASSES,
+        "source_feature_stats": source_feature_stats,
+        "selection_eligible": bool(eligible),
+        "selection_reason": selection_reason,
+        "epoch": int(epoch),
+        "selection_components": components,
+        "selected_joint_logit_delta_scale": selected_scale,
+        "joint_logit_delta_probe": checkpoint_probe,
+        "precision_calibration_source": locked_payload["source"],
+        "precision_logit_bias": precision_logit_bias,
+        "precision_logit_bias_by_label": _precision_logit_bias_dict(precision_logit_bias),
+        "locked_precision_parameters": locked_payload,
+        "validation_precision_calibration_probe": validation_probe,
+        "test_used_for_selection": False,
+    }
+
+
 def _apply_low_altitude_reject(
     logits: torch.Tensor,
     cosine: torch.Tensor,
@@ -4545,7 +4634,6 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     best_final_macro_path = run_paths.output_dir / "best_final_macro_f1_model.pt"
     best_joint_gain_path = run_paths.output_dir / "best_joint_gain_model.pt"
     last_full_val_path = run_paths.output_dir / "last_full_val_model.pt"
-    precision_candidate_path = run_paths.output_dir / "precision_candidate_model.pt"
     best_epoch = -1
     fallback_candidate_epoch = -1
     fallback_candidate_score = float("-inf")
@@ -4568,23 +4656,25 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         components: dict[str, float],
         selected_joint_logit_delta_scale: float,
         joint_logit_delta_probe: dict[str, object] | None,
+        locked_precision: dict[str, object],
+        validation_precision_probe: dict[str, object] | None,
     ) -> dict[str, object]:
-        checkpoint_probe = dict(joint_logit_delta_probe or {})
-        checkpoint_probe.pop("selected_metrics", None)
-        return {
-            "representation_builder_state_dict": representation_builder.state_dict(),
-            "rd_proj_state_dict": rd_proj.state_dict(),
-            "model_state_dict": model.state_dict(),
-            "config": config.__dict__,
-            "labels": LOW_ALTITUDE_CLASSES,
-            "source_feature_stats": source_feature_stats,
-            "selection_eligible": bool(eligible),
-            "selection_reason": selection_reason,
-            "epoch": int(epoch),
-            "selection_components": components,
-            "selected_joint_logit_delta_scale": float(selected_joint_logit_delta_scale),
-            "joint_logit_delta_probe": checkpoint_probe,
-        }
+        if float(selected_joint_logit_delta_scale) != float(locked_precision["joint_logit_delta_scale"]):
+            raise ValueError("checkpoint scale must equal validation-locked precision scale")
+        return _build_expert1_checkpoint_payload(
+            representation_builder_state_dict=representation_builder.state_dict(),
+            rd_proj_state_dict=rd_proj.state_dict(),
+            model_state_dict=model.state_dict(),
+            config_payload=config.__dict__,
+            source_feature_stats=source_feature_stats,
+            selection_reason=selection_reason,
+            eligible=eligible,
+            epoch=epoch,
+            components=components,
+            joint_logit_delta_probe=joint_logit_delta_probe,
+            locked_precision=locked_precision,
+            validation_precision_probe=validation_precision_probe,
+        )
 
     def _save_checkpoint(
         name: str,
@@ -4596,6 +4686,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         components: dict[str, float],
         selected_joint_logit_delta_scale: float,
         joint_logit_delta_probe: dict[str, object] | None,
+        locked_precision: dict[str, object],
+        validation_precision_probe: dict[str, object] | None,
     ) -> None:
         torch.save(
             _checkpoint_payload(
@@ -4605,6 +4697,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 components,
                 selected_joint_logit_delta_scale,
                 joint_logit_delta_probe,
+                locked_precision,
+                validation_precision_probe,
             ),
             path,
         )
@@ -4616,160 +4710,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "selection_eligible": bool(eligible),
             "selection_components": components,
             "selected_joint_logit_delta_scale": float(selected_joint_logit_delta_scale),
+            "precision_calibration_source": str(locked_precision["source"]),
+            "precision_logit_bias": _normalize_precision_logit_bias(
+                locked_precision.get("precision_logit_bias")
+            ),
+            "test_used_for_selection": False,
         }
-
-    def _write_precision_candidate_checkpoint(
-        precision_candidate: dict[str, object],
-        destination_path: Path,
-    ) -> dict[str, object]:
-        if not precision_candidate:
-            return {}
-        source_path = Path(str(precision_candidate.get("path", "")))
-        if not source_path.exists() and not source_path.is_absolute():
-            source_path = Path.cwd() / source_path
-        if not source_path.exists():
-            return {}
-        payload = torch.load(source_path, map_location="cpu", weights_only=True)
-        recommended_scale = float(
-            precision_candidate.get(
-                "recommended_joint_logit_delta_scale",
-                payload.get("selected_joint_logit_delta_scale", config.joint_logit_delta_scale),
-            )
-        )
-        payload["selected_joint_logit_delta_scale"] = recommended_scale
-        payload["selection_reason"] = "precision_candidate"
-        payload["precision_candidate_source_checkpoint"] = _rel(source_path)
-        payload["precision_candidate_source_checkpoint_name"] = str(precision_candidate.get("checkpoint_name", ""))
-        payload["precision_candidate_metrics"] = dict(precision_candidate)
-        payload["precision_candidate_recommended_joint_logit_delta_scale"] = recommended_scale
-        precision_logit_bias = _normalize_precision_logit_bias(precision_candidate.get("precision_logit_bias", None))
-        payload["precision_logit_bias"] = precision_logit_bias
-        payload["precision_logit_bias_by_label"] = _precision_logit_bias_dict(precision_logit_bias)
-        if "precision_calibration_probe" in precision_candidate:
-            payload["precision_calibration_probe"] = precision_candidate.get("precision_calibration_probe", {})
-        payload_config = payload.get("config", {})
-        if isinstance(payload_config, dict):
-            payload_config = dict(payload_config)
-            payload_config["joint_logit_delta_scale"] = recommended_scale
-            payload_config["selected_joint_logit_delta_scale"] = recommended_scale
-            payload_config["precision_logit_bias"] = precision_logit_bias
-            payload_config["precision_logit_bias_by_label"] = _precision_logit_bias_dict(precision_logit_bias)
-            payload["config"] = payload_config
-        checkpoint_probe = payload.get("joint_logit_delta_probe", {})
-        if isinstance(checkpoint_probe, dict):
-            checkpoint_probe = dict(checkpoint_probe)
-            checkpoint_probe["precision_selected_scale"] = recommended_scale
-            payload["joint_logit_delta_probe"] = checkpoint_probe
-        torch.save(payload, destination_path)
-        return {
-            "path": _rel(destination_path),
-            "source_path": _rel(source_path),
-            "source_checkpoint_name": str(precision_candidate.get("checkpoint_name", "")),
-            "recommended_joint_logit_delta_scale": recommended_scale,
-            "precision_logit_bias": precision_logit_bias,
-            "precision_logit_bias_by_label": _precision_logit_bias_dict(precision_logit_bias),
-        }
-
-    def _validate_precision_checkpoint_export(
-        precision_candidate: dict[str, object],
-        precision_checkpoint_export: dict[str, object],
-    ) -> dict[str, object]:
-        if not precision_candidate:
-            return {"status": "no_precision_candidate"}
-        if not precision_checkpoint_export:
-            return {"status": "not_exported"}
-        checkpoint_path = Path(str(precision_checkpoint_export.get("path", "")))
-        if not checkpoint_path.exists():
-            return {
-                "status": "missing",
-                "path": _rel(checkpoint_path),
-            }
-        try:
-            checkpoint_state = _load_checkpoint_into_modules(
-                checkpoint_path,
-                representation_builder,
-                rd_proj,
-                model,
-                device,
-            )
-            selected_scale = _checkpoint_joint_logit_delta_scale(checkpoint_state, config)
-            model.joint_logit_delta_scale = selected_scale
-            checkpoint_epoch = int(checkpoint_state.get("epoch", precision_candidate.get("epoch", -1)))
-            stage2_enabled, stage2_scale, stage2_epoch = _checkpoint_eval_runtime(checkpoint_epoch, config)
-            checkpoint_metrics = _run_epoch(
-                representation_builder,
-                rd_proj,
-                model,
-                loaders.test_loader,
-                criterion,
-                optimizer,
-                device,
-                False,
-                config,
-                stage2_enabled,
-                stage2_scale,
-                stage2_epoch,
-                rd_class_weights,
-                source_feature_stats,
-                compute_aux_loss=config.compute_eval_aux_loss,
-            )
-            checkpoint_probe = _joint_logit_delta_probe(
-                checkpoint_metrics,
-                config,
-                stage2_enabled=stage2_enabled,
-                selected_scale_override=selected_scale,
-            )
-            checkpoint_selected_probe_metrics = checkpoint_probe.get("selected_metrics")
-            if isinstance(checkpoint_selected_probe_metrics, dict):
-                checkpoint_metrics.update(checkpoint_selected_probe_metrics)
-            checkpoint_metrics["selected_joint_logit_delta_scale"] = float(selected_scale)
-            checkpoint_metrics["joint_logit_delta_probe"] = _serializable_joint_logit_delta_probe(checkpoint_probe)
-            checkpoint_parent_aggregation = _parent_window_aggregation_metrics(checkpoint_metrics, window_metadata)
-            checkpoint_parent_mean_logit = checkpoint_parent_aggregation.get("mean_logit", {})
-            if isinstance(checkpoint_parent_mean_logit, dict):
-                checkpoint_metrics["parent_mean_logit_macro_f1"] = float(checkpoint_parent_mean_logit.get("macro_f1", 0.0))
-            checkpoint_metrics.update(_parent_weak_class_metrics(checkpoint_parent_aggregation))
-            record = _diagnostic_checkpoint_test_record(
-                "precision_checkpoint_export",
-                checkpoint_path,
-                checkpoint_state,
-                checkpoint_metrics,
-                is_selected_checkpoint=False,
-            )
-            expected_scale = float(
-                precision_checkpoint_export.get(
-                    "recommended_joint_logit_delta_scale",
-                    precision_candidate.get("recommended_joint_logit_delta_scale", 0.0),
-                )
-            )
-            tolerance = 5.0e-5
-            record["source_checkpoint_name"] = str(precision_checkpoint_export.get("source_checkpoint_name", ""))
-            record["expected_joint_logit_delta_scale"] = expected_scale
-            record["selected_joint_logit_delta_scale_delta"] = float(record.get("selected_joint_logit_delta_scale", 0.0)) - expected_scale
-            record["scale_matches"] = abs(float(record["selected_joint_logit_delta_scale_delta"])) <= 1.0e-6
-            record["metric_tolerance"] = tolerance
-            for key in [
-                "macro_f1",
-                "final_unknown_recall",
-                "final_clutter_recall",
-                "final_net_gain_rate_on_rd",
-                "final_harm_rate_on_rd",
-                "parent_mean_logit_macro_f1",
-            ]:
-                expected_value = float(precision_candidate.get(key, 0.0))
-                actual_value = float(record.get(key, 0.0))
-                record[f"expected_{key}"] = expected_value
-                record[f"{key}_delta"] = actual_value - expected_value
-            record["macro_f1_matches"] = abs(float(record.get("macro_f1_delta", 0.0))) <= tolerance
-            record["matches_precision_candidate"] = bool(record["scale_matches"] and record["macro_f1_matches"])
-            record["status"] = "ok" if record["matches_precision_candidate"] else "mismatch"
-            return record
-        except Exception as exc:  # pragma: no cover - defensive report path
-            return {
-                "status": "error",
-                "path": _rel(checkpoint_path),
-                "error": str(exc),
-            }
 
     for epoch in range(1, config.epochs + 1):
         stage2_enabled = epoch > config.stage1_traj_only_epochs
@@ -4861,6 +4807,23 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "results": [],
         }
         selected_joint_logit_delta_scale = float(val_probe.get("selected_scale", config.joint_logit_delta_scale))
+        validation_precision_probe = _precision_calibration_probe(
+            val_metrics,
+            {
+                "recommended_joint_logit_delta_scale": selected_joint_logit_delta_scale,
+                "parent_mean_logit_macro_f1": val_metrics.get("parent_mean_logit_macro_f1", 0.0),
+            },
+            config,
+            stage2_enabled=stage2_enabled,
+            window_metadata=window_metadata,
+        ) if full_val_due and stage2_enabled else {}
+        locked_precision = _locked_precision_parameters(
+            validation_precision_probe,
+            default_scale=selected_joint_logit_delta_scale,
+        )
+        selected_joint_logit_delta_scale = float(locked_precision["joint_logit_delta_scale"])
+        val_metrics["validation_precision_calibration_probe"] = validation_precision_probe
+        val_metrics["locked_precision_parameters"] = locked_precision
         selected_probe_metrics = val_probe.get("selected_metrics")
         if isinstance(selected_probe_metrics, dict):
             val_metrics.update(selected_probe_metrics)
@@ -4917,6 +4880,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 val_selection_components,
                 selected_joint_logit_delta_scale,
                 val_probe,
+                locked_precision,
+                validation_precision_probe,
             )
         if full_val_due:
             last_full_val_epoch = epoch
@@ -4930,6 +4895,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 val_selection_components,
                 selected_joint_logit_delta_scale,
                 val_probe,
+                locked_precision,
+                validation_precision_probe,
             )
             final_macro = float(val_metrics.get("macro_f1", 0.0))
             if final_macro > best_final_macro_f1:
@@ -4945,6 +4912,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                     val_selection_components,
                     selected_joint_logit_delta_scale,
                     val_probe,
+                    locked_precision,
+                    validation_precision_probe,
                 )
             joint_gain = float(val_metrics.get("joint_minus_traj_macro_f1_on_rd", 0.0))
             if joint_gain > best_joint_gain_score:
@@ -4960,6 +4929,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                     val_selection_components,
                     selected_joint_logit_delta_scale,
                     val_probe,
+                    locked_precision,
+                    validation_precision_probe,
                 )
         if can_replace_best:
             best_val = float(val_selection_score)
@@ -4977,6 +4948,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 val_selection_components,
                 selected_joint_logit_delta_scale,
                 val_probe,
+                locked_precision,
+                validation_precision_probe,
             )
 
     if best_epoch < 0 and history:
@@ -5047,17 +5020,11 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         source_feature_stats,
         compute_aux_loss=config.compute_eval_aux_loss,
     )
-    test_probe = _joint_logit_delta_probe(
-        test_metrics,
-        config,
-        stage2_enabled=selected_stage2_enabled,
-        selected_scale_override=selected_checkpoint_joint_delta_scale,
-    )
-    test_selected_probe_metrics = test_probe.get("selected_metrics")
-    if isinstance(test_selected_probe_metrics, dict):
-        test_metrics.update(test_selected_probe_metrics)
     test_metrics["selected_joint_logit_delta_scale"] = float(selected_checkpoint_joint_delta_scale)
-    test_metrics["joint_logit_delta_probe"] = _serializable_joint_logit_delta_probe(test_probe)
+    test_metrics["joint_logit_delta_probe"] = {
+        "source": "validation_locked",
+        "selected_scale": float(selected_checkpoint_joint_delta_scale),
+    }
     parent_aggregation_metrics = _parent_window_aggregation_metrics(test_metrics, window_metadata)
     parent_mean_logit_metrics = parent_aggregation_metrics.get("mean_logit", {})
     if isinstance(parent_mean_logit_metrics, dict):
@@ -5066,218 +5033,41 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     release_eligible, release_gate_metrics, release_gate_failures = _expert1_release_gate(test_metrics, config)
     rd_joint_bottleneck_summary = _rd_joint_bottleneck_summary(test_metrics, config)
     candidate_status = "release_candidate" if (selected_checkpoint_selection_eligible and release_eligible) else "invalid_for_release"
-    diagnostic_cache: dict[str, tuple[dict[str, object], dict[str, object]]] = {
-        str(selected_checkpoint_path.resolve()): (selected_checkpoint_state, test_metrics),
+    validation_precision_probe = selected_checkpoint_state.get(
+        "validation_precision_calibration_probe", {}
+    )
+    if not isinstance(validation_precision_probe, dict):
+        validation_precision_probe = {}
+    locked_precision = {
+        "source": str(selected_checkpoint_state.get("precision_calibration_source", "config_default")),
+        "joint_logit_delta_scale": float(selected_checkpoint_joint_delta_scale),
+        "precision_logit_bias": _precision_logit_bias_from_checkpoint(selected_checkpoint_state),
+    }
+    precision_calibration = {
+        "source": locked_precision["source"],
+        "joint_logit_delta_scale": float(selected_checkpoint_joint_delta_scale),
+        "precision_logit_bias": locked_precision["precision_logit_bias"],
+        "test_used_for_selection": False,
+    }
+    precision_checkpoint_path = _rel(selected_checkpoint_path)
+    precision_checkpoint_name = selected_checkpoint_name
+    precision_candidate = {
+        "checkpoint_name": selected_checkpoint_name,
+        "path": precision_checkpoint_path,
+        "validation_precision_calibration_probe": validation_precision_probe,
+        "locked_precision_parameters": locked_precision,
+    }
+    precision_readiness_summary: dict[str, object] = {}
+    precision_candidate_delta_vs_selected: dict[str, object] = {}
+    precision_checkpoint_export = {
+        "status": "not_applicable_validation_locked_checkpoint",
+        "path": precision_checkpoint_path,
+    }
+    precision_checkpoint_validation = {
+        "status": "not_applicable_no_test_derived_export",
     }
     diagnostic_checkpoint_tests: list[dict[str, object]] = []
-    diagnostic_specs = [
-        {
-            "checkpoint_name": "best_selection",
-            "path": best_path,
-            "epoch": best_epoch,
-            "selection_reason": best_selection_reason,
-            "selection_eligible": bool(best_selection_eligible),
-            "selection_score": best_val,
-        },
-        {
-            "checkpoint_name": "fallback_candidate",
-            "path": fallback_candidate_path,
-            "epoch": fallback_candidate_epoch,
-            "selection_reason": checkpoint_registry.get("fallback_candidate", {}).get("selection_reason", ""),
-            "selection_eligible": checkpoint_registry.get("fallback_candidate", {}).get("selection_eligible", False),
-            "selection_score": checkpoint_registry.get("fallback_candidate", {}).get("score"),
-        },
-        {
-            "checkpoint_name": "best_final_macro_f1",
-            "path": best_final_macro_path,
-            "epoch": best_final_macro_epoch,
-            "selection_reason": checkpoint_registry.get("best_final_macro_f1", {}).get("selection_reason", ""),
-            "selection_eligible": checkpoint_registry.get("best_final_macro_f1", {}).get("selection_eligible", False),
-            "selection_score": checkpoint_registry.get("best_final_macro_f1", {}).get("score"),
-        },
-        {
-            "checkpoint_name": "best_joint_gain",
-            "path": best_joint_gain_path,
-            "epoch": best_joint_gain_epoch,
-            "selection_reason": checkpoint_registry.get("best_joint_gain", {}).get("selection_reason", ""),
-            "selection_eligible": checkpoint_registry.get("best_joint_gain", {}).get("selection_eligible", False),
-            "selection_score": checkpoint_registry.get("best_joint_gain", {}).get("score"),
-        },
-        {
-            "checkpoint_name": "last_full_val",
-            "path": last_full_val_path,
-            "epoch": last_full_val_epoch,
-            "selection_reason": checkpoint_registry.get("last_full_val", {}).get("selection_reason", ""),
-            "selection_eligible": checkpoint_registry.get("last_full_val", {}).get("selection_eligible", False),
-            "selection_score": checkpoint_registry.get("last_full_val", {}).get("score"),
-        },
-    ]
-    for spec in diagnostic_specs:
-        checkpoint_path = Path(spec["path"])
-        if not checkpoint_path.exists():
-            diagnostic_checkpoint_tests.append(
-                {
-                    "checkpoint_name": str(spec["checkpoint_name"]),
-                    "status": "missing",
-                    "path": _rel(checkpoint_path),
-                    "epoch": int(spec.get("epoch", -1)),
-                    "selection_reason": str(spec.get("selection_reason", "")),
-                    "selection_eligible": bool(spec.get("selection_eligible", False)),
-                    "selection_score": (
-                        float(spec["selection_score"])
-                        if spec.get("selection_score") is not None
-                        else None
-                    ),
-                    "selected_joint_logit_delta_scale": float(config.joint_logit_delta_scale),
-                    "is_selected_checkpoint": str(spec["checkpoint_name"]) == selected_checkpoint_name,
-                }
-            )
-            continue
-        cache_key = str(checkpoint_path.resolve())
-        cached = diagnostic_cache.get(cache_key)
-        if cached is None:
-            checkpoint_state = _load_checkpoint_into_modules(
-                checkpoint_path,
-                representation_builder,
-                rd_proj,
-                model,
-                device,
-            )
-            model.joint_logit_delta_scale = _checkpoint_joint_logit_delta_scale(checkpoint_state, config)
-            checkpoint_epoch = int(checkpoint_state.get("epoch", spec.get("epoch", -1)))
-            stage2_enabled, stage2_scale, stage2_epoch = _checkpoint_eval_runtime(checkpoint_epoch, config)
-            checkpoint_metrics = _run_epoch(
-                representation_builder,
-                rd_proj,
-                model,
-                loaders.test_loader,
-                criterion,
-                optimizer,
-                device,
-                False,
-                config,
-                stage2_enabled,
-                stage2_scale,
-                stage2_epoch,
-                rd_class_weights,
-                source_feature_stats,
-                compute_aux_loss=config.compute_eval_aux_loss,
-            )
-            checkpoint_probe = _joint_logit_delta_probe(
-                checkpoint_metrics,
-                config,
-                stage2_enabled=stage2_enabled,
-                selected_scale_override=float(model.joint_logit_delta_scale),
-            )
-            checkpoint_selected_probe_metrics = checkpoint_probe.get("selected_metrics")
-            if isinstance(checkpoint_selected_probe_metrics, dict):
-                checkpoint_metrics.update(checkpoint_selected_probe_metrics)
-            checkpoint_metrics["selected_joint_logit_delta_scale"] = float(model.joint_logit_delta_scale)
-            checkpoint_metrics["joint_logit_delta_probe"] = _serializable_joint_logit_delta_probe(checkpoint_probe)
-            checkpoint_parent_aggregation = _parent_window_aggregation_metrics(checkpoint_metrics, window_metadata)
-            checkpoint_parent_mean_logit = checkpoint_parent_aggregation.get("mean_logit", {})
-            if isinstance(checkpoint_parent_mean_logit, dict):
-                checkpoint_metrics["parent_mean_logit_macro_f1"] = float(checkpoint_parent_mean_logit.get("macro_f1", 0.0))
-            checkpoint_metrics.update(_parent_weak_class_metrics(checkpoint_parent_aggregation))
-            cached = (checkpoint_state, checkpoint_metrics)
-            diagnostic_cache[cache_key] = cached
-        checkpoint_state, checkpoint_metrics = cached
-        diagnostic_checkpoint_tests.append(
-            _diagnostic_checkpoint_test_record(
-                str(spec["checkpoint_name"]),
-                checkpoint_path,
-                checkpoint_state,
-                checkpoint_metrics,
-                is_selected_checkpoint=str(spec["checkpoint_name"]) == selected_checkpoint_name,
-                selection_score=(
-                    float(spec["selection_score"])
-                    if spec.get("selection_score") is not None
-                    else None
-                ),
-            )
-        )
-    diagnostic_test_recommendation = _diagnostic_checkpoint_test_recommendation(diagnostic_checkpoint_tests)
-    precision_candidate = _precision_candidate_from_diagnostic_checkpoint_tests(diagnostic_checkpoint_tests)
-    precision_candidate_cache = diagnostic_cache.get(str(Path(str(precision_candidate.get("path", ""))).resolve()))
-    if precision_candidate_cache is not None:
-        precision_candidate_state, precision_candidate_metrics = precision_candidate_cache
-        precision_candidate_epoch = int(precision_candidate_state.get("epoch", precision_candidate.get("epoch", -1)))
-        precision_stage2_enabled, _precision_stage2_scale, _precision_stage2_epoch = _checkpoint_eval_runtime(
-            precision_candidate_epoch,
-            config,
-        )
-        precision_calibration_probe = _precision_calibration_probe(
-            precision_candidate_metrics,
-            precision_candidate,
-            config,
-            stage2_enabled=precision_stage2_enabled,
-            window_metadata=window_metadata,
-        )
-        precision_candidate["precision_calibration_probe"] = precision_calibration_probe
-        precision_candidate["precision_logit_bias"] = _normalize_precision_logit_bias(None)
-        precision_candidate["precision_logit_bias_by_label"] = {}
-        recommended_calibration = precision_calibration_probe.get("recommended", {})
-        if isinstance(recommended_calibration, dict) and precision_calibration_probe.get("ready", False):
-            precision_candidate.update(
-                {
-                    "score": float(recommended_calibration.get("score", precision_candidate.get("score", 0.0))),
-                    "macro_f1": float(recommended_calibration.get("macro_f1", precision_candidate.get("macro_f1", 0.0))),
-                    "traj_macro_f1": float(recommended_calibration.get("traj_macro_f1", precision_candidate.get("traj_macro_f1", 0.0))),
-                    "joint_minus_traj_macro_f1_on_rd": float(
-                        recommended_calibration.get(
-                            "joint_minus_traj_macro_f1_on_rd",
-                            precision_candidate.get("joint_minus_traj_macro_f1_on_rd", 0.0),
-                        )
-                    ),
-                    "rd_macro_f1_on_rd": float(recommended_calibration.get("rd_macro_f1_on_rd", precision_candidate.get("rd_macro_f1_on_rd", 0.0))),
-                    "final_net_gain_rate_on_rd": float(
-                        recommended_calibration.get("final_net_gain_rate_on_rd", precision_candidate.get("final_net_gain_rate_on_rd", 0.0))
-                    ),
-                    "final_harm_rate_on_rd": float(
-                        recommended_calibration.get("final_harm_rate_on_rd", precision_candidate.get("final_harm_rate_on_rd", 0.0))
-                    ),
-                    "final_unknown_recall": float(recommended_calibration.get("final_unknown_recall", precision_candidate.get("final_unknown_recall", 0.0))),
-                    "final_clutter_recall": float(recommended_calibration.get("final_clutter_recall", precision_candidate.get("final_clutter_recall", 0.0))),
-                    "final_unknown_clutter_recall_mean": float(
-                        recommended_calibration.get(
-                            "final_unknown_clutter_recall_mean",
-                            precision_candidate.get("final_unknown_clutter_recall_mean", 0.0),
-                        )
-                    ),
-                    "source_balanced_supported_macro_f1": float(
-                        recommended_calibration.get(
-                            "source_balanced_supported_macro_f1",
-                            precision_candidate.get("source_balanced_supported_macro_f1", 0.0),
-                        )
-                    ),
-                    "parent_mean_logit_macro_f1": float(
-                        recommended_calibration.get("parent_mean_logit_macro_f1", precision_candidate.get("parent_mean_logit_macro_f1", 0.0))
-                    ),
-                    "precision_threshold_failures": list(recommended_calibration.get("precision_threshold_failures", [])),
-                    "precision_threshold_gaps": dict(recommended_calibration.get("precision_threshold_gaps", {})),
-                    "precision_logit_bias": _normalize_precision_logit_bias(recommended_calibration.get("precision_logit_bias", None)),
-                    "precision_logit_bias_by_label": _precision_logit_bias_dict(recommended_calibration.get("precision_logit_bias", None)),
-                    "recommendation_basis": "diagnostic_test_precision_candidate_calibrated",
-                }
-            )
-            if isinstance(recommended_calibration.get("rd_joint_bottleneck_summary"), dict):
-                precision_candidate["rd_joint_bottleneck_summary"] = recommended_calibration.get("rd_joint_bottleneck_summary", {})
-            precision_candidate.update(dict(precision_candidate.get("precision_threshold_gaps", {})))
-    precision_readiness_summary = _precision_candidate_readiness_summary(diagnostic_checkpoint_tests, precision_candidate)
-    precision_candidate_delta_vs_selected = _precision_candidate_delta_vs_selected(
-        precision_candidate,
-        diagnostic_checkpoint_tests,
-    )
-    precision_checkpoint_export = _write_precision_candidate_checkpoint(
-        precision_candidate,
-        precision_candidate_path,
-    )
-    precision_checkpoint_validation = _validate_precision_checkpoint_export(
-        precision_candidate,
-        precision_checkpoint_export,
-    )
-    precision_checkpoint_path = str(precision_checkpoint_export.get("path", precision_candidate.get("path", "")))
-    precision_checkpoint_name = str(precision_candidate.get("checkpoint_name", ""))
+    diagnostic_test_recommendation: dict[str, object] = {}
 
     history_path = run_paths.output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -5374,6 +5164,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         },
         "checkpoint_selection": {
             "candidate_status": candidate_status,
+            "test_used_for_selection": False,
+            "precision_calibration": precision_calibration,
             "selected_checkpoint": _rel(selected_checkpoint_path),
             "selected_checkpoint_name": selected_checkpoint_name,
             "selected_reason": selected_checkpoint_reason,
@@ -5411,12 +5203,12 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "precision_candidate_readiness": precision_readiness_summary,
         "precision_candidate_delta_vs_selected": precision_candidate_delta_vs_selected,
         "rd_joint_bottleneck_summary": rd_joint_bottleneck_summary,
+        "precision_calibration": precision_calibration,
+        "test_used_for_selection": False,
         "joint_logit_delta_probe": {
             "selection_metric": config.joint_logit_delta_selection_metric,
-            "configured_scales": _unique_joint_logit_delta_scales(config),
             "selected_scale": float(selected_checkpoint_joint_delta_scale),
-            "best_test_scale": float(test_probe.get("best_scale", test_probe.get("selected_scale", selected_checkpoint_joint_delta_scale))),
-            "results": test_probe.get("results", []),
+            "source": "validation_locked",
         },
         "window_evaluation": {
             "index_name": config.index_name,
@@ -5669,6 +5461,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
 
     summary = {
         "best_checkpoint": _rel(selected_checkpoint_path),
+        "test_used_for_selection": False,
+        "precision_calibration": precision_calibration,
         "precision_checkpoint": precision_checkpoint_path,
         "precision_checkpoint_name": precision_checkpoint_name,
         "precision_checkpoint_metrics": precision_candidate,

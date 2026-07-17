@@ -18,9 +18,13 @@ needtosettle/
 reports/
 /tests/*
 !/tests/test_expert1_rd_segment_store_smoke.py
+!/tests/test_expert1_precision_controls_smoke.py
+!/tests/test_expert1_split_integrity.py
 tools/
 logs/
 OriData/
 .history/
 main.md*
 .cc-connect/
+.claude/
+.codegraph/

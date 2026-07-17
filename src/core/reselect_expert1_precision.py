@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from dataclasses import fields
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,6 @@ from torch import nn
 
 from .expert1_config import Expert1TrainConfig
 from .expert1_data import build_expert1_dataloaders
-from .expert1_trainer import _diagnostic_checkpoint_test_recommendation
 from .expert1_trainer import _build_class_weights_from_index
 from .expert1_trainer import _build_optimizer
 from .expert1_trainer import _build_rd_class_weights_from_index
@@ -23,10 +23,10 @@ from .expert1_trainer import _fit_source_feature_stats_from_index
 from .expert1_trainer import _joint_logit_delta_probe
 from .expert1_trainer import _load_checkpoint_into_modules
 from .expert1_trainer import _load_window_metadata
+from .expert1_trainer import _locked_precision_parameters
 from .expert1_trainer import _parent_weak_class_metrics
 from .expert1_trainer import _parent_window_aggregation_metrics
 from .expert1_trainer import _precision_candidate_delta_vs_selected
-from .expert1_trainer import _precision_candidate_from_diagnostic_checkpoint_tests
 from .expert1_trainer import _precision_candidate_readiness_summary
 from .expert1_trainer import _precision_calibration_probe
 from .expert1_trainer import _precision_logit_bias_dict
@@ -45,8 +45,8 @@ from .trajectory import TrackRepresentationBuilder
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Posthoc reselect and export Expert1 precision candidate from an existing "
-            "run without rerunning full training."
+            "Posthoc select and export an Expert1 precision checkpoint using validation metadata "
+            "from an existing run without rerunning full training."
         )
     )
     parser.add_argument("--run-dir", required=True, type=Path, help="Existing Expert1 artifact run directory.")
@@ -65,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-checkpoint-name",
         type=str,
-        default="precision_candidate_model_reselected.pt",
+        default="validation_precision_model.pt",
         help="Checkpoint filename written inside run-dir.",
     )
     parser.add_argument(
@@ -75,27 +75,33 @@ def parse_args() -> argparse.Namespace:
         help="reports/real/<timestamp-label> output folder. Defaults to current timestamp with posthoc suffix.",
     )
     parser.add_argument(
+        "--test-reporting",
         "--full-validation",
+        dest="test_reporting",
         action="store_true",
-        help="Reload the exported precision checkpoint and evaluate it on the test loader.",
+        help="After export is locked, reload it and report test-loader metrics without selection.",
     )
     parser.add_argument(
         "--device",
         type=str,
         default="",
-        help="Override checkpoint config device when --full-validation is used.",
+        help="Override checkpoint config device when --test-reporting is used.",
     )
     parser.add_argument(
+        "--test-reporting-max-batches",
         "--validation-max-batches",
+        dest="test_reporting_max_batches",
         type=int,
         default=0,
-        help="Max test batches for --full-validation. 0 means the full test loader.",
+        help="Max test-reporting batches. 0 means the full test loader.",
     )
     parser.add_argument(
+        "--test-reporting-num-workers",
         "--validation-num-workers",
+        dest="test_reporting_num_workers",
         type=int,
         default=0,
-        help="DataLoader worker count for --full-validation. Defaults to 0 to avoid Windows multiprocessing issues.",
+        help="DataLoader worker count for --test-reporting. Defaults to 0 to avoid Windows multiprocessing issues.",
     )
     return parser.parse_args()
 
@@ -111,6 +117,47 @@ def _checkpoint_path(value: object) -> Path:
     return Path.cwd() / path
 
 
+def _locked_calibration_from_record(record: dict[str, object]) -> dict[str, object] | None:
+    locked = record.get("locked_precision_parameters", {})
+    if not isinstance(locked, dict):
+        locked = {}
+    source = str(
+        locked.get(
+            "source",
+            record.get("precision_calibration_source", "validation"),
+        )
+    )
+    raw_scale = locked.get(
+        "joint_logit_delta_scale",
+        record.get(
+            "recommended_joint_logit_delta_scale",
+            record.get("selected_joint_logit_delta_scale", 1.0),
+        ),
+    )
+    raw_bias = locked.get("precision_logit_bias", record.get("precision_logit_bias"))
+    if source == "config_default":
+        try:
+            scale = float(raw_scale)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(scale) or not 0.0 <= scale <= 1.0:
+            return None
+        return _locked_precision_parameters(None, default_scale=scale)
+    if source != "validation":
+        return None
+    calibrated = _locked_precision_parameters(
+        {
+            "ready": True,
+            "selected_scale": raw_scale,
+            "recommended": {"precision_logit_bias": raw_bias},
+        },
+        default_scale=1.0,
+    )
+    if calibrated.get("source") != "validation":
+        return None
+    return calibrated
+
+
 def _write_precision_checkpoint(
     precision_candidate: dict[str, object],
     destination_path: Path,
@@ -123,24 +170,34 @@ def _write_precision_checkpoint(
             "status": "missing_source_checkpoint",
             "source_path": _rel(source_path),
         }
+    locked = _locked_calibration_from_record(precision_candidate)
+    if locked is None:
+        locked = _locked_precision_parameters(None, default_scale=1.0)
+    recommended_scale = float(locked["joint_logit_delta_scale"])
+    precision_logit_bias = _normalize_precision_logit_bias(locked["precision_logit_bias"])
+    calibration_source = str(locked["source"])
+    locked_payload = {
+        "source": calibration_source,
+        "joint_logit_delta_scale": recommended_scale,
+        "precision_logit_bias": precision_logit_bias,
+    }
+
     payload = torch.load(source_path, map_location="cpu", weights_only=True)
-    recommended_scale = float(
-        precision_candidate.get(
-            "recommended_joint_logit_delta_scale",
-            payload.get("selected_joint_logit_delta_scale", 1.0),
-        )
-    )
     payload["selected_joint_logit_delta_scale"] = recommended_scale
-    payload["selection_reason"] = "precision_candidate_posthoc_reselection"
+    payload["selection_reason"] = "validation_precision_posthoc_selection"
     payload["precision_candidate_source_checkpoint"] = _rel(source_path)
     payload["precision_candidate_source_checkpoint_name"] = str(precision_candidate.get("checkpoint_name", ""))
     payload["precision_candidate_metrics"] = dict(precision_candidate)
     payload["precision_candidate_recommended_joint_logit_delta_scale"] = recommended_scale
-    precision_logit_bias = _normalize_precision_logit_bias(precision_candidate.get("precision_logit_bias", None))
+    payload["precision_calibration_source"] = calibration_source
+    payload["test_used_for_selection"] = False
     payload["precision_logit_bias"] = precision_logit_bias
     payload["precision_logit_bias_by_label"] = _precision_logit_bias_dict(precision_logit_bias)
+    payload["locked_precision_parameters"] = locked_payload
     if "precision_calibration_probe" in precision_candidate:
-        payload["precision_calibration_probe"] = precision_candidate.get("precision_calibration_probe", {})
+        calibration_probe = precision_candidate.get("precision_calibration_probe", {})
+        payload["precision_calibration_probe"] = calibration_probe
+        payload["validation_precision_calibration_probe"] = calibration_probe
     payload_config = payload.get("config", {})
     if isinstance(payload_config, dict):
         payload_config = dict(payload_config)
@@ -164,7 +221,82 @@ def _write_precision_checkpoint(
         "recommended_joint_logit_delta_scale": recommended_scale,
         "precision_logit_bias": precision_logit_bias,
         "precision_logit_bias_by_label": _precision_logit_bias_dict(precision_logit_bias),
+        "precision_calibration_source": calibration_source,
+        "locked_precision_parameters": locked_payload,
+        "test_used_for_selection": False,
     }
+
+
+def _precision_candidate_from_validation_records(
+    checkpoint_registry: object,
+) -> dict[str, object]:
+    if not isinstance(checkpoint_registry, dict):
+        raise ValueError("training_summary.checkpoint_registry is missing or invalid")
+    records: list[dict[str, object]] = []
+    for name, raw_record in checkpoint_registry.items():
+        if not isinstance(raw_record, dict) or not raw_record.get("path"):
+            continue
+        try:
+            score = float(raw_record.get("score", float("-inf")))
+            epoch_value = raw_record.get("epoch", -1)
+            if isinstance(epoch_value, bool):
+                continue
+            epoch = int(epoch_value)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(score):
+            continue
+        locked = _locked_calibration_from_record(raw_record)
+        if locked is None:
+            continue
+        record = dict(raw_record)
+        record["score"] = score
+        record["epoch"] = epoch
+        record["checkpoint_name"] = str(name)
+        record["locked_precision_parameters"] = locked
+        records.append(record)
+    if not records:
+        raise ValueError("validation checkpoint records are missing or unsafe")
+    selected = max(
+        records,
+        key=lambda record: (
+            bool(record.get("selection_eligible", False)),
+            float(record["score"]),
+            int(record["epoch"]),
+        ),
+    )
+    locked = selected["locked_precision_parameters"]
+    assert isinstance(locked, dict)
+    scale = float(locked["joint_logit_delta_scale"])
+    bias = _normalize_precision_logit_bias(locked["precision_logit_bias"])
+    components = selected.get("selection_components", {})
+    if not isinstance(components, dict):
+        components = {}
+    calibration_source = str(locked["source"])
+    candidate = {
+        **selected,
+        **components,
+        "path": str(selected["path"]),
+        "checkpoint_name": str(selected["checkpoint_name"]),
+        "recommended_joint_logit_delta_scale": scale,
+        "precision_logit_bias": bias,
+        "precision_logit_bias_by_label": _precision_logit_bias_dict(bias),
+        "precision_calibration_source": calibration_source,
+        "locked_precision_parameters": {
+            "source": calibration_source,
+            "joint_logit_delta_scale": scale,
+            "precision_logit_bias": bias,
+        },
+        "test_used_for_selection": False,
+        "recommendation_basis": "validation_checkpoint_registry",
+    }
+    calibration_probe = selected.get(
+        "precision_calibration_probe",
+        selected.get("validation_precision_calibration_probe"),
+    )
+    if isinstance(calibration_probe, dict):
+        candidate["precision_calibration_probe"] = calibration_probe
+    return candidate
 
 
 def _metadata_validation(
@@ -254,7 +386,7 @@ def _build_modules(config: Expert1TrainConfig, device: torch.device) -> tuple[Tr
     return representation_builder, rd_proj, model
 
 
-def _full_validation(
+def _test_checkpoint_reporting(
     precision_candidate: dict[str, object],
     precision_checkpoint_export: dict[str, object],
     *,
@@ -328,7 +460,7 @@ def _full_validation(
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = _build_optimizer(representation_builder, rd_proj, model, config)
     print(
-        "[*] Validating precision checkpoint: "
+        "[*] Reporting locked precision checkpoint on test loader: "
         f"device={device} max_batches={int(max_batches)} params="
         f"{_count_trainable_parameters(representation_builder) + _count_trainable_parameters(rd_proj) + _count_trainable_parameters(model):,}"
     )
@@ -397,7 +529,7 @@ def _full_validation(
     record["selected_joint_logit_delta_scale_delta"] = float(record.get("selected_joint_logit_delta_scale", 0.0)) - expected_scale
     record["scale_matches"] = abs(float(record["selected_joint_logit_delta_scale_delta"])) <= 1.0e-6
     record["metric_tolerance"] = tolerance
-    record["validation_max_batches"] = int(max_batches)
+    record["test_reporting_max_batches"] = int(max_batches)
     for key in [
         "macro_f1",
         "final_unknown_recall",
@@ -418,7 +550,24 @@ def _full_validation(
     )
     record["status"] = "ok" if record["matches_precision_candidate"] else ("partial" if int(max_batches) > 0 else "mismatch")
     record["rd_joint_bottleneck_summary"] = _rd_joint_bottleneck_summary(checkpoint_metrics, config)
+    record["report_scope"] = "test"
+    record["test_used_for_selection"] = False
     return record
+
+
+def _apply_test_reporting(
+    evaluation_report: dict[str, object],
+    summary: dict[str, object],
+    test_observations: dict[str, object],
+) -> dict[str, object]:
+    test_reporting = {
+        **test_observations,
+        "report_scope": "test",
+        "test_used_for_selection": False,
+    }
+    evaluation_report["test_reporting"] = test_reporting
+    summary["test_reporting"] = test_reporting
+    return test_reporting
 
 
 def _replace_precision_fields(
@@ -444,19 +593,7 @@ def _replace_precision_fields(
     checkpoint_selection["precision_candidate_checkpoint_name"] = precision_checkpoint_name
     checkpoint_selection["precision_candidate_metrics"] = precision_candidate
     checkpoint_selection["precision_candidate_delta_vs_selected"] = precision_delta
-    rd_joint_summary = precision_checkpoint_validation.get("rd_joint_bottleneck_summary", {})
-    if not isinstance(rd_joint_summary, dict) or not rd_joint_summary:
-        rd_joint_summary = precision_candidate.get("rd_joint_bottleneck_summary", {})
-    if (
-        isinstance(rd_joint_summary, dict)
-        and bool(rd_joint_summary.get("full_training_rerun_recommended_now", False))
-    ):
-        precision_readiness = {
-            **precision_readiness,
-            "full_training_rerun_recommended_now": True,
-            "next_action": str(rd_joint_summary.get("next_action", precision_readiness.get("next_action", ""))),
-            "posthoc_validation_overrides_readiness": True,
-        }
+    rd_joint_summary = precision_candidate.get("rd_joint_bottleneck_summary", {})
     checkpoint_selection["precision_candidate_readiness"] = precision_readiness
     if isinstance(rd_joint_summary, dict) and rd_joint_summary:
         checkpoint_selection["rd_joint_bottleneck_summary"] = rd_joint_summary
@@ -469,9 +606,6 @@ def _replace_precision_fields(
         diagnostic_tests["precision_checkpoint_validation"] = precision_checkpoint_validation
         if isinstance(rd_joint_summary, dict) and rd_joint_summary:
             diagnostic_tests["rd_joint_bottleneck_summary"] = rd_joint_summary
-        results = diagnostic_tests.get("results", [])
-        if isinstance(results, list):
-            diagnostic_tests["diagnostic_test_recommendation"] = _diagnostic_checkpoint_test_recommendation(results)
 
     evaluation_report["precision_checkpoint"] = precision_checkpoint
     evaluation_report["precision_checkpoint_name"] = precision_checkpoint_name
@@ -484,7 +618,7 @@ def _replace_precision_fields(
         evaluation_report["rd_joint_bottleneck_summary"] = rd_joint_summary
     evaluation_report["posthoc_precision_reselection"] = {
         "status": "applied",
-        "source": "diagnostic_checkpoint_tests.results",
+        "source": "validation_checkpoint_registry",
         "precision_checkpoint": precision_checkpoint,
         "precision_checkpoint_name": precision_checkpoint_name,
     }
@@ -515,22 +649,22 @@ def main() -> None:
 
     evaluation_report = _load_json(evaluation_report_path)
     summary = _load_json(summary_path) if summary_path.exists() else {}
-    diagnostic_tests = evaluation_report.get("diagnostic_checkpoint_tests", {})
-    if not isinstance(diagnostic_tests, dict):
-        raise ValueError("evaluation_report.diagnostic_checkpoint_tests is missing or invalid")
-    records = diagnostic_tests.get("results", [])
-    if not isinstance(records, list) or not records:
-        raise ValueError("diagnostic checkpoint test results are missing")
-
-    precision_candidate = _precision_candidate_from_diagnostic_checkpoint_tests(records)
-    if args.full_validation:
+    precision_candidate = _precision_candidate_from_validation_records(
+        summary.get("checkpoint_registry", {})
+    )
+    validation_records = [
+        {"checkpoint_name": name, **record}
+        for name, record in summary.get("checkpoint_registry", {}).items()
+        if isinstance(record, dict)
+    ]
+    if args.test_reporting:
         source_checkpoint_path = _checkpoint_path(precision_candidate.get("path", ""))
         config = _config_from_checkpoint(source_checkpoint_path, device_override=str(args.device or ""))
         config = Expert1TrainConfig(**{
             **config.__dict__,
-            "num_workers": int(max(0, args.validation_num_workers)),
-            "eval_num_workers": int(max(0, args.validation_num_workers)),
-            "persistent_workers": bool(config.persistent_workers and int(max(0, args.validation_num_workers)) > 0),
+            "num_workers": int(max(0, args.test_reporting_num_workers)),
+            "eval_num_workers": int(max(0, args.test_reporting_num_workers)),
+            "persistent_workers": bool(config.persistent_workers and int(max(0, args.test_reporting_num_workers)) > 0),
         })
         device, _device_info = resolve_device(config.device)
         loaders = build_expert1_dataloaders(
@@ -592,7 +726,7 @@ def main() -> None:
             representation_builder,
             rd_proj,
             model,
-            loaders.test_loader,
+            loaders.val_loader,
             criterion,
             optimizer,
             device,
@@ -603,7 +737,7 @@ def main() -> None:
             stage2_epoch,
             rd_class_weights,
             source_feature_stats,
-            max_batches=int(args.validation_max_batches),
+            max_batches=int(args.test_reporting_max_batches),
             compute_aux_loss=config.compute_eval_aux_loss,
         )
         checkpoint_probe = _joint_logit_delta_probe(
@@ -675,26 +809,18 @@ def main() -> None:
                     "precision_threshold_gaps": dict(recommended_calibration.get("precision_threshold_gaps", {})),
                     "precision_logit_bias": _normalize_precision_logit_bias(recommended_calibration.get("precision_logit_bias", None)),
                     "precision_logit_bias_by_label": _precision_logit_bias_dict(recommended_calibration.get("precision_logit_bias", None)),
-                    "recommendation_basis": "diagnostic_test_precision_candidate_calibrated",
+                    "recommendation_basis": "validation_precision_candidate_calibrated",
                 }
             )
             if isinstance(recommended_calibration.get("rd_joint_bottleneck_summary"), dict):
                 precision_candidate["rd_joint_bottleneck_summary"] = recommended_calibration.get("rd_joint_bottleneck_summary", {})
             precision_candidate.update(dict(precision_candidate.get("precision_threshold_gaps", {})))
-    precision_readiness = _precision_candidate_readiness_summary(records, precision_candidate)
-    precision_delta = _precision_candidate_delta_vs_selected(precision_candidate, records)
+    precision_candidate["test_used_for_selection"] = False
+    precision_readiness = _precision_candidate_readiness_summary(validation_records, precision_candidate)
+    precision_delta = _precision_candidate_delta_vs_selected(precision_candidate, validation_records)
     destination_path = run_dir / args.output_checkpoint_name
     precision_checkpoint_export = _write_precision_checkpoint(precision_candidate, destination_path)
-    if args.full_validation:
-        precision_checkpoint_validation = _full_validation(
-            precision_candidate,
-            precision_checkpoint_export,
-            device_override=str(args.device or ""),
-            max_batches=int(args.validation_max_batches),
-            num_workers=int(args.validation_num_workers),
-        )
-    else:
-        precision_checkpoint_validation = _metadata_validation(precision_candidate, precision_checkpoint_export)
+    precision_checkpoint_validation = _metadata_validation(precision_candidate, precision_checkpoint_export)
     precision_readiness = _replace_precision_fields(
         evaluation_report,
         summary,
@@ -704,6 +830,16 @@ def main() -> None:
         precision_checkpoint_export,
         precision_checkpoint_validation,
     )
+    test_reporting: dict[str, object] = {}
+    if args.test_reporting:
+        test_reporting = _test_checkpoint_reporting(
+            precision_candidate,
+            precision_checkpoint_export,
+            device_override=str(args.device or ""),
+            max_batches=int(args.test_reporting_max_batches),
+            num_workers=int(args.test_reporting_num_workers),
+        )
+        _apply_test_reporting(evaluation_report, summary, test_reporting)
 
     timestamp_label = args.timestamp_label or f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-expert1-posthoc-precision"
     report_paths = write_real_experiment_report(
@@ -726,15 +862,12 @@ def main() -> None:
                 "precision_calibration_ready": precision_readiness.get("calibration_ready", False),
                 "precision_logit_bias_by_label": precision_candidate.get("precision_logit_bias_by_label", {}),
                 "precision_next_action": precision_readiness.get("next_action", ""),
-                "rd_joint_primary_bottleneck": (
-                    precision_checkpoint_validation.get("rd_joint_bottleneck_summary", {})
-                    if isinstance(precision_checkpoint_validation.get("rd_joint_bottleneck_summary", {}), dict)
-                    else (
-                        precision_candidate.get("rd_joint_bottleneck_summary", {})
-                        if isinstance(precision_candidate.get("rd_joint_bottleneck_summary", {}), dict)
-                        else {}
-                    )
+                "validation_rd_joint_primary_bottleneck": (
+                    precision_candidate.get("rd_joint_bottleneck_summary", {})
+                    if isinstance(precision_candidate.get("rd_joint_bottleneck_summary", {}), dict)
+                    else {}
                 ).get("primary_bottleneck", ""),
+                "test_reporting_status": test_reporting.get("status", "not_run"),
                 "real_report_markdown": _rel(report_paths.markdown_path),
                 "real_report_json": _rel(report_paths.json_path),
             },

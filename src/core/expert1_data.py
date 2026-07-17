@@ -18,7 +18,12 @@ from torch.utils.data import WeightedRandomSampler
 from .experts import LOW_ALTITUDE_CLASSES
 from .forwardlayer.collate import collate_track_batch
 from .forwardlayer.dataset import TrackDataset
-from .forwardlayer.split import SplitResult, stratified_split
+from .forwardlayer.split import (
+    SplitResult,
+    canonical_group_id,
+    stratified_group_split,
+    validate_grouped_split,
+)
 from .forwardlayer.torch_dataset import TorchTrackDataset
 from .forwardlayer.labels import DEFAULT_VOCAB
 
@@ -166,38 +171,41 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
         if self.num_batches <= 0:
             return
         rng = random.Random(self.seed)
-        # Build shard visit order: each shard gets shard_group_batches
-        # consecutive batches before moving to the next shard.
-        # This maximises LRU cache hits for shard payloads.
-        shard_order: list[str] = []
-        for shard_key in self._shard_keys:
-            shard_order.extend([shard_key] * self.shard_group_batches)
-        rng.shuffle(shard_order)
+        # Build shard visit groups: each group keeps one shard active for
+        # shard_group_batches consecutive batches to maximise LRU cache hits.
+        shard_groups = [
+            [shard_key] * self.shard_group_batches
+            for shard_key in self._shard_keys
+        ]
         yield_count = 0
-        for shard_key in shard_order:
-            if yield_count >= self.num_batches:
-                break
-            shard_indices = self._rd_by_shard[shard_key]
-            rd_weights = [max(1.0e-6, self.sample_weights[item]) for item in shard_indices]
-            batch: list[int] = []
-            if len(shard_indices) >= self.rd_per_batch:
-                batch.extend(_weighted_sample_without_replacement(rng, shard_indices, rd_weights, self.rd_per_batch))
-            else:
-                batch.extend(shard_indices)
-                remaining = self.rd_per_batch - len(batch)
-                selected = set(batch)
-                candidates = [item for item in self.rd_indices if item not in selected]
-                if candidates:
-                    candidate_weights = [max(1.0e-6, self.sample_weights[item]) for item in candidates]
-                    take = min(remaining, len(candidates))
-                    batch.extend(_weighted_sample_without_replacement(rng, candidates, candidate_weights, take))
-                    remaining = self.rd_per_batch - len(batch)
-                if remaining > 0:
-                    batch.extend(rng.choices(shard_indices, weights=rd_weights, k=remaining))
-            batch.extend(rng.choices(self.no_rd_indices, weights=self.no_rd_weights, k=self.no_rd_per_batch))
-            rng.shuffle(batch)
-            yield batch
-            yield_count += 1
+        while yield_count < self.num_batches:
+            groups = list(shard_groups)
+            rng.shuffle(groups)
+            for group in groups:
+                for shard_key in group:
+                    shard_indices = self._rd_by_shard[shard_key]
+                    rd_weights = [max(1.0e-6, self.sample_weights[item]) for item in shard_indices]
+                    batch: list[int] = []
+                    if len(shard_indices) >= self.rd_per_batch:
+                        batch.extend(_weighted_sample_without_replacement(rng, shard_indices, rd_weights, self.rd_per_batch))
+                    else:
+                        batch.extend(shard_indices)
+                        remaining = self.rd_per_batch - len(batch)
+                        selected = set(batch)
+                        candidates = [item for item in self.rd_indices if item not in selected]
+                        if candidates:
+                            candidate_weights = [max(1.0e-6, self.sample_weights[item]) for item in candidates]
+                            take = min(remaining, len(candidates))
+                            batch.extend(_weighted_sample_without_replacement(rng, candidates, candidate_weights, take))
+                            remaining = self.rd_per_batch - len(batch)
+                        if remaining > 0:
+                            batch.extend(rng.choices(shard_indices, weights=rd_weights, k=remaining))
+                    batch.extend(rng.choices(self.no_rd_indices, weights=self.no_rd_weights, k=self.no_rd_per_batch))
+                    rng.shuffle(batch)
+                    yield batch
+                    yield_count += 1
+                    if yield_count >= self.num_batches:
+                        return
 
     def __len__(self) -> int:
         return int(self.num_batches)
@@ -291,8 +299,7 @@ def _sample_weight(
         source_label_count = max(1, int(source_label_counts.get((source_name, label_name), 1)))
         weight *= (max_source_label_count / source_label_count) ** float(source_label_balance_power)
     if parent_window_balance_power > 0.0 and parent_window_counts:
-        parent_id = str(row.get("parent_sample_id", row.get("sample_id", "")))
-        parent_count = max(1, int(parent_window_counts.get(parent_id, 1)))
+        parent_count = max(1, int(parent_window_counts.get(canonical_group_id(row), 1)))
         weight *= (1.0 / parent_count) ** float(parent_window_balance_power)
     if _row_has_rd(row):
         weight *= rd_sample_boost
@@ -345,6 +352,11 @@ def build_expert1_dataloaders(
 ) -> Expert1LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name=index_name)
     frame = dataset.to_frame().copy()
+    if "split_name" in frame.columns:
+        persisted_split_labels = frame["split_name"].astype(str)
+        invalid_split_labels = ~persisted_split_labels.isin({"train", "val", "test"})
+        if invalid_split_labels.any():
+            raise ValueError("persisted split_name contains malformed labels")
     frame = frame[frame["label_name"].astype(str).isin(LOW_ALTITUDE_CLASSES)].copy()
     if "is_trainable" in frame.columns:
         trainable_mask = frame["is_trainable"].map(lambda value: str(value).strip().lower() in {"true", "1", "yes"})
@@ -355,12 +367,13 @@ def build_expert1_dataloaders(
         frame = frame[csv_exists].copy()
     cq08_split_path = Path(data_root) / "manifests" / "cq08_grouped_split.json"
     if "split_name" in frame.columns:
-        split_frame = frame[frame["split_name"].astype(str).isin({"train", "val", "test"})].copy()
+        split_labels = frame["split_name"].astype(str)
         split = SplitResult(
-            train_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "train"]["sample_id"].astype(str).tolist()),
-            val_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "val"]["sample_id"].astype(str).tolist()),
-            test_ids=sorted(split_frame[split_frame["split_name"].astype(str) == "test"]["sample_id"].astype(str).tolist()),
+            train_ids=sorted(frame[split_labels == "train"]["sample_id"].astype(str).tolist()),
+            val_ids=sorted(frame[split_labels == "val"]["sample_id"].astype(str).tolist()),
+            test_ids=sorted(frame[split_labels == "test"]["sample_id"].astype(str).tolist()),
         )
+        validate_grouped_split(frame, split)
     elif index_name == "expert1_track_index.csv" and cq08_split_path.exists():
         payload = json.loads(cq08_split_path.read_text(encoding="utf-8"))
         cq08_df = frame[frame["source_name"].astype(str) == "cq08_track"].copy()
@@ -368,7 +381,7 @@ def build_expert1_dataloaders(
         cq08_train = cq08_df[cq08_df["sample_id"].astype(str).map(lambda x: x.split("|")[-1]).isin(payload["train_group_ids"])]["sample_id"].astype(str).tolist()
         cq08_val = cq08_df[cq08_df["sample_id"].astype(str).map(lambda x: x.split("|")[-1]).isin(payload["val_group_ids"])]["sample_id"].astype(str).tolist()
         cq08_test = cq08_df[cq08_df["sample_id"].astype(str).map(lambda x: x.split("|")[-1]).isin(payload["test_group_ids"])]["sample_id"].astype(str).tolist()
-        other_split = stratified_split(
+        other_split = stratified_group_split(
             other_df,
             seed=seed,
             train_ratio=train_ratio,
@@ -381,13 +394,14 @@ def build_expert1_dataloaders(
             test_ids=sorted(cq08_test + other_split.test_ids),
         )
     else:
-        split = stratified_split(
+        split = stratified_group_split(
             frame,
             seed=seed,
             train_ratio=train_ratio,
             val_ratio=val_ratio,
             test_ratio=test_ratio,
         )
+    validate_grouped_split(frame, split)
     dataset_kwargs = {
         "trainable_only": False,
         "index_name": index_name,
@@ -422,12 +436,8 @@ def build_expert1_dataloaders(
     )
     max_source_count = max(source_counts.values()) if source_counts else 1
     max_source_label_count = max(source_label_counts.values()) if source_label_counts else 1
-    parent_window_counts = (
-        train_meta["parent_sample_id"].astype(str).value_counts().to_dict()
-        if "parent_sample_id" in train_meta.columns
-        else {}
-    )
     train_rows = train_meta.to_dict(orient="records")
+    parent_window_counts = dict(Counter(canonical_group_id(row) for row in train_rows))
     for row in train_rows:
         train_weights.append(
             _sample_weight(
