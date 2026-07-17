@@ -2922,6 +2922,36 @@ def _normalize_precision_logit_bias(value: object) -> list[float]:
     return values
 
 
+def _authorized_precision_logit_bias(value: object) -> list[float] | None:
+    if isinstance(value, (str, bytes, dict)):
+        return None
+    try:
+        values = [float(item) for item in value]  # type: ignore[arg-type]
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if len(values) != len(LOW_ALTITUDE_CLASSES) or any(
+        not math.isfinite(item) for item in values
+    ):
+        return None
+    drone_bias, bird_bias, balloon_bias, clutter_bias, unknown_bias = values
+    if (
+        drone_bias != 0.0
+        or bird_bias != 0.0
+        or balloon_bias != 0.0
+        or clutter_bias not in {-0.05, 0.0, 0.05}
+        or unknown_bias not in {-0.05, 0.0, 0.05, 0.10, 0.15}
+    ):
+        return None
+    return values
+
+
+def _safe_precision_logit_bias(value: object) -> list[float]:
+    authorized = _authorized_precision_logit_bias(value)
+    if authorized is None:
+        return [0.0 for _ in LOW_ALTITUDE_CLASSES]
+    return authorized
+
+
 def _precision_logit_bias_dict(value: object) -> dict[str, float]:
     values = _normalize_precision_logit_bias(value)
     return {
@@ -2941,11 +2971,11 @@ def _precision_logit_bias_with_delta(base_bias: object, delta_by_label: dict[str
 
 def _precision_logit_bias_from_checkpoint(checkpoint_payload: dict[str, object]) -> list[float]:
     if "precision_logit_bias" in checkpoint_payload:
-        return _normalize_precision_logit_bias(checkpoint_payload.get("precision_logit_bias"))
+        return _safe_precision_logit_bias(checkpoint_payload.get("precision_logit_bias"))
     checkpoint_config = checkpoint_payload.get("config", {})
     if isinstance(checkpoint_config, dict) and "precision_logit_bias" in checkpoint_config:
-        return _normalize_precision_logit_bias(checkpoint_config.get("precision_logit_bias"))
-    return _normalize_precision_logit_bias(None)
+        return _safe_precision_logit_bias(checkpoint_config.get("precision_logit_bias"))
+    return [0.0 for _ in LOW_ALTITUDE_CLASSES]
 
 
 def _apply_precision_logit_bias(logits: torch.Tensor, bias: object) -> torch.Tensor:
@@ -3173,14 +3203,32 @@ def _locked_precision_parameters(
         return fallback
     try:
         scale = float(probe.get("selected_scale", safe_default_scale))
-        bias = _normalize_precision_logit_bias(recommended.get("precision_logit_bias"))
     except (TypeError, ValueError):
         return fallback
+    bias = _authorized_precision_logit_bias(recommended.get("precision_logit_bias"))
     if (
         not math.isfinite(scale)
         or not 0.0 <= scale <= 1.0
-        or any(not math.isfinite(float(value)) for value in bias)
+        or bias is None
     ):
+        return fallback
+    return {
+        "source": "validation",
+        "joint_logit_delta_scale": scale,
+        "precision_logit_bias": bias,
+    }
+
+
+def _sanitized_precision_lock(value: object, *, default_scale: float) -> dict[str, object]:
+    fallback = _locked_precision_parameters(None, default_scale=default_scale)
+    if not isinstance(value, dict) or value.get("source") != "validation":
+        return fallback
+    try:
+        scale = float(value.get("joint_logit_delta_scale"))
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+    bias = _authorized_precision_logit_bias(value.get("precision_logit_bias"))
+    if bias is None or not math.isfinite(scale) or not 0.0 <= scale <= 1.0:
         return fallback
     return {
         "source": "validation",
@@ -3208,20 +3256,32 @@ def _build_expert1_checkpoint_payload(
     checkpoint_probe.pop("selected_metrics", None)
     validation_probe = dict(validation_precision_probe or {})
     validation_probe.pop("results", None)
-    precision_logit_bias = _normalize_precision_logit_bias(
-        locked_precision.get("precision_logit_bias")
+    default_scale = config_payload.get("joint_logit_delta_scale", 1.0)
+    sanitized_lock = _sanitized_precision_lock(
+        locked_precision,
+        default_scale=default_scale,
     )
-    selected_scale = float(locked_precision["joint_logit_delta_scale"])
+    selected_scale = float(sanitized_lock["joint_logit_delta_scale"])
+    precision_logit_bias = list(sanitized_lock["precision_logit_bias"])
+    precision_source = str(sanitized_lock["source"])
     locked_payload = {
-        "source": str(locked_precision["source"]),
+        "source": precision_source,
         "joint_logit_delta_scale": selected_scale,
         "precision_logit_bias": precision_logit_bias,
     }
+    sanitized_config_payload = dict(config_payload)
+    sanitized_config_payload["joint_logit_delta_scale"] = selected_scale
+    sanitized_config_payload["selected_joint_logit_delta_scale"] = selected_scale
+    sanitized_config_payload["precision_logit_bias"] = precision_logit_bias
+    sanitized_config_payload["precision_logit_bias_by_label"] = _precision_logit_bias_dict(
+        precision_logit_bias
+    )
+    sanitized_config_payload["precision_calibration_source"] = precision_source
     return {
         "representation_builder_state_dict": representation_builder_state_dict,
         "rd_proj_state_dict": rd_proj_state_dict,
         "model_state_dict": model_state_dict,
-        "config": config_payload,
+        "config": sanitized_config_payload,
         "labels": LOW_ALTITUDE_CLASSES,
         "source_feature_stats": source_feature_stats,
         "selection_eligible": bool(eligible),
@@ -3230,7 +3290,7 @@ def _build_expert1_checkpoint_payload(
         "selection_components": components,
         "selected_joint_logit_delta_scale": selected_scale,
         "joint_logit_delta_probe": checkpoint_probe,
-        "precision_calibration_source": locked_payload["source"],
+        "precision_calibration_source": precision_source,
         "precision_logit_bias": precision_logit_bias,
         "precision_logit_bias_by_label": _precision_logit_bias_dict(precision_logit_bias),
         "locked_precision_parameters": locked_payload,
@@ -5003,6 +5063,97 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         selected_checkpoint_epoch,
         config,
     )
+    validation_control_metrics = _run_epoch(
+        representation_builder,
+        rd_proj,
+        model,
+        loaders.val_loader,
+        criterion,
+        optimizer,
+        device,
+        False,
+        config,
+        selected_stage2_enabled,
+        selected_stage2_scale,
+        selected_stage2_epoch,
+        rd_class_weights,
+        source_feature_stats,
+        compute_aux_loss=config.compute_eval_aux_loss,
+    )
+    validation_control_metrics["selected_joint_logit_delta_scale"] = float(selected_checkpoint_joint_delta_scale)
+    validation_parent_aggregation_metrics = _parent_window_aggregation_metrics(
+        validation_control_metrics,
+        window_metadata,
+    )
+    validation_parent_mean_logit_metrics = validation_parent_aggregation_metrics.get("mean_logit", {})
+    if isinstance(validation_parent_mean_logit_metrics, dict):
+        validation_control_metrics["parent_mean_logit_macro_f1"] = float(
+            validation_parent_mean_logit_metrics.get("macro_f1", 0.0)
+        )
+    validation_control_metrics.update(
+        _parent_weak_class_metrics(validation_parent_aggregation_metrics)
+    )
+    release_eligible, release_gate_metrics, release_gate_failures = _expert1_release_gate(
+        validation_control_metrics,
+        config,
+    )
+    rd_joint_bottleneck_summary = _rd_joint_bottleneck_summary(
+        validation_control_metrics,
+        config,
+    )
+    candidate_status = (
+        "release_candidate"
+        if selected_checkpoint_selection_eligible and release_eligible
+        else "invalid_for_release"
+    )
+    validation_precision_probe = selected_checkpoint_state.get(
+        "validation_precision_calibration_probe", {}
+    )
+    if not isinstance(validation_precision_probe, dict):
+        validation_precision_probe = {}
+    locked_precision = _sanitized_precision_lock(
+        selected_checkpoint_state.get("locked_precision_parameters"),
+        default_scale=selected_checkpoint_joint_delta_scale,
+    )
+    precision_calibration = {
+        "source": locked_precision["source"],
+        "joint_logit_delta_scale": float(locked_precision["joint_logit_delta_scale"]),
+        "precision_logit_bias": locked_precision["precision_logit_bias"],
+        "test_used_for_selection": False,
+    }
+    precision_checkpoint_path = _rel(selected_checkpoint_path)
+    precision_checkpoint_name = selected_checkpoint_name
+    precision_candidate = {
+        "checkpoint_name": selected_checkpoint_name,
+        "path": precision_checkpoint_path,
+        "validation_precision_calibration_probe": validation_precision_probe,
+        "locked_precision_parameters": locked_precision,
+        "test_used_for_selection": False,
+    }
+    precision_readiness_summary = {
+        "source": "validation",
+        "calibration_ready": bool(validation_precision_probe.get("ready", False)),
+        "release_eligible": bool(release_eligible),
+        "test_used_for_selection": False,
+    }
+    precision_candidate_delta_vs_selected: dict[str, object] = {}
+    precision_checkpoint_export = {
+        "status": "not_applicable_validation_locked_checkpoint",
+        "path": precision_checkpoint_path,
+    }
+    precision_checkpoint_validation = {
+        "status": "not_applicable_no_test_derived_export",
+    }
+    diagnostic_checkpoint_tests: list[dict[str, object]] = []
+    diagnostic_test_recommendation = {
+        "source": "validation",
+        "test_used_for_selection": False,
+        "next_action": (
+            "retain_selected_checkpoint_for_deployment_review"
+            if candidate_status == "release_candidate"
+            else "address_validation_release_gate_failures"
+        ),
+    }
     test_metrics = _run_epoch(
         representation_builder,
         rd_proj,
@@ -5030,44 +5181,6 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
     if isinstance(parent_mean_logit_metrics, dict):
         test_metrics["parent_mean_logit_macro_f1"] = float(parent_mean_logit_metrics.get("macro_f1", 0.0))
     test_metrics.update(_parent_weak_class_metrics(parent_aggregation_metrics))
-    release_eligible, release_gate_metrics, release_gate_failures = _expert1_release_gate(test_metrics, config)
-    rd_joint_bottleneck_summary = _rd_joint_bottleneck_summary(test_metrics, config)
-    candidate_status = "release_candidate" if (selected_checkpoint_selection_eligible and release_eligible) else "invalid_for_release"
-    validation_precision_probe = selected_checkpoint_state.get(
-        "validation_precision_calibration_probe", {}
-    )
-    if not isinstance(validation_precision_probe, dict):
-        validation_precision_probe = {}
-    locked_precision = {
-        "source": str(selected_checkpoint_state.get("precision_calibration_source", "config_default")),
-        "joint_logit_delta_scale": float(selected_checkpoint_joint_delta_scale),
-        "precision_logit_bias": _precision_logit_bias_from_checkpoint(selected_checkpoint_state),
-    }
-    precision_calibration = {
-        "source": locked_precision["source"],
-        "joint_logit_delta_scale": float(selected_checkpoint_joint_delta_scale),
-        "precision_logit_bias": locked_precision["precision_logit_bias"],
-        "test_used_for_selection": False,
-    }
-    precision_checkpoint_path = _rel(selected_checkpoint_path)
-    precision_checkpoint_name = selected_checkpoint_name
-    precision_candidate = {
-        "checkpoint_name": selected_checkpoint_name,
-        "path": precision_checkpoint_path,
-        "validation_precision_calibration_probe": validation_precision_probe,
-        "locked_precision_parameters": locked_precision,
-    }
-    precision_readiness_summary: dict[str, object] = {}
-    precision_candidate_delta_vs_selected: dict[str, object] = {}
-    precision_checkpoint_export = {
-        "status": "not_applicable_validation_locked_checkpoint",
-        "path": precision_checkpoint_path,
-    }
-    precision_checkpoint_validation = {
-        "status": "not_applicable_no_test_derived_export",
-    }
-    diagnostic_checkpoint_tests: list[dict[str, object]] = []
-    diagnostic_test_recommendation: dict[str, object] = {}
 
     history_path = run_paths.output_dir / "training_history.json"
     history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -5456,6 +5569,26 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "accuracy": _subset_accuracy(test_metrics["logits"], test_metrics["labels"], ~rd_mask),
         },
     }
+    validation_control = {
+        "report_scope": "validation",
+        "test_used_for_selection": False,
+        "candidate_status": candidate_status,
+        "release_eligible": bool(release_eligible),
+        "release_gate_metrics": release_gate_metrics,
+        "release_gate_failures": release_gate_failures,
+        "rd_joint_bottleneck_summary": rd_joint_bottleneck_summary,
+        "precision_candidate_readiness": precision_readiness_summary,
+        "next_action": diagnostic_test_recommendation["next_action"],
+        "parent_aggregation": validation_parent_aggregation_metrics,
+    }
+    evaluation_report["validation_control"] = validation_control
+    test_summary = evaluation_report.get("summary", {})
+    evaluation_report["test_reporting"] = {
+        "report_scope": "test",
+        "test_used_for_selection": False,
+        "summary": dict(test_summary) if isinstance(test_summary, dict) else {},
+        "parent_aggregation": parent_aggregation_metrics,
+    }
     evaluation_report_path = run_paths.output_dir / "evaluation_report.json"
     evaluation_report_path.write_text(json.dumps(evaluation_report, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -5474,6 +5607,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "release_eligible": bool(release_eligible),
         "release_gate_metrics": release_gate_metrics,
         "release_gate_failures": release_gate_failures,
+        "validation_control": validation_control,
         "checkpoint_registry": checkpoint_registry,
         "diagnostic_test_recommendation": diagnostic_test_recommendation,
         "precision_candidate": precision_candidate,

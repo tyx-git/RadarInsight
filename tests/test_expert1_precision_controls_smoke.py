@@ -12,6 +12,7 @@ from src.core.expert1_data import RDAwareBatchSampler
 from src.core.expert1_trainer import _joint_logit_delta_probe
 from src.core.expert1_trainer import _build_expert1_checkpoint_payload
 from src.core.expert1_trainer import _locked_precision_parameters
+from src.core.expert1_trainer import _precision_logit_bias_from_checkpoint
 from src.core.expert1_trainer import _expert1_release_gate
 from src.core.expert1_trainer import _parent_window_aggregation_metrics
 from src.core.expert1_trainer import _precision_candidate_delta_vs_selected
@@ -134,6 +135,81 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
                 self.assertEqual(locked["joint_logit_delta_scale"], 0.75)
                 self.assertEqual(locked["precision_logit_bias"], [0.0] * len(LOW_ALTITUDE_CLASSES))
 
+    def test_precision_bias_boundaries_reject_unauthorized_values(self) -> None:
+        safe_bias = [0.0] * len(LOW_ALTITUDE_CLASSES)
+        unauthorized_biases: list[object] = [
+            [9.0] * len(LOW_ALTITUDE_CLASSES),
+            [0.05, 0.0, 0.0, 0.0, 0.0],
+            [0.0, -0.05, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.05, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.10, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.20],
+            [0.0, 0.0, 0.0, float("nan"), 0.0],
+            [0.0, 0.0, 0.0, float("inf"), 0.0],
+            [0.0] * (len(LOW_ALTITUDE_CLASSES) - 1),
+            {"UnknownTarget": 0.05},
+            object(),
+        ]
+        for invalid_bias in unauthorized_biases:
+            with self.subTest(value=repr(invalid_bias)):
+                locked = _locked_precision_parameters(
+                    {
+                        "ready": True,
+                        "selected_scale": 0.5,
+                        "recommended": {"precision_logit_bias": invalid_bias},
+                    },
+                    default_scale=0.75,
+                )
+                self.assertEqual(locked["source"], "config_default")
+                self.assertEqual(locked["precision_logit_bias"], safe_bias)
+
+                checkpoint_bias = _precision_logit_bias_from_checkpoint(
+                    {
+                        "precision_logit_bias": invalid_bias,
+                        "config": {"precision_logit_bias": [0.0, 0.0, 0.0, 0.05, 0.15]},
+                    }
+                )
+                self.assertEqual(checkpoint_bias, safe_bias)
+
+    def test_checkpoint_bias_uses_only_authorized_nested_config_values(self) -> None:
+        authorized_bias = [0.0, 0.0, 0.0, 0.05, 0.15]
+        self.assertEqual(
+            _precision_logit_bias_from_checkpoint(
+                {"config": {"precision_logit_bias": authorized_bias}}
+            ),
+            authorized_bias,
+        )
+
+    def test_checkpoint_payload_rebuilds_caller_lock_and_nested_config(self) -> None:
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict={},
+            config_payload={
+                "joint_logit_delta_scale": 0.75,
+                "precision_logit_bias": [9.0] * len(LOW_ALTITUDE_CLASSES),
+            },
+            source_feature_stats=None,
+            selection_reason="validation_selection",
+            eligible=True,
+            epoch=1,
+            components={},
+            joint_logit_delta_probe=None,
+            locked_precision={
+                "source": "caller",
+                "joint_logit_delta_scale": 0.5,
+                "precision_logit_bias": [9.0] * len(LOW_ALTITUDE_CLASSES),
+            },
+            validation_precision_probe=None,
+        )
+
+        expected_bias = [0.0] * len(LOW_ALTITUDE_CLASSES)
+        self.assertEqual(payload["precision_calibration_source"], "config_default")
+        self.assertEqual(payload["precision_logit_bias"], expected_bias)
+        self.assertEqual(payload["locked_precision_parameters"]["precision_logit_bias"], expected_bias)
+        self.assertEqual(payload["config"]["precision_logit_bias"], expected_bias)
+        self.assertEqual(payload["config"]["precision_calibration_source"], "config_default")
+
         for invalid in [float("nan"), float("inf"), float("-inf")]:
             with self.subTest(bias=invalid):
                 locked = _locked_precision_parameters(
@@ -234,6 +310,19 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         ]
 
         self.assertEqual(len(actual_test_evaluations), 1)
+        protected_control_calls = {
+            "_expert1_release_gate",
+            "_rd_joint_bottleneck_summary",
+        }
+        for call in [node for node in ast.walk(train_function) if isinstance(node, ast.Call)]:
+            name = call.func.id if isinstance(call.func, ast.Name) else ""
+            if name in protected_control_calls:
+                self.assertFalse(
+                    any(isinstance(arg, ast.Name) and arg.id == "test_metrics" for arg in call.args),
+                    f"{name} must consume validation control metrics, not test metrics",
+                )
+        self.assertIn('"report_scope": "test"', trainer_source)
+        self.assertIn('"report_scope": "validation"', trainer_source)
         for source in (trainer_source, reselector_source):
             self.assertNotIn("precision_candidate_model_reselected.pt", source)
             self.assertNotIn("precision_candidate_model.pt", source)
@@ -308,8 +397,11 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
                         "epoch": 3,
                         "score": 0.8,
                         "selection_eligible": True,
-                        "selected_joint_logit_delta_scale": 0.5,
-                        "precision_logit_bias": [0.0, 0.0, 0.0, 0.05, -0.05],
+                        "locked_precision_parameters": {
+                            "source": "validation",
+                            "joint_logit_delta_scale": 0.5,
+                            "precision_logit_bias": [0.0, 0.0, 0.0, 0.05, -0.05],
+                        },
                         "validation_precision_calibration_probe": {"ready": True, "probe_id": "best-validation"},
                     },
                 }
@@ -387,17 +479,17 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
 
         expected_locked = {
             "source": "config_default",
-            "joint_logit_delta_scale": 0.4,
+            "joint_logit_delta_scale": 1.0,
             "precision_logit_bias": bias,
         }
         self.assertEqual(payload["locked_precision_parameters"], expected_locked)
-        self.assertEqual(payload["selected_joint_logit_delta_scale"], 0.4)
+        self.assertEqual(payload["selected_joint_logit_delta_scale"], 1.0)
         self.assertEqual(payload["precision_logit_bias"], bias)
         self.assertEqual(payload["precision_calibration_source"], "config_default")
-        self.assertEqual(payload["validation_precision_calibration_probe"], probe)
-        self.assertEqual(payload["precision_calibration_probe"], probe)
-        self.assertEqual(payload["config"]["joint_logit_delta_scale"], 0.4)
-        self.assertEqual(payload["config"]["selected_joint_logit_delta_scale"], 0.4)
+        self.assertNotIn("validation_precision_calibration_probe", payload)
+        self.assertNotIn("precision_calibration_probe", payload)
+        self.assertEqual(payload["config"]["joint_logit_delta_scale"], 1.0)
+        self.assertEqual(payload["config"]["selected_joint_logit_delta_scale"], 1.0)
         self.assertEqual(payload["config"]["precision_logit_bias"], bias)
         self.assertEqual(exported["precision_calibration_source"], "config_default")
 
@@ -1704,6 +1796,37 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertAlmostEqual(float(info["selected_joint_logit_delta_scale"]), 0.25)
         self.assertEqual(model.low_altitude_expert.precision_logit_bias, [0.0, 0.0, 0.0, 0.05, 0.0])
         self.assertEqual(info["precision_logit_bias"], [0.0, 0.0, 0.0, 0.05, 0.0])
+
+    def test_system_loader_rejects_unauthorized_checkpoint_bias(self) -> None:
+        class TinyLowAltitudeExpert(torch.nn.Linear):
+            def __init__(self) -> None:
+                super().__init__(2, 2)
+                self.precision_logit_bias = None
+
+            def set_precision_logit_bias(self, bias: object) -> None:
+                self.precision_logit_bias = [float(item) for item in bias]  # type: ignore[arg-type]
+
+        low_altitude_expert = TinyLowAltitudeExpert()
+        model = SimpleNamespace(low_altitude_expert=low_altitude_expert)
+        checkpoint_path = Path("tmp") / "test_unauthorized_precision_model.pt"
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            checkpoint_path.unlink(missing_ok=True)
+            torch.save(
+                {
+                    "model_state_dict": low_altitude_expert.state_dict(),
+                    "precision_logit_bias": [9.0] * len(LOW_ALTITUDE_CLASSES),
+                    "config": {"precision_logit_bias": [0.0, 0.0, 0.0, 0.05, 0.15]},
+                },
+                checkpoint_path,
+            )
+            info = _load_expert1_bundle(model, str(checkpoint_path), torch.device("cpu"))
+        finally:
+            checkpoint_path.unlink(missing_ok=True)
+
+        expected_bias = [0.0] * len(LOW_ALTITUDE_CLASSES)
+        self.assertEqual(model.low_altitude_expert.precision_logit_bias, expected_bias)
+        self.assertEqual(info["precision_logit_bias"], expected_bias)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ from .forwardlayer.dataloaders import build_dataloaders
 from .forwardlayer.dataset import TrackDataset
 from .forwardlayer.labels import DEFAULT_VOCAB
 from .experts import LOW_ALTITUDE_CLASSES
+from .expert1_trainer import _precision_logit_bias_from_checkpoint
 from .router import ROUTE_NAMES
 from .reporting import write_real_experiment_report
 from .run_paths import prepare_run_output_dir
@@ -367,10 +368,8 @@ def _load_expert1_bundle(model: nn.Module, checkpoint_path: str, device: torch.d
         selected_joint_logit_delta_scale = float(selected_joint_logit_delta_scale)
         model.low_altitude_expert.joint_logit_delta_scale = selected_joint_logit_delta_scale
         info["selected_joint_logit_delta_scale"] = selected_joint_logit_delta_scale
-    precision_logit_bias = checkpoint.get("precision_logit_bias")
-    if precision_logit_bias is None and isinstance(checkpoint_config, dict):
-        precision_logit_bias = checkpoint_config.get("precision_logit_bias")
-    if precision_logit_bias is not None and hasattr(model.low_altitude_expert, "set_precision_logit_bias"):
+    precision_logit_bias = _precision_logit_bias_from_checkpoint(checkpoint)
+    if hasattr(model.low_altitude_expert, "set_precision_logit_bias"):
         model.low_altitude_expert.set_precision_logit_bias(precision_logit_bias)
         info["precision_logit_bias"] = [
             float(item)

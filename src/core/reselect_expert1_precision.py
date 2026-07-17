@@ -29,7 +29,9 @@ from .expert1_trainer import _parent_window_aggregation_metrics
 from .expert1_trainer import _precision_candidate_delta_vs_selected
 from .expert1_trainer import _precision_candidate_readiness_summary
 from .expert1_trainer import _precision_calibration_probe
+from .expert1_trainer import _authorized_precision_logit_bias
 from .expert1_trainer import _precision_logit_bias_dict
+from .expert1_trainer import _safe_precision_logit_bias
 from .expert1_trainer import _rd_joint_bottleneck_summary
 from .expert1_trainer import _normalize_precision_logit_bias
 from .expert1_trainer import _rel
@@ -118,44 +120,27 @@ def _checkpoint_path(value: object) -> Path:
 
 
 def _locked_calibration_from_record(record: dict[str, object]) -> dict[str, object] | None:
-    locked = record.get("locked_precision_parameters", {})
+    locked = record.get("locked_precision_parameters")
     if not isinstance(locked, dict):
-        locked = {}
-    source = str(
-        locked.get(
-            "source",
-            record.get("precision_calibration_source", "validation"),
-        )
-    )
-    raw_scale = locked.get(
-        "joint_logit_delta_scale",
-        record.get(
-            "recommended_joint_logit_delta_scale",
-            record.get("selected_joint_logit_delta_scale", 1.0),
-        ),
-    )
-    raw_bias = locked.get("precision_logit_bias", record.get("precision_logit_bias"))
-    if source == "config_default":
-        try:
-            scale = float(raw_scale)
-        except (TypeError, ValueError):
-            return None
-        if not math.isfinite(scale) or not 0.0 <= scale <= 1.0:
-            return None
-        return _locked_precision_parameters(None, default_scale=scale)
-    if source != "validation":
         return None
-    calibrated = _locked_precision_parameters(
-        {
-            "ready": True,
-            "selected_scale": raw_scale,
-            "recommended": {"precision_logit_bias": raw_bias},
-        },
-        default_scale=1.0,
-    )
-    if calibrated.get("source") != "validation":
+    if locked.get("source") != "validation":
         return None
-    return calibrated
+    try:
+        scale = float(locked.get("joint_logit_delta_scale"))
+    except (TypeError, ValueError, OverflowError):
+        return None
+    bias = _authorized_precision_logit_bias(locked.get("precision_logit_bias"))
+    if (
+        not math.isfinite(scale)
+        or not 0.0 <= scale <= 1.0
+        or bias is None
+    ):
+        return None
+    return {
+        "source": "validation",
+        "joint_logit_delta_scale": scale,
+        "precision_logit_bias": bias,
+    }
 
 
 def _write_precision_checkpoint(
@@ -174,7 +159,7 @@ def _write_precision_checkpoint(
     if locked is None:
         locked = _locked_precision_parameters(None, default_scale=1.0)
     recommended_scale = float(locked["joint_logit_delta_scale"])
-    precision_logit_bias = _normalize_precision_logit_bias(locked["precision_logit_bias"])
+    precision_logit_bias = _safe_precision_logit_bias(locked["precision_logit_bias"])
     calibration_source = str(locked["source"])
     locked_payload = {
         "source": calibration_source,
@@ -187,14 +172,29 @@ def _write_precision_checkpoint(
     payload["selection_reason"] = "validation_precision_posthoc_selection"
     payload["precision_candidate_source_checkpoint"] = _rel(source_path)
     payload["precision_candidate_source_checkpoint_name"] = str(precision_candidate.get("checkpoint_name", ""))
-    payload["precision_candidate_metrics"] = dict(precision_candidate)
+    sanitized_candidate = dict(precision_candidate)
+    sanitized_candidate.update(
+        {
+            "recommended_joint_logit_delta_scale": recommended_scale,
+            "precision_logit_bias": precision_logit_bias,
+            "precision_logit_bias_by_label": _precision_logit_bias_dict(precision_logit_bias),
+            "precision_calibration_source": calibration_source,
+            "locked_precision_parameters": locked_payload,
+            "test_used_for_selection": False,
+        }
+    )
+    if calibration_source != "validation":
+        sanitized_candidate.pop("precision_calibration_probe", None)
+        payload.pop("precision_calibration_probe", None)
+        payload.pop("validation_precision_calibration_probe", None)
+    payload["precision_candidate_metrics"] = sanitized_candidate
     payload["precision_candidate_recommended_joint_logit_delta_scale"] = recommended_scale
     payload["precision_calibration_source"] = calibration_source
     payload["test_used_for_selection"] = False
     payload["precision_logit_bias"] = precision_logit_bias
     payload["precision_logit_bias_by_label"] = _precision_logit_bias_dict(precision_logit_bias)
     payload["locked_precision_parameters"] = locked_payload
-    if "precision_calibration_probe" in precision_candidate:
+    if calibration_source == "validation" and "precision_calibration_probe" in precision_candidate:
         calibration_probe = precision_candidate.get("precision_calibration_probe", {})
         payload["precision_calibration_probe"] = calibration_probe
         payload["validation_precision_calibration_probe"] = calibration_probe
@@ -205,6 +205,7 @@ def _write_precision_checkpoint(
         payload_config["selected_joint_logit_delta_scale"] = recommended_scale
         payload_config["precision_logit_bias"] = precision_logit_bias
         payload_config["precision_logit_bias_by_label"] = _precision_logit_bias_dict(precision_logit_bias)
+        payload_config["precision_calibration_source"] = calibration_source
         payload["config"] = payload_config
     checkpoint_probe = payload.get("joint_logit_delta_probe", {})
     if isinstance(checkpoint_probe, dict):
