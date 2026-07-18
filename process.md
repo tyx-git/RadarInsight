@@ -20,3 +20,12 @@ Status: 100%
 - 2026-07-18: Fixed `RDShardLocalBatchSampler` so undersized RD shards are replenished only from the active shard, preserving shard-local cache behavior.
 - 2026-07-18: Passed 19 RD/throughput tests, 14 split-integrity tests, 6 evaluation-control tests, targeted `py_compile`, and trainer/reselector imports.
 - 2026-07-18: User confirmed the deleted tracking files and `.anthor/` directory are intentional unrelated workspace changes; they remain unstaged.
+
+## Stage P1 - Parameter and Configuration Call Chains
+
+Status: 100%
+
+- 2026-07-18: Compared `config/config.json` sections with their dataclass fields and focused on Expert1 configuration loading and persistence boundaries.
+- 2026-07-18: Added a red regression showing project defaults overwrote explicit Expert1 section values; changed the loader to apply project values only when the section omits them.
+- 2026-07-18: Passed the two new configuration tests and compiled every `src` module while excluding `.history/`.
+- 2026-07-18: The broader parameter/calibration selection stopped after 29 passing tests at the known P3 precision-candidate metric assertion; no P1 regression was observed.

@@ -49,7 +49,9 @@ def _project_defaults(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _clean_section(payload: dict[str, Any], section_name: str) -> dict[str, Any]:
     section = dict(payload.get(section_name, {}))
-    section.update({key: value for key, value in _project_defaults(payload).items() if value is not None})
+    for key, value in _project_defaults(payload).items():
+        if value is not None:
+            section.setdefault(key, value)
     section.pop("candidate_overrides", None)
     section.pop("checkpoint_policy", None)
     section.pop("negative_classes", None)

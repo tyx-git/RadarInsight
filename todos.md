@@ -120,34 +120,34 @@
 ## P1：参数、配置与调用链一致性
 
 **目标：** 建立参数“定义—加载—传递—消费—持久化”矩阵，消除重复缩放、覆盖、忽略和别名冲突。  
-**状态：** `[ ]`
+**状态：** `[x]`
 
 ### P1-1 函数签名与调用方
 
-- [ ] 枚举 `src/**/*.py` 中函数、类方法和构造器的定义及调用方；优先检查：
+- [x] 枚举 `src/**/*.py` 中函数、类方法和构造器的定义及调用方；优先检查：
   - `src/core/expert1_trainer.py`
   - `src/core/expert1_data.py`
   - `src/core/modeling/*.py`
   - `src/core/training/*.py`
   - `src/core/reselect_expert1_precision.py`。
-- [ ] 对每个参数记录名称、类型、默认值、单位、范围、调用方传值、最终消费位置。
-- [ ] 检查 positional/keyword 混用、旧参数名、重复默认值、传入后未读取和后续覆盖。
-- [ ] 不确定有动态调用、反射或外部脚本引用时，只登记问题，不直接删除参数。
+- [x] 对每个参数记录名称、类型、默认值、单位、范围、调用方传值、最终消费位置。
+- [x] 检查 positional/keyword 混用、旧参数名、重复默认值、传入后未读取和后续覆盖。
+- [x] 不确定有动态调用、反射或外部脚本引用时，只登记问题，不直接删除参数。
 
 ### P1-2 配置字段与实际生效值
 
-- [ ] 建立 `config/config.json` → 配置 dataclass → trainer/model/data loader → checkpoint/registry 的对照表。
-- [ ] 检查 `scale`、`weight`、`threshold`、`temperature`、`margin`、`window`、`rd_*`、`stage2_*` 等参数是否重复定义或重复应用。
-- [ ] 识别配置声明但未消费、代码消费但配置不存在、缺失字段被错误解释为有效值的情况。
-- [ ] 对关键范围补配置/运行时测试，不使用完整训练验证参数生效。
+- [x] 建立 `config/config.json` → 配置 dataclass → trainer/model/data loader → checkpoint/registry 的对照表。
+- [x] 检查 `scale`、`weight`、`threshold`、`temperature`、`margin`、`window`、`rd_*`、`stage2_*` 等参数是否重复定义或重复应用。
+- [x] 识别配置声明但未消费、代码消费但配置不存在、缺失字段被错误解释为有效值的情况。
+- [x] 对关键范围补配置/运行时测试，不使用完整训练验证参数生效。
 
 ### P1-3 重复归一化与参数二次应用
 
-- [ ] 静态检查 amplitude preparation、normalization、residual weight、deep reroute scale、calibration bias 是否被调用链重复执行。
-- [ ] 比较训练、validation、test、inference 四条路径的相同参数是否有相同语义。
-- [ ] 对已确认的重复应用先写失败测试，再最小修复；保留必要兼容逻辑并说明原因。
+- [x] 静态检查 amplitude preparation、normalization、residual weight、deep reroute scale、calibration bias 是否被调用链重复执行。
+- [x] 比较训练、validation、test、inference 四条路径的相同参数是否有相同语义。
+- [x] 对已确认的重复应用先写失败测试，再最小修复；保留必要兼容逻辑并说明原因。
 
-- [ ] 运行：
+- [x] 运行：
   ```bash
   python -m pytest tests/ -k "config or parameter or calibration or expert1" --maxfail=1
   python -m py_compile $(find src -path '*/.history' -prune -o -name '*.py' -print)
@@ -158,12 +158,12 @@
 
 **P1 执行记录：**
 
-- 发现：
-- 修改文件：
-- 测试/命令：
-- 结果：
-- 未覆盖风险：
-- 状态：`[ ]`
+- 发现：`_clean_section()` 使用 `dict.update()` 将 `project` 的 `data_root`、`device`、`num_workers`、`seed` 覆盖分区显式值（test）；配置字段对照发现 `system.eval_fusion_candidate_notes`、`router.input`/`notes`/`selection_metric` 与 `pipeline.num_workers`/`seed` 为说明或不适用字段，未作为行为参数删除。
+- 修改文件：`config/configmanager.py:50`；`tests/test_configmanager.py:1`。
+- 测试/命令：`.\\.venv\\Scripts\\python.exe -m pytest tests/test_configmanager.py -q`；`.\\.venv\\Scripts\\python.exe -m pytest tests/ -k "config or parameter or calibration or expert1" --maxfail=1 -q`；`.\\.venv\\Scripts\\python.exe -m py_compile <rg --files src -g '*.py' -g '!**/.history/**'>`。
+- 结果：新回归先失败后通过（2 passed）；全仓 `src` 编译通过；广泛 pytest 在 29 passed 后因既有 P3 `precision_candidate_joint_gain_gap` 断言失败停止，未发现 P1 失败。
+- 未覆盖风险：未运行完整训练；动态外部调用无法由静态扫描穷尽；另一个既有 P3 RD bottleneck 断言仍待 P3 单独修复。
+- 状态：`[x]`
 
 ---
 
