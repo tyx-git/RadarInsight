@@ -28,3 +28,6 @@ main.md*
 .cc-connect/
 .claude/
 .codegraph/
+tmp/model_asset_audit.json
+tmp/model_retention_plan.json
+tmp/model_deletion_log.json

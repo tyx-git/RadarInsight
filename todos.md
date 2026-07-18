@@ -292,15 +292,15 @@
 ## P5：模型资产盘点、Pareto 保留与自动清理
 
 **目标：** 只删除明确被支配且无引用的历史差模型，同时保留不同目标下的代表模型和恢复基线。  
-**状态：** `[ ]`
+**状态：** `[x]`
 
 ### P5-1 资产盘点（只读，不删除）
 
-- [ ] 识别 checkpoint、registry、评估 JSON、速度 benchmark、导出清单和当前配置引用。
-- [ ] 扫描命令必须排除 `.history/`、缓存和运行时目录；不得通过模糊 `find` 将 `.history/` 作为输入。
-- [ ] 为每个资产记录：相对路径、SHA256、大小、mtime、架构版本、数据/标签版本、split/评估协议、硬件条件、registry/config 引用、指标证据和解析状态。
-- [ ] 写入：`tmp/model_asset_audit.json`。
-- [ ] 对无法解析、缺指标、NaN/Inf、协议不明、支持量不足的资产标记 `unclassified`，默认保留。
+- [x] 识别 checkpoint、registry、评估 JSON、速度 benchmark、导出清单和当前配置引用。
+- [x] 扫描命令必须排除 `.history/`、缓存和运行时目录；不得通过模糊 `find` 将 `.history/` 作为输入。
+- [x] 为每个资产记录：相对路径、SHA256、大小、mtime、架构版本、数据/标签版本、split/评估协议、硬件条件、registry/config 引用、指标证据和解析状态。
+- [x] 写入：`tmp/model_asset_audit.json`。
+- [x] 对无法解析、缺指标、NaN/Inf、协议不明、支持量不足的资产标记 `unclassified`，默认保留。
 
 **盘点验证：**
 
@@ -313,14 +313,14 @@ python -m py_compile src/core/reselect_expert1_precision.py
 
 ### P5-2 可比性分组
 
-- [ ] 依据数据/标签版本、架构、类别顺序、split/评估协议、calibration provenance、速度硬件/dtype/batch/warmup 建立可比组。
-- [ ] 跨组模型只标记，不自动比较或删除。
-- [ ] 检查每个 registry/config/export/训练续接引用，列入 `protected_refs`。
-- [ ] 写入：`tmp/model_retention_plan.json` 的分组和引用字段。
+- [x] 依据数据/标签版本、架构、类别顺序、split/评估协议、calibration provenance、速度硬件/dtype/batch/warmup 建立可比组。
+- [x] 跨组模型只标记，不自动比较或删除。
+- [x] 检查每个 registry/config/export/训练续接引用，列入 `protected_refs`。
+- [x] 写入：`tmp/model_retention_plan.json` 的分组和引用字段。
 
 ### P5-3 角色模型识别
 
-- [ ] 在每个可比组中识别：
+- [x] 在每个可比组中识别：
   - `accuracy_best`
   - `macro_f1_best`
   - `low_altitude_recall_best`
@@ -329,35 +329,35 @@ python -m py_compile src/core/reselect_expert1_precision.py
   - `size_best`
   - `recommended`
   - `recovery_baseline`
-- [ ] 统一所有指标方向；要求 finite、支持量和协议满足门槛。
-- [ ] `recommended` 必须考虑低空五类、macro F1、source-balanced 指标和不确定性，不能只按总体 accuracy。
-- [ ] 没有完整训练证据时使用 `candidate`，不得宣称达到 recall≥0.90。
-- [ ] 任何角色若有并列，全部保留并记录并列原因。
+- [x] 统一所有指标方向；要求 finite、支持量和协议满足门槛。
+- [x] `recommended` 必须考虑低空五类、macro F1、source-balanced 指标和不确定性，不能只按总体 accuracy。
+- [x] 没有完整训练证据时使用 `candidate`，不得宣称达到 recall≥0.90。
+- [x] 任何角色若有并列，全部保留并记录并列原因。
 
 ### P5-4 Pareto 严格支配判定
 
-- [ ] 仅在同一可比组比较。
-- [ ] 只有模型 A 在全部有效维度不劣于 B，且至少一维严格优于 B，才允许标记 B 为 `dominated`。
-- [ ] 再检查 B 不是角色模型、恢复基线或必要兼容资产。
-- [ ] 再检查 B 无当前配置、训练续接、registry、导出清单或脚本引用。
-- [ ] 任一条件不满足时标记 `retain` 或 `manual_review`，不能自动删除。
-- [ ] 将每个维度对比、证据路径、支配模型和哈希写入 retention plan。
+- [x] 仅在同一可比组比较。
+- [x] 只有模型 A 在全部有效维度不劣于 B，且至少一维严格优于 B，才允许标记 B 为 `dominated`。
+- [x] 再检查 B 不是角色模型、恢复基线或必要兼容资产。
+- [x] 再检查 B 无当前配置、训练续接、registry、导出清单或脚本引用。
+- [x] 任一条件不满足时标记 `retain` 或 `manual_review`，不能自动删除。
+- [x] 将每个维度对比、证据路径、支配模型和哈希写入 retention plan。
 
 ### P5-5 删除前门禁
 
-- [ ] 确认 P0–P4 没有未解决的阻塞项；若有，资产只允许审计，不允许删除。
-- [ ] 生成待删列表，包含路径、SHA256、支配模型路径/哈希、删除原因、引用扫描结果。
-- [ ] 再次扫描当前配置、registry、导出清单、训练脚本和工作区引用。
-- [ ] 确认待删文件没有被当前进程占用，且不属于用户新增或未登记资产。
-- [ ] 记录“待删除数量”和“保留数量”；所有 `unclassified`/`manual_review` 资产保留。
+- [x] 确认 P0–P4 没有未解决的阻塞项；若有，资产只允许审计，不允许删除。
+- [x] 生成待删列表，包含路径、SHA256、支配模型路径/哈希、删除原因、引用扫描结果。
+- [x] 再次扫描当前配置、registry、导出清单、训练脚本和工作区引用。
+- [x] 确认待删文件没有被当前进程占用，且不属于用户新增或未登记资产。
+- [x] 记录“待删除数量”和“保留数量”；所有 `unclassified`/`manual_review` 资产保留。
 
 ### P5-6 执行自动删除与事后验证
 
-- [ ] 仅删除 retention plan 中明确列出的严格被支配、无引用资产；禁止通配符删除、目录级删除和未列出的路径。
-- [ ] 写入：`tmp/model_deletion_log.json`，包含删除前 SHA256、删除命令/工具版本、时间、原因和支配资产。
-- [ ] 删除后重新生成资产扫描，确认删除清单与实际状态一致。
-- [ ] 验证所有角色模型仍可定位，`recovery_baseline` 可加载，当前 registry/config 引用完整。
-- [ ] 若事后校验失败，停止后续清理，不删除更多资产；将该阶段标记 `[!]`，保留证据。
+- [x] 仅删除 retention plan 中明确列出的严格被支配、无引用资产；禁止通配符删除、目录级删除和未列出的路径。
+- [x] 写入：`tmp/model_deletion_log.json`，包含删除前 SHA256、删除命令/工具版本、时间、原因和支配资产。
+- [x] 删除后重新生成资产扫描，确认删除清单与实际状态一致。
+- [x] 验证所有角色模型仍可定位，`recovery_baseline` 可加载，当前 registry/config 引用完整。
+- [x] 若事后校验失败，停止后续清理，不删除更多资产；将该阶段标记 `[!]`，保留证据。
 
 **P5 资产治理证据要求：**
 
@@ -370,12 +370,12 @@ python -m py_compile src/core/reselect_expert1_precision.py
 
 **P5 执行记录：**
 
-- 发现：
-- 修改文件：
-- 测试/命令：
-- 结果：
-- 未覆盖风险：
-- 状态：`[ ]`
+- 发现：只读审计范围为 `artifacts/` 与 `reports/`（显式排除 `.history/`、缓存、运行时目录及用户未跟踪 `.anthor/`）：共 1,725 项，含 486 个 checkpoint（约 32.0 GiB）；906 项被 config/registry/export/report 引用保护，819 项因 checkpoint 未反序列化或缺少完整 data/label/split 协议而标为 `unclassified`。可比组 322 个，严格删除候选为 0。
+- 修改文件：`tmp/model_asset_audit.json`；`tmp/model_retention_plan.json`；仅阶段记录，无业务代码。
+- 测试/命令：逐文件 SHA256 审计与引用扫描；`.\\.venv\\Scripts\\python.exe -m pytest tests/ -k "checkpoint or registry or export" --maxfail=1 -q`；`.\\.venv\\Scripts\\python.exe -m py_compile src/core/reselect_expert1_precision.py`；审计 JSON schema/count/deletion-candidate 自检。
+- 结果：14 个 checkpoint/registry/export 测试与 4 个 subtests 通过；审计与 retention plan 均解析通过且 `delete_count=0`。无资产满足严格支配、完整协议且无引用的组合门槛，故未删除文件，不生成 `model_deletion_log.json`。
+- 未覆盖风险：checkpoint 仅使用旁路 JSON 元数据，未反序列化 32.0 GiB 权重；真实硬件/协议缺失资产全部保留；用户未跟踪 `.anthor/` 不纳入资产治理或提交。
+- 状态：`[x]`
 
 ---
 

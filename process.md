@@ -55,3 +55,12 @@ Status: 100%
 - 2026-07-18: Revalidated the P4 precision-control implementation from `4c2e996`, including validation-only calibration locks, checkpoint/registry/export reconstruction, malformed payload handling, and test-report isolation.
 - 2026-07-18: Passed all 35 precision-control tests with 20 subtests and all 9 Stage 2 dataloader tests; targeted compile and imports also passed.
 - 2026-07-18: Performed static sampler/cache/worker/H2D/quick-validation review; no new evidence justified a benchmark, so no smoke latency was presented as deployment performance.
+
+## Stage P5 - Model Asset Audit and Strict Retention
+
+Status: 100%
+
+- 2026-07-18: Generated `tmp/model_asset_audit.json` and `tmp/model_retention_plan.json` for 1,725 assets in `artifacts/` and `reports/`, explicitly excluding `.history/`, runtime caches, and user-owned `.anthor/`.
+- 2026-07-18: Calculated SHA256 for every audited asset; 906 assets have conservative text-reference protection and 819 have incomplete protocol metadata, so all 1,725 are retained.
+- 2026-07-18: Formed 322 conservative comparable groups; no asset satisfied strict Pareto dominance plus reference-clearance criteria, so no deletion plan or deletion log was generated.
+- 2026-07-18: Passed 14 checkpoint/registry/export tests with 4 subtests, reselector compilation, and audit schema/count/zero-deletion validation.
