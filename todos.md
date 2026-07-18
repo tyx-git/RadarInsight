@@ -170,38 +170,38 @@
 ## P2：分支语义与原始设计目的
 
 **目标：** 证明每个高影响分支的进入条件、输出契约和设计目的没有漂移。  
-**状态：** `[ ]`
+**状态：** `[x]`
 
 ### P2-1 Expert1 分支
 
-- [ ] 梳理 trajectory-only、真实 TR+RD、低质量 RD、无 RD、fallback、reject、reroute 和 deep reroute 的流程图。
-- [ ] 对每条路径记录：输入条件、是否修改 logits、是否计算 auxiliary loss、是否允许 calibration、输出类别空间。
-- [ ] 检查 default/empty tensor 是否意外触发 fusion；检查异常处理是否吞掉 availability 或 quality 信息。
-- [ ] 用小型 fixture 验证每条路径的输出 shape、来源标记和不变量。
+- [x] 梳理 trajectory-only、真实 TR+RD、低质量 RD、无 RD、fallback、reject、reroute 和 deep reroute 的流程图。
+- [x] 对每条路径记录：输入条件、是否修改 logits、是否计算 auxiliary loss、是否允许 calibration、输出类别空间。
+- [x] 检查 default/empty tensor 是否意外触发 fusion；检查异常处理是否吞掉 availability 或 quality 信息。
+- [x] 用小型 fixture 验证每条路径的输出 shape、来源标记和不变量。
 
 ### P2-2 Router、Expert 和 System 分支
 
-- [ ] 检查 `src/core/modeling/routing.py`、`src/core/modeling/systems.py`、`src/core/training/router.py`、`src/core/training/system.py`。
-- [ ] 对 rule override、learned route、reroute、expert-only、routed-expert、final-system 分别记录 logits 来源、优先级和最终类别映射。
-- [ ] 检查 Aircraft、Ground、Unknown、Clutter 的开放集和 reject 逻辑是否在不同入口含义一致。
-- [ ] 检查训练/评估 quick/full validation 是否仅改变观测成本，不改变最终候选控制口径。
+- [x] 检查 `src/core/modeling/routing.py`、`src/core/modeling/systems.py`、`src/core/training/router.py`、`src/core/training/system.py`。
+- [x] 对 rule override、learned route、reroute、expert-only、routed-expert、final-system 分别记录 logits 来源、优先级和最终类别映射。
+- [x] 检查 Aircraft、Ground、Unknown、Clutter 的开放集和 reject 逻辑是否在不同入口含义一致。
+- [x] 检查训练/评估 quick/full validation 是否仅改变观测成本，不改变最终候选控制口径。
 
 ### P2-3 正反向回归
 
-- [ ] 为每个已确认高风险分支增加至少一个正确输入和一个边界/错误输入测试。
-- [ ] 验证 fallback 不绕过校准授权、RD 真实性和 split 隔离。
-- [ ] 运行相关 focused tests、import 和 compile；不运行全量训练。
+- [x] 为每个已确认高风险分支增加至少一个正确输入和一个边界/错误输入测试。
+- [x] 验证 fallback 不绕过校准授权、RD 真实性和 split 隔离。
+- [x] 运行相关 focused tests、import 和 compile；不运行全量训练。
 
 **P2 停止门禁：** 若某分支输出契约与下游消费不一致，停止该分支后的清理工作；先修复并通过回归。
 
 **P2 执行记录：**
 
-- 发现：
-- 修改文件：
-- 测试/命令：
-- 结果：
-- 未覆盖风险：
-- 状态：`[ ]`
+- 发现：`LowAltitudeSuspectExpert.forward()` 在 `rd_is_multimodal=None` 且输入为任意四维 tensor 时推断 `has_rd=True`（test）；全零占位因此进入 TR+RD fusion，违反“真实性不得由 tensor shape 推断”的约束。
+- 修改文件：`src/core/experts.py:953`；`tests/test_expert1_rd_segment_store_smoke.py:195`。
+- 测试/命令：`.\\.venv\\Scripts\\python.exe -m pytest tests/test_expert1_rd_segment_store_smoke.py tests/test_stage2_dataloader_throughput.py tests/test_expert1_evidence.py tests/test_ground_candidate_arbitration.py -q`；`.\\.venv\\Scripts\\python.exe -m pytest tests/test_expert1_precision_controls_smoke.py -q -k "stage1_disabled_fusion_outputs_trajectory_final_even_with_rd or post_lock_test_reporting_is_separate_and_cannot_mutate_validation_readiness or test_reporting_path_cannot_export_or_select_calibration"`；focused compile/import。
+- 结果：新测试先失败后通过；32 个 RD、路由和系统测试通过，3 个评估控制面测试通过；无可用性掩码默认 trajectory-only，显式掩码仍决定真实 TR+RD 路径。
+- 未覆盖风险：未运行完整训练和真实部署数据；外部直接调用方若遗漏 `rd_is_multimodal` 将安全降级为 trajectory-only，须显式传入掩码才能启用 fusion。
+- 状态：`[x]`
 
 ---
 

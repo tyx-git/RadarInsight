@@ -952,10 +952,8 @@ class LowAltitudeSuspectExpert(nn.Module):
         traj_cosine, traj_logits = self.traj_head(traj_features, labels=low_altitude_targets)
         if rd_is_multimodal is not None:
             has_rd = rd_is_multimodal.bool()
-        elif rd_features.ndim == 4:
-            has_rd = torch.ones((rd_features.shape[0],), dtype=torch.bool, device=rd_features.device)
         else:
-            has_rd = rd_features[..., -1].amax(dim=1) > 0.5
+            has_rd = torch.zeros((traj_input.shape[0],), dtype=torch.bool, device=traj_input.device)
         has_rd = has_rd.bool()
         traj_residual_logits = self.traj_residual_head(traj_features)
         if disable_tr_rd_fusion or not bool(has_rd.any()):

@@ -192,6 +192,34 @@ class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
         self.assertTrue(torch.equal(output.rd_logits, torch.zeros_like(output.rd_logits)))
         self.assertTrue(torch.equal(output.joint_rd_weight, torch.zeros_like(output.joint_rd_weight)))
 
+    def test_missing_rd_availability_mask_uses_trajectory_only_fast_path(self) -> None:
+        torch.manual_seed(7)
+        model = LowAltitudeSuspectExpert(
+            input_dim=4,
+            rd_context_dim=0,
+            use_rd_patch_cnn=True,
+            traj_sequence_dim=16,
+            hidden_dim=16,
+            dropout=0.0,
+        )
+        model.eval()
+        batch_size = 3
+        with torch.no_grad():
+            output = model(
+                torch.randn(batch_size, 4),
+                rd_features=torch.zeros(batch_size, 1, 512, 4),
+                traj_sequence_features=torch.randn(batch_size, 5, 16),
+                rd_patch_features=torch.zeros(batch_size, 1, 64, 64, 3),
+                rd_deep_patch_features=torch.zeros(batch_size, 1, 64, 64, 3),
+                traj_padding_mask=torch.zeros(batch_size, 5, dtype=torch.bool),
+                rd_padding_mask=torch.zeros(batch_size, 1, dtype=torch.bool),
+                rd_patch_padding_mask=torch.zeros(batch_size, 1, dtype=torch.bool),
+                rd_deep_patch_padding_mask=torch.zeros(batch_size, 1, dtype=torch.bool),
+                enable_reject=False,
+            )
+        self.assertFalse(bool(output.tr_rd_active.any().item()))
+        self.assertTrue(torch.allclose(output.logits, output.traj_logits, atol=1e-6, rtol=1e-6))
+
     def test_csv_string_false_does_not_activate_multimodal_rd(self) -> None:
         store_dir = DATA_ROOT / "processed" / "tmp_unittest_bool_rd_segment_store"
         store_dir.mkdir(parents=True, exist_ok=True)

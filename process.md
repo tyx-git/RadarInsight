@@ -29,3 +29,12 @@ Status: 100%
 - 2026-07-18: Added a red regression showing project defaults overwrote explicit Expert1 section values; changed the loader to apply project values only when the section omits them.
 - 2026-07-18: Passed the two new configuration tests and compiled every `src` module while excluding `.history/`.
 - 2026-07-18: The broader parameter/calibration selection stopped after 29 passing tests at the known P3 precision-candidate metric assertion; no P1 regression was observed.
+
+## Stage P2 - Branch Semantics and Design Intent
+
+Status: 100%
+
+- 2026-07-18: Audited Expert1 trajectory-only, explicit-availability TR+RD, fallback, calibration, routing, and system branch boundaries.
+- 2026-07-18: Added a red regression showing a zero four-dimensional placeholder entered fusion when `rd_is_multimodal` was omitted.
+- 2026-07-18: Made availability-mask omission a conservative trajectory-only path; explicit availability remains mandatory for fusion.
+- 2026-07-18: Passed 32 RD/routing/system focused tests, 3 control-plane tests, focused compile, and imports without full training.
