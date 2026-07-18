@@ -191,13 +191,6 @@ class RDShardLocalBatchSampler(Sampler[list[int]]):
                     else:
                         batch.extend(shard_indices)
                         remaining = self.rd_per_batch - len(batch)
-                        selected = set(batch)
-                        candidates = [item for item in self.rd_indices if item not in selected]
-                        if candidates:
-                            candidate_weights = [max(1.0e-6, self.sample_weights[item]) for item in candidates]
-                            take = min(remaining, len(candidates))
-                            batch.extend(_weighted_sample_without_replacement(rng, candidates, candidate_weights, take))
-                            remaining = self.rd_per_batch - len(batch)
                         if remaining > 0:
                             batch.extend(rng.choices(shard_indices, weights=rd_weights, k=remaining))
                     batch.extend(rng.choices(self.no_rd_indices, weights=self.no_rd_weights, k=self.no_rd_per_batch))

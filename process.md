@@ -11,3 +11,12 @@ Status: 100%
 - 2026-07-17: Added strict authorization and sanitized lock reconstruction across trainer, reselector, export, and system loader.
 - 2026-07-17: Moved release gate, candidate status, readiness, bottleneck, deployment action, and export eligibility to a validation control snapshot before the sole test pass.
 - 2026-07-17: Passed 16 focused P4 regression tests and `py_compile`; the full 35-test module retains two unrelated P3 expectation failures.
+
+## Stage P0 - Contracts, RD Availability, and Evaluation Boundaries
+
+Status: 100%
+
+- 2026-07-18: Audited label/tensor, RD availability/window alignment, and evaluation control-plane contracts without full training or `.history/` access.
+- 2026-07-18: Fixed `RDShardLocalBatchSampler` so undersized RD shards are replenished only from the active shard, preserving shard-local cache behavior.
+- 2026-07-18: Passed 19 RD/throughput tests, 14 split-integrity tests, 6 evaluation-control tests, targeted `py_compile`, and trainer/reselector imports.
+- 2026-07-18: User confirmed the deleted tracking files and `.anthor/` directory are intentional unrelated workspace changes; they remain unstaged.
