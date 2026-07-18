@@ -421,3 +421,10 @@ python -m py_compile src/core/reselect_expert1_precision.py
 - `[x]` 代码审查完成，但模型性能仍需用户执行完整训练验证
 - `[x]` 资产治理完成，零删除结果由审计与 retention plan 记录
 - `[x]` 全部阶段完成
+
+### 6.4 Expert1 精度与召回率训练准备（2026-07-18）
+
+- [x] 修复训练命令引用的缺失实验配置：新增 `tmp/20260718-expert1-precision-recall-v1.json`。
+- [x] 基于已验证的稳定 Expert1 配置，仅调整输出目录、`epochs=24` 和 `learning_rate=0.00015`；保持 `batch_size=8`、`seed=42`、全量验证和验证集选择边界。
+- [x] 确认 `expert1_track_index.csv`、RD segment manifest 与预训练轨迹检查点在训练启动前存在。
+- [ ] 执行完整训练并记录 validation macro F1、source-balanced F1、Unknown/Clutter recall 与 RD 净增益；训练前不得宣称精度或召回率已提升。
