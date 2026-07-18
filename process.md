@@ -64,3 +64,12 @@ Status: 100%
 - 2026-07-18: Calculated SHA256 for every audited asset; 906 assets have conservative text-reference protection and 819 have incomplete protocol metadata, so all 1,725 are retained.
 - 2026-07-18: Formed 322 conservative comparable groups; no asset satisfied strict Pareto dominance plus reference-clearance criteria, so no deletion plan or deletion log was generated.
 - 2026-07-18: Passed 14 checkpoint/registry/export tests with 4 subtests, reselector compilation, and audit schema/count/zero-deletion validation.
+
+## Final Acceptance
+
+Status: 100%
+
+- 2026-07-18: Passed the complete focused suite for this effort: 83 tests and 20 subtests across configuration, split integrity, RD assembly/sampling, routing, and precision controls.
+- 2026-07-18: Compiled all `src` and `tests` Python modules while excluding `.history/`, imported all changed control-plane modules, and passed `git diff --check`.
+- 2026-07-18: Verified `test_used_for_selection=False` remains explicit in the test reporting path and retained all unclassified or referenced model assets.
+- 2026-07-18: Full training, independent session-level evaluation, and real-hardware benchmarking remain required before making model-performance or deployment claims.
