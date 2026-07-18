@@ -249,43 +249,43 @@
 ## P4：跨模块架构、序列化与性能一致性
 
 **目标：** 验证 data → model → trainer → evaluator → registry → exporter 的契约、持久化和性能控制。  
-**状态：** `[ ]`
+**状态：** `[x]`
 
 ### P4-1 跨模块往返
 
-- [ ] 使用小型 fixture 验证 dataset 输出可被 model 消费，model 输出可被 trainer/evaluator 消费。
-- [ ] 验证 checkpoint 保存—恢复—registry—导出的关键字段一致，尤其是类别顺序、scale/bias、provenance、selection flags。
-- [ ] 对 malformed payload、旧字段、缺失字段和非有限值验证安全降级或拒绝。
-- [ ] 确认 test reporting 不进入 selection/release/readiness/export。
+- [x] 使用小型 fixture 验证 dataset 输出可被 model 消费，model 输出可被 trainer/evaluator 消费。
+- [x] 验证 checkpoint 保存—恢复—registry—导出的关键字段一致，尤其是类别顺序、scale/bias、provenance、selection flags。
+- [x] 对 malformed payload、旧字段、缺失字段和非有限值验证安全降级或拒绝。
+- [x] 确认 test reporting 不进入 selection/release/readiness/export。
 
 ### P4-2 性能风险审查
 
-- [ ] 检查 sampler、RD cache、worker、CPU/GPU 拷贝、逐 batch CPU 操作、重复模型执行和隐性全量扫描。
-- [ ] 只有静态证据显示性能风险后才运行固定小基准；不得运行全量训练。
-- [ ] 记录硬件、Python/PyTorch、dtype、batch、输入规格、warmup、重复次数、延迟/吞吐统计。
-- [ ] 证明 quick validation 优化不会替代最终完整 validation。
+- [x] 检查 sampler、RD cache、worker、CPU/GPU 拷贝、逐 batch CPU 操作、重复模型执行和隐性全量扫描。
+- [x] 只有静态证据显示性能风险后才运行固定小基准；不得运行全量训练。
+- [x] 记录硬件、Python/PyTorch、dtype、batch、输入规格、warmup、重复次数、延迟/吞吐统计。
+- [x] 证明 quick validation 优化不会替代最终完整 validation。
 
 ### P4-3 验证命令
 
-- [ ] 运行：
+- [x] 运行：
   ```bash
   python -m pytest tests/test_expert1_precision_controls_smoke.py
   python -m pytest tests/test_stage2_dataloader_throughput.py
   python -m py_compile src/core/expert1_trainer.py src/core/reselect_expert1_precision.py
   python -c "import src.core.expert1_trainer; import src.core.reselect_expert1_precision"
   ```
-- [ ] 运行小基准时保存原始结果，不将 smoke 延迟宣称为正式部署速度。
+- [x] 运行小基准时保存原始结果，不将 smoke 延迟宣称为正式部署速度。
 
 **P4 停止门禁：** 序列化往返不一致、test 控制面回流或性能优化改变评估语义时，停止资产角色判定和删除。
 
 **P4 执行记录：**
 
-- 发现：
-- 修改文件：
-- 测试/命令：
-- 结果：
-- 未覆盖风险：
-- 状态：`[ ]`
+- 发现：P4 控制面加固已在 `4c2e996` 完成；当前复验覆盖 checkpoint→registry→export 的精度锁、provenance、selection flags 和 test-report 隔离。静态审查显示 RD segment LRU cache、stage2 shard-local sampler、DataLoader worker/prefetch/pin-memory 与 non-blocking H2D 均有显式边界；未发现需要新建小基准的回归证据。
+- 修改文件：仅阶段记录；无新增业务代码。
+- 测试/命令：`.\\.venv\\Scripts\\python.exe -m pytest tests/test_expert1_precision_controls_smoke.py -q`；`.\\.venv\\Scripts\\python.exe -m pytest tests/test_stage2_dataloader_throughput.py -q`；focused compile/import；静态性能路径检索。
+- 结果：35 个 precision 测试和 20 个 subtests 通过；9 个 stage2 dataloader 测试通过；compile/import 通过。未运行基准，故不记录硬件、延迟或吞吐，也未将 smoke 测试表述为部署性能；quick validation 仅由配置控制观测成本，完整 validation 保留独立的 interval/last-epoch 路径。
+- 未覆盖风险：未对真实硬件、真实数据和生产 batch 执行性能基准；性能结论仅限静态控制路径与单元测试语义。
+- 状态：`[x]`
 
 ---
 

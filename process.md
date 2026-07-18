@@ -47,3 +47,11 @@ Status: 100%
 - 2026-07-18: Restored the precision-candidate gap expectation after the historical `-0.01` to `-0.05` tolerance change.
 - 2026-07-18: Separated negative proportional-fallback diagnostics from the relaxed candidate tolerance so any negative gain triggers the Stage 7 retraining recommendation.
 - 2026-07-18: Passed all 35 precision-control tests with 20 subtests, compiled `src` and `tests` outside `.history/`, and imported trainer/reselector modules.
+
+## Stage P4 - Cross-Module Architecture, Serialization, and Performance
+
+Status: 100%
+
+- 2026-07-18: Revalidated the P4 precision-control implementation from `4c2e996`, including validation-only calibration locks, checkpoint/registry/export reconstruction, malformed payload handling, and test-report isolation.
+- 2026-07-18: Passed all 35 precision-control tests with 20 subtests and all 9 Stage 2 dataloader tests; targeted compile and imports also passed.
+- 2026-07-18: Performed static sampler/cache/worker/H2D/quick-validation review; no new evidence justified a benchmark, so no smoke latency was presented as deployment performance.
