@@ -38,3 +38,12 @@ Status: 100%
 - 2026-07-18: Added a red regression showing a zero four-dimensional placeholder entered fusion when `rd_is_multimodal` was omitted.
 - 2026-07-18: Made availability-mask omission a conservative trajectory-only path; explicit availability remains mandatory for fusion.
 - 2026-07-18: Passed 32 RD/routing/system focused tests, 3 control-plane tests, focused compile, and imports without full training.
+
+## Stage P3 - Unused, Redundant, and Unreachable Implementations
+
+Status: 100%
+
+- 2026-07-18: Used a standard-library AST audit over `src/**/*.py`, explicitly excluding `.history/`; all 91 import candidates were public re-exports or required runtime evidence, so none were deleted.
+- 2026-07-18: Restored the precision-candidate gap expectation after the historical `-0.01` to `-0.05` tolerance change.
+- 2026-07-18: Separated negative proportional-fallback diagnostics from the relaxed candidate tolerance so any negative gain triggers the Stage 7 retraining recommendation.
+- 2026-07-18: Passed all 35 precision-control tests with 20 subtests, compiled `src` and `tests` outside `.history/`, and imported trainer/reselector modules.

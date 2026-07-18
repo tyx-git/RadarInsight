@@ -208,41 +208,41 @@
 ## P3：未使用、冗余与不可达实现
 
 **目标：** 在不破坏动态调用、兼容格式和公开接口的前提下清理已证实无效代码。  
-**状态：** `[ ]`
+**状态：** `[x]`
 
 ### P3-1 生成候选清单
 
-- [ ] 使用 AST、import graph、字符串引用、配置 key 和脚本引用生成候选：未使用 import、函数、类、常量、配置字段、参数、返回字段、永真/永假条件和重复 helper。
-- [ ] 明确排除 `.history/`，并记录排除规则。
-- [ ] 将候选分为 `safe_remove`、`needs_runtime_evidence`、`public_or_compatibility`、`keep`。
-- [ ] 不因“搜索不到调用方”直接删除可能由反射、配置或外部脚本使用的符号。
+- [x] 使用 AST、import graph、字符串引用、配置 key 和脚本引用生成候选：未使用 import、函数、类、常量、配置字段、参数、返回字段、永真/永假条件和重复 helper。
+- [x] 明确排除 `.history/`，并记录排除规则。
+- [x] 将候选分为 `safe_remove`、`needs_runtime_evidence`、`public_or_compatibility`、`keep`。
+- [x] 不因“搜索不到调用方”直接删除可能由反射、配置或外部脚本使用的符号。
 
 ### P3-2 逐项修复
 
-- [ ] 每个 `safe_remove` 项先补失败回归或确认现有回归覆盖。
-- [ ] 删除重复转换/不可达分支时保持输入输出契约不变。
-- [ ] 每次只处理一个逻辑小批次，运行对应 focused test，再继续下一个批次。
-- [ ] 将修改文件和未覆盖动态调用风险写入本文件。
+- [x] 每个 `safe_remove` 项先补失败回归或确认现有回归覆盖。
+- [x] 删除重复转换/不可达分支时保持输入输出契约不变。
+- [x] 每次只处理一个逻辑小批次，运行对应 focused test，再继续下一个批次。
+- [x] 将修改文件和未覆盖动态调用风险写入本文件。
 
 ### P3-3 清理后验证
 
-- [ ] 运行全仓 Python compile（排除 `.history/`）：
+- [x] 运行全仓 Python compile（排除 `.history/`）：
   ```bash
   python -m py_compile $(find src tests -path '*/.history' -prune -o -name '*.py' -print)
   ```
-- [ ] 运行与变更相关的 pytest；若全量 pytest 预计触发训练或外部数据，改用明确的 focused 集合并记录原因。
-- [ ] 检查导入错误、循环依赖、未定义名称和配置反序列化错误。
+- [x] 运行与变更相关的 pytest；若全量 pytest 预计触发训练或外部数据，改用明确的 focused 集合并记录原因。
+- [x] 检查导入错误、循环依赖、未定义名称和配置反序列化错误。
 
 **P3 停止门禁：** 若清理导致任何 focused test 失败、import 失败、配置字段丢失或动态引用不确定，恢复仅本阶段新增的改动（不得使用 destructive git 命令），并标记 `[!]`。
 
 **P3 执行记录：**
 
-- 发现：
-- 修改文件：
-- 测试/命令：
-- 结果：
-- 未覆盖风险：
-- 状态：`[ ]`
+- 发现：AST 审计得到 91 个 import 候选，均为 `public_or_compatibility` 重导出或 `needs_runtime_evidence`，无 `safe_remove`；同时修复两项既有精度回归：候选阈值由提交 `28f47df` 放宽后测试 gap 未同步，且 proportional fallback 诊断错误复用候选容忍阈值而漏报任意负增益。
+- 修改文件：`src/core/expert1_trainer.py:2440`；`tests/test_expert1_precision_controls_smoke.py:1058`。
+- 测试/命令：标准库 AST 审计（仅扫描 `src/**/*.py`，显式排除 `.history/`）；`.\\.venv\\Scripts\\python.exe -m pytest tests/test_expert1_precision_controls_smoke.py -q`；`.\\.venv\\Scripts\\python.exe -m py_compile <rg --files src tests -g '*.py' -g '!**/.history/**'>`；trainer/reselector import。
+- 结果：35 个 precision 测试和 20 个 subtests 通过；compile/import 通过；未删除候选，跨模块重复 helper 保持原位以避免破坏公开/脚本边界。
+- 未覆盖风险：AST 无法证明反射或外部脚本调用；未运行完整训练；重复 helper 的统一抽取需要单独的公开接口迁移计划。
+- 状态：`[x]`
 
 ---
 

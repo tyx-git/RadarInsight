@@ -2440,7 +2440,7 @@ def _rd_joint_bottleneck_summary(metrics: dict[str, object], config: Expert1Trai
     for item in time_sync_rows:
         if (
             str(item.get("rd_time_sync_status", "")) == "proportional_fallback"
-            and float(item.get("joint_minus_traj_macro_f1", 0.0)) < _PRECISION_CANDIDATE_THRESHOLDS["joint_minus_traj_macro_f1_on_rd"]
+            and float(item.get("joint_minus_traj_macro_f1", 0.0)) < 0.0
         ):
             flags.append("proportional_fallback_joint_negative")
             break

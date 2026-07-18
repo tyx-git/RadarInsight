@@ -1055,7 +1055,7 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertEqual(precision_candidate["precision_threshold_failures"], [])
         self.assertAlmostEqual(float(precision_candidate["precision_candidate_clutter_recall_gap"]), -0.0200, places=4)
         self.assertAlmostEqual(float(precision_candidate["precision_candidate_unknown_recall_gap"]), -0.0200, places=4)
-        self.assertAlmostEqual(float(precision_candidate["precision_candidate_joint_gain_gap"]), -0.0050, places=4)
+        self.assertAlmostEqual(float(precision_candidate["precision_candidate_joint_gain_gap"]), -0.0450, places=4)
 
     def test_precision_readiness_marks_small_unknown_gap_before_rerun(self) -> None:
         records = [
