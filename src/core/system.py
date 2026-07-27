@@ -196,6 +196,7 @@ class RadarClassificationSystem(nn.Module):
             rd_padding_mask=rd_padding_mask,
             rd_patch_padding_mask=rd_patch_padding_mask,
             rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
+            traj_physical_features=representation.physical_features,
             enable_reject=enable_low_altitude_reject,
             inference_mode="v2_joint",
         )
@@ -307,6 +308,7 @@ class RadarClassificationSystem(nn.Module):
                     rd_padding_mask=rd_padding_mask,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
+                    traj_physical_features=representation.physical_features,
                     enable_reject=enable_low_altitude_reject,
                     inference_mode="v2_joint",
                 )
@@ -329,6 +331,7 @@ class RadarClassificationSystem(nn.Module):
                     rd_padding_mask=rd_padding_mask,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
+                    traj_physical_features=representation.physical_features,
                     enable_reject=enable_low_altitude_reject,
                     inference_mode="deep_reroute",
                 )

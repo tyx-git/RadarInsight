@@ -3,16 +3,24 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from unittest.mock import Mock
 
 import pandas as pd
 import torch
 
 from src.core.data.collate import collate_track_batch
-from src.core.data.rd_segment_store import WindowAssembler, build_window_segment_map, resolve_processed_path
+from src.core.data.rd_segment_store import (
+    WindowAssembler,
+    WindowSegmentAssembly,
+    build_window_segment_map,
+    resolve_processed_path,
+    resolve_window_rd_time_sync_status,
+)
 from src.core.data.torch_dataset import TorchTrackDataset
 from src.core.expert1_data import build_expert1_dataloaders
 from src.core.expert1_data import RDShardLocalBatchSampler
-from src.core.experts import LowAltitudeSuspectExpert
+from src.core.experts import LOW_ALTITUDE_CLASSES, LowAltitudeSuspectExpert
+from src.core.expert1_config import Expert1TrainConfig
 from src.core.expert1_trainer import (
     _build_class_weights,
     _build_class_weights_from_index,
@@ -20,6 +28,12 @@ from src.core.expert1_trainer import (
     _build_rd_class_weights_from_index,
     _rd_coverage,
     _rd_coverage_from_index,
+    _final_logits_with_joint_logit_delta_scale,
+    _micro_doppler_supervision_mask,
+    _micro_doppler_supervision_mask,
+    _rd_alignment_quality,
+    _rd_auxiliary_quality_factor,
+    _rd_auxiliary_quality_factor,
 )
 from src.process.build_expert1_rd_segment_store import build_expert1_rd_segment_store
 from src.process.build_expert1_rd_segment_store import _load_parent_rd
@@ -32,6 +46,146 @@ DATA_ROOT = ROOT / "data"
 
 def _truthy(value: object) -> bool:
     return str(value if value is not None else "").strip().lower() in {"1", "true", "yes", "y"}
+
+
+def test_quality_aware_probe_matches_model_forward() -> None:
+    torch.manual_seed(23)
+    model = LowAltitudeSuspectExpert(
+        input_dim=4,
+        rd_context_dim=0,
+        use_rd_patch_cnn=True,
+        traj_sequence_dim=16,
+        hidden_dim=16,
+        dropout=0.0,
+    )
+    model.eval()
+    batch_size = 2
+    inputs = {
+        "traj_input": torch.randn(batch_size, 4),
+        "rd_features": torch.randn(batch_size, 2, 512, 4),
+        "traj_sequence_features": torch.randn(batch_size, 5, 16),
+        "rd_patch_features": torch.randn(batch_size, 2, 64, 64, 3),
+        "rd_deep_patch_features": torch.randn(batch_size, 2, 64, 64, 3),
+        "rd_is_multimodal": torch.ones(batch_size, dtype=torch.bool),
+        "rd_alignment_quality": torch.tensor([0.15, 1.0]),
+        "traj_padding_mask": torch.zeros(batch_size, 5, dtype=torch.bool),
+        "rd_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "rd_patch_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "rd_deep_patch_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "enable_reject": False,
+    }
+    config = Expert1TrainConfig(
+        joint_logit_delta_scale=1.0,
+        rd_specialist_residual_scale=model.rd_specialist_residual_scale,
+        rd_proportional_fallback_quality=0.15,
+    )
+    with torch.no_grad():
+        output = model(**inputs)
+        probe_logits = _final_logits_with_joint_logit_delta_scale(
+            output.traj_logits,
+            output.joint_logits,
+            output.rd_logits,
+            output.traj_cosine,
+            output.rd_cosine,
+            output.rd_pair_fusion_weights,
+            output.tr_rd_active,
+            config,
+            enable_reject=False,
+            rd_alignment_quality=inputs["rd_alignment_quality"],
+        )
+    assert torch.allclose(probe_logits, output.logits, atol=1e-6, rtol=1e-6)
+
+
+def test_rd_alignment_quality_maps_sync_statuses() -> None:
+    quality = _rd_alignment_quality(
+        ["exact_time_sync", "within_tolerance", "proportional_fallback", "unavailable"],
+        torch.tensor([True, True, True, True]),
+        0.15,
+    )
+    assert torch.equal(quality, torch.tensor([1.0, 1.0, 0.15, 0.0]))
+
+
+def test_window_sync_status_never_promotes_mixed_or_proportional_segments() -> None:
+    assert resolve_window_rd_time_sync_status({"exact_time_sync": 2}) == "exact_time_sync"
+    assert resolve_window_rd_time_sync_status({"exact_time_sync": 1, "within_tolerance": 1}) == "within_tolerance"
+    assert resolve_window_rd_time_sync_status({"exact_time_sync": 3, "proportional_fallback": 1}) == "unavailable"
+    assert resolve_window_rd_time_sync_status({"exact_time_sync": 3, "late": 1}) == "late"
+    assert resolve_window_rd_time_sync_status({}) == "unavailable"
+
+
+def test_low_quality_rd_auxiliary_and_micro_doppler_supervision_are_gated() -> None:
+    labels = torch.tensor([
+        LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+        LOW_ALTITUDE_CLASSES.index("BirdTarget"),
+        LOW_ALTITUDE_CLASSES.index("DroneTarget"),
+    ])
+    has_rd = torch.tensor([True, True, False])
+    quality = torch.tensor([0.15, 1.0, 0.0])
+
+    factor = _rd_auxiliary_quality_factor(quality, has_rd)
+    micro_mask = _micro_doppler_supervision_mask(
+        labels,
+        has_rd,
+        quality,
+        min_alignment_quality=1.0,
+    )
+
+    assert torch.allclose(factor, torch.tensor(0.575))
+    assert torch.equal(micro_mask, torch.tensor([False, True, False]))
+
+
+def test_micro_doppler_features_are_clipped_before_auxiliary_head() -> None:
+    model = LowAltitudeSuspectExpert(
+        input_dim=4,
+        rd_context_dim=0,
+        use_rd_patch_cnn=True,
+        traj_sequence_dim=16,
+        hidden_dim=16,
+        dropout=0.0,
+        micro_doppler_feature_clip=3.0,
+    )
+    rd_features = torch.zeros((1, 3, 8, 4), dtype=torch.float32)
+    rd_features[:, :, :, 0] = torch.tensor([1.0e-7, 100.0, 1.0e-7]).view(1, 3, 1)
+    rd_features[:, :, :, 2] = torch.linspace(0.0, 1.0e6, 8).view(1, 1, 8)
+
+    features = model._micro_doppler_features(rd_features)
+
+    assert torch.isfinite(features).all()
+    assert float(features.abs().max()) <= 3.0
+
+
+def test_alignment_quality_zero_uses_trajectory_logits_and_preserves_default_behavior() -> None:
+    torch.manual_seed(17)
+    model = LowAltitudeSuspectExpert(
+        input_dim=4,
+        rd_context_dim=0,
+        use_rd_patch_cnn=True,
+        traj_sequence_dim=16,
+        hidden_dim=16,
+        dropout=0.0,
+    )
+    model.eval()
+    batch_size = 2
+    inputs = {
+        "traj_input": torch.randn(batch_size, 4),
+        "rd_features": torch.randn(batch_size, 2, 512, 4),
+        "traj_sequence_features": torch.randn(batch_size, 5, 16),
+        "rd_patch_features": torch.randn(batch_size, 2, 64, 64, 3),
+        "rd_deep_patch_features": torch.randn(batch_size, 2, 64, 64, 3),
+        "rd_is_multimodal": torch.ones(batch_size, dtype=torch.bool),
+        "traj_padding_mask": torch.zeros(batch_size, 5, dtype=torch.bool),
+        "rd_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "rd_patch_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "rd_deep_patch_padding_mask": torch.zeros(batch_size, 2, dtype=torch.bool),
+        "enable_reject": False,
+    }
+    with torch.no_grad():
+        default_output = model(**inputs)
+        full_quality_output = model(**inputs, rd_alignment_quality=torch.ones(batch_size))
+        zero_quality_output = model(**inputs, rd_alignment_quality=torch.zeros(batch_size))
+    assert torch.allclose(default_output.logits, full_quality_output.logits, atol=1e-6, rtol=1e-6)
+    assert torch.allclose(zero_quality_output.logits, zero_quality_output.traj_logits, atol=1e-6, rtol=1e-6)
+    assert torch.equal(zero_quality_output.joint_rd_weight, torch.zeros_like(zero_quality_output.joint_rd_weight))
 
 
 class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
@@ -104,6 +258,18 @@ class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
         self.assertGreaterEqual(int(first["segment_count"]), 1)
         self.assertGreater(float(first["rd_coverage_ratio"]), 0.0)
         self.assertLessEqual(float(first["rd_coverage_ratio"]), 1.0)
+        self.assertEqual(str(first["rd_time_sync_class"]), "exact_only")
+        self.assertEqual(str(first["rd_realtime_sync_status"]), "exact_time_sync")
+        self.assertTrue(bool(first["rd_fusion_eligible"]))
+        self.assertEqual(self.map_summary["rd_time_sync_window_counts"], {"exact_only": len(mapped)})
+        self.assertEqual(self.map_summary["rd_realtime_sync_status_counts"], {"exact_time_sync": len(mapped)})
+        self.assertEqual(self.map_summary["rd_fusion_eligible_window_count"], len(mapped))
+        self.assertTrue(
+            all(
+                key.endswith("|exact_only")
+                for key in self.map_summary["rd_time_sync_window_source_label_counts"]
+            )
+        )
 
     def test_dataset_reads_segment_store_and_collates_rd_batch(self) -> None:
         map_path = resolve_processed_path(DATA_ROOT, self.map_name)
@@ -138,7 +304,9 @@ class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
 
         batch = collate_track_batch([item])
         self.assertEqual(batch.sample_ids, [sample_id])
+        self.assertEqual(batch.parent_sample_ids, [str(row["parent_sample_id"])])
         self.assertEqual(batch.rd_time_sync_status, ["exact_time_sync"])
+        self.assertLessEqual(float(batch.window_start_seconds[0]), float(batch.window_end_seconds[0]))
         self.assertEqual(tuple(batch.rd_features.shape), (1, item.rd_valid_length, 512, 4))
         self.assertEqual(int(batch.rd_lengths[0].item()), item.rd_valid_length)
         self.assertFalse(bool(batch.rd_padding_mask[0, 0].item()))
@@ -273,6 +441,120 @@ class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
         self.assertFalse(rd_is_multimodal)
         self.assertEqual(encoded.valid_length, 2)
 
+    def test_stale_precomputed_window_map_cannot_reintroduce_future_segment(self) -> None:
+        store_dir = DATA_ROOT / "processed" / "tmp_unittest_stale_map_store"
+        store_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = store_dir / "segments.pt"
+        relative_shard = shard_path.relative_to(ROOT).as_posix()
+        patch = torch.zeros((2, 64, 64, 3), dtype=torch.float32)
+        torch.save(
+            {
+                "schema_version": 1,
+                "rd_is_multimodal": True,
+                "segments": [
+                    {
+                        "segment_id": "stale-parent|seg0000",
+                        "segment_index": 0,
+                        "segment_start_seconds": 0.0,
+                        "segment_end_seconds": 2.0,
+                        "rd_features": torch.ones((2, 512, 4), dtype=torch.float32),
+                        "rd_valid_length": 2,
+                        "rd_patch_features": patch,
+                        "rd_patch_valid_length": 2,
+                        "rd_deep_patch_features": patch,
+                        "rd_deep_patch_valid_length": 2,
+                    },
+                    {
+                        "segment_id": "stale-parent|seg0001",
+                        "segment_index": 1,
+                        "segment_start_seconds": 2.0,
+                        "segment_end_seconds": 4.0,
+                        "rd_features": torch.full((2, 512, 4), 2.0, dtype=torch.float32),
+                        "rd_valid_length": 2,
+                        "rd_patch_features": patch,
+                        "rd_patch_valid_length": 2,
+                        "rd_deep_patch_features": patch,
+                        "rd_deep_patch_valid_length": 2,
+                    },
+                ],
+            },
+            shard_path,
+        )
+        manifest_name = "tmp_unittest_stale_map_manifest.csv"
+        manifest_path = DATA_ROOT / "processed" / manifest_name
+        manifest_path.write_text(
+            "\n".join(
+                [
+                    "segment_id,parent_sample_id,segment_start_seconds,segment_end_seconds,shard_key,segment_index,rd_time_sync_status,rd_quality_flags,rd_is_multimodal",
+                    f"stale-parent|seg0000,stale-parent,0.0,2.0,{relative_shard},0,exact_time_sync,ok,True",
+                    f"stale-parent|seg0001,stale-parent,2.0,4.0,{relative_shard},1,exact_time_sync,ok,True",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        map_name = "tmp_unittest_stale_map.csv"
+        map_path = DATA_ROOT / "processed" / map_name
+        pd.DataFrame(
+            [
+                {
+                    "sample_id": "stale-parent|win0000",
+                    "segment_ids_json": json.dumps(["stale-parent|seg0000", "stale-parent|seg0001"]),
+                }
+            ]
+        ).to_csv(map_path, index=False)
+
+        assembler = WindowAssembler(
+            DATA_ROOT,
+            segment_manifest_name=manifest_name,
+            window_segment_map_name=map_name,
+            cache_size=0,
+            strict_contained=True,
+        )
+        selected, assembly = assembler.select_segment_rows(
+            {
+                "sample_id": "stale-parent|win0000",
+                "parent_sample_id": "stale-parent",
+                "window_start_seconds": 0.0,
+                "window_end_seconds": 2.0,
+            }
+        )
+        self.assertIsNotNone(assembly)
+        self.assertEqual([row["segment_id"] for row in selected], ["stale-parent|seg0000"])
+
+    def test_unsafe_segment_store_rd_uses_trajectory_only_fast_path_without_legacy_reload(self) -> None:
+        dataset = TorchTrackDataset(
+            DATA_ROOT,
+            sample_ids=["cq08|track|1010|win0000"],
+            trainable_only=False,
+            index_name="expert1_window_index.csv",
+            cache_size=0,
+            use_rd_segment_store=True,
+            rd_segment_manifest_name=self.manifest_name,
+            window_segment_map_name=self.map_name,
+            load_only_fusion_eligible_rd=True,
+            allow_rd_segment_store_fallback=True,
+        )
+        unsafe_assembly = WindowSegmentAssembly(
+            parent_sample_id="cq08|track|1010",
+            sample_id="cq08|track|1010|win0000",
+            segment_ids=["cq08|track|1010|seg0000"],
+            segment_indices=[0],
+            shard_keys=["unused"],
+            coverage_ratio=1.0,
+            rd_time_sync_status_counts={"proportional_fallback": 1},
+            rd_quality_flags=[],
+        )
+        unsafe_assembler = Mock()
+        unsafe_assembler.select_segment_rows.return_value = ([{}], unsafe_assembly)
+        dataset._window_assembler = unsafe_assembler
+
+        item = dataset[0]
+
+        self.assertFalse(item.rd_is_multimodal)
+        self.assertEqual(item.rd_time_sync_status, "unavailable")
+        self.assertEqual(item.rd_valid_length, 1)
+        unsafe_assembler.assemble.assert_not_called()
+
     def test_cq08_proportional_fallback_crops_raw_frames_before_encoding(self) -> None:
         tensor_dir = DATA_ROOT / "processed" / "tmp_unittest_cq08_prop_rd"
         tensor_dir.mkdir(parents=True, exist_ok=True)
@@ -348,7 +630,9 @@ class Expert1RDSegmentStoreSmokeTests(unittest.TestCase):
         self.assertEqual(loaders.val_loader.dataset.cache_size, 0)
         self.assertEqual(loaders.stage2_train_loader.dataset.rd_cache_size, 16)
         self.assertEqual(loaders.stage2_train_loader.dataset._window_assembler.cache_size, 1)
-        self.assertEqual(loaders.stage2_train_loader.batch_sampler.__class__.__name__, "RDShardLocalBatchSampler")
+        self.assertEqual(loaders.stage2_train_loader.batch_sampler.__class__.__name__, "BatchSampler")
+        self.assertEqual(loaders.stage2_rd_fusion_eligible_count, 0)
+        self.assertFalse(loaders.stage2_rd_aware_sampling_enabled)
         self.assertTrue(loaders.train_loader.pin_memory)
         self.assertTrue(loaders.train_loader.persistent_workers)
         self.assertEqual(loaders.train_loader.prefetch_factor, 1)

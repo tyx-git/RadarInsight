@@ -173,7 +173,10 @@
       }
     },
     "rd_specialist_residual_scale": 0.35,
-    "low_altitude_traj_supervision_weight": 0.55
+    "low_altitude_traj_supervision_weight": 0.55,
+    "rd_proportional_fallback_quality": 0.0,
+    "low_altitude_drone_bird_micro_doppler_min_alignment_quality": 1.0,
+    "low_altitude_micro_doppler_feature_clip": 8.0
   },
   "system": {
     "output_dir": "artifacts/system_config_smoke",

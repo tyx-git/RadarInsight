@@ -30,6 +30,8 @@ WINDOW_EXTRA_COLUMNS = [
     "window_end_seconds",
     "window_duration_seconds",
     "window_point_count",
+    "window_unique_time_count",
+    "is_causal_window",
     "window_mode",
     "split_group_id",
 ]
@@ -129,6 +131,30 @@ def _assign_group_splits(
     return assignments
 
 
+def _load_frozen_parent_assignments(manifest_path: Path) -> dict[str, str]:
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assignments: dict[str, str] = {}
+    for split_name in ("train", "val", "test"):
+        key = f"{split_name}_ids"
+        values = payload.get(key)
+        if not isinstance(values, list):
+            raise ValueError(f"frozen parent split manifest is missing list field: {key}")
+        for value in values:
+            parent_sample_id = str(value).strip()
+            if not parent_sample_id:
+                raise ValueError(f"frozen parent split manifest contains empty ID in {key}")
+            previous = assignments.get(parent_sample_id)
+            if previous is not None:
+                raise ValueError(
+                    "frozen parent split manifest assigns a parent to multiple splits: "
+                    f"{parent_sample_id} ({previous}, {split_name})"
+                )
+            assignments[parent_sample_id] = split_name
+    if not assignments:
+        raise ValueError("frozen parent split manifest contains no parent IDs")
+    return assignments
+
+
 def _summary(window_df: pd.DataFrame, assignments: dict[str, str]) -> dict[str, object]:
     split_by_sample = window_df["split_group_id"].astype(str).map(assignments).fillna("unassigned")
     trainable_mask = (
@@ -190,13 +216,37 @@ def build_expert1_window_index(
     train_ratio: float = 0.70,
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
+    window_index_name: str = "expert1_window_index.csv",
+    split_manifest_name: str = "expert1_window_split_manifest.json",
+    summary_name: str = "expert1_window_summary.json",
+    window_output_dir_name: str = "expert1_windows",
+    frozen_parent_split_manifest: Path | str | None = None,
+    include_prefix_windows: bool = False,
+    prefix_stride_points: int = 5,
+    min_unique_time_points: int = 2,
 ) -> dict[str, object]:
     processed_root = project_root / "data" / "processed"
-    output_root = processed_root / "expert1_windows"
+    output_root = processed_root / window_output_dir_name
     output_root.mkdir(parents=True, exist_ok=True)
     index_path = processed_root / "expert1_track_index.csv"
     index_df = pd.read_csv(index_path)
     index_df = index_df[index_df["label_name"].astype(str).isin(EXPERT1_LABELS)].copy()
+    frozen_manifest_path = Path(frozen_parent_split_manifest) if frozen_parent_split_manifest else None
+    frozen_parent_assignments = (
+        _load_frozen_parent_assignments(frozen_manifest_path)
+        if frozen_manifest_path is not None
+        else None
+    )
+    if frozen_parent_assignments is not None:
+        index_parent_ids = set(index_df["sample_id"].astype(str))
+        missing_from_index = sorted(set(frozen_parent_assignments) - index_parent_ids)
+        missing_from_manifest = sorted(index_parent_ids - set(frozen_parent_assignments))
+        if missing_from_index or missing_from_manifest:
+            raise ValueError(
+                "frozen parent split manifest must cover exactly the Expert1 parent IDs; "
+                f"missing_from_index={missing_from_index[:5]}, "
+                f"missing_from_manifest={missing_from_manifest[:5]}"
+            )
     rows: list[dict[str, object]] = []
     manifest_windows: list[dict[str, object]] = []
 
@@ -261,6 +311,9 @@ def build_expert1_window_index(
             exclude_reasons: list[str] = []
             if len(window_df) < min_points:
                 exclude_reasons.append("too_few_points_for_window_training")
+            unique_time_count = int(window_df["time_seconds"].nunique())
+            if unique_time_count < max(2, int(min_unique_time_points)):
+                exclude_reasons.append("too_few_unique_timestamps_for_causal_window")
             if effective_duration > window_seconds + 1e-6:
                 exclude_reasons.append("window_duration_exceeds_target")
             if label_name not in EXPERT1_LABELS:
@@ -297,6 +350,8 @@ def build_expert1_window_index(
                 "window_end_seconds": float(effective_end),
                 "window_duration_seconds": effective_duration,
                 "window_point_count": int(len(window_df)),
+                "window_unique_time_count": unique_time_count,
+                "is_causal_window": True,
                 "window_mode": window_mode,
                 "split_group_id": split_group_id,
             }
@@ -312,41 +367,74 @@ def build_expert1_window_index(
                     "window_end_seconds": float(effective_end),
                     "window_duration_seconds": effective_duration,
                     "window_point_count": int(len(window_df)),
+                    "window_unique_time_count": unique_time_count,
+                    "is_causal_window": True,
                     "window_mode": window_mode,
                     "is_trainable": is_trainable,
                     "exclude_reason": ";".join(exclude_reasons),
                 }
             )
 
+        candidates: list[tuple[float, float, str, bool]] = []
+        if include_prefix_windows:
+            prefix_end = start_time + stride_seconds
+            while prefix_end < min(end_time, start_time + window_seconds) - 1e-6:
+                candidates.append((start_time, float(prefix_end), "prefix", True))
+                prefix_end += stride_seconds
+            point_stride = max(1, int(prefix_stride_points))
+            warmup_end = min(end_time, start_time + window_seconds)
+            for end_index in range(min_points - 1, len(frame) - 1, point_stride):
+                prefix_end = float(frame.iloc[end_index]["time_seconds"])
+                if prefix_end >= warmup_end - 1e-6:
+                    break
+                candidates.append((start_time, prefix_end, "prefix", True))
+        if parent_duration <= window_seconds:
+            mode = "short_full" if parent_duration < window_seconds else "exact_full"
+            candidates.append((start_time, end_time, mode, True))
+        else:
+            for window_index, window_start in enumerate(starts):
+                window_end = min(float(window_start + window_seconds), end_time)
+                candidates.append(
+                    (
+                        float(window_start),
+                        float(window_end),
+                        "sliding",
+                        True,
+                    )
+                )
+
+        deduplicated_candidates: dict[tuple[float, float, str, bool], tuple[float, float, str, bool]] = {}
+        for start, end, mode, include_end in candidates:
+            if end >= start:
+                key = (float(start), float(end), mode, bool(include_end))
+                deduplicated_candidates.setdefault(key, key)
+        candidates = sorted(
+            deduplicated_candidates.values(),
+            key=lambda item: (item[1], item[0], item[2], item[3]),
+        )
         emitted_window = False
-        for window_index, window_start in enumerate(starts):
-            window_end = min(float(window_start + window_seconds), end_time)
-            if parent_duration <= window_seconds:
-                mask = np.ones((len(frame),), dtype=bool)
-                window_mode = "short_full" if parent_duration < window_seconds else "exact_full"
-                effective_start = start_time
-                effective_end = end_time
+        emitted_count = 0
+        for effective_start, effective_end, window_mode, include_end in candidates:
+            mask = frame["time_seconds"] >= effective_start
+            if include_end:
+                mask &= frame["time_seconds"] <= effective_end
             else:
-                mask = (frame["time_seconds"] >= window_start) & (frame["time_seconds"] < window_end)
-                if window_index == len(starts) - 1:
-                    mask = (frame["time_seconds"] >= window_start) & (frame["time_seconds"] <= window_end)
-                window_mode = "sliding"
-                effective_start = float(window_start)
-                effective_end = float(window_end)
+                mask &= frame["time_seconds"] < effective_end
             window_df = frame[mask].copy()
             if len(window_df) < min_points:
-                if parent_duration <= window_seconds and not emitted_window:
+                if parent_duration <= window_seconds and not emitted_window and window_mode != "prefix":
                     emit_window(0, frame, "short_full_below_min_points", start_time, end_time)
                     emitted_window = True
                 continue
             emit_window(
-                window_index,
+                emitted_count,
                 window_df,
                 window_mode,
                 effective_start,
                 effective_end,
             )
             emitted_window = True
+            emitted_count += 1
         if not emitted_window:
             emit_window(
                 0,
@@ -361,10 +449,18 @@ def build_expert1_window_index(
     if window_df.empty:
         raise RuntimeError("no expert1 windows were generated")
     window_df = window_df[WINDOW_INDEX_COLUMNS]
-    assignments = _assign_group_splits(window_df, seed, train_ratio, val_ratio, test_ratio)
+    if frozen_parent_assignments is None:
+        assignments = _assign_group_splits(window_df, seed, train_ratio, val_ratio, test_ratio)
+    else:
+        assignments = {
+            str(group_id): frozen_parent_assignments[str(parent_sample_id)]
+            for group_id, parent_sample_id in window_df[["split_group_id", "parent_sample_id"]]
+            .drop_duplicates()
+            .itertuples(index=False, name=None)
+        }
     window_df["split_name"] = window_df["split_group_id"].astype(str).map(assignments).fillna("unassigned")
     final_columns = WINDOW_INDEX_COLUMNS + ["split_name"]
-    window_index_path = processed_root / "expert1_window_index.csv"
+    window_index_path = processed_root / window_index_name
     window_df[final_columns].to_csv(window_index_path, index=False, encoding="utf-8")
 
     split_manifest = {
@@ -377,8 +473,17 @@ def build_expert1_window_index(
         "test_ids": sorted(window_df[(window_df["split_name"] == "test") & (window_df["is_trainable"])]["sample_id"].astype(str).tolist()),
         "diagnostic_ids": sorted(window_df[~window_df["is_trainable"]]["sample_id"].astype(str).tolist()),
         "group_assignments": assignments,
+        "frozen_parent_split_manifest": (
+            frozen_manifest_path.relative_to(project_root).as_posix()
+            if frozen_manifest_path is not None and frozen_manifest_path.is_relative_to(project_root)
+            else (str(frozen_manifest_path) if frozen_manifest_path is not None else None)
+        ),
+        "include_prefix_windows": bool(include_prefix_windows),
+        "prefix_stride_points": int(prefix_stride_points),
+        "min_unique_time_points": int(max(2, min_unique_time_points)),
     }
-    manifest_path = project_root / "data" / "manifests" / "expert1_window_split_manifest.json"
+    manifest_path = project_root / "data" / "manifests" / split_manifest_name
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(split_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     summary = _summary(window_df, assignments)
@@ -387,11 +492,15 @@ def build_expert1_window_index(
             "window_seconds": float(window_seconds),
             "stride_seconds": float(stride_seconds),
             "min_points": int(min_points),
+            "include_prefix_windows": bool(include_prefix_windows),
+            "prefix_stride_points": int(prefix_stride_points),
+            "min_unique_time_points": int(max(2, min_unique_time_points)),
+            "window_end_inclusive": True,
             "window_index": window_index_path.relative_to(project_root).as_posix(),
             "split_manifest": manifest_path.relative_to(project_root).as_posix(),
         }
     )
-    summary_path = processed_root / "expert1_window_summary.json"
+    summary_path = processed_root / summary_name
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 
@@ -402,6 +511,14 @@ def main() -> None:
     parser.add_argument("--stride-seconds", type=float, default=2.0)
     parser.add_argument("--min-points", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--window-index-name", default="expert1_window_index.csv")
+    parser.add_argument("--split-manifest-name", default="expert1_window_split_manifest.json")
+    parser.add_argument("--summary-name", default="expert1_window_summary.json")
+    parser.add_argument("--window-output-dir-name", default="expert1_windows")
+    parser.add_argument("--frozen-parent-split-manifest")
+    parser.add_argument("--include-prefix-windows", action="store_true")
+    parser.add_argument("--prefix-stride-points", type=int, default=5)
+    parser.add_argument("--min-unique-time-points", type=int, default=2)
     args = parser.parse_args()
     project_root = Path(__file__).resolve().parents[2]
     summary = build_expert1_window_index(
@@ -410,6 +527,14 @@ def main() -> None:
         stride_seconds=args.stride_seconds,
         min_points=args.min_points,
         seed=args.seed,
+        window_index_name=args.window_index_name,
+        split_manifest_name=args.split_manifest_name,
+        summary_name=args.summary_name,
+        window_output_dir_name=args.window_output_dir_name,
+        frozen_parent_split_manifest=args.frozen_parent_split_manifest,
+        include_prefix_windows=args.include_prefix_windows,
+        prefix_stride_points=args.prefix_stride_points,
+        min_unique_time_points=args.min_unique_time_points,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

@@ -66,6 +66,54 @@ def test_sample_weight_uses_source_qualified_fallback_groups_for_missing_parents
     assert expert1_data._sample_weight(excel_row, parent_window_counts=parent_window_counts, **shared_kwargs) == pytest.approx(1.0)
 
 
+def test_rd_fusion_eligibility_map_only_promotes_explicit_safe_windows(tmp_path) -> None:
+    data_root = tmp_path / "data"
+    processed_root = data_root / "processed"
+    processed_root.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {"sample_id": "exact", "rd_fusion_eligible": True},
+            {"sample_id": "fallback", "rd_fusion_eligible": False},
+        ]
+    ).to_csv(processed_root / "window_map.csv", index=False)
+
+    eligibility = expert1_data._rd_fusion_eligibility_by_sample(
+        data_root,
+        "window_map.csv",
+    )
+
+    assert eligibility == {"exact": True, "fallback": False}
+
+
+def test_sample_weight_does_not_apply_rd_boost_to_explicitly_ineligible_window() -> None:
+    shared_kwargs = {
+        "source_counts": {"cq08_track": 1},
+        "source_label_counts": {("cq08_track", "DroneTarget"): 1},
+        "parent_window_counts": {},
+        "max_source_count": 1,
+        "max_source_label_count": 1,
+        "rd_sample_boost": 5.0,
+        "raw_source_boost": 1.0,
+        "excel_source_boost": 1.0,
+        "cq08_source_boost": 1.0,
+        "source_balance_power": 0.0,
+        "source_label_balance_power": 0.0,
+        "parent_window_balance_power": 0.0,
+        "unknown_sample_boost": 1.0,
+        "clutter_sample_boost": 1.0,
+        "bird_sample_boost": 1.0,
+        "max_sampler_weight": 100.0,
+    }
+    row = {
+        "source_name": "cq08_track",
+        "label_name": "DroneTarget",
+        "rd_tensor_path": "data/processed/cq08_rd/example.npz",
+        "rd_fusion_eligible": False,
+    }
+
+    assert expert1_data._sample_weight(row, **shared_kwargs) == pytest.approx(1.0)
+
+
 def test_validate_grouped_split_rejects_duplicate_sample_ids() -> None:
     index_df = pd.DataFrame(
         [

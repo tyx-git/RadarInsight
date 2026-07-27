@@ -36,6 +36,8 @@ class Expert1LoaderBundle:
     test_loader: DataLoader
     split: SplitResult
     train_sample_weights: list[float]
+    stage2_rd_fusion_eligible_count: int
+    stage2_rd_aware_sampling_enabled: bool
 
 
 LOW_ALTITUDE_GLOBAL_TO_LOCAL = {
@@ -84,6 +86,69 @@ class RDAwareBatchSampler(Sampler[list[int]]):
             batch: list[int] = []
             batch.extend(rng.choices(self.rd_indices, weights=self.rd_weights, k=self.rd_per_batch))
             batch.extend(rng.choices(self.no_rd_indices, weights=self.no_rd_weights, k=self.no_rd_per_batch))
+            rng.shuffle(batch)
+            yield batch
+
+    def __len__(self) -> int:
+        return int(self.num_batches)
+
+
+class ParentPairedBatchSampler(Sampler[list[int]]):
+    """Weighted stage-1 sampler that keeps same-parent windows co-located."""
+
+    def __init__(
+        self,
+        parent_ids: list[str],
+        sample_weights: list[float],
+        batch_size: int,
+        pair_fraction: float = 0.25,
+        seed: int = 42,
+    ) -> None:
+        if len(parent_ids) != len(sample_weights):
+            raise ValueError("parent_ids and sample_weights must have equal length")
+        self.parent_ids = [str(value) for value in parent_ids]
+        self.sample_weights = [max(1.0e-6, float(value)) for value in sample_weights]
+        self.batch_size = int(max(1, batch_size))
+        self.pair_fraction = float(min(1.0, max(0.0, pair_fraction)))
+        self.seed = int(seed)
+        self.indices = list(range(len(self.parent_ids)))
+        grouped: dict[str, list[int]] = defaultdict(list)
+        for index, parent_id in enumerate(self.parent_ids):
+            grouped[parent_id].append(index)
+        self.parent_to_indices = {
+            parent_id: indices for parent_id, indices in grouped.items() if len(indices) >= 2
+        }
+        self.eligible_parent_ids = sorted(self.parent_to_indices)
+        self.eligible_parent_weights = [
+            sum(self.sample_weights[index] for index in self.parent_to_indices[parent_id])
+            for parent_id in self.eligible_parent_ids
+        ]
+        pair_slots = int(round(self.batch_size * self.pair_fraction))
+        self.pair_slots = min(self.batch_size - 1, max(0, pair_slots))
+        if self.pair_slots % 2:
+            self.pair_slots -= 1
+        self.num_batches = int(np.ceil(len(self.indices) / float(self.batch_size))) if self.indices else 0
+
+    def __iter__(self):
+        if self.num_batches <= 0:
+            return
+        rng = random.Random(self.seed)
+        for _ in range(self.num_batches):
+            batch: list[int] = []
+            remaining_pair_slots = self.pair_slots
+            while remaining_pair_slots >= 2 and self.eligible_parent_ids:
+                parent_id = rng.choices(
+                    self.eligible_parent_ids,
+                    weights=self.eligible_parent_weights,
+                    k=1,
+                )[0]
+                candidates = self.parent_to_indices[parent_id]
+                candidate_weights = [self.sample_weights[index] for index in candidates]
+                batch.extend(_weighted_sample_without_replacement(rng, candidates, candidate_weights, 2))
+                remaining_pair_slots -= 2
+            remaining = self.batch_size - len(batch)
+            if remaining > 0:
+                batch.extend(rng.choices(self.indices, weights=self.sample_weights, k=remaining))
             rng.shuffle(batch)
             yield batch
 
@@ -212,6 +277,17 @@ def _row_has_rd(row: dict[str, object]) -> bool:
     return False
 
 
+def _as_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value if value is not None else "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+    }
+
+
 def _json_first_string(value: object) -> str:
     text = str(value if value is not None else "").strip()
     if not text:
@@ -256,6 +332,32 @@ def _stage2_shard_keys_by_index(train_meta, data_root: Path | str, window_segmen
     return result
 
 
+def _rd_fusion_eligibility_by_sample(
+    data_root: Path | str,
+    window_segment_map_name: str,
+) -> dict[str, bool]:
+    data_root = Path(data_root)
+    project_root = data_root.parent
+    map_name = str(window_segment_map_name or "").strip()
+    if not map_name:
+        return {}
+    map_path = Path(map_name)
+    if not map_path.is_absolute():
+        if map_name.replace("\\", "/").startswith("data/"):
+            map_path = project_root / map_path
+        else:
+            map_path = data_root / "processed" / map_path
+    if not map_path.exists():
+        return {}
+    map_df = pd.read_csv(map_path)
+    if not {"sample_id", "rd_fusion_eligible"}.issubset(map_df.columns):
+        return {}
+    return {
+        str(row["sample_id"]): _as_bool(row.get("rd_fusion_eligible"))
+        for row in map_df.to_dict(orient="records")
+    }
+
+
 def _sample_weight(
     row: dict[str, object],
     *,
@@ -294,7 +396,12 @@ def _sample_weight(
     if parent_window_balance_power > 0.0 and parent_window_counts:
         parent_count = max(1, int(parent_window_counts.get(canonical_group_id(row), 1)))
         weight *= (1.0 / parent_count) ** float(parent_window_balance_power)
-    if _row_has_rd(row):
+    rd_fusion_eligible = (
+        _as_bool(row["rd_fusion_eligible"])
+        if "rd_fusion_eligible" in row
+        else _row_has_rd(row)
+    )
+    if rd_fusion_eligible:
         weight *= rd_sample_boost
     if label_name == "UnknownTarget":
         weight *= unknown_sample_boost
@@ -322,9 +429,12 @@ def build_expert1_dataloaders(
     source_balance_power: float = 0.5,
     source_label_balance_power: float = 0.25,
     parent_window_balance_power: float = 0.5,
+    trajectory_parent_pair_sampling: bool = False,
+    trajectory_parent_pair_fraction: float = 0.25,
     stage2_rd_aware_sampling: bool = True,
     stage2_rd_batch_fraction: float = 0.55,
     stage2_rd_shard_local_sampling: bool = False,
+    stage2_min_rd_fusion_eligible_samples: int = 128,
     max_sampler_weight: float = 12.0,
     unknown_sample_boost: float = 1.0,
     clutter_sample_boost: float = 2.0,
@@ -338,6 +448,7 @@ def build_expert1_dataloaders(
     window_segment_map_name: str = "expert1_window_segment_map.csv",
     rd_segment_store_cache_size: int = 64,
     allow_rd_segment_store_fallback: bool = False,
+    load_only_fusion_eligible_rd: bool = True,
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
@@ -407,6 +518,7 @@ def build_expert1_dataloaders(
         "window_segment_map_name": window_segment_map_name,
         "rd_segment_store_cache_size": rd_segment_store_cache_size,
         "allow_rd_segment_store_fallback": allow_rd_segment_store_fallback,
+        "load_only_fusion_eligible_rd": load_only_fusion_eligible_rd,
         "max_patch_frames": 32,
         "skip_deep_patch": True,
     }
@@ -417,6 +529,16 @@ def build_expert1_dataloaders(
 
     train_weights: list[float] = []
     train_meta = stage2_train_ds.index_df.reset_index(drop=True)
+    fusion_eligibility_by_sample = (
+        _rd_fusion_eligibility_by_sample(data_root, window_segment_map_name)
+        if use_rd_segment_store
+        else {}
+    )
+    if use_rd_segment_store:
+        train_meta = train_meta.copy()
+        train_meta["rd_fusion_eligible"] = train_meta["sample_id"].astype(str).map(
+            lambda sample_id: bool(fusion_eligibility_by_sample.get(sample_id, False))
+        )
     source_counts = train_meta["source_name"].astype(str).value_counts().to_dict()
     source_label_counts = (
         train_meta.assign(
@@ -479,13 +601,31 @@ def build_expert1_dataloaders(
         eval_loader_kwargs["persistent_workers"] = bool(persistent_workers)
         eval_loader_kwargs["prefetch_factor"] = int(max(1, prefetch_factor))
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=batch_size,
-        shuffle=False,
-        sampler=sampler,
-        **train_loader_kwargs,
+    stage1_parent_pair_sampling_enabled = bool(
+        trajectory_parent_pair_sampling
+        and int(batch_size) >= 2
+        and any(count >= 2 for count in parent_window_counts.values())
     )
+    if stage1_parent_pair_sampling_enabled:
+        train_loader = DataLoader(
+            train_ds,
+            batch_sampler=ParentPairedBatchSampler(
+                parent_ids=[canonical_group_id(row) for row in train_rows],
+                sample_weights=train_weights,
+                batch_size=batch_size,
+                pair_fraction=trajectory_parent_pair_fraction,
+                seed=seed + 7,
+            ),
+            **train_loader_kwargs,
+        )
+    else:
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=batch_size,
+            shuffle=False,
+            sampler=sampler,
+            **train_loader_kwargs,
+        )
     stage2_base_train_loader = DataLoader(
         stage2_train_ds,
         batch_size=batch_size,
@@ -496,11 +636,21 @@ def build_expert1_dataloaders(
     rd_indices: list[int] = []
     no_rd_indices: list[int] = []
     for row_index, row in enumerate(train_rows):
-        if _row_has_rd(row):
+        rd_fusion_eligible = (
+            _as_bool(row.get("rd_fusion_eligible"))
+            if use_rd_segment_store
+            else _row_has_rd(row)
+        )
+        if rd_fusion_eligible:
             rd_indices.append(row_index)
         else:
             no_rd_indices.append(row_index)
-    if stage2_rd_aware_sampling and rd_indices and no_rd_indices:
+    stage2_rd_aware_sampling_enabled = bool(
+        stage2_rd_aware_sampling
+        and len(rd_indices) >= max(1, int(stage2_min_rd_fusion_eligible_samples))
+        and no_rd_indices
+    )
+    if stage2_rd_aware_sampling_enabled:
         if stage2_rd_shard_local_sampling and use_rd_segment_store:
             stage2_batch_sampler = RDShardLocalBatchSampler(
                 rd_indices=rd_indices,
@@ -551,4 +701,6 @@ def build_expert1_dataloaders(
         test_loader=test_loader,
         split=split,
         train_sample_weights=train_weights,
+        stage2_rd_fusion_eligible_count=len(rd_indices),
+        stage2_rd_aware_sampling_enabled=stage2_rd_aware_sampling_enabled,
     )

@@ -11,8 +11,9 @@ import torch
 from torch import nn
 
 from .expert1_config import Expert1TrainConfig
-from .expert1_data import build_expert1_dataloaders
 from .expert1_trainer import _build_class_weights_from_index
+from .expert1_trainer import _build_expert1_loaders
+from .expert1_trainer import _build_expert1_modules
 from .expert1_trainer import _build_optimizer
 from .expert1_trainer import _build_rd_class_weights_from_index
 from .expert1_trainer import _checkpoint_eval_runtime
@@ -38,10 +39,7 @@ from .expert1_trainer import _rel
 from .expert1_trainer import _run_epoch
 from .expert1_trainer import _serializable_joint_logit_delta_probe
 from .expert1_trainer import resolve_device
-from .experts import LowAltitudeSuspectExpert
-from .physical import PHYSICAL_FEATURE_COLUMNS
 from .reporting import write_real_experiment_report
-from .trajectory import TrackRepresentationBuilder
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,7 +121,8 @@ def _locked_calibration_from_record(record: dict[str, object]) -> dict[str, obje
     locked = record.get("locked_precision_parameters")
     if not isinstance(locked, dict):
         return None
-    if locked.get("source") != "validation":
+    source = str(locked.get("source", ""))
+    if source not in {"validation", "validation_scale"}:
         return None
     try:
         scale = float(locked.get("joint_logit_delta_scale"))
@@ -136,8 +135,10 @@ def _locked_calibration_from_record(record: dict[str, object]) -> dict[str, obje
         or bias is None
     ):
         return None
+    if source == "validation_scale" and bias != _normalize_precision_logit_bias(None):
+        return None
     return {
-        "source": "validation",
+        "source": source,
         "joint_logit_delta_scale": scale,
         "precision_logit_bias": bias,
     }
@@ -236,6 +237,9 @@ def _precision_candidate_from_validation_records(
     records: list[dict[str, object]] = []
     for name, raw_record in checkpoint_registry.items():
         if not isinstance(raw_record, dict) or not raw_record.get("path"):
+            continue
+        candidate_role = str(raw_record.get("candidate_role", ""))
+        if str(name) == "best_joint_gain" or candidate_role == "rd_diagnostic":
             continue
         try:
             score = float(raw_record.get("score", float("-inf")))
@@ -346,47 +350,6 @@ def _config_from_checkpoint(checkpoint_path: Path, device_override: str = "") ->
     return Expert1TrainConfig(**values)
 
 
-def _build_modules(config: Expert1TrainConfig, device: torch.device) -> tuple[TrackRepresentationBuilder, nn.Module, LowAltitudeSuspectExpert]:
-    representation_builder = TrackRepresentationBuilder(
-        sequence_input_dim=10,
-        physical_input_dim=len(PHYSICAL_FEATURE_COLUMNS),
-        model_dim=128,
-        dropout=config.dropout,
-    ).to(device)
-    rd_dim = 16
-    rd_proj = nn.Sequential(
-        nn.Linear(6, rd_dim),
-        nn.GELU(),
-        nn.Dropout(config.dropout),
-        nn.Linear(rd_dim, rd_dim),
-        nn.LayerNorm(rd_dim),
-    ).to(device)
-    model = LowAltitudeSuspectExpert(
-        input_dim=128 + 32,
-        rd_input_dim=4,
-        rd_patch_input_dim=3,
-        rd_context_dim=rd_dim,
-        traj_sequence_dim=128,
-        use_rd_patch_cnn=config.use_rd_patch_cnn,
-        dropout=config.dropout,
-        cosface_scale=config.cosface_scale,
-        cosface_margin=config.cosface_margin,
-        reject_threshold=config.reject_threshold,
-        rd_bird_logit_scale=config.rd_bird_logit_scale,
-        rd_unknown_logit_scale=config.rd_unknown_logit_scale,
-        rd_clutter_logit_scale=config.rd_clutter_logit_scale,
-        rd_residual_logit_scale=config.rd_residual_logit_scale,
-        rd_unknown_clutter_logit_scale=config.rd_unknown_clutter_logit_scale,
-        rd_clutter_morphology_logit_scale=config.rd_clutter_morphology_logit_scale,
-        joint_logit_delta_scale=config.joint_logit_delta_scale,
-        rd_specialist_residual_scale=config.rd_specialist_residual_scale,
-        joint_agreement_prior_scale=config.low_altitude_joint_agreement_prior_scale,
-        rd_joint_segment_count=config.rd_joint_segment_count,
-        enable_rd_segment_joint_tokens=config.enable_rd_segment_joint_tokens,
-    ).to(device)
-    return representation_builder, rd_proj, model
-
-
 def _test_checkpoint_reporting(
     precision_candidate: dict[str, object],
     precision_checkpoint_export: dict[str, object],
@@ -416,41 +379,8 @@ def _test_checkpoint_reporting(
         "persistent_workers": bool(config.persistent_workers and int(max(0, num_workers)) > 0),
     })
     device, _device_info = resolve_device(config.device)
-    loaders = build_expert1_dataloaders(
-        data_root=config.data_root,
-        index_name=config.index_name,
-        batch_size=config.batch_size,
-        seed=config.seed,
-        num_workers=config.num_workers,
-        eval_num_workers=config.eval_num_workers,
-        rd_sample_boost=config.rd_sample_boost,
-        raw_source_boost=config.raw_source_boost,
-        excel_source_boost=config.excel_source_boost,
-        cq08_source_boost=config.cq08_source_boost,
-        source_balance_power=config.source_balance_power,
-        source_label_balance_power=config.source_label_balance_power,
-        parent_window_balance_power=config.parent_window_balance_power,
-        stage2_rd_aware_sampling=config.stage2_rd_aware_sampling,
-        stage2_rd_batch_fraction=config.stage2_rd_batch_fraction,
-        stage2_rd_shard_local_sampling=config.stage2_rd_shard_local_sampling,
-        max_sampler_weight=config.max_sampler_weight,
-        unknown_sample_boost=config.unknown_sample_boost,
-        clutter_sample_boost=config.clutter_sample_boost,
-        bird_sample_boost=config.bird_sample_boost,
-        dataset_cache_size=config.dataset_cache_size,
-        rd_encoded_cache_size=config.rd_encoded_cache_size,
-        enable_window_rd_time_crop=config.enable_window_rd_time_crop,
-        rd_window_crop_min_frames=config.rd_window_crop_min_frames,
-        use_rd_segment_store=config.use_rd_segment_store,
-        rd_segment_manifest_name=config.rd_segment_manifest_name,
-        window_segment_map_name=config.window_segment_map_name,
-        rd_segment_store_cache_size=config.rd_segment_store_cache_size,
-        allow_rd_segment_store_fallback=config.allow_rd_segment_store_fallback,
-        pin_memory=config.pin_memory,
-        persistent_workers=config.persistent_workers,
-        prefetch_factor=config.prefetch_factor,
-    )
-    representation_builder, rd_proj, model = _build_modules(config, device)
+    loaders = _build_expert1_loaders(config, validate_csv_files=False)
+    representation_builder, rd_proj, model = _build_expert1_modules(config, device)
     class_weights = _build_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
     rd_class_weights = _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
     source_feature_stats = (
@@ -668,41 +598,8 @@ def main() -> None:
             "persistent_workers": bool(config.persistent_workers and int(max(0, args.test_reporting_num_workers)) > 0),
         })
         device, _device_info = resolve_device(config.device)
-        loaders = build_expert1_dataloaders(
-            data_root=config.data_root,
-            index_name=config.index_name,
-            batch_size=config.batch_size,
-            seed=config.seed,
-            num_workers=config.num_workers,
-            eval_num_workers=config.eval_num_workers,
-            rd_sample_boost=config.rd_sample_boost,
-            raw_source_boost=config.raw_source_boost,
-            excel_source_boost=config.excel_source_boost,
-            cq08_source_boost=config.cq08_source_boost,
-            source_balance_power=config.source_balance_power,
-            source_label_balance_power=config.source_label_balance_power,
-            parent_window_balance_power=config.parent_window_balance_power,
-            stage2_rd_aware_sampling=config.stage2_rd_aware_sampling,
-            stage2_rd_batch_fraction=config.stage2_rd_batch_fraction,
-            stage2_rd_shard_local_sampling=config.stage2_rd_shard_local_sampling,
-            max_sampler_weight=config.max_sampler_weight,
-            unknown_sample_boost=config.unknown_sample_boost,
-            clutter_sample_boost=config.clutter_sample_boost,
-            bird_sample_boost=config.bird_sample_boost,
-            dataset_cache_size=config.dataset_cache_size,
-            rd_encoded_cache_size=config.rd_encoded_cache_size,
-            enable_window_rd_time_crop=config.enable_window_rd_time_crop,
-            rd_window_crop_min_frames=config.rd_window_crop_min_frames,
-            use_rd_segment_store=config.use_rd_segment_store,
-            rd_segment_manifest_name=config.rd_segment_manifest_name,
-            window_segment_map_name=config.window_segment_map_name,
-            rd_segment_store_cache_size=config.rd_segment_store_cache_size,
-            allow_rd_segment_store_fallback=config.allow_rd_segment_store_fallback,
-            pin_memory=config.pin_memory,
-            persistent_workers=config.persistent_workers,
-            prefetch_factor=config.prefetch_factor,
-        )
-        representation_builder, rd_proj, model = _build_modules(config, device)
+        loaders = _build_expert1_loaders(config, validate_csv_files=False)
+        representation_builder, rd_proj, model = _build_expert1_modules(config, device)
         class_weights = _build_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
         rd_class_weights = _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
         source_feature_stats = (

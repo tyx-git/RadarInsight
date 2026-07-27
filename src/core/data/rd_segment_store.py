@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 import torch
 
-from .rd import EncodedRDSequence
+from .rd import EncodedRDSequence, encode_multimodal_rd, load_rd_tensor
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,28 @@ class WindowSegmentAssembly:
     coverage_ratio: float
     rd_time_sync_status_counts: dict[str, int]
     rd_quality_flags: list[str]
+
+
+def resolve_window_rd_time_sync_status(status_counts: dict[str, int]) -> str:
+    """Return the safest usable synchronization state for a window."""
+    statuses = {
+        str(status or "unavailable").strip().lower()
+        for status, count in status_counts.items()
+        if int(count) > 0
+    }
+    if not statuses:
+        return "unavailable"
+    exact_statuses = {"exact", "exact_time_sync"}
+    allowed_tolerance_statuses = exact_statuses | {"within_tolerance"}
+    if statuses.issubset(exact_statuses):
+        return "exact_time_sync"
+    if statuses.issubset(allowed_tolerance_statuses):
+        return "within_tolerance"
+    if "late" in statuses:
+        return "late"
+    if "missing" in statuses:
+        return "missing"
+    return "unavailable"
 
 
 def _is_present(value: object) -> bool:
@@ -178,6 +200,47 @@ class WindowAssembler:
                 self._payload_cache.popitem(last=False)
         return payload
 
+    def _get_anchor_tensor(self, tensor_path: str) -> dict[str, Any]:
+        cache_key = f"anchor_tensor:{tensor_path}"
+        if cache_key in self._payload_cache:
+            payload = self._payload_cache.pop(cache_key)
+            self._payload_cache[cache_key] = payload
+            return payload
+        payload = load_rd_tensor(self.data_root, tensor_path)
+        if self.cache_size > 0:
+            self._payload_cache[cache_key] = payload
+            while len(self._payload_cache) > self.cache_size:
+                self._payload_cache.popitem(last=False)
+        return payload
+
+    @staticmethod
+    def _slice_anchor_tensor(payload: dict[str, Any], source_indices: list[int]) -> dict[str, Any] | None:
+        if not source_indices:
+            return None
+        selected_indices = torch.tensor(sorted(set(int(item) for item in source_indices)), dtype=torch.long)
+        sliced: dict[str, Any] = {}
+        for key, value in payload.items():
+            tensor = torch.as_tensor(value)
+            if key == "velocity_mps":
+                if tensor.ndim != 1:
+                    return None
+                sliced[key] = tensor.cpu().numpy()
+            elif key == "time_raw":
+                if tensor.ndim != 1 or int(tensor.shape[0]) <= int(selected_indices.max().item()):
+                    return None
+                sliced[key] = tensor.index_select(0, selected_indices).cpu().numpy()
+            elif tensor.ndim == 2:
+                if int(tensor.shape[1]) <= int(selected_indices.max().item()):
+                    return None
+                sliced[key] = tensor.index_select(1, selected_indices).cpu().numpy()
+            elif tensor.ndim >= 3:
+                if int(tensor.shape[0]) <= int(selected_indices.max().item()):
+                    return None
+                sliced[key] = tensor.index_select(0, selected_indices).cpu().numpy()
+            else:
+                return None
+        return sliced
+
     def select_segment_rows(self, row: pd.Series | dict[str, object]) -> tuple[list[dict[str, object]], WindowSegmentAssembly | None]:
         sample_id = str(row.get("sample_id", "") or "")
         parent_id = parent_sample_id_from_row(row)
@@ -194,6 +257,17 @@ class WindowAssembler:
         if mapped_segment_ids:
             mapped = set(mapped_segment_ids)
             selected_df = parent_segments[parent_segments["segment_id"].astype(str).isin(mapped)].copy()
+            epsilon = 1.0e-6
+            if self.strict_contained:
+                selected_df = selected_df[
+                    (selected_df["segment_start_seconds"] >= window_start - epsilon)
+                    & (selected_df["segment_end_seconds"] <= window_end + epsilon)
+                ].copy()
+            else:
+                selected_df = selected_df[
+                    (selected_df["segment_end_seconds"] > window_start + epsilon)
+                    & (selected_df["segment_start_seconds"] < window_end - epsilon)
+                ].copy()
         else:
             epsilon = 1.0e-6
             if self.strict_contained:
@@ -247,7 +321,35 @@ class WindowAssembler:
         patch_features: list[torch.Tensor] = []
         deep_patch_features: list[torch.Tensor] = []
         rd_is_multimodal = False
+        anchor_indices_by_tensor: dict[str, list[int]] = {}
+        stored_segment_rows: list[dict[str, object]] = []
         for segment_row in selected_rows:
+            anchor_tensor_path = str(segment_row.get("rd_tensor_path", ""))
+            anchor_index_field = segment_row.get("rd_tensor_frame_indices_json")
+            if not _json_list(anchor_index_field):
+                anchor_index_field = segment_row.get("rd_source_frame_indices_json")
+            anchor_indices = [int(item) for item in _json_list(anchor_index_field)]
+            if _is_present(anchor_tensor_path) and anchor_indices:
+                anchor_indices_by_tensor.setdefault(anchor_tensor_path, []).extend(anchor_indices)
+            else:
+                stored_segment_rows.append(segment_row)
+        for anchor_tensor_path, anchor_indices in anchor_indices_by_tensor.items():
+            tensor_payload = self._get_anchor_tensor(anchor_tensor_path)
+            sliced_tensor = self._slice_anchor_tensor(tensor_payload, anchor_indices)
+            if sliced_tensor is None:
+                continue
+            encoded_anchor = encode_multimodal_rd(sliced_tensor)
+            rd_is_multimodal = True
+            features.append(encoded_anchor.features.to(torch.float32).contiguous())
+            if encoded_anchor.patch_features is not None:
+                patch_source = encoded_anchor.patch_features
+                if max_patch_frames > 0 and patch_source.shape[0] > max_patch_frames:
+                    step = max(1, int(patch_source.shape[0]) // max_patch_frames)
+                    patch_source = patch_source[::step][:max_patch_frames]
+                patch_features.append(patch_source.to(torch.float32).contiguous())
+            if not skip_deep_patch and encoded_anchor.deep_patch_features is not None:
+                deep_patch_features.append(encoded_anchor.deep_patch_features.to(torch.float32).contiguous())
+        for segment_row in stored_segment_rows:
             shard_key = str(segment_row.get("shard_key", ""))
             if not _is_present(shard_key):
                 continue
@@ -268,8 +370,6 @@ class WindowAssembler:
             if rd_len > 0:
                 features.append(segment["rd_features"][:rd_len].to(torch.float32).contiguous())
             if patch_len > 0:
-                # Limit frames loaded from disk: subsample BEFORE contiguous()
-                # to minimise mmap page reads
                 if max_patch_frames > 0 and patch_len > max_patch_frames:
                     step = max(1, patch_len // max_patch_frames)
                     patch_src = segment["rd_patch_features"][:patch_len:step][:max_patch_frames]
@@ -314,7 +414,7 @@ def build_window_segment_map(
         cache_size=0,
         strict_contained=strict_contained,
     )
-    window_df = pd.read_csv(window_index_path)
+    window_df = pd.read_csv(window_index_path, low_memory=False)
     if "is_trainable" in window_df.columns:
         trainable_mask = window_df["is_trainable"].map(lambda value: str(value).strip().lower() in {"true", "1", "yes"})
         window_df = window_df[trainable_mask].copy()
@@ -332,6 +432,8 @@ def build_window_segment_map(
     coverage_values: list[float] = []
     segment_counts: list[int] = []
     status_counts: Counter[str] = Counter()
+    window_sync_counts: Counter[str] = Counter()
+    window_sync_source_label_counts: Counter[str] = Counter()
     for row in window_df.to_dict(orient="records"):
         selected_rows, assembly = assembler.select_segment_rows(row)
         if assembly is None:
@@ -345,6 +447,32 @@ def build_window_segment_map(
         segment_counts.append(len(assembly.segment_ids))
         coverage_values.append(assembly.coverage_ratio)
         status_counts.update(assembly.rd_time_sync_status_counts)
+        realtime_sync_status = resolve_window_rd_time_sync_status(
+            assembly.rd_time_sync_status_counts
+        )
+        fusion_eligible = realtime_sync_status in {
+            "exact_time_sync",
+            "within_tolerance",
+        }
+        statuses = {
+            str(status)
+            for status, count in assembly.rd_time_sync_status_counts.items()
+            if int(count) > 0
+        }
+        if statuses == {"exact_time_sync"}:
+            window_sync_class = "exact_only"
+        elif "exact_time_sync" in statuses:
+            window_sync_class = "mixed_sync_status"
+        elif statuses == {"proportional_fallback"}:
+            window_sync_class = "proportional_fallback_only"
+        else:
+            window_sync_class = "other_or_unavailable"
+        window_sync_counts[window_sync_class] += 1
+        source_name = str(row.get("source_name", ""))
+        label_name = str(row.get("label_name", ""))
+        window_sync_source_label_counts[
+            f"{source_name}|{label_name}|{window_sync_class}"
+        ] += 1
         rows.append(
             {
                 "sample_id": str(row.get("sample_id", "")),
@@ -360,6 +488,9 @@ def build_window_segment_map(
                 "segment_count": int(len(assembly.segment_ids)),
                 "rd_coverage_ratio": float(assembly.coverage_ratio),
                 "rd_time_sync_status_counts_json": json.dumps(assembly.rd_time_sync_status_counts, ensure_ascii=False),
+                "rd_time_sync_class": window_sync_class,
+                "rd_realtime_sync_status": realtime_sync_status,
+                "rd_fusion_eligible": bool(fusion_eligible),
                 "rd_quality_flags_json": json.dumps(assembly.rd_quality_flags, ensure_ascii=False),
             }
         )
@@ -378,6 +509,14 @@ def build_window_segment_map(
         "segment_count_mean": float(sum(segment_counts) / len(segment_counts)) if segment_counts else 0.0,
         "rd_coverage_ratio_mean": float(sum(coverage_values) / len(coverage_values)) if coverage_values else 0.0,
         "rd_time_sync_status_counts": dict(status_counts),
+        "rd_time_sync_window_counts": dict(window_sync_counts),
+        "rd_realtime_sync_status_counts": output_df["rd_realtime_sync_status"].value_counts().to_dict()
+        if not output_df.empty
+        else {},
+        "rd_fusion_eligible_window_count": int(output_df["rd_fusion_eligible"].sum())
+        if not output_df.empty
+        else 0,
+        "rd_time_sync_window_source_label_counts": dict(window_sync_source_label_counts),
         "output_path": output_path.relative_to(data_root.parent).as_posix(),
     }
     summary_path = output_path.with_suffix(".summary.json")
@@ -390,5 +529,6 @@ __all__ = [
     "WindowSegmentAssembly",
     "build_window_segment_map",
     "parent_sample_id_from_row",
+    "resolve_window_rd_time_sync_status",
     "resolve_processed_path",
 ]

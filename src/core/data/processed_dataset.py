@@ -56,7 +56,7 @@ class ProcessedTrackDataset:
             self.index_path = self.processed_root / ("trainable_track_index.csv" if trainable_only else "track_index.csv")
         if not self.index_path.exists():
             raise FileNotFoundError(f"processed track index not found: {self.index_path}")
-        self.index_df = pd.read_csv(self.index_path)
+        self.index_df = pd.read_csv(self.index_path, dtype={"timestamp": "string"})
         if "rd_phase_missing" not in self.index_df.columns:
             self.index_df["rd_phase_missing"] = False
         if "height_missing" not in self.index_df.columns:

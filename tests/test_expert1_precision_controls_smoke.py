@@ -8,10 +8,13 @@ import unittest
 import torch
 
 from src.core.expert1_config import Expert1TrainConfig
-from src.core.expert1_data import RDAwareBatchSampler
+from src.core.evaluate_expert1 import _grouped_bootstrap_summary
+from src.core.expert1_data import ParentPairedBatchSampler, RDAwareBatchSampler
 from src.core.expert1_trainer import _joint_logit_delta_probe
 from src.core.expert1_trainer import _build_expert1_checkpoint_payload
+from src.core.expert1_trainer import _checkpoint_joint_logit_delta_scale
 from src.core.expert1_trainer import _locked_precision_parameters
+from src.core.expert1_trainer import _load_checkpoint_into_modules
 from src.core.expert1_trainer import _precision_logit_bias_from_checkpoint
 from src.core.expert1_trainer import _expert1_release_gate
 from src.core.expert1_trainer import _parent_window_aggregation_metrics
@@ -104,6 +107,113 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertEqual(locked["source"], "config_default")
         self.assertAlmostEqual(float(locked["joint_logit_delta_scale"]), 0.75)
         self.assertEqual(locked["precision_logit_bias"], [0.0] * len(LOW_ALTITUDE_CLASSES))
+
+    def test_validation_selected_scale_persists_with_config_default_zero_bias(self) -> None:
+        locked = _locked_precision_parameters(
+            {},
+            default_scale=1.0,
+            validation_selected_scale=0.5,
+        )
+        self.assertEqual(locked["source"], "validation_scale")
+        self.assertEqual(locked["joint_logit_delta_scale"], 0.5)
+        self.assertEqual(locked["precision_logit_bias"], [0.0] * len(LOW_ALTITUDE_CLASSES))
+
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict={},
+            config_payload={"joint_logit_delta_scale": 1.0},
+            source_feature_stats=None,
+            selection_reason="validation_selection",
+            eligible=False,
+            epoch=1,
+            components={},
+            joint_logit_delta_probe={"selected_scale": 0.5},
+            locked_precision=locked,
+            validation_precision_probe={"ready": False},
+        )
+        self.assertEqual(payload["selected_joint_logit_delta_scale"], 0.5)
+        self.assertEqual(payload["config"]["joint_logit_delta_scale"], 0.5)
+        self.assertEqual(payload["locked_precision_parameters"]["source"], "validation_scale")
+
+    def test_legacy_validation_joint_probe_restores_selected_scale(self) -> None:
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict={},
+            config_payload={"joint_logit_delta_scale": 1.0},
+            source_feature_stats=None,
+            selection_reason="legacy_validation_selection",
+            eligible=False,
+            epoch=1,
+            components={},
+            joint_logit_delta_probe={
+                "enabled": True,
+                "selected_scale": 0.5,
+                "results": [{"scale": 0.5}],
+            },
+            locked_precision={
+                "source": "config_default",
+                "joint_logit_delta_scale": 1.0,
+                "precision_logit_bias": [0.0] * len(LOW_ALTITUDE_CLASSES),
+            },
+            validation_precision_probe={"ready": False},
+        )
+
+        self.assertEqual(payload["selected_joint_logit_delta_scale"], 1.0)
+        self.assertEqual(
+            _checkpoint_joint_logit_delta_scale(
+                payload,
+                Expert1TrainConfig(joint_logit_delta_scale=1.0),
+            ),
+            0.5,
+        )
+
+    def test_checkpoint_payload_preserves_candidate_role(self) -> None:
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict={},
+            config_payload={"joint_logit_delta_scale": 1.0},
+            source_feature_stats=None,
+            selection_reason="joint_diagnostic",
+            eligible=False,
+            epoch=3,
+            components={},
+            joint_logit_delta_probe=None,
+            locked_precision={
+                "source": "config_default",
+                "joint_logit_delta_scale": 1.0,
+                "precision_logit_bias": [0.0] * len(LOW_ALTITUDE_CLASSES),
+            },
+            validation_precision_probe=None,
+            candidate_role="rd_diagnostic",
+        )
+
+        self.assertEqual(payload["candidate_role"], "rd_diagnostic")
+
+    def test_validation_scale_provenance_rejects_nonzero_bias(self) -> None:
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict={},
+            config_payload={"joint_logit_delta_scale": 1.0},
+            source_feature_stats=None,
+            selection_reason="validation_selection",
+            eligible=False,
+            epoch=1,
+            components={},
+            joint_logit_delta_probe=None,
+            locked_precision={
+                "source": "validation_scale",
+                "joint_logit_delta_scale": 0.5,
+                "precision_logit_bias": [0.0, 0.0, 0.0, 0.05, 0.0],
+            },
+            validation_precision_probe=None,
+        )
+        self.assertEqual(payload["precision_calibration_source"], "config_default")
+        self.assertEqual(payload["selected_joint_logit_delta_scale"], 1.0)
+        self.assertEqual(payload["precision_logit_bias"], [0.0] * len(LOW_ALTITUDE_CLASSES))
 
     def test_locked_precision_parameters_use_safe_defaults_for_invalid_validation_values(self) -> None:
         locked = _locked_precision_parameters(
@@ -254,6 +364,79 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertIs(payload["test_used_for_selection"], False)
         self.assertNotIn("selected_metrics", payload["joint_logit_delta_probe"] )
         self.assertNotIn("results", payload["validation_precision_calibration_probe"] )
+
+    def test_checkpoint_round_trip_restores_validation_selected_scale_and_logits(self) -> None:
+        from tempfile import TemporaryDirectory
+
+        torch.manual_seed(31)
+        original = LowAltitudeSuspectExpert(
+            input_dim=4,
+            rd_context_dim=0,
+            use_rd_patch_cnn=True,
+            traj_sequence_dim=16,
+            hidden_dim=16,
+            dropout=0.0,
+            joint_logit_delta_scale=0.5,
+        )
+        original.eval()
+        inputs = {
+            "traj_input": torch.randn(2, 4),
+            "rd_features": torch.randn(2, 2, 512, 4),
+            "traj_sequence_features": torch.randn(2, 5, 16),
+            "rd_patch_features": torch.randn(2, 2, 64, 64, 3),
+            "rd_deep_patch_features": torch.randn(2, 2, 64, 64, 3),
+            "rd_is_multimodal": torch.ones(2, dtype=torch.bool),
+            "rd_alignment_quality": torch.tensor([0.15, 1.0]),
+            "traj_padding_mask": torch.zeros(2, 5, dtype=torch.bool),
+            "rd_padding_mask": torch.zeros(2, 2, dtype=torch.bool),
+            "rd_patch_padding_mask": torch.zeros(2, 2, dtype=torch.bool),
+            "rd_deep_patch_padding_mask": torch.zeros(2, 2, dtype=torch.bool),
+            "enable_reject": False,
+        }
+        payload = _build_expert1_checkpoint_payload(
+            representation_builder_state_dict={},
+            rd_proj_state_dict={},
+            model_state_dict=original.state_dict(),
+            config_payload={"joint_logit_delta_scale": 1.0},
+            source_feature_stats=None,
+            selection_reason="validation_selection",
+            eligible=False,
+            epoch=1,
+            components={},
+            joint_logit_delta_probe={"selected_scale": 0.5},
+            locked_precision={
+                "source": "validation_scale",
+                "joint_logit_delta_scale": 0.5,
+                "precision_logit_bias": [0.0] * len(LOW_ALTITUDE_CLASSES),
+            },
+            validation_precision_probe={"ready": False},
+        )
+        with torch.no_grad():
+            expected_logits = original(**inputs).logits
+        with TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "round_trip.pt"
+            torch.save(payload, checkpoint_path)
+            restored = LowAltitudeSuspectExpert(
+                input_dim=4,
+                rd_context_dim=0,
+                use_rd_patch_cnn=True,
+                traj_sequence_dim=16,
+                hidden_dim=16,
+                dropout=0.0,
+                joint_logit_delta_scale=1.0,
+            )
+            restored.eval()
+            _load_checkpoint_into_modules(
+                checkpoint_path,
+                torch.nn.Identity(),
+                torch.nn.Identity(),
+                restored,
+                torch.device("cpu"),
+            )
+            with torch.no_grad():
+                restored_logits = restored(**inputs).logits
+        self.assertEqual(restored.joint_logit_delta_scale, 0.5)
+        self.assertTrue(torch.allclose(expected_logits, restored_logits, atol=1e-6, rtol=1e-6))
 
     def test_unrelated_test_probe_cannot_change_validation_locked_parameters(self) -> None:
         validation_probe = {
@@ -436,6 +619,39 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
             self.assertEqual(payload["config"]["joint_logit_delta_scale"], 0.5)
             self.assertEqual(payload["config"]["precision_logit_bias"], candidate["precision_logit_bias"] )
 
+    def test_reselector_excludes_rd_diagnostic_checkpoint(self) -> None:
+        candidate = _precision_candidate_from_validation_records(
+            {
+                "release_candidate": {
+                    "path": "release.pt",
+                    "epoch": 3,
+                    "score": 0.80,
+                    "selection_eligible": False,
+                    "candidate_role": "release",
+                    "locked_precision_parameters": {
+                        "source": "validation_scale",
+                        "joint_logit_delta_scale": 0.5,
+                        "precision_logit_bias": [0.0] * len(LOW_ALTITUDE_CLASSES),
+                    },
+                },
+                "best_joint_gain": {
+                    "path": "diagnostic.pt",
+                    "epoch": 4,
+                    "score": 0.99,
+                    "selection_eligible": True,
+                    "candidate_role": "rd_diagnostic",
+                    "locked_precision_parameters": {
+                        "source": "validation_scale",
+                        "joint_logit_delta_scale": 0.5,
+                        "precision_logit_bias": [0.0] * len(LOW_ALTITUDE_CLASSES),
+                    },
+                },
+            }
+        )
+
+        self.assertEqual(candidate["checkpoint_name"], "release_candidate")
+        self.assertEqual(candidate["candidate_role"], "release")
+
     def test_reselector_export_rebuilds_all_locked_calibration_locations(self) -> None:
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as temp_dir:
@@ -568,6 +784,25 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
             {"status": "no_precision_candidate"},
         )
 
+    def test_parent_paired_batch_sampler_places_related_windows_together(self) -> None:
+        parent_ids = ["a", "a", "b", "b", "c", "d", "e", "f"]
+        sampler = ParentPairedBatchSampler(
+            parent_ids=parent_ids,
+            sample_weights=[1.0] * len(parent_ids),
+            batch_size=4,
+            pair_fraction=0.5,
+            seed=9,
+        )
+
+        batches = list(iter(sampler))
+
+        self.assertGreater(len(batches), 0)
+        for batch in batches:
+            counts: dict[str, int] = {}
+            for index in batch:
+                counts[parent_ids[index]] = counts.get(parent_ids[index], 0) + 1
+            self.assertTrue(any(count >= 2 for count in counts.values()))
+
     def test_rd_aware_batch_sampler_keeps_rd_and_no_rd_in_stage2_batches(self) -> None:
         sampler = RDAwareBatchSampler(
             rd_indices=list(range(6)),
@@ -689,6 +924,7 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
             joint_logit_delta_scale=1.0,
             joint_logit_delta_eval_scales=[0.0, 0.5, 1.0],
             joint_logit_delta_selection_metric="macro_f1_weak_class_guard",
+            rd_proportional_fallback_quality=1.0,
         )
 
         probe = _joint_logit_delta_probe(base_metrics, config, stage2_enabled=True)
@@ -766,6 +1002,39 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertEqual(parent_rescue_harm["rescue_count"], 1)
         self.assertEqual(parent_rescue_harm["harm_count"], 1)
 
+    def test_grouped_bootstrap_is_deterministic_and_uses_parent_groups(self) -> None:
+        logits = torch.tensor(
+            [
+                [4.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 4.0, 0.0, 0.0, 0.0],
+                [0.0, 4.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 4.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+        metrics = {
+            "logits": logits,
+            "traj_logits": logits.clone(),
+            "labels": torch.tensor([0, 1, 0, 3], dtype=torch.long),
+            "sample_ids": [
+                "cq08|track|1|win0000",
+                "cq08|track|1|win0001",
+                "excel|track|2|win0000",
+                "excel|track|3|win0000",
+            ],
+            "source_names": ["cq08_track", "cq08_track", "excel_track", "excel_track"],
+            "has_rd": [True, True, False, False],
+        }
+
+        first = _grouped_bootstrap_summary(metrics, replicates=25, seed=9)
+        second = _grouped_bootstrap_summary(metrics, replicates=25, seed=9)
+
+        self.assertEqual(first, second)
+        self.assertTrue(bool(first["enabled"]))
+        self.assertEqual(first["parent_group_count"], 3)
+        self.assertEqual(first["source_parent_group_counts"], {"cq08_track": 1, "excel_track": 2})
+        self.assertEqual(first["group_key"], "source_name|parent_sample_id")
+
     def test_final_test_checkpoint_prefers_highest_validation_score(self) -> None:
         selected = _select_final_test_checkpoint(
             best_path=Path("missing_best_model.pt"),
@@ -792,7 +1061,7 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
         self.assertEqual(selected["epoch"], 17)
         self.assertFalse(bool(selected["selection_eligible"]))
 
-    def test_final_test_checkpoint_uses_release_proxy_when_configured(self) -> None:
+    def test_final_test_checkpoint_excludes_joint_diagnostic_candidate(self) -> None:
         selected = _select_final_test_checkpoint(
             config=Expert1TrainConfig(),
             best_path=Path(__file__),
@@ -841,8 +1110,92 @@ class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
             candidate_paths={"best_joint_gain": Path(__file__)},
         )
 
-        self.assertEqual(selected["name"], "best_joint_gain")
-        self.assertEqual(selected["epoch"], 17)
+        self.assertEqual(selected["name"], "best_selection")
+        self.assertEqual(selected["epoch"], 11)
+        self.assertEqual(selected["candidate_role"], "release")
+        self.assertEqual(selected["selection_pool"], "release_eligible")
+
+    def test_final_checkpoint_names_fallback_when_best_selection_was_never_saved(self) -> None:
+        selected = _select_final_test_checkpoint(
+            config=Expert1TrainConfig(),
+            best_path=Path(__file__),
+            best_epoch=4,
+            best_score=0.71,
+            best_reason="fallback_v2_selection_checkpoint",
+            best_components={"final_macro_f1": 0.71},
+            best_selection_eligible=False,
+            fallback_path=Path(__file__),
+            fallback_epoch=4,
+            fallback_score=0.71,
+            fallback_components={"final_macro_f1": 0.71},
+            checkpoint_registry={
+                "fallback_candidate": {
+                    "epoch": 4,
+                    "score": 0.71,
+                    "selection_eligible": False,
+                    "selection_components": {"final_macro_f1": 0.71},
+                }
+            },
+        )
+
+        self.assertEqual(selected["name"], "fallback_candidate")
+        self.assertEqual(selected["candidate_role"], "fallback")
+        self.assertEqual(selected["selection_pool"], "fallback_non_diagnostic")
+
+    def test_final_test_checkpoint_uses_non_diagnostic_fallback_when_none_eligible(self) -> None:
+        selected = _select_final_test_checkpoint(
+            config=Expert1TrainConfig(),
+            best_path=Path(__file__),
+            best_epoch=9,
+            best_score=0.72,
+            best_reason="fallback_validation",
+            best_components={
+                "final_macro_f1": 0.72,
+                "traj_macro_f1": 0.72,
+                "final_net_gain_rate_on_rd": 0.0,
+                "final_harm_rate_on_rd": 0.0,
+            },
+            best_selection_eligible=False,
+            fallback_path=Path(__file__),
+            fallback_epoch=10,
+            fallback_score=0.74,
+            fallback_components={
+                "final_macro_f1": 0.74,
+                "traj_macro_f1": 0.73,
+                "final_net_gain_rate_on_rd": 0.01,
+                "final_harm_rate_on_rd": 0.01,
+            },
+            checkpoint_registry={
+                "fallback_candidate": {
+                    "epoch": 10,
+                    "score": 0.74,
+                    "selection_eligible": False,
+                    "selection_components": {
+                        "final_macro_f1": 0.74,
+                        "traj_macro_f1": 0.73,
+                        "final_net_gain_rate_on_rd": 0.01,
+                        "final_harm_rate_on_rd": 0.01,
+                    },
+                },
+                "best_joint_gain": {
+                    "epoch": 11,
+                    "score": 0.99,
+                    "selection_eligible": False,
+                    "selection_components": {
+                        "final_macro_f1": 0.82,
+                        "traj_macro_f1": 0.70,
+                        "joint_minus_traj_macro_f1_on_rd": 0.20,
+                        "final_net_gain_rate_on_rd": 0.15,
+                        "final_harm_rate_on_rd": 0.0,
+                    },
+                },
+            },
+            candidate_paths={"best_joint_gain": Path(__file__)},
+        )
+
+        self.assertEqual(selected["name"], "fallback_candidate")
+        self.assertEqual(selected["candidate_role"], "fallback")
+        self.assertEqual(selected["selection_pool"], "fallback_non_diagnostic")
 
     def test_selection_score_penalizes_rd_negative_gain(self) -> None:
         config = Expert1TrainConfig()

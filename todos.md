@@ -428,3 +428,7 @@ python -m py_compile src/core/reselect_expert1_precision.py
 - [x] 基于已验证的稳定 Expert1 配置，仅调整输出目录、`epochs=24` 和 `learning_rate=0.00015`；保持 `batch_size=8`、`seed=42`、全量验证和验证集选择边界。
 - [x] 确认 `expert1_track_index.csv`、RD segment manifest 与预训练轨迹检查点在训练启动前存在。
 - [ ] 执行完整训练并记录 validation macro F1、source-balanced F1、Unknown/Clutter recall 与 RD 净增益；训练前不得宣称精度或召回率已提升。
+
+
+
+动手做之前先思考并更新计划文档task_plan.md，[]标记未完成，[x]标记已完成，需要将问题分解为最小可执行子问题，并分阶段进行，以Stage xxx标记阶段，每个阶段有若干个子问题需要解决，然后更新findings.md文档，同步记录每个阶段的发现，并更新，更新process.md，记录整个任务执行过程，所有任务文件创建完成后等待我确认开始执行

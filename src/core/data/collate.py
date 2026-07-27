@@ -10,6 +10,7 @@ from .torch_dataset import TorchTrackItem
 @dataclass(frozen=True)
 class TrackBatch:
     sample_ids: list[str]
+    parent_sample_ids: list[str]
     source_names: list[str]
     label_names: list[str]
     coarse_label_names: list[str]
@@ -31,6 +32,10 @@ class TrackBatch:
     rd_is_multimodal: torch.Tensor
     rd_phase_missing: torch.Tensor
     rd_time_sync_status: list[str]
+    window_start_seconds: torch.Tensor
+    window_end_seconds: torch.Tensor
+    track_max_time_gap_seconds: torch.Tensor
+    track_numeric_finite_ratio: torch.Tensor
     height_missing: torch.Tensor
     physical_features: torch.Tensor
     lengths: torch.Tensor
@@ -104,6 +109,11 @@ def collate_track_batch(
     fine_label_names: list[str] = []
     route_names: list[str] = []
     rd_time_sync_status: list[str] = []
+    parent_sample_ids: list[str] = []
+    window_start_seconds = torch.zeros((batch_size,), dtype=torch.float32)
+    window_end_seconds = torch.zeros((batch_size,), dtype=torch.float32)
+    track_max_time_gap_seconds = torch.zeros((batch_size,), dtype=torch.float32)
+    track_numeric_finite_ratio = torch.zeros((batch_size,), dtype=torch.float32)
 
     for idx, item in enumerate(items):
         seq_len = item.valid_length
@@ -138,15 +148,21 @@ def collate_track_batch(
         rd_lengths[idx] = rd_len
         rd_patch_lengths[idx] = rd_patch_len
         sample_ids.append(item.sample_id)
+        parent_sample_ids.append(item.parent_sample_id)
         source_names.append(item.source_name)
         label_names.append(item.label_name)
         coarse_label_names.append(item.coarse_label)
         fine_label_names.append(item.fine_label)
         route_names.append(item.route_name)
         rd_time_sync_status.append(item.rd_time_sync_status)
+        window_start_seconds[idx] = item.window_start_seconds
+        window_end_seconds[idx] = item.window_end_seconds
+        track_max_time_gap_seconds[idx] = item.track_max_time_gap_seconds
+        track_numeric_finite_ratio[idx] = item.track_numeric_finite_ratio
 
     return TrackBatch(
         sample_ids=sample_ids,
+        parent_sample_ids=parent_sample_ids,
         source_names=source_names,
         label_names=label_names,
         coarse_label_names=coarse_label_names,
@@ -168,6 +184,10 @@ def collate_track_batch(
         rd_is_multimodal=rd_is_multimodal,
         rd_phase_missing=rd_phase_missing,
         rd_time_sync_status=rd_time_sync_status,
+        window_start_seconds=window_start_seconds,
+        window_end_seconds=window_end_seconds,
+        track_max_time_gap_seconds=track_max_time_gap_seconds,
+        track_numeric_finite_ratio=track_numeric_finite_ratio,
         height_missing=height_missing,
         physical_features=physical_features,
         lengths=lengths,

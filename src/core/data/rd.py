@@ -150,11 +150,14 @@ def load_rd_tensor(data_root: Path | str, tensor_path: str) -> dict[str, np.ndar
     if not npz_path.is_absolute():
         npz_path = data_root.parent / npz_path
     with np.load(npz_path) as handle:
-        return {
+        payload = {
             "amplitude": handle["amplitude"].astype(np.float32),
             "phase": handle["phase"].astype(np.float32),
             "time_raw": handle["time_raw"].astype(np.float32),
         }
+        if "velocity_mps" in handle.files:
+            payload["velocity_mps"] = handle["velocity_mps"].astype(np.float32)
+        return payload
 
 
 def encode_rd_summary(frame: pd.DataFrame) -> EncodedRDSequence:
@@ -238,18 +241,24 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         deep_patch_tensor = torch.stack([deep_patch_amp, deep_patch_phase, deep_patch_delta], dim=-1).to(torch.float32)
     elif amplitude.ndim == 3 and phase.ndim == 3:
         frame_count, range_bins, doppler_bins = amplitude.shape
+        physical_velocity_axis = np.asarray(rd_tensor.get("velocity_mps", []), dtype=np.float32).reshape(-1)
+        target_doppler_bins = (
+            int(physical_velocity_axis.size)
+            if physical_velocity_axis.size == doppler_bins and physical_velocity_axis.size > 0
+            else MULTIMODAL_RD_DOPPLER_BINS
+        )
         amplitude = _prepare_amplitude(amplitude.reshape(frame_count, -1)).reshape(frame_count, range_bins, doppler_bins)
         amplitude_t = torch.tensor(amplitude, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         phase_t = torch.tensor(phase, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         amplitude_t = F.interpolate(
             amplitude_t,
-            size=(MULTIMODAL_RD_RANGE_BINS, MULTIMODAL_RD_DOPPLER_BINS),
+            size=(MULTIMODAL_RD_RANGE_BINS, target_doppler_bins),
             mode="bilinear",
             align_corners=False,
         )
         phase_t = F.interpolate(
             phase_t,
-            size=(MULTIMODAL_RD_RANGE_BINS, MULTIMODAL_RD_DOPPLER_BINS),
+            size=(MULTIMODAL_RD_RANGE_BINS, target_doppler_bins),
             mode="bilinear",
             align_corners=False,
         )

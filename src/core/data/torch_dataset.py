@@ -6,19 +6,22 @@ import math
 from pathlib import Path
 from typing import Iterable
 
+import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
 from .track_dataset import TrackDataset
-from .features import encode_track_sequence, extract_physical_features, DEFAULT_VOCAB, FINE_VOCAB, load_rd_tensor, encode_multimodal_rd, load_rd_summary_frame, encode_rd_summary
+from .features import TRACK_FEATURE_COLUMNS, encode_track_sequence, extract_physical_features, DEFAULT_VOCAB, FINE_VOCAB, load_rd_tensor, encode_multimodal_rd, load_rd_summary_frame, encode_rd_summary
 from .rd import EncodedRDSequence
-from .rd_segment_store import WindowAssembler
+from .rd_segment_store import WindowAssembler, resolve_window_rd_time_sync_status
 from ..router import ROUTE_NAMES
 
 
 @dataclass(frozen=True)
 class TorchTrackItem:
     sample_id: str
+    parent_sample_id: str
     source_name: str
     label_name: str
     coarse_label: str
@@ -35,6 +38,10 @@ class TorchTrackItem:
     rd_is_multimodal: bool
     rd_phase_missing: bool
     rd_time_sync_status: str
+    window_start_seconds: float
+    window_end_seconds: float
+    track_max_time_gap_seconds: float
+    track_numeric_finite_ratio: float
     height_missing: bool
     physical_features: torch.Tensor
     route_name: str
@@ -68,6 +75,7 @@ class TorchTrackDataset(Dataset):
         use_rd_segment_store: bool = False,
         rd_segment_store_cache_size: int = 64,
         allow_rd_segment_store_fallback: bool = False,
+        load_only_fusion_eligible_rd: bool = True,
         load_rd: bool = True,
         max_patch_frames: int = 32,
         skip_deep_patch: bool = True,
@@ -89,6 +97,7 @@ class TorchTrackDataset(Dataset):
         self.load_rd = bool(load_rd)
         self.use_rd_segment_store = bool(use_rd_segment_store)
         self.allow_rd_segment_store_fallback = bool(allow_rd_segment_store_fallback)
+        self.load_only_fusion_eligible_rd = bool(load_only_fusion_eligible_rd)
         self._cache: OrderedDict[str, TorchTrackItem] = OrderedDict()
         self._rd_cache: OrderedDict[str, EncodedRDSequence] = OrderedDict()
         self._parent_time_bounds = self._build_parent_time_bounds(self.index_df)
@@ -239,21 +248,24 @@ class TorchTrackDataset(Dataset):
     def _load_segment_store_rd(self, row) -> tuple[EncodedRDSequence | None, bool, str]:
         if self._window_assembler is None:
             return None, False, ""
-        encoded, rd_is_multimodal, assembly = self._window_assembler.assemble(
+        selected_rows, assembly = self._window_assembler.select_segment_rows(row)
+        if not selected_rows or assembly is None:
+            return None, False, ""
+        rd_time_sync_status = resolve_window_rd_time_sync_status(
+            assembly.rd_time_sync_status_counts
+        )
+        if self.load_only_fusion_eligible_rd and rd_time_sync_status not in {
+            "exact_time_sync",
+            "within_tolerance",
+        }:
+            return None, False, rd_time_sync_status
+        encoded, rd_is_multimodal, _ = self._window_assembler.assemble(
             row,
             max_patch_frames=self._max_patch_frames,
             skip_deep_patch=self._skip_deep_patch,
         )
         if encoded is None:
-            return None, False, ""
-        status_counts = assembly.rd_time_sync_status_counts if assembly is not None else {}
-        if status_counts:
-            rd_time_sync_status = max(
-                status_counts.items(),
-                key=lambda item: (int(item[1]), str(item[0])),
-            )[0]
-        else:
-            rd_time_sync_status = "unavailable"
+            return None, False, rd_time_sync_status
         return encoded, rd_is_multimodal, rd_time_sync_status
 
     def _window_fraction(self, row) -> tuple[float, float] | None:
@@ -354,6 +366,12 @@ class TorchTrackDataset(Dataset):
             raise KeyError(f"sample not found in dataset: {sample_id}")
         frame = sample.load_frame()
         encoded = encode_track_sequence(frame)
+        time_values = pd.to_numeric(frame.get("time_seconds"), errors="coerce").to_numpy(dtype=np.float64)
+        finite_times = np.sort(np.unique(time_values[np.isfinite(time_values)]))
+        time_deltas = np.diff(finite_times)
+        track_max_time_gap_seconds = float(time_deltas.max()) if time_deltas.size else 0.0
+        feature_values = frame[TRACK_FEATURE_COLUMNS].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float64)
+        track_numeric_finite_ratio = float(np.isfinite(feature_values).mean()) if feature_values.size else 0.0
         physical = extract_physical_features(
             frame,
             height_missing=sample.height_missing,
@@ -372,10 +390,17 @@ class TorchTrackDataset(Dataset):
         if self.load_rd:
             rd_encoded, rd_is_multimodal, segment_status = self._load_segment_store_rd(row)
             if rd_encoded is None:
-                rd_encoded, rd_is_multimodal = self._load_encoded_rd(sample)
-                if rd_encoded is not None:
-                    rd_encoded = self._slice_encoded_rd(rd_encoded, row)
-                    rd_time_sync_status = "proportional_fallback"
+                should_load_legacy_rd = (
+                    not segment_status
+                    and (not self.use_rd_segment_store or self.allow_rd_segment_store_fallback)
+                )
+                if should_load_legacy_rd:
+                    rd_encoded, rd_is_multimodal = self._load_encoded_rd(sample)
+                    if rd_encoded is not None:
+                        rd_encoded = self._slice_encoded_rd(rd_encoded, row)
+                        rd_time_sync_status = "proportional_fallback"
+                elif segment_status:
+                    rd_time_sync_status = segment_status
             else:
                 rd_time_sync_status = segment_status
         if rd_encoded is not None:
@@ -395,6 +420,7 @@ class TorchTrackDataset(Dataset):
             rd_deep_patch_valid_length = rd_encoded.deep_patch_valid_length or int(rd_deep_patch_features.shape[0])
         item = TorchTrackItem(
             sample_id=sample.sample_id,
+            parent_sample_id=str(row.get("parent_sample_id") or sample.sample_id),
             source_name=sample.source_name,
             label_name=sample.label_name,
             coarse_label=sample.coarse_label,
@@ -411,6 +437,18 @@ class TorchTrackDataset(Dataset):
             rd_is_multimodal=rd_is_multimodal,
             rd_phase_missing=sample.rd_phase_missing,
             rd_time_sync_status=rd_time_sync_status,
+            window_start_seconds=float(
+                self._finite_float(row.get("window_start_seconds"))
+                if self._finite_float(row.get("window_start_seconds")) is not None
+                else float(frame["time_seconds"].min())
+            ),
+            window_end_seconds=float(
+                self._finite_float(row.get("window_end_seconds"))
+                if self._finite_float(row.get("window_end_seconds")) is not None
+                else float(frame["time_seconds"].max())
+            ),
+            track_max_time_gap_seconds=track_max_time_gap_seconds,
+            track_numeric_finite_ratio=track_numeric_finite_ratio,
             height_missing=sample.height_missing,
             physical_features=torch.from_numpy(physical.values),
             route_name=route_name,

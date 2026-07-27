@@ -128,6 +128,12 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     lines: list[str] = []
     lines.append(f"# {title}")
     lines.append("")
+    evaluation_scope = str(report.get("evaluation_scope", "test"))
+    if evaluation_scope == "validation_only":
+        lines.append("- evaluation_scope: validation_only（本次未运行 test 推理）")
+    else:
+        lines.append(f"- evaluation_scope: {evaluation_scope}")
+    lines.append("")
     lines.append("## 总体指标")
     lines.append(f"- accuracy: {_format_float(float(summary_metrics['accuracy']))}")
     lines.append(f"- macro_precision: {_format_float(float(summary_metrics['macro_precision']))}")
@@ -359,6 +365,10 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
         lines.append(f"- selected_checkpoint: {checkpoint_selection.get('selected_checkpoint', '')}")
         if "selected_checkpoint_name" in checkpoint_selection:
             lines.append(f"- selected_checkpoint_name: {checkpoint_selection.get('selected_checkpoint_name', '')}")
+        if "selected_checkpoint_role" in checkpoint_selection:
+            lines.append(f"- selected_checkpoint_role: {checkpoint_selection.get('selected_checkpoint_role', '')}")
+        if "selected_checkpoint_pool" in checkpoint_selection:
+            lines.append(f"- selected_checkpoint_pool: {checkpoint_selection.get('selected_checkpoint_pool', '')}")
         precision_checkpoint = str(
             checkpoint_selection.get("precision_checkpoint")
             or summary_precision_checkpoint
@@ -1421,7 +1431,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 f"{_escape_md_cell(reroute_path)} | {_escape_md_cell(reject_reason)} | {_format_float(float(low_reject_score))} |"
             )
     else:
-        lines.append("- 当前测试集中无错分样本。")
+        scope_label = "验证集" if evaluation_scope == "validation_only" else "测试集"
+        lines.append(f"- 当前{scope_label}中无错分样本。")
     lines.append("")
     return "\n".join(lines)
 

@@ -45,6 +45,8 @@ class Expert1TrainConfig:
     low_altitude_rd_unknown_clutter_aux_weight: float = 0.85
     low_altitude_rd_clutter_morphology_aux_weight: float = 0.75
     low_altitude_drone_bird_micro_doppler_aux_weight: float = 0.3
+    low_altitude_drone_bird_micro_doppler_min_alignment_quality: float = 1.0
+    low_altitude_micro_doppler_feature_clip: float = 8.0
     low_altitude_rd_teacher_warmup_epochs: int = 1
     low_altitude_rd_teacher_aux_boost: float = 1.35
     low_altitude_deep_reroute_aux_interval: int = 1
@@ -57,6 +59,17 @@ class Expert1TrainConfig:
     cosface_scale: float = 16.0
     cosface_margin: float = 0.2
     reject_threshold: float = 0.35
+    attribution_reject_min_known_confidence: float = 0.0
+    attribution_reject_min_known_margin: float = 0.0
+    attribution_reject_min_track_quality: float = 0.0
+    attribution_reject_target_valid_points: int = 8
+    attribution_reject_max_gap_fraction: float = 0.50
+    trajectory_main_sequence_enabled: bool = False
+    trajectory_warm_start_checkpoint: str = ""
+    trajectory_parent_pair_sampling: bool = False
+    trajectory_parent_pair_fraction: float = 0.25
+    low_altitude_traj_binary_aux_weight: float = 0.0
+    low_altitude_parent_consistency_weight: float = 0.0
     rd_bird_logit_scale: float = 0.75
     rd_unknown_logit_scale: float = 0.75
     rd_clutter_logit_scale: float = 0.75
@@ -74,6 +87,7 @@ class Expert1TrainConfig:
     stage2_rd_aware_sampling: bool = True
     stage2_rd_batch_fraction: float = 0.55
     stage2_rd_shard_local_sampling: bool = False
+    stage2_min_rd_fusion_eligible_samples: int = 128
     max_sampler_weight: float = 12.0
     unknown_sample_boost: float = 1.0
     clutter_sample_boost: float = 2.0
@@ -130,6 +144,7 @@ class Expert1TrainConfig:
     skip_non_finite_batch: bool = True
     enable_batch_parameter_rollback: bool = False
     compute_eval_aux_loss: bool = False
+    run_test_evaluation: bool = True
     max_train_batches_per_epoch: int = 0
     quick_val_max_batches: int = 0
     full_val_interval_epochs: int = 1
@@ -143,6 +158,7 @@ class Expert1TrainConfig:
     joint_logit_delta_eval_scales: list[float] = field(default_factory=lambda: [0.0, 0.25, 0.5, 0.75, 1.0])
     joint_logit_delta_selection_metric: str = "macro_f1_weak_class_guard"
     rd_specialist_residual_scale: float = 0.35
+    rd_proportional_fallback_quality: float = 0.0
     dataset_cache_size: int = 64
     rd_encoded_cache_size: int = 256
     enable_window_rd_time_crop: bool = True
@@ -154,5 +170,6 @@ class Expert1TrainConfig:
     window_segment_map_name: str = "expert1_window_segment_map.csv"
     rd_segment_store_cache_size: int = 64
     allow_rd_segment_store_fallback: bool = False
+    load_only_fusion_eligible_rd: bool = True
     seed: int = 42
     device: str = "cuda"
