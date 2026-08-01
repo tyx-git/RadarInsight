@@ -16,6 +16,12 @@ class SystemTrainConfig:
     hidden_dim: int = 128
     dropout: float = 0.1
     source_normalization: bool = True
+    # Keep the historical system default for old system-only checkpoints, but
+    # require new Expert1/V3 consumers to declare their contract explicitly.
+    trajectory_feature_schema: str = "v1"
+    physical_representation_contract_version: str = "legacy_v2"
+    temporal_encoding_mode: str = "none"
+    temporal_pooling_mode: str = "mean"
     pretrained_track_checkpoint: str = ""
     pretrained_router_checkpoint: str = ""
     expert1_checkpoint: str = ""

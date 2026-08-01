@@ -13,12 +13,19 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from .data.collate import collate_track_batch
+from .data.collate import TrackBatch, collate_track_batch
 from .data.torch_dataset import TorchTrackDataset
 from .device import resolve_cuda_device
 from .experts import LowAltitudeSuspectExpert
 from .metrics import compute_classification_metrics
 from .rd_drone_bird_config import RDDroneBirdDiagnosticConfig
+from .rd_parent_stability import (
+    ParentStabilityBatch,
+    ParentStabilityDataset,
+    build_parent_predecessor_lookup,
+    collate_parent_stability_batch,
+    parent_stability_aggregate_loss,
+)
 from .run_paths import prepare_run_output_dir
 from .system_metrics import compute_per_class_metrics
 
@@ -39,10 +46,20 @@ def _make_loader(
     config: RDDroneBirdDiagnosticConfig,
     *,
     shuffle: bool,
+    predecessor_by_sample_id: dict[str, str] | None = None,
 ) -> DataLoader:
+    predecessor_by_sample_id = predecessor_by_sample_id or {}
+    dataset_sample_ids = list(sample_ids)
+    if predecessor_by_sample_id:
+        known_ids = set(dataset_sample_ids)
+        dataset_sample_ids.extend(
+            predecessor_id
+            for predecessor_id in predecessor_by_sample_id.values()
+            if predecessor_id not in known_ids
+        )
     dataset = TorchTrackDataset(
         data_root,
-        sample_ids=sample_ids,
+        sample_ids=dataset_sample_ids,
         trainable_only=False,
         index_name=config.index_name,
         use_rd_segment_store=True,
@@ -55,14 +72,20 @@ def _make_loader(
         max_patch_frames=0,
         skip_deep_patch=True,
     )
+    paired = bool(predecessor_by_sample_id)
+    loader_dataset = (
+        ParentStabilityDataset(dataset, predecessor_by_sample_id, sample_ids)
+        if paired
+        else dataset
+    )
     return DataLoader(
-        dataset,
+        loader_dataset,
         batch_size=config.batch_size,
         shuffle=shuffle,
         num_workers=config.num_workers,
         pin_memory=True,
         persistent_workers=False,
-        collate_fn=collate_track_batch,
+        collate_fn=collate_parent_stability_batch if paired else collate_track_batch,
         generator=torch.Generator().manual_seed(config.seed + (1 if shuffle else 2)),
     )
 
@@ -103,6 +126,18 @@ def _balanced_smoke_ids(index: pd.DataFrame, sample_ids: list[str], max_batches:
     return selected
 
 
+def _restrict_predecessors(
+    predecessor_by_sample_id: dict[str, str],
+    current_sample_ids: list[str],
+) -> dict[str, str]:
+    current_ids = {str(sample_id) for sample_id in current_sample_ids}
+    return {
+        current_id: predecessor_id
+        for current_id, predecessor_id in predecessor_by_sample_id.items()
+        if current_id in current_ids
+    }
+
+
 def _metric_payload(logits: torch.Tensor, labels: torch.Tensor, parents: list[str]) -> dict[str, object]:
     metrics = compute_classification_metrics(logits, labels, num_classes=2)
     per_class = [asdict(item) for item in compute_per_class_metrics(logits, labels, RD_ONLY_LABELS)]
@@ -121,6 +156,32 @@ def _metric_payload(logits: torch.Tensor, labels: torch.Tensor, parents: list[st
         "parent_count": int(len(parent_logits)),
         "window_count": int(logits.shape[0]),
     }
+
+
+def _forward_rd_diagnostic(
+    model: LowAltitudeSuspectExpert,
+    batch: TrackBatch,
+    device: torch.device,
+    config: RDDroneBirdDiagnosticConfig,
+):
+    rd_features = batch.rd_features.to(device, non_blocking=True)
+    rd_padding = batch.rd_padding_mask.to(device, non_blocking=True)
+    rd_patch_features = batch.rd_patch_features.to(device, non_blocking=True)
+    rd_patch_padding = batch.rd_patch_padding_mask.to(device, non_blocking=True)
+    rd_time_seconds = batch.rd_time_seconds.to(device, non_blocking=True)
+    output = model.rd_drone_bird_diagnostic(
+        rd_features,
+        rd_patch_features=rd_patch_features if config.use_rd_patch_cnn else None,
+        rd_padding_mask=rd_padding,
+        rd_patch_padding_mask=rd_patch_padding if config.use_rd_patch_cnn else None,
+        rd_time_seconds=rd_time_seconds,
+    )
+    labels = torch.tensor(
+        [1 if name == "BirdTarget" else 0 for name in batch.label_names],
+        dtype=torch.long,
+        device=device,
+    )
+    return output, labels
 
 
 def _run_epoch(
@@ -155,6 +216,10 @@ def _run_epoch(
     labels_all: list[torch.Tensor] = []
     parents: list[str] = []
     losses: list[float] = []
+    main_losses: list[float] = []
+    micro_losses: list[float] = []
+    stability_losses: list[float] = []
+    paired_window_count = 0
     completed_batches = 0
     interval = max(1, int(config.log_interval_batches))
     for batch_index, batch in enumerate(loader, 1):
@@ -164,25 +229,34 @@ def _run_epoch(
             first_batch_start = time.perf_counter()
             print(f"[rd-only][epoch={epoch}] {phase} first batch loaded", flush=True)
         batch_start = time.perf_counter()
-        rd_features = batch.rd_features.to(device, non_blocking=True)
-        rd_padding = batch.rd_padding_mask.to(device, non_blocking=True)
-        rd_patch_features = batch.rd_patch_features.to(device, non_blocking=True)
-        rd_patch_padding = batch.rd_patch_padding_mask.to(device, non_blocking=True)
-        labels = torch.tensor(
-            [1 if name == "BirdTarget" else 0 for name in batch.label_names],
-            dtype=torch.long,
-            device=device,
-        )
+        paired_batch = batch if isinstance(batch, ParentStabilityBatch) else None
+        current_batch = paired_batch.current if paired_batch is not None else batch
         with torch.set_grad_enabled(train):
-            output = model.rd_drone_bird_diagnostic(
-                rd_features,
-                rd_patch_features=rd_patch_features if config.use_rd_patch_cnn else None,
-                rd_padding_mask=rd_padding,
-                rd_patch_padding_mask=rd_patch_padding if config.use_rd_patch_cnn else None,
-            )
+            output, labels = _forward_rd_diagnostic(model, current_batch, device, config)
             main_loss = nn.functional.cross_entropy(output.bird_logits, labels)
             micro_loss = nn.functional.cross_entropy(output.micro_doppler_logits, labels)
-            loss = main_loss + float(config.micro_doppler_aux_weight) * micro_loss
+            stability_loss = output.bird_logits.new_zeros(())
+            pair_count = 0
+            if (
+                paired_batch is not None
+                and paired_batch.predecessor is not None
+                and float(config.parent_stability_aux_weight) > 0.0
+            ):
+                with torch.no_grad():
+                    predecessor_output, _ = _forward_rd_diagnostic(
+                        model, paired_batch.predecessor, device, config
+                    )
+                stability_loss, pair_count = parent_stability_aggregate_loss(
+                    output.bird_logits,
+                    labels,
+                    predecessor_output.bird_logits,
+                    paired_batch.predecessor_positions,
+                )
+            loss = (
+                main_loss
+                + float(config.micro_doppler_aux_weight) * micro_loss
+                + float(config.parent_stability_aux_weight) * stability_loss
+            )
             if not torch.isfinite(loss):
                 raise RuntimeError(f"non-finite RD-only {phase} loss at epoch={epoch}, batch={batch_index}")
             if train:
@@ -192,15 +266,20 @@ def _run_epoch(
                 optimizer.step()
         loss_value = float(loss.detach().cpu())
         losses.append(loss_value)
+        main_losses.append(float(main_loss.detach().cpu()))
+        micro_losses.append(float(micro_loss.detach().cpu()))
+        stability_losses.append(float(stability_loss.detach().cpu()))
+        paired_window_count += pair_count
         logits_all.append(output.bird_logits.detach().cpu())
         labels_all.append(labels.detach().cpu())
-        parents.extend(batch.parent_sample_ids)
+        parents.extend(current_batch.parent_sample_ids)
         completed_batches = batch_index
         if batch_index == 1:
             print(
                 f"[rd-only][epoch={epoch}] {phase} first batch complete "
                 f"load_to_complete={time.perf_counter() - first_batch_start:.2f}s "
-                f"loss={loss_value:.4f} rd_lengths={batch.rd_lengths.tolist()}",
+                f"loss={loss_value:.4f} pairs={pair_count}/{len(current_batch.sample_ids)} "
+                f"rd_lengths={current_batch.rd_lengths.tolist()}",
                 flush=True,
             )
         if batch_index % interval == 0 or batch_index == max_batches:
@@ -209,7 +288,9 @@ def _run_epoch(
             remaining = max(0, max_batches - batch_index) * average_seconds
             print(
                 f"[rd-only][epoch={epoch}] {phase} batch {batch_index}/{max_batches} "
-                f"loss={loss_value:.4f} batch_time={time.perf_counter() - batch_start:.2f}s "
+                f"loss={loss_value:.4f} main={main_losses[-1]:.4f} micro={micro_losses[-1]:.4f} "
+                f"stability={stability_losses[-1]:.4f} pairs={pair_count} "
+                f"batch_time={time.perf_counter() - batch_start:.2f}s "
                 f"elapsed={elapsed:.0f}s ETA={remaining:.0f}s",
                 flush=True,
             )
@@ -217,6 +298,13 @@ def _run_epoch(
         raise RuntimeError("RD-only loader produced no batches")
     metrics = _metric_payload(torch.cat(logits_all), torch.cat(labels_all), parents)
     mean_loss = float(np.mean(losses))
+    metrics["loss_components"] = {
+        "main_ce": float(np.mean(main_losses)),
+        "micro_doppler_ce": float(np.mean(micro_losses)),
+        "parent_stability_ce": float(np.mean(stability_losses)),
+        "parent_stability_pair_count": int(paired_window_count),
+        "parent_stability_pair_coverage": float(paired_window_count / len(parents)) if parents else 0.0,
+    }
     print(
         f"[rd-only][epoch={epoch}] {phase} END batches={completed_batches} "
         f"loss={mean_loss:.4f} macro_f1={float(metrics['window']['macro_f1']):.4f}",
@@ -243,14 +331,35 @@ def train_rd_drone_bird_diagnostic(config: RDDroneBirdDiagnosticConfig) -> dict[
     if not train_ids or not val_ids:
         raise RuntimeError("RD-only diagnostic requires non-empty train and validation anchor windows")
     val_loader_ids = _balanced_smoke_ids(index, val_ids, config.max_val_batches, config.batch_size)
-    train_loader = _make_loader(str(data_root), train_ids, config, shuffle=True)
-    val_loader = _make_loader(str(data_root), val_loader_ids, config, shuffle=False)
+    parent_stability_enabled = float(config.parent_stability_aux_weight) > 0.0
+    train_lookup = build_parent_predecessor_lookup(index, train_ids)
+    val_lookup = build_parent_predecessor_lookup(index, val_ids)
+    train_predecessors = (
+        train_lookup.predecessor_by_sample_id if parent_stability_enabled else None
+    )
+    val_predecessors = (
+        _restrict_predecessors(val_lookup.predecessor_by_sample_id, val_loader_ids)
+        if parent_stability_enabled
+        else None
+    )
+    train_loader = _make_loader(
+        str(data_root), train_ids, config, shuffle=True,
+        predecessor_by_sample_id=train_predecessors,
+    )
+    val_loader = _make_loader(
+        str(data_root), val_loader_ids, config, shuffle=False,
+        predecessor_by_sample_id=val_predecessors,
+    )
     model = LowAltitudeSuspectExpert(
         input_dim=160,
         rd_input_dim=4,
         rd_patch_input_dim=3,
         rd_context_dim=0,
         use_rd_patch_cnn=config.use_rd_patch_cnn,
+        use_rd_continuous_time_encoding=config.use_rd_continuous_time_encoding,
+        rd_time_encoding_mode=config.rd_time_encoding_mode,
+        rd_local_delta_time_clip_seconds=config.rd_local_delta_time_clip_seconds,
+        rd_local_delta_time_scale=config.rd_local_delta_time_scale,
         dropout=config.dropout,
     ).to(device)
     for name, parameter in model.named_parameters():
@@ -275,12 +384,20 @@ def train_rd_drone_bird_diagnostic(config: RDDroneBirdDiagnosticConfig) -> dict[
                 "train_batches": len(train_loader),
                 "val_batches": len(val_loader),
             },
+            "parent_stability": {
+                "enabled": parent_stability_enabled,
+                "aux_weight": float(config.parent_stability_aux_weight),
+                "train": train_lookup.report,
+                "validation_full": val_lookup.report,
+                "validation_loaded_pair_count": int(len(val_predecessors or {})),
+            },
             "test_evaluation_executed": False,
         },
     )
     print(
         f"[rd-only] READY train_windows={len(train_ids)} val_windows={len(val_ids)} "
         f"train_batches={len(train_loader)} val_batches={len(val_loader)} "
+        f"parent_stability={'on' if parent_stability_enabled else 'off'} "
         f"log_interval={config.log_interval_batches}",
         flush=True,
     )
@@ -333,6 +450,13 @@ def train_rd_drone_bird_diagnostic(config: RDDroneBirdDiagnosticConfig) -> dict[
             "val_windows_loaded": len(val_loader_ids),
             "train_batches": len(train_loader),
             "val_batches": len(val_loader),
+        },
+        "parent_stability": {
+            "enabled": parent_stability_enabled,
+            "aux_weight": float(config.parent_stability_aux_weight),
+            "train": train_lookup.report,
+            "validation_full": val_lookup.report,
+            "validation_loaded_pair_count": int(len(val_predecessors or {})),
         },
         "best_checkpoint": str(best_checkpoint) if best_checkpoint else "",
         "best_validation_window_macro_f1": best_macro_f1,

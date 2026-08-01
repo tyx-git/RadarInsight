@@ -62,6 +62,28 @@ def _finite_float(value: object) -> float | None:
     return number
 
 
+def _concatenate_time_axes(axes: list[torch.Tensor], lengths: list[int]) -> torch.Tensor:
+    if not axes:
+        return torch.zeros((sum(lengths),), dtype=torch.float32)
+    combined: list[torch.Tensor] = []
+    last_time = 0.0
+    for axis, length in zip(axes, lengths):
+        values = axis[:length].to(torch.float32).reshape(-1)
+        if values.numel() != length:
+            values = torch.arange(length, dtype=torch.float32)
+        values = values - values[0] if values.numel() else values
+        if combined and values.numel():
+            previous = combined[-1]
+            positive = torch.diff(previous)
+            positive = positive[positive > 1.0e-6]
+            step = float(positive.median().item()) if positive.numel() else 1.0
+            values = values + last_time + step
+        if values.numel():
+            last_time = float(values[-1].item())
+        combined.append(values)
+    return torch.cat(combined, dim=0) if combined else torch.zeros((0,), dtype=torch.float32)
+
+
 def parent_sample_id_from_row(row: pd.Series | dict[str, object]) -> str:
     parent_id = str(row.get("parent_sample_id", "") or "").strip()
     if parent_id:
@@ -221,11 +243,11 @@ class WindowAssembler:
         sliced: dict[str, Any] = {}
         for key, value in payload.items():
             tensor = torch.as_tensor(value)
-            if key == "velocity_mps":
+            if key in {"velocity_mps", "range_offset_m"}:
                 if tensor.ndim != 1:
                     return None
                 sliced[key] = tensor.cpu().numpy()
-            elif key == "time_raw":
+            elif key in {"time_raw", "time_seconds"}:
                 if tensor.ndim != 1 or int(tensor.shape[0]) <= int(selected_indices.max().item()):
                     return None
                 sliced[key] = tensor.index_select(0, selected_indices).cpu().numpy()
@@ -320,6 +342,12 @@ class WindowAssembler:
         features: list[torch.Tensor] = []
         patch_features: list[torch.Tensor] = []
         deep_patch_features: list[torch.Tensor] = []
+        time_axes: list[torch.Tensor] = []
+        patch_time_axes: list[torch.Tensor] = []
+        deep_patch_time_axes: list[torch.Tensor] = []
+        feature_lengths: list[int] = []
+        patch_lengths: list[int] = []
+        deep_patch_lengths: list[int] = []
         rd_is_multimodal = False
         anchor_indices_by_tensor: dict[str, list[int]] = {}
         stored_segment_rows: list[dict[str, object]] = []
@@ -338,17 +366,37 @@ class WindowAssembler:
             sliced_tensor = self._slice_anchor_tensor(tensor_payload, anchor_indices)
             if sliced_tensor is None:
                 continue
-            encoded_anchor = encode_multimodal_rd(sliced_tensor)
+            encoded_anchor = encode_multimodal_rd(sliced_tensor, legacy=True)
             rd_is_multimodal = True
             features.append(encoded_anchor.features.to(torch.float32).contiguous())
+            feature_lengths.append(int(encoded_anchor.valid_length))
+            time_axes.append(
+                encoded_anchor.time_seconds
+                if encoded_anchor.time_seconds is not None
+                else torch.arange(encoded_anchor.valid_length, dtype=torch.float32)
+            )
             if encoded_anchor.patch_features is not None:
                 patch_source = encoded_anchor.patch_features
+                patch_times = (
+                    encoded_anchor.patch_time_seconds
+                    if encoded_anchor.patch_time_seconds is not None
+                    else torch.arange(encoded_anchor.patch_valid_length, dtype=torch.float32)
+                )
                 if max_patch_frames > 0 and patch_source.shape[0] > max_patch_frames:
                     step = max(1, int(patch_source.shape[0]) // max_patch_frames)
                     patch_source = patch_source[::step][:max_patch_frames]
+                    patch_times = patch_times[::step][:max_patch_frames]
                 patch_features.append(patch_source.to(torch.float32).contiguous())
+                patch_lengths.append(int(patch_source.shape[0]))
+                patch_time_axes.append(patch_times)
             if not skip_deep_patch and encoded_anchor.deep_patch_features is not None:
                 deep_patch_features.append(encoded_anchor.deep_patch_features.to(torch.float32).contiguous())
+                deep_patch_lengths.append(int(encoded_anchor.deep_patch_features.shape[0]))
+                deep_patch_time_axes.append(
+                    encoded_anchor.deep_patch_time_seconds
+                    if encoded_anchor.deep_patch_time_seconds is not None
+                    else torch.arange(encoded_anchor.deep_patch_valid_length, dtype=torch.float32)
+                )
         for segment_row in stored_segment_rows:
             shard_key = str(segment_row.get("shard_key", ""))
             if not _is_present(shard_key):
@@ -369,6 +417,8 @@ class WindowAssembler:
             deep_len = int(segment.get("rd_deep_patch_valid_length", 0))
             if rd_len > 0:
                 features.append(segment["rd_features"][:rd_len].to(torch.float32).contiguous())
+                feature_lengths.append(rd_len)
+                time_axes.append(segment.get("rd_time_seconds", torch.arange(rd_len))[:rd_len].to(torch.float32))
             if patch_len > 0:
                 if max_patch_frames > 0 and patch_len > max_patch_frames:
                     step = max(1, patch_len // max_patch_frames)
@@ -376,8 +426,17 @@ class WindowAssembler:
                 else:
                     patch_src = segment["rd_patch_features"][:patch_len]
                 patch_features.append(patch_src.to(torch.float32).contiguous())
+                patch_lengths.append(int(patch_src.shape[0]))
+                patch_time = segment.get("rd_patch_time_seconds", torch.arange(patch_len))[:patch_len].to(torch.float32)
+                if max_patch_frames > 0 and patch_len > max_patch_frames:
+                    patch_time = patch_time[::step][:max_patch_frames]
+                patch_time_axes.append(patch_time)
             if not skip_deep_patch and deep_len > 0:
                 deep_patch_features.append(segment["rd_deep_patch_features"][:deep_len].to(torch.float32).contiguous())
+                deep_patch_lengths.append(deep_len)
+                deep_patch_time_axes.append(
+                    segment.get("rd_deep_patch_time_seconds", torch.arange(deep_len))[:deep_len].to(torch.float32)
+                )
         if not features:
             return None, False, None
         feature_tensor = torch.cat(features, dim=0)
@@ -390,6 +449,13 @@ class WindowAssembler:
             patch_valid_length=int(patch_tensor.shape[0]) if patch_tensor is not None else 0,
             deep_patch_features=deep_patch_tensor,
             deep_patch_valid_length=int(deep_patch_tensor.shape[0]) if deep_patch_tensor is not None else 0,
+            time_seconds=_concatenate_time_axes(time_axes, feature_lengths),
+            patch_time_seconds=_concatenate_time_axes(patch_time_axes, patch_lengths) if patch_tensor is not None else None,
+            deep_patch_time_seconds=(
+                _concatenate_time_axes(deep_patch_time_axes, deep_patch_lengths)
+                if deep_patch_tensor is not None
+                else None
+            ),
         )
         return encoded, rd_is_multimodal, assembly
 

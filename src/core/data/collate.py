@@ -23,6 +23,9 @@ class TrackBatch:
     rd_features: torch.Tensor
     rd_patch_features: torch.Tensor
     rd_deep_patch_features: torch.Tensor
+    rd_time_seconds: torch.Tensor
+    rd_patch_time_seconds: torch.Tensor
+    rd_deep_patch_time_seconds: torch.Tensor
     rd_lengths: torch.Tensor
     rd_patch_lengths: torch.Tensor
     rd_deep_patch_lengths: torch.Tensor
@@ -89,6 +92,9 @@ def collate_track_batch(
     rd_padding_mask = torch.ones((batch_size, max_rd_len), dtype=torch.bool)
     rd_patch_padding_mask = torch.ones((batch_size, max_rd_patch_len), dtype=torch.bool)
     rd_deep_patch_padding_mask = torch.ones((batch_size, max_rd_deep_patch_len), dtype=torch.bool)
+    rd_time_seconds = torch.zeros((batch_size, max_rd_len), dtype=torch.float32)
+    rd_patch_time_seconds = torch.zeros((batch_size, max_rd_patch_len), dtype=torch.float32)
+    rd_deep_patch_time_seconds = torch.zeros((batch_size, max_rd_deep_patch_len), dtype=torch.float32)
     labels = torch.zeros((batch_size,), dtype=torch.long)
     fine_labels = torch.zeros((batch_size,), dtype=torch.long)
     route_labels = torch.zeros((batch_size,), dtype=torch.long)
@@ -123,15 +129,35 @@ def collate_track_batch(
         features[idx, :seq_len] = item.features
         rd_features[idx, :rd_len] = item.rd_features
         rd_patch_features[idx, :rd_patch_len] = item.rd_patch_features
+        item_rd_times = item.rd_time_seconds if int(item.rd_time_seconds.numel()) == rd_len else torch.arange(rd_len, dtype=torch.float32)
+        item_patch_times = (
+            item.rd_patch_time_seconds
+            if int(item.rd_patch_time_seconds.numel()) == rd_patch_len
+            else torch.arange(rd_patch_len, dtype=torch.float32)
+        )
+        rd_time_seconds[idx, :rd_len] = item_rd_times
+        rd_patch_time_seconds[idx, :rd_patch_len] = item_patch_times
         # Deep patch: subsample frames if source has more than max_deep_patch_frames
         if max_deep_patch_frames > 0 and rd_deep_patch_len > max_deep_patch_frames:
             step = max(1, rd_deep_patch_len // max_deep_patch_frames)
             src = item.rd_deep_patch_features[:rd_deep_patch_len:step][:max_deep_patch_frames]
+            item_deep_times = (
+                item.rd_deep_patch_time_seconds
+                if int(item.rd_deep_patch_time_seconds.numel()) == rd_deep_patch_len
+                else torch.arange(rd_deep_patch_len, dtype=torch.float32)
+            )
             sub_len = src.shape[0]
             rd_deep_patch_features[idx, :sub_len] = src
+            rd_deep_patch_time_seconds[idx, :sub_len] = item_deep_times[:rd_deep_patch_len:step][:max_deep_patch_frames]
             rd_deep_patch_lengths[idx] = sub_len
         else:
             rd_deep_patch_features[idx, :rd_deep_patch_len] = item.rd_deep_patch_features
+            item_deep_times = (
+                item.rd_deep_patch_time_seconds
+                if int(item.rd_deep_patch_time_seconds.numel()) == rd_deep_patch_len
+                else torch.arange(rd_deep_patch_len, dtype=torch.float32)
+            )
+            rd_deep_patch_time_seconds[idx, :rd_deep_patch_len] = item_deep_times
             rd_deep_patch_lengths[idx] = rd_deep_patch_len
         padding_mask[idx, :seq_len] = False
         rd_padding_mask[idx, :rd_len] = False
@@ -175,6 +201,9 @@ def collate_track_batch(
         rd_features=rd_features,
         rd_patch_features=rd_patch_features,
         rd_deep_patch_features=rd_deep_patch_features,
+        rd_time_seconds=rd_time_seconds,
+        rd_patch_time_seconds=rd_patch_time_seconds,
+        rd_deep_patch_time_seconds=rd_deep_patch_time_seconds,
         rd_lengths=rd_lengths,
         rd_patch_lengths=rd_patch_lengths,
         rd_deep_patch_lengths=rd_deep_patch_lengths,

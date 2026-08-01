@@ -1,229 +1,171 @@
-# Task Plan - RD 驱动 Drone/Bird 判别修复
+# RD-only 全链路审查与待全量训练计划
 
-> 状态：v2 帧索引修复后 RD-only 仍为负增益；Stage 009B 正在建立全帧 canonical RD v3 资产，融合继续阻断。  
-> 约束：训练仅用 train；模型选择、阈值与消融只用 validation；independent test 冻结。比例时间映射 RD 永不进入融合训练或推理。Python 与依赖仅使用 `.venv`。
+更新时间：2026-08-02（Asia/Shanghai）
+当前交付状态：**待全量训练：是**。代码、配置、数据契约、80 项 RD 专项测试、受限训练 smoke、checkpoint strict reload、受限 evaluator/analyzer 与 2-sample latency smoke 均通过；全量训练与完整新格式 validation 未由本次审查启动。
+任务边界：active 分支是 `PhysicalRDDroneBirdClassifier` 的 DroneTarget/BirdTarget closed-set 二分类；`RD_ONLY_LABELS=("DroneTarget","BirdTarget")`，`label_names=("DroneTarget","BirdTarget")`，`supports_rejection=False`。禁止把五分类 Expert1、TR-only、legacy patch/novel 分支或 smoke 指标混入 active 能力结论。
 
-## Stage 001 - 冻结基线与评估协议
+## Stage 001 冻结当前 RD-only 基线
 
-状态：已完成
+依赖：项目指令、工作区状态、active 入口、配置、数据 artifact、checkpoint 元数据。
+证据：`src/core/train_rd_physical_drone_bird.py`、`src/core/rd_physical_drone_bird_*.py`、v8/v9 `training_summary.json`、两份独立配置。
+产物：冻结调用链、标签/shape/轴/seed/epoch/checkpoint 规则与完整 validation 基线。
+验收：入口和实际调用一致；test 未加载；二分类与其他分支分开。
 
-- [x] 固定 seed-42 trajectory-only 基线、v7 index、父轨迹 split、标签顺序与 validation-only 命令。
-- [x] 固定窗口、source-balanced、父轨迹 mean-logit/stable、翻转率、稳定决策时延与流式 P95/P99 指标。
-- [x] 明确 test 不参与模型选择、损失权重、阈值或架构决策。
-- [x] 验收：基线契约和回滚检查点可复现。
+- [x] 确认 active 训练链：`train_rd_physical_drone_bird -> PhysicalRDWindowDataset -> PhysicalRDDroneBirdClassifier -> rd_physical_drone_bird_trainer`；依赖为实际 import；证据为源码引用；产物为唯一 active 链；验收为线上/legacy 扫描无隐式替代入口。
+- [x] 冻结标签与能力：仅 DroneTarget/BirdTarget，输出顺序 Drone=0、Bird=1，`supports_rejection=False`；证据为模型类、dataset encoder、artifact task contract；验收为无五分类扩展。
+- [x] 冻结输入：`[batch,time,6,21,384]`，range offset `[-75,75] m`，velocity `[-85,85] m/s`；证据为 dataset/model/schema 与 canonical summary；验收为 shape/axis 单测通过。
+- [x] 冻结数据版本：window index v3.1、normalization v4、feature stats v4、canonical frame index v3.1；证据为 SHA-256；验收为 strict artifact loader 通过。
+- [x] 冻结训练预算：seed=42、CUDA、batch=4、18 epochs、AdamW lr=1e-4、weight_decay=1e-4；证据为 `rd_physical_drone_bird_v9_full_seed42.json`；验收为配置类实载通过。
+- [x] 冻结 checkpoint 选择：依次比较 parent Macro-F1、最低分类别 parent Recall、最低分类别 parent Precision、window Macro-F1；证据为 `_is_better` 与 progress/summary；验收为单测通过。
+- [x] 冻结现有完整 validation：v8 best epoch 16、v9 best epoch 8，二者均 `test_evaluation_executed=false`；证据为各自 `training_summary.json`；验收为不得称为 test 指标。
 
-## Stage 002 - RD 现状与阻断证据冻结
+## Stage 002 审查数据、标签、split 和泄漏
 
-状态：已完成
+依赖：Stage 001、window index、causal manifest、v8 RD-content split ancestor、normalization/feature stats。
+证据：CSV/JSON 只读复核、Stage 025/026 audit、dataset 前向签名单测。
+产物：split/内容组/未来帧/统计拟合/无 TR 边界结论。
+验收：parent/content group 跨 split 为 0；test 不参与训练、选择、校准或阈值。
 
-- [x] 审计 RD manifest、v7 window map、数据加载、主干、辅助头、融合门控和训练阶段调度。
-- [x] 量化精确同步 RD 覆盖、类别支持、RD 时长及窗口尺度差异。
-- [x] 确认 Stage 019 全程 trajectory-only，RD 路径未训练、未参与最终判决。
-- [x] 验收：形成可审计的“不得放开 proportional fallback”证据。
+- [x] 逐 split 核对 active trainable Drone/Bird：train 8207 windows、val 1792、test 1820；依赖为 index；证据为 `Import-Csv` 分组；产物为支持数；验收为 trainer 只构建 train/val loader。
+- [x] 核对 parent 隔离：跨 split parent=0；证据为当前 index 全量分组和 Stage 026 audit；验收为 0。
+- [x] 核对 RD content group 隔离：跨 split group=0、group-label conflict=0；证据为 `parent_split_group_id` 分组与 v8 RD tensor fingerprint audit；验收为 0。
+- [x] 核对重复内容：已知重复组由相同 RD tensor 指纹形成，不是 TR 指纹；证据为 Stage 025 manifest/audit；验收为只用于 split 与等权训练，不作为 forward 数值。
+- [x] 核对 causal window：noncausal window=0、最大 index/tensor 时间边界误差 `2.3803711e-07 s`、future frame=0；证据为 Stage 026 structural audit；验收为窗口结束不晚于请求时点。
+- [x] 核对统计防泄漏：normalization 与 feature stats 均声明 split=train、Drone/Bird、713 parents、712 groups、test=false；证据为 v4 JSON；验收为 index/hash/generator hash strict 校验通过。
+- [x] 核对字段边界：路径、文件名、sample/parent ID、source、split、label 未进入 model forward；证据为 forward signature 单测；验收为仅 RD tensor/轴/时间/质量派生量进入模型。
+- [x] 核对 parent/group 的合法用途：ID 仅按相等关系用于每 parent/content-group 等权 loss 与 parent 聚合，原始字符串不编码进模型；证据为 `_parent_balance_metadata`/`compute_parent_evidence_weights`；验收为 disclosure 完整且无 TR pairing 字段。
+- [x] 核对 RD/TR pairing：active index `rd_fusion_eligible=0`，dataset 遇 fusion eligible 会拒绝；`rd_pairing_contract.py` 未被 active 调用；验收为配对状态不进 input/loss/threshold/postprocess。
 
-## Stage 003 - 定义精确 RD/TR 配对数据契约
+## Stage 003 审查 RD 物理数据和特征提取
 
-状态：已完成
+依赖：canonical frame index/tensors、normalization/feature stats、builder 与 statistics 源码。
+证据：106026-frame merge summary、坐标审计、单元测试、feature quality audit。
+产物：轴、单位、相位、dB、缺失、统计特征与质量特征结论。
+验收：现有 store 结构完整；未来构建不得 fallback 到 track range。
 
-- [x] 定义同目标关联、共享/可校正时间轴、覆盖率、连续时长、帧间隔与质量元数据的契约：`config/contracts/expert1_rd_tr_pairing_v1.json`。
-- [x] 定义拒绝原因与三态决策：`fusion_eligible`、`diagnostic_only`、`rejected`；比例映射明确禁止。
-- [x] 固定不泄漏字段边界：来源、路径、样本/父 ID、split、标签与 timestamp 均不得输入模型或门控。
-- [x] 新增 `rd_pairing_contract` 单元测试，`6 passed`；manifest-only 审计输出 `tmp/20260723-stage003-rd-pairing-audit.json`。
-- [x] 验收：既有 `25021` 段中 `24986` 被拒绝、`35` 为短段 diagnostic-only，零段可融合。
+- [x] 核对 canonical store：106026 frames、1549 parents、1549 tensor files、2,773,411,553 bytes；missing/extra/duplicate/tensor mismatch/invalid shape/partial coverage 均 0；证据为 merge summary 与 artifact inventory；验收为 strict loader 通过。
+- [x] 核对 Doppler/velocity：384 bins、`[-85,85] m/s`、递增方向，无转置/翻转；证据为 builder/dataset shape checks；验收为 axis 单测通过。
+- [x] 核对 range：21 bins、target-relative `[-75,75] m`、递增方向；证据为 canonical summary/contract test；验收为目标峰居中测试通过。
+- [x] 核对相位：complex RD 必须存在，按 sin/cos 插值后 atan2；缺相位不再补零；证据为 builder 与 missing-phase test；验收为圆周相位测试通过。
+- [x] 修复 range reference：未来构建强制 `debug_info.detected_range_m`，删除 `track_range_m` fallback，并记录 `target_range_reference_source`；证据为源码与拒绝 fallback 测试；验收为现有 106026/106026 metadata 均有 detected range，故本轮无需重建。
+- [x] 核对时间：累计 CPI acquisition duration，不是 wall-clock/TR 同步；现有 tensor 严格递增；证据为 builder、Stage 026 time audit、dataset guard；验收为 nonmonotonic parent=0。
+- [x] 核对特征接线：6 通道、14 项物理统计、8 项质量量、raw dB micro profile 都进入最终或辅助分支；证据为 forward 逐层调用；验收为梯度/forward smoke 有限。
+- [x] 标记质量特征饱和：train artifact 中 `dynamic_range_proxy.unique_count=1`，其余多个完整性量也为常量；证据为 feature stats v4；产物为非阻塞限制；验收为不得宣称这些常量提供判别增益。
+- [ ] 后续单因素实验：比较 dB-domain resampling 与 linear-power-domain resampling；依赖为新 store/stats 独立版本和用户允许全量重建；证据要求为能量守恒测试与 grouped validation；停止条件为任一 Drone/Bird 指标下降或无法证明物理定义。当前仅为合理假设，不是已确认缺陷，不阻塞本轮训练。
+- [ ] 后续单因素实验：重新设计饱和的 dynamic-range quality scaling；依赖为新 feature-stats schema；验收为 train-only 拟合、无 test、质量分布非退化且两类均不下降。当前不阻塞。
 
-## Stage 004 - 审计原始 RD 时间轴与目标关联资产
+## Stage 004 审查 dataset、窗口、padding 和时间处理
 
-状态：已完成
+依赖：Stage 002/003、dataset/collate/model。
+证据：dataset guards、shape/mask/padding/time 单测与 smoke。
+产物：端到端 shape/mask 契约。
+验收：padding/未来帧不参与 GRU、attention、pooling、frame/prefix/micro 分支。
 
-- [x] 审计 raw 与 CQ08 原始容器、时间字段、MAT 元数据和目标关联字段；输出 `tmp/20260723-stage004-cq08-mat-trackpoint-scan.json` 与 `tmp/20260723-stage004-cq08-trackpoint-coverage.csv`。
-- [x] `raw_tr_rd` 有配对 ID 与相对时间轴，但仅 `35` 个短轨迹；不满足连续 RD 融合样本量。
-- [x] CQ08 标准化的 `time_raw` 是人为帧序号、GPS 字段为空，不能称为 absolute/exact time。
-- [x] 发现原始 CQ08 MAT 帧含 `index_trackPointNo`：扫描 `106026` 帧耗时 `526.9s`，零解析错误；`1505/1549` 轨迹覆盖全部轨迹点、全部索引均在边界内。
-- [x] 验收：CQ08 可重建为“同目标、轨迹点时间锚定、带时间不确定度”的 RD 索引；不得将其误标为 exact time sync。
+- [x] 验证 item `[time,6,21,384]`、batch `[batch,time,6,21,384]`、raw dB `[batch,time,21,384]`；验收为 dataset/collate tests 通过。
+- [x] 验证 padding mask：True 表示 padding；CNN token 清零、packed GRU 用真实 length、mean/max/attention 排除 padding；验收为 padding invariance/all-padding tests 通过。
+- [x] 验证 prefix final index：`lengths-1` 只取末个有效 frame logit；验收为无 padding frame loss。
+- [x] 验证 micro profile：使用 raw dB 转相对功率、真实 time 与 mask；验收为时间顺序/时间间隔敏感测试通过。
+- [x] 验证边界样本：空 batch 拒绝、missing RD 走显式 all-padding 且 active config 禁用、time duplicate/倒序拒绝、短于 12 帧排除；验收为相关单测与 index summary 一致。
 
-## Stage 005 - 重建精确 RD 段与质量元数据
+## Stage 005 审查 RD 编码和模型前向链路
 
-状态：已完成（CQ08 为诊断锚定索引，不是 exact fusion RD）
+依赖：Stage 004、model/statistics/artifacts。
+证据：源码逐层审查、model contract、real smoke forward。
+产物：分支接线和梯度结论。
+验收：输出顺序、mask、softmax/logit、辅助头和最终头一致。
 
-- [x] 对 raw 数据保留真实相对时间轴；对 CQ08 按 `index_trackPointNo -> trajectory point time` 重建，未使用父轨迹比例切片。
-- [x] 生成紧凑 manifest：`data/processed/expert1_cq08_rd_anchor_manifest_v1.csv`，写入目标关联、轨迹点索引/时间、源 RD 帧索引、锚定不确定度、单帧 CPI 时长与质量标记。
-- [x] 全量重建引用 `106026` 个既有 RD 源帧，生成 `29413` 个 anchor 段、`1549` 个父轨迹（完整点覆盖=`1505`、部分=`44`）；耗时 `901.8s`（`15分02秒`）。
-- [x] 修正一次失败的存储设计：首次把重复编码张量写入 shard，在 `25分34秒` 后耗尽 F 盘（`1002` 文件、`267.23GiB`）；已安全删除本次不完整输出，并改为仅引用既有 `.npz` 源张量的紧凑 manifest。
-- [x] 验收：anchor 状态固定为 `track_point_anchor`/`diagnostic-only`，不合格融合证据保持不可融合；v7 资产未覆盖。
+- [x] 审查 anisotropic `(3x7)` CNN、avg/max spatial pool `(6,16)`、token projection；验收为 6 通道固定且无轴错位。
+- [x] 审查 time projection、causal GRU、hidden/mean/max/attention；验收为无 future token、mask 维度正确。
+- [x] 审查 14 维 statistics 与 8 维 quality fusion；验收为 shape/finite guards 和最终 classifier 接线存在。
+- [x] 审查 micro-Doppler 分支与 micro logits；验收为进入 classifier 且有独立 aux loss。
+- [x] 审查 frame/prefix logits；验收为 frame head 有 prefix aux loss，padding frame logits 归零。
+- [x] 审查标签与 checkpoint 输出顺序；验收为 dataset/model/artifact 都是 Drone=0、Bird=1。
+- [x] 审查 legacy residual/gate：patch residual 是旧 v7/TR-window anchor 二分类诊断，不进入 active；novel parent 是旧 Physical-v2；anchor residual trainer 明确 retired；验收为分支结果不得混算。
 
-## Stage 006 - 构建严格因果 RD 窗口映射
+## Stage 006 审查训练目标、loss、采样和 checkpoint
 
-状态：已完成（诊断读取可用，融合资格保持为零）
+依赖：Stage 002/005、trainer/config。
+证据：loss 源码、weight audit、checkpoint round-trip、最终 smoke history。
+产物：loss/权重/优化/选择/恢复能力结论。
+验收：无重复主 CE、无 padding loss、两类均反传、best checkpoint 可复载。
 
-- [x] 以 v7 因果轨迹窗口为基准，构建 `data/processed/expert1_realtime_causal_window_cq08_anchor_map_v1.csv`；映射 `8240/9236` 个窗口。
-- [x] 每个 anchor 仅表达同目标轨迹点关联；覆盖率固定为 `0`，短 RD 不伪装为 10 秒连续覆盖。
-- [x] map 中全部 `track_point_anchor` 窗口解析为 realtime `unavailable`，`rd_fusion_eligible_window_count=0`；生产融合仍强制 trajectory fallback。
-- [x] Drone/Bird 支持量：train=`2718` windows / `510` parents，val=`641` / `110`，test=`572` / `114`；test 未加载进训练或选模。
-- [x] 验收：读取器可按 manifest 引用的源帧索引加载诊断 RD，并在 `load_only_fusion_eligible_rd=true` 时明确拒绝。
+- [x] 拆分 loss：main focal CE + `0.15*prefix CE + 0.25*micro CE`；证据为 full config/trainer；验收为仅各自 logits 计算一次。
+- [x] 核对 class/content/parent/evidence 权重：content/group 与 parent 等权、prefix 按 frame evidence 限幅、Bird class weight=1.35；验收为权重单测与 audit 通过。
+- [x] 核对 missing/padding：`rd_present` mask 使缺失窗口 loss/metrics/aggregation weight 为 0；active `include_missing_rd=false`；验收为回归测试通过。
+- [x] 增加 finite loss/gradient guard 与 gradient norm 记录；最终 smoke 两次 pre-clip norm=21.1628/92.8206，均有限，现有 clip max_norm=1.0；验收为 status=completed。
+- [x] 核对 optimizer：AdamW，无 AMP/scheduler/early stopping；证据为 trainer；验收为配置与风险披露。
+- [x] 核对 checkpoint：保存 model/config/artifact manifest/validation，strict inference reload 通过；验收为最终 smoke 与已有 v9 full checkpoint 都成功复载。
+- [x] 核对 test：`run_test_evaluation=true` 在 config 和 trainer 均拒绝；验收为 test loader 未构建。
+- [ ] 后续增强：保存 optimizer/scheduler/RNG latest checkpoint 以支持中断续训；依赖为新 checkpoint schema 和 round-trip 测试；当前仅支持 best inference checkpoint 恢复，不阻塞一次性全量训练。
 
-## Stage 007 - RD 表征与辅助头最小化消融
+## Stage 007 审查模型性能评估
 
-状态：实现与 smoke 已完成；全预算 RD-only 诊断待训练
+依赖：已有完整 validation summary、修复后的 evaluator/analyzer。
+证据：v8/v9 training summaries、80 项测试、restricted reports。
+产物：window/parent/分类别/混淆/source/session/stable 口径。
+验收：不使用 test，不把 incomplete smoke 当性能。
 
-- [x] 新增 `rd_drone_bird_diagnostic`：复用 RD Transformer、统计与 6 维 micro-Doppler 头，但 API 不构造 trajectory/Joint/final fusion logits。
-- [x] 新增 RD-only Drone/Bird 训练入口；仅加载 train/validation anchor windows，`run_test_evaluation=false`，且训练代码不调用任何 Joint 融合。
-- [x] 默认第一轮仅启用 Transformer token + 统计 + micro-Doppler 辅助头，关闭 patch CNN，禁用 Unknown/Clutter 辅助头。
-- [x] 修复单帧 RD 统计的 `std` warning（使用 `unbiased=false`）；新增 anchor 诊断读取与 RD-only forward 测试。
-- [x] 验收：相关回归 `31 passed`；均衡 smoke 的 `32` train / `32` validation windows 完成（Macro-F1=`0.3333`，仅证明链路，不能选模）。
+- [x] 完整 v9 validation（1792 windows/148 parents）主指标与两类 P/R/F1 均 >=90%；证据为用户此前手动完成的 v9 summary；验收为 best epoch=8、test=false。
+- [x] 完整 v8 validation 作为历史对照；证据为用户此前手动完成的 v8 summary；验收为不通过 legacy checkpoint 冒充当前 v9 复载结果。
+- [x] 补齐 Macro-Precision、Macro-Recall、Balanced Accuracy、confusion 与双向错误；证据为 `_class_metrics` 和单测。
+- [x] 补齐 source 分层；active source 唯一为 `cq08_track`；证据为 index 与 restricted evaluator；验收为 source 仅用于报告不进 forward。
+- [x] 明确 session 不可用：index 无 `session_id/session_name`，不得以 parent 代替；证据为 header/evaluator；验收为 `available=false`。
+- [x] 修正 stable 语义：累计 prefix 是 causal，但“最后一次翻转后稳定时间”只能完整序列后回溯；证据为 analyzer 字段；验收为线上 stable 明确 `available=false`。
+- [x] 增加 evaluator `--max-batches` 与确定性两类均衡 smoke 子集；验收为 incomplete/excluded count 明确且单测通过。
+- [ ] 用户完成全量训练后运行完整新格式 validation（`--max-batches 0`）并生成 predictions/source/analysis；依赖为 Stage 011 checkpoint；验收为 1792 个 val window 全覆盖、excluded=0、仍不运行 test。
 
-## Stage 008 - RD-only Drone/Bird 专家训练与评估
+## Stage 008 审查拒识、开放集和校准
 
-状态：已完成（diagnostic-only，未通过融合门禁）
+依赖：active model/config/evaluator、项目 reject/OOD 全局搜索。
+证据：`supports_rejection=False`、task contract、无 Unknown head/threshold/abstain 输出。
+产物：拒识能力边界。
+验收：不得生成虚假 Coverage/FAR/FRR/Selective Risk。
 
-- [x] 全预算训练完成：`8` epochs、batch=`4`、train=`2718` windows、validation=`641` windows、test=`false`；最佳 checkpoint 为 `artifacts/20260724-122359/20260723-stage008-rd-only-anchor-drone-bird-fullbudget-v1/best_rd_only_drone_bird_model.pt`（epoch=`3`）。
-- [x] 独立 validation 复评一致：window Macro-F1=`0.5250`，Drone P/R=`65.06%/80.20%`、Bird P/R=`44.06%/26.58%`；parent mean-logit Macro-F1=`0.5317`。
-- [x] 对齐冻结 trajectory 基线的全部 `641` 个 CQ08 Drone/Bird validation windows（样本 ID、父轨迹、真值、来源均一致）：RD-only rescue=`66`、harm=`169`、净=`-103`。
-- [x] 父轨迹层比较：RD mean-logit rescue=`4`、harm=`34`、净=`-30`；accuracy=`63.64%`，低于 trajectory majority=`90.91%`。
-- [x] 结论：真实 Bird 的 RD margin 仍整体偏向 Drone，RD-only 不能作为 residual 或替换 trajectory；`track_point_anchor` 的融合阻断保持不变，未运行 test。
-- [x] 验收：诊断报告与可复现对比脚本已输出；Stage 009 不启动，除非取得独立帧级时钟/连续时间证据并重新通过 RD-only 门禁。
+- [x] 搜索 reject/enable_reject/Unknown/OOD/energy/margin/confidence/abstain；结果位于 Expert1/System 五分类链，不属于 active Physical 二分类。
+- [x] 确认 active 无 reject threshold、UnknownTarget logit、OOD score、abstain action；验收结论为“当前支路不具备已验证的拒识能力”。
+- [x] 确认 calibration analyzer 只报告未校准 softmax 的 validation 诊断，`posthoc_calibration_applied=false`、`threshold_selection_performed=false`；验收为不使用 test 调参。
+- [x] 确认 Balloon/Clutter/Unknown 仅存在于全 index/其他分支，active Dataset 严格过滤；验收为不混入二分类 support/分母。
 
-## Stage 009A - CQ08 压缩 RD 帧索引完整性修复
+## Stage 009 执行手术式优化
 
-状态：已修复；修复版 RD-only 全预算诊断待训练
+依赖：Stage 001–008 的已证实问题。
+证据：代码 diff、单测、smoke artifact。
+产物：最小修改集与独立配置。
+验收：不改标签、不删困难样本、不改 test 分母、不引入 TR。
 
-- [x] 定位根因：CQ08 标准化会跳过父轨迹中 shape 不同的 MAT 帧，但 v1 anchor 将原始 MAT 枚举序号误作压缩 `.npz` tensor 序号；`17521` 个被跳过帧使 `5886` 个 v1 anchor 段含失效引用。
-- [x] 全量构建 `data/processed/cq08_rd_frame_index_v1.csv`：`106026` 原始 MAT 帧映射至 `88505` 保留 tensor 帧，`535` 父轨迹存在 shape-drop，耗时 `1045.2s`（`17分25秒`）。
-- [x] 生成 v2 anchor manifest/map：`expert1_cq08_rd_anchor_manifest_v2.csv`、`expert1_realtime_causal_window_cq08_anchor_map_v2.csv`；记录原始 MAT 索引与压缩 tensor 索引两个独立字段。
-- [x] 逐帧验收：全部 `88505` 个保留 tensor 帧零漏引、零越界、零额外引用；`rd_fusion_eligible_window_count=0` 保持不变。
-- [x] v2 诊断读取与均衡 smoke 验证通过：严格路径仍回退，诊断路径可加载；相关测试 `35 passed`。
-- [x] 修复 RD-only 训练日志：启动、首 batch、每 `log_interval_batches`、每 epoch 均 `flush=True` 输出；`training_progress.json` 和 `training_history.json` 每 epoch 立即落盘。
-- [x] 日志 smoke 验证：`64` train / `32` validation batch，首 batch=`0.80s`，每 `8` batch 有进度、ETA 和 loss；中断不会再只留下 checkpoint。
-- [ ] 重新运行修复版 Stage 009A RD-only full-budget：`tmp/20260725-stage009-rd-only-anchor-v2-frame-index-logging-fullbudget-v2-18epochs.json`：epochs=`18`、每 epoch=`655` batch；逐 epoch 保存最佳 validation checkpoint，test/fusion 禁止。
-- [ ] 验收：修复版 RD-only 必须在同一 validation 对齐集合上使 rescue>harm、父轨迹净增益非负；否则 Stage 009 融合永久保持阻断，等待新的独立时间证据。
+- [x] 修复 evaluator 报告契约；文件为 `rd_physical_drone_bird_trainer.py`、`evaluate_rd_physical_drone_bird.py`；验收为指标/source/session/completion/rejection 字段测试通过。
+- [x] 修复 analyzer 对 retrospective stable 的命名与线上声明；文件为 `analyze_rd_physical_validation.py`；验收为在线 stable unavailable 测试通过。
+- [x] 修复未来 canonical builder 的 track-range fallback；文件为 `build_cq08_rd_physical_canonical_store.py`；验收为 missing detected range 明确失败。
+- [x] 增加 loss/gradient finite guard、progress artifact 与 checkpoint 选择说明；验收为最终 smoke history/progress 完整。
+- [x] 新建 smoke/full 独立配置；验收为 config loader 和 `--help` 通过，full 与已验证 v9 超参数逐字段一致，只有输出目录独立。
+- [ ] 后续 one-factor 性能实验：v9 相对 v8 同时改变 pool/attention/token/dropout/prefix/micro/Bird weight/focal，无法归因；依赖为每次只改一个主要因素、独立 artifact；停止条件为任一主要指标或 Drone/Bird P/R/F1 <90%。
 
-## Stage 009 - 质量门控 RD 残差融合
+## Stage 010 Smoke 验证和待训练准备
 
-状态：阻断（Stage 008 RD-only 净增益为负）
+依赖：Stage 009 代码/配置。
+证据：80 passed、compileall、最终 smoke/evaluator/analyzer/latency JSON。
+产物：可执行入口、checkpoint、日志/progress 与 readiness 结论。
+验收：不启动全量训练/重建/完整长评估/test。
 
-- [ ] 使用 trajectory logits 作为主判决，RD 只输出 Drone↔Bird 残差；不让 RD 直接重写其他类别。
-- [ ] 门控只使用可观测质量：同步、覆盖、连续时长、帧间隔、SNR/饱和、RD 自置信与 TR/RD 冲突，不使用 provenance 字段。
-- [ ] 先实现单一可解释残差门控，再与现有复杂 Joint head 隔离对比；禁止同时新增多个辅助头。
-- [ ] 训练时加入 RD dropout、迟到/缺失/乱序模拟，确保无 RD 时 logits 与 trajectory 基线一致。
-- [ ] 验收：validation 的 Drone/Bird rescue 大于 harm，source-balanced、父轨迹 stable 指标不低于基线。
+- [x] 静态编译：`python -m compileall -q src/core src/process config` 通过；验收为 exit 0。
+- [x] RD 专项回归：80 passed、1 个 PyTorch nested-tensor warning；验收为 0 failed。
+- [x] 最终训练 smoke：1 epoch、2 train batches、2 val batches、batch=4、train/val only；artifact=`artifacts/20260802-003631/rd-only-stage010-v9-smoke-seed42`；验收为 status=completed。
+- [x] 两类反传：train support Drone=5、Bird=3，loss finite，gradient finite；验收为 checkpoint 已保存。
+- [x] checkpoint strict reload + evaluator：8 个 balanced val windows，Drone=4/Bird=4，excluded=1784，明确 no performance claim；验收为 exit 0。
+- [x] analyzer：校准仅诊断、无 threshold、retrospective/online 边界明确；验收为 exit 0。
+- [x] latency smoke：1 warmup+2 measured，batch=1，finite logits；验收为 exit 0；不作为生产 stable 证据。
+- [x] 已有 v9 full checkpoint 在当前代码下 strict reload smoke 通过；验收为 schema v9、epoch 8。
+- [x] 待训练条件：入口/config/data hashes/seed/device/batch/epochs/lr/checkpoint/test-off/rejection-off/artifact 规则均固定；验收为“待全量训练：是”。
 
-## Stage 009B - CQ08 全帧 Canonical RD 表征修复
+## Stage 011 输出人工挂机训练命令
 
-状态：已完成（全帧 canonical v3 已验证；融合继续阻断）
+依赖：Stage 010 readiness、实际 `--help`。
+证据：解释器 `.venv\Scripts\python.exe`、入口只支持 `--config`。
+产物：前台/后台/日志/状态/完整 validation 命令。
+验收：本次审查不执行这些全量命令。
 
-- [x] 诊断 v2：帧索引已正确但旧标准化仍丢弃 `17521/106026`（`16.52%`）异形 MAT 帧，可能移除 Drone/Bird 的关键微多普勒片段。
-- [x] 实现 `build_cq08_rd_canonical_store.py`：每个 MAT 帧保存为统一 `31x64` 幅度/相位张量；相位以 sin/cos 重采样后还原，避免 `±π` 环绕伪影；索引分列 raw/tensor frame index。
-- [x] 修复 anchor builder 的父轨迹选择：先和 frame index 求交集后按数值 track ID 截断，避免 `1/10/100` 字符串排序 smoke 错配。
-- [x] trainable smoke：`276/277/281` 共 `310/310` 帧、`52` anchor、`36` 实时窗口，零 shape-drop、零索引越界；`rd_fusion_eligible_window_count=0`。
-- [x] 全量生成 `cq08_rd_canonical_v1/`、`cq08_rd_canonical_frame_index_v1.csv`，验收所有成功读取帧被保留且每父轨迹 tensor 索引连续。
-- [x] 生成 v3 canonical anchor manifest/map，保持 `track_point_anchor`、`unavailable` 和融合资格零；不覆盖 v2。
-- [x] 全量生成 `cq08_rd_canonical_v1/`、`cq08_rd_canonical_frame_index_v1.csv`：`1549` 父轨迹、`106026/106026` 帧、零 shape-drop、零错误、每父轨迹 tensor index 连续。
-- [x] 生成 v3 canonical anchor manifest/map：`29413` segments、`8240` mapped windows；全部为 `unavailable`，`rd_fusion_eligible_window_count=0`，未覆盖 v2。
-- [x] v3 RD-only smoke：`2718` train / `641` validation windows，CUDA batch/epoch 日志与 best validation checkpoint 正常，未运行 test。
-- [x] 冻结 `tmp/20260725-stage009b-rd-only-anchor-v3-canonical-fullbudget-v1-18epochs.json`：18 epoch、batch=4、仅 validation 选模；test 与融合禁止。
-- [x] 完成 v3 18-epoch validation 复评：Macro-F1=`0.7346`，但冻结 trajectory 对齐比较 window net=`-7`、parent net=`-14`；Stage 009 融合继续阻断。
-- [x] 按父轨迹、原始 RD shape、有效连续帧数和类别分组诊断 v3 的 rescue/harm：所有选帧基本连续；Bird `31x360` 为主要 residual harm 组（net=`-29`）。
-
-## Stage 009C - 二维 RD Patch 主干单因素消融
-
-状态：已完成（局部 Bird 子组改善，但整体候选拒绝）
-
-- [x] 复核主干：v3 最优 RD-only 使用 `use_rd_patch_cnn=false`，二维 `64x64` RD patch CNN 不参与分类；这与 Bird `31x360` 残余伤害的表征缺口相符。
-- [x] 运行 patch-CNN CUDA smoke（batch=`2` 与正式 batch=`4`）：无 OOM、batch/epoch 日志正常、validation checkpoint 写入；test=false。batch=`4` 的训练 batch 约 `1.3–1.8s`，后续全预算训练应预留数小时。
-- [x] 冻结 `tmp/20260725-stage009c-rd-only-anchor-v3-patchcnn-fullbudget-v1-18epochs.json`：仅将 `use_rd_patch_cnn` 从 false 切换为 true，保持 v3 数据、seed、batch、损失、优化器与 validation-only 选模不变。
-- [x] 完成 18-epoch patch-CNN 单因素对照：Bird `31x360` harm 降低，但整体 window net=`-19`、parent net=`-9`；候选拒绝，融合继续阻断。
-- [ ] 验收：若 window rescue<=harm 或 parent net<0，融合继续阻断；不得用阈值补偿或 test 调优。
-
-## Stage 009D - Sequence 主干与 Patch 残差契约
-
-状态：已完成（冻结 sequence 与零残差契约已验证）
-
-- [x] 固定 non-patch v3 checkpoint 为回滚主干：window Macro-F1=`0.7346`、Drone P/R=`80.15%/80.94%`、Bird P/R=`66.95%/65.82%`。
-- [x] 固定 patch-CNN 对照结论：Bird `31x360` net=`-12` 优于 non-patch 的 `-29`，但全窗口 net=`-19`，不得作为直接主分类器。
-- [x] 定义残差输出：`final_logits = frozen_sequence_logits + bounded_patch_delta`；patch 不得直接替换或重训练 sequence 主 logits。
-- [x] 定义零残差契约：patch 缺失、全无效或 force-zero 时，final logits 必须逐元素等于 frozen sequence logits。
-- [x] 定义审计字段：evaluator 输出 base logits、delta logits、gate；原始 RD shape 与连续帧数继续由 provenance diagnostic 关联，禁止使用标签、split、轨迹预测或人工阈值作为 gate 输入。
-- [x] 验收：接口可加载 frozen checkpoint；真实 batch 零残差回归通过；strict `unavailable` 未进入 Joint/final fusion。
-
-## Stage 009E - 受控 Patch Residual 实现
-
-状态：已完成（独立 wrapper、trainer 与 evaluator 已实现）
-
-- [x] 新建独立 RD-only residual wrapper，冻结 sequence 主干；只训练 patch encoder、residual head 与可解释 gate。
-- [ ] 将 patch delta 通过有界函数和残差正则限制，记录平均/分位 residual 幅度，防止重复 Stage 009C 的 Bird 偏置。
-- [ ] 保持训练数据、parent split、seed、optimizer、batch size、loss 主项和 validation-only 选模与 v3 一致；不改 Unknown 规则。
-- [ ] 为 checkpoint 加入 base checkpoint provenance、残差尺度和 gate 配置，拒绝不匹配的 base 权重。
-- [x] 验收：真实 frozen checkpoint + real RD batch 覆盖零残差、patch mask 和 checkpoint 契约；测试目录补丁受限时不绕过写入。
-
-## Stage 009F - Residual Smoke 与性能预算
-
-状态：已完成（batch=4 CUDA smoke 与零残差回归通过）
-
-- [x] 运行 batch=`4` CUDA smoke，验证显存、首 batch、日志、checkpoint 与训练器/evaluator 参数一致。
-- [ ] 测量 sequence-only、patch-only、residual 三种 RD-only forward 的 batch 时延与显存；不以 smoke Macro-F1 选模。
-- [ ] 验证强制零残差模式逐元素复现 non-patch v3 logits；RD 缺失/无效时仍保持 trajectory fallback。
-- [x] 验收：无 OOM、evaluator/train path 一致、force-zero 逐元素精确复现 base logits。
-
-## Stage 009G - Full-budget Residual 对照训练
-
-状态：待训练（18-epoch 单因素配置已冻结）
-
-- [x] 冻结 18-epoch 单因素配置；仅增加 residual branch，不扩大原始 RD 数据、window、label 或 test 范围。
-- [ ] 每 epoch 写入整体、Bird `31x360`、Drone `31x570` 的 validation P/R/F1 与 rescue/harm；best checkpoint 只按预先声明的 validation Macro-F1 选择。
-- [ ] 训练过程中不调整阈值、类别权重、学习率或残差尺度；若需要新超参数，另建独立实验卡。
-- [x] 验收：训练完成且 artifact 记录完整；independent test 与融合仍未执行。
-
-## Stage 009H - 分组门禁与下一方向决策
-
-状态：待执行（依赖 Stage 009G）
-
-- [x] 对齐冻结 trajectory 的同一 `641` 个 validation windows，报告全窗口和 parent rescue/harm/net。
-- [x] 复核 Bird `31x360` 改善是否保持 Drone recall 不低于 non-patch v3 的 `80.94%`：未保持，residual Drone recall=`76.98%`。
-- [x] 拒绝 residual 方向：window net=`-2`、parent net=`-13`；转入物理坐标高分辨率 canonical v2 的只读可行性审计。
-- [x] `0.90+` 门禁未通过：Drone/Bird precision、recall 均未同时达到 `0.90`；fusion 与 independent test 继续冻结。
-
-## Stage 009I - CQ08 物理 Doppler 坐标可行性审计
-
-状态：full-budget 已评估（窗口级正增益；父轨迹与 `0.90+` 门禁未通过，fusion/test 继续冻结）
-
-- [x] 新增只读审计器 `src/process/audit_cq08_rd_physical_coordinates.py`；不加载标签进判定逻辑，不重建、训练、融合或评估 test。
-- [x] 全量读取 `106026/106026` 原始 CQ08 MAT 的 `debug_info`；每帧均具备 `freq_hz`、`prt_num`、`prt_s`、`rd_result_size`、`vr_start`、`vr_end`，零解析错误、零 shape/PRT 宽度不一致。
-- [x] 验证 `vr` 轴与 `c=3.0e8` 的 `c/(4*freq_hz*prt_s)`、`2*v_unambiguous/prt_num` 完全一致；最大相对 bin-width 误差=`2.124e-16`。
-- [x] 确认所有帧共同无外推速度支撑约为 `[-90.22, 89.42] m/s`；原始 shape 不能再作为分类输入或切分捷径。
-- [x] 固定 v2 契约：只物理重采样 Doppler 轴，range 保留 `31` 个 target-local bins；公共速度范围=`[-85,85] m/s`、`384` Doppler bins（`0.443864 m/s/bin`），只对 source bin 更细的帧进行 Gaussian 抗混叠；相位以 sin/cos 插值后 `atan2` 还原。
-- [x] 实现 `build_cq08_rd_physical_canonical_store.py` 与 `merge_cq08_rd_physical_canonical_index.py`；每帧 frame index 记录 source velocity bounds、bin width、公共轴覆盖率、anti-alias sigma，合并时与原始 `106026` parent/raw-frame 集合逐一比对。
-- [x] smoke：`3` parents、`308/308` 帧、`31x384`、零错误；`31x570/900` 帧输出有限且 anti-alias sigma 分别为 `0.1315/0.4971`；新 `velocity_mps` 元数据在 `encode_multimodal_rd` 中被识别，主序列 Doppler 投影不再预先压回 `64` bins。
-- [x] 完成全量分区 1–3：父轨迹 `[0,320)`、`[320,762)`、`[762,1149)`，合计 `78059/106026` 帧，零错误；已对 `21149` 帧应用 anti-alias。
-- [x] 用户完成分区 4 并合并验收：`106026` 帧集合零缺失/零额外、每父轨迹 tensor index 连续、`31x384`、公共速度覆盖率 100%、tensor 文件零缺失；anti-alias 总帧数=`33584`。
-- [x] 全量生成 v4 physical anchor manifest/window map：`29413` segments、`8240` mapped windows、零 shape-drop、`rd_fusion_eligible_window_count=0`。
-- [x] 修复 v4 RD 读取：`velocity_mps` 是静态 Doppler 坐标，`WindowAssembler` 不得按帧 index 切片；真实 batch 现为 `[4,128,512,4]`、multimodal=`true`、sync=`unavailable`。
-- [x] CUDA smoke：`4` train + `4` validation batches、batch=`4`、真实 RD length=`128`、日志/validation checkpoint 正常、test=false；冻结 `tmp/20260727-stage009i-rd-physical-v2-fullbudget-v1-18epochs.json`。
-- [x] 用户完成 physical v2 18-epoch RD-only：best epoch=`7`，checkpoint=`artifacts/20260727-145406/20260727-stage009i-rd-physical-v2-fullbudget-v1-18epochs/best_rd_only_drone_bird_model.pt`；仅 validation 选模，test=false。
-- [x] validation 复评与 provenance 诊断：window Macro-F1=`0.7746`、parent Macro-F1=`0.8594`；相对 v3 的 `0.7346/0.7709` 明显提升。对齐 trajectory：window rescue=`94`、harm=`83`、net=`+11`，但 parent rescue=`7`、harm=`12`、net=`-5`。
-- [x] `0.90+` 与融合门禁未通过：Drone P/R=`87.71%/75.99%`，Bird P/R=`66.67%/81.86%`；不运行 test、不启用 fusion、不做阈值调优或把原始 shape 作为部署 gate。
-- [ ] 下一阶段先设计父轨迹稳定化的 RD-only 表征/训练单因素实验；必须针对 `31x360` Bird 和混合 `31x226+31x570` Drone 的负增益，且先证明 parent net 非负后再讨论任何融合。
-
-## Stage 010 - 实时安全回退与部署压力验证
-
-状态：待执行（依赖 Stage 009）
-
-- [ ] 测量目标硬件上的 RD 预处理、模型、后处理、队列等待和端到端 P50/P95/P99。
-- [ ] 注入 RD 缺失、迟到、乱序、错误关联、低覆盖和质量突变，验证强制 trajectory fallback。
-- [ ] 验证多目标持续流下 buffer 上限、丢弃策略、显存峰值和稳定判决时延。
-- [ ] 验收：安全回退零泄漏、P95/P99 满足部署 SLA，且 RD 路径不降低无 RD 场景能力。
-
-## Stage 011 - 联合候选门禁与独立测试准备
-
-状态：待执行（依赖 Stage 010）
-
-- [ ] 在 validation 上冻结最佳配置、门控和阈值，报告 Drone/Bird P/R、全类指标、source-balanced、父轨迹 stable、Unknown/Clutter 与实时指标。
-- [ ] 只有 Drone/Bird precision 和 recall 均达到 `95%`，且所有安全/稳定门禁通过，才批准一次 independent test。
-- [ ] independent test 仅做最终报告；不得回流修改模型、数据、阈值或训练策略。
-- [ ] 更新配置、报告、任务文档和复现命令；不追踪数据、artifact 或 `.anthor/`。
-- [ ] 验收：形成可发布或明确不发布的可复现结论。
-
-## 当前执行事项
-
-- [x] Stage 001-002 已完成，RD 阻断原因已证实为数据对齐/覆盖/时长与训练调度，不是“RD 物理上无区分力”。
-- [x] Stage 003-007 已完成：契约、原始资产审计、紧凑 anchor manifest、窗口 map 与 RD-only 链路均已验证。
-- [x] 用户已批准；Stage 003-009A 的索引修复已完成。修复版 RD-only full-budget 已冻结，融合与 independent test 继续冻结。
-- [x] Stage 009B 已达到待训练状态：全帧 canonical v3 资产、v3 anchor/map、训练 smoke 与相关回归均完成；下一步仅运行冻结的 validation-only 18-epoch RD-only 训练。
+- [x] 生成并复核前台 PowerShell 命令；配置为 `config/rd_only/rd_physical_drone_bird_v9_full_seed42.json`，日志路径固定。
+- [x] 生成并复核后台 `Start-Process -WindowStyle Hidden` 命令，stdout/stderr 分离并保存 PID。
+- [x] 生成日志 tail、PID 状态和训练后 validation/analyzer 命令；validation 强制 `--split val --max-batches 0`。
+- [ ] 用户手动启动全量训练；依赖为本次最终答复命令；本次审查明确不代为启动。
+- [ ] 用户训练完成后运行完整 validation/analyzer 并审查两类是否仍 >=90%；若任一低于 90%，停止进入 test/线上部署并回到 Stage 009 单因素实验。

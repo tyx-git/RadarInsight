@@ -17,6 +17,9 @@ class EncodedRDSequence:
     patch_valid_length: int = 0
     deep_patch_features: torch.Tensor | None = None
     deep_patch_valid_length: int = 0
+    time_seconds: torch.Tensor | None = None
+    patch_time_seconds: torch.Tensor | None = None
+    deep_patch_time_seconds: torch.Tensor | None = None
 
 
 MULTIMODAL_RD_COLUMNS = [
@@ -54,11 +57,58 @@ def _prepare_amplitude(values: np.ndarray) -> np.ndarray:
     return values.astype(np.float32)
 
 
-def _temporal_delta(values: torch.Tensor) -> torch.Tensor:
+def _temporal_delta(values: torch.Tensor, time_seconds: torch.Tensor | None = None) -> torch.Tensor:
     delta = torch.zeros_like(values)
     if values.shape[0] > 1:
-        delta[1:] = values[1:] - values[:-1]
+        differences = values[1:] - values[:-1]
+        if time_seconds is None:
+            delta[1:] = differences
+        else:
+            times = time_seconds.to(device=values.device, dtype=values.dtype).reshape(-1)
+            if int(times.numel()) != int(values.shape[0]):
+                raise ValueError("time_seconds length must match the RD frame count")
+            intervals = times[1:] - times[:-1]
+            positive = intervals[intervals > 1.0e-6]
+            fallback = positive.median() if positive.numel() else intervals.new_tensor(1.0)
+            intervals = torch.where(intervals > 1.0e-6, intervals, fallback).clamp_min(1.0e-6)
+            view_shape = (intervals.shape[0],) + (1,) * (values.ndim - 1)
+            delta[1:] = differences / intervals.reshape(view_shape)
     return delta
+
+
+def _time_axis(rd_tensor: dict[str, np.ndarray], frame_count: int) -> torch.Tensor:
+    for key in ("time_seconds", "time_raw"):
+        raw = rd_tensor.get(key)
+        if raw is None:
+            continue
+        values = np.asarray(raw, dtype=np.float64).reshape(-1)
+        if values.size != frame_count or not np.isfinite(values).all():
+            continue
+        values = values - values[0]
+        if np.all(np.diff(values) >= 0.0):
+            return torch.tensor(values, dtype=torch.float32)
+    return torch.arange(frame_count, dtype=torch.float32)
+
+
+def _circular_mean(values: torch.Tensor, dim: int) -> torch.Tensor:
+    return torch.atan2(torch.sin(values).mean(dim=dim), torch.cos(values).mean(dim=dim))
+
+
+def _circular_interpolate(
+    values: torch.Tensor,
+    *,
+    size: int | tuple[int, ...],
+    mode: str,
+) -> torch.Tensor:
+    sine = F.interpolate(torch.sin(values), size=size, mode=mode, align_corners=False)
+    cosine = F.interpolate(torch.cos(values), size=size, mode=mode, align_corners=False)
+    return torch.atan2(sine, cosine)
+
+
+def _standardize_over_time(values: torch.Tensor) -> torch.Tensor:
+    mean = values.mean(dim=0, keepdim=True)
+    std = values.std(dim=0, keepdim=True, unbiased=False).clamp_min(1.0e-6)
+    return (values - mean) / std
 
 
 def _resample_indices(frame_count: int, target_count: int) -> torch.Tensor:
@@ -94,11 +144,7 @@ def _hybrid_deep_frame_indices(amplitude_frames: torch.Tensor, target_count: int
     if frame_count <= 0:
         return torch.zeros((max(1, target_count),), dtype=torch.long)
     if frame_count <= target_count:
-        base = torch.arange(frame_count, dtype=torch.long)
-        if frame_count == target_count:
-            return base
-        pad = _resample_indices(frame_count, target_count - frame_count)
-        return torch.sort(torch.cat([base, pad], dim=0)).values
+        return torch.arange(frame_count, dtype=torch.long)
 
     energy = frames.abs().mean(dim=(1, 2))
     if frame_count > 1:
@@ -157,6 +203,10 @@ def load_rd_tensor(data_root: Path | str, tensor_path: str) -> dict[str, np.ndar
         }
         if "velocity_mps" in handle.files:
             payload["velocity_mps"] = handle["velocity_mps"].astype(np.float32)
+        if "range_offset_m" in handle.files:
+            payload["range_offset_m"] = handle["range_offset_m"].astype(np.float32)
+        if "time_seconds" in handle.files:
+            payload["time_seconds"] = handle["time_seconds"].astype(np.float32)
         return payload
 
 
@@ -193,61 +243,65 @@ def encode_rd_summary(frame: pd.DataFrame) -> EncodedRDSequence:
     )
 
 
-def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
+def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray], *, legacy: bool = False) -> EncodedRDSequence:
+    if not legacy:
+        raise RuntimeError(
+            "encode_multimodal_rd is legacy-only and cannot feed the active Physical RD-only model; "
+            "use PhysicalRDWindowDataset via the physical model factory"
+        )
     amplitude = np.asarray(rd_tensor["amplitude"], dtype=np.float32)
     phase = np.asarray(rd_tensor["phase"], dtype=np.float32)
-    if amplitude.ndim == 2:
-        amplitude = _prepare_amplitude(amplitude)
+    amplitude = _prepare_amplitude(amplitude.reshape(amplitude.shape[0], -1)).reshape(amplitude.shape)
     phase = np.nan_to_num(phase, nan=0.0, posinf=0.0, neginf=0.0)
 
     if amplitude.ndim == 2 and phase.ndim == 2:
+        frame_times = _time_axis(rd_tensor, int(amplitude.shape[1]))
         amplitude_t = torch.tensor(amplitude.T, dtype=torch.float32).unsqueeze(1)
         phase_t = torch.tensor(phase.T, dtype=torch.float32).unsqueeze(1)
         if amplitude_t.shape[-1] != MULTIMODAL_RD_RANGE_BINS:
             amplitude_t = F.interpolate(amplitude_t, size=MULTIMODAL_RD_RANGE_BINS, mode="linear", align_corners=False)
         if phase_t.shape[-1] != MULTIMODAL_RD_RANGE_BINS:
-            phase_t = F.interpolate(phase_t, size=MULTIMODAL_RD_RANGE_BINS, mode="linear", align_corners=False)
-        amplitude = amplitude_t.squeeze(1).cpu().numpy()
-        phase = phase_t.squeeze(1).cpu().numpy()
-        amp_mean = amplitude.mean(axis=0, keepdims=True)
-        amp_std = amplitude.std(axis=0, keepdims=True)
-        amp_std = np.where(amp_std < 1e-6, 1.0, amp_std)
-        amplitude = (amplitude - amp_mean) / amp_std
-        phase = phase / np.pi
-        zeros = np.zeros_like(amplitude, dtype=np.float32)
-        stacked = np.stack([amplitude, phase, zeros, zeros], axis=-1)
-        patch_amp = torch.tensor(amplitude, dtype=torch.float32).unsqueeze(1)
-        patch_phase = torch.tensor(phase, dtype=torch.float32).unsqueeze(1)
+            phase_t = _circular_interpolate(
+                phase_t,
+                size=MULTIMODAL_RD_RANGE_BINS,
+                mode="linear",
+            )
+        amplitude_profile = _standardize_over_time(amplitude_t.squeeze(1))
+        phase_profile = phase_t.squeeze(1) / np.pi
+        zeros = torch.zeros_like(amplitude_profile)
+        stacked = torch.stack([amplitude_profile, phase_profile, zeros, zeros], dim=-1)
+        patch_amp = amplitude_profile.unsqueeze(1)
+        patch_phase = phase_t
         patch_amp = F.interpolate(
             patch_amp,
             size=MULTIMODAL_RD_PATCH_RANGE_BINS,
             mode="linear",
             align_corners=False,
         ).squeeze(1)
-        patch_phase = F.interpolate(
+        patch_phase = _circular_interpolate(
             patch_phase,
             size=MULTIMODAL_RD_PATCH_RANGE_BINS,
             mode="linear",
-            align_corners=False,
-        ).squeeze(1)
+        ).squeeze(1) / np.pi
         patch_amp = patch_amp.unsqueeze(-1).repeat(1, 1, MULTIMODAL_RD_PATCH_DOPPLER_BINS)
         patch_phase = patch_phase.unsqueeze(-1).repeat(1, 1, MULTIMODAL_RD_PATCH_DOPPLER_BINS)
-        patch_delta = _temporal_delta(patch_amp)
+        patch_delta = _temporal_delta(patch_amp, frame_times)
         patch_tensor = torch.stack([patch_amp, patch_phase, patch_delta], dim=-1).to(torch.float32)
-        deep_indices = _hybrid_deep_frame_indices(torch.tensor(amplitude, dtype=torch.float32), MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
+        deep_indices = _hybrid_deep_frame_indices(amplitude_profile, MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
+        deep_times = frame_times.index_select(0, deep_indices)
         deep_patch_amp = patch_amp.index_select(0, deep_indices)
         deep_patch_phase = patch_phase.index_select(0, deep_indices)
-        deep_patch_delta = _temporal_delta(deep_patch_amp)
+        deep_patch_delta = _temporal_delta(deep_patch_amp, deep_times)
         deep_patch_tensor = torch.stack([deep_patch_amp, deep_patch_phase, deep_patch_delta], dim=-1).to(torch.float32)
     elif amplitude.ndim == 3 and phase.ndim == 3:
         frame_count, range_bins, doppler_bins = amplitude.shape
+        frame_times = _time_axis(rd_tensor, frame_count)
         physical_velocity_axis = np.asarray(rd_tensor.get("velocity_mps", []), dtype=np.float32).reshape(-1)
         target_doppler_bins = (
             int(physical_velocity_axis.size)
             if physical_velocity_axis.size == doppler_bins and physical_velocity_axis.size > 0
             else MULTIMODAL_RD_DOPPLER_BINS
         )
-        amplitude = _prepare_amplitude(amplitude.reshape(frame_count, -1)).reshape(frame_count, range_bins, doppler_bins)
         amplitude_t = torch.tensor(amplitude, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         phase_t = torch.tensor(phase, dtype=torch.float32).reshape(frame_count, 1, range_bins, doppler_bins)
         amplitude_t = F.interpolate(
@@ -256,89 +310,69 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
             mode="bilinear",
             align_corners=False,
         )
-        phase_t = F.interpolate(
+        phase_t = _circular_interpolate(
             phase_t,
             size=(MULTIMODAL_RD_RANGE_BINS, target_doppler_bins),
             mode="bilinear",
-            align_corners=False,
         )
-        amp_range = amplitude_t.squeeze(1).mean(dim=-1).transpose(0, 1).unsqueeze(0)
-        ph_range = phase_t.squeeze(1).mean(dim=-1).transpose(0, 1).unsqueeze(0)
-        amp_dopp = amplitude_t.squeeze(1).mean(dim=1).transpose(0, 1).unsqueeze(0)
-        ph_dopp = phase_t.squeeze(1).mean(dim=1).transpose(0, 1).unsqueeze(0)
-        amp_range = F.interpolate(amp_range, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        ph_range = F.interpolate(ph_range, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        amp_dopp = F.interpolate(amp_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        ph_dopp = F.interpolate(ph_dopp, size=MULTIMODAL_RD_TIME_BINS, mode="linear", align_corners=False).squeeze(0).transpose(0, 1).cpu().numpy()
-        amp_range_mean = amp_range.mean(axis=0, keepdims=True)
-        amp_range_std = amp_range.std(axis=0, keepdims=True)
-        amp_range_std = np.where(amp_range_std < 1e-6, 1.0, amp_range_std)
-        amp_dopp_mean = amp_dopp.mean(axis=0, keepdims=True)
-        amp_dopp_std = amp_dopp.std(axis=0, keepdims=True)
-        amp_dopp_std = np.where(amp_dopp_std < 1e-6, 1.0, amp_dopp_std)
-        amp_range = (amp_range - amp_range_mean) / amp_range_std
-        amp_dopp = (amp_dopp - amp_dopp_mean) / amp_dopp_std
-        ph_range = ph_range / np.pi
-        ph_dopp = ph_dopp / np.pi
-        if amp_dopp.shape[1] != MULTIMODAL_RD_RANGE_BINS:
-            amp_dopp_t = torch.tensor(amp_dopp[:, None, :], dtype=torch.float32)
-            ph_dopp_t = torch.tensor(ph_dopp[:, None, :], dtype=torch.float32)
-            amp_dopp = F.interpolate(amp_dopp_t, size=MULTIMODAL_RD_RANGE_BINS, mode="linear", align_corners=False).squeeze(1).cpu().numpy()
-            ph_dopp = F.interpolate(ph_dopp_t, size=MULTIMODAL_RD_RANGE_BINS, mode="linear", align_corners=False).squeeze(1).cpu().numpy()
-        stacked = np.stack([amp_range, ph_range, amp_dopp, ph_dopp], axis=-1)
-        amp_volume = amplitude_t.permute(1, 0, 2, 3).unsqueeze(0)
-        phase_volume = phase_t.permute(1, 0, 2, 3).unsqueeze(0)
+        amplitude_plane = amplitude_t.squeeze(1)
+        phase_plane = phase_t.squeeze(1)
+        amp_range = _standardize_over_time(amplitude_plane.mean(dim=-1))
+        ph_range = _circular_mean(phase_plane, dim=-1) / np.pi
+        amp_dopp = amplitude_plane.mean(dim=1).unsqueeze(1)
+        amp_dopp = F.interpolate(
+            amp_dopp,
+            size=MULTIMODAL_RD_RANGE_BINS,
+            mode="linear",
+            align_corners=False,
+        ).squeeze(1)
+        amp_dopp = _standardize_over_time(amp_dopp)
+        ph_dopp = _circular_mean(phase_plane, dim=1).unsqueeze(1)
+        ph_dopp = _circular_interpolate(
+            ph_dopp,
+            size=MULTIMODAL_RD_RANGE_BINS,
+            mode="linear",
+        ).squeeze(1) / np.pi
+        stacked = torch.stack([amp_range, ph_range, amp_dopp, ph_dopp], dim=-1)
         amp_patch = F.interpolate(
-            amp_volume,
-            size=(
-                MULTIMODAL_RD_TIME_BINS,
-                MULTIMODAL_RD_PATCH_RANGE_BINS,
-                MULTIMODAL_RD_PATCH_DOPPLER_BINS,
-            ),
-            mode="trilinear",
+            amplitude_t,
+            size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
+            mode="bilinear",
             align_corners=False,
-        ).squeeze(0).squeeze(0)
-        phase_patch = F.interpolate(
-            phase_volume,
-            size=(
-                MULTIMODAL_RD_TIME_BINS,
-                MULTIMODAL_RD_PATCH_RANGE_BINS,
-                MULTIMODAL_RD_PATCH_DOPPLER_BINS,
-            ),
-            mode="trilinear",
-            align_corners=False,
-        ).squeeze(0).squeeze(0)
-        amp_patch_mean = amp_patch.mean(dim=0, keepdim=True)
-        amp_patch_std = amp_patch.std(dim=0, keepdim=True).clamp_min(1e-6)
-        amp_patch = (amp_patch - amp_patch_mean) / amp_patch_std
+        ).squeeze(1)
+        phase_patch = _circular_interpolate(
+            phase_t,
+            size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
+            mode="bilinear",
+        ).squeeze(1)
+        amp_patch = _standardize_over_time(amp_patch)
         phase_patch = phase_patch / np.pi
-        patch_delta = _temporal_delta(amp_patch)
+        patch_delta = _temporal_delta(amp_patch, frame_times)
         patch_tensor = torch.stack([amp_patch, phase_patch, patch_delta], dim=-1).to(torch.float32)
-        deep_indices = _hybrid_deep_frame_indices(amplitude_t.squeeze(1), MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
-        deep_amp = amplitude_t.squeeze(1).index_select(0, deep_indices)
-        deep_phase = phase_t.squeeze(1).index_select(0, deep_indices)
+        deep_indices = _hybrid_deep_frame_indices(amplitude_plane, MULTIMODAL_RD_DEEP_PATCH_TIME_BINS)
+        deep_times = frame_times.index_select(0, deep_indices)
+        deep_amp = amplitude_plane.index_select(0, deep_indices)
+        deep_phase = phase_plane.index_select(0, deep_indices)
         deep_amp = F.interpolate(
             deep_amp.unsqueeze(1),
             size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
             mode="bilinear",
             align_corners=False,
         ).squeeze(1)
-        deep_phase = F.interpolate(
+        deep_phase = _circular_interpolate(
             deep_phase.unsqueeze(1),
             size=(MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS),
             mode="bilinear",
-            align_corners=False,
         ).squeeze(1)
-        deep_amp_mean = deep_amp.mean(dim=0, keepdim=True)
-        deep_amp_std = deep_amp.std(dim=0, keepdim=True).clamp_min(1e-6)
-        deep_amp = (deep_amp - deep_amp_mean) / deep_amp_std
+        deep_amp = _standardize_over_time(deep_amp)
         deep_phase = deep_phase / np.pi
-        deep_delta = _temporal_delta(deep_amp)
+        deep_delta = _temporal_delta(deep_amp, deep_times)
         deep_patch_tensor = torch.stack([deep_amp, deep_phase, deep_delta], dim=-1).to(torch.float32)
     else:
         raise ValueError("rd tensor must be 2D [range_bin, frame] or 3D [frame, range_bin, doppler_bin]")
 
-    tensor = torch.tensor(stacked, dtype=torch.float32)
+    tensor = torch.as_tensor(stacked, dtype=torch.float32)
+    tensor = torch.nan_to_num(tensor, nan=0.0, posinf=0.0, neginf=0.0)
     patch_tensor = torch.nan_to_num(patch_tensor, nan=0.0, posinf=0.0, neginf=0.0)
     deep_patch_tensor = torch.nan_to_num(deep_patch_tensor, nan=0.0, posinf=0.0, neginf=0.0)
     return EncodedRDSequence(
@@ -348,6 +382,9 @@ def encode_multimodal_rd(rd_tensor: dict[str, np.ndarray]) -> EncodedRDSequence:
         patch_valid_length=int(patch_tensor.shape[0]),
         deep_patch_features=deep_patch_tensor,
         deep_patch_valid_length=int(deep_patch_tensor.shape[0]),
+        time_seconds=frame_times,
+        patch_time_seconds=frame_times,
+        deep_patch_time_seconds=deep_times,
     )
 
 

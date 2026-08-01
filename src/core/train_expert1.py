@@ -4,7 +4,7 @@ import argparse
 import json
 
 from config.configmanager import load_expert1_config
-from .expert1_trainer import train_expert1_v1
+from .expert1_trainer import train_expert1
 
 
 def parse_args() -> argparse.Namespace:
@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     config = load_expert1_config(args.config)
-    summary = train_expert1_v1(config)
+    summary = train_expert1(config)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

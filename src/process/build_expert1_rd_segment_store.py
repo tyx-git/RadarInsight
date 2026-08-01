@@ -129,6 +129,9 @@ def _expand_summary_rd(encoded: EncodedRDSequence) -> EncodedRDSequence:
         patch_valid_length=int(patch.shape[0]),
         deep_patch_features=patch,
         deep_patch_valid_length=int(patch.shape[0]),
+        time_seconds=encoded.time_seconds,
+        patch_time_seconds=encoded.patch_time_seconds,
+        deep_patch_time_seconds=encoded.deep_patch_time_seconds,
     )
 
 
@@ -350,6 +353,33 @@ def _slice_encoded_rd(
         patch_valid_length=patch_valid_length,
         deep_patch_features=deep_patch_features,
         deep_patch_valid_length=deep_patch_valid_length,
+        time_seconds=(
+            _slice_time_tensor(encoded.time_seconds, encoded.valid_length, start_fraction, end_fraction, min_frames)[0]
+            if encoded.time_seconds is not None
+            else None
+        ),
+        patch_time_seconds=(
+            _slice_time_tensor(
+                encoded.patch_time_seconds,
+                encoded.patch_valid_length or int(encoded.patch_time_seconds.shape[0]),
+                start_fraction,
+                end_fraction,
+                min_frames,
+            )[0]
+            if encoded.patch_time_seconds is not None
+            else None
+        ),
+        deep_patch_time_seconds=(
+            _slice_time_tensor(
+                encoded.deep_patch_time_seconds,
+                encoded.deep_patch_valid_length or int(encoded.deep_patch_time_seconds.shape[0]),
+                start_fraction,
+                end_fraction,
+                min_frames,
+            )[0]
+            if encoded.deep_patch_time_seconds is not None and deep_patch_features is not None
+            else None
+        ),
     )
 
 
@@ -371,7 +401,7 @@ def _slice_parent_rd_segment(
         )
         if end_index > start_index:
             clipped_tensor = _slice_rd_tensor_frames(parent_rd.rd_tensor, start_index, end_index)
-            clipped_encoded = encode_multimodal_rd(clipped_tensor)
+            clipped_encoded = encode_multimodal_rd(clipped_tensor, legacy=True)
             if deep_patch_mode == "patch" and clipped_encoded.patch_features is not None:
                 clipped_encoded = EncodedRDSequence(
                     features=clipped_encoded.features,
@@ -380,6 +410,9 @@ def _slice_parent_rd_segment(
                     patch_valid_length=clipped_encoded.patch_valid_length,
                     deep_patch_features=clipped_encoded.patch_features,
                     deep_patch_valid_length=clipped_encoded.patch_valid_length,
+                    time_seconds=clipped_encoded.time_seconds,
+                    patch_time_seconds=clipped_encoded.patch_time_seconds,
+                    deep_patch_time_seconds=clipped_encoded.patch_time_seconds,
                 )
             elif deep_patch_mode == "none":
                 clipped_encoded = EncodedRDSequence(
@@ -389,6 +422,9 @@ def _slice_parent_rd_segment(
                     patch_valid_length=clipped_encoded.patch_valid_length,
                     deep_patch_features=None,
                     deep_patch_valid_length=0,
+                    time_seconds=clipped_encoded.time_seconds,
+                    patch_time_seconds=clipped_encoded.patch_time_seconds,
+                    deep_patch_time_seconds=None,
                 )
             segment_times = parent_rd.rd_time_seconds[start_index:end_index]
             return (
@@ -414,7 +450,7 @@ def _slice_parent_rd_segment(
         )
         if end_index > start_index:
             clipped_tensor = _slice_rd_tensor_frames(parent_rd.rd_tensor, start_index, end_index)
-            clipped_encoded = encode_multimodal_rd(clipped_tensor)
+            clipped_encoded = encode_multimodal_rd(clipped_tensor, legacy=True)
             if deep_patch_mode == "patch" and clipped_encoded.patch_features is not None:
                 clipped_encoded = EncodedRDSequence(
                     features=clipped_encoded.features,
@@ -423,6 +459,9 @@ def _slice_parent_rd_segment(
                     patch_valid_length=clipped_encoded.patch_valid_length,
                     deep_patch_features=clipped_encoded.patch_features,
                     deep_patch_valid_length=clipped_encoded.patch_valid_length,
+                    time_seconds=clipped_encoded.time_seconds,
+                    patch_time_seconds=clipped_encoded.patch_time_seconds,
+                    deep_patch_time_seconds=clipped_encoded.patch_time_seconds,
                 )
             elif deep_patch_mode == "none":
                 clipped_encoded = EncodedRDSequence(
@@ -432,6 +471,9 @@ def _slice_parent_rd_segment(
                     patch_valid_length=clipped_encoded.patch_valid_length,
                     deep_patch_features=None,
                     deep_patch_valid_length=0,
+                    time_seconds=clipped_encoded.time_seconds,
+                    patch_time_seconds=clipped_encoded.patch_time_seconds,
+                    deep_patch_time_seconds=None,
                 )
             return (
                 clipped_encoded,
@@ -476,7 +518,7 @@ def _load_parent_rd(data_root: Path, row: pd.Series) -> ParentRDData:
                 rd_time_axis_is_exact=True,
             )
         return ParentRDData(
-            encoded=encode_multimodal_rd(rd_tensor),
+            encoded=encode_multimodal_rd(rd_tensor, legacy=True),
             rd_is_multimodal=True,
             time_sync_status="time_axis_unavailable" if rd_time_seconds is None else "proportional_fallback",
             rd_tensor=rd_tensor if rd_time_seconds is not None else None,
@@ -664,6 +706,11 @@ def build_expert1_rd_segment_store(
                     "rd_time_start_seconds": rd_time_start_seconds,
                     "rd_time_end_seconds": rd_time_end_seconds,
                     "rd_features": segment.features.to(torch.float32).cpu(),
+                    "rd_time_seconds": (
+                        segment.time_seconds.to(torch.float32).cpu()
+                        if segment.time_seconds is not None
+                        else torch.arange(segment.valid_length, dtype=torch.float32)
+                    ),
                     "rd_valid_length": int(segment.valid_length),
                     "rd_patch_features": (
                         segment.patch_features.to(torch.float32).cpu()
@@ -671,12 +718,22 @@ def build_expert1_rd_segment_store(
                         else torch.zeros((1, MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS, 3), dtype=torch.float32)
                     ),
                     "rd_patch_valid_length": int(segment.patch_valid_length or 1),
+                    "rd_patch_time_seconds": (
+                        segment.patch_time_seconds.to(torch.float32).cpu()
+                        if segment.patch_time_seconds is not None
+                        else torch.arange(segment.patch_valid_length or 1, dtype=torch.float32)
+                    ),
                     "rd_deep_patch_features": (
                         segment.deep_patch_features.to(torch.float32).cpu()
                         if segment.deep_patch_features is not None
                         else torch.zeros((1, MULTIMODAL_RD_PATCH_RANGE_BINS, MULTIMODAL_RD_PATCH_DOPPLER_BINS, 3), dtype=torch.float32)
                     ),
                     "rd_deep_patch_valid_length": int(segment.deep_patch_valid_length or 1),
+                    "rd_deep_patch_time_seconds": (
+                        segment.deep_patch_time_seconds.to(torch.float32).cpu()
+                        if segment.deep_patch_time_seconds is not None
+                        else torch.arange(segment.deep_patch_valid_length or 1, dtype=torch.float32)
+                    ),
                     "rd_coverage_ratio": float(coverage_ratio),
                     "rd_time_coverage_ratio": float(rd_time_coverage_ratio),
                     "rd_quality_flags": quality_flags,

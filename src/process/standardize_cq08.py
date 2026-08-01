@@ -75,7 +75,11 @@ def _load_point_df(point_path: Path) -> pd.DataFrame:
     frame = frame.copy()
     frame["time_seconds"] = point_time.astype(float)
     frame["point_radial_speed_mps"] = pd.to_numeric(frame["多普勒速度"], errors="coerce").astype(float)
-    frame["point_amplitude_db"] = pd.to_numeric(frame["和幅度"], errors="coerce").astype(float)
+    # CQ08 `和幅度` is an uncalibrated linear magnitude, not a dB quantity.
+    # Keep its raw semantic name here; the legacy `amplitude_db` column is only
+    # populated later for schema compatibility and is source-normalized/logged
+    # before it reaches the physical projection.
+    frame["point_amplitude_raw"] = pd.to_numeric(frame["和幅度"], errors="coerce").astype(float)
     point_snr = pd.to_numeric(frame["信噪比"], errors="coerce").fillna(0.0).astype(float)
     point_snr = np.maximum(point_snr.to_numpy(dtype=float), 0.0)
     frame["point_snr_db"] = 10.0 * np.log10(point_snr + 1.0)
@@ -130,7 +134,7 @@ def export_cq08_tracks(project_root: Path, limit: int | None = None) -> list[Dic
         )
         point_df = _load_point_df(point_path)
         point_agg = (
-            point_df.groupby("time_seconds", as_index=False)[["point_radial_speed_mps", "point_amplitude_db", "point_snr_db"]]
+            point_df.groupby("time_seconds", as_index=False)[["point_radial_speed_mps", "point_amplitude_raw", "point_snr_db"]]
             .mean()
             .sort_values("time_seconds")
         )
@@ -144,9 +148,12 @@ def export_cq08_tracks(project_root: Path, limit: int | None = None) -> list[Dic
         if "point_radial_speed_mps" in df:
             df["radial_speed_mps"] = pd.to_numeric(df["point_radial_speed_mps"], errors="coerce").fillna(df["radial_speed_mps"]).astype(float)
             df = df.drop(columns=["point_radial_speed_mps"])
-        if "point_amplitude_db" in df:
-            df["amplitude_db"] = pd.to_numeric(df["point_amplitude_db"], errors="coerce").fillna(df["amplitude_db"]).astype(float)
-            df = df.drop(columns=["point_amplitude_db"])
+        if "point_amplitude_raw" in df:
+            # `amplitude_db` is a legacy schema field.  Values from CQ08 retain
+            # their raw linear unit here and are handled by the explicit
+            # source-aware signed-log physical normalization contract.
+            df["amplitude_db"] = pd.to_numeric(df["point_amplitude_raw"], errors="coerce").fillna(df["amplitude_db"]).astype(float)
+            df = df.drop(columns=["point_amplitude_raw"])
         if "point_snr_db" in df:
             df["snr_db"] = pd.to_numeric(df["point_snr_db"], errors="coerce").fillna(df["snr_db"]).astype(float)
             df = df.drop(columns=["point_snr_db"])

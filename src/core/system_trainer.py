@@ -11,18 +11,24 @@ import torch
 from torch import nn
 
 from .device import resolve_cuda_device
-from .forwardlayer.dataloaders import build_dataloaders
-from .forwardlayer.dataset import TrackDataset
-from .forwardlayer.labels import DEFAULT_VOCAB
+from .data.dataloaders import build_dataloaders
+from .data.track_dataset import TrackDataset
+from .data.labels import DEFAULT_VOCAB
 from .experts import LOW_ALTITUDE_CLASSES
 from .expert1_trainer import _precision_logit_bias_from_checkpoint
+from .features import (
+    track_sequence_continuous_feature_indices,
+    track_sequence_feature_columns,
+    track_sequence_feature_dim,
+)
 from .router import ROUTE_NAMES
 from .reporting import write_real_experiment_report
 from .run_paths import prepare_run_output_dir
 from .system import RadarClassificationSystem, RerouteConfig
 from .system_config import SystemTrainConfig
 from .system_metrics import compute_confusion_matrix, compute_per_class_metrics, compute_system_metrics
-from .physical import PHYSICAL_FEATURE_COLUMNS
+from .physical import physical_feature_dim
+from .physical import physical_continuous_feature_indices
 
 
 SAFETY_CRITICAL_PAIRS = [
@@ -232,8 +238,90 @@ def _set_router_trainable(model: nn.Module, trainable: bool) -> None:
         param.requires_grad = trainable
 
 
-def _load_pretrained_track_encoder(model: nn.Module, checkpoint_path: str, device: torch.device) -> dict[str, object]:
+def _load_pretrained_track_encoder(
+    model: nn.Module,
+    checkpoint_path: str,
+    device: torch.device,
+    *,
+    expected_trajectory_feature_schema: str | None = None,
+    expected_temporal_encoding_mode: str | None = None,
+    expected_temporal_pooling_mode: str | None = None,
+) -> dict[str, object]:
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    checkpoint_config = checkpoint.get("config", {})
+    checkpoint_schema = str(
+        checkpoint.get(
+            "trajectory_feature_schema",
+            checkpoint_config.get("trajectory_feature_schema", "v1")
+            if isinstance(checkpoint_config, dict)
+            else "v1",
+        )
+    ).strip().lower()
+    runtime_schema = str(
+        expected_trajectory_feature_schema
+        if expected_trajectory_feature_schema is not None
+        else getattr(model, "trajectory_feature_schema", checkpoint_schema)
+    ).strip().lower()
+    if checkpoint_schema != runtime_schema:
+        raise ValueError(
+            "system pretrain checkpoint trajectory schema mismatch: "
+            f"checkpoint={checkpoint_schema}, runtime={runtime_schema}"
+        )
+    expected_dim = track_sequence_feature_dim(runtime_schema)
+    runtime_dim = int(
+        getattr(
+            model.representation_builder.sequence_encoder,
+            "input_dim",
+            getattr(model.representation_builder.sequence_encoder, "in_features", -1),
+        )
+    )
+    if runtime_dim != expected_dim:
+        raise ValueError(
+            "system pretrain runtime sequence dimension does not match schema: "
+            f"schema={runtime_schema}, runtime_dim={runtime_dim}, expected_dim={expected_dim}"
+        )
+    contract = checkpoint.get("feature_contract", {})
+    if isinstance(contract, dict) and contract.get("feature_columns") is not None:
+        expected_columns = track_sequence_feature_columns(runtime_schema)
+        if list(contract["feature_columns"]) != expected_columns:
+            raise ValueError(
+                "system pretrain checkpoint feature order does not match its schema"
+            )
+    checkpoint_temporal = checkpoint.get("temporal_contract", {})
+    if not isinstance(checkpoint_temporal, dict):
+        checkpoint_temporal = {}
+    checkpoint_encoding = str(
+        checkpoint_temporal.get(
+            "encoding_mode",
+            checkpoint_config.get("temporal_encoding_mode", "none")
+            if isinstance(checkpoint_config, dict)
+            else "none",
+        )
+    ).strip().lower()
+    checkpoint_pooling = str(
+        checkpoint_temporal.get(
+            "pooling_mode",
+            checkpoint_config.get("temporal_pooling_mode", "mean")
+            if isinstance(checkpoint_config, dict)
+            else "mean",
+        )
+    ).strip().lower()
+    runtime_encoding = str(
+        expected_temporal_encoding_mode
+        if expected_temporal_encoding_mode is not None
+        else getattr(model, "temporal_encoding_mode", "none")
+    ).strip().lower()
+    runtime_pooling = str(
+        expected_temporal_pooling_mode
+        if expected_temporal_pooling_mode is not None
+        else getattr(model, "temporal_pooling_mode", "mean")
+    ).strip().lower()
+    if checkpoint_encoding != runtime_encoding or checkpoint_pooling != runtime_pooling:
+        raise ValueError(
+            "system pretrain checkpoint temporal contract mismatch: "
+            f"checkpoint=({checkpoint_encoding},{checkpoint_pooling}), "
+            f"runtime=({runtime_encoding},{runtime_pooling})"
+        )
     state_dict = checkpoint.get("model_state_dict", checkpoint)
     encoder_state = {
         key[len("encoder."):] if key.startswith("encoder.") else key: value
@@ -242,11 +330,46 @@ def _load_pretrained_track_encoder(model: nn.Module, checkpoint_path: str, devic
     }
     if not encoder_state:
         raise ValueError(f"no encoder.* weights found in pretrain checkpoint: {checkpoint_path}")
-    missing, unexpected = model.representation_builder.sequence_encoder.load_state_dict(encoder_state, strict=False)
+    expected_state = model.representation_builder.sequence_encoder.state_dict()
+    missing = sorted(set(expected_state) - set(encoder_state))
+    unexpected = sorted(set(encoder_state) - set(expected_state))
+    shape_mismatch = sorted(
+        key
+        for key, value in encoder_state.items()
+        if key in expected_state and tuple(value.shape) != tuple(expected_state[key].shape)
+    )
+    if missing or unexpected or shape_mismatch:
+        raise ValueError(
+            "system pretrain checkpoint encoder state is incompatible: "
+            f"missing={missing}, unexpected={unexpected}, shape_mismatch={shape_mismatch}"
+        )
+    model.representation_builder.sequence_encoder.load_state_dict(encoder_state, strict=True)
+    source_stats = checkpoint.get("source_feature_stats", {})
+    if runtime_schema == "v3" and (not isinstance(source_stats, dict) or not source_stats):
+        raise ValueError("system V3 pretrain checkpoint is missing source_feature_stats")
+    if isinstance(source_stats, dict):
+        for source_name, values in source_stats.items():
+            if not isinstance(values, dict) or "center" not in values or "scale" not in values:
+                raise ValueError(f"system pretrain source stats are invalid for source={source_name}")
+            center = torch.as_tensor(values["center"], dtype=torch.float32).flatten()
+            scale = torch.as_tensor(values["scale"], dtype=torch.float32).flatten()
+            if center.numel() != expected_dim or scale.numel() != expected_dim:
+                raise ValueError(
+                    "system pretrain source stats dimension mismatch: "
+                    f"source={source_name}, expected={expected_dim}, "
+                    f"center={center.numel()}, scale={scale.numel()}"
+                )
+            if not bool(torch.isfinite(center).all()) or not bool(torch.isfinite(scale).all()) or bool((scale <= 0).any()):
+                raise ValueError(f"system pretrain source stats are non-finite or non-positive for source={source_name}")
     return {
         "loaded_keys": len(encoder_state),
-        "missing_keys": list(missing),
-        "unexpected_keys": list(unexpected),
+        "missing_keys": [],
+        "unexpected_keys": [],
+        "trajectory_feature_schema": checkpoint_schema,
+        "temporal_contract": {
+            "encoding_mode": checkpoint_encoding,
+            "pooling_mode": checkpoint_pooling,
+        },
     }
 
 
@@ -345,18 +468,192 @@ def _load_expert_bundle(
     return info
 
 
-def _load_expert1_bundle(model: nn.Module, checkpoint_path: str, device: torch.device) -> dict[str, object]:
+def _load_expert1_bundle(
+    model: nn.Module,
+    checkpoint_path: str,
+    device: torch.device,
+    *,
+    expected_trajectory_feature_schema: str | None = None,
+    expected_physical_representation_contract_version: str | None = None,
+    expected_temporal_encoding_mode: str | None = None,
+    expected_temporal_pooling_mode: str | None = None,
+) -> dict[str, object]:
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     info: dict[str, object] = {"expert_name": "expert1_v1"}
-    if "representation_builder_state_dict" in checkpoint:
-        info["representation_builder"] = _load_compatible_state_dict(
-            model.representation_builder,
-            checkpoint["representation_builder_state_dict"],
-        )
-    if "rd_proj_state_dict" in checkpoint:
-        info["rd_proj"] = _load_compatible_state_dict(model.rd_proj, checkpoint["rd_proj_state_dict"])
     model_key = checkpoint.get("model_state_dict", {})
-    info["expert_module"] = _load_compatible_state_dict(model.low_altitude_expert, model_key)
+    has_representation_bundle = "representation_builder_state_dict" in checkpoint
+    if has_representation_bundle:
+        if not hasattr(model, "representation_builder") or not hasattr(model, "rd_proj"):
+            raise ValueError(
+                "full Expert1 checkpoint requires a system with representation_builder and rd_proj"
+            )
+        checkpoint_config = checkpoint.get("config", {})
+        checkpoint_schema = str(
+            checkpoint.get(
+                "trajectory_feature_schema",
+                checkpoint_config.get("trajectory_feature_schema", "v1")
+                if isinstance(checkpoint_config, dict)
+                else "v1",
+            )
+        ).strip().lower()
+        runtime_schema = str(
+            expected_trajectory_feature_schema
+            if expected_trajectory_feature_schema is not None
+            else getattr(model, "trajectory_feature_schema", checkpoint_schema)
+        ).strip().lower()
+        if checkpoint_schema != runtime_schema:
+            raise ValueError(
+                "Expert1 checkpoint trajectory schema mismatch for system bridge: "
+                f"checkpoint={checkpoint_schema}, runtime={runtime_schema}"
+            )
+        expected_sequence_dim = track_sequence_feature_dim(runtime_schema)
+        expected_physical_dim = physical_feature_dim(runtime_schema)
+        runtime_sequence_dim = int(
+            getattr(
+                model.representation_builder.sequence_encoder,
+                "input_dim",
+                getattr(model.representation_builder.sequence_encoder, "in_features", -1),
+            )
+        )
+        runtime_physical_dim = int(
+            model.representation_builder.physical_norm.normalized_shape[0]
+        )
+        if runtime_sequence_dim != expected_sequence_dim or runtime_physical_dim != expected_physical_dim:
+            raise ValueError(
+                "system runtime dimensions do not match Expert1 schema: "
+                f"schema={runtime_schema}, sequence={runtime_sequence_dim}/{expected_sequence_dim}, "
+                f"physical={runtime_physical_dim}/{expected_physical_dim}"
+            )
+
+        checkpoint_contract = str(
+            checkpoint.get(
+                "physical_representation_contract_version",
+                checkpoint_config.get("physical_representation_contract_version", "legacy_v2")
+                if isinstance(checkpoint_config, dict)
+                else "legacy_v2",
+            )
+        ).strip().lower()
+        runtime_contract = str(
+            expected_physical_representation_contract_version
+            if expected_physical_representation_contract_version is not None
+            else getattr(model, "physical_representation_contract_version", "legacy_v2")
+        ).strip().lower()
+        if checkpoint_contract != runtime_contract:
+            raise ValueError(
+                "Expert1 checkpoint physical representation contract mismatch for system bridge: "
+                f"checkpoint={checkpoint_contract}, runtime={runtime_contract}"
+            )
+
+        checkpoint_temporal = checkpoint.get("temporal_contract", {})
+        if not isinstance(checkpoint_temporal, dict):
+            checkpoint_temporal = {}
+        checkpoint_encoding = str(
+            checkpoint_temporal.get(
+                "encoding_mode",
+                checkpoint_config.get("temporal_encoding_mode", "none")
+                if isinstance(checkpoint_config, dict)
+                else "none",
+            )
+        ).strip().lower()
+        checkpoint_pooling = str(
+            checkpoint_temporal.get(
+                "pooling_mode",
+                checkpoint_config.get("temporal_pooling_mode", "mean")
+                if isinstance(checkpoint_config, dict)
+                else "mean",
+            )
+        ).strip().lower()
+        runtime_encoding = str(
+            expected_temporal_encoding_mode
+            if expected_temporal_encoding_mode is not None
+            else getattr(model, "temporal_encoding_mode", "none")
+        ).strip().lower()
+        runtime_pooling = str(
+            expected_temporal_pooling_mode
+            if expected_temporal_pooling_mode is not None
+            else getattr(model, "temporal_pooling_mode", "mean")
+        ).strip().lower()
+        if checkpoint_encoding != runtime_encoding or checkpoint_pooling != runtime_pooling:
+            raise ValueError(
+                "Expert1 checkpoint temporal contract mismatch for system bridge: "
+                f"checkpoint=({checkpoint_encoding},{checkpoint_pooling}), "
+                f"runtime=({runtime_encoding},{runtime_pooling})"
+            )
+
+        feature_contract = checkpoint.get("feature_contract", {})
+        if isinstance(feature_contract, dict) and feature_contract.get("feature_columns") is not None:
+            if list(feature_contract["feature_columns"]) != track_sequence_feature_columns(runtime_schema):
+                raise ValueError(
+                    "Expert1 checkpoint feature order does not match the system runtime schema"
+                )
+        source_stats = checkpoint.get("source_feature_stats", {})
+        if checkpoint_contract == "source_robust_v3":
+            if not isinstance(source_stats, dict) or not source_stats:
+                raise ValueError("source_robust_v3 Expert1 checkpoint is missing source_feature_stats")
+            for source_name, values in source_stats.items():
+                if not isinstance(values, dict) or "physical_center" not in values or "physical_scale" not in values:
+                    raise ValueError(
+                        "source_robust_v3 Expert1 checkpoint is missing physical source stats for "
+                        f"source={source_name}"
+                    )
+                center = torch.as_tensor(values["physical_center"], dtype=torch.float32).flatten()
+                scale = torch.as_tensor(values["physical_scale"], dtype=torch.float32).flatten()
+                expected_physical_stat_dim = len(physical_continuous_feature_indices(runtime_schema))
+                if (
+                    center.numel() != expected_physical_stat_dim
+                    or scale.numel() != expected_physical_stat_dim
+                    or not bool(torch.isfinite(center).all())
+                    or not bool(torch.isfinite(scale).all())
+                    or bool((scale <= 0.0).any())
+                ):
+                    raise ValueError(
+                        "source_robust_v3 Expert1 checkpoint physical source stats have invalid dimensions or values: "
+                        f"source={source_name}, expected_dim={expected_physical_stat_dim}"
+                    )
+        for module_name, module, state in (
+            ("representation_builder", model.representation_builder, checkpoint["representation_builder_state_dict"]),
+            ("rd_proj", model.rd_proj, checkpoint.get("rd_proj_state_dict")),
+            ("expert_module", model.low_altitude_expert, model_key),
+        ):
+            if not isinstance(state, dict):
+                raise ValueError(f"Expert1 checkpoint is missing {module_name} state dict")
+            current = module.state_dict()
+            missing = sorted(set(current) - set(state))
+            unexpected = sorted(set(state) - set(current))
+            shape_mismatch = sorted(
+                key
+                for key, value in state.items()
+                if key in current and tuple(value.shape) != tuple(current[key].shape)
+            )
+            if missing or unexpected or shape_mismatch:
+                raise ValueError(
+                    f"Expert1 checkpoint {module_name} state is incompatible: "
+                    f"missing={missing}, unexpected={unexpected}, shape_mismatch={shape_mismatch}"
+                )
+            module.load_state_dict(state, strict=True)
+            info[module_name] = {
+                "loaded_keys": len(state),
+                "missing_keys": [],
+                "unexpected_keys": [],
+            }
+        info["trajectory_feature_schema"] = checkpoint_schema
+        info["physical_representation_contract_version"] = checkpoint_contract
+        info["temporal_contract"] = {
+            "encoding_mode": checkpoint_encoding,
+            "pooling_mode": checkpoint_pooling,
+        }
+    else:
+        # Precision-only/post-hoc candidates intentionally contain no shared
+        # representation. Preserve that narrow compatibility path, but never
+        # use it for a full Expert1 bundle with missing representation weights.
+        if hasattr(model, "representation_builder") and isinstance(model_key, dict) and any(
+            str(key).startswith(("traj_backbone.", "traj_head.")) for key in model_key
+        ):
+            raise ValueError(
+                "full Expert1 checkpoint is missing representation_builder_state_dict; "
+                "partial legacy loading is disabled"
+            )
+        info["expert_module"] = _load_compatible_state_dict(model.low_altitude_expert, model_key)
     checkpoint_config = checkpoint.get("config", {})
     selected_joint_logit_delta_scale = checkpoint.get("selected_joint_logit_delta_scale")
     if selected_joint_logit_delta_scale is None and isinstance(checkpoint_config, dict):
@@ -482,29 +779,78 @@ def _groundness_separation_loss(
     return loss
 
 
-def _fit_source_feature_stats(loader) -> dict[str, dict[str, torch.Tensor]]:
+def _fit_source_feature_stats(
+    loader,
+    trajectory_feature_schema: str = "v1",
+) -> dict[str, dict[str, torch.Tensor]]:
+    schema = str(trajectory_feature_schema).strip().lower()
+    feature_dim = track_sequence_feature_dim(schema)
+    continuous_indices = track_sequence_continuous_feature_indices(schema)
+    physical_indices = physical_continuous_feature_indices(schema)
     buckets: dict[str, list[torch.Tensor]] = {}
+    physical_buckets: dict[str, list[torch.Tensor]] = {}
     for batch in loader:
         for idx, source_name in enumerate(batch.source_names):
-            buckets.setdefault(str(source_name), []).append(batch.features[idx, : batch.lengths[idx]].float())
+            length = int(batch.lengths[idx].item())
+            buckets.setdefault(str(source_name), []).append(batch.features[idx, :length].float())
+            physical_buckets.setdefault(str(source_name), []).append(
+                batch.physical_features[idx].float()
+            )
     stats: dict[str, dict[str, torch.Tensor]] = {}
     for source_name, tensors in buckets.items():
         cat = torch.cat(tensors, dim=0)
-        center = cat.mean(dim=0)
-        scale = cat.std(dim=0).clamp_min(1e-3)
+        if cat.shape[-1] != feature_dim:
+            raise ValueError(
+                "system source statistics feature dimension mismatch: "
+                f"schema={schema}, observed={cat.shape[-1]}, expected={feature_dim}"
+            )
+        center = torch.zeros((feature_dim,), dtype=cat.dtype)
+        scale = torch.ones((feature_dim,), dtype=cat.dtype)
+        if continuous_indices:
+            indices = torch.tensor(continuous_indices, dtype=torch.long)
+            center[indices] = cat[:, indices].mean(dim=0)
+            scale[indices] = cat[:, indices].std(dim=0).clamp_min(1e-3)
         stats[source_name] = {"center": center, "scale": scale}
+        if schema == "v3" and physical_indices:
+            physical_values = torch.stack(physical_buckets[source_name], dim=0)
+            physical_selected = physical_values[:, physical_indices]
+            physical_selected = torch.sign(physical_selected) * torch.log1p(physical_selected.abs())
+            stats[source_name]["physical_center"] = physical_selected.median(dim=0).values
+            q25 = torch.quantile(physical_selected, 0.25, dim=0)
+            q75 = torch.quantile(physical_selected, 0.75, dim=0)
+            stats[source_name]["physical_scale"] = ((q75 - q25) / 1.349).clamp_min(1.0e-3)
+            stats[source_name]["physical_continuous_indices"] = torch.tensor(
+                physical_indices,
+                dtype=torch.long,
+            )
     return stats
 
 
-def _apply_source_feature_norm(features: torch.Tensor, source_names: list[str], stats: dict[str, dict[str, torch.Tensor]]) -> torch.Tensor:
+def _apply_source_feature_norm(
+    features: torch.Tensor,
+    source_names: list[str],
+    stats: dict[str, dict[str, torch.Tensor]],
+    trajectory_feature_schema: str = "v1",
+) -> torch.Tensor:
     normalized = features.clone()
+    continuous_indices = track_sequence_continuous_feature_indices(trajectory_feature_schema)
+    index_tensor = torch.tensor(continuous_indices, dtype=torch.long, device=features.device)
     for idx, source_name in enumerate(source_names):
         source_key = str(source_name)
         if source_key not in stats:
             continue
-        center = stats[source_key]["center"].to(features.device)
-        scale = stats[source_key]["scale"].to(features.device)
-        normalized[idx] = (normalized[idx] - center) / scale
+        center = stats[source_key]["center"].to(features.device, dtype=features.dtype).reshape(-1)
+        scale = stats[source_key]["scale"].to(features.device, dtype=features.dtype).reshape(-1)
+        if center.numel() != features.shape[-1] or scale.numel() != features.shape[-1]:
+            raise ValueError(
+                "system source feature statistics dimension does not match runtime features: "
+                f"schema={trajectory_feature_schema}, features={features.shape[-1]}, "
+                f"center={center.numel()}, scale={scale.numel()}"
+            )
+        if continuous_indices:
+            normalized[idx, :, index_tensor] = (
+                normalized[idx, :, index_tensor] - center[index_tensor]
+            ) / scale[index_tensor].clamp_min(1.0e-3)
     return normalized
 
 
@@ -522,15 +868,60 @@ def _merge_source_feature_stats(*stats_items: dict[str, dict[str, torch.Tensor]]
         if not stats:
             continue
         for source_name, source_stats in stats.items():
-            merged[str(source_name)] = {
+            target = merged.setdefault(str(source_name), {})
+            target.update({
                 "center": source_stats["center"].detach().cpu()
                 if isinstance(source_stats["center"], torch.Tensor)
                 else torch.tensor(source_stats["center"], dtype=torch.float32),
                 "scale": source_stats["scale"].detach().cpu()
                 if isinstance(source_stats["scale"], torch.Tensor)
                 else torch.tensor(source_stats["scale"], dtype=torch.float32),
-            }
+            })
+            for key in ("physical_center", "physical_scale", "physical_continuous_indices"):
+                if key not in source_stats:
+                    continue
+                value = source_stats[key]
+                merged[str(source_name)][key] = (
+                    value.detach().cpu()
+                    if isinstance(value, torch.Tensor)
+                    else torch.tensor(value, dtype=torch.float32)
+                )
     return merged
+
+
+def _apply_source_physical_norm(
+    physical_features: torch.Tensor,
+    source_names: list[str],
+    stats: dict[str, dict[str, torch.Tensor]],
+    trajectory_feature_schema: str,
+) -> torch.Tensor:
+    """Apply the same source-robust physical contract used by Expert1."""
+    normalized = physical_features.clone()
+    continuous_indices = physical_continuous_feature_indices(trajectory_feature_schema)
+    if not continuous_indices:
+        return normalized
+    index_tensor = torch.tensor(continuous_indices, dtype=torch.long, device=physical_features.device)
+    for batch_index, source_name in enumerate(source_names):
+        values = stats.get(str(source_name), {})
+        center = values.get("physical_center")
+        scale = values.get("physical_scale")
+        if not isinstance(center, torch.Tensor) or not isinstance(scale, torch.Tensor):
+            raise ValueError(
+                "source_robust_v3 system runtime is missing physical source stats for "
+                f"source={source_name}"
+            )
+        center = center.to(physical_features.device, dtype=physical_features.dtype).reshape(-1)
+        scale = scale.to(physical_features.device, dtype=physical_features.dtype).reshape(-1)
+        if center.numel() != len(continuous_indices) or scale.numel() != len(continuous_indices):
+            raise ValueError(
+                "system physical source statistics dimension mismatch: "
+                f"source={source_name}, expected={len(continuous_indices)}, "
+                f"center={center.numel()}, scale={scale.numel()}"
+            )
+        selected = normalized[batch_index, index_tensor]
+        selected = torch.sign(selected) * torch.log1p(selected.abs())
+        normalized[batch_index, index_tensor] = (selected - center) / scale.clamp_min(1.0e-3)
+    return normalized
 
 
 def _parameters_are_finite(model: nn.Module) -> bool:
@@ -1078,13 +1469,30 @@ def _run_epoch(
     for batch in loader:
         features = batch.features.to(device)
         if config.source_normalization and source_feature_stats is not None:
-            features = _apply_source_feature_norm(features, batch.source_names, source_feature_stats)
+            features = _apply_source_feature_norm(
+                features,
+                batch.source_names,
+                source_feature_stats,
+                config.trajectory_feature_schema,
+            )
         physical = batch.physical_features.to(device)
+        if (
+            config.physical_representation_contract_version == "source_robust_v3"
+            and config.source_normalization
+            and source_feature_stats is not None
+        ):
+            physical = _apply_source_physical_norm(
+                physical,
+                batch.source_names,
+                source_feature_stats,
+                config.trajectory_feature_schema,
+            )
         rd_features = batch.rd_features.to(device)
         rd_patch_features = batch.rd_patch_features.to(device)
         rd_deep_patch_features = batch.rd_deep_patch_features.to(device)
         rd_is_multimodal = batch.rd_is_multimodal.to(device)
         rd_padding_mask = batch.rd_padding_mask.to(device)
+        rd_time_seconds = batch.rd_time_seconds.to(device)
         rd_patch_padding_mask = batch.rd_patch_padding_mask.to(device)
         rd_deep_patch_padding_mask = batch.rd_deep_patch_padding_mask.to(device)
         labels = batch.labels.to(device)
@@ -1102,6 +1510,7 @@ def _run_epoch(
                 rd_is_multimodal=rd_is_multimodal,
                 padding_mask=padding_mask,
                 rd_padding_mask=rd_padding_mask,
+                rd_time_seconds=rd_time_seconds,
                 rd_patch_padding_mask=rd_patch_padding_mask,
                 rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                 source_names=batch.source_names,
@@ -2934,11 +3343,12 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         batch_size=config.batch_size,
         seed=config.seed,
         num_workers=config.num_workers,
+        trajectory_feature_schema=config.trajectory_feature_schema,
     )
     dataset_frame = TrackDataset(config.data_root, trainable_only=False, index_name="system_trainable_track_index.csv").to_frame()
     model = RadarClassificationSystem(
-        sequence_input_dim=10,
-        physical_input_dim=len(PHYSICAL_FEATURE_COLUMNS),
+        sequence_input_dim=track_sequence_feature_dim(config.trajectory_feature_schema),
+        physical_input_dim=physical_feature_dim(config.trajectory_feature_schema),
         model_dim=config.hidden_dim,
         dropout=config.dropout,
         low_altitude_cosface_scale=config.low_altitude_cosface_scale,
@@ -2955,6 +3365,10 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         low_altitude_rd_specialist_residual_scale=config.low_altitude_rd_specialist_residual_scale,
         low_altitude_rd_joint_segment_count=config.low_altitude_rd_joint_segment_count,
         low_altitude_enable_rd_segment_joint_tokens=config.low_altitude_enable_rd_segment_joint_tokens,
+        trajectory_feature_schema=config.trajectory_feature_schema,
+        physical_representation_contract_version=config.physical_representation_contract_version,
+        temporal_encoding_mode=config.temporal_encoding_mode,
+        temporal_pooling_mode=config.temporal_pooling_mode,
     ).to(device)
     pretrained_track_info = None
     pretrained_router_info = None
@@ -2962,11 +3376,26 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     expert2_info = None
     expert4_info = None
     if config.pretrained_track_checkpoint:
-        pretrained_track_info = _load_pretrained_track_encoder(model, config.pretrained_track_checkpoint, device)
+        pretrained_track_info = _load_pretrained_track_encoder(
+            model,
+            config.pretrained_track_checkpoint,
+            device,
+            expected_trajectory_feature_schema=config.trajectory_feature_schema,
+            expected_temporal_encoding_mode=config.temporal_encoding_mode,
+            expected_temporal_pooling_mode=config.temporal_pooling_mode,
+        )
     if config.pretrained_router_checkpoint:
         pretrained_router_info = _load_submodule_checkpoint(model.router, config.pretrained_router_checkpoint, device)
     if config.expert1_checkpoint:
-        expert1_info = _load_expert1_bundle(model, config.expert1_checkpoint, device)
+        expert1_info = _load_expert1_bundle(
+            model,
+            config.expert1_checkpoint,
+            device,
+            expected_trajectory_feature_schema=config.trajectory_feature_schema,
+            expected_physical_representation_contract_version=config.physical_representation_contract_version,
+            expected_temporal_encoding_mode=config.temporal_encoding_mode,
+            expected_temporal_pooling_mode=config.temporal_pooling_mode,
+        )
     if config.expert2_checkpoint:
         expert2_info = _load_expert_bundle(
             model,
@@ -2991,7 +3420,10 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
     source_feature_stats = None
     checkpoint_source_feature_stats = None
     if config.source_normalization:
-        fitted_source_feature_stats = _fit_source_feature_stats(loaders.train_loader)
+        fitted_source_feature_stats = _fit_source_feature_stats(
+            loaders.train_loader,
+            config.trajectory_feature_schema,
+        )
         checkpoint_source_feature_stats = _merge_source_feature_stats(
             _source_feature_stats_from_checkpoint(config.expert1_checkpoint, device) if config.expert1_checkpoint else None,
             _source_feature_stats_from_checkpoint(config.expert2_checkpoint, device) if config.expert2_checkpoint else None,

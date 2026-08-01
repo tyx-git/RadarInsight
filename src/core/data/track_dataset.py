@@ -10,6 +10,27 @@ from .samples import TrackSample
 from .labels import two_layer_label_fields
 
 
+def parse_required_bool(value: object, *, field_name: str) -> bool:
+    """Parse persisted boolean metadata without Python string truthiness."""
+    if value is None:
+        raise ValueError(f"missing required boolean metadata: {field_name}")
+    try:
+        if pd.isna(value):
+            raise ValueError(f"missing required boolean metadata: {field_name}")
+    except TypeError:
+        pass
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in {0, 1}:
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    raise ValueError(f"invalid boolean metadata for {field_name}: {value!r}")
+
+
 class TrackDataset:
     def __init__(self, data_root: Path | str, trainable_only: bool = True, index_name: str | None = None) -> None:
         self.data_root = Path(data_root)
@@ -67,8 +88,14 @@ class TrackDataset:
                 rd_path=str(row.get("rd_path", "")),
                 rd_summary_csv_path=str(row.get("rd_summary_csv_path", "")),
                 rd_tensor_path=str(row.get("rd_tensor_path", "")),
-                rd_phase_missing=bool(row.get("rd_phase_missing", False)),
-                height_missing=bool(row.get("height_missing", False)),
+                rd_phase_missing=parse_required_bool(
+                    row.get("rd_phase_missing"),
+                    field_name="rd_phase_missing",
+                ),
+                height_missing=parse_required_bool(
+                    row.get("height_missing"),
+                    field_name="height_missing",
+                ),
                 record_count=int(row["record_count"]),
                 time_seconds_min=float(row["time_seconds_min"]),
                 time_seconds_max=float(row["time_seconds_max"]),

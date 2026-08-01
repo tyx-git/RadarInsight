@@ -6,6 +6,7 @@ import torch
 from torch import nn
 
 from .data.labels import DEFAULT_VOCAB
+from .features import track_sequence_feature_dim
 from .experts import (
     ConventionalAirExpert,
     ExpertOutput,
@@ -16,6 +17,7 @@ from .experts import (
     RuleBasedHighAltitudeExpert,
 )
 from .router import DeepGatingRouter, RouteDecision, ROUTE_NAMES
+from .physical import physical_feature_dim
 from .trajectory import TrackRepresentation, TrackRepresentationBuilder
 
 
@@ -73,8 +75,29 @@ class RadarClassificationSystem(nn.Module):
         low_altitude_rd_specialist_residual_scale: float = 0.35,
         low_altitude_rd_joint_segment_count: int = 5,
         low_altitude_enable_rd_segment_joint_tokens: bool = True,
+        trajectory_feature_schema: str = "v1",
+        physical_representation_contract_version: str = "legacy_v2",
+        temporal_encoding_mode: str = "none",
+        temporal_pooling_mode: str = "mean",
     ) -> None:
         super().__init__()
+        normalized_schema = str(trajectory_feature_schema).strip().lower()
+        if int(sequence_input_dim) != track_sequence_feature_dim(normalized_schema):
+            raise ValueError(
+                "system sequence_input_dim does not match trajectory_feature_schema: "
+                f"schema={normalized_schema}, input_dim={sequence_input_dim}"
+            )
+        if int(physical_input_dim) != physical_feature_dim(normalized_schema):
+            raise ValueError(
+                "system physical_input_dim does not match trajectory_feature_schema: "
+                f"schema={normalized_schema}, input_dim={physical_input_dim}"
+            )
+        self.trajectory_feature_schema = normalized_schema
+        self.physical_representation_contract_version = str(
+            physical_representation_contract_version
+        ).strip().lower()
+        self.temporal_encoding_mode = str(temporal_encoding_mode).strip().lower()
+        self.temporal_pooling_mode = str(temporal_pooling_mode).strip().lower()
         rd_dim = 16
         fused_dim = model_dim + 32
         self.representation_builder = TrackRepresentationBuilder(
@@ -82,6 +105,9 @@ class RadarClassificationSystem(nn.Module):
             physical_input_dim=physical_input_dim,
             model_dim=model_dim,
             dropout=dropout,
+            physical_representation_contract_version=self.physical_representation_contract_version,
+            temporal_encoding_mode=self.temporal_encoding_mode,
+            temporal_pooling_mode=self.temporal_pooling_mode,
         )
         self.rd_proj = nn.Sequential(
             nn.Linear(6, rd_dim),
@@ -162,6 +188,7 @@ class RadarClassificationSystem(nn.Module):
         rd_is_multimodal: torch.Tensor | None = None,
         padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         rd_deep_patch_padding_mask: torch.Tensor | None = None,
         source_names: list[str] | None = None,
@@ -194,6 +221,7 @@ class RadarClassificationSystem(nn.Module):
             rd_is_multimodal=rd_is_multimodal,
             traj_padding_mask=padding_mask,
             rd_padding_mask=rd_padding_mask,
+            rd_time_seconds=rd_time_seconds,
             rd_patch_padding_mask=rd_patch_padding_mask,
             rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
             traj_physical_features=representation.physical_features,
@@ -236,6 +264,7 @@ class RadarClassificationSystem(nn.Module):
         rd_is_multimodal: torch.Tensor | None = None,
         padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         rd_deep_patch_padding_mask: torch.Tensor | None = None,
         source_names: list[str] | None = None,
@@ -306,6 +335,7 @@ class RadarClassificationSystem(nn.Module):
                     rd_is_multimodal=rd_is_multimodal,
                     traj_padding_mask=padding_mask,
                     rd_padding_mask=rd_padding_mask,
+                    rd_time_seconds=rd_time_seconds,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                     traj_physical_features=representation.physical_features,
@@ -329,6 +359,7 @@ class RadarClassificationSystem(nn.Module):
                     rd_is_multimodal=rd_is_multimodal,
                     traj_padding_mask=padding_mask,
                     rd_padding_mask=rd_padding_mask,
+                    rd_time_seconds=rd_time_seconds,
                     rd_patch_padding_mask=rd_patch_padding_mask,
                     rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                     traj_physical_features=representation.physical_features,
@@ -714,6 +745,7 @@ class RadarClassificationSystem(nn.Module):
         rd_is_multimodal: torch.Tensor | None = None,
         padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         rd_deep_patch_padding_mask: torch.Tensor | None = None,
         source_names: list[str] | None = None,
@@ -735,6 +767,7 @@ class RadarClassificationSystem(nn.Module):
                 rd_is_multimodal=rd_is_multimodal,
                 padding_mask=padding_mask,
                 rd_padding_mask=rd_padding_mask,
+                rd_time_seconds=rd_time_seconds,
                 rd_patch_padding_mask=rd_patch_padding_mask,
                 rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
                 source_names=source_names,
@@ -752,6 +785,7 @@ class RadarClassificationSystem(nn.Module):
             rd_is_multimodal=rd_is_multimodal,
             padding_mask=padding_mask,
             rd_padding_mask=rd_padding_mask,
+            rd_time_seconds=rd_time_seconds,
             rd_patch_padding_mask=rd_patch_padding_mask,
             rd_deep_patch_padding_mask=rd_deep_patch_padding_mask,
             source_names=source_names,

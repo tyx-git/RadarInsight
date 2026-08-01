@@ -16,16 +16,16 @@ from torch.utils.data import Sampler
 from torch.utils.data import WeightedRandomSampler
 
 from .experts import LOW_ALTITUDE_CLASSES
-from .forwardlayer.collate import collate_track_batch
-from .forwardlayer.dataset import TrackDataset
-from .forwardlayer.split import (
+from .data.collate import collate_track_batch
+from .data.track_dataset import TrackDataset
+from .data.split import (
     SplitResult,
     canonical_group_id,
     stratified_group_split,
     validate_grouped_split,
 )
-from .forwardlayer.torch_dataset import TorchTrackDataset
-from .forwardlayer.labels import DEFAULT_VOCAB
+from .data.torch_dataset import TorchTrackDataset
+from .data.labels import DEFAULT_VOCAB
 
 
 @dataclass(frozen=True)
@@ -358,6 +358,41 @@ def _rd_fusion_eligibility_by_sample(
     }
 
 
+def _validate_content_group_split(frame: pd.DataFrame) -> None:
+    """Reject persisted windows that split semantic duplicate components."""
+    if "source_name" not in frame.columns:
+        return
+    cq08_mask = frame["source_name"].astype(str).eq("cq08_track")
+    if not bool(cq08_mask.any()):
+        return
+    required = {"content_group_id", "split_name"}
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(
+            "CQ08 training requires a duplicate-safe content-group window index; "
+            f"missing columns={missing}"
+        )
+    group_values = frame.loc[cq08_mask, "content_group_id"].astype(str).str.strip()
+    if (group_values == "").any() or group_values.str.lower().eq("nan").any():
+        raise ValueError("CQ08 content_group_id must be present for every CQ08 window")
+    group_splits = (
+        frame.loc[cq08_mask, ["content_group_id", "split_name"]]
+        .assign(
+            content_group_id=lambda value: value["content_group_id"].astype(str),
+            split_name=lambda value: value["split_name"].astype(str),
+        )
+        .drop_duplicates()
+        .groupby("content_group_id", sort=True)["split_name"]
+        .nunique()
+    )
+    conflicts = sorted(group_splits[group_splits > 1].index.tolist())
+    if conflicts:
+        raise ValueError(
+            "CQ08 semantic content group crosses persisted splits: "
+            f"examples={conflicts[:5]}"
+        )
+
+
 def _sample_weight(
     row: dict[str, object],
     *,
@@ -449,6 +484,8 @@ def build_expert1_dataloaders(
     rd_segment_store_cache_size: int = 64,
     allow_rd_segment_store_fallback: bool = False,
     load_only_fusion_eligible_rd: bool = True,
+    pure_tr_only: bool = False,
+    trajectory_feature_schema: str = "v1",
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
@@ -461,6 +498,7 @@ def build_expert1_dataloaders(
         invalid_split_labels = ~persisted_split_labels.isin({"train", "val", "test"})
         if invalid_split_labels.any():
             raise ValueError("persisted split_name contains malformed labels")
+    _validate_content_group_split(frame)
     frame = frame[frame["label_name"].astype(str).isin(LOW_ALTITUDE_CLASSES)].copy()
     if "is_trainable" in frame.columns:
         trainable_mask = frame["is_trainable"].map(lambda value: str(value).strip().lower() in {"true", "1", "yes"})
@@ -519,16 +557,23 @@ def build_expert1_dataloaders(
         "rd_segment_store_cache_size": rd_segment_store_cache_size,
         "allow_rd_segment_store_fallback": allow_rd_segment_store_fallback,
         "load_only_fusion_eligible_rd": load_only_fusion_eligible_rd,
+        "include_rd_phase_missing_in_physical": False,
+        "trajectory_feature_schema": trajectory_feature_schema,
         "max_patch_frames": 32,
         "skip_deep_patch": True,
     }
     train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, load_rd=False, **dataset_kwargs)
-    stage2_train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, load_rd=True, **dataset_kwargs)
-    val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, **dataset_kwargs)
-    test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, **dataset_kwargs)
+    stage2_train_ds = (
+        train_ds
+        if pure_tr_only
+        else TorchTrackDataset(data_root, sample_ids=split.train_ids, load_rd=True, **dataset_kwargs)
+    )
+    val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, load_rd=not pure_tr_only, **dataset_kwargs)
+    test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, load_rd=not pure_tr_only, **dataset_kwargs)
 
     train_weights: list[float] = []
-    train_meta = stage2_train_ds.index_df.reset_index(drop=True)
+    stage2_train_weights: list[float] = []
+    train_meta = train_ds.index_df.reset_index(drop=True)
     fusion_eligibility_by_sample = (
         _rd_fusion_eligibility_by_sample(data_root, window_segment_map_name)
         if use_rd_segment_store
@@ -562,6 +607,27 @@ def build_expert1_dataloaders(
                 parent_window_counts=parent_window_counts,
                 max_source_count=max_source_count,
                 max_source_label_count=max_source_label_count,
+                rd_sample_boost=1.0,
+                raw_source_boost=raw_source_boost,
+                excel_source_boost=excel_source_boost,
+                cq08_source_boost=cq08_source_boost,
+                source_balance_power=source_balance_power,
+                source_label_balance_power=source_label_balance_power,
+                parent_window_balance_power=parent_window_balance_power,
+                unknown_sample_boost=unknown_sample_boost,
+                clutter_sample_boost=clutter_sample_boost,
+                bird_sample_boost=bird_sample_boost,
+                max_sampler_weight=max_sampler_weight,
+            )
+        )
+        stage2_train_weights.append(
+            _sample_weight(
+                row,
+                source_counts=source_counts,
+                source_label_counts=source_label_counts,
+                parent_window_counts=parent_window_counts,
+                max_source_count=max_source_count,
+                max_source_label_count=max_source_label_count,
                 rd_sample_boost=rd_sample_boost,
                 raw_source_boost=raw_source_boost,
                 excel_source_boost=excel_source_boost,
@@ -578,6 +644,11 @@ def build_expert1_dataloaders(
     sampler = WeightedRandomSampler(
         weights=torch.tensor(train_weights, dtype=torch.double),
         num_samples=len(train_weights),
+        replacement=True,
+    )
+    stage2_sampler = WeightedRandomSampler(
+        weights=torch.tensor(stage2_train_weights, dtype=torch.double),
+        num_samples=len(stage2_train_weights),
         replacement=True,
     )
 
@@ -630,7 +701,7 @@ def build_expert1_dataloaders(
         stage2_train_ds,
         batch_size=batch_size,
         shuffle=False,
-        sampler=sampler,
+        sampler=stage2_sampler,
         **train_loader_kwargs,
     )
     rd_indices: list[int] = []
@@ -646,7 +717,8 @@ def build_expert1_dataloaders(
         else:
             no_rd_indices.append(row_index)
     stage2_rd_aware_sampling_enabled = bool(
-        stage2_rd_aware_sampling
+        not pure_tr_only
+        and stage2_rd_aware_sampling
         and len(rd_indices) >= max(1, int(stage2_min_rd_fusion_eligible_samples))
         and no_rd_indices
     )
@@ -655,7 +727,7 @@ def build_expert1_dataloaders(
             stage2_batch_sampler = RDShardLocalBatchSampler(
                 rd_indices=rd_indices,
                 no_rd_indices=no_rd_indices,
-                sample_weights=train_weights,
+                sample_weights=stage2_train_weights,
                 batch_size=batch_size,
                 rd_fraction=stage2_rd_batch_fraction,
                 seed=seed + 17,
@@ -670,7 +742,7 @@ def build_expert1_dataloaders(
             stage2_batch_sampler = RDAwareBatchSampler(
                 rd_indices=rd_indices,
                 no_rd_indices=no_rd_indices,
-                sample_weights=train_weights,
+                sample_weights=stage2_train_weights,
                 batch_size=batch_size,
                 rd_fraction=stage2_rd_batch_fraction,
                 seed=seed + 17,

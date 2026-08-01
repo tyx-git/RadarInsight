@@ -6,11 +6,14 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from src.core.expert1_config import Expert1TrainConfig
+from src.core.features import track_sequence_feature_dim
+from src.core.physical import physical_feature_dim
 from src.core.expert_other_config import ExpertOtherTrainConfig
 from src.core.pipeline_config import MainPipelineConfig
 from src.core.pretrain_track_config import TrackPretrainConfig
 from src.core.router_train_config import RouterTrainConfig
 from src.core.system_config import SystemTrainConfig
+from src.core.trajectory import TEMPORAL_ENCODING_MODES, TEMPORAL_POOLING_MODES
 
 
 T = TypeVar("T")
@@ -60,10 +63,19 @@ def _clean_section(payload: dict[str, Any], section_name: str) -> dict[str, Any]
     return section
 
 
-def _make_dataclass(config_type: type[T], values: dict[str, Any]) -> T:
+def _make_dataclass(
+    config_type: type[T],
+    values: dict[str, Any],
+    *,
+    reject_unknown: bool = False,
+) -> T:
     if not is_dataclass(config_type):
         raise TypeError(f"config_type must be a dataclass: {config_type}")
     allowed = {item.name for item in fields(config_type)}
+    unknown = sorted(set(values) - allowed)
+    if reject_unknown and unknown:
+        joined = ", ".join(unknown)
+        raise ValueError(f"unknown {config_type.__name__} configuration field(s): {joined}")
     return config_type(**{key: value for key, value in values.items() if key in allowed})
 
 
@@ -79,7 +91,47 @@ def load_expert1_config(path: str | Path = "config/config.json") -> Expert1Train
         values.pop(old_key, None)
     values.pop("min_rd_net_gain_rate_for_best", None)
     values.pop("max_rd_harm_rate_for_best", None)
-    return _make_dataclass(Expert1TrainConfig, values)
+    config = _make_dataclass(Expert1TrainConfig, values, reject_unknown=True)
+    if config.is_pure_tr_only and config.prefer_stage2_checkpoint:
+        raise ValueError(
+            "pure TR-only config requires prefer_stage2_checkpoint=false; "
+            "otherwise no Stage-1 checkpoint can satisfy the Stage-2 preference"
+        )
+    if config.pretrained_track_checkpoint and config.trajectory_warm_start_checkpoint:
+        raise ValueError(
+            "pretrained_track_checkpoint and trajectory_warm_start_checkpoint are mutually exclusive; "
+            "use one initialization contract per Expert1 run"
+        )
+    if config.tr_only_parent_macro_f1_selection_weight < 0.0:
+        raise ValueError("tr_only_parent_macro_f1_selection_weight must be non-negative")
+    if not 0.0 <= config.parent_window_balance_power <= 1.0:
+        raise ValueError("parent_window_balance_power must be within [0, 1]")
+    supported_physical_contracts = {"legacy_v2", "source_robust_v3"}
+    if config.physical_representation_contract_version not in supported_physical_contracts:
+        raise ValueError(
+            "unsupported physical_representation_contract_version: "
+            f"{config.physical_representation_contract_version}"
+        )
+    if (
+        config.physical_representation_contract_version == "source_robust_v3"
+        and not config.source_normalization
+    ):
+        raise ValueError(
+            "source_robust_v3 physical representation requires source_normalization=true"
+        )
+    track_sequence_feature_dim(config.trajectory_feature_schema)
+    physical_feature_dim(config.trajectory_feature_schema)
+    if str(config.temporal_encoding_mode).strip().lower() not in TEMPORAL_ENCODING_MODES:
+        raise ValueError(
+            "unsupported temporal encoding mode: "
+            f"{config.temporal_encoding_mode!r}; expected one of {sorted(TEMPORAL_ENCODING_MODES)}"
+        )
+    if str(config.temporal_pooling_mode).strip().lower() not in TEMPORAL_POOLING_MODES:
+        raise ValueError(
+            "unsupported temporal pooling mode: "
+            f"{config.temporal_pooling_mode!r}; expected one of {sorted(TEMPORAL_POOLING_MODES)}"
+        )
+    return config
 
 
 def load_expert2_config(path: str | Path = "config/config.json") -> ExpertOtherTrainConfig:
@@ -100,7 +152,33 @@ def load_expert4_config(path: str | Path = "config/config.json") -> ExpertOtherT
 
 def load_system_config(path: str | Path = "config/config.json") -> SystemTrainConfig:
     payload = load_config_file(path)
-    return _make_dataclass(SystemTrainConfig, _clean_section(payload, "system"))
+    config = _make_dataclass(SystemTrainConfig, _clean_section(payload, "system"))
+    track_sequence_feature_dim(config.trajectory_feature_schema)
+    physical_feature_dim(config.trajectory_feature_schema)
+    supported_physical_contracts = {"legacy_v2", "source_robust_v3"}
+    if config.physical_representation_contract_version not in supported_physical_contracts:
+        raise ValueError(
+            "unsupported system physical_representation_contract_version: "
+            f"{config.physical_representation_contract_version}"
+        )
+    if (
+        config.physical_representation_contract_version == "source_robust_v3"
+        and not config.source_normalization
+    ):
+        raise ValueError(
+            "system source_robust_v3 physical representation requires source_normalization=true"
+        )
+    if str(config.temporal_encoding_mode).strip().lower() not in TEMPORAL_ENCODING_MODES:
+        raise ValueError(
+            "unsupported system temporal encoding mode: "
+            f"{config.temporal_encoding_mode!r}; expected one of {sorted(TEMPORAL_ENCODING_MODES)}"
+        )
+    if str(config.temporal_pooling_mode).strip().lower() not in TEMPORAL_POOLING_MODES:
+        raise ValueError(
+            "unsupported system temporal pooling mode: "
+            f"{config.temporal_pooling_mode!r}; expected one of {sorted(TEMPORAL_POOLING_MODES)}"
+        )
+    return config
 
 
 def load_router_config(path: str | Path = "config/config.json") -> RouterTrainConfig:
@@ -110,7 +188,28 @@ def load_router_config(path: str | Path = "config/config.json") -> RouterTrainCo
 
 def load_pretrain_track_config(path: str | Path = "config/config.json") -> TrackPretrainConfig:
     payload = load_config_file(path)
-    return _make_dataclass(TrackPretrainConfig, _clean_section(payload, "pretrain_track"))
+    config = _make_dataclass(
+        TrackPretrainConfig,
+        _clean_section(payload, "pretrain_track"),
+        reject_unknown=True,
+    )
+    if str(config.sampling_mode).strip().lower() not in {"full_track", "causal_window"}:
+        raise ValueError(
+            "unsupported pretrain sampling_mode: "
+            f"{config.sampling_mode!r}; expected 'full_track' or 'causal_window'"
+        )
+    track_sequence_feature_dim(config.trajectory_feature_schema)
+    if str(config.temporal_encoding_mode).strip().lower() not in TEMPORAL_ENCODING_MODES:
+        raise ValueError(
+            "unsupported pretrain temporal encoding mode: "
+            f"{config.temporal_encoding_mode!r}; expected one of {sorted(TEMPORAL_ENCODING_MODES)}"
+        )
+    if str(config.temporal_pooling_mode).strip().lower() not in TEMPORAL_POOLING_MODES:
+        raise ValueError(
+            "unsupported pretrain temporal pooling mode: "
+            f"{config.temporal_pooling_mode!r}; expected one of {sorted(TEMPORAL_POOLING_MODES)}"
+        )
+    return config
 
 
 def load_pipeline_config(path: str | Path = "config/config.json") -> MainPipelineConfig:

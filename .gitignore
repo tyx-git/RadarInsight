@@ -33,3 +33,6 @@ tmp/model_retention_plan.json
 tmp/model_deletion_log.json
 .anthor/
 .agents/
+todos.md
+*.md
+.*

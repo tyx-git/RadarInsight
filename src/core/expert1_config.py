@@ -64,12 +64,20 @@ class Expert1TrainConfig:
     attribution_reject_min_track_quality: float = 0.0
     attribution_reject_target_valid_points: int = 8
     attribution_reject_max_gap_fraction: float = 0.50
+    trajectory_feature_schema: str = "v1"
+    temporal_encoding_mode: str = "none"
+    temporal_pooling_mode: str = "mean"
+    physical_representation_contract_version: str = "legacy_v2"
+    # Historical V1/V2 replay remains available only when explicitly opted in.
+    # The active Expert1 training entrypoint requires the repaired V3 contract.
+    allow_legacy_feature_contract: bool = False
     trajectory_main_sequence_enabled: bool = False
     trajectory_warm_start_checkpoint: str = ""
     trajectory_parent_pair_sampling: bool = False
     trajectory_parent_pair_fraction: float = 0.25
     low_altitude_traj_binary_aux_weight: float = 0.0
     low_altitude_parent_consistency_weight: float = 0.0
+    tr_only_parent_macro_f1_selection_weight: float = 1.20
     rd_bird_logit_scale: float = 0.75
     rd_unknown_logit_scale: float = 0.75
     rd_clutter_logit_scale: float = 0.75
@@ -83,7 +91,7 @@ class Expert1TrainConfig:
     cq08_source_boost: float = 1.0
     source_balance_power: float = 0.5
     source_label_balance_power: float = 0.25
-    parent_window_balance_power: float = 0.5
+    parent_window_balance_power: float = 1.0
     stage2_rd_aware_sampling: bool = True
     stage2_rd_batch_fraction: float = 0.55
     stage2_rd_shard_local_sampling: bool = False
@@ -173,3 +181,29 @@ class Expert1TrainConfig:
     load_only_fusion_eligible_rd: bool = True
     seed: int = 42
     device: str = "cuda"
+
+    @property
+    def is_pure_tr_only(self) -> bool:
+        """Return whether this run has no Stage-2/RD-fusion training epoch."""
+        return int(self.stage1_traj_only_epochs) >= int(self.epochs)
+
+    def validate_active_training_contract(self) -> None:
+        """Reject stale feature paths from the active Expert1 trainer.
+
+        V1/V2 artifacts are retained for explicit historical replay and
+        diagnostics, but they must not be selected accidentally by a new
+        training command.
+        """
+        if bool(self.allow_legacy_feature_contract):
+            return
+        schema = str(self.trajectory_feature_schema).strip().lower()
+        if schema != "v3":
+            raise ValueError(
+                "active Expert1 training requires trajectory_feature_schema='v3'; "
+                "set allow_legacy_feature_contract=true only for explicit historical V1/V2 replay"
+            )
+        if str(self.physical_representation_contract_version).strip().lower() != "source_robust_v3":
+            raise ValueError(
+                "active Expert1 training requires physical_representation_contract_version='source_robust_v3'; "
+                "set allow_legacy_feature_contract=true only for explicit historical replay"
+            )

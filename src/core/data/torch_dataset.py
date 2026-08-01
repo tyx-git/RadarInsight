@@ -12,7 +12,18 @@ import torch
 from torch.utils.data import Dataset
 
 from .track_dataset import TrackDataset
-from .features import TRACK_FEATURE_COLUMNS, encode_track_sequence, extract_physical_features, DEFAULT_VOCAB, FINE_VOCAB, load_rd_tensor, encode_multimodal_rd, load_rd_summary_frame, encode_rd_summary
+from .features import (
+    TRACK_FEATURE_COLUMNS,
+    DEFAULT_VOCAB,
+    FINE_VOCAB,
+    encode_multimodal_rd,
+    encode_rd_summary,
+    encode_track_sequence,
+    extract_physical_features,
+    load_rd_summary_frame,
+    load_rd_tensor,
+    prepare_track_sequence_features,
+)
 from .rd import EncodedRDSequence
 from .rd_segment_store import WindowAssembler, resolve_window_rd_time_sync_status
 from ..router import ROUTE_NAMES
@@ -32,6 +43,9 @@ class TorchTrackItem:
     rd_features: torch.Tensor
     rd_patch_features: torch.Tensor
     rd_deep_patch_features: torch.Tensor
+    rd_time_seconds: torch.Tensor
+    rd_patch_time_seconds: torch.Tensor
+    rd_deep_patch_time_seconds: torch.Tensor
     rd_valid_length: int
     rd_patch_valid_length: int
     rd_deep_patch_valid_length: int
@@ -77,6 +91,8 @@ class TorchTrackDataset(Dataset):
         allow_rd_segment_store_fallback: bool = False,
         load_only_fusion_eligible_rd: bool = True,
         load_rd: bool = True,
+        include_rd_phase_missing_in_physical: bool = True,
+        trajectory_feature_schema: str = "v1",
         max_patch_frames: int = 32,
         skip_deep_patch: bool = True,
     ) -> None:
@@ -95,6 +111,8 @@ class TorchTrackDataset(Dataset):
         self.enable_window_rd_time_crop = bool(enable_window_rd_time_crop)
         self.rd_window_crop_min_frames = int(max(1, rd_window_crop_min_frames))
         self.load_rd = bool(load_rd)
+        self.include_rd_phase_missing_in_physical = bool(include_rd_phase_missing_in_physical)
+        self.trajectory_feature_schema = str(trajectory_feature_schema).strip().lower()
         self.use_rd_segment_store = bool(use_rd_segment_store)
         self.allow_rd_segment_store_fallback = bool(allow_rd_segment_store_fallback)
         self.load_only_fusion_eligible_rd = bool(load_only_fusion_eligible_rd)
@@ -218,6 +236,9 @@ class TorchTrackDataset(Dataset):
             patch_valid_length=int(patch_features.shape[0]),
             deep_patch_features=deep_patch_features,
             deep_patch_valid_length=int(deep_patch_features.shape[0]),
+            time_seconds=encoded.time_seconds,
+            patch_time_seconds=encoded.patch_time_seconds,
+            deep_patch_time_seconds=encoded.deep_patch_time_seconds,
         )
 
     def _load_encoded_rd(self, sample) -> tuple[EncodedRDSequence | None, bool]:
@@ -228,7 +249,7 @@ class TorchTrackDataset(Dataset):
             if cached is not None:
                 return cached, True
             rd_tensor = load_rd_tensor(self.track_dataset.data_root, rd_tensor_path)
-            encoded = encode_multimodal_rd(rd_tensor)
+            encoded = encode_multimodal_rd(rd_tensor, legacy=True)
             self._put_rd_cached(cache_key, encoded)
             return encoded, True
 
@@ -353,6 +374,36 @@ class TorchTrackDataset(Dataset):
             patch_valid_length=patch_valid_length,
             deep_patch_features=deep_patch_features,
             deep_patch_valid_length=deep_patch_valid_length,
+            time_seconds=(
+                self._slice_time_tensor(
+                    encoded.time_seconds,
+                    encoded.valid_length,
+                    start_fraction,
+                    end_fraction,
+                )[0]
+                if encoded.time_seconds is not None
+                else None
+            ),
+            patch_time_seconds=(
+                self._slice_time_tensor(
+                    encoded.patch_time_seconds,
+                    encoded.patch_valid_length or int(encoded.patch_time_seconds.shape[0]),
+                    start_fraction,
+                    end_fraction,
+                )[0]
+                if encoded.patch_time_seconds is not None
+                else None
+            ),
+            deep_patch_time_seconds=(
+                self._slice_time_tensor(
+                    encoded.deep_patch_time_seconds,
+                    encoded.deep_patch_valid_length or int(encoded.deep_patch_time_seconds.shape[0]),
+                    start_fraction,
+                    end_fraction,
+                )[0]
+                if encoded.deep_patch_time_seconds is not None
+                else None
+            ),
         )
 
     def __getitem__(self, index: int) -> TorchTrackItem:
@@ -365,7 +416,12 @@ class TorchTrackDataset(Dataset):
         if sample is None:
             raise KeyError(f"sample not found in dataset: {sample_id}")
         frame = sample.load_frame()
-        encoded = encode_track_sequence(frame)
+        encoded = encode_track_sequence(frame, feature_schema=self.trajectory_feature_schema)
+        prepared_features = prepare_track_sequence_features(
+            encoded.features,
+            source_name=sample.source_name,
+            feature_schema=self.trajectory_feature_schema,
+        )
         time_values = pd.to_numeric(frame.get("time_seconds"), errors="coerce").to_numpy(dtype=np.float64)
         finite_times = np.sort(np.unique(time_values[np.isfinite(time_values)]))
         time_deltas = np.diff(finite_times)
@@ -375,12 +431,20 @@ class TorchTrackDataset(Dataset):
         physical = extract_physical_features(
             frame,
             height_missing=sample.height_missing,
-            phase_missing=sample.rd_phase_missing,
+            phase_missing=(
+                sample.rd_phase_missing
+                if self.include_rd_phase_missing_in_physical
+                else False
+            ),
+            feature_schema=self.trajectory_feature_schema,
         )
         route_name = infer_route_name(sample.label_name)
         rd_features = torch.zeros((1, 512, 4), dtype=torch.float32)
         rd_patch_features = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
         rd_deep_patch_features = torch.zeros((1, 64, 64, 3), dtype=torch.float32)
+        rd_time_seconds = torch.zeros((1,), dtype=torch.float32)
+        rd_patch_time_seconds = torch.zeros((1,), dtype=torch.float32)
+        rd_deep_patch_time_seconds = torch.zeros((1,), dtype=torch.float32)
         rd_valid_length = 1
         rd_patch_valid_length = 1
         rd_deep_patch_valid_length = 1
@@ -415,6 +479,21 @@ class TorchTrackDataset(Dataset):
                 if rd_encoded.deep_patch_features is not None
                 else rd_patch_features
             )
+            rd_time_seconds = (
+                rd_encoded.time_seconds
+                if rd_encoded.time_seconds is not None
+                else torch.arange(rd_encoded.valid_length, dtype=torch.float32)
+            )
+            rd_patch_time_seconds = (
+                rd_encoded.patch_time_seconds
+                if rd_encoded.patch_time_seconds is not None
+                else torch.arange(int(rd_patch_features.shape[0]), dtype=torch.float32)
+            )
+            rd_deep_patch_time_seconds = (
+                rd_encoded.deep_patch_time_seconds
+                if rd_encoded.deep_patch_time_seconds is not None
+                else torch.arange(int(rd_deep_patch_features.shape[0]), dtype=torch.float32)
+            )
             rd_valid_length = rd_encoded.valid_length
             rd_patch_valid_length = rd_encoded.patch_valid_length or int(rd_patch_features.shape[0])
             rd_deep_patch_valid_length = rd_encoded.deep_patch_valid_length or int(rd_deep_patch_features.shape[0])
@@ -427,10 +506,13 @@ class TorchTrackDataset(Dataset):
             fine_label=sample.fine_label,
             label_index=DEFAULT_VOCAB.encode(sample.label_name),
             fine_label_index=FINE_VOCAB.encode(sample.fine_label),
-            features=torch.from_numpy(encoded.features),
+            features=torch.from_numpy(prepared_features),
             rd_features=rd_features,
             rd_patch_features=rd_patch_features,
             rd_deep_patch_features=rd_deep_patch_features,
+            rd_time_seconds=rd_time_seconds,
+            rd_patch_time_seconds=rd_patch_time_seconds,
+            rd_deep_patch_time_seconds=rd_deep_patch_time_seconds,
             rd_valid_length=rd_valid_length,
             rd_patch_valid_length=rd_patch_valid_length,
             rd_deep_patch_valid_length=rd_deep_patch_valid_length,

@@ -432,3 +432,121 @@ python -m py_compile src/core/reselect_expert1_precision.py
 
 
 动手做之前先思考并更新计划文档task_plan.md，[]标记未完成，[x]标记已完成，需要将问题分解为最小可执行子问题，并分阶段进行，以Stage xxx标记阶段，每个阶段有若干个子问题需要解决，然后更新findings.md文档，同步记录每个阶段的发现，并更新，更新process.md，记录整个任务执行过程，所有任务文件创建完成后等待我确认开始执行
+
+审查RD-only训练代码是否有前后逻辑不一致，参数误传参，表征提取，特征未使用，高维低维映射问题，RD通道未开启，RD编码，时间切片，滑动窗口，辅助头，拒识等模块问题，最后深度思考，当前RD-only瓶颈，为什么精度无法突破90%以上，目标为RD-only模型精度和召回都达到95%以上，另外RD-only的数据集只采用cq08数据集，另外还需要审查cq08数据集的数据，尤其是我人工审查出1343和1494几乎内容一摸一样，为什么会这样？静止状态吗？该如何处理？在整个模型训练过程中会有什么影响？整理为以下格式：1.在src/core/data/rd.py文件中，encode_multimodal_rd() 重新破坏了已经正确处理的环状相位。2.在src/core/rd_novel_parent_data.py文件中，Novel parent 路径对 dBamplitude 再次执行 log1p。
+
+审查TR-only训练代码是否有前后逻辑不一致，参数误传参，表征提取，特征未使用，高维低维映射问题，轨迹编码，时间切片，滑动窗口，辅助头，拒识等模块问题，最后深度思考，当前TR-only瓶颈，为什么精度无法突破90%以上，目标为TR-only模型精度和召回都达到95%以上，整理为以下格式：1.在src/core/data/rd.py文件中，encode_multimodal_rd() 重新破坏了已经正确处理的环状相位。2.在src/core/rd_novel_parent_data.py文件中，Novel parent 路径对 dBamplitude 再次执行 log1p。
+
+启动一轮预训练代码的全量审查，逐个模块进行审查，重点审查代码中对于训练有影响的问题，整理为以下格式：1.在src/core/data/rd.py文件中，encode_multimodal_rd() 重新破坏了已经正确处理的环状相位。2.在src/core/rd_novel_parent_data.py文件中，Novel parent 路径对 dBamplitude 再次执行 log1p。
+
+动手修复之前先思考并更新计划文档TRonlyTask_plan.md，[]标记未完成，[x]标记已完成，需要将问题分解为最小可执行子问题，并分阶段进行，以Stage xxx标记阶段，每个阶段有若干个子问题需要解决，然后更新TRonlyFindings.md文档，同步记录每个阶段的发现，并更新，更新TRonlyProcess.md，记录整个任务执行过程，所有任务文件创建完成后等待我确认开始执行
+
+
+你现在是RadarInsight项目的资深雷达深度学习工程师、代码审查员和实验设计员。当前工作目录为F:\Project\RadarInsight。请对当前项目的TR-only模型进行一次基于证据的全链路代码审查、性能评估和可执行优化设计。TR-only严格定义为只使用轨迹/Track/TR信息，不得使用RD输入、RD特征、RD质量字段、RD可用性字段或任何由RD派生的采样、损失、checkpoint选择和后处理信息。总体目标是在真实数据、session/parent隔离、无数据泄漏和可复现实验前提下，使总体Accuracy、Macro Precision、Macro Recall、Macro F1以及各类别Precision、Recall、F1最低达到90.00%。重点关注DroneTarget和BirdTarget，两个类别的Precision、Recall、F1均不得低于90.00%，必须重点分析DroneTarget→BirdTarget和BirdTarget→DroneTarget的互相误判，不得通过牺牲其中一个类别来提升另一个类别。90.00%只能作为优化和验收目标，未达到时必须明确标记“未达标”，禁止估算、补写或虚构指标。
+一、执行总原则
+  1.全程使用中文输出，文件名、类名、函数名、配置键和指标标准名称可保留原文。
+  2.必须先审查、后修改；不得根据文件名、注释或函数名猜测代码作用，必须通过导入关系、调用链、配置传递、数据流、测试或实际运行结果核实。
+  3.所有结论必须区分“已确认问题”“有证据但未运行验证”“待验证假设”，未核实内容不得写成确定性结论。
+  4.先执行只读检查，读取git status --short、当前TR-only跟踪文件、有效配置、数据索引、模型入口和已有实验产物。当前工作区存在大量未提交修改和未跟踪文件，必须保留用户现有改动，禁止git reset、git checkout、git clean、递归删除或覆盖无关文件。
+  5.当前仓库没有根目录AGENTS.md、README.md、manage.py和config/system_config.yaml时，不得臆造其内容；应记录文件不存在，并使用实际存在的src/、config/和tests/入口。
+  6.不要把训练损失下降、smoke结果、单个seed结果或窗口级Accuracy直接当作泛化性能；必须同时检查window、parent/session、source、类别和线上因果状态机指标。
+  7.不得为了达到90.00%修改标签、删除困难样本、污染测试集、调试测试集阈值、引入未来信息或使用RD信息。
+  8.任何性能改善都必须同时检查DroneTarget和BirdTarget是否受损；如果一个类别提升而另一个类别的Recall或Precision下降到90.00%以下，候选方案判定为不合格。
+二、当前项目优先核查范围
+  1.跟踪文件：TRonlyTask_plan.md、TRonlyProcess.md、TRonlyFindings.md。
+  2.配置和入口：config/config.json、config/configmanager.py、src/core/pretrain_track_config.py、src/core/train_pretrain_track.py、src/core/expert1_config.py、src/core/train_expert1.py、src/core/evaluate_expert1.py。
+  3.预训练链路：src/core/pretrain_track_manifest.py、src/core/build_tr_only_pretrain_manifest.py、src/core/pretrain_track_data.py、src/core/pretrain_track_trainer.py，以及预训练checkpoint加载和序列编码相关代码。
+  4.TR特征和编码：src/core/features.py、src/core/encoding.py、src/core/trajectory.py、src/core/data/features.py、src/core/data/track_dataset.py、src/core/data/split.py、src/core/data/collate.py、src/core/data/dataloaders.py。
+  5.Expert1链路：src/core/expert1_data.py、src/core/expert1_trainer.py、src/core/expert1_streaming.py、src/core/experts.py、src/core/metrics.py，以及实际被调用的modeling模块。
+  6.索引、窗口和数据处理：src/process/standardize_tracks.py、src/process/build_expert1_window_index.py、src/process/build_tr_only_pretrain_manifest.py及其实际调用的处理模块。
+  7.拒识链路：src/core/expert1_config.py中的reject_threshold、enable_reject_in_train、enable_reject_in_eval、attribution_reject_*等字段，以及src/core/experts.py、src/core/expert1_trainer.py、src/core/expert1_streaming.py、src/core/evaluate_expert1.py中与reject、UnknownTarget、confidence、margin、precision bias和stable decision有关的代码。
+  8.测试：tests/中所有与pretrain、track、trajectory、feature、expert1、streaming、split、window、config、metrics和reject相关的测试。
+  9.数据优先核查：data/processed/expert1_realtime_causal_window_index_v9.csv、data/manifests/expert1_realtime_causal_window_split_manifest_v9.json、data/processed/expert1_realtime_causal_windows_v9/、data/processed/raw_tracks/、data/processed/excel_tracks/、data/processed/cq08_tracks/及实际被有效配置引用的其他数据文件。
+  10.当前初步观察到V9索引字段包含label_name、source_name、sample_id、parent_sample_id、window_id、is_causal_window、window_start_seconds、window_end_seconds、track_content_fingerprint、content_group_id、split_group_id和split_name；初步统计约为20263个窗口，train/val/test约为14107/2979/3177，类别包含DroneTarget、BirdTarget、BalloonTarget、ClutterTarget、UnknownTarget。以上数值只能作为核查起点，必须重新统计并以实际文件为准。
+  11.类别顺序必须同时核对src/core/experts.py中的LOW_ALTITUDE_CLASSES、数据索引label_name、label映射函数、模型输出维度、checkpoint元数据和评估器；禁止仅凭某一个文件硬编码类别。
+三、必须逐模块完成的审查
+  1.数据源和标签：核对原始文件到标准化轨迹、label_name_raw到label_name、粗粒度标签到细粒度标签的映射；检查标签是否来自文件名、人工字段、Excel或其他来源；检查混合标签、UnknownTarget、ClutterTarget和稀有类别的语义一致性。
+  2.数据切分和泄漏：检查session、parent、track、window、content_group_id、split_group_id是否跨train/val/test重复；检查滑窗重叠、重复轨迹、原始文件重复、RD内容重复、增强样本跨split和预训练验证parent暴露；确认统计量只使用训练集合。
+  3.索引和窗口：核对时间戳精度、窗口长度、步长、最小点数、因果窗口、prefix/sliding/short-full模式、窗口边界、窗口内点数、缺失点和短轨迹处理；确认训练、离线评估、在线推理使用同一窗口语义。
+  4.TR特征提取：逐一列出每个原始字段、物理单位、来源、缺失条件、填补方式、标准化方式、最终tensor索引和实际消费者；核查位置、距离、速度、加速度、时间差、航向角、角速度、曲率、轨迹连续性、质量标记和missingness。
+  5.物理和时间语义：检查dt是否使用真实时间；检查角度是否进行环状编码；检查359度到0度是否产生伪突变；检查不同来源的单位、坐标系、符号、比例和幅度是否一致；检查NaN、Inf、真实零值、缺失值、padding值和MTM mask是否可区分。
+  6.特征是否真正使用：对每个声明存在的特征追踪“提取→编码→归一化→Dataset→collate→Transformer层或分类头→loss/evaluation”；标记被计算后丢弃、被零填充覆盖、被配置关闭、只进入诊断但未进入模型、或索引顺序与模型顺序不一致的特征。
+  7.TR编码和Transformer：核对输入维度、投影层、位置编码、相对时间、padding mask、missingness mask、因果mask、attention pooling、mean pooling、last-valid pooling、LayerNorm、dropout、序列截断、序列顺序、输出embedding和分类头；确认没有使用未来窗口信息。
+  8.预训练：核对MTM mask、padding mask、feature-missing mask、mask token、InfoNCE正负样本、temperature、source统计量、采样权重、train-parent manifest、checkpoint schema、特征维度和预训练到Expert1的加载；确认预训练分布与Expert1因果窗口分布一致。
+  9.训练目标和损失：核对主CE、辅助CE、pairwise、residual、contrastive、parent consistency、focal、class weight、label smoothing和拒识损失；检查同一logits是否被重复计算主损失；检查辅助头是否真正参与反向传播和推理；检查pure TR-only路径是否仍混入RD损失或RD指标。
+  10.采样和类别不平衡：核对sampler、class weight、source weight、parent weight、rare-class boost是否重复补偿；报告每个类别、source和parent的实际曝光量；检查过采样是否造成重复窗口、过拟合或训练/验证分布不一致。
+  11.配置传参与可达性：建立“配置字段→配置加载→类型转换→运行时变量→实际影响→测试/指标”的映射；重点检查参数名错误、默认值覆盖、布尔值解析、未知字段静默丢弃、配置未传入、传入后未使用、阶段条件判断错误和checkpoint配置恢复错误。
+  12.checkpoint和版本：核对checkpoint保存的模型结构、特征顺序、schema版本、类别顺序、归一化统计量、manifest hash、split信息、seed、有效配置、代码版本和训练指标；检查strict load、维度不匹配、旧checkpoint误加载新特征和预训练权重部分加载。
+  13.普通评估指标：核对logits与traj_logits是否混用；核对类别映射、confusion matrix、parent聚合、mean-logit、source指标、stable decision和线上因果状态机；确认调参数据与测试数据隔离。
+  14.拒识配置和实现：核对reject_threshold、enable_reject_in_train、enable_reject_in_eval、attribution_reject_min_known_confidence、attribution_reject_min_known_margin、attribution_reject_min_track_quality、attribution_reject_target_valid_points、attribution_reject_max_gap_fraction及所有相关字段是否真正传入并生效；检查拒识判断使用的是softmax confidence、logit margin、track quality、missingness、UnknownTarget概率、状态机还是其他信号。
+  15.拒识语义：必须区分UnknownTarget类别预测与拒识动作，不能把UnknownTarget自动等同于拒识，也不能把拒识结果混入普通分类结果而不标记；明确拒识输出标签、接受类别、拒绝类别、未决状态和线上状态机状态。
+  16.拒识训练和评估一致性：检查拒识是否只在评估启用、训练和评估阈值是否不一致、拒识是否参与checkpoint选择、precision bias是否在拒识前后生效、阈值是否使用测试集调参，以及拒识是否误伤DroneTarget和BirdTarget。
+  17.拒识离线和在线一致性：逐窗口对比offline与streaming的输入特征、时间戳、缺失处理、归一化、模型输出、confidence、margin、reject阈值、precision bias、连续确认次数、状态切换和最终类别；任何不一致都必须给出具体文件、位置和影响。
+  18.TR-only纯度：即使索引中包含rd_path、has_rd、RD质量或RD可用性字段，也必须证明它们没有影响TR-only的输入、采样、损失、checkpoint选择、后处理和评估；若只用于诊断，必须明确标记为not_applicable，不能伪装成TR-only能力。
+四、性能评估要求
+  1.先确定当前可复现baseline，包括checkpoint路径、有效配置、特征schema、数据索引、split manifest、seed、设备、训练epoch、batch size和评估命令。
+  2.优先使用真实验证集和parent/session分组评估；测试集只有在已有授权和评估契约允许时才能运行，未运行时必须写“未执行”，禁止填写估计值。
+  3.分类别性能必须输出如下表格，类别以当前有效索引和模型类别定义的交集为准，不得只输出DroneTarget和BirdTarget：
+  |类别|Precision（精度）|Recall（召回率）|F1|Support|主要混淆去向|是否达到90.00%|评估范围|
+  4.表格必须包含DroneTarget、BirdTarget、BalloonTarget、ClutterTarget、UnknownTarget以及当前有效数据中实际存在的其他类别。重点单独分析DroneTarget和BirdTarget的双向混淆数量、误报数量、漏报数量、来源差异、parent/session差异和分组置信区间。
+  5.总体指标必须输出：
+  |评估层级|Accuracy|Macro Precision|Macro Recall|Macro F1|Support|是否达到90.00%|备注|
+  其中至少包含总体window级、parent/session级、source级和线上因果stable级。Accuracy、Precision、Recall、F1等质量指标低于90.00%时必须列出差距；Support过低时必须说明指标不稳定，不能仅凭单个seed或少量样本宣称达标。
+  6.不得把总体Accuracy写成类别Precision，不得把Recall改名为类别Accuracy；如果输出类别Accuracy，必须明确计算公式。
+  7.每次候选优化都必须与同一split、同一数据版本、同一评估脚本、同一类别顺序和相同seed集合比较；优先报告seed=42、1337、2026的均值、标准差、最小值和最大值。
+  8.在样本量允许时使用parent/session分组bootstrap或置信区间；稀有类别support过低时，必须说明90.00%指标不稳定，不能仅凭一个窗口或一个seed宣称达标。
+  9.目标检查必须单独输出：总体Accuracy是否达到90.00%、各类别Precision是否达到90.00%、各类别Recall是否达到90.00%、各类别F1是否达到90.00%、DroneTarget和BirdTarget是否均达到90.00%、parent/session指标是否同步提升、是否存在某类Recall提升但另一类Precision严重下降。
+五、拒识模块评估要求
+  1.必须单独输出拒识性能表，不得把拒识结果隐藏在普通分类表中：
+  |拒识阈值|Coverage（保留率）|Accepted Accuracy|Accepted Macro Precision|Accepted Macro Recall|DroneTarget Recall|BirdTarget Recall|Unknown/Clutter拒识Recall|False Acceptance Rate|False Rejection Rate|Selective Risk|是否达到目标|
+  2.Accepted Accuracy、Accepted Macro Precision、Accepted Macro Recall、DroneTarget Recall和BirdTarget Recall最低要求90.00%；False Acceptance Rate和False Rejection Rate属于错误
+  率，目标应不高于10.00%；Coverage和拒识率不强行要求90.00%，但必须如实报告并分析其与精度、召回率之间的权衡。
+  3.至少评估无拒识、当前默认阈值、验证集选择阈值和候选阈值；阈值只能使用训练集或验证集确定，测试集只能用于最终一次性评估。
+  4.必须输出不同拒识阈值下的risk-coverage变化、DroneTarget/BirdTarget被误拒识数量、UnknownTarget/ClutterTarget被错误接受数量、已知目标错误拒识率、未知目标错误接受率，以及拒识前后的混淆矩阵。
+  5.必须分别报告拒识前和拒识后的总体指标、DroneTarget指标、BirdTarget指标、UnknownTarget指标和ClutterTarget指标；如果拒识提高总体Accuracy但使DroneTarget或BirdTarget Recall低于90.00%，该方案必须判定为不合格。
+  6.必须检查拒识阈值是否对不同source、不同parent、不同窗口长度、不同轨迹质量和不同类别产生不公平偏置；必须报告DroneTarget和BirdTarget在各source上的拒识率。
+  7.必须确认拒识模块没有使用测试集标签调阈值、未来窗口信息、RD信息、session_id、文件名类别词或其他标签泄漏字段。
+六、性能优化和代码修改要求
+  1.先修复数据、标签、切分、特征、评估、拒识和线上一致性问题，再讨论扩大模型、调超参数或增加复杂结构。
+  2.每次修改只改变一个主要因素，保留当前baseline，建立清晰的before/after对比；禁止一次同时修改特征、采样、loss、模型、拒识和后处理。
+  3.代码修改必须是手术式修改：只改与已确认问题直接相关的最小范围；保留现有接口和兼容性；禁止无关重构、批量重命名和大面积重写。
+  4.如果修改特征schema、输入维度、窗口策略、预训练契约、loss、checkpoint选择、拒识语义、阈值策略或推理语义，必须明确版本变化、旧checkpoint是否失效、是否必须重新预训练或重训。
+  5.每个优化建议必须包含：问题证据、修改文件、修改位置、预期改善类别、可能伤害类别、验证指标、实验成本、失败判据和回滚条件。
+  6.优先级按以下顺序评估：数据泄漏和标签契约→时间/单位/角度/缺失语义→TR特征实际使用→Transformer时序建模和pooling→预训练迁移→类别采样和loss→Drone/Bird双向混淆→拒识与阈值→校准和后处理→线上一致性。
+  7.不得默认建议“增大模型、增加epoch、降低学习率、加入复杂注意力”作为解决方案，必须先证明当前瓶颈确实来自模型容量。
+  8.长时间训练、全量数据重建、重新预训练、独立测试和大规模实验必须先记录计划、命令、资源和验收标准；没有明确授权时只运行静态检查、focused unit test、shape/finite smoke和小规模验证。
+  9.任何候选优化都必须同时满足DroneTarget和BirdTarget的90.00%门槛；如果无法同时满足，必须说明具体瓶颈，不得用总体指标掩盖。
+七、跟踪文件更新要求
+  1.必须先读取现有TRonlyTask_plan.md、TRonlyProcess.md和TRonlyFindings.md，识别已有Stage和Finding编号，不能覆盖真实历史结论。
+  2.TRonlyTask_plan.md使用“- [ ]”表示未完成、“- [x]”表示已完成；只有存在代码、测试、数据或命令证据时才能勾选[x]。
+  3.所有任务必须拆分为“## Stage NNN - 阶段名称”；每个Stage继续拆分为最小可执行子任务，并写明依赖、验收标准、验证命令和是否需要训练。
+  4.若已有Stage编号，使用当前最大编号之后的新编号，禁止重复编号；每个Stage只允许一个主要改动因素。
+  5.任务计划至少覆盖：审查基线、数据和标签、切分与泄漏、特征提取、TR编码、Transformer、预训练、监督训练、loss和采样、checkpoint、普通评估、拒识模块、offline/streaming一致性、focused验证、性能候选和最终复评。
+  6.TRonlyProcess.md必须覆盖式更新：先读取旧内容，再重新生成完整的本轮执行记录，不得只在文件末尾追加；记录日期、执行步骤、实际命令、输出、修改文件、测试结果、拒识评估结果、阻塞原因和未执行事项。
+  7.TRonlyFindings.md必须覆盖式更新：只保留当前仍有效或明确标注为历史的Finding；每条Finding包含Severity、Evidence、Impact、Action；不得把待验证假设写成已确认Finding。
+  8.任何没有实际执行的训练、测试、评估、拒识阈值搜索或数据重建必须明确写“未执行”，不得补写结果。
+八、最终输出格式
+  1.第一部分输出“当前审查范围与已核实基线”，只写数据版本、类别、split、checkpoint、有效配置、已执行命令和限制。
+  2.第二部分输出“分类性能评估表”，先输出分类别Precision、Recall、F1、Support，再输出总体、parent/session、source和线上stable指标。
+  3.第三部分输出“拒识性能评估表”，包含不同阈值下的Coverage、Accepted指标、DroneTarget/BirdTarget Recall、Unknown/Clutter拒识Recall、False Acceptance Rate、False Rejection Rate和Selective Risk。
+  4.第四部分输出“已确认代码问题”，严格使用以下格式，不得改成散文或无编号列表：1.【文件】文件路径；【位置】行号、类名或函数名；【问题】具体问题；【证据】实际代码、配置、数据或测试证据；【影响】对精度、召回率、DroneTarget/BirdTarget双向混淆、拒识效果、泛化、泄漏、评估正确性或部署一致性的具体影响。2.【文件】文件路径；【位置】行号、类名或函数名；【问题】具体问题；【证据】实际代码、配置、数据或测试证据；【影响】具体影响。
+  5.如果只是待验证风险，单独输出“待验证项”，并明确说明验证方法，不能混入已确认代码问题。
+  6.第五部分输出“优化建议和思考”，按优先级排序；每条包含最小修改方案、预期改善类别、对DroneTarget/BirdTarget的影响、拒识影响、验证指标、风险和停止条件。
+  7.第六部分输出“本轮变更与验证”，列出修改文件、测试命令、评估命令、拒识评估命令、实际结果、未执行项目和下一Stage。
+  8.最终结果必须明确说明Accuracy、Precision、Recall、F1是否全部达到90.00%，DroneTarget和BirdTarget是否全部达到90.00%，拒识模块是否达到对应目标；任何未达标项必须列出具体差距。
+  9.全程禁止客套话、空泛结论、无证据的90.00%性能承诺、无关背景介绍和多余空行；最终输出和三个TR-only跟踪文件均不得保留无意义空白行。
+
+你现在是资深雷达信号处理、RD-only目标识别、深度学习和代码审查专家。请在当前项目F:\Project\RadarInsight中，对RD-only模型进行全链路审查、问题修复和性能优化，最终将RD-only代码、配置和数据链路修复到“待全量训练”状态，再把可直接执行的全量训练命令输出给我，由我手动进行挂机训练。全程使用中文，结论必须有代码、配置、数据、日志或测试依据，不得猜测代码含义，不得虚构指标，不得把TR-only结果当作RD-only能力证据。RD-only模型只能使用RD数据及其合法派生特征，必须核实是否错误使用TR输入、TR标签、TR轨迹、TR匹配结果、路径、文件名、目标ID、split信息或其他标签泄漏字段。若RD/TR配对信息仅用于样本关联或质量校验，必须确认其没有进入模型输入、损失、阈值、采样或预测后处理。当前代码中重点核实RD_ONLY_LABELS、PhysicalRDDroneBirdClassifier.label_names和supports_rejection的实际定义；如果当前RD-only支路是DroneTarget/BirdTarget二分类，不得擅自扩展为五分类；如果存在其他RD分支包含BalloonTarget、ClutterTarget或UnknownTarget，必须分别评估，不能混合统计。重点关注DroneTarget和BirdTarget，不得通过牺牲一个类别提升另一个类别。性能目标为各主要分类指标最低达到90.00%，包括总体Accuracy、Precision、Recall、Macro-F1以及有效类别的分类别Precision、Recall、F1；DroneTarget和BirdTarget的Precision、Recall、F1均应达到90.00%。指标未达到目标时必须明确差距、证据和可执行原因，不得通过修改指标定义、删除困难样本、改变评估分母或使用测试集调参制造提升。RD-only跟踪文件固定为task_plan.md、process.md、findings.md，这三个文件视为RD-only专用跟踪文件，不得使用TRonlyTask_plan.md、TRonlyProcess.md或TRonlyFindings.md代替，也不得修改TR-only跟踪文件。若三个RD-only文件不存在，先创建；如果已存在，先读取其全部内容。三个文件必须覆盖式更新，不能只追加零散记录：保留仍有效的历史事实，删除或修正过期、矛盾和未经证实的结论。task_plan.md中未完成任务使用[ ]，已完成任务使用[x]，所有任务必须拆分为Stage xxx阶段，每个阶段继续拆分到最小可执行子任务，并写明依赖、证据、产物和验收条件。审查前先读取项目级指令、当前工作区状态、三个RD-only跟踪文件、有效配置、实际训练入口、实际评估入口、当前数据索引、manifest、split文件和checkpoint元数据。工作区已有修改时必须保留用户改动，不得进行无关重构。审查必须逐个模块执行，先确认调用链、输入输出契约和实际运行路径，再判断问题。重点核查以下模块及其实际引用关系：1.数据与预处理：src/process/standardize_rd.py、src/process/build_cq08_rd_frame_index.py、src/process/build_cq08_rd_canonical_store.py、src/process/build_cq08_rd_physical_canonical_store.py、src/process/merge_cq08_rd_physical_canonical_index.py、src/process/build_rd_only_causal_window_index.py、src/process/build_expert1_rd_segment_store.py、src/process/build_rd_physical_normalization_stats.py、src/process/build_rd_physical_feature_stats.py。2.数据读取与契约：src/core/data/rd.py、src/core/data/rd_segment_store.py、src/core/data/rd_physical_window_dataset.py、src/core/data/rd_pairing_contract.py、src/core/data/indexing.py、src/core/rd_physical_schema.py、src/core/rd_physical_statistics.py、src/core/rd_physical_artifacts.py。3.RD编码和模型：src/core/rd_physical_drone_bird_model.py、src/core/rd_patch_residual_model.py、src/core/rd_novel_parent_model.py、src/core/rd_novel_anchor_residual_model.py、src/core/forwardlayer/rd.py以及实际被训练入口调用的RD模型文件。4.配置、训练和checkpoint：src/core/rd_drone_bird_config.py、src/core/rd_drone_bird_trainer.py、src/core/rd_physical_drone_bird_config.py、src/core/rd_physical_drone_bird_trainer.py、src/core/rd_patch_residual_config.py、src/core/rd_patch_residual_trainer.py、src/core/rd_novel_parent_config.py、src/core/rd_novel_parent_trainer.py、src/core/rd_novel_anchor_residual_config.py、src/core/rd_novel_anchor_residual_trainer.py、对应train_rd_*.py入口、config/configmanager.py及实际生效配置。5.评估、诊断和线上路径：src/core/evaluate_rd_*.py、src/core/diagnose_rd_drone_bird_residuals.py、src/core/audit_rd_*.py、src/core/benchmark_rd_physical_stream.py、src/core/benchmark_rd_novel_parent.py、src/core/compare_rd_drone_bird_trajectory.py以及实际线上推理、路由、稳定决策和拒识调用链。Stage 001：冻结当前RD-only基线。最小子任务包括确认实际训练配置、数据版本、标签集合、输入shape、RD通道定义、range/doppler轴、checkpoint、seed、split、训练轮数、best checkpoint选择规则、当前window和parent指标；确认训练、验证、测试是否被正确隔离；确认当前支路是二分类、五分类还是多分支组合；确认是否存在独立的线上stable决策。Stage 002：审查数据、标签、split和泄漏。逐字段核查原始RD文件、标准化数据、canonical frame、segment、window、manifest和训练索引；确认同一parent、session、target、content group、文件指纹和时间连续片段不会跨split；确认causal window不包含未来帧；确认标签、目标关联、source、路径、ID、测试字段没有进入模型输入或阈值调优；确认归一化统计、feature statistics、采样权重和checkpoint选择只使用训练或验证范围。Stage 003：审查RD物理数据和特征提取。核查range、Doppler、velocity、amplitude、SNR、power、微多普勒、时间戳、质量特征、缺失值、padding值、无效帧和异常值的单位、方向、顺序、尺度、符号和语义；核查dB与线性功率转换、clip范围、归一化拟合范围、零值是否混淆真实零值与缺失；核查range/doppler轴是否被转置、翻转、错位或重复；核查每个声明的特征是否真正进入模型，是否存在计算后未使用、传参后被覆盖、名称相同但语义不同或只在诊断中出现却被误认为模型能力的特征。Stage 004：审查RD数据集、窗口、padding和时间处理。核查[batch,time,channel,range,doppler]等shape在dataset、collate、trainer、model之间是否一致；核查padding mask、有效帧长度、时间戳单调性、局部时间差、相邻帧配对、末帧锚点、稀疏窗口、重复窗口和窗口权重；确认GRU、attention、pooling、frame logits、prefix logits和micro-Doppler分支没有读取padding帧或未来信息；检查单帧、空帧、短序列、时间重复、时间跳变和缺失RD样本。Stage 005：审查RD编码和模型前向链路。逐层核查卷积输入通道、range/doppler空间编码、池化、token投影、时间编码、GRU/Transformer/attention、统计特征融合、quality特征融合、micro-Doppler分支、frame级分类头、window级分类头、base logits、residual delta、residual gate和最终logits；确认每个forward参数都被正确使用，梯度能传回，训练和评估路径一致，mask没有在错误维度广播，softmax/logit没有重复或顺序错误，二分类标签映射和checkpoint输出顺序一致；重点排查参数传递错误、特征未使用、通道错位、维度广播、分支未接入最终输出、残差方向错误、gate饱和、base checkpoint加载错误和冻结参数未按预期冻结。Stage 006：审查训练目标、loss、采样和checkpoint。逐项拆分主分类loss、prefix/frame losmicro-Doppler辅助loss、residualloss、gate loss、parent consistency、class weight、bird weight、focal loss、evidence weight、parent balance、sampler和正则化；确认没有对同一logits重复计算分类loss，没有对padding或缺失样本错误反传，没有训练集和验证集权重混用，没有类别补偿叠加导致某类过度放大；核查梯度、学习率、scheduler、early stopping、随机种子、AMP、eval模式、best checkpoint选择、checkpoint恢复和训练历史；每个优化实验只能改变一个主要因素，必须保存独立配置、checkpoint、日志和验证报告。Stage 007：审查模型性能评估。必须分别输出window级、parent级、session级、source级、稳定线上决策级指标，并报告support、parent/session数量、有效样本数和排除样本数；必须输出总体指标表、分类别指标表、混淆矩阵、主要混淆方向和置信度分布；如果当前RD-only是Drone/Bird二分类，只输出实际存在的两个类别，并明确其他类别不在该支路评估范围；如果存在五分类或novel/open-set分支，另表输出五类指标。分类别表至少包含类别、Support、Precision、Recall、F1和是否达到90.00%；Accuracy仅在定义明确时报告，若使用one-vs-rest Accuracy必须写清定义，不能把总体Accuracy复制到每个类别。总体表至少包含评估层级、样本数、Accuracy、Macro-Precision、Macro-Recall、Macro-F1、Balanced Accuracy和是否达到90.00%。必须单独统计DroneTarget→BirdTarget和BirdTarget→DroneTarget，不得只给总体混淆矩阵；必要时输出parent级和source级置信区间，低样本类别必须标记统计不稳定，不得隐藏。Stage 008：审查拒识、开放集和校准。必须搜索并核实实际存在的reject_threshold、enable_reject_in_train、enable_reject_in_eval、low_altitude_reject_*、attribution_reject_*、OOD/open-set、energy、margin、confidence、Unknown和abstain逻辑；不能因为配置中存在阈值就认定拒识模块有效。必须明确UnknownTarget分类结果、拒识/abstain动作和普通低置信度预测之间的区别；如果模型声明supports_rejection=False或没有经过验证的拒识输出，必须报告“当前支路不具备已验证的拒识能力”，不得伪造拒识指标。拒识评估表至少包含阈值、Coverage、Accepted Support、Accepted Accuracy、Accepted Macro-F1、Drone Recall、Bird Recall、Unknown/Clutter拒识Recall、FalseAcceptance Rate、False Rejection Rate和Selective Risk；Coverage只需报告，不强制达到90.00%；Accepted主要分类指标、Drone/Bird Recall、有效Unknown/Clutter拒识Recall和Selective Risk目标为至少90.00%，False Acceptance Rate和False Rejection Rate目标为不高于10.00%；必须明确每个指标的分母，分别报告已知目标被错误拒绝、未知/杂波被错误接受以及真正接受样本中的错误；阈值必须通过训练集或parent-grouped OOF验证集确定，禁止使用独立测试集调阈值、校准、选择checkpoint或选择后处理。Stage 009：提出并执行手术式优化。按照“数据契约和泄漏→RD单位/轴/缺失→窗口和mask→特征使用→RD编码→loss/采样→checkpoint/评估→校准/拒识→复杂架构”的顺序处理；每次代码修改只解决一个主要问题，不进行大规模重构，不同时修改多个超参数或多个网络分支；每个修改必须说明根因、修改文件、修改位置、输入输出契约、预期机制、潜在副作用、回归测试和验证指标；不得为追求90.00%而删除困难样本、改变标签、泄漏测试集、混入TR特征或调整评估分母。Stage 010：Smoke验证和待训练准备。RD-only训练时间很长，本任务中只允许运行短时smoke训练，禁止启动全量训练、长时间训练、全量数据重建或长时间评估。smoke训练必须明确限制epochs、max_train_batches_per_epoch、max_val_batches、数据范围和输出目录，并确认不会误用测试集；smoke至少验证配置可加载、数据可读取、模型可构建、forward shape正确、loss有限、梯度正常、checkpoint可保存和恢复、评估入口可运行、RD-only没有读取TR特征。除短时smoke外，可运行静态检查、单元测试、数据契约测试、shape测试、mask测试、checkpoint round-trip测试、无TR输入测试、归一化防泄漏测试和split隔离测试。若smoke失败，必须继续修复，不能输出“待全量训练”命令；若任何关键问题未闭环，必须明确阻塞原因。只有在代码修改、配置校验、数据契约、smoke训练、测试和运行入口全部通过后，才能将状态标记为“待全量训练”。待训练状态至少满足：训练入口可执行；训练配置为独立版本且输出目录唯一；数据索引、manifest、normalization stats和featurestats路径已核实；seed、device、batch size、epochs、学习率和checkpoint策略已固定；测试评估关闭；测试集没有参与阈值、校准、checkpoint或超参数选择；RD-only输入边界已验证；拒识开关和阈值状态已明确；日志和artifact目录已准备；预计资源和风险已说明。Stage 011：输出人工挂机训练命令。达到待训练状态后，只输出命令，不得由你实际启动全量训练，不得调用Start-Process、后台shell、任务调度器或其他方式替用户启动全量训练。必须根据实际代码、实际--help结果和实际配置生成命令，禁止猜测入口或参数。训练命令必须包含正确的Python解释器、实际训练入口、独立配置文件、唯一output_dir、固定seed、正确device、日志路径以及测试评估关闭设置；如果项目支持配置文件，优先使用已经验证过的独立配置；如果项目不支持--config，必须使用实际支持的参数形式。输出一条可直接复制执行的PowerShell全量训练命令，并可同时提供一条可复制执行的PowerShell后台挂机命令；命令中的路径、配置名、输出目录和参数必须是真实存在或已在本轮创建并验证过的内容，不得使用未定义占位符。后台挂机命令必须使用实际项目入口和正确的标准输出、标准错误重定向方式；同时输出日志查看命令、进程状态检查命令、artifact预期位置和训练完成后的评估命令，但这些命令只能输出给用户，不能由你执行。若训练命令无法可靠确定，必须先修复或核实入口，不能输出猜测命令。最终输出必须严格按以下顺序组织，章节之间不得插入多余空行：
+一、审查范围与当前基线
+说明实际RD-only入口、数据版本、标签集合、输入shape、checkpoint、评估范围、已确认和未确认事项。
+二、模型性能评估
+先输出总体指标表，再输出分类别指标表，再输出parent/session/source/线上stable指标表和混淆矩阵；所有百分比保留两位小数，例如98.00%，没有实际结果写未评估并说明原因。
+三、拒识模块评估
+单独输出拒识实现链路、阈值  来源、是否使用UnknownTarget、覆盖率、接受样本指标、已知目标误拒率、未知/杂波误接受率、Selective Risk和校准结论；没有真实开放集或拒识标签时必须明确说明无法得出有效结论。
+四、问题清单
+按严重性从高到低输出，每条必须严格使用以下格式并单独一行：1.[文件]文件路径；[位置]函数名、类名、配置字段或行号；[问题]可复现的问题；[证据]代码、数据、日志、测试或指标证据；[影响]对精度、召回率、Drone/Bird混淆、拒识、泛化或线上稳定性的具体影响。编号连续，不使用空泛标题，不把推测写成事实；没有证据的问题标记为待核实，不得列为已确认缺陷。
+五、建议与思考
+按优先级输出手术式修改建议，每条说明修改范围、预期收益、风险、验证方法和停止条件；区分已证实问题、合理假设和后续实验，不承诺未经验证的指标提升。
+六、跟踪文件和变更记录
+列出本轮覆盖式更新的task_plan.md、process.md、findings.md，实际修改的代码和配置文件、smoke命令及结果、测试命令及结果、未完成Stage、未执行的全量训练和剩余风险。
+七、待全量训练交付仅当全部修复和smoke验证通过时输出待全量训练：是、实际训练配置、实际训练入口、可直接复制的前台训练命令、可直接复制的后台挂机命令、日志查看命令、进程状态检查命令、预期artifact目录和训练完成后的评估命令；明确写出“全量训练未由本次审查启动，请用户手动执行”。如果未达到待训练状态，只输出待全量训练：否及阻塞问题，不得输出伪造或未经验证的训练命令。全程不得输出虚构的95%或90%指标，不得省略DroneTarget、BirdTarget和拒识审查，不得修改TR-only代码或跟踪文件来完成RD-only任务。

@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter, defaultdict
+from io import StringIO
 from pathlib import Path
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
+from src.core.data.content_fingerprint import (
+    FILE_CONTENT_FINGERPRINT_ALGORITHM,
+    TRACK_CONTENT_FINGERPRINT_ALGORITHM,
+    file_content_fingerprint,
+    track_content_fingerprint,
+)
 from src.core.data.labels import two_layer_label_fields
 from src.process.schema import TRACK_INDEX_COLUMNS, TRACK_SCHEMA_COLUMNS
 
@@ -33,10 +41,51 @@ WINDOW_EXTRA_COLUMNS = [
     "window_unique_time_count",
     "is_causal_window",
     "window_mode",
+    "track_content_fingerprint",
+    "track_content_fingerprint_status",
+    "raw_echo_content_fingerprint",
+    "raw_echo_content_fingerprint_status",
+    "rd_content_fingerprint",
+    "rd_content_fingerprint_status",
+    "content_group_id",
+    "content_group_size",
+    "content_canonical_parent_id",
+    "is_content_canonical",
+    "window_content_fingerprint",
     "split_group_id",
 ]
 
 WINDOW_INDEX_COLUMNS = TRACK_INDEX_COLUMNS + WINDOW_EXTRA_COLUMNS
+
+RD_CONTENT_FINGERPRINT_ALGORITHM = "sha256-npz-arrays-v1"
+CONTENT_COMPONENT_ALGORITHM = "sha256-content-component-v1"
+CONTENT_COMPONENT_GROUP_PREFIX = "content-component:"
+WINDOW_CONTENT_FINGERPRINT_ALGORITHM = "sha256-window-model-inputs-v1"
+WINDOW_CONTENT_GROUP_ALGORITHM = "sha256-window-split-component-v1"
+WINDOW_CONTENT_GROUP_PREFIX = "window-content-component:"
+SESSION_SPLIT_GROUP_ALGORITHM = "sha256-session-split-component-v1"
+SESSION_SPLIT_GROUP_PREFIX = "session-split-component:"
+PARENT_FALLBACK_GROUP_PREFIX = "parent:"
+SPLIT_EVIDENCE_CONTRACTS = {"multimodal_v1", "tr_only_v1"}
+
+RD_CONTENT_FINGERPRINT_AUDIT_COLUMNS = [
+    "parent_sample_id",
+    "source_name",
+    "label_name",
+    "rd_tensor_path",
+    "track_content_fingerprint",
+    "track_content_fingerprint_status",
+    "raw_echo_content_fingerprint",
+    "raw_echo_content_fingerprint_status",
+    "rd_content_fingerprint",
+    "rd_content_fingerprint_status",
+    "content_group_id",
+    "content_group_size",
+    "content_canonical_parent_id",
+    "is_content_canonical",
+    "split_group_id",
+    "split_name",
+]
 
 
 def _safe_name(value: str) -> str:
@@ -47,6 +96,391 @@ def _safe_name(value: str) -> str:
 def _is_present(value: object) -> bool:
     text = str(value if value is not None else "").strip().lower()
     return text not in {"", "nan", "none"}
+
+
+def _metadata_bool(value: object, *, field_name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    text = str(value if value is not None else "").strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no", "", "nan", "none"}:
+        return False
+    raise ValueError(f"invalid boolean metadata for {field_name}: {value!r}")
+
+
+def _window_content_fingerprint(
+    frame: pd.DataFrame,
+    *,
+    source_name: str,
+    height_missing: bool,
+    rd_phase_missing: bool,
+    include_rd_phase_missing: bool = True,
+) -> str:
+    track_fingerprint = track_content_fingerprint(frame)
+    digest = hashlib.sha256()
+    digest.update(WINDOW_CONTENT_FINGERPRINT_ALGORITHM.encode("utf-8"))
+    metadata_values = [
+        str(source_name),
+        f"height_missing={str(bool(height_missing)).lower()}",
+    ]
+    if include_rd_phase_missing:
+        metadata_values.append(f"rd_phase_missing={str(bool(rd_phase_missing)).lower()}")
+    for value in metadata_values:
+        encoded = value.encode("utf-8")
+        digest.update(len(encoded).to_bytes(4, "little"))
+        digest.update(encoded)
+    digest.update(track_fingerprint.encode("ascii"))
+    return digest.hexdigest()
+
+
+def _merge_window_split_groups(window_df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, set[str]]]:
+    """Make parent groups atomic when any generated model-input window matches."""
+    required = {"split_group_id", "window_content_fingerprint", "label_name"}
+    missing = sorted(required - set(window_df.columns))
+    if missing:
+        raise ValueError(f"window content grouping requires columns: {missing}")
+    adjacency: defaultdict[str, set[str]] = defaultdict(set)
+    for _, group in window_df.groupby("window_content_fingerprint", sort=True):
+        original_groups = sorted(set(group["split_group_id"].astype(str)))
+        labels = sorted(set(group["label_name"].astype(str)))
+        if len(labels) != 1:
+            raise ValueError(
+                "identical window model inputs have conflicting labels: "
+                f"labels={labels}, groups={original_groups}"
+            )
+        for group_id in original_groups:
+            adjacency[group_id].update(other for other in original_groups if other != group_id)
+    all_groups = sorted(set(window_df["split_group_id"].astype(str)))
+    mapping: dict[str, str] = {}
+    members_by_merged: dict[str, set[str]] = {}
+    visited: set[str] = set()
+    for group_id in all_groups:
+        if group_id in visited:
+            continue
+        stack = [group_id]
+        component: set[str] = set()
+        fingerprints: set[str] = set()
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            component.add(current)
+            fingerprints.update(
+                window_df.loc[
+                    window_df["split_group_id"].astype(str).eq(current),
+                    "window_content_fingerprint",
+                ].astype(str).tolist()
+            )
+            stack.extend(sorted(adjacency[current] - visited))
+        digest = hashlib.sha256()
+        digest.update(WINDOW_CONTENT_GROUP_ALGORITHM.encode("utf-8"))
+        for value in sorted(component | fingerprints):
+            encoded = value.encode("utf-8")
+            digest.update(len(encoded).to_bytes(4, "little"))
+            digest.update(encoded)
+        merged_id = f"{WINDOW_CONTENT_GROUP_PREFIX}{digest.hexdigest()}"
+        for original in component:
+            mapping[original] = merged_id
+        members_by_merged[merged_id] = component
+    result = window_df.copy()
+    result["split_group_id"] = result["split_group_id"].astype(str).map(mapping)
+    return result, members_by_merged
+
+
+def _merge_session_split_groups(window_df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, set[str]]]:
+    """Make capture/session groups atomic without using labels or RD metadata."""
+    required = {"split_group_id", "source_name", "timestamp"}
+    missing = sorted(required - set(window_df.columns))
+    if missing:
+        raise ValueError(f"session grouping requires columns: {missing}")
+    session_values = (
+        window_df["source_name"].astype(str).str.strip()
+        + "|"
+        + window_df["timestamp"].astype(str).str.strip()
+    )
+    malformed = session_values.str.endswith("|") | session_values.str.contains(
+        r"\|(?:nan|none)$",
+        case=False,
+        regex=True,
+    )
+    if bool(malformed.any()):
+        examples = window_df.loc[malformed, ["source_name", "timestamp"]].head(5).to_dict(orient="records")
+        raise ValueError(f"TR-only session grouping requires source_name and timestamp: examples={examples}")
+
+    adjacency: defaultdict[str, set[str]] = defaultdict(set)
+    session_keys_by_group: defaultdict[str, set[str]] = defaultdict(set)
+    grouped = window_df.assign(_session_key=session_values).groupby("_session_key", sort=True)
+    for session_key, session_df in grouped:
+        group_ids = sorted(set(session_df["split_group_id"].astype(str)))
+        for group_id in group_ids:
+            session_keys_by_group[group_id].add(str(session_key))
+            adjacency[group_id].update(other for other in group_ids if other != group_id)
+
+    all_groups = sorted(set(window_df["split_group_id"].astype(str)))
+    mapping: dict[str, str] = {}
+    members_by_merged: dict[str, set[str]] = {}
+    visited: set[str] = set()
+    for group_id in all_groups:
+        if group_id in visited:
+            continue
+        stack = [group_id]
+        component: set[str] = set()
+        session_keys: set[str] = set()
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            component.add(current)
+            session_keys.update(session_keys_by_group[current])
+            stack.extend(sorted(adjacency[current] - visited))
+        digest = hashlib.sha256()
+        digest.update(SESSION_SPLIT_GROUP_ALGORITHM.encode("utf-8"))
+        for value in sorted(component | session_keys):
+            encoded = value.encode("utf-8")
+            digest.update(len(encoded).to_bytes(4, "little"))
+            digest.update(encoded)
+        merged_id = f"{SESSION_SPLIT_GROUP_PREFIX}{digest.hexdigest()}"
+        for original in component:
+            mapping[original] = merged_id
+        members_by_merged[merged_id] = component
+    result = window_df.copy()
+    result["split_group_id"] = result["split_group_id"].astype(str).map(mapping)
+    return result, members_by_merged
+
+
+def _resolve_project_path(project_root: Path, raw_path: object) -> Path:
+    path = Path(str(raw_path))
+    return path if path.is_absolute() else project_root / path
+
+
+def _canonical_array_for_fingerprint(values: np.ndarray) -> np.ndarray:
+    array = np.asarray(values)
+    if array.dtype.hasobject:
+        raise ValueError("RD tensor content fingerprint does not support object arrays")
+    if array.dtype.byteorder not in {"|", "<"}:
+        array = array.astype(array.dtype.newbyteorder("<"), copy=False)
+    return np.ascontiguousarray(array)
+
+
+def _rd_tensor_content_fingerprint(tensor_path: Path) -> str:
+    if tensor_path.suffix.lower() != ".npz":
+        raise ValueError(f"RD content fingerprint requires .npz tensor: {tensor_path}")
+    digest = hashlib.sha256()
+    digest.update(RD_CONTENT_FINGERPRINT_ALGORITHM.encode("utf-8"))
+    try:
+        with np.load(tensor_path, allow_pickle=False) as payload:
+            keys = sorted(payload.files)
+            if not keys:
+                raise ValueError("RD tensor archive contains no arrays")
+            for key in keys:
+                array = _canonical_array_for_fingerprint(np.asarray(payload[key]))
+                dtype_text = array.dtype.str.encode("ascii")
+                shape_text = ",".join(str(int(value)) for value in array.shape).encode("ascii")
+                digest.update(len(key).to_bytes(4, "little"))
+                digest.update(key.encode("utf-8"))
+                digest.update(len(dtype_text).to_bytes(4, "little"))
+                digest.update(dtype_text)
+                digest.update(len(shape_text).to_bytes(4, "little"))
+                digest.update(shape_text)
+                digest.update(array.tobytes(order="C"))
+    except (OSError, ValueError, KeyError) as error:
+        raise ValueError(f"failed to fingerprint RD tensor: {tensor_path}") from error
+    return digest.hexdigest()
+
+
+def _content_component_id(evidence_keys: set[str], parent_sample_id: str) -> str:
+    """Return a stable content-component key without using labels or split names."""
+    digest = hashlib.sha256()
+    digest.update(CONTENT_COMPONENT_ALGORITHM.encode("utf-8"))
+    if evidence_keys:
+        for key in sorted(evidence_keys):
+            encoded = key.encode("utf-8")
+            digest.update(len(encoded).to_bytes(4, "little"))
+            digest.update(encoded)
+    else:
+        encoded = str(parent_sample_id).encode("utf-8")
+        digest.update(b"parent-fallback")
+        digest.update(len(encoded).to_bytes(4, "little"))
+        digest.update(encoded)
+    return f"{CONTENT_COMPONENT_GROUP_PREFIX}{digest.hexdigest()}"
+
+
+def _build_content_fingerprint_records(
+    index_df: pd.DataFrame,
+    project_root: Path,
+    *,
+    split_evidence_contract: str = "multimodal_v1",
+) -> tuple[dict[str, dict[str, str]], list[dict[str, str]]]:
+    """Build source-local semantic duplicate components for Expert1 parents.
+
+    Track-model-input equality is always checked.  ``multimodal_v1`` also uses
+    CQ08 raw-echo and processed-RD equality.  ``tr_only_v1`` neither reads nor
+    hashes those RD assets.  Labels are excluded from hashes and a conflicting-
+    label component is rejected rather than silently trained.
+    """
+    normalized_contract = str(split_evidence_contract).strip().lower()
+    if normalized_contract not in SPLIT_EVIDENCE_CONTRACTS:
+        raise ValueError(
+            "unsupported split evidence contract: "
+            f"{split_evidence_contract!r}; expected one of {sorted(SPLIT_EVIDENCE_CONTRACTS)}"
+        )
+    use_rd_evidence = normalized_contract == "multimodal_v1"
+    required_columns = {"sample_id", "source_name", "label_name", "csv_path"}
+    missing_columns = sorted(required_columns - set(index_df.columns))
+    if missing_columns:
+        raise ValueError(f"content fingerprint requires columns: {missing_columns}")
+
+    parent_records: dict[str, dict[str, str]] = {}
+    parent_evidence: dict[str, set[str]] = {}
+    evidence_parents: defaultdict[str, list[str]] = defaultdict(list)
+    parent_ids: list[str] = []
+    for row in index_df.to_dict(orient="records"):
+        parent_sample_id = str(row["sample_id"])
+        source_name = str(row["source_name"])
+        label_name = str(row["label_name"])
+        csv_path = _resolve_project_path(project_root, row.get("csv_path", ""))
+        if not csv_path.exists():
+            raise FileNotFoundError(f"track CSV for content fingerprint does not exist: {csv_path}")
+        track_fingerprint = track_content_fingerprint(pd.read_csv(csv_path))
+
+        raw_echo_fingerprint = ""
+        raw_echo_status = "not_applicable" if use_rd_evidence else "not_applicable_tr_only"
+        raw_echo_path = str(row.get("rd_path", ""))
+        if use_rd_evidence and source_name == "cq08_track" and _is_present(raw_echo_path):
+            resolved_raw_echo = _resolve_project_path(project_root, raw_echo_path)
+            if not resolved_raw_echo.exists():
+                raise FileNotFoundError(f"CQ08 raw echo for content fingerprint does not exist: {resolved_raw_echo}")
+            raw_echo_fingerprint = file_content_fingerprint(resolved_raw_echo)
+            raw_echo_status = "fingerprinted"
+        elif use_rd_evidence and source_name == "cq08_track":
+            raw_echo_status = "missing_raw_echo"
+
+        rd_fingerprint = ""
+        rd_status = "no_rd_tensor" if use_rd_evidence else "not_applicable_tr_only"
+        rd_tensor_path = str(row.get("rd_tensor_path", ""))
+        if use_rd_evidence and _is_present(rd_tensor_path):
+            resolved_tensor = _resolve_project_path(project_root, rd_tensor_path)
+            if not resolved_tensor.exists():
+                raise FileNotFoundError(f"RD tensor for content fingerprint does not exist: {resolved_tensor}")
+            rd_fingerprint = _rd_tensor_content_fingerprint(resolved_tensor)
+            rd_status = "fingerprinted"
+
+        height_missing = _metadata_bool(row.get("height_missing", False), field_name="height_missing")
+        if use_rd_evidence:
+            rd_phase_missing = _metadata_bool(row.get("rd_phase_missing", False), field_name="rd_phase_missing")
+            track_evidence = (
+                f"track:{source_name}:height_missing={str(height_missing).lower()}:"
+                f"rd_phase_missing={str(rd_phase_missing).lower()}:{track_fingerprint}"
+            )
+        else:
+            track_evidence = (
+                f"track:{source_name}:height_missing={str(height_missing).lower()}:"
+                f"{track_fingerprint}"
+            )
+        evidence = {track_evidence}
+        if raw_echo_fingerprint:
+            evidence.add(f"raw_echo:{source_name}:{raw_echo_fingerprint}")
+        if rd_fingerprint:
+            evidence.add(f"rd:{source_name}:{rd_fingerprint}")
+        parent_evidence[parent_sample_id] = evidence
+        parent_ids.append(parent_sample_id)
+        for key in evidence:
+            evidence_parents[key].append(parent_sample_id)
+        parent_records[parent_sample_id] = {
+            "parent_sample_id": parent_sample_id,
+            "source_name": source_name,
+            "label_name": label_name,
+            "csv_path": str(row.get("csv_path", "")),
+            "rd_path": raw_echo_path,
+            "rd_tensor_path": rd_tensor_path,
+            "track_content_fingerprint": track_fingerprint,
+            "track_content_fingerprint_status": "fingerprinted",
+            "raw_echo_content_fingerprint": raw_echo_fingerprint,
+            "raw_echo_content_fingerprint_status": raw_echo_status,
+            "rd_content_fingerprint": rd_fingerprint,
+            "rd_content_fingerprint_status": rd_status,
+        }
+
+    parent_set = set(parent_ids)
+    adjacent: defaultdict[str, set[str]] = defaultdict(set)
+    for members in evidence_parents.values():
+        unique_members = sorted(set(members))
+        for parent_id in unique_members:
+            adjacent[parent_id].update(member for member in unique_members if member != parent_id)
+
+    visited: set[str] = set()
+    for parent_id in sorted(parent_set):
+        if parent_id in visited:
+            continue
+        stack = [parent_id]
+        component: set[str] = set()
+        component_evidence: set[str] = set()
+        while stack:
+            current = stack.pop()
+            if current in visited:
+                continue
+            visited.add(current)
+            component.add(current)
+            component_evidence.update(parent_evidence[current])
+            stack.extend(sorted(adjacent[current] - visited))
+        labels = sorted({parent_records[item]["label_name"] for item in component})
+        if len(labels) != 1:
+            raise ValueError(
+                "identical or transitively linked content has conflicting labels: "
+                f"labels={labels}, parents={sorted(component)}"
+            )
+        canonical_parent_id = min(component)
+        group_id = _content_component_id(component_evidence, canonical_parent_id)
+        for item in component:
+            parent_records[item]["content_group_id"] = group_id
+            parent_records[item]["content_group_size"] = str(len(component))
+            parent_records[item]["content_canonical_parent_id"] = canonical_parent_id
+            parent_records[item]["is_content_canonical"] = str(item == canonical_parent_id).lower()
+            parent_records[item]["split_group_id"] = group_id
+
+    audit_rows = [parent_records[parent_id] for parent_id in sorted(parent_records)]
+    return parent_records, audit_rows
+
+
+# Compatibility name retained for callers of the old RD-only implementation.
+def _build_rd_content_fingerprint_records(
+    index_df: pd.DataFrame,
+    project_root: Path,
+) -> tuple[dict[str, dict[str, str]], list[dict[str, str]]]:
+    return _build_content_fingerprint_records(
+        index_df,
+        project_root,
+        split_evidence_contract="multimodal_v1",
+    )
+
+def _frozen_group_assignments(
+    frozen_parent_assignments: dict[str, str],
+    fingerprint_records_by_parent: dict[str, dict[str, str]],
+) -> dict[str, str]:
+    grouped_splits: defaultdict[str, set[str]] = defaultdict(set)
+    for parent_sample_id, split_name in frozen_parent_assignments.items():
+        record = fingerprint_records_by_parent.get(parent_sample_id)
+        if record is None:
+            raise ValueError(f"frozen split parent missing content-fingerprint record: {parent_sample_id}")
+        grouped_splits[record["split_group_id"]].add(split_name)
+    conflicts = {
+        group_id: sorted(split_names)
+        for group_id, split_names in grouped_splits.items()
+        if len(split_names) > 1
+    }
+    if conflicts:
+        examples = list(sorted(conflicts.items()))[:5]
+        raise ValueError(
+            "frozen parent split manifest separates identical RD content or track content across splits: "
+            f"examples={examples}"
+        )
+    return {
+        group_id: next(iter(split_names))
+        for group_id, split_names in grouped_splits.items()
+    }
 
 
 def _majority(values: Iterable[object], fallback: str = "UnknownTarget") -> str:
@@ -201,9 +635,42 @@ def _summary(window_df: pd.DataFrame, assignments: dict[str, str]) -> dict[str, 
         payload["split_source_counts"][split_name] = split_df["source_name"].value_counts(dropna=False).to_dict()
         payload["split_label_counts"][split_name] = split_df["label_name"].value_counts(dropna=False).to_dict()
     parent_splits: defaultdict[str, set[str]] = defaultdict(set)
-    for group_id, split_name in assignments.items():
-        parent_splits[group_id].add(split_name)
+    for parent_sample_id, split_name in zip(window_df["parent_sample_id"].astype(str), split_by_sample.astype(str)):
+        parent_splits[parent_sample_id].add(split_name)
     payload["parent_leakage_count"] = int(sum(1 for values in parent_splits.values() if len(values) > 1))
+    if "rd_content_fingerprint" in window_df.columns:
+        fingerprint_df = window_df[window_df["rd_content_fingerprint"].astype(str).str.len() > 0].copy()
+        if fingerprint_df.empty:
+            payload["rd_content_fingerprint"] = {
+                "algorithm": RD_CONTENT_FINGERPRINT_ALGORITHM,
+                "fingerprinted_parent_count": 0,
+                "unique_fingerprint_count": 0,
+                "duplicate_fingerprint_count": 0,
+                "duplicate_parent_count": 0,
+                "cross_split_leakage_count": 0,
+            }
+        else:
+            fingerprint_parents = fingerprint_df[["rd_content_fingerprint", "parent_sample_id"]].drop_duplicates()
+            parent_counts = fingerprint_parents.groupby("rd_content_fingerprint", sort=True)["parent_sample_id"].nunique()
+            fingerprint_splits = (
+                pd.DataFrame(
+                    {
+                        "rd_content_fingerprint": fingerprint_df["rd_content_fingerprint"].astype(str),
+                        "split_name": split_by_sample.loc[fingerprint_df.index].astype(str),
+                    }
+                )
+                .drop_duplicates()
+                .groupby("rd_content_fingerprint", sort=True)["split_name"]
+                .nunique()
+            )
+            payload["rd_content_fingerprint"] = {
+                "algorithm": RD_CONTENT_FINGERPRINT_ALGORITHM,
+                "fingerprinted_parent_count": int(fingerprint_parents["parent_sample_id"].nunique()),
+                "unique_fingerprint_count": int(parent_counts.shape[0]),
+                "duplicate_fingerprint_count": int((parent_counts > 1).sum()),
+                "duplicate_parent_count": int(parent_counts[parent_counts > 1].sum()),
+                "cross_split_leakage_count": int((fingerprint_splits > 1).sum()),
+            }
     return payload
 
 
@@ -224,13 +691,28 @@ def build_expert1_window_index(
     include_prefix_windows: bool = False,
     prefix_stride_points: int = 5,
     min_unique_time_points: int = 2,
+    rd_fingerprint_audit_name: str | None = None,
+    split_evidence_contract: str = "multimodal_v1",
+    source_index_name: str = "expert1_track_index.csv",
 ) -> dict[str, object]:
+    normalized_split_contract = str(split_evidence_contract).strip().lower()
+    if normalized_split_contract not in SPLIT_EVIDENCE_CONTRACTS:
+        raise ValueError(
+            "unsupported split evidence contract: "
+            f"{split_evidence_contract!r}; expected one of {sorted(SPLIT_EVIDENCE_CONTRACTS)}"
+        )
+    is_tr_only_split = normalized_split_contract == "tr_only_v1"
     processed_root = project_root / "data" / "processed"
     output_root = processed_root / window_output_dir_name
     output_root.mkdir(parents=True, exist_ok=True)
-    index_path = processed_root / "expert1_track_index.csv"
+    index_path = processed_root / source_index_name
     index_df = pd.read_csv(index_path)
     index_df = index_df[index_df["label_name"].astype(str).isin(EXPERT1_LABELS)].copy()
+    fingerprint_records_by_parent, fingerprint_audit_rows = _build_content_fingerprint_records(
+        index_df,
+        project_root,
+        split_evidence_contract=normalized_split_contract,
+    )
     frozen_manifest_path = Path(frozen_parent_split_manifest) if frozen_parent_split_manifest else None
     frozen_parent_assignments = (
         _load_frozen_parent_assignments(frozen_manifest_path)
@@ -253,6 +735,9 @@ def build_expert1_window_index(
     for row in index_df.to_dict(orient="records"):
         parent_sample_id = str(row["sample_id"])
         source_name = str(row["source_name"])
+        fingerprint_record = fingerprint_records_by_parent.get(parent_sample_id)
+        if fingerprint_record is None:
+            raise ValueError(f"parent is missing RD content fingerprint record: {parent_sample_id}")
         csv_path = project_root / str(row["csv_path"])
         if not csv_path.exists():
             continue
@@ -305,8 +790,20 @@ def build_expert1_window_index(
             source_dir = output_root / _safe_name(source_name)
             source_dir.mkdir(parents=True, exist_ok=True)
             window_csv_path = source_dir / f"{parent_safe}__win_{window_index:04d}.csv"
-            window_df.to_csv(window_csv_path, index=False, encoding="utf-8")
-            split_group_id = f"{source_name}|{parent_sample_id}"
+            serialized_window = window_df.to_csv(index=False)
+            window_csv_path.write_text(serialized_window, encoding="utf-8")
+            # Fingerprint the representation consumers actually reload.  The
+            # default CSV parser can round high-precision floats differently
+            # from the in-memory frame used before serialization.
+            window_df = pd.read_csv(StringIO(serialized_window))
+            split_group_id = fingerprint_record["split_group_id"]
+            window_content_fingerprint = _window_content_fingerprint(
+                window_df,
+                source_name=source_name,
+                height_missing=_metadata_bool(row.get("height_missing", False), field_name="height_missing"),
+                rd_phase_missing=_metadata_bool(row.get("rd_phase_missing", False), field_name="rd_phase_missing"),
+                include_rd_phase_missing=not is_tr_only_split,
+            )
             effective_duration = float(effective_end - effective_start)
             exclude_reasons: list[str] = []
             if len(window_df) < min_points:
@@ -318,6 +815,8 @@ def build_expert1_window_index(
                 exclude_reasons.append("window_duration_exceeds_target")
             if label_name not in EXPERT1_LABELS:
                 exclude_reasons.append(f"unsupported_label:{label_name}")
+            if str(fingerprint_record["is_content_canonical"]).lower() != "true":
+                exclude_reasons.append("duplicate_content_noncanonical")
             if force_exclude_reasons:
                 exclude_reasons.extend(force_exclude_reasons)
             exclude_reasons = sorted(set(exclude_reasons))
@@ -353,6 +852,17 @@ def build_expert1_window_index(
                 "window_unique_time_count": unique_time_count,
                 "is_causal_window": True,
                 "window_mode": window_mode,
+                "track_content_fingerprint": fingerprint_record["track_content_fingerprint"],
+                "track_content_fingerprint_status": fingerprint_record["track_content_fingerprint_status"],
+                "raw_echo_content_fingerprint": fingerprint_record["raw_echo_content_fingerprint"],
+                "raw_echo_content_fingerprint_status": fingerprint_record["raw_echo_content_fingerprint_status"],
+                "rd_content_fingerprint": fingerprint_record["rd_content_fingerprint"],
+                "rd_content_fingerprint_status": fingerprint_record["rd_content_fingerprint_status"],
+                "content_group_id": fingerprint_record["content_group_id"],
+                "content_group_size": int(fingerprint_record["content_group_size"]),
+                "content_canonical_parent_id": fingerprint_record["content_canonical_parent_id"],
+                "is_content_canonical": str(fingerprint_record["is_content_canonical"]).lower() == "true",
+                "window_content_fingerprint": window_content_fingerprint,
                 "split_group_id": split_group_id,
             }
             rows.append(row_payload)
@@ -370,6 +880,14 @@ def build_expert1_window_index(
                     "window_unique_time_count": unique_time_count,
                     "is_causal_window": True,
                     "window_mode": window_mode,
+                    "track_content_fingerprint": fingerprint_record["track_content_fingerprint"],
+                    "raw_echo_content_fingerprint": fingerprint_record["raw_echo_content_fingerprint"],
+                    "rd_content_fingerprint": fingerprint_record["rd_content_fingerprint"],
+                    "content_group_id": fingerprint_record["content_group_id"],
+                    "content_group_size": int(fingerprint_record["content_group_size"]),
+                    "content_canonical_parent_id": fingerprint_record["content_canonical_parent_id"],
+                    "is_content_canonical": str(fingerprint_record["is_content_canonical"]).lower() == "true",
+                    "window_content_fingerprint": window_content_fingerprint,
                     "is_trainable": is_trainable,
                     "exclude_reason": ";".join(exclude_reasons),
                 }
@@ -449,25 +967,89 @@ def build_expert1_window_index(
     if window_df.empty:
         raise RuntimeError("no expert1 windows were generated")
     window_df = window_df[WINDOW_INDEX_COLUMNS]
+    window_df, merged_window_groups = _merge_window_split_groups(window_df)
+    if is_tr_only_split:
+        window_df, _session_merged_groups = _merge_session_split_groups(window_df)
     if frozen_parent_assignments is None:
         assignments = _assign_group_splits(window_df, seed, train_ratio, val_ratio, test_ratio)
+    elif is_tr_only_split:
+        assignments = {}
+        for final_group_id, group_df in window_df.groupby("split_group_id", sort=True):
+            parent_ids = sorted(set(group_df["parent_sample_id"].astype(str)))
+            split_names = {frozen_parent_assignments[parent_id] for parent_id in parent_ids}
+            if len(split_names) != 1:
+                raise ValueError(
+                    "frozen parent split manifest is not session-atomic for TR-only: "
+                    f"group={final_group_id}, parents={parent_ids[:5]}, splits={sorted(split_names)}"
+                )
+            assignments[str(final_group_id)] = next(iter(split_names))
     else:
-        assignments = {
-            str(group_id): frozen_parent_assignments[str(parent_sample_id)]
-            for group_id, parent_sample_id in window_df[["split_group_id", "parent_sample_id"]]
-            .drop_duplicates()
-            .itertuples(index=False, name=None)
-        }
+        parent_assignments = _frozen_group_assignments(
+            frozen_parent_assignments,
+            fingerprint_records_by_parent,
+        )
+        assignments = {}
+        for merged_group_id, original_groups in merged_window_groups.items():
+            split_names = {parent_assignments[group_id] for group_id in original_groups}
+            if len(split_names) != 1:
+                raise ValueError(
+                    "frozen parent split manifest separates identical generated windows across splits: "
+                    f"group={merged_group_id}, splits={sorted(split_names)}"
+                )
+            assignments[merged_group_id] = next(iter(split_names))
     window_df["split_name"] = window_df["split_group_id"].astype(str).map(assignments).fillna("unassigned")
     final_columns = WINDOW_INDEX_COLUMNS + ["split_name"]
     window_index_path = processed_root / window_index_name
     window_df[final_columns].to_csv(window_index_path, index=False, encoding="utf-8")
 
+    audit_name = rd_fingerprint_audit_name or (
+        f"{Path(window_index_name).stem}_content_fingerprint_audit.csv"
+        if is_tr_only_split
+        else f"{Path(window_index_name).stem}_rd_content_fingerprint_audit.csv"
+    )
+    audit_path = processed_root / audit_name
+    audit_df = pd.DataFrame(fingerprint_audit_rows)
+    parent_split_counts = window_df.groupby("parent_sample_id", sort=True)["split_name"].nunique()
+    crossing_parents = parent_split_counts[parent_split_counts > 1]
+    if not crossing_parents.empty:
+        raise ValueError(
+            "generated windows from one parent cross persisted splits: "
+            f"parents={crossing_parents.index.astype(str).tolist()[:5]}"
+        )
+    parent_split_names = (
+        window_df.groupby("parent_sample_id", sort=True)["split_name"].first().astype(str).to_dict()
+    )
+    audit_df["split_name"] = (
+        audit_df["parent_sample_id"].astype(str).map(parent_split_names).fillna("not_generated")
+    )
+    audit_df[RD_CONTENT_FINGERPRINT_AUDIT_COLUMNS].to_csv(audit_path, index=False, encoding="utf-8")
+
     split_manifest = {
         "window_seconds": float(window_seconds),
         "stride_seconds": float(stride_seconds),
         "min_points": int(min_points),
-        "split_group_key": "source_name|parent_sample_id",
+        "split_evidence_contract": normalized_split_contract,
+        "split_group_key": (
+            "session_component_v1(source_name|timestamp|track_model_inputs)"
+            if is_tr_only_split
+            else "content_component_v1(track_model_inputs|cq08_raw_echo|processed_rd)"
+        ),
+        "content_component_algorithm": CONTENT_COMPONENT_ALGORITHM,
+        "window_content_fingerprint_algorithm": WINDOW_CONTENT_FINGERPRINT_ALGORITHM,
+        "window_content_group_algorithm": WINDOW_CONTENT_GROUP_ALGORITHM,
+        "track_content_fingerprint_algorithm": TRACK_CONTENT_FINGERPRINT_ALGORITHM,
+        "session_group_key": "source_name|timestamp" if is_tr_only_split else None,
+        "session_split_group_algorithm": SESSION_SPLIT_GROUP_ALGORITHM if is_tr_only_split else None,
+        "raw_echo_content_fingerprint_algorithm": (
+            "not_applicable_tr_only" if is_tr_only_split else FILE_CONTENT_FINGERPRINT_ALGORITHM
+        ),
+        "rd_content_fingerprint_algorithm": (
+            "not_applicable_tr_only" if is_tr_only_split else RD_CONTENT_FINGERPRINT_ALGORITHM
+        ),
+        "content_fingerprint_audit": audit_path.relative_to(project_root).as_posix(),
+        "rd_content_fingerprint_audit": (
+            None if is_tr_only_split else audit_path.relative_to(project_root).as_posix()
+        ),
         "train_ids": sorted(window_df[(window_df["split_name"] == "train") & (window_df["is_trainable"])]["sample_id"].astype(str).tolist()),
         "val_ids": sorted(window_df[(window_df["split_name"] == "val") & (window_df["is_trainable"])]["sample_id"].astype(str).tolist()),
         "test_ids": sorted(window_df[(window_df["split_name"] == "test") & (window_df["is_trainable"])]["sample_id"].astype(str).tolist()),
@@ -481,12 +1063,16 @@ def build_expert1_window_index(
         "include_prefix_windows": bool(include_prefix_windows),
         "prefix_stride_points": int(prefix_stride_points),
         "min_unique_time_points": int(max(2, min_unique_time_points)),
+        "source_parent_index": index_path.relative_to(project_root).as_posix(),
     }
     manifest_path = project_root / "data" / "manifests" / split_manifest_name
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(split_manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     summary = _summary(window_df, assignments)
+    if is_tr_only_split:
+        summary["rd_coverage"] = {"status": "not_applicable_tr_only"}
+        summary["rd_content_fingerprint"] = {"status": "not_applicable_tr_only"}
     summary.update(
         {
             "window_seconds": float(window_seconds),
@@ -498,6 +1084,13 @@ def build_expert1_window_index(
             "window_end_inclusive": True,
             "window_index": window_index_path.relative_to(project_root).as_posix(),
             "split_manifest": manifest_path.relative_to(project_root).as_posix(),
+            "split_evidence_contract": normalized_split_contract,
+            "source_parent_index": index_path.relative_to(project_root).as_posix(),
+            "session_group_key": "source_name|timestamp" if is_tr_only_split else None,
+            "content_fingerprint_audit": audit_path.relative_to(project_root).as_posix(),
+            "rd_content_fingerprint_audit": (
+                None if is_tr_only_split else audit_path.relative_to(project_root).as_posix()
+            ),
         }
     )
     summary_path = processed_root / summary_name
@@ -519,6 +1112,17 @@ def main() -> None:
     parser.add_argument("--include-prefix-windows", action="store_true")
     parser.add_argument("--prefix-stride-points", type=int, default=5)
     parser.add_argument("--min-unique-time-points", type=int, default=2)
+    parser.add_argument("--rd-fingerprint-audit-name")
+    parser.add_argument("--source-index-name", default="expert1_track_index.csv")
+    parser.add_argument(
+        "--split-evidence-contract",
+        choices=sorted(SPLIT_EVIDENCE_CONTRACTS),
+        default="multimodal_v1",
+        help=(
+            "Use tr_only_v1 to exclude every RD-derived split signal and make "
+            "source_name+timestamp sessions atomic."
+        ),
+    )
     args = parser.parse_args()
     project_root = Path(__file__).resolve().parents[2]
     summary = build_expert1_window_index(
@@ -535,6 +1139,9 @@ def main() -> None:
         include_prefix_windows=args.include_prefix_windows,
         prefix_stride_points=args.prefix_stride_points,
         min_unique_time_points=args.min_unique_time_points,
+        rd_fingerprint_audit_name=args.rd_fingerprint_audit_name,
+        split_evidence_contract=args.split_evidence_contract,
+        source_index_name=args.source_index_name,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

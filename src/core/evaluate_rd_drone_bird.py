@@ -20,6 +20,96 @@ from .system_metrics import compute_per_class_metrics
 RD_ONLY_LABELS = ["DroneTarget", "BirdTarget"]
 
 
+def _causal_parent_payload(predictions: list[dict[str, object]]) -> dict[str, object]:
+    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for prediction in predictions:
+        grouped[str(prediction["parent_sample_id"])].append(prediction)
+    final_logits: list[torch.Tensor] = []
+    targets: list[int] = []
+    parent_records: list[dict[str, object]] = []
+    flip_counts: list[int] = []
+    first_correct_seconds: list[float] = []
+    stable_correct_seconds: list[float] = []
+    for parent_id, rows in grouped.items():
+        ordered = sorted(
+            rows,
+            key=lambda row: (
+                float(row["window_end_seconds"]),
+                float(row["window_start_seconds"]),
+                str(row["sample_id"]),
+            ),
+        )
+        truth_values = {str(row["label_name_true"]) for row in ordered}
+        if len(truth_values) != 1:
+            raise ValueError(f"parent has inconsistent validation labels: {parent_id}")
+        truth = next(iter(truth_values))
+        logits = torch.tensor(
+            [[float(row["bird_logit_drone"]), float(row["bird_logit_bird"])] for row in ordered],
+            dtype=torch.float32,
+        )
+        cumulative_logits = logits.cumsum(dim=0) / torch.arange(1, len(ordered) + 1, dtype=torch.float32).unsqueeze(1)
+        prefix_predictions = cumulative_logits.argmax(dim=-1).tolist()
+        truth_index = RD_ONLY_LABELS.index(truth)
+        correctness = [int(prediction) == truth_index for prediction in prefix_predictions]
+        suffix_correct = [False] * len(correctness)
+        running = True
+        for index in range(len(correctness) - 1, -1, -1):
+            running = running and correctness[index]
+            suffix_correct[index] = running
+        transition_count = sum(
+            previous != current
+            for previous, current in zip(prefix_predictions, prefix_predictions[1:])
+        )
+        first_correct_index = next((index for index, correct in enumerate(correctness) if correct), None)
+        stable_correct_index = next((index for index, correct in enumerate(suffix_correct) if correct), None)
+        if first_correct_index is not None:
+            first_correct_seconds.append(float(ordered[first_correct_index]["window_end_seconds"]))
+        if stable_correct_index is not None:
+            stable_correct_seconds.append(float(ordered[stable_correct_index]["window_end_seconds"]))
+        flip_counts.append(transition_count)
+        final_logits.append(cumulative_logits[-1])
+        targets.append(truth_index)
+        parent_records.append(
+            {
+                "parent_sample_id": parent_id,
+                "label_name_true": truth,
+                "window_count": len(ordered),
+                "prefix_prediction_flip_count": transition_count,
+                "prefix_predictions": [RD_ONLY_LABELS[index] for index in prefix_predictions],
+                "final_causal_pred": RD_ONLY_LABELS[int(prefix_predictions[-1])],
+                "final_causal_correct": bool(correctness[-1]),
+                "first_correct_window_end_seconds": (
+                    float(ordered[first_correct_index]["window_end_seconds"])
+                    if first_correct_index is not None else None
+                ),
+                "stable_correct_window_end_seconds": (
+                    float(ordered[stable_correct_index]["window_end_seconds"])
+                    if stable_correct_index is not None else None
+                ),
+            }
+        )
+    parent_logits = torch.stack(final_logits)
+    parent_targets = torch.tensor(targets, dtype=torch.long)
+    metrics = compute_classification_metrics(parent_logits, parent_targets, num_classes=2)
+    final_correct_count = sum(record["final_causal_correct"] for record in parent_records)
+    return {
+        "metrics": asdict(metrics),
+        "parent_count": int(len(parent_records)),
+        "final_correct_count": int(final_correct_count),
+        "prefix_flip_count_total": int(sum(flip_counts)),
+        "prefix_flip_count_mean": float(sum(flip_counts) / len(flip_counts)) if flip_counts else 0.0,
+        "first_correct_parent_count": int(len(first_correct_seconds)),
+        "first_correct_window_end_seconds_mean": (
+            float(sum(first_correct_seconds) / len(first_correct_seconds)) if first_correct_seconds else None
+        ),
+        "stable_correct_parent_count": int(len(stable_correct_seconds)),
+        "stable_correct_window_end_seconds_mean": (
+            float(sum(stable_correct_seconds) / len(stable_correct_seconds)) if stable_correct_seconds else None
+        ),
+        "records": parent_records,
+    }
+
+
 def _metric_payload(logits: torch.Tensor, labels: torch.Tensor, parents: list[str]) -> dict[str, object]:
     window = compute_classification_metrics(logits, labels, num_classes=2)
     per_class = [asdict(item) for item in compute_per_class_metrics(logits, labels, RD_ONLY_LABELS)]
@@ -66,6 +156,10 @@ def evaluate_rd_drone_bird_checkpoint(
         rd_patch_input_dim=3,
         rd_context_dim=0,
         use_rd_patch_cnn=config.use_rd_patch_cnn,
+        use_rd_continuous_time_encoding=config.use_rd_continuous_time_encoding,
+        rd_time_encoding_mode=config.rd_time_encoding_mode,
+        rd_local_delta_time_clip_seconds=config.rd_local_delta_time_clip_seconds,
+        rd_local_delta_time_scale=config.rd_local_delta_time_scale,
         dropout=config.dropout,
     ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"], strict=True)
@@ -83,6 +177,7 @@ def evaluate_rd_drone_bird_checkpoint(
                 rd_patch_features=rd_patch_features if config.use_rd_patch_cnn else None,
                 rd_padding_mask=batch.rd_padding_mask.to(device, non_blocking=True),
                 rd_patch_padding_mask=rd_patch_padding if config.use_rd_patch_cnn else None,
+                rd_time_seconds=batch.rd_time_seconds.to(device, non_blocking=True),
             )
             logits = output.bird_logits.detach().cpu()
             labels = torch.tensor(
@@ -105,6 +200,8 @@ def evaluate_rd_drone_bird_checkpoint(
                         "is_correct": bool(RD_ONLY_LABELS[int(pred)] == str(truth)),
                         "rd_time_sync_status": str(batch.rd_time_sync_status[index_in_batch]),
                         "rd_valid_length": int(batch.rd_lengths[index_in_batch].item()),
+                        "window_start_seconds": float(batch.window_start_seconds[index_in_batch].item()),
+                        "window_end_seconds": float(batch.window_end_seconds[index_in_batch].item()),
                     }
                 )
             logits_rows.append(logits)
@@ -119,6 +216,7 @@ def evaluate_rd_drone_bird_checkpoint(
         "device": device_info,
         "config": asdict(config),
         "metrics": _metric_payload(logits_tensor, labels_tensor, parent_ids),
+        "causal_parent_cumulative_logit": _causal_parent_payload(predictions),
         "predictions": predictions,
         "test_evaluation_executed": False,
         "fusion_enabled": False,

@@ -28,6 +28,7 @@ def build_dataloaders(
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
     num_workers: int = 0,
+    trajectory_feature_schema: str = "v1",
 ) -> LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="system_trainable_track_index.csv")
     project_root = Path(data_root).parent
@@ -63,9 +64,27 @@ def build_dataloaders(
             val_ratio=val_ratio,
             test_ratio=test_ratio,
         )
-    train_ds = TorchTrackDataset(data_root, sample_ids=split.train_ids, trainable_only=False, index_name="system_trainable_track_index.csv")
-    val_ds = TorchTrackDataset(data_root, sample_ids=split.val_ids, trainable_only=False, index_name="system_trainable_track_index.csv")
-    test_ds = TorchTrackDataset(data_root, sample_ids=split.test_ids, trainable_only=False, index_name="system_trainable_track_index.csv")
+    train_ds = TorchTrackDataset(
+        data_root,
+        sample_ids=split.train_ids,
+        trainable_only=False,
+        index_name="system_trainable_track_index.csv",
+        trajectory_feature_schema=trajectory_feature_schema,
+    )
+    val_ds = TorchTrackDataset(
+        data_root,
+        sample_ids=split.val_ids,
+        trainable_only=False,
+        index_name="system_trainable_track_index.csv",
+        trajectory_feature_schema=trajectory_feature_schema,
+    )
+    test_ds = TorchTrackDataset(
+        data_root,
+        sample_ids=split.test_ids,
+        trainable_only=False,
+        index_name="system_trainable_track_index.csv",
+        trajectory_feature_schema=trajectory_feature_schema,
+    )
 
     train_loader = DataLoader(
         train_ds,

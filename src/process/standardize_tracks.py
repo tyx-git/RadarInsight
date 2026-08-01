@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Dict, List
@@ -52,21 +54,110 @@ def _ensure_clean_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def _normalize_time_seconds(values: np.ndarray) -> np.ndarray:
+def _versioned_output_name(prefix: str, version: str) -> str:
+    normalized = str(version).strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", normalized):
+        raise ValueError("version must contain only lowercase letters, digits, '_' or '-'")
+    return f"{prefix}_tr_only_{normalized}"
+
+
+def _processed_output_dir(project_root: Path, output_dir_name: str) -> Path:
+    relative = Path(str(output_dir_name))
+    if relative.is_absolute() or len(relative.parts) != 1 or relative.name in {"", ".", ".."}:
+        raise ValueError("processed output directory must be one relative directory name")
+    processed_root = (project_root / "data" / "processed").resolve()
+    output_dir = (processed_root / relative).resolve()
+    if output_dir.parent != processed_root:
+        raise ValueError("processed output directory escapes data/processed")
+    return output_dir
+
+
+def _normalize_elapsed_time_seconds(
+    values: np.ndarray,
+    *,
+    seconds_per_input_unit: float,
+) -> np.ndarray:
     if values.size == 0:
         return values.astype(float)
     base = float(values[0])
-    return (values.astype(float) - base) / 1000.0
+    return (values.astype(float) - base) * seconds_per_input_unit
 
 
-def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
+def _normalize_raw_data_time_seconds(values: np.ndarray) -> np.ndarray:
+    # Raw DATA_time is seconds since midnight with millisecond precision.
+    return _normalize_elapsed_time_seconds(values, seconds_per_input_unit=1.0)
+
+
+def _normalize_excel_time_seconds(values: np.ndarray) -> np.ndarray:
+    return _normalize_elapsed_time_seconds(values, seconds_per_input_unit=1.0 / 1000.0)
+
+
+def _normalize_raw_range_m(values: np.ndarray) -> np.ndarray:
+    # DAUR raw R is stored in kilometres; the canonical track schema uses metres.
+    return values.astype(float) * 1000.0
+
+
+def _normalize_excel_radial_speed_mps(values: np.ndarray) -> np.ndarray:
+    # Excel Speed_R is positive for approaching targets; canonical range rate is
+    # positive when the target moves away from the radar.
+    return -values.astype(float)
+
+
+def _derive_raw_radial_speed_mps(
+    time_seconds: np.ndarray,
+    range_m: np.ndarray,
+    source_values: np.ndarray,
+) -> np.ndarray:
+    """Derive positive-receding range rate using only the current and prior TR points."""
+    time = np.asarray(time_seconds, dtype=float).reshape(-1)
+    distance = np.asarray(range_m, dtype=float).reshape(-1)
+    source = np.asarray(source_values, dtype=float).reshape(-1)
+    if not (time.size == distance.size == source.size):
+        raise ValueError("raw time, range, and V arrays must have equal length")
+    if bool((np.isfinite(source) & ~np.isclose(source, 0.0, atol=1.0e-12)).any()):
+        raise ValueError("raw V contract changed: non-zero source values require review")
+
+    speed = np.full(time.shape, np.nan, dtype=float)
+    previous_index: int | None = None
+    for index in range(time.size):
+        if not (np.isfinite(time[index]) and np.isfinite(distance[index])):
+            continue
+        if previous_index is None:
+            previous_index = index
+            continue
+        delta_time = float(time[index] - time[previous_index])
+        if delta_time < 0.0:
+            raise ValueError("raw DATA_time must be non-decreasing")
+        if delta_time == 0.0:
+            if not np.isclose(
+                distance[index],
+                distance[previous_index],
+                rtol=0.0,
+                atol=1.0e-9,
+            ):
+                raise ValueError("duplicate raw DATA_time has inconsistent range")
+            speed[index] = speed[previous_index]
+        else:
+            speed[index] = (
+                distance[index] - distance[previous_index]
+            ) / delta_time
+        previous_index = index
+    return speed
+
+
+def export_raw_tracks(
+    project_root: Path,
+    *,
+    output_dir_name: str = "raw_tracks",
+    include_rd_metadata: bool = True,
+) -> List[Dict[str, object]]:
     manifest_path = project_root / "data" / "manifests" / "raw_tr_rd_manifest.json"
     rd_index_path = project_root / "data" / "processed" / "raw_rd_index.csv"
-    output_dir = project_root / "data" / "processed" / "raw_tracks"
+    output_dir = _processed_output_dir(project_root, output_dir_name)
     _ensure_clean_dir(output_dir)
     records: List[Dict[str, object]] = json.loads(manifest_path.read_text(encoding="utf-8"))
     rd_summary_map: Dict[str, str] = {}
-    if rd_index_path.exists():
+    if include_rd_metadata and rd_index_path.exists():
         rd_index_df = pd.read_csv(rd_index_path)
         rd_summary_map = {
             str(row["sample_id"]): {
@@ -94,6 +185,13 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
             elevation = np.array(handle["E"]).reshape(-1)
             snr = np.array(handle["SNR"]).reshape(-1)
         frame_count = len(time_raw)
+        time_seconds = _normalize_raw_data_time_seconds(time_raw)
+        range_m = _normalize_raw_range_m(distance)
+        radial_speed_mps = _derive_raw_radial_speed_mps(
+            time_seconds,
+            range_m,
+            radial_speed,
+        )
         df = pd.DataFrame(
             {
                 "source_name": "raw_tr_rd",
@@ -102,10 +200,10 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "timestamp": item["timestamp"],
                 "frame_index": np.arange(frame_count, dtype=int),
                 "time_raw": time_raw.astype(float),
-                "time_seconds": _normalize_time_seconds(time_raw),
+                "time_seconds": time_seconds,
                 "azimuth_deg": azimuth.astype(float),
-                "range_m": distance.astype(float),
-                "radial_speed_mps": radial_speed.astype(float),
+                "range_m": range_m,
+                "radial_speed_mps": radial_speed_mps,
                 "elevation_deg": elevation.astype(float),
                 "height_m": np.nan,
                 "amplitude_db": np.nan,
@@ -142,7 +240,11 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "time_seconds_min": float(df["time_seconds"].min()) if frame_count else np.nan,
                 "time_seconds_max": float(df["time_seconds"].max()) if frame_count else np.nan,
                 "csv_path": output_path.relative_to(project_root).as_posix(),
-                "rd_path": Path(item["rd_file"]).relative_to(project_root).as_posix(),
+                "rd_path": (
+                    Path(item["rd_file"]).relative_to(project_root).as_posix()
+                    if include_rd_metadata
+                    else ""
+                ),
                 "rd_summary_csv_path": rd_summary_map.get(item["pair_id"], {}).get("summary_csv_path", ""),
                 "rd_tensor_path": rd_summary_map.get(item["pair_id"], {}).get("rd_tensor_path", ""),
                 "rd_phase_missing": False,
@@ -152,9 +254,13 @@ def export_raw_tracks(project_root: Path) -> List[Dict[str, object]]:
     return index_rows
 
 
-def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
+def export_excel_tracks(
+    project_root: Path,
+    *,
+    output_dir_name: str = "excel_tracks",
+) -> List[Dict[str, object]]:
     manifest_path = project_root / "data" / "manifests" / "excel_track_manifest.json"
-    output_dir = project_root / "data" / "processed" / "excel_tracks"
+    output_dir = _processed_output_dir(project_root, output_dir_name)
     _ensure_clean_dir(output_dir)
     records: List[Dict[str, object]] = json.loads(manifest_path.read_text(encoding="utf-8"))
     index_rows: List[Dict[str, object]] = []
@@ -168,7 +274,9 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
             on=["StartTimer", "Batch"],
             how="left",
         )
-        merged["time_seconds"] = _normalize_time_seconds(merged["Time"].to_numpy(dtype=float))
+        merged["time_seconds"] = _normalize_excel_time_seconds(
+            merged["Time"].to_numpy(dtype=float)
+        )
         merged["label_name_raw"] = merged["MarkType"].fillna("UnknownTarget").astype(str)
         merged["label_name"] = merged["label_name_raw"].map(EXCEL_MARKTYPE_MAP).fillna("UnknownTarget")
         label_fields = merged.apply(
@@ -197,7 +305,9 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
                 "time_seconds": merged["time_seconds"].astype(float),
                 "azimuth_deg": merged["Azimuth"].astype(float),
                 "range_m": merged["Distance"].astype(float),
-                "radial_speed_mps": merged["Speed_R"].astype(float),
+                "radial_speed_mps": _normalize_excel_radial_speed_mps(
+                    merged["Speed_R"].to_numpy(dtype=float)
+                ),
                 "elevation_deg": merged["Elevation"].astype(float),
                 "height_m": merged["Height"].astype(float),
                 "amplitude_db": merged["Amplitude"].astype(float),
@@ -290,7 +400,7 @@ def export_excel_tracks(project_root: Path) -> List[Dict[str, object]]:
     return index_rows
 
 
-def export_all(project_root: Path) -> Dict[str, int]:
+def export_all(project_root: Path) -> Dict[str, object]:
     processed_root = project_root / "data" / "processed"
     processed_root.mkdir(parents=True, exist_ok=True)
     raw_index_rows = export_raw_tracks(project_root)
@@ -312,9 +422,76 @@ def export_all(project_root: Path) -> Dict[str, int]:
     return summary
 
 
+def export_tr_only_versioned(project_root: Path, version: str) -> Dict[str, object]:
+    processed_root = project_root / "data" / "processed"
+    processed_root.mkdir(parents=True, exist_ok=True)
+    normalized_version = str(version).strip().lower()
+    raw_dir_name = _versioned_output_name("raw_tracks", normalized_version)
+    excel_dir_name = _versioned_output_name("excel_tracks", normalized_version)
+    raw_index_rows = export_raw_tracks(
+        project_root,
+        output_dir_name=raw_dir_name,
+        include_rd_metadata=False,
+    )
+    excel_index_rows = export_excel_tracks(
+        project_root,
+        output_dir_name=excel_dir_name,
+    )
+    raw_index = pd.DataFrame(raw_index_rows)[TRACK_INDEX_COLUMNS]
+    excel_index = pd.DataFrame(excel_index_rows)[TRACK_INDEX_COLUMNS]
+    full_index = pd.concat([raw_index, excel_index], ignore_index=True)[TRACK_INDEX_COLUMNS]
+    raw_index_name = _versioned_output_name("raw_track_index", normalized_version) + ".csv"
+    excel_index_name = _versioned_output_name("excel_track_index", normalized_version) + ".csv"
+    full_index_name = _versioned_output_name("track_index", normalized_version) + ".csv"
+    summary_name = _versioned_output_name("track_standardization_summary", normalized_version) + ".json"
+    raw_index_path = processed_root / raw_index_name
+    excel_index_path = processed_root / excel_index_name
+    full_index_path = processed_root / full_index_name
+    summary_path = processed_root / summary_name
+    raw_index.to_csv(raw_index_path, index=False, encoding="utf-8")
+    excel_index.to_csv(excel_index_path, index=False, encoding="utf-8")
+    full_index.to_csv(full_index_path, index=False, encoding="utf-8")
+    summary: Dict[str, object] = {
+        "contract": "tr_only_track_standardization_v1",
+        "version": normalized_version,
+        "raw_time_contract": "seconds_since_midnight_relative_to_track_start",
+        "raw_range_contract": "source_kilometres_to_metres",
+        "radial_speed_contract": "meters_per_second_positive_receding",
+        "raw_radial_speed_contract": "causal_backward_range_rate",
+        "rd_metadata": "not_applicable_tr_only",
+        "raw_track_exports": len(raw_index_rows),
+        "excel_track_exports": len(excel_index_rows),
+        "total_track_exports": len(full_index),
+        "source_counts": full_index["source_name"].value_counts(dropna=False).to_dict(),
+        "label_counts": full_index["label_name"].value_counts(dropna=False).to_dict(),
+        "raw_output_dir": (processed_root / raw_dir_name).relative_to(project_root).as_posix(),
+        "excel_output_dir": (processed_root / excel_dir_name).relative_to(project_root).as_posix(),
+        "raw_index": raw_index_path.relative_to(project_root).as_posix(),
+        "excel_index": excel_index_path.relative_to(project_root).as_posix(),
+        "track_index": full_index_path.relative_to(project_root).as_posix(),
+    }
+    summary_path.write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    summary["summary"] = summary_path.relative_to(project_root).as_posix()
+    return summary
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Standardize raw and Excel trajectory tracks.")
+    parser.add_argument(
+        "--tr-only-version",
+        default="",
+        help="Write a versioned TR-only dataset without reading or carrying RD metadata.",
+    )
+    args = parser.parse_args()
     project_root = Path(__file__).resolve().parents[2]
-    summary = export_all(project_root)
+    summary = (
+        export_tr_only_versioned(project_root, args.tr_only_version)
+        if args.tr_only_version
+        else export_all(project_root)
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

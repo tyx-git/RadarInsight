@@ -16,7 +16,7 @@ from src.core.data.rd import EncodedRDSequence, encode_multimodal_rd
 from src.process.build_expert1_rd_segment_store import MANIFEST_COLUMNS
 
 
-ANCHOR_PREPROCESS_VERSION = "expert1_cq08_point_anchor_rd_v2"
+ANCHOR_PREPROCESS_VERSION = "expert1_cq08_point_anchor_rd_v3_1_common_range_time"
 ANCHOR_SYNC_STATUS = "track_point_anchor"
 
 
@@ -90,7 +90,7 @@ def _encoded_segment(amplitudes: list[np.ndarray], phases: list[np.ndarray]) -> 
         raise ValueError("anchor segment has no shape-compatible RD frames")
     amplitude = np.stack([item[0] for item in selected], axis=0)
     phase = np.stack([item[1] for item in selected], axis=0)
-    return encode_multimodal_rd({"amplitude": amplitude, "phase": phase, "time_raw": np.arange(len(selected), dtype=np.float32)})
+    return encode_multimodal_rd({"amplitude": amplitude, "phase": phase, "time_raw": np.arange(len(selected), dtype=np.float32)}, legacy=True)
 
 
 def _as_bool(value: object) -> bool:

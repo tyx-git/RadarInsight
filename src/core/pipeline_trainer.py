@@ -13,7 +13,7 @@ from config.configmanager import (
     load_system_config,
 )
 
-from .expert1_trainer import train_expert1_v1
+from .expert1_trainer import train_expert1
 from .expert_other_trainer import train_other_expert
 from .pipeline_config import MainPipelineConfig
 from .pretrain_track_trainer import pretrain_track_encoder
@@ -80,7 +80,7 @@ def run_main_pipeline(config: MainPipelineConfig, config_path: str = "config/con
             expert1_config = replace(expert1_config, output_dir=config.expert1_output_dir)
         expert1_summary = _load_existing_summary(expert1_config.output_dir) or _summary_from_checkpoint(config.expert1_checkpoint)
         if expert1_summary is None:
-            expert1_summary = train_expert1_v1(expert1_config)
+            expert1_summary = train_expert1(expert1_config)
         summary["expert1"] = expert1_summary
 
     expert2_summary = None

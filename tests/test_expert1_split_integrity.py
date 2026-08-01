@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
+import json
+from pathlib import Path
 from unittest.mock import Mock, patch
 
+import h5py
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -14,6 +19,274 @@ from src.core.data.split import (
     stratified_group_split,
     validate_grouped_split,
 )
+from src.process.standardize_tracks import (
+    _derive_raw_radial_speed_mps,
+    _normalize_excel_radial_speed_mps,
+    _normalize_excel_time_seconds,
+    _normalize_raw_data_time_seconds,
+    _normalize_raw_range_m,
+    _processed_output_dir,
+    _versioned_output_name,
+)
+
+
+def test_track_time_normalizers_keep_source_units_explicit() -> None:
+    raw_seconds_since_midnight = np.asarray([41162.798, 41163.618, 41164.437])
+    excel_timer_milliseconds = np.asarray([1000.0, 3006.0, 5012.0])
+
+    assert _normalize_raw_data_time_seconds(raw_seconds_since_midnight) == pytest.approx(
+        [0.0, 0.82, 1.639]
+    )
+    assert _normalize_excel_time_seconds(excel_timer_milliseconds) == pytest.approx(
+        [0.0, 2.006, 4.012]
+    )
+
+
+def test_versioned_tr_only_standardization_rejects_unsafe_output_names(
+    tmp_path: Path,
+) -> None:
+    assert _versioned_output_name("raw_tracks", "v10") == "raw_tracks_tr_only_v10"
+    assert _processed_output_dir(tmp_path, "raw_tracks_tr_only_v10") == (
+        tmp_path / "data" / "processed" / "raw_tracks_tr_only_v10"
+    ).resolve()
+    for invalid in ("../raw_tracks", "nested/raw_tracks", "C:/raw_tracks", ""):
+        with pytest.raises(ValueError):
+            _processed_output_dir(tmp_path, invalid)
+    for invalid_version in ("../v10", "V 10", ""):
+        with pytest.raises(ValueError):
+            _versioned_output_name("raw_tracks", invalid_version)
+
+
+def test_raw_range_normalizer_converts_kilometres_to_metres() -> None:
+    assert _normalize_raw_range_m(np.asarray([0.288, 4.160, 13.200])) == pytest.approx(
+        [288.0, 4160.0, 13200.0]
+    )
+
+
+def test_excel_radial_speed_normalizer_uses_positive_receding_convention() -> None:
+    assert _normalize_excel_radial_speed_mps(
+        np.asarray([-12.5, 0.0, 8.0])
+    ) == pytest.approx([12.5, 0.0, -8.0])
+
+
+def test_raw_radial_speed_uses_only_current_and_prior_points() -> None:
+    time_seconds = np.asarray([0.0, 0.82, 0.82, 1.639])
+    range_m = np.asarray([2346.732, 2357.687, 2357.687, 2367.966])
+    derived = _derive_raw_radial_speed_mps(
+        time_seconds,
+        range_m,
+        np.zeros(4),
+    )
+
+    assert np.isnan(derived[0])
+    assert derived[1:] == pytest.approx(
+        [
+            (2357.687 - 2346.732) / 0.82,
+            (2357.687 - 2346.732) / 0.82,
+            (2367.966 - 2357.687) / (1.639 - 0.82),
+        ]
+    )
+    with pytest.raises(ValueError, match="non-zero source values"):
+        _derive_raw_radial_speed_mps(time_seconds, range_m, np.asarray([0, 0, 1, 0]))
+    with pytest.raises(ValueError, match="inconsistent range"):
+        _derive_raw_radial_speed_mps(
+            np.asarray([0.0, 0.0]),
+            np.asarray([1000.0, 1001.0]),
+            np.zeros(2),
+        )
+
+
+def test_raw_data_time_real_manifest_is_seconds_since_midnight() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    manifest_path = project_root / "data" / "manifests" / "raw_tr_rd_manifest.json"
+    if not manifest_path.exists():
+        pytest.skip("raw TR manifest is not available")
+    records = json.loads(manifest_path.read_text(encoding="utf-8"))
+    positive_deltas: list[float] = []
+    start_offsets_from_filename: list[float] = []
+    checked_records = 0
+    for record in records:
+        track_path = Path(record["tr_file"])
+        if not track_path.is_absolute():
+            track_path = project_root / track_path
+        if not track_path.exists():
+            pytest.skip(f"raw TR asset is not available: {track_path}")
+        with h5py.File(track_path, "r") as handle:
+            time_raw = np.asarray(handle["DATA_time"]).reshape(-1).astype(float)
+        deltas = np.diff(time_raw)
+        positive_deltas.extend(deltas[np.isfinite(deltas) & (deltas > 0)].tolist())
+        timestamp = datetime.strptime(str(record["timestamp"]), "%Y%m%d%H%M%S")
+        filename_seconds = timestamp.hour * 3600 + timestamp.minute * 60 + timestamp.second
+        start_offsets_from_filename.append(float(time_raw[0] - filename_seconds))
+        normalized = _normalize_raw_data_time_seconds(time_raw)
+        assert normalized[-1] == pytest.approx(time_raw[-1] - time_raw[0])
+        checked_records += 1
+
+    assert checked_records == len(records) == 77
+    assert np.median(positive_deltas) == pytest.approx(0.82, abs=0.01)
+    assert min(start_offsets_from_filename) >= 0.0
+    assert max(start_offsets_from_filename) < 3600.0
+
+
+def test_raw_range_real_manifest_has_metre_scale_and_physical_motion() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    manifest_path = project_root / "data" / "manifests" / "raw_tr_rd_manifest.json"
+    if not manifest_path.exists():
+        pytest.skip("raw TR manifest is not available")
+    records = json.loads(manifest_path.read_text(encoding="utf-8"))
+    range_native: list[float] = []
+    geometric_speed_mps: list[float] = []
+    for record in records:
+        track_path = Path(record["tr_file"])
+        if not track_path.is_absolute():
+            track_path = project_root / track_path
+        if not track_path.exists():
+            pytest.skip(f"raw TR asset is not available: {track_path}")
+        with h5py.File(track_path, "r") as handle:
+            time_raw = np.asarray(handle["DATA_time"]).reshape(-1).astype(float)
+            azimuth = np.deg2rad(
+                np.asarray(handle["A"]).reshape(-1).astype(float)
+            )
+            elevation = np.deg2rad(
+                np.asarray(handle["E"]).reshape(-1).astype(float)
+            )
+            native = np.asarray(handle["R"]).reshape(-1).astype(float)
+        range_m = _normalize_raw_range_m(native)
+        x = range_m * np.cos(elevation) * np.cos(azimuth)
+        y = range_m * np.cos(elevation) * np.sin(azimuth)
+        z = range_m * np.sin(elevation)
+        delta_time = np.diff(time_raw)
+        displacement = np.sqrt(np.diff(x) ** 2 + np.diff(y) ** 2 + np.diff(z) ** 2)
+        valid = np.isfinite(delta_time) & np.isfinite(displacement) & (delta_time > 0)
+        range_native.extend(native[np.isfinite(native)].tolist())
+        geometric_speed_mps.extend((displacement[valid] / delta_time[valid]).tolist())
+
+    assert len(records) == 77
+    assert np.median(range_native) == pytest.approx(4.1604, abs=0.01)
+    assert np.median(_normalize_raw_range_m(np.asarray(range_native))) == pytest.approx(
+        4160.4, abs=10.0
+    )
+    assert np.median(geometric_speed_mps) == pytest.approx(16.3535, abs=0.1)
+
+
+def test_raw_radial_speed_real_manifest_replaces_zero_placeholder_causally() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    manifest_path = project_root / "data" / "manifests" / "raw_tr_rd_manifest.json"
+    if not manifest_path.exists():
+        pytest.skip("raw TR manifest is not available")
+    records = json.loads(manifest_path.read_text(encoding="utf-8"))
+    derived_values: list[float] = []
+    missing_count = 0
+    point_count = 0
+    for record in records:
+        track_path = Path(record["tr_file"])
+        if not track_path.is_absolute():
+            track_path = project_root / track_path
+        if not track_path.exists():
+            pytest.skip(f"raw TR asset is not available: {track_path}")
+        with h5py.File(track_path, "r") as handle:
+            time_raw = np.asarray(handle["DATA_time"]).reshape(-1).astype(float)
+            range_native = np.asarray(handle["R"]).reshape(-1).astype(float)
+            source_speed = np.asarray(handle["V"]).reshape(-1).astype(float)
+        derived = _derive_raw_radial_speed_mps(
+            _normalize_raw_data_time_seconds(time_raw),
+            _normalize_raw_range_m(range_native),
+            source_speed,
+        )
+        point_count += len(derived)
+        missing_count += int((~np.isfinite(derived)).sum())
+        derived_values.extend(derived[np.isfinite(derived)].tolist())
+
+    assert point_count == 11366
+    assert missing_count >= len(records)
+    assert np.median(np.abs(derived_values)) == pytest.approx(11.5369, abs=0.1)
+
+
+def test_excel_radial_speed_real_manifest_matches_range_rate_after_sign_fix() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    manifest_path = project_root / "data" / "manifests" / "excel_track_manifest.json"
+    if not manifest_path.exists():
+        pytest.skip("Excel track manifest is not available")
+    records = json.loads(manifest_path.read_text(encoding="utf-8"))
+    range_rates: list[float] = []
+    normalized_speeds: list[float] = []
+    for record in records:
+        track_path = Path(record["track_file"])
+        if not track_path.is_absolute():
+            track_path = project_root / track_path
+        if not track_path.exists():
+            pytest.skip(f"Excel track asset is not available: {track_path}")
+        frame = pd.read_excel(
+            track_path,
+            usecols=["Time", "Distance", "Speed_R", "Batch"],
+        )
+        for _, batch in frame.groupby("Batch", sort=False):
+            time_seconds = batch["Time"].to_numpy(dtype=float) / 1000.0
+            range_m = batch["Distance"].to_numpy(dtype=float)
+            speed_mps = _normalize_excel_radial_speed_mps(
+                batch["Speed_R"].to_numpy(dtype=float)
+            )
+            delta_time = np.diff(time_seconds)
+            rate = np.divide(
+                np.diff(range_m),
+                delta_time,
+                out=np.full(delta_time.shape, np.nan),
+                where=delta_time > 1.0e-6,
+            )
+            valid = (
+                np.isfinite(rate)
+                & np.isfinite(speed_mps[1:])
+                & (delta_time > 1.0e-6)
+                & (np.abs(rate) < 200.0)
+            )
+            range_rates.extend(rate[valid].tolist())
+            normalized_speeds.extend(speed_mps[1:][valid].tolist())
+
+    rates = np.asarray(range_rates)
+    speeds = np.asarray(normalized_speeds)
+    assert len(rates) == 24160
+    assert np.corrcoef(rates, speeds)[0, 1] > 0.95
+    assert np.median(np.abs(rates - speeds)) < 1.0
+
+
+def test_cq08_radial_speed_real_processed_data_is_positive_receding() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    index_path = project_root / "data" / "processed" / "cq08_track_index.csv"
+    if not index_path.exists():
+        pytest.skip("CQ08 track index is not available")
+    index = pd.read_csv(index_path, low_memory=False)
+    range_rates: list[float] = []
+    radial_speeds: list[float] = []
+    for relative_path in index["csv_path"].dropna().astype(str):
+        track_path = project_root / relative_path
+        if not track_path.exists():
+            pytest.skip(f"CQ08 track asset is not available: {track_path}")
+        frame = pd.read_csv(
+            track_path,
+            usecols=["time_seconds", "range_m", "radial_speed_mps"],
+        )
+        time_seconds = pd.to_numeric(frame["time_seconds"], errors="coerce").to_numpy(float)
+        range_m = pd.to_numeric(frame["range_m"], errors="coerce").to_numpy(float)
+        speed_mps = pd.to_numeric(
+            frame["radial_speed_mps"], errors="coerce"
+        ).to_numpy(float)
+        delta_time = np.diff(time_seconds)
+        rate = np.divide(
+            np.diff(range_m),
+            delta_time,
+            out=np.full(delta_time.shape, np.nan),
+            where=delta_time > 1.0e-6,
+        )
+        valid = np.isfinite(rate) & np.isfinite(speed_mps[1:]) & (delta_time > 1.0e-6)
+        range_rates.extend(rate[valid].tolist())
+        radial_speeds.extend(speed_mps[1:][valid].tolist())
+
+    rates = np.asarray(range_rates)
+    speeds = np.asarray(radial_speeds)
+    active = (np.abs(rates) > 0.1) & (np.abs(speeds) > 0.1)
+    assert len(rates) == 18356
+    assert np.mean(np.sign(rates[active]) == np.sign(speeds[active])) > 0.95
+    assert np.median(np.abs(rates - speeds)) < 1.1
 
 
 def test_canonical_group_id_prefers_parent_then_window_prefix_then_sample_id() -> None:

@@ -452,6 +452,10 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_joint_segment_count: int = 5,
         enable_rd_segment_joint_tokens: bool = True,
         micro_doppler_feature_clip: float = 8.0,
+        use_rd_continuous_time_encoding: bool = False,
+        rd_time_encoding_mode: str = "absolute_elapsed",
+        rd_local_delta_time_clip_seconds: float = 1.0,
+        rd_local_delta_time_scale: float = 0.25,
     ) -> None:
         super().__init__()
         self.reject_threshold = reject_threshold
@@ -474,6 +478,16 @@ class LowAltitudeSuspectExpert(nn.Module):
         self.rd_joint_segment_count = int(max(1, rd_joint_segment_count))
         self.enable_rd_segment_joint_tokens = bool(enable_rd_segment_joint_tokens)
         self.micro_doppler_feature_clip = float(max(1.0e-3, micro_doppler_feature_clip))
+        self.use_rd_continuous_time_encoding = bool(use_rd_continuous_time_encoding)
+        supported_rd_time_encoding_modes = {"absolute_elapsed", "normalized_order_local_delta"}
+        if rd_time_encoding_mode not in supported_rd_time_encoding_modes:
+            raise ValueError(
+                "unsupported rd_time_encoding_mode: "
+                f"{rd_time_encoding_mode}; expected one of {sorted(supported_rd_time_encoding_modes)}"
+            )
+        self.rd_time_encoding_mode = str(rd_time_encoding_mode)
+        self.rd_local_delta_time_clip_seconds = float(max(1.0e-6, rd_local_delta_time_clip_seconds))
+        self.rd_local_delta_time_scale = float(max(0.0, rd_local_delta_time_scale))
         self.known_indices = [
             LOW_ALTITUDE_CLASSES.index("DroneTarget"),
             LOW_ALTITUDE_CLASSES.index("BirdTarget"),
@@ -884,7 +898,63 @@ class LowAltitudeSuspectExpert(nn.Module):
             max=self.micro_doppler_feature_clip,
         )  # [B, 6]
 
-    def _encode_rd(self, rd_features: torch.Tensor, rd_padding_mask: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def _rd_continuous_time_encoding(
+        self,
+        rd_features: torch.Tensor,
+        rd_time_seconds: torch.Tensor | None,
+        rd_padding_mask: torch.Tensor | None,
+    ) -> torch.Tensor:
+        batch_size, frame_count = rd_features.shape[:2]
+        if rd_padding_mask is None:
+            valid = torch.ones((batch_size, frame_count), device=rd_features.device, dtype=torch.bool)
+        else:
+            valid = ~rd_padding_mask
+        if rd_time_seconds is None:
+            times = torch.arange(frame_count, device=rd_features.device, dtype=rd_features.dtype).unsqueeze(0)
+            times = times.expand(batch_size, -1)
+        else:
+            times = rd_time_seconds.to(device=rd_features.device, dtype=rd_features.dtype)
+            if times.shape != (batch_size, frame_count):
+                raise ValueError("rd_time_seconds must have shape [batch_size, time]")
+        if self.rd_time_encoding_mode == "normalized_order_local_delta":
+            valid_count = valid.sum(dim=1, keepdim=True).to(rd_features.dtype)
+            order = valid.to(rd_features.dtype).cumsum(dim=1) - 1.0
+            order_denom = (valid_count - 1.0).clamp_min(1.0)
+            normalized_order = torch.where(
+                valid,
+                order / order_denom,
+                torch.zeros_like(order),
+            )
+            local_delta = torch.zeros_like(times)
+            if frame_count > 1:
+                adjacent_delta = (times[:, 1:] - times[:, :-1]).clamp_min(0.0)
+                adjacent_valid = valid[:, 1:] & valid[:, :-1]
+                local_delta[:, 1:] = torch.where(adjacent_valid, adjacent_delta, torch.zeros_like(adjacent_delta))
+            normalized_delta = local_delta / self.rd_local_delta_time_clip_seconds
+            positions = normalized_order + torch.log1p(normalized_delta.clamp_max(1.0)).mul(
+                self.rd_local_delta_time_scale
+            )
+        else:
+            first_index = valid.to(torch.int64).argmax(dim=1, keepdim=True)
+            first_time = times.gather(1, first_index)
+            relative_time = torch.where(valid, (times - first_time).clamp_min(0.0), torch.zeros_like(times))
+            positions = torch.log1p(relative_time)
+        half_dim = self.rd_model_dim // 2
+        frequency_index = torch.arange(half_dim, device=rd_features.device, dtype=rd_features.dtype)
+        denominator = max(1, half_dim - 1)
+        frequencies = torch.exp(-math.log(10_000.0) * frequency_index / denominator)
+        angles = positions.unsqueeze(-1) * frequencies
+        encoding = torch.cat([torch.sin(angles), torch.cos(angles)], dim=-1)
+        if encoding.shape[-1] < self.rd_model_dim:
+            encoding = F.pad(encoding, (0, self.rd_model_dim - encoding.shape[-1]))
+        return encoding * valid.unsqueeze(-1).to(encoding.dtype)
+
+    def _encode_rd(
+        self,
+        rd_features: torch.Tensor,
+        rd_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         amp_range = rd_features[:, :, :, 0]
         phase_range = rd_features[:, :, :, 1]
         amp_dopp = rd_features[:, :, :, 2]
@@ -894,6 +964,8 @@ class LowAltitudeSuspectExpert(nn.Module):
         amp_dopp_embed = self.doppler_amplitude_proj(amp_dopp)
         phase_dopp_embed = self.doppler_phase_proj(phase_dopp)
         hidden = self.rd_token_proj(torch.cat([amp_range_embed, phase_range_embed, amp_dopp_embed, phase_dopp_embed], dim=-1))
+        if self.use_rd_continuous_time_encoding:
+            hidden = hidden + self._rd_continuous_time_encoding(rd_features, rd_time_seconds, rd_padding_mask)
         hidden = self.rd_encoder(hidden, src_key_padding_mask=rd_padding_mask)
         hidden = self.rd_norm(hidden)
         if rd_padding_mask is None:
@@ -911,6 +983,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_patch_features: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
     ) -> RDDroneBirdDiagnosticOutput:
         """Run the RD trunk for a diagnostic-only Drone/Bird experiment.
 
@@ -920,7 +993,11 @@ class LowAltitudeSuspectExpert(nn.Module):
         """
         if rd_features.ndim != 4:
             raise ValueError("rd_features must have shape [batch_size, time, range, channel]")
-        rd_encoded, rd_stats, _ = self._encode_rd(rd_features, rd_padding_mask=rd_padding_mask)
+        rd_encoded, rd_stats, _ = self._encode_rd(
+            rd_features,
+            rd_padding_mask=rd_padding_mask,
+            rd_time_seconds=rd_time_seconds,
+        )
         patch_source = rd_patch_features if rd_patch_features is not None else rd_features
         patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
         rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)
@@ -1198,6 +1275,7 @@ class LowAltitudeSuspectExpert(nn.Module):
         rd_alignment_quality: torch.Tensor | None = None,
         traj_padding_mask: torch.Tensor | None = None,
         rd_padding_mask: torch.Tensor | None = None,
+        rd_time_seconds: torch.Tensor | None = None,
         rd_patch_padding_mask: torch.Tensor | None = None,
         rd_deep_patch_padding_mask: torch.Tensor | None = None,
         traj_physical_features: torch.Tensor | None = None,
@@ -1352,7 +1430,11 @@ class LowAltitudeSuspectExpert(nn.Module):
             dtype=traj_input.dtype,
         )
         if rd_features.ndim == 4:
-            rd_encoded, rd_stats, rd_tokens = self._encode_rd(rd_features, rd_padding_mask=rd_padding_mask)
+            rd_encoded, rd_stats, rd_tokens = self._encode_rd(
+                rd_features,
+                rd_padding_mask=rd_padding_mask,
+                rd_time_seconds=rd_time_seconds,
+            )
             patch_source = rd_patch_features if rd_patch_features is not None else rd_features
             patch_mask = rd_patch_padding_mask if rd_patch_features is not None else rd_padding_mask
             rd_patch = self._encode_rd_patch(patch_source, rd_padding_mask=patch_mask)

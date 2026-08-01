@@ -6,11 +6,13 @@ from pathlib import Path
 from time import perf_counter_ns
 from typing import Any, Callable, Iterable
 
+import numpy as np
 import pandas as pd
 import torch
 
 from .data.rd_segment_store import resolve_window_rd_time_sync_status
-from .encoding import encode_track_sequence
+from .encoding import encode_track_sequence, prepare_track_sequence_features
+from .features import TRACK_FEATURE_COLUMNS, track_sequence_continuous_feature_indices
 from .expert1_config import Expert1TrainConfig
 from .experts import LOW_ALTITUDE_CLASSES
 from .physical import extract_physical_features
@@ -371,6 +373,70 @@ class Expert1StreamingInferenceEngine:
         return results
 
 
+def _max_event_gap_seconds(event_times_ns: Iterable[int]) -> float:
+    ordered = sorted({int(value) for value in event_times_ns})
+    if len(ordered) < 2:
+        return 0.0
+    return float(max(abs(right - left) for left, right in zip(ordered[1:], ordered[:-1])) / 1_000_000_000.0)
+
+
+def _raw_track_numeric_finite_ratio(frame: pd.DataFrame) -> float:
+    if frame.empty:
+        return 0.0
+    values = frame[TRACK_FEATURE_COLUMNS].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float64)
+    return float(np.isfinite(values).mean()) if values.size else 0.0
+
+
+def _coerce_optional_bool(value: object) -> bool | None:
+    if value is None or (isinstance(value, float) and not np.isfinite(value)):
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, np.integer)):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y"}:
+        return True
+    if normalized in {"false", "0", "no", "n", ""}:
+        return False
+    raise ValueError(f"invalid boolean trajectory metadata value: {value!r}")
+
+
+def _streaming_source_name(
+    payloads: list[dict[str, Any]],
+    *,
+    source_normalization: bool,
+    source_feature_stats: dict[str, object],
+) -> str:
+    values = [str(payload.get("source_name", "")).strip() for payload in payloads]
+    registered = {value for value in values if value}
+    if len(registered) > 1:
+        raise ValueError("causal window mixes trajectory sources")
+    source_name = next(iter(registered), "")
+    if source_normalization:
+        if not source_name or any(not value for value in values):
+            raise ValueError("source_normalization requires source_name on every trajectory event")
+        if source_name not in source_feature_stats:
+            raise ValueError(f"source_normalization has no registered statistics for source={source_name}")
+    return source_name
+
+
+def _streaming_height_missing(payloads: list[dict[str, Any]], frame: pd.DataFrame) -> bool:
+    metadata = [
+        _coerce_optional_bool(payload["height_missing"])
+        for payload in payloads
+        if "height_missing" in payload
+    ]
+    if metadata:
+        if len(metadata) != len(payloads) or len(set(metadata)) != 1:
+            raise ValueError("height_missing metadata must be present and consistent on every trajectory event")
+        return bool(metadata[0])
+    if "height_m" not in frame.columns:
+        return True
+    values = pd.to_numeric(frame["height_m"], errors="coerce").to_numpy(dtype=np.float64)
+    return not bool(np.isfinite(values).any())
+
+
 class Expert1CheckpointTrajectoryPredictor:
     """Run a saved Expert1 checkpoint through its validated trajectory-only path.
 
@@ -397,9 +463,15 @@ class Expert1CheckpointTrajectoryPredictor:
         )
         self.config = Expert1TrainConfig(**config_values)
 
-        from .expert1_trainer import _build_expert1_modules, _load_checkpoint_into_modules, _track_attribution_quality
+        from .expert1_trainer import (
+            _apply_source_physical_norm,
+            _build_expert1_modules,
+            _load_checkpoint_into_modules,
+            _track_attribution_quality,
+        )
 
         self._track_attribution_quality = _track_attribution_quality
+        self._apply_source_physical_norm = _apply_source_physical_norm
 
         self.representation_builder, self.rd_proj, self.model = _build_expert1_modules(
             self.config,
@@ -417,6 +489,19 @@ class Expert1CheckpointTrajectoryPredictor:
         self.model.eval()
         source_feature_stats = loaded_checkpoint.get("source_feature_stats", {})
         self.source_feature_stats = source_feature_stats if isinstance(source_feature_stats, dict) else {}
+        if self.config.physical_representation_contract_version == "source_robust_v3":
+            missing_physical = [
+                source_name
+                for source_name, values in self.source_feature_stats.items()
+                if not isinstance(values, dict)
+                or "physical_center" not in values
+                or "physical_scale" not in values
+            ]
+            if missing_physical:
+                raise ValueError(
+                    "source_robust_v3 streaming checkpoint is missing physical source stats: "
+                    f"sources={sorted(missing_physical)[:5]}"
+                )
         self.model_version = str(self.config.output_dir or "expert1_checkpoint")
         self.checkpoint_id = self.checkpoint_path.as_posix()
 
@@ -424,53 +509,69 @@ class Expert1CheckpointTrajectoryPredictor:
         payloads = [dict(event.payload) for event in window.tr_events]
         if not payloads:
             raise ValueError("causal window contains no trajectory payloads")
-        source_names = {
-            str(payload.get("source_name", ""))
-            for payload in payloads
-            if str(payload.get("source_name", ""))
-        }
-        if len(source_names) > 1:
-            raise ValueError("causal window mixes trajectory sources")
-        source_name = next(iter(source_names), "")
+        source_name = _streaming_source_name(
+            payloads,
+            source_normalization=bool(self.config.source_normalization),
+            source_feature_stats=self.source_feature_stats,
+        )
         frame = pd.DataFrame(payloads)
-        encoded = encode_track_sequence(frame)
-        sequence_features = torch.from_numpy(encoded.features).to(self.device).unsqueeze(0)
+        raw_numeric_finite_ratio = _raw_track_numeric_finite_ratio(frame)
+        encoded = encode_track_sequence(frame, feature_schema=self.config.trajectory_feature_schema)
+        prepared_features = prepare_track_sequence_features(
+            encoded.features,
+            source_name=source_name,
+            feature_schema=self.config.trajectory_feature_schema,
+        )
+        sequence_features = torch.from_numpy(prepared_features).to(self.device).unsqueeze(0)
         if self.config.source_normalization and source_name in self.source_feature_stats:
             stats = self.source_feature_stats[source_name]
             center = stats["center"].to(self.device, dtype=sequence_features.dtype)
             scale = stats["scale"].to(self.device, dtype=sequence_features.dtype).clamp_min(1.0e-3)
-            sequence_features = (sequence_features - center) / scale
-        height_missing = bool(payloads[0].get("height_missing", False))
-        phase_missing = bool(payloads[0].get("rd_phase_missing", True))
+            indices = track_sequence_continuous_feature_indices(self.config.trajectory_feature_schema)
+            if center.numel() != sequence_features.shape[-1] or scale.numel() != sequence_features.shape[-1]:
+                raise ValueError(
+                    "streaming source feature statistics dimension does not match trajectory features: "
+                    f"features={sequence_features.shape[-1]}, center={center.numel()}, scale={scale.numel()}"
+                )
+            if indices:
+                index_tensor = torch.tensor(indices, dtype=torch.long, device=self.device)
+                sequence_features[:, :, index_tensor] = (
+                    sequence_features[:, :, index_tensor] - center[index_tensor]
+                ) / scale[index_tensor]
+        height_missing = _streaming_height_missing(payloads, frame)
         physical_features = torch.from_numpy(
             extract_physical_features(
                 frame,
                 height_missing=height_missing,
-                phase_missing=phase_missing,
+                phase_missing=False,
+                feature_schema=self.config.trajectory_feature_schema,
             ).values
         ).to(self.device).unsqueeze(0)
+        if self.config.physical_representation_contract_version == "source_robust_v3":
+            physical_features = self._apply_source_physical_norm(
+                physical_features,
+                [source_name],
+                self.source_feature_stats,
+                self.config.trajectory_feature_schema,
+            )
         trajectory_length = int(sequence_features.shape[1])
         trajectory_padding_mask = torch.zeros(
             (1, trajectory_length),
             dtype=torch.bool,
             device=self.device,
         )
-        event_times = torch.tensor(
-            sorted({int(event.event_time_ns) for event in window.tr_events}),
+        max_time_gap_seconds = torch.tensor(
+            _max_event_gap_seconds(event.event_time_ns for event in window.tr_events),
             dtype=torch.float32,
             device=self.device,
         )
-        if int(event_times.numel()) >= 2:
-            max_time_gap_seconds = (event_times[1:] - event_times[:-1]).abs().max() / 1_000_000_000.0
-        else:
-            max_time_gap_seconds = torch.zeros((), dtype=torch.float32, device=self.device)
         duration_seconds = max(1.0e-3, (int(window.window_end_ns) - int(window.window_start_ns)) / 1_000_000_000.0)
         track_quality = self._track_attribution_quality(
             torch.tensor([trajectory_length], dtype=torch.long, device=self.device),
             torch.zeros((1,), dtype=torch.float32, device=self.device),
             torch.tensor([duration_seconds], dtype=torch.float32, device=self.device),
             max_time_gap_seconds.reshape(1),
-            torch.isfinite(sequence_features).float().mean(dim=(1, 2)),
+            torch.tensor([raw_numeric_finite_ratio], dtype=torch.float32, device=self.device),
             self.config,
         )
         rd_features = torch.zeros((1, 1, 512, 4), dtype=torch.float32, device=self.device)
@@ -502,7 +603,7 @@ class Expert1CheckpointTrajectoryPredictor:
                 enable_reject=bool(self.config.enable_reject_in_eval),
                 disable_tr_rd_fusion=True,
             )
-            values = torch.softmax(output.traj_logits[0], dim=-1).detach().cpu().tolist()
+            values = torch.softmax(output.logits[0], dim=-1).detach().cpu().tolist()
         return StreamingModelPrediction(
             probabilities={label: float(value) for label, value in zip(LOW_ALTITUDE_CLASSES, values)},
             used_fallback=True,

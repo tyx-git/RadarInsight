@@ -15,7 +15,12 @@ class RDDroneBirdDiagnosticConfig:
     weight_decay: float = 1.0e-4
     dropout: float = 0.1
     micro_doppler_aux_weight: float = 0.20
+    parent_stability_aux_weight: float = 0.0
     use_rd_patch_cnn: bool = False
+    use_rd_continuous_time_encoding: bool = False
+    rd_time_encoding_mode: str = "absolute_elapsed"
+    rd_local_delta_time_clip_seconds: float = 1.0
+    rd_local_delta_time_scale: float = 0.25
     max_train_batches_per_epoch: int = 0
     max_val_batches: int = 0
     log_interval_batches: int = 25

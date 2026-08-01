@@ -1,12 +1,51 @@
-from ...core.features import TRACK_FEATURE_COLUMNS, TRACK_META_COLUMNS
+from ...core.features import (
+    TRACK_FEATURE_COLUMNS,
+    TRACK_META_COLUMNS,
+    TRACK_SEQUENCE_FEATURE_COLUMNS_V1,
+    TRACK_SEQUENCE_FEATURE_COLUMNS_V2,
+    TRACK_SEQUENCE_FEATURE_COLUMNS_V3,
+    TRACK_SEQUENCE_MISSING_MASK_COLUMNS_V3,
+    TRACK_FEATURE_UNITS,
+    TRACK_SOURCE_FEATURE_AVAILABILITY,
+    track_sequence_binary_feature_indices,
+    track_sequence_continuous_feature_indices,
+    track_sequence_feature_columns,
+    track_sequence_feature_dim,
+)
 from .labels import DEFAULT_VOCAB, FINE_VOCAB, STANDARD_LABELS, FINE_LABELS, LabelVocabulary
-from ...core.encoding import EncodedTrackSequence, encode_track_sequence, sanitize_feature_frame
-from ...core.physical import PHYSICAL_FEATURE_COLUMNS, PhysicalFeatureVector, extract_physical_features
+from ...core.encoding import (
+    EncodedTrackSequence,
+    encode_track_sequence,
+    normalize_track_sequence_features,
+    prepare_track_sequence_features,
+    sanitize_feature_frame,
+    track_feature_missing_mask,
+    track_sequence_feature_missing_mask,
+)
+from ...core.physical import (
+    PHYSICAL_FEATURE_COLUMNS,
+    PHYSICAL_FEATURE_COLUMNS_V2,
+    PHYSICAL_FEATURE_COLUMNS_V3,
+    PhysicalFeatureVector,
+    extract_physical_features,
+    physical_feature_columns,
+    physical_feature_dim,
+)
 from .rd import EncodedRDSequence, RD_SUMMARY_COLUMNS, encode_rd_summary, encode_multimodal_rd, load_rd_summary_frame, load_rd_tensor
 
 __all__ = [
     "TRACK_FEATURE_COLUMNS",
     "TRACK_META_COLUMNS",
+    "TRACK_SEQUENCE_FEATURE_COLUMNS_V1",
+    "TRACK_SEQUENCE_FEATURE_COLUMNS_V2",
+    "TRACK_SEQUENCE_FEATURE_COLUMNS_V3",
+    "TRACK_SEQUENCE_MISSING_MASK_COLUMNS_V3",
+    "TRACK_FEATURE_UNITS",
+    "TRACK_SOURCE_FEATURE_AVAILABILITY",
+    "track_sequence_feature_columns",
+    "track_sequence_feature_dim",
+    "track_sequence_binary_feature_indices",
+    "track_sequence_continuous_feature_indices",
     "DEFAULT_VOCAB",
     "FINE_VOCAB",
     "STANDARD_LABELS",
@@ -14,8 +53,16 @@ __all__ = [
     "LabelVocabulary",
     "EncodedTrackSequence",
     "encode_track_sequence",
+    "normalize_track_sequence_features",
+    "prepare_track_sequence_features",
     "sanitize_feature_frame",
+    "track_feature_missing_mask",
+    "track_sequence_feature_missing_mask",
     "PHYSICAL_FEATURE_COLUMNS",
+    "PHYSICAL_FEATURE_COLUMNS_V2",
+    "PHYSICAL_FEATURE_COLUMNS_V3",
+    "physical_feature_columns",
+    "physical_feature_dim",
     "PhysicalFeatureVector",
     "extract_physical_features",
     "EncodedRDSequence",
