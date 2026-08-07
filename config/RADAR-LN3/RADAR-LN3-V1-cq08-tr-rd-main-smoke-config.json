@@ -1,0 +1,39 @@
+{
+  "schema_version": "RADAR-LN3-V1",
+  "config_name": "RADAR-LN3-V1-cq08-tr-rd-main-smoke",
+  "data": {
+    "index_path": "data/processed/RADAR-LN3-V1-cq08-tr-rd-main-index.csv",
+    "contract_path": "data/processed/RADAR-LN3-V1-cq08-tr-rd-data-contract.json",
+    "split_name": "train",
+    "max_sequence_length": 24,
+    "max_rd_frames_per_point": 12,
+    "exclude_anomalous_parents": false,
+    "sample_limit": 4,
+    "rd_amplitude_center": 54.0,
+    "rd_amplitude_scale": 8.0
+  },
+  "model": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "hidden_dim": 48,
+    "rd_embedding_dim": 24,
+    "liquid_hidden_dim": 48,
+    "num_classes": 5,
+    "rd_height": 21,
+    "rd_width": 384,
+    "liquid_tau_min_seconds": 0.05,
+    "liquid_tau_max_seconds": 30.0,
+    "liquid_zero_dt_event_floor_seconds": 0.001,
+    "liquid_dt_max_seconds": 120.0
+  },
+  "train": {
+    "batch_size": 2,
+    "smoke_steps": 2,
+    "learning_rate": 0.0001,
+    "seed": 42,
+    "device": "cuda",
+    "checkpoint_path": "artifacts/RADAR-LN3-V1-cq08-tr-rd-main-smoke/checkpoint.pt",
+    "allow_parameter_updates": true
+  }
+}

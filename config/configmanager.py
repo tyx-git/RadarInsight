@@ -106,18 +106,26 @@ def load_expert1_config(path: str | Path = "config/config.json") -> Expert1Train
         raise ValueError("tr_only_parent_macro_f1_selection_weight must be non-negative")
     if not 0.0 <= config.parent_window_balance_power <= 1.0:
         raise ValueError("parent_window_balance_power must be within [0, 1]")
-    supported_physical_contracts = {"legacy_v2", "source_robust_v3"}
+    supported_physical_contracts = {"legacy_v2", "source_robust_v3", "source_robust_v4"}
     if config.physical_representation_contract_version not in supported_physical_contracts:
         raise ValueError(
             "unsupported physical_representation_contract_version: "
             f"{config.physical_representation_contract_version}"
         )
     if (
-        config.physical_representation_contract_version == "source_robust_v3"
+        config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}
         and not config.source_normalization
     ):
         raise ValueError(
             "source_robust_v3 physical representation requires source_normalization=true"
+        )
+    if str(config.physical_statistics_weighting).strip().lower() not in {
+        "window_v1",
+        "parent_equal_v1",
+    }:
+        raise ValueError(
+            "unsupported physical_statistics_weighting: "
+            f"{config.physical_statistics_weighting!r}"
         )
     track_sequence_feature_dim(config.trajectory_feature_schema)
     physical_feature_dim(config.trajectory_feature_schema)
@@ -155,14 +163,14 @@ def load_system_config(path: str | Path = "config/config.json") -> SystemTrainCo
     config = _make_dataclass(SystemTrainConfig, _clean_section(payload, "system"))
     track_sequence_feature_dim(config.trajectory_feature_schema)
     physical_feature_dim(config.trajectory_feature_schema)
-    supported_physical_contracts = {"legacy_v2", "source_robust_v3"}
+    supported_physical_contracts = {"legacy_v2", "source_robust_v3", "source_robust_v4"}
     if config.physical_representation_contract_version not in supported_physical_contracts:
         raise ValueError(
             "unsupported system physical_representation_contract_version: "
             f"{config.physical_representation_contract_version}"
         )
     if (
-        config.physical_representation_contract_version == "source_robust_v3"
+        config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}
         and not config.source_normalization
     ):
         raise ValueError(
@@ -197,6 +205,48 @@ def load_pretrain_track_config(path: str | Path = "config/config.json") -> Track
         raise ValueError(
             "unsupported pretrain sampling_mode: "
             f"{config.sampling_mode!r}; expected 'full_track' or 'causal_window'"
+        )
+    supported_source_statistics_weighting = {"point_weighted_v1", "parent_equal_v1"}
+    if str(config.source_statistics_weighting).strip().lower() not in supported_source_statistics_weighting:
+        raise ValueError(
+            "unsupported pretrain source_statistics_weighting: "
+            f"{config.source_statistics_weighting!r}; expected one of "
+            f"{sorted(supported_source_statistics_weighting)}"
+        )
+    if str(config.contrastive_pairing_mode).strip().lower() not in {
+        "diagonal_v1",
+        "parent_multi_positive_v1",
+    }:
+        raise ValueError(
+            "unsupported pretrain contrastive_pairing_mode: "
+            f"{config.contrastive_pairing_mode!r}; expected 'diagonal_v1' "
+            "or 'parent_multi_positive_v1'"
+        )
+    if str(config.parent_sampling_mode).strip().lower() not in {
+        "window_shuffle_v1",
+        "parent_equal_v1",
+    }:
+        raise ValueError(
+            "unsupported pretrain parent_sampling_mode: "
+            f"{config.parent_sampling_mode!r}; expected 'window_shuffle_v1' "
+            "or 'parent_equal_v1'"
+        )
+    parent_validation_requested = bool(str(config.parent_split_manifest_path).strip()) or bool(
+        config.require_parent_validation
+    )
+    if config.require_parent_validation and not str(config.parent_split_manifest_path).strip():
+        raise ValueError(
+            "pretrain require_parent_validation=true requires parent_split_manifest_path"
+        )
+    if parent_validation_requested and not config.require_train_parent_manifest:
+        raise ValueError(
+            "pretrain parent validation requires require_train_parent_manifest=true"
+        )
+    if parent_validation_requested and str(config.sampling_mode).strip().lower() != "causal_window":
+        raise ValueError("pretrain parent validation currently requires sampling_mode='causal_window'")
+    if parent_validation_requested and not config.require_manifest_provenance:
+        raise ValueError(
+            "pretrain parent validation requires require_manifest_provenance=true"
         )
     track_sequence_feature_dim(config.trajectory_feature_schema)
     if str(config.temporal_encoding_mode).strip().lower() not in TEMPORAL_ENCODING_MODES:

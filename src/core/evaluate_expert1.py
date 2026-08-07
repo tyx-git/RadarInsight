@@ -266,11 +266,27 @@ def _public_metrics(metrics: dict[str, object]) -> dict[str, object]:
         "rd_pair_fusion_weights",
         "rd_alignment_quality",
     }
-    return {
+    payload = {
         key: _to_jsonable(value)
         for key, value in metrics.items()
         if key not in excluded
     }
+    if payload.get("rd_metrics_applicable") is False:
+        # A pure TR run still uses shape-compatible internal tensors, but their
+        # RD-derived values are not metrics and must not be published as such.
+        for key in list(payload):
+            if (key.startswith("rd_") and key not in {"rd_metrics_applicable", "rd_metrics_reason"}) or key in {
+                "joint_accuracy_on_rd",
+                "joint_macro_f1_on_rd",
+                "joint_minus_traj_macro_f1_on_rd",
+                "traj_accuracy_on_rd",
+                "traj_macro_f1_on_rd",
+                "with_rd_accuracy",
+                "without_rd_accuracy",
+            }:
+                payload[key] = None
+        payload["rd_metrics_reason"] = "not_applicable_tr_only"
+    return payload
 
 
 def evaluate_checkpoint(
@@ -292,7 +308,11 @@ def evaluate_checkpoint(
     loaders = _build_expert1_loaders(config, validate_csv_files=False)
     representation_builder, rd_proj, model = _build_expert1_modules(config, device)
     class_weights = _build_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
-    rd_class_weights = _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
+    rd_class_weights = (
+        class_weights.clone()
+        if config.is_pure_tr_only
+        else _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
+    )
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     checkpoint = _load_checkpoint_into_modules(
         checkpoint_path,

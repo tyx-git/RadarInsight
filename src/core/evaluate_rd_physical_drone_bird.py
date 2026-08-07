@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 
 from .data.rd_physical_window_dataset import QUALITY_FEATURE_NAMES, PhysicalRDWindowDataset, collate_physical_rd_windows
 from .rd_physical_artifacts import load_physical_rd_checkpoint
-from .rd_physical_drone_bird_trainer import RD_ONLY_LABELS, _metrics, _parent_balance_metadata, compute_parent_evidence_weights
+from .rd_physical_drone_bird_trainer import RD_ONLY_LABELS, _metrics, _parent_balance_metadata, compute_window_evidence_weights
 
 
 def _confusion_matrix(logits: torch.Tensor, labels: torch.Tensor) -> list[list[int]]:
@@ -119,6 +119,7 @@ def evaluate_physical_rd_checkpoint(
         split_name=split_name,
         normalization_stats_name=config.normalization_stats_name,
         include_missing_rd=config.include_missing_rd,
+        quality_schema=config.quality_schema,
     )
     full_dataset_window_count = int(len(dataset))
     effective_batch_size = int(batch_size or config.batch_size)
@@ -166,14 +167,11 @@ def evaluate_physical_rd_checkpoint(
             logits = output.logits.detach().cpu()
             probabilities = torch.softmax(logits, dim=-1)
             predicted = logits.argmax(dim=-1)
-            present = batch.quality_features[:, QUALITY_FEATURE_NAMES.index("rd_present")].bool()
-            batch_aggregation_weights = compute_parent_evidence_weights(
+            present = batch.quality_features[:, 0].bool()
+            batch_aggregation_weights = compute_window_evidence_weights(
                 batch,
-                balance["parent_window_counts"],
                 prefix_max_loss_weight=config.prefix_max_loss_weight,
                 evidence_target_frames=config.evidence_target_frames,
-                parent_evidence_sums=balance["parent_evidence_sums"],
-                parent_balance_weights=balance["parent_balance_weights"],
             ).detach().cpu()
             for index, sample_id in enumerate(batch.sample_ids):
                 sample_metadata = evaluation_metadata[str(sample_id)]

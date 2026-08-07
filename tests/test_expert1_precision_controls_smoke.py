@@ -11,6 +11,7 @@ from src.core.expert1_config import Expert1TrainConfig
 from src.core.evaluate_expert1 import _grouped_bootstrap_summary
 from src.core.expert1_data import ParentPairedBatchSampler, RDAwareBatchSampler
 from src.core.expert1_trainer import _joint_logit_delta_probe
+from src.core.expert1_trainer import _final_logits_with_joint_logit_delta_scale
 from src.core.expert1_trainer import _build_expert1_checkpoint_payload
 from src.core.expert1_trainer import _checkpoint_joint_logit_delta_scale
 from src.core.expert1_trainer import _locked_precision_parameters
@@ -86,6 +87,56 @@ def _build_stage5_window_aggregation() -> dict[str, object]:
 
 
 class Expert1PrecisionControlsSmokeTests(unittest.TestCase):
+    def test_pure_tr_probe_applies_attribution_reject_when_stage2_is_disabled(self) -> None:
+        traj_logits = torch.tensor([[5.0, 0.0, 0.0, 0.0, 0.0]], dtype=torch.float32)
+        unrelated_rd_logits = torch.tensor([[-100.0, 100.0, 50.0, -40.0, 80.0]], dtype=torch.float32)
+        base_metrics = {
+            "traj_logits": traj_logits,
+            "joint_logits": unrelated_rd_logits,
+            "rd_logits": unrelated_rd_logits.clone(),
+            "traj_cosine": torch.full_like(traj_logits, 0.01),
+            "rd_cosine": torch.full_like(traj_logits, 0.01),
+            "rd_pair_fusion_weights": torch.zeros((1, 3), dtype=torch.float32),
+            "tr_rd_active": [False],
+            "labels": torch.tensor([0], dtype=torch.long),
+            "source_names": ["raw_tr_rd"],
+            "has_rd": [False],
+        }
+        config = Expert1TrainConfig(
+            enable_reject_in_eval=True,
+            reject_threshold=0.35,
+            attribution_reject_min_track_quality=0.5,
+        )
+        rejected = _final_logits_with_joint_logit_delta_scale(
+            traj_logits,
+            unrelated_rd_logits,
+            unrelated_rd_logits,
+            base_metrics["traj_cosine"],
+            base_metrics["rd_cosine"],
+            base_metrics["rd_pair_fusion_weights"],
+            torch.tensor([False]),
+            config,
+            enable_reject=True,
+            track_quality=torch.tensor([0.2]),
+            rd_alignment_quality=torch.tensor([0.0]),
+        )
+        unchanged = _final_logits_with_joint_logit_delta_scale(
+            traj_logits,
+            traj_logits,
+            traj_logits,
+            base_metrics["traj_cosine"],
+            base_metrics["rd_cosine"],
+            base_metrics["rd_pair_fusion_weights"],
+            torch.tensor([False]),
+            config,
+            enable_reject=False,
+            track_quality=torch.tensor([0.2]),
+            rd_alignment_quality=torch.tensor([0.0]),
+        )
+
+        self.assertEqual(int(rejected.argmax(dim=-1).item()), LOW_ALTITUDE_CLASSES.index("UnknownTarget"))
+        self.assertEqual(int(unchanged.argmax(dim=-1).item()), LOW_ALTITUDE_CLASSES.index("DroneTarget"))
+
     def test_locked_precision_parameters_use_validation_only(self) -> None:
         validation_probe = {
             "ready": True,

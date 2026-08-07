@@ -1,0 +1,82 @@
+{
+  "status": "passed",
+  "task": "dbb_specialist",
+  "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V6-cq08-liquid-dbb-specialist-config.json",
+  "device": "cuda",
+  "data_contract_hashes": {
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "contract_sha256": "df97e6f037392d3c62aa44712196b9e493d5bc572e5721c80bc81b61b0b12729",
+    "stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6"
+  },
+  "parent_limit": 6,
+  "label_counts": {
+    "DroneTarget": 2,
+    "BirdTarget": 2,
+    "BalloonTarget": 2
+  },
+  "batch_shapes": {
+    "tr_features": [
+      2,
+      22,
+      14
+    ],
+    "tr_missing_mask": [
+      2,
+      22,
+      11
+    ],
+    "tr_dt_seconds": [
+      2,
+      22
+    ],
+    "tr_dt_valid": [
+      2,
+      22
+    ],
+    "rd_frames": [
+      2,
+      22,
+      12,
+      2,
+      21,
+      384
+    ],
+    "rd_frame_mask": [
+      2,
+      22,
+      12
+    ],
+    "rd_quality": [
+      2,
+      22,
+      7
+    ],
+    "tr_padding_mask": [
+      2,
+      22
+    ],
+    "labels": [
+      2
+    ],
+    "lengths": [
+      2
+    ]
+  },
+  "sequence_logits_shape": [
+    2,
+    22,
+    3
+  ],
+  "window_logits_shape": [
+    2,
+    3
+  ],
+  "loss": 1.278416395187378,
+  "gradient_norm": 12.225194931030273,
+  "checkpoint_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V5-dbb_specialist-contract-smoke\\checkpoint.pt",
+  "checkpoint_round_trip": "passed",
+  "checkpoint_epoch": 1,
+  "formal_training": "未执行",
+  "validation": "未执行",
+  "test": "未执行"
+}

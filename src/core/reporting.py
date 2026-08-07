@@ -15,6 +15,16 @@ def _format_float(value: float) -> str:
     return f"{value:.4f}"
 
 
+def _format_optional_metric(value: object) -> str:
+    """Format optional branch metrics without turning TR-only N/A into zero."""
+    if value is None:
+        return "not_applicable_tr_only"
+    try:
+        return _format_float(float(value))
+    except (TypeError, ValueError):
+        return str(value)
+
+
 def _escape_md_cell(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
 
@@ -132,14 +142,27 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
     if evaluation_scope == "validation_only":
         lines.append("- evaluation_scope: validation_only（本次未运行 test 推理）")
     else:
+        if summary_metrics.get("rd_metrics_applicable") is False:
+            lines.append("- rd_metrics: not_applicable_tr_only（纯 TR 路径未计算 RD 性能）")
         lines.append(f"- evaluation_scope: {evaluation_scope}")
     lines.append("")
     lines.append("## 总体指标")
-    lines.append(f"- accuracy: {_format_float(float(summary_metrics['accuracy']))}")
-    lines.append(f"- macro_precision: {_format_float(float(summary_metrics['macro_precision']))}")
-    lines.append(f"- macro_recall: {_format_float(float(summary_metrics['macro_recall']))}")
-    lines.append(f"- macro_f1: {_format_float(float(summary_metrics['macro_f1']))}")
-    lines.append(f"- route_accuracy: {_format_float(float(summary_metrics['route_accuracy']))}")
+    classification_metrics_status = str(
+        report.get("classification_metrics_status", "evaluated")
+    )
+    if classification_metrics_status == "not_applicable_pretraining":
+        lines.append("- classification_metrics_status: not_applicable_pretraining（未执行分类评估）")
+        lines.append("- accuracy: 未执行")
+        lines.append("- macro_precision: 未执行")
+        lines.append("- macro_recall: 未执行")
+        lines.append("- macro_f1: 未执行")
+        lines.append("- route_accuracy: 未执行")
+    else:
+        lines.append(f"- accuracy: {_format_float(float(summary_metrics['accuracy']))}")
+        lines.append(f"- macro_precision: {_format_float(float(summary_metrics['macro_precision']))}")
+        lines.append(f"- macro_recall: {_format_float(float(summary_metrics['macro_recall']))}")
+        lines.append(f"- macro_f1: {_format_float(float(summary_metrics['macro_f1']))}")
+        lines.append(f"- route_accuracy: {_format_float(float(summary_metrics['route_accuracy']))}")
     if "selected_joint_logit_delta_scale" in summary_metrics:
         lines.append(f"- selected_joint_logit_delta_scale: {_format_float(float(summary_metrics['selected_joint_logit_delta_scale']))}")
     if "route_macro_recall" in summary_metrics:
@@ -443,9 +466,17 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 "release_final_unknown_recall",
                 "release_final_clutter_recall",
                 "release_without_rd_accuracy",
+                "release_hard_class_gate_passed",
             ]:
                 if key in release_metrics:
-                    lines.append(f"| {key} | {_format_float(float(release_metrics.get(key, 0.0)))} |")
+                    value = release_metrics.get(key)
+                    if isinstance(value, bool):
+                        lines.append(f"| {key} | {value} |")
+                    else:
+                        lines.append(f"| {key} | {_format_float(float(value or 0.0))} |")
+            hard_failures = release_metrics.get("release_hard_class_gate_failures", [])
+            if isinstance(hard_failures, list) and hard_failures:
+                lines.append(f"- release_hard_class_gate_failures: {', '.join(str(item) for item in hard_failures)}")
         diagnostic_results = []
         diagnostic_recommendation = {}
         precision_candidate = {}
@@ -1290,6 +1321,11 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 ),
             }
         rd_branch = branch_metrics.get("rd", {})
+        if isinstance(rd_branch, dict) and rd_branch.get("status") == "not_applicable_tr_only":
+            lines.append("## Expert1 V2 分支")
+            lines.append("- joint: not_applicable_tr_only（纯 TR-only 无 TR+RD joint 分支）")
+            lines.append("- RD evidence: not_applicable_tr_only（纯 TR-only 无 RD 分支）")
+            rd_branch = None
         if isinstance(final_branch, dict) and isinstance(traj_branch, dict) and isinstance(rd_branch, dict):
             lines.append("## Expert1 V2 分支")
             lines.append("| 分支 | accuracy | macro_f1 |")
@@ -1392,8 +1428,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
             f"{_format_float(float(item.get('macro_f1', 0.0)))} | "
             f"{_format_float(float(item.get('traj_macro_f1', 0.0)))} | "
             f"{_format_float(float(item.get('joint_macro_f1', 0.0)))} | "
-            f"{_format_float(float(item.get('joint_macro_f1_on_rd', 0.0)))} | "
-            f"{_format_float(float(item.get('rd_macro_f1_on_rd', 0.0)))} |"
+            f"{_format_optional_metric(item.get('joint_macro_f1_on_rd'))} | "
+            f"{_format_optional_metric(item.get('rd_macro_f1_on_rd'))} |"
         )
     lines.append("")
     lines.append("## 来源 x 类别指标")
@@ -1430,6 +1466,8 @@ def build_markdown_report(evaluation_report: dict[str, object], summary: dict[st
                 f"{_escape_md_cell(item['label_name_pred'])} | {_escape_md_cell(item['route_name_true'])} | {_escape_md_cell(router_route)} | {_escape_md_cell(final_route)} | "
                 f"{_escape_md_cell(reroute_path)} | {_escape_md_cell(reject_reason)} | {_format_float(float(low_reject_score))} |"
             )
+    elif classification_metrics_status == "not_applicable_pretraining":
+        lines.append("- 未执行分类评估，因此无错分样本清单。")
     else:
         scope_label = "验证集" if evaluation_scope == "validation_only" else "测试集"
         lines.append(f"- 当前{scope_label}中无错分样本。")

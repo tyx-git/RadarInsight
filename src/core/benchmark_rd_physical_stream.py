@@ -65,6 +65,7 @@ def benchmark_physical_rd_stream(
         split_name="val",
         normalization_stats_name=loaded.config.normalization_stats_name,
         include_missing_rd=loaded.config.include_missing_rd,
+        quality_schema=loaded.config.quality_schema,
     )
     required_samples = warmup_count + sample_count
     if required_samples > len(dataset):

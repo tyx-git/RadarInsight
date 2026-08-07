@@ -29,6 +29,7 @@ def build_dataloaders(
     test_ratio: float = 0.15,
     num_workers: int = 0,
     trajectory_feature_schema: str = "v1",
+    physical_representation_contract_version: str = "legacy_v2",
 ) -> LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name="system_trainable_track_index.csv")
     project_root = Path(data_root).parent
@@ -70,6 +71,7 @@ def build_dataloaders(
         trainable_only=False,
         index_name="system_trainable_track_index.csv",
         trajectory_feature_schema=trajectory_feature_schema,
+        physical_representation_contract_version=physical_representation_contract_version,
     )
     val_ds = TorchTrackDataset(
         data_root,
@@ -77,6 +79,7 @@ def build_dataloaders(
         trainable_only=False,
         index_name="system_trainable_track_index.csv",
         trajectory_feature_schema=trajectory_feature_schema,
+        physical_representation_contract_version=physical_representation_contract_version,
     )
     test_ds = TorchTrackDataset(
         data_root,
@@ -84,6 +87,7 @@ def build_dataloaders(
         trainable_only=False,
         index_name="system_trainable_track_index.csv",
         trajectory_feature_schema=trajectory_feature_schema,
+        physical_representation_contract_version=physical_representation_contract_version,
     )
 
     train_loader = DataLoader(

@@ -9,11 +9,18 @@ class TrackPretrainConfig:
     index_name: str = "system_trainable_track_index.csv"
     allowed_parent_manifest_path: str = ""
     require_train_parent_manifest: bool = False
+    require_manifest_provenance: bool = False
+    parent_split_manifest_path: str = ""
+    require_parent_validation: bool = False
     # ``full_track`` preserves the historical parent-level objective.  The
     # causal-window mode consumes a persisted train-only causal index (for
     # example V9), so pretraining sees the same bounded evidence as Expert1
     # and streaming inference.
     sampling_mode: str = "full_track"
+    # Historical checkpoints used every persisted point with equal weight.
+    # New causal-window experiments can opt into parent_equal_v1 so overlapping
+    # windows from long parents do not dominate source normalization statistics.
+    source_statistics_weighting: str = "point_weighted_v1"
     output_dir: str = "artifacts/pretrain_track"
     batch_size: int = 32
     num_workers: int = 0
@@ -24,6 +31,13 @@ class TrackPretrainConfig:
     dropout: float = 0.1
     mask_ratio: float = 0.15
     contrastive_temperature: float = 0.1
+    # ``diagonal_v1`` preserves the historical one-positive objective.
+    # ``parent_multi_positive_v1`` treats windows from the same parent as
+    # positives in both directions, preventing overlapping causal windows
+    # from becoming false negatives.
+    contrastive_pairing_mode: str = "diagonal_v1"
+    # Historical one-pass window exposure versus parent-equal sampling.
+    parent_sampling_mode: str = "window_shuffle_v1"
     mtm_loss_weight: float = 1.0
     contrastive_loss_weight: float = 0.2
     trajectory_feature_schema: str = "v1"
@@ -42,4 +56,22 @@ class TrackPretrainConfig:
             raise ValueError(
                 "active track pretraining requires trajectory_feature_schema='v3'; "
                 "set allow_legacy_feature_contract=true only for explicit historical V1/V2 replay"
+            )
+        if str(self.contrastive_pairing_mode).strip().lower() not in {
+            "diagonal_v1",
+            "parent_multi_positive_v1",
+        }:
+            raise ValueError(
+                "unsupported contrastive_pairing_mode: "
+                f"{self.contrastive_pairing_mode!r}; expected 'diagonal_v1' "
+                "or 'parent_multi_positive_v1'"
+            )
+        if str(self.parent_sampling_mode).strip().lower() not in {
+            "window_shuffle_v1",
+            "parent_equal_v1",
+        }:
+            raise ValueError(
+                "unsupported parent_sampling_mode: "
+                f"{self.parent_sampling_mode!r}; expected 'window_shuffle_v1' "
+                "or 'parent_equal_v1'"
             )

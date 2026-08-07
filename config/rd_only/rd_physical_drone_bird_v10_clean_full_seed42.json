@@ -1,0 +1,31 @@
+{
+  "rd_physical_only": {
+    "index_name": "expert1_rd_only_causal_window_index_v1_physical_v3_1.csv",
+    "normalization_stats_name": "expert1_rd_physical_train_db_normalization_v4.json",
+    "feature_stats_name": "expert1_rd_physical_feature_stats_v5_clean.json",
+    "output_dir": "artifacts/rd-only-stage034-clean-full-seed42",
+    "epochs": 18,
+    "batch_size": 4,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.0001,
+    "dropout": 0.05,
+    "input_channels": 6,
+    "token_dim": 256,
+    "quality_dim": 7,
+    "quality_schema": "rd_only_v5",
+    "include_missing_rd": false,
+    "prefix_max_loss_weight": 0.5,
+    "prefix_aux_weight": 0.15,
+    "micro_aux_weight": 0.25,
+    "bird_loss_weight": 1.35,
+    "focal_gamma": 1.0,
+    "evidence_target_frames": 24,
+    "max_train_batches_per_epoch": 0,
+    "max_val_batches": 0,
+    "log_interval_batches": 25,
+    "num_workers": 0,
+    "seed": 42,
+    "device": "cuda",
+    "run_test_evaluation": false
+  }
+}

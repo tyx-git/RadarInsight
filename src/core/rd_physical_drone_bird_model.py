@@ -5,7 +5,14 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from .data.rd_physical_window_dataset import PHYSICAL_RD_INPUT_CHANNELS, QUALITY_FEATURE_DIM
+from .data.rd_physical_window_dataset import (
+    LEGACY_QUALITY_SCHEMA,
+    PHYSICAL_RD_INPUT_CHANNELS,
+    QUALITY_FEATURE_DIM,
+    RD_ONLY_QUALITY_NAMES,
+    RD_ONLY_QUALITY_SCHEMA,
+    QUALITY_FEATURE_NAMES,
+)
 from .rd_physical_statistics import PHYSICAL_RD_STAT_DIM, physical_rd_statistics
 
 
@@ -34,6 +41,7 @@ class PhysicalRDDroneBirdClassifier(nn.Module):
         input_channels: int = PHYSICAL_RD_INPUT_CHANNELS,
         token_dim: int = 256,
         quality_dim: int = QUALITY_FEATURE_DIM,
+        quality_schema: str = LEGACY_QUALITY_SCHEMA,
         dropout: float = 0.1,
         amplitude_clip_low_db: float = 37.125,
         amplitude_clip_high_db: float = 78.0,
@@ -43,13 +51,17 @@ class PhysicalRDDroneBirdClassifier(nn.Module):
         super().__init__()
         if input_channels != PHYSICAL_RD_INPUT_CHANNELS:
             raise ValueError(f"physical RD classifier requires exactly {PHYSICAL_RD_INPUT_CHANNELS} schema channels")
-        if quality_dim != QUALITY_FEATURE_DIM:
-            raise ValueError(f"physical RD classifier requires exactly {QUALITY_FEATURE_DIM} schema quality features")
+        expected_quality_dim = len(QUALITY_FEATURE_NAMES) if quality_schema == LEGACY_QUALITY_SCHEMA else len(RD_ONLY_QUALITY_NAMES) if quality_schema == RD_ONLY_QUALITY_SCHEMA else -1
+        if expected_quality_dim < 0:
+            raise ValueError(f"unknown physical RD quality schema: {quality_schema!r}")
+        if quality_dim != expected_quality_dim:
+            raise ValueError(f"physical RD classifier requires exactly {expected_quality_dim} quality features for {quality_schema}")
         if token_dim < 32:
             raise ValueError("token_dim must be at least 32")
         self.input_channels = int(input_channels)
         self.token_dim = int(token_dim)
         self.quality_dim = int(quality_dim)
+        self.quality_schema = str(quality_schema)
         self.amplitude_clip_low_db = float(amplitude_clip_low_db)
         self.amplitude_clip_high_db = float(amplitude_clip_high_db)
         if self.amplitude_clip_high_db <= self.amplitude_clip_low_db:
@@ -233,8 +245,16 @@ class PhysicalRDDroneBirdClassifier(nn.Module):
             raise ValueError("physical RD quality features must be finite")
         if range_offset_m is None or velocity_mps is None:
             raise ValueError("physical RD classifier requires explicit range and velocity axes")
+        if range_offset_m.shape != (features.shape[-2],) or velocity_mps.shape != (features.shape[-1],):
+            raise ValueError("physical RD axes must match range/doppler dimensions")
+        if not torch.isfinite(range_offset_m).all() or not torch.isfinite(velocity_mps).all():
+            raise ValueError("physical RD axes must be finite")
+        if (torch.diff(range_offset_m) <= 0.0).any() or (torch.diff(velocity_mps) <= 0.0).any():
+            raise ValueError("physical RD range/doppler axes must be strictly increasing")
         if raw_amplitude_db is None or raw_amplitude_db.shape != features.shape[:2] + features.shape[-2:]:
             raise ValueError("physical RD classifier requires raw_amplitude_db shaped [batch, time, range, doppler]")
+        if bool((padding_mask.bool()[:, :-1] & ~padding_mask.bool()[:, 1:]).any()):
+            raise ValueError("physical RD padding mask must be suffix-only")
         statistics = physical_rd_statistics(
             raw_amplitude_db,
             features[:, :, 1],

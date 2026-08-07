@@ -93,6 +93,7 @@ class TorchTrackDataset(Dataset):
         load_rd: bool = True,
         include_rd_phase_missing_in_physical: bool = True,
         trajectory_feature_schema: str = "v1",
+        physical_representation_contract_version: str = "legacy_v2",
         max_patch_frames: int = 32,
         skip_deep_patch: bool = True,
     ) -> None:
@@ -113,6 +114,9 @@ class TorchTrackDataset(Dataset):
         self.load_rd = bool(load_rd)
         self.include_rd_phase_missing_in_physical = bool(include_rd_phase_missing_in_physical)
         self.trajectory_feature_schema = str(trajectory_feature_schema).strip().lower()
+        self.physical_representation_contract_version = str(
+            physical_representation_contract_version
+        ).strip().lower()
         self.use_rd_segment_store = bool(use_rd_segment_store)
         self.allow_rd_segment_store_fallback = bool(allow_rd_segment_store_fallback)
         self.load_only_fusion_eligible_rd = bool(load_only_fusion_eligible_rd)
@@ -437,6 +441,7 @@ class TorchTrackDataset(Dataset):
                 else False
             ),
             feature_schema=self.trajectory_feature_schema,
+            physical_representation_contract_version=self.physical_representation_contract_version,
         )
         route_name = infer_route_name(sample.label_name)
         rd_features = torch.zeros((1, 512, 4), dtype=torch.float32)

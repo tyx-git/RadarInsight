@@ -37,6 +37,9 @@ NORMALIZATION_SCHEMA_VERSION = PHYSICAL_RD_NORMALIZATION_SCHEMA_VERSION
 QUALITY_FEATURE_NAMES: tuple[str, ...] = QUALITY_METADATA_NAMES
 QUALITY_FEATURE_DIM = len(QUALITY_FEATURE_NAMES)
 QUALITY_METADATA_DIM = len(QUALITY_METADATA_NAMES)
+RD_ONLY_QUALITY_NAMES: tuple[str, ...] = QUALITY_METADATA_NAMES[:-1]
+RD_ONLY_QUALITY_SCHEMA = "rd_only_v5"
+LEGACY_QUALITY_SCHEMA = "legacy_v4"
 PHYSICAL_RD_INPUT_CHANNELS = len(PHYSICAL_RD_FEATURE_NAMES)
 PHYSICAL_RD_RANGE_BINS = 21
 PHYSICAL_RD_DOPPLER_BINS = 384
@@ -185,24 +188,31 @@ def _physical_rd_features(
     return torch.stack(channels, dim=1)
 
 
-def _quality_metadata(row: pd.Series, amplitude: np.ndarray, time_seconds: np.ndarray) -> torch.Tensor:
+def _quality_metadata(
+    row: pd.Series,
+    amplitude: np.ndarray,
+    time_seconds: np.ndarray,
+    *,
+    quality_schema: str = LEGACY_QUALITY_SCHEMA,
+) -> torch.Tensor:
     finite = amplitude[np.isfinite(amplitude)]
     dynamic_range = float(finite.max() - finite.min()) if finite.size else 0.0
     duration = float(time_seconds[-1] - time_seconds[0]) if time_seconds.size else 0.0
-    canonical_time = float(str(row["rd_time_sync_status"]) == "canonical_parent_association")
-    return torch.tensor(
-        [
-            float(_as_bool(row["rd_present"])),
-            float(not _as_bool(row["rd_phase_missing"])),
-            float(_as_bool(row["rd_is_multimodal"])),
-            float(np.clip(float(row["rd_coverage_ratio"]), 0.0, 1.0)),
-            float(np.log1p(max(0, int(amplitude.shape[0]))) / np.log1p(128.0)),
-            float(np.log1p(max(0.0, duration)) / np.log1p(0.5)),
-            float(np.clip(dynamic_range / 40.0, 0.0, 1.0)),
-            canonical_time,
-        ],
-        dtype=torch.float32,
-    )
+    values = [
+        float(_as_bool(row["rd_present"])),
+        float(not _as_bool(row["rd_phase_missing"])),
+        float(_as_bool(row["rd_is_multimodal"])),
+        float(np.clip(float(row["rd_coverage_ratio"]), 0.0, 1.0)),
+        float(np.log1p(max(0, int(amplitude.shape[0]))) / np.log1p(128.0)),
+        float(np.log1p(max(0.0, duration)) / np.log1p(0.5)),
+        float(np.clip(dynamic_range / 40.0, 0.0, 1.0)),
+    ]
+    if quality_schema == LEGACY_QUALITY_SCHEMA:
+        # Explicitly retained for read-only loading of historical v4 artifacts.
+        values.append(float(str(row["rd_time_sync_status"]) == "canonical_parent_association"))
+    elif quality_schema != RD_ONLY_QUALITY_SCHEMA:
+        raise ValueError(f"unknown physical RD quality schema: {quality_schema!r}")
+    return torch.tensor(values, dtype=torch.float32)
 
 
 @dataclass(frozen=True)
@@ -258,8 +268,13 @@ class PhysicalRDWindowDataset(Dataset[PhysicalRDWindowItem]):
         normalization_stats_name: str | None = None,
         include_missing_rd: bool = False,
         present_only: bool = False,
+        quality_schema: str = LEGACY_QUALITY_SCHEMA,
     ) -> None:
         self.data_root = Path(data_root)
+        if quality_schema not in {LEGACY_QUALITY_SCHEMA, RD_ONLY_QUALITY_SCHEMA}:
+            raise ValueError(f"unknown physical RD quality schema: {quality_schema!r}")
+        self.quality_schema = quality_schema
+        self.quality_names = QUALITY_FEATURE_NAMES if quality_schema == LEGACY_QUALITY_SCHEMA else RD_ONLY_QUALITY_NAMES
         self.processed_root = self.data_root / "processed"
         self.index_path = self.processed_root / index_name
         if not self.index_path.exists():
@@ -420,7 +435,12 @@ class PhysicalRDWindowDataset(Dataset[PhysicalRDWindowItem]):
             velocity_mps,
             self.normalization_stats,
         )
-        quality_features = _quality_metadata(row, amplitude[indices], selected_time_seconds)
+        quality_features = _quality_metadata(
+            row,
+            amplitude[indices],
+            selected_time_seconds,
+            quality_schema=self.quality_schema,
+        )
         return PhysicalRDWindowItem(
             sample_id=sample_id,
             parent_sample_id=str(row["parent_sample_id"]),
@@ -455,8 +475,10 @@ def collate_physical_rd_windows(items: list[PhysicalRDWindowItem]) -> PhysicalRD
     time_seconds = torch.zeros((batch_size, max_length), dtype=torch.float32)
     padding_mask = torch.ones((batch_size, max_length), dtype=torch.bool)
     lengths = torch.empty((batch_size,), dtype=torch.long)
-    quality_features = torch.empty((batch_size, QUALITY_FEATURE_DIM), dtype=torch.float32)
-    quality_metadata: torch.Tensor | None = None
+    quality_dim = int(items[0].quality_features.numel())
+    metadata_dim = int(items[0].quality_metadata.numel())
+    quality_features = torch.empty((batch_size, quality_dim), dtype=torch.float32)
+    quality_metadata = torch.empty((batch_size, metadata_dim), dtype=torch.float32)
     labels = torch.empty((batch_size,), dtype=torch.long)
     is_prefix_windows = torch.empty((batch_size,), dtype=torch.bool)
     window_frame_counts = torch.empty((batch_size,), dtype=torch.long)
@@ -468,8 +490,8 @@ def collate_physical_rd_windows(items: list[PhysicalRDWindowItem]) -> PhysicalRD
             tuple(item.features.shape[1:]) != feature_shape
             or tuple(item.raw_amplitude_db.shape) != (length, feature_shape[1], feature_shape[2])
             or int(item.time_seconds.numel()) != length
-            or tuple(item.quality_features.shape) != (QUALITY_FEATURE_DIM,)
-            or tuple(item.quality_metadata.shape) != (QUALITY_METADATA_DIM,)
+            or tuple(item.quality_features.shape) != (quality_dim,)
+            or tuple(item.quality_metadata.shape) != (metadata_dim,)
             or not torch.equal(item.range_offset_m, range_offset_m)
             or not torch.equal(item.velocity_mps, velocity_mps)
         ):
@@ -480,10 +502,12 @@ def collate_physical_rd_windows(items: list[PhysicalRDWindowItem]) -> PhysicalRD
         padding_mask[batch_index, :length] = False
         lengths[batch_index] = length
         quality_features[batch_index] = item.quality_features
+        quality_metadata[batch_index] = item.quality_metadata
         labels[batch_index] = item.label
         is_prefix_windows[batch_index] = item.is_prefix_window
         window_frame_counts[batch_index] = item.window_frame_count
-    quality_metadata = quality_features
+    if metadata_dim == quality_dim and all(torch.equal(item.quality_metadata, item.quality_features) for item in items):
+        quality_metadata = quality_features
     return PhysicalRDWindowBatch(
         sample_ids=[item.sample_id for item in items],
         parent_sample_ids=[item.parent_sample_id for item in items],
@@ -514,6 +538,9 @@ __all__ = [
     "QUALITY_FEATURE_NAMES",
     "QUALITY_METADATA_DIM",
     "QUALITY_METADATA_NAMES",
+    "RD_ONLY_QUALITY_NAMES",
+    "RD_ONLY_QUALITY_SCHEMA",
+    "LEGACY_QUALITY_SCHEMA",
     "PHYSICAL_RD_FEATURE_NAMES",
     "PHYSICAL_RD_INPUT_CHANNELS",
     "PHYSICAL_RD_DOPPLER_BINS",

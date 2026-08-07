@@ -26,6 +26,7 @@ from .data.split import (
 )
 from .data.torch_dataset import TorchTrackDataset
 from .data.labels import DEFAULT_VOCAB
+from .tr_only_contract import TR_ONLY_ALLOWED_SOURCES, validate_tr_only_sources
 
 
 @dataclass(frozen=True)
@@ -412,6 +413,7 @@ def _sample_weight(
     clutter_sample_boost: float,
     bird_sample_boost: float,
     max_sampler_weight: float,
+    pure_tr_only: bool = False,
 ) -> float:
     weight = 1.0
     source_name = str(row.get("source_name", ""))
@@ -431,13 +433,17 @@ def _sample_weight(
     if parent_window_balance_power > 0.0 and parent_window_counts:
         parent_count = max(1, int(parent_window_counts.get(canonical_group_id(row), 1)))
         weight *= (1.0 / parent_count) ** float(parent_window_balance_power)
-    rd_fusion_eligible = (
-        _as_bool(row["rd_fusion_eligible"])
-        if "rd_fusion_eligible" in row
-        else _row_has_rd(row)
-    )
-    if rd_fusion_eligible:
-        weight *= rd_sample_boost
+    # Strict TR-only runs must not inspect RD availability/quality metadata,
+    # even when the RD branch is disabled and the resulting multiplier would
+    # numerically be one.  Keep the historical path for multimodal runs.
+    if not pure_tr_only:
+        rd_fusion_eligible = (
+            _as_bool(row["rd_fusion_eligible"])
+            if "rd_fusion_eligible" in row
+            else _row_has_rd(row)
+        )
+        if rd_fusion_eligible:
+            weight *= rd_sample_boost
     if label_name == "UnknownTarget":
         weight *= unknown_sample_boost
     if label_name == "ClutterTarget":
@@ -486,6 +492,7 @@ def build_expert1_dataloaders(
     load_only_fusion_eligible_rd: bool = True,
     pure_tr_only: bool = False,
     trajectory_feature_schema: str = "v1",
+    physical_representation_contract_version: str = "legacy_v2",
     pin_memory: bool = True,
     persistent_workers: bool = True,
     prefetch_factor: int = 2,
@@ -493,6 +500,19 @@ def build_expert1_dataloaders(
 ) -> Expert1LoaderBundle:
     dataset = TrackDataset(data_root, trainable_only=False, index_name=index_name)
     frame = dataset.to_frame().copy()
+    if pure_tr_only:
+        if "source_name" not in frame.columns:
+            raise ValueError("pure TR-only Expert1 index is missing source_name")
+        validate_tr_only_sources(
+            frame["source_name"].tolist(),
+            context="build_expert1_dataloaders(pure_tr_only=True)",
+        )
+        source_values = set(frame["source_name"].astype(str).str.strip())
+        if source_values != set(TR_ONLY_ALLOWED_SOURCES):
+            raise ValueError(
+                "pure TR-only Expert1 index must contain both CQ08 and raw sources; "
+                f"observed={sorted(source_values)}, expected={sorted(TR_ONLY_ALLOWED_SOURCES)}"
+            )
     if "split_name" in frame.columns:
         persisted_split_labels = frame["split_name"].astype(str)
         invalid_split_labels = ~persisted_split_labels.isin({"train", "val", "test"})
@@ -559,6 +579,7 @@ def build_expert1_dataloaders(
         "load_only_fusion_eligible_rd": load_only_fusion_eligible_rd,
         "include_rd_phase_missing_in_physical": False,
         "trajectory_feature_schema": trajectory_feature_schema,
+        "physical_representation_contract_version": physical_representation_contract_version,
         "max_patch_frames": 32,
         "skip_deep_patch": True,
     }
@@ -618,6 +639,7 @@ def build_expert1_dataloaders(
                 clutter_sample_boost=clutter_sample_boost,
                 bird_sample_boost=bird_sample_boost,
                 max_sampler_weight=max_sampler_weight,
+                pure_tr_only=pure_tr_only,
             )
         )
         stage2_train_weights.append(
@@ -639,6 +661,7 @@ def build_expert1_dataloaders(
                 clutter_sample_boost=clutter_sample_boost,
                 bird_sample_boost=bird_sample_boost,
                 max_sampler_weight=max_sampler_weight,
+                pure_tr_only=pure_tr_only,
             )
         )
     sampler = WeightedRandomSampler(
@@ -706,16 +729,20 @@ def build_expert1_dataloaders(
     )
     rd_indices: list[int] = []
     no_rd_indices: list[int] = []
-    for row_index, row in enumerate(train_rows):
-        rd_fusion_eligible = (
-            _as_bool(row.get("rd_fusion_eligible"))
-            if use_rd_segment_store
-            else _row_has_rd(row)
-        )
-        if rd_fusion_eligible:
-            rd_indices.append(row_index)
-        else:
-            no_rd_indices.append(row_index)
+    if pure_tr_only:
+        # No RD-derived availability split is built in a strict TR-only run.
+        no_rd_indices = list(range(len(train_rows)))
+    else:
+        for row_index, row in enumerate(train_rows):
+            rd_fusion_eligible = (
+                _as_bool(row.get("rd_fusion_eligible"))
+                if use_rd_segment_store
+                else _row_has_rd(row)
+            )
+            if rd_fusion_eligible:
+                rd_indices.append(row_index)
+            else:
+                no_rd_indices.append(row_index)
     stage2_rd_aware_sampling_enabled = bool(
         not pure_tr_only
         and stage2_rd_aware_sampling

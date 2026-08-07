@@ -341,6 +341,12 @@ class LowAltitudeFusionOutput:
     rejected_unknown: torch.Tensor
     reject_score: torch.Tensor | None = None
     reject_reasons: dict[str, torch.Tensor] | None = None
+    # Final TR/TR+RD fusion logits before the attribution-reject action and
+    # before precision logit bias.  ``logits`` remains the historical
+    # post-reject output for backward compatibility; consumers that evaluate
+    # accepted classification must use this field together with
+    # ``rejected_unknown`` instead of treating UnknownTarget as rejection.
+    pre_reject_logits: torch.Tensor | None = None
     inference_mode: str = "v2_joint"
     joint_logits: torch.Tensor | None = None
     joint_reliability_logits: torch.Tensor | None = None
@@ -1353,6 +1359,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             fusion_weights = torch.stack([joint_track_weight, joint_rd_weight], dim=-1)
             tr_rd_active = torch.zeros_like(has_rd, dtype=torch.bool)
             attribution_reasons: dict[str, torch.Tensor] = {}
+            pre_reject_logits = traj_logits
             if enable_reject:
                 final_logits, rejected_unknown, attribution_reject_score, attribution_reasons = self._apply_reject(
                     traj_logits,
@@ -1417,6 +1424,7 @@ class LowAltitudeSuspectExpert(nn.Module):
                 rejected_unknown=rejected_unknown,
                 reject_score=reject_score.detach(),
                 reject_reasons=reject_reasons,
+                pre_reject_logits=pre_reject_logits,
                 inference_mode=inference_mode,
                 joint_logits=joint_logits,
                 joint_reliability_logits=joint_reliability_logits,
@@ -1661,6 +1669,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             reject_threshold=self.reject_threshold,
             force_pair_active=deep_reroute,
         )
+        pre_reject_logits = final_logits
         attribution_reasons: dict[str, torch.Tensor] = {}
         if enable_reject:
             final_logits, rejected_unknown, attribution_reject_score, attribution_reasons = self._apply_reject(
@@ -1740,6 +1749,7 @@ class LowAltitudeSuspectExpert(nn.Module):
             rejected_unknown=rejected_unknown,
             reject_score=reject_score.detach(),
             reject_reasons=reject_reasons,
+            pre_reject_logits=pre_reject_logits,
             inference_mode=inference_mode,
             joint_logits=joint_logits,
             joint_reliability_logits=joint_reliability_logits,

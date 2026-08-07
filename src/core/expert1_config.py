@@ -68,6 +68,7 @@ class Expert1TrainConfig:
     temporal_encoding_mode: str = "none"
     temporal_pooling_mode: str = "mean"
     physical_representation_contract_version: str = "legacy_v2"
+    physical_statistics_weighting: str = "window_v1"
     # Historical V1/V2 replay remains available only when explicitly opted in.
     # The active Expert1 training entrypoint requires the repaired V3 contract.
     allow_legacy_feature_contract: bool = False
@@ -202,8 +203,8 @@ class Expert1TrainConfig:
                 "active Expert1 training requires trajectory_feature_schema='v3'; "
                 "set allow_legacy_feature_contract=true only for explicit historical V1/V2 replay"
             )
-        if str(self.physical_representation_contract_version).strip().lower() != "source_robust_v3":
+        if str(self.physical_representation_contract_version).strip().lower() not in {"source_robust_v3", "source_robust_v4"}:
             raise ValueError(
-                "active Expert1 training requires physical_representation_contract_version='source_robust_v3'; "
+                "active Expert1 training requires physical_representation_contract_version='source_robust_v3' or 'source_robust_v4'; "
                 "set allow_legacy_feature_contract=true only for explicit historical replay"
             )

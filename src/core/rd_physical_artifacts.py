@@ -10,8 +10,8 @@ import pandas as pd
 import torch
 
 from .rd_physical_drone_bird_config import PhysicalRDDroneBirdConfig
-from .data.rd_physical_window_dataset import PHYSICAL_RD_FEATURE_NAMES, PHYSICAL_RD_INPUT_CHANNELS, QUALITY_FEATURE_DIM, QUALITY_FEATURE_NAMES, QUALITY_METADATA_NAMES
-from .rd_physical_schema import PHYSICAL_RD_FEATURE_STATS_SCHEMA_VERSION, PHYSICAL_RD_NORMALIZATION_SCHEMA_VERSION
+from .data.rd_physical_window_dataset import PHYSICAL_RD_FEATURE_NAMES, PHYSICAL_RD_INPUT_CHANNELS, QUALITY_FEATURE_DIM, QUALITY_FEATURE_NAMES, QUALITY_METADATA_NAMES, RD_ONLY_QUALITY_NAMES, LEGACY_QUALITY_SCHEMA
+from .rd_physical_schema import PHYSICAL_RD_CLEAN_FEATURE_STATS_SCHEMA_VERSION, PHYSICAL_RD_FEATURE_STATS_SCHEMA_VERSION, PHYSICAL_RD_NORMALIZATION_SCHEMA_VERSION
 from .rd_physical_drone_bird_model import (
     SPATIAL_POOL_DOPPLER_BINS,
     SPATIAL_POOL_RANGE_BINS,
@@ -38,6 +38,15 @@ ARTIFACT_GENERATOR_FILES = {
     "normalization_generator_code_sha256": "src/process/build_rd_physical_normalization_stats.py",
     "feature_stats_generator_code_sha256": "src/process/build_rd_physical_feature_stats.py",
 }
+
+
+def _artifact_generator_files(config: PhysicalRDDroneBirdConfig) -> dict[str, str]:
+    if config.quality_schema == LEGACY_QUALITY_SCHEMA:
+        return ARTIFACT_GENERATOR_FILES
+    return {
+        "normalization_generator_code_sha256": "src/process/build_rd_physical_normalization_stats.py",
+        "feature_stats_generator_code_sha256": "src/process/build_rd_physical_clean_feature_stats.py",
+    }
 
 
 def sha256_file(path: Path) -> str:
@@ -115,11 +124,12 @@ def _physical_frame_index_name(index_frame: pd.DataFrame) -> str:
 
 
 def _model_spec(config: PhysicalRDDroneBirdConfig) -> dict[str, Any]:
+    quality_names = list(QUALITY_FEATURE_NAMES) if config.quality_schema == LEGACY_QUALITY_SCHEMA else list(RD_ONLY_QUALITY_NAMES)
     return {
         "version": MODEL_SPEC_VERSION,
         "feature_names": list(PHYSICAL_RD_FEATURE_NAMES),
         "input_channels": int(config.input_channels),
-        "quality_names": list(QUALITY_FEATURE_NAMES),
+        "quality_names": quality_names,
         "quality_dim": int(config.quality_dim),
         "include_missing_rd": bool(config.include_missing_rd),
         "statistic_names": list(PHYSICAL_RD_STATISTIC_NAMES),
@@ -155,15 +165,17 @@ def load_physical_rd_artifacts(project_root: Path, config: PhysicalRDDroneBirdCo
     feature_stats = json.loads(feature_stats_path.read_text(encoding="utf-8"))
     if normalization.get("schema_version") != PHYSICAL_RD_NORMALIZATION_SCHEMA_VERSION:
         raise ValueError("physical RD normalization schema is incompatible with the active input contract")
-    if feature_stats.get("schema_version") != PHYSICAL_RD_FEATURE_STATS_SCHEMA_VERSION:
+    expected_stats_schema = PHYSICAL_RD_FEATURE_STATS_SCHEMA_VERSION if config.quality_schema == LEGACY_QUALITY_SCHEMA else PHYSICAL_RD_CLEAN_FEATURE_STATS_SCHEMA_VERSION
+    if feature_stats.get("schema_version") != expected_stats_schema:
         raise ValueError("physical RD feature statistics schema is incompatible with the active input contract")
     if normalization.get("labels") != ["DroneTarget", "BirdTarget"] or feature_stats.get("labels") != ["DroneTarget", "BirdTarget"]:
         raise ValueError("physical RD artifacts must explicitly declare the Drone/Bird label order")
     if feature_stats.get("feature_names") != list(PHYSICAL_RD_FEATURE_NAMES):
         raise ValueError("physical RD feature statistics do not match the active feature schema")
-    if feature_stats.get("quality_names") != list(QUALITY_FEATURE_NAMES):
+    expected_quality_names = list(QUALITY_FEATURE_NAMES) if config.quality_schema == LEGACY_QUALITY_SCHEMA else list(RD_ONLY_QUALITY_NAMES)
+    if feature_stats.get("quality_names") != expected_quality_names:
         raise ValueError("physical RD feature statistics do not match the active learnable quality schema")
-    if feature_stats.get("quality_metadata_names") != list(QUALITY_METADATA_NAMES):
+    if feature_stats.get("quality_metadata_names") != expected_quality_names:
         raise ValueError("physical RD feature statistics do not match the active quality metadata schema")
     index_sha = sha256_file(index_path)
     if normalization.get("index_sha256") != index_sha:
@@ -172,9 +184,10 @@ def load_physical_rd_artifacts(project_root: Path, config: PhysicalRDDroneBirdCo
         raise ValueError("physical RD feature stats do not match active index")
     if feature_stats.get("normalization_stats_sha256") != sha256_file(normalization_path):
         raise ValueError("physical RD feature stats do not match normalization artifact")
-    if normalization.get("generator_code_sha256") != sha256_file(project_root / ARTIFACT_GENERATOR_FILES["normalization_generator_code_sha256"]):
+    generator_files = _artifact_generator_files(config)
+    if normalization.get("generator_code_sha256") != sha256_file(project_root / generator_files["normalization_generator_code_sha256"]):
         raise ValueError("physical RD normalization generator code does not match artifact")
-    if feature_stats.get("generator_code_sha256") != sha256_file(project_root / ARTIFACT_GENERATOR_FILES["feature_stats_generator_code_sha256"]):
+    if feature_stats.get("generator_code_sha256") != sha256_file(project_root / generator_files["feature_stats_generator_code_sha256"]):
         raise ValueError("physical RD feature statistics generator code does not match artifact")
     frame_index_name = _physical_frame_index_name(index)
     frame_index_path = processed / frame_index_name
@@ -202,8 +215,8 @@ def load_physical_rd_artifacts(project_root: Path, config: PhysicalRDDroneBirdCo
         },
         "model_spec": _model_spec(config),
         "feature_names": list(PHYSICAL_RD_FEATURE_NAMES),
-        "quality_names": list(QUALITY_FEATURE_NAMES),
-        "quality_metadata_names": list(QUALITY_METADATA_NAMES),
+        "quality_names": expected_quality_names,
+        "quality_metadata_names": expected_quality_names,
         "artifacts": {
             "window_index": {"name": config.index_name, "sha256": index_sha, "row_count": int(len(index))},
             "normalization": {"name": config.normalization_stats_name, "sha256": sha256_file(normalization_path)},
@@ -225,6 +238,7 @@ def build_physical_rd_model(artifacts: PhysicalRDArtifacts) -> PhysicalRDDroneBi
         input_channels=config.input_channels,
         token_dim=config.token_dim,
         quality_dim=config.quality_dim,
+        quality_schema=config.quality_schema,
         dropout=config.dropout,
         amplitude_clip_low_db=float(amplitude["clip_low"]),
         amplitude_clip_high_db=float(amplitude["clip_high"]),

@@ -9,6 +9,13 @@ from .encoding import track_feature_missing_mask
 from .features import TRACK_FEATURE_COLUMNS
 
 
+SUPPORTED_PHYSICAL_REPRESENTATION_CONTRACTS = {
+    "legacy_v2",
+    "source_robust_v3",
+    "source_robust_v4",
+}
+
+
 PHYSICAL_FEATURE_COLUMNS = [
     "height_mean",
     "height_std",
@@ -110,6 +117,12 @@ def _safe_numeric(series: pd.Series) -> np.ndarray:
     return np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
 
 
+def _numeric_with_validity(series: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+    values = pd.to_numeric(series, errors="coerce").to_numpy(dtype=np.float64, copy=True)
+    valid = np.isfinite(values)
+    return values, valid
+
+
 def _raw_time_seconds(frame: pd.DataFrame) -> np.ndarray:
     values = pd.to_numeric(frame["time_seconds"], errors="coerce").to_numpy(dtype=np.float64, copy=True)
     return values
@@ -163,6 +176,50 @@ def _valid_time_derivative(values: np.ndarray, time_seconds: np.ndarray) -> np.n
     return delta_value[valid] / delta_time[valid]
 
 
+def _valid_time_derivative_contiguous(
+    values: np.ndarray,
+    time_seconds: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Derivatives only across adjacent observations with both values present.
+
+    Filtering finite values before taking ``diff`` silently joins observations
+    separated by missing samples.  The v4 contract must preserve those gaps.
+    """
+    if values.size < 2 or time_seconds.size != values.size or valid.size != values.size:
+        return np.zeros((0,), dtype=np.float64)
+    adjacent = valid[:-1] & valid[1:]
+    delta_time = np.diff(time_seconds.astype(np.float64, copy=False))
+    usable = adjacent & np.isfinite(delta_time) & (delta_time > 1.0e-3)
+    if not usable.any():
+        return np.zeros((0,), dtype=np.float64)
+    delta_value = np.diff(values.astype(np.float64, copy=False))
+    return delta_value[usable] / delta_time[usable]
+
+
+def _mean_linear_slope_contiguous(
+    values: np.ndarray,
+    time_seconds: np.ndarray,
+    valid: np.ndarray,
+) -> float:
+    """Mean per-run slope without connecting values across missing gaps."""
+    if values.size < 2 or time_seconds.size != values.size or valid.size != values.size:
+        return 0.0
+    starts = np.flatnonzero(valid & np.concatenate(([True], ~valid[:-1])))
+    ends = np.flatnonzero(valid & np.concatenate((~valid[1:], [True])))
+    slopes: list[float] = []
+    for start, end in zip(starts.tolist(), ends.tolist()):
+        if end - start + 1 < 2:
+            continue
+        slope = _linear_slope(
+            values[start : end + 1],
+            time_seconds[start : end + 1],
+        )
+        if np.isfinite(slope):
+            slopes.append(float(slope))
+    return float(np.mean(slopes)) if slopes else 0.0
+
+
 def _v2_curvature_mean(
     track_range: np.ndarray,
     azimuth_deg: np.ndarray,
@@ -193,18 +250,144 @@ def _v2_curvature_mean(
     return float(curvature.mean()) if curvature.size else 0.0
 
 
+def _v2_curvature_mean_missing_aware(
+    track_range: np.ndarray,
+    azimuth_deg: np.ndarray,
+    elevation_deg: np.ndarray,
+) -> float:
+    """Compute curvature only inside contiguous runs with all fields present."""
+    valid = np.isfinite(track_range) & np.isfinite(azimuth_deg) & np.isfinite(elevation_deg)
+    if int(valid.sum()) < 3:
+        return 0.0
+    values: list[float] = []
+    starts = np.flatnonzero(valid & np.concatenate(([True], ~valid[:-1])))
+    ends = np.flatnonzero(valid & np.concatenate((~valid[1:], [True])))
+    for start, end in zip(starts.tolist(), ends.tolist()):
+        if end - start + 1 < 3:
+            continue
+        radius = track_range[start : end + 1].astype(np.float64, copy=False)
+        azimuth = np.deg2rad(azimuth_deg[start : end + 1].astype(np.float64, copy=False))
+        elevation = np.deg2rad(elevation_deg[start : end + 1].astype(np.float64, copy=False))
+        points = np.column_stack(
+            [
+                radius * np.cos(elevation) * np.cos(azimuth),
+                radius * np.cos(elevation) * np.sin(azimuth),
+                radius * np.sin(elevation),
+            ]
+        )
+        segments = np.diff(points, axis=0)
+        lengths = np.linalg.norm(segments, axis=1)
+        usable = lengths > 1.0e-6
+        if int(usable.sum()) < 2:
+            continue
+        headings = segments[usable] / lengths[usable, None]
+        dots = np.sum(headings[1:] * headings[:-1], axis=1).clip(-1.0, 1.0)
+        turns = np.arccos(dots)
+        scale = 0.5 * (lengths[usable][1:] + lengths[usable][:-1])
+        curvature = turns / np.maximum(scale, 1.0e-6)
+        if curvature.size:
+            values.extend(curvature.tolist())
+    return float(np.mean(values)) if values else 0.0
+
+
+def _missing_aware_physical_aggregates(
+    frame: pd.DataFrame,
+) -> tuple[float, float, float, float, float, float, float, float, float, float, float, float, float, float, float]:
+    """Aggregate physical fields without turning unavailable values into motion."""
+    height, height_valid = _numeric_with_validity(frame["height_m"])
+    speed, speed_valid = _numeric_with_validity(frame["speed_mps"])
+    course, course_valid = _numeric_with_validity(frame["course_deg"])
+    radial_speed, radial_valid = _numeric_with_validity(frame["radial_speed_mps"])
+    amplitude, amplitude_valid = _numeric_with_validity(frame["amplitude_db"])
+    snr, snr_valid = _numeric_with_validity(frame["snr_db"])
+    azimuth, azimuth_valid = _numeric_with_validity(frame["azimuth_deg"])
+    elevation, elevation_valid = _numeric_with_validity(frame["elevation_deg"])
+    track_range, range_valid = _numeric_with_validity(frame["range_m"])
+    time_seconds, time_valid = _numeric_with_validity(frame["time_seconds"])
+
+    height_values = height[height_valid]
+    speed_values = speed[speed_valid]
+    radial_values = radial_speed[radial_valid]
+    amplitude_values = amplitude[amplitude_valid]
+    snr_values = snr[snr_valid]
+
+    if int(height_values.size) >= 1:
+        height_mean = float(height_values.mean())
+        height_std = float(height_values.std())
+    else:
+        height_mean = height_std = 0.0
+    height_slope_valid = height_valid & time_valid
+    height_slope = _mean_linear_slope_contiguous(height, time_seconds, height_slope_valid)
+
+    if int(speed_values.size) >= 1:
+        speed_mean = float(speed_values.mean())
+        speed_std = float(speed_values.std())
+        speed_max = float(speed_values.max())
+        hover_ratio = float((np.abs(speed_values) <= 1.0).mean())
+    else:
+        speed_mean = speed_std = speed_max = hover_ratio = 0.0
+
+    acceleration_valid = speed_valid & time_valid
+    acceleration_values = _valid_time_derivative_contiguous(speed, time_seconds, acceleration_valid)
+    acceleration_std = float(acceleration_values.std()) if acceleration_values.size else 0.0
+
+    course_pair_valid = course_valid[:-1] & course_valid[1:] & time_valid[:-1] & time_valid[1:]
+    delta_time = np.diff(time_seconds)
+    course_delta = (np.diff(course) + 180.0) % 360.0 - 180.0
+    valid_course = course_pair_valid & np.isfinite(delta_time) & (delta_time > 1.0e-3)
+    course_rates = np.abs(course_delta[valid_course] / delta_time[valid_course]) if valid_course.any() else np.zeros((0,), dtype=np.float64)
+    course_change_rate_mean = float(course_rates.mean()) if course_rates.size else 0.0
+
+    curvature_mean = _v2_curvature_mean_missing_aware(track_range, azimuth, elevation) if (range_valid & azimuth_valid & elevation_valid).any() else 0.0
+    radial_std = float(radial_values.std()) if radial_values.size else 0.0
+    radial_flatness = _spectral_flatness(radial_values) if radial_values.size else 0.0
+    amplitude_mean = float(amplitude_values.mean()) if amplitude_values.size else 0.0
+    amplitude_std = float(amplitude_values.std()) if amplitude_values.size else 0.0
+    snr_mean = float(snr_values.mean()) if snr_values.size else 0.0
+    return (
+        height_mean,
+        height_std,
+        float(height_slope),
+        speed_mean,
+        speed_std,
+        speed_max,
+        course_change_rate_mean,
+        curvature_mean,
+        acceleration_std,
+        hover_ratio,
+        radial_std,
+        radial_flatness,
+        amplitude_mean,
+        amplitude_std,
+        snr_mean,
+    )
+
+
 def extract_physical_features(
     frame: pd.DataFrame,
     *,
     height_missing: bool = False,
     phase_missing: bool = False,
     feature_schema: str = "v1",
+    physical_representation_contract_version: str = "legacy_v2",
 ) -> PhysicalFeatureVector:
     schema = str(feature_schema).strip().lower()
+    contract = str(physical_representation_contract_version).strip().lower()
+    if contract not in SUPPORTED_PHYSICAL_REPRESENTATION_CONTRACTS:
+        raise ValueError(
+            "unsupported physical representation contract: "
+            f"{physical_representation_contract_version}"
+        )
+    if contract == "source_robust_v4" and schema != "v3":
+        raise ValueError("source_robust_v4 requires feature_schema='v3'")
     columns = physical_feature_columns(schema)
     if frame.empty:
         return PhysicalFeatureVector(values=np.zeros(len(columns), dtype=np.float32), feature_schema=schema)
 
+    if contract == "source_robust_v4":
+        aggregates = _missing_aware_physical_aggregates(frame)
+    else:
+        aggregates = None
     height = _safe_numeric(frame["height_m"])
     speed = _safe_numeric(frame["speed_mps"])
     course = _safe_numeric(frame["course_deg"])
@@ -239,7 +422,7 @@ def extract_physical_features(
         raise ValueError(f"unsupported physical feature schema: {feature_schema}")
 
     hover_ratio = float((np.abs(speed) <= 1.0).mean()) if speed.size else 0.0
-    values = [
+    legacy_values = [
         float(height.mean()) if height.size else 0.0,
         float(height.std()) if height.size else 0.0,
         float(height_slope),
@@ -255,8 +438,11 @@ def extract_physical_features(
         float(amplitude.mean()) if amplitude.size else 0.0,
         float(amplitude.std()) if amplitude.size else 0.0,
         float(snr.mean()) if snr.size else 0.0,
-        float(height_missing),
     ]
+    values = list(aggregates) if aggregates is not None else legacy_values
+    values.extend([
+        float(height_missing),
+    ])
     if schema == "v1":
         values.append(float(phase_missing))
     elif schema == "v3":

@@ -88,6 +88,10 @@ class StreamingDecision:
     candidate_label: str
     candidate_count: int
     rd_time_sync_status: str
+    classification_label: str | None = None
+    rejected: bool = False
+    reject_score: float | None = None
+    reject_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -113,6 +117,10 @@ class StreamingInferenceResult:
 class StreamingModelPrediction:
     probabilities: dict[str, float]
     used_fallback: bool = False
+    pre_reject_probabilities: dict[str, float] | None = None
+    rejected: bool = False
+    reject_score: float | None = None
+    reject_reason: str = ""
 
 
 @dataclass
@@ -126,6 +134,10 @@ class _DecisionTargetState:
     candidate_count: int = 0
     last_emitted_label: str | None = None
     prediction_flip_count: int = 0
+    last_classification_label: str | None = None
+    last_rejected: bool = False
+    last_reject_score: float | None = None
+    last_reject_reason: str = ""
 
 
 class Expert1StableDecisionStateMachine:
@@ -147,6 +159,10 @@ class Expert1StableDecisionStateMachine:
         probabilities: dict[str, float],
         *,
         force_fallback: bool = False,
+        classification_label: str | None = None,
+        rejected: bool = False,
+        reject_score: float | None = None,
+        reject_reason: str = "",
     ) -> StreamingDecision:
         if not probabilities:
             raise ValueError("probabilities must be non-empty")
@@ -155,6 +171,8 @@ class Expert1StableDecisionStateMachine:
             normalized.items(),
             key=lambda item: (item[1], item[0]),
         )
+        if classification_label is None:
+            classification_label = predicted_label
         target_id = str(window.target_id)
         state = self._targets.setdefault(target_id, _DecisionTargetState())
         if state.first_window_start_ns is None:
@@ -194,6 +212,10 @@ class Expert1StableDecisionStateMachine:
         if state.last_emitted_label is not None and state.last_emitted_label != emitted_label:
             state.prediction_flip_count += 1
         state.last_emitted_label = emitted_label
+        state.last_classification_label = str(classification_label)
+        state.last_rejected = bool(rejected)
+        state.last_reject_score = None if reject_score is None else float(reject_score)
+        state.last_reject_reason = str(reject_reason or "")
         used_fallback = bool(force_fallback or not window.rd_fusion_eligible)
         if used_fallback:
             decision_state = "fallback"
@@ -225,6 +247,10 @@ class Expert1StableDecisionStateMachine:
             candidate_label=state.candidate_label or predicted_label,
             candidate_count=state.candidate_count,
             rd_time_sync_status=window.rd_time_sync_status,
+            classification_label=state.last_classification_label,
+            rejected=state.last_rejected,
+            reject_score=state.last_reject_score,
+            reject_reason=state.last_reject_reason,
         )
 
     def end_target(self, target_id: str, decision_time_ns: int) -> StreamingDecision | None:
@@ -255,6 +281,10 @@ class Expert1StableDecisionStateMachine:
             candidate_label=state.candidate_label or state.last_emitted_label,
             candidate_count=state.candidate_count,
             rd_time_sync_status="unavailable",
+            classification_label=state.last_classification_label,
+            rejected=state.last_rejected,
+            reject_score=state.last_reject_score,
+            reject_reason=state.last_reject_reason,
         )
 
     def reassociate(self, old_target_id: str, new_target_id: str) -> None:
@@ -350,13 +380,30 @@ class Expert1StreamingInferenceEngine:
             if isinstance(prediction, StreamingModelPrediction):
                 probabilities = prediction.probabilities
                 force_fallback = bool(prediction.used_fallback)
+                pre_reject = prediction.pre_reject_probabilities
+                classification_label = (
+                    max(pre_reject.items(), key=lambda item: (float(item[1]), item[0]))[0]
+                    if pre_reject
+                    else None
+                )
+                rejected = bool(prediction.rejected)
+                reject_score = prediction.reject_score
+                reject_reason = prediction.reject_reason
             else:
                 probabilities = prediction
                 force_fallback = False
+                classification_label = None
+                rejected = False
+                reject_score = None
+                reject_reason = ""
             decision = self.decisions.update(
                 window,
                 probabilities,
                 force_fallback=force_fallback,
+                classification_label=classification_label,
+                rejected=rejected,
+                reject_score=reject_score,
+                reject_reason=reject_reason,
             )
             postprocess_latency_ns = perf_counter_ns() - postprocess_start
             results.append(
@@ -489,7 +536,7 @@ class Expert1CheckpointTrajectoryPredictor:
         self.model.eval()
         source_feature_stats = loaded_checkpoint.get("source_feature_stats", {})
         self.source_feature_stats = source_feature_stats if isinstance(source_feature_stats, dict) else {}
-        if self.config.physical_representation_contract_version == "source_robust_v3":
+        if self.config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}:
             missing_physical = [
                 source_name
                 for source_name, values in self.source_feature_stats.items()
@@ -499,7 +546,7 @@ class Expert1CheckpointTrajectoryPredictor:
             ]
             if missing_physical:
                 raise ValueError(
-                    "source_robust_v3 streaming checkpoint is missing physical source stats: "
+                    f"{self.config.physical_representation_contract_version} streaming checkpoint is missing physical source stats: "
                     f"sources={sorted(missing_physical)[:5]}"
                 )
         self.model_version = str(self.config.output_dir or "expert1_checkpoint")
@@ -545,9 +592,10 @@ class Expert1CheckpointTrajectoryPredictor:
                 height_missing=height_missing,
                 phase_missing=False,
                 feature_schema=self.config.trajectory_feature_schema,
+                physical_representation_contract_version=self.config.physical_representation_contract_version,
             ).values
         ).to(self.device).unsqueeze(0)
-        if self.config.physical_representation_contract_version == "source_robust_v3":
+        if self.config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}:
             physical_features = self._apply_source_physical_norm(
                 physical_features,
                 [source_name],
@@ -604,9 +652,32 @@ class Expert1CheckpointTrajectoryPredictor:
                 disable_tr_rd_fusion=True,
             )
             values = torch.softmax(output.logits[0], dim=-1).detach().cpu().tolist()
+            pre_reject_logits = getattr(output, "pre_reject_logits", None)
+            if pre_reject_logits is None:
+                pre_reject_logits = output.logits
+            pre_values = torch.softmax(pre_reject_logits[0], dim=-1).detach().cpu().tolist()
+            rejected_unknown = getattr(output, "rejected_unknown", None)
+            rejected = bool(rejected_unknown[0].detach().cpu().item()) if rejected_unknown is not None else False
+            reject_score_value = (
+                float(output.reject_score[0].detach().cpu().item())
+                if getattr(output, "reject_score", None) is not None
+                else None
+            )
+            reason_names = []
+            for name, reason_value in (getattr(output, "reject_reasons", None) or {}).items():
+                if (
+                    isinstance(reason_value, torch.Tensor)
+                    and reason_value.ndim == 1
+                    and bool(reason_value[0].item())
+                ):
+                    reason_names.append(str(name))
         return StreamingModelPrediction(
             probabilities={label: float(value) for label, value in zip(LOW_ALTITUDE_CLASSES, values)},
             used_fallback=True,
+            pre_reject_probabilities={label: float(value) for label, value in zip(LOW_ALTITUDE_CLASSES, pre_values)},
+            rejected=rejected,
+            reject_score=reject_score_value,
+            reject_reason=",".join(reason_names),
         )
 
 

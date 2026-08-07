@@ -1,0 +1,99 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V10",
+  "scope": "DBB/CU Gate only; replace V9 dt-rate motion with nine no-dt causal per-observation increments",
+  "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-config.json",
+  "config_sha256": "6d43b927e275354ff5089ed8355aa660c438173d6c341fc185fefeb40d0472b1",
+  "formal_artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-formal",
+  "formal_artifact_existed_at_readiness_check": false,
+  "data_contract": {
+    "index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V10-cq08-tr-rd-observation-increment-gate-data-contract.json",
+    "contract_sha256": "b7d905ae0f373882c17dddab7fb13785c2c6fe86016b0a20aac5d7d0755880af",
+    "normalization_stats": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V2-cq08-tr-rd-train-normalization-stats.json",
+    "normalization_stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6",
+    "source_purity": "CQ08 only",
+    "index_split_or_rd_tensor_rebuild": "未执行；内容和语义不变，按hash复用"
+  },
+  "single_factor_contract": {
+    "paired_baseline": "RADAR-LN3-V9 DBB/CU Gate",
+    "changed": "causal-tr-motion-v1 dt-rate values -> causal-tr-observation-increment-v1 per-report values",
+    "unchanged": [
+      "DBB/CU labels and CQ08 V3 parent split",
+      "14 TR values, 11 TR missing flags, RD tensors and 7 causal-current-event RD quality values",
+      "nine-dimensional bias-free causal TR encoder and total parameter count 32522",
+      "RD spatial encoder, masked-mean RD frame aggregation and CfC liquid dynamics",
+      "liquid dt/dt_valid dynamics, causal-prefix loss and class weights",
+      "seed 42, batch size 2, learning rate, epoch/patience budget and parent_min_precision_recall selection"
+    ],
+    "pretraining": "not_required_and_not_used",
+    "initialization": "random; V9 weights must not be loaded into V10"
+  },
+  "focused_contract": {
+    "result": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V10-observation-increment-contract-result.json",
+    "result_sha256": "63e1b78380fd0c8e70ba40115d6775787455e235b5731a1d32ec875e4ce7415d",
+    "state_update_signature_has_no_dt_or_dt_valid": true,
+    "real_parent_dt_timestamp_reason_perturbation_values_equal": true,
+    "real_parent_dt_timestamp_reason_perturbation_valid_mask_equal": true,
+    "future_prefix_invariance": true,
+    "online_offline_prefix_max_difference": 1.9371509552001953e-07,
+    "v9_real_checkpoint_regression_load": "passed",
+    "schema_spoofed_v9_to_v10_rejected": true,
+    "v10_checkpoint_round_trip": "passed"
+  },
+  "full_train_validation_feature_audit": {
+    "report": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-causal-tr-observation-increment-audit.json",
+    "report_sha256": "74556819391fe0dc6340911fab10b9eeac48feb2cabc24dc69e580db61f08cd0",
+    "parent_count": 1313,
+    "event_count": 25158,
+    "test_excluded": true,
+    "nonfirst_zero_second_dt_event_count": 8179,
+    "nonfirst_zero_second_dt_events_with_any_valid_increment": 8179,
+    "maximum_train_class_valid_fraction_spread": 0.005748274407972098,
+    "maximum_validation_class_valid_fraction_spread": 0.007224759445884854,
+    "v9_validation_class_valid_fraction_spread_reference": 0.4418665,
+    "maximum_clip_fraction": 0.001100715465052284,
+    "finite_and_invalid_zero_contract": "passed"
+  },
+  "bounded_smoke": {
+    "cpu_result": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V10-dbb-cu-gate-contract-smoke-cpu\\result.json",
+    "cpu_result_sha256": "5a6bd10fbf55a2bd70d73eb3d02c8cd198d2cefc948348a51ccfcb339399a871",
+    "cpu_loss": 0.18143725395202637,
+    "cpu_gradient_norm": 4.055363178253174,
+    "cpu_causal_tr_gradient_norm": 0.09354135708518278,
+    "cuda_result": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V10-dbb-cu-gate-contract-smoke-cuda\\result.json",
+    "cuda_result_sha256": "11bc2a1798af4477b5340c522398bc5507f143a78d5d5156b02e9337623ef8b0",
+    "cuda_loss": 0.18143731355667114,
+    "cuda_gradient_norm": 4.055363178253174,
+    "cuda_causal_tr_gradient_norm": 0.09354139753250212,
+    "shape_mask_forward_loss_gradient_parameter_update_checkpoint": "passed",
+    "artifact_scope": "bounded smoke only; checkpoints remain under src-v3/smoke"
+  },
+  "regression_and_isolation": {
+    "v9_focused_contract": "passed",
+    "v7_v8_repair_contract": "passed",
+    "causal_cascade_base_contract": "passed",
+    "compileall": "passed",
+    "src_v3_static_isolation": "passed",
+    "src_v3_import_violations": []
+  },
+  "release_decision": "可以进入用户手动V10 Gate paired正式训练；不能进入正式级联、test、拒识或部署",
+  "known_limits": [
+    "per-observation increments are not SI rates and can still shift when online report cadence changes",
+    "Smoke is not classification performance; V10 validation performance is not evaluated",
+    "V10 has no same-version DBB/CU specialist pair, so it must not be advertised as a formal three-checkpoint cascade",
+    "UnknownTarget remains a closed-set class; train parent-grouped OOF reject calibration is not executed",
+    "validation CU support is only 23 parents; multi-seed evidence remains required before module approval"
+  ],
+  "formal_training": "未执行",
+  "validation_performance": "未评估",
+  "test_evaluation": "未执行",
+  "multi_seed": "未执行",
+  "oof_rejection_calibration": "未执行",
+  "formal_cascade": "未执行",
+  "stable_streaming_evaluation": "未执行",
+  "p95": "未执行",
+  "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-config.json",
+  "manual_validation_command_after_training": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m report.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-config.json --checkpoint F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-formal\\best_model.pt --split val --batch-size 2"
+}

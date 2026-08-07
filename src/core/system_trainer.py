@@ -587,13 +587,15 @@ def _load_expert1_bundle(
                     "Expert1 checkpoint feature order does not match the system runtime schema"
                 )
         source_stats = checkpoint.get("source_feature_stats", {})
-        if checkpoint_contract == "source_robust_v3":
+        if checkpoint_contract in {"source_robust_v3", "source_robust_v4"}:
             if not isinstance(source_stats, dict) or not source_stats:
-                raise ValueError("source_robust_v3 Expert1 checkpoint is missing source_feature_stats")
+                raise ValueError(
+                    f"{checkpoint_contract} Expert1 checkpoint is missing source_feature_stats"
+                )
             for source_name, values in source_stats.items():
                 if not isinstance(values, dict) or "physical_center" not in values or "physical_scale" not in values:
                     raise ValueError(
-                        "source_robust_v3 Expert1 checkpoint is missing physical source stats for "
+                        f"{checkpoint_contract} Expert1 checkpoint is missing physical source stats for "
                         f"source={source_name}"
                     )
                 center = torch.as_tensor(values["physical_center"], dtype=torch.float32).flatten()
@@ -607,7 +609,7 @@ def _load_expert1_bundle(
                     or bool((scale <= 0.0).any())
                 ):
                     raise ValueError(
-                        "source_robust_v3 Expert1 checkpoint physical source stats have invalid dimensions or values: "
+                        f"{checkpoint_contract} Expert1 checkpoint physical source stats have invalid dimensions or values: "
                         f"source={source_name}, expected_dim={expected_physical_stat_dim}"
                     )
         for module_name, module, state in (
@@ -907,7 +909,7 @@ def _apply_source_physical_norm(
         scale = values.get("physical_scale")
         if not isinstance(center, torch.Tensor) or not isinstance(scale, torch.Tensor):
             raise ValueError(
-                "source_robust_v3 system runtime is missing physical source stats for "
+                "source-robust system runtime is missing physical source stats for "
                 f"source={source_name}"
             )
         center = center.to(physical_features.device, dtype=physical_features.dtype).reshape(-1)
@@ -1477,7 +1479,7 @@ def _run_epoch(
             )
         physical = batch.physical_features.to(device)
         if (
-            config.physical_representation_contract_version == "source_robust_v3"
+            config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}
             and config.source_normalization
             and source_feature_stats is not None
         ):
@@ -3344,6 +3346,7 @@ def train_system_v1(config: SystemTrainConfig) -> dict[str, object]:
         seed=config.seed,
         num_workers=config.num_workers,
         trajectory_feature_schema=config.trajectory_feature_schema,
+        physical_representation_contract_version=config.physical_representation_contract_version,
     )
     dataset_frame = TrackDataset(config.data_root, trainable_only=False, index_name="system_trainable_track_index.csv").to_frame()
     model = RadarClassificationSystem(

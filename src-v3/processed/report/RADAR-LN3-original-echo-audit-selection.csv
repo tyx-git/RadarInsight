@@ -1,0 +1,13 @@
+sample_order,track_id,label_name,selection_roles,raw_echo_path,track_length_hint,manifest_mat_count
+1,1,DroneTarget,first_track_boundary|deterministic_rank_fill,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/1_Label_1.dat,21,102
+2,4260,BirdTarget,last_track_boundary|deterministic_rank_fill,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/4260_Label_3.dat,21,66
+3,66,DroneTarget,label_DroneTarget|label_DroneTarget|global_length_2,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/66_Label_1.dat,18,56
+4,335,BirdTarget,label_BirdTarget|label_BirdTarget,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/335_Label_3.dat,18,102
+5,3010,BalloonTarget,label_BalloonTarget|label_BalloonTarget,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/3010_Label_4.dat,18,104
+6,3757,ClutterTarget,label_ClutterTarget|label_ClutterTarget,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/3757_Label_5.dat,18,72
+7,2125,UnknownTarget,label_UnknownTarget|label_UnknownTarget,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/2125_Label_6.dat,18,56
+8,13,DroneTarget,global_length_1,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/13_Label_1.dat,12,67
+9,12,DroneTarget,global_length_3,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/12_Label_1.dat,29,88
+10,2,DroneTarget,length_quantile_1,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/2_Label_1.dat,15,90
+11,4,DroneTarget,length_quantile_2,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/4_Label_1.dat,23,110
+12,142,DroneTarget,deterministic_rank_fill,F:/Project/RadarInsight/OriData/23/CQ-08/原始回波/142_Label_1.dat,22,110

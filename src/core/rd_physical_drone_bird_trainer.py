@@ -13,6 +13,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from .data.rd_physical_window_dataset import (
+    LEGACY_QUALITY_SCHEMA,
+    RD_ONLY_QUALITY_SCHEMA,
     QUALITY_FEATURE_DIM,
     QUALITY_FEATURE_NAMES,
     PhysicalRDWindowBatch,
@@ -47,6 +49,7 @@ def _make_loader(data_root: Path, config: PhysicalRDDroneBirdConfig, split_name:
         split_name=split_name,
         normalization_stats_name=config.normalization_stats_name,
         include_missing_rd=config.include_missing_rd,
+        quality_schema=config.quality_schema,
     )
     return DataLoader(
         dataset,
@@ -109,8 +112,8 @@ def _as_bool(value: object) -> bool:
 
 
 def _rd_present_mask(batch: PhysicalRDWindowBatch) -> torch.Tensor:
-    if batch.quality_features.ndim != 2 or batch.quality_features.shape[1] != QUALITY_FEATURE_DIM:
-        raise ValueError("physical RD quality features do not match the active schema")
+    if batch.quality_features.ndim != 2:
+        raise ValueError("physical RD quality features must be a [batch, quality] tensor")
     present = batch.quality_features[:, QUALITY_FEATURE_NAMES.index("rd_present")]
     if not torch.isfinite(present).all():
         raise ValueError("physical RD presence quality feature must be finite")
@@ -173,6 +176,31 @@ def compute_parent_evidence_weights(
     if parent_evidence_sums is None or parent_balance_weights is None:
         return weights / weights.mean().clamp_min(1.0e-6)
     return weights
+
+
+def compute_window_evidence_weights(
+    batch: PhysicalRDWindowBatch,
+    *,
+    prefix_max_loss_weight: float,
+    evidence_target_frames: int,
+) -> torch.Tensor:
+    """Return loss weights derived only from the current RD window.
+
+    This is the training-weight contract for the clean RD-only path.  Parent,
+    sample and content-group identifiers are intentionally not consulted.  The
+    legacy ``compute_parent_evidence_weights`` helper remains available for
+    parent-level *report aggregation* and historical tests, but must not be
+    used to construct a training loss.
+    """
+    if not 0.0 < float(prefix_max_loss_weight) <= 1.0 or int(evidence_target_frames) < 1:
+        raise ValueError("invalid window evidence weighting configuration")
+    frame_fraction = (batch.window_frame_counts.float() / float(evidence_target_frames)).clamp(max=1.0)
+    evidence = torch.where(
+        batch.is_prefix_windows,
+        float(prefix_max_loss_weight) * frame_fraction,
+        torch.ones_like(frame_fraction),
+    )
+    return evidence * _rd_present_mask(batch).to(evidence.dtype)
 
 
 def _epoch_weight_normalizer(balance: dict[str, object], loader_batch_count: int) -> float:
@@ -356,7 +384,6 @@ def _run_epoch(model, loader, optimizer, device, config, balance, phase: str) ->
     model.train(train)
     max_batches = config.max_train_batches_per_epoch if train else config.max_val_batches
     max_batches = int(max_batches) if max_batches else len(loader)
-    loss_normalizer = _epoch_weight_normalizer(balance, len(loader))
     logits_rows: list[torch.Tensor] = []
     label_rows: list[torch.Tensor] = []
     parent_ids: list[str] = []
@@ -380,13 +407,10 @@ def _run_epoch(model, loader, optimizer, device, config, balance, phase: str) ->
                 class_weights=class_weights.to(dtype=output.logits.dtype),
                 focal_gamma=config.focal_gamma,
             )
-            aggregation_weights = compute_parent_evidence_weights(
+            aggregation_weights = compute_window_evidence_weights(
                 batch,
-                balance["parent_window_counts"],
                 prefix_max_loss_weight=config.prefix_max_loss_weight,
                 evidence_target_frames=config.evidence_target_frames,
-                parent_evidence_sums=balance["parent_evidence_sums"],
-                parent_balance_weights=balance["parent_balance_weights"],
             ).to(device)
             final_indices = (batch.lengths.to(device) - 1).clamp_min(0)
             row_indices = torch.arange(output.frame_logits.shape[0], device=device)
@@ -405,17 +429,18 @@ def _run_epoch(model, loader, optimizer, device, config, balance, phase: str) ->
                 class_weights=class_weights.to(dtype=output.micro_logits.dtype),
                 focal_gamma=config.focal_gamma,
             )
+            valid_weight = torch.where(rd_present, aggregation_weights, torch.zeros_like(aggregation_weights)).sum().clamp_min(1.0e-6)
             weighted_main = (per_window_loss * aggregation_weights).sum()
             weighted_prefix = (prefix_loss * aggregation_weights).sum()
             weighted_micro = (micro_loss * aggregation_weights).sum()
-            main_component = weighted_main / loss_normalizer
-            prefix_component = weighted_prefix / loss_normalizer
-            micro_component = weighted_micro / loss_normalizer
+            main_component = weighted_main / valid_weight
+            prefix_component = weighted_prefix / valid_weight
+            micro_component = weighted_micro / valid_weight
             loss = (
                 weighted_main
                 + config.prefix_aux_weight * weighted_prefix
                 + config.micro_aux_weight * weighted_micro
-            ) / loss_normalizer
+            ) / valid_weight
             if not torch.isfinite(loss):
                 raise RuntimeError(f"non-finite physical RD {phase} loss at batch={batch_index}")
             if train:
@@ -470,18 +495,29 @@ def _run_epoch(model, loader, optimizer, device, config, balance, phase: str) ->
     return metrics, float(np.mean(losses))
 
 
-def _is_better(candidate: dict[str, object], best: dict[str, object] | None) -> bool:
-    if candidate.get("parent_mean_logit") is None or candidate.get("window") is None:
+def _is_better(
+    candidate: dict[str, object],
+    best: dict[str, object] | None,
+    *,
+    use_parent_metrics: bool = True,
+) -> bool:
+    if candidate.get("window") is None or (use_parent_metrics and candidate.get("parent_mean_logit") is None):
         return False
     if best is None:
         return True
-    if best.get("parent_mean_logit") is None or best.get("window") is None:
+    if best.get("window") is None or (use_parent_metrics and best.get("parent_mean_logit") is None):
         return True
     def score(metrics: dict[str, object]) -> tuple[float, float, float, float]:
+        window = metrics["window"]
+        window_classes = window.get("per_class", {})
+        recalls = [float(values["recall"]) for values in window_classes.values()]
+        precisions = [float(values.get("precision", 0.0)) for values in window_classes.values()]
+        if not use_parent_metrics:
+            return (float(window["macro_f1"]), min(recalls or [0.0]), min(precisions or [0.0]), float(window.get("accuracy", 0.0)))
         parent = metrics["parent_mean_logit"]
-        recalls = [float(values["recall"]) for values in parent["per_class"].values()]
-        precisions = [float(values.get("precision", 0.0)) for values in parent["per_class"].values()]
-        return (float(parent["macro_f1"]), min(recalls), min(precisions), float(metrics["window"]["macro_f1"]))
+        parent_recalls = [float(values["recall"]) for values in parent["per_class"].values()]
+        parent_precisions = [float(values.get("precision", 0.0)) for values in parent["per_class"].values()]
+        return (float(parent["macro_f1"]), min(parent_recalls), min(parent_precisions), float(window["macro_f1"]))
     return score(candidate) > score(best)
 
 
@@ -544,12 +580,21 @@ def train_physical_rd_drone_bird(config: PhysicalRDDroneBirdConfig) -> dict[str,
             "output_dir": paths.output_dir.as_posix(),
             "config": asdict(config),
             "data": data_summary,
-            "checkpoint_selection_rule": [
-                "validation parent Macro-F1",
-                "minimum validation parent per-class Recall",
-                "minimum validation parent per-class Precision",
-                "validation window Macro-F1",
-            ],
+            "checkpoint_selection_rule": (
+                [
+                    "validation parent Macro-F1 (legacy_v4 compatibility only)",
+                    "minimum validation parent per-class Recall (legacy_v4 compatibility only)",
+                    "minimum validation parent per-class Precision (legacy_v4 compatibility only)",
+                    "validation window Macro-F1",
+                ]
+                if config.quality_schema == LEGACY_QUALITY_SCHEMA
+                else [
+                    "validation window Macro-F1 (clean RD-only; no parent/sample/content ID)",
+                    "minimum validation window per-class Recall",
+                    "minimum validation window per-class Precision",
+                    "validation window Accuracy",
+                ]
+            ),
             "test_evaluation_executed": False,
         },
     )
@@ -567,7 +612,11 @@ def train_physical_rd_drone_bird(config: PhysicalRDDroneBirdConfig) -> dict[str,
             val_metrics, val_loss = _run_epoch(model, val_loader, None, device, config, val_balance, "val")
         record = {"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss, "train": train_metrics, "val": val_metrics}
         history.append(record)
-        if _is_better(val_metrics, best_metrics):
+        if _is_better(
+            val_metrics,
+            best_metrics,
+            use_parent_metrics=config.quality_schema == LEGACY_QUALITY_SCHEMA,
+        ):
             best_metrics = val_metrics
             best_checkpoint = paths.output_dir / "best_rd_physical_drone_bird_model.pt"
             best_epoch = epoch
@@ -602,12 +651,21 @@ def train_physical_rd_drone_bird(config: PhysicalRDDroneBirdConfig) -> dict[str,
         "best_validation": best_metrics,
         "history_file": "training_history.json",
         "progress_file": "training_progress.json",
-        "checkpoint_selection_rule": [
-            "validation parent Macro-F1",
-            "minimum validation parent per-class Recall",
-            "minimum validation parent per-class Precision",
-            "validation window Macro-F1",
-        ],
+        "checkpoint_selection_rule": (
+            [
+                "validation parent Macro-F1 (legacy_v4 compatibility only)",
+                "minimum validation parent per-class Recall (legacy_v4 compatibility only)",
+                "minimum validation parent per-class Precision (legacy_v4 compatibility only)",
+                "validation window Macro-F1",
+            ]
+            if config.quality_schema == LEGACY_QUALITY_SCHEMA
+            else [
+                "validation window Macro-F1 (clean RD-only; no parent/sample/content ID)",
+                "minimum validation window per-class Recall",
+                "minimum validation window per-class Precision",
+                "validation window Accuracy",
+            ]
+        ),
         "supports_rejection": False,
         "test_evaluation_executed": False,
     }

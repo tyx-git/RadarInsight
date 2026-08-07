@@ -18,7 +18,12 @@ from torch import nn
 
 from .device import resolve_cuda_device
 from .expert1_streaming import CausalWindow, Expert1StableDecisionStateMachine
-from .experts import LOW_ALTITUDE_CLASSES, LowAltitudeSuspectExpert, compose_low_altitude_final_logits
+from .experts import (
+    LOW_ALTITUDE_CLASSES,
+    LowAltitudeSuspectExpert,
+    apply_low_altitude_attribution_reject,
+    compose_low_altitude_final_logits,
+)
 from .expert1_config import Expert1TrainConfig
 from .encoding import encode_track_sequence, prepare_track_sequence_features
 from .expert1_data import LOW_ALTITUDE_GLOBAL_TO_LOCAL, build_expert1_dataloaders
@@ -97,6 +102,7 @@ def _build_expert1_loaders(
         load_only_fusion_eligible_rd=config.load_only_fusion_eligible_rd,
         pure_tr_only=config.is_pure_tr_only,
         trajectory_feature_schema=config.trajectory_feature_schema,
+        physical_representation_contract_version=config.physical_representation_contract_version,
         pin_memory=config.pin_memory,
         persistent_workers=config.persistent_workers,
         prefetch_factor=config.prefetch_factor,
@@ -574,10 +580,15 @@ def _physical_source_stats_cache_path(
     data_root: str | Path,
     index_name: str,
     trajectory_feature_schema: str,
+    weighting: str = "window_v1",
+    physical_representation_contract_version: str = "legacy_v2",
 ) -> Path:
     data_root = Path(data_root)
     schema = str(trajectory_feature_schema).strip().lower()
-    return data_root / "processed" / f"{Path(index_name).stem}_{schema}_physical_source_stats.json"
+    normalized_weighting = str(weighting).strip().lower()
+    contract = str(physical_representation_contract_version).strip().lower()
+    suffix = "" if normalized_weighting == "window_v1" else f"_{normalized_weighting}"
+    return data_root / "processed" / f"{Path(index_name).stem}_{schema}_{contract}_physical_source_stats{suffix}.json"
 
 
 def _fit_physical_source_stats_from_index(
@@ -585,12 +596,26 @@ def _fit_physical_source_stats_from_index(
     data_root: str | Path,
     index_name: str,
     trajectory_feature_schema: str = "v1",
+    weighting: str = "window_v1",
+    physical_representation_contract_version: str = "legacy_v2",
 ) -> dict[str, dict[str, torch.Tensor]]:
     """Fit train-only robust stats for continuous physical features by source."""
     schema = str(trajectory_feature_schema).strip().lower()
+    normalized_weighting = str(weighting).strip().lower()
+    if normalized_weighting not in {"window_v1", "parent_equal_v1"}:
+        raise ValueError(
+            "unsupported physical statistics weighting: "
+            f"{weighting!r}"
+        )
     continuous_indices = physical_continuous_feature_indices(schema)
     feature_dim = physical_feature_dim(schema)
-    cache_path = _physical_source_stats_cache_path(data_root, index_name, schema)
+    cache_path = _physical_source_stats_cache_path(
+        data_root,
+        index_name,
+        schema,
+        normalized_weighting,
+        physical_representation_contract_version,
+    )
     sample_hash = _source_feature_stats_sample_hash(index_df)
     csv_fingerprint = _source_feature_stats_csv_fingerprint(index_df, data_root)
     if cache_path.exists():
@@ -600,7 +625,10 @@ def _fit_physical_source_stats_from_index(
                 cached_payload.get("sample_ids_sha256") == sample_hash
                 and cached_payload.get("track_csv_fingerprint") == csv_fingerprint
                 and cached_payload.get("trajectory_feature_schema") == schema
+                and cached_payload.get("weighting", "window_v1") == normalized_weighting
                 and cached_payload.get("continuous_indices") == continuous_indices
+                and cached_payload.get("physical_representation_contract_version", "legacy_v2")
+                == str(physical_representation_contract_version).strip().lower()
             ):
                 cached_stats: dict[str, dict[str, torch.Tensor]] = {}
                 for source_name, values in dict(cached_payload.get("stats", {})).items():
@@ -618,7 +646,7 @@ def _fit_physical_source_stats_from_index(
 
     data_root = Path(data_root)
     project_root = data_root.parent
-    buckets: dict[str, list[torch.Tensor]] = {}
+    buckets: dict[str, list[tuple[str, torch.Tensor]]] = {}
     for row in index_df.to_dict(orient="records"):
         csv_path = Path(str(row.get("csv_path", "")))
         if not csv_path.is_absolute():
@@ -634,16 +662,32 @@ def _fit_physical_source_stats_from_index(
             height_missing=height_missing,
             phase_missing=False,
             feature_schema=schema,
+            physical_representation_contract_version=physical_representation_contract_version,
         ).values
         if int(values.shape[0]) != feature_dim:
             raise ValueError("physical feature dimension mismatch while fitting source stats")
         transformed = signed_log1p_physical_continuous(values, continuous_indices)
         buckets.setdefault(str(row.get("source_name", "")), []).append(
-            torch.from_numpy(transformed[continuous_indices]).to(dtype=torch.float32)
+            (
+                str(row.get("parent_sample_id") or row.get("sample_id") or ""),
+                torch.from_numpy(transformed[continuous_indices]).to(dtype=torch.float32),
+            )
         )
     stats: dict[str, dict[str, torch.Tensor]] = {}
     for source_name, rows in buckets.items():
-        values = torch.stack(rows, dim=0)
+        if normalized_weighting == "parent_equal_v1":
+            parent_rows: dict[str, list[torch.Tensor]] = {}
+            for parent_id, row_values in rows:
+                parent_rows.setdefault(parent_id, []).append(row_values)
+            values = torch.stack(
+                [
+                    torch.stack(parent_values, dim=0).median(dim=0).values
+                    for _parent_id, parent_values in sorted(parent_rows.items())
+                ],
+                dim=0,
+            )
+        else:
+            values = torch.stack([row_values for _parent_id, row_values in rows], dim=0)
         center = values.median(dim=0).values
         q25 = torch.quantile(values, 0.25, dim=0)
         q75 = torch.quantile(values, 0.75, dim=0)
@@ -656,6 +700,10 @@ def _fit_physical_source_stats_from_index(
                 "sample_ids_sha256": sample_hash,
                 "track_csv_fingerprint": csv_fingerprint,
                 "trajectory_feature_schema": schema,
+                "physical_representation_contract_version": str(
+                    physical_representation_contract_version
+                ).strip().lower(),
+                "weighting": normalized_weighting,
                 "continuous_indices": continuous_indices,
                 "stats": {
                     source_name: {
@@ -800,16 +848,35 @@ def _parameters_are_finite_bundle(
     )
 
 
-def _parent_manifest_from_index(index_df: pd.DataFrame) -> dict[str, object]:
+def _sha256_path(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _parent_manifest_from_index(
+    index_df: pd.DataFrame,
+    *,
+    source_index_path: Path | None = None,
+) -> dict[str, object]:
     manifest = build_pretrain_parent_manifest(
         index_df,
         source_index="runtime-index",
     )
-    return {
+    payload: dict[str, object] = {
         "enabled": True,
         "parent_count": int(manifest["parent_count"]),
         "parent_ids_sha256": str(manifest["parent_ids_sha256"]),
     }
+    if source_index_path is not None:
+        resolved = source_index_path.resolve()
+        if not resolved.exists():
+            raise FileNotFoundError(f"Expert1 source index not found: {resolved}")
+        payload["source_index"] = resolved.as_posix()
+        payload["source_index_sha256"] = _sha256_path(resolved)
+    return payload
 
 
 def _deserialize_pretrain_source_feature_stats(
@@ -839,6 +906,168 @@ def _deserialize_pretrain_source_feature_stats(
     return stats
 
 
+def _validate_pretrain_source_statistics_contract(
+    checkpoint: dict[str, object],
+    *,
+    expected_feature_schema: str,
+    parent_manifest: dict[str, object],
+) -> dict[str, object]:
+    checkpoint_schema = str(checkpoint.get("checkpoint_schema_version", ""))
+    supported_checkpoint_schemas = {
+        "tr-only-track-pretrain-checkpoint-v2",
+        "tr-only-track-pretrain-checkpoint-v3",
+    }
+    if checkpoint_schema not in supported_checkpoint_schemas:
+        return {}
+    contract = checkpoint.get("source_statistics_contract")
+    if not isinstance(contract, dict):
+        raise ValueError("versioned pretrain checkpoint is missing source_statistics_contract")
+    expected_contract_schema = (
+        "tr-only-source-statistics-v3"
+        if checkpoint_schema == "tr-only-track-pretrain-checkpoint-v3"
+        else "tr-only-source-statistics-v2"
+    )
+    if str(contract.get("schema_version", "")) != expected_contract_schema:
+        raise ValueError("pretrain source statistics contract schema mismatch")
+    weighting = str(contract.get("weighting", ""))
+    if weighting not in {"point_weighted_v1", "parent_equal_v1"}:
+        raise ValueError("pretrain source statistics contract has unsupported weighting")
+    if str(contract.get("feature_schema", "")).strip().lower() != str(
+        expected_feature_schema
+    ).strip().lower():
+        raise ValueError("pretrain source statistics feature schema mismatch")
+    if list(contract.get("feature_columns", [])) != track_sequence_feature_columns(
+        expected_feature_schema
+    ):
+        raise ValueError("pretrain source statistics feature columns mismatch")
+    expected_fit_split = (
+        "pretrain_train"
+        if checkpoint_schema == "tr-only-track-pretrain-checkpoint-v3"
+        else "train"
+    )
+    if str(contract.get("fit_split", "")) != expected_fit_split:
+        raise ValueError("pretrain source statistics must be fitted from the train split")
+    if checkpoint_schema == "tr-only-track-pretrain-checkpoint-v3":
+        parent_split = _validate_pretrain_parent_split_checkpoint_contract(
+            checkpoint,
+            parent_manifest=parent_manifest,
+        )
+        if int(contract.get("parent_count", -1)) != int(
+            parent_split["train_parent_count"]
+        ):
+            raise ValueError("pretrain source statistics parent count mismatch")
+        if str(contract.get("parent_ids_sha256", "")) != str(
+            parent_split["train_parent_ids_sha256"]
+        ):
+            raise ValueError("pretrain source statistics parent hash mismatch")
+        train_summary = parent_split.get("train_summary", {})
+        if isinstance(train_summary, dict) and int(train_summary.get("window_count", -1)) != int(
+            contract.get("sample_count", -2)
+        ):
+            raise ValueError("pretrain source statistics sample count mismatch")
+        if str(contract.get("dataset_role", "")) != "pretrain_train":
+            raise ValueError("pretrain source statistics dataset role mismatch")
+        if str(contract.get("source_statistics_origin", "")) != "pretrain_train":
+            raise ValueError("pretrain source statistics origin mismatch")
+    else:
+        actual_parent_count = int(
+            parent_manifest.get("actual_parent_count", parent_manifest.get("parent_count", -1))
+        )
+        if int(contract.get("parent_count", -1)) != actual_parent_count:
+            raise ValueError("pretrain source statistics parent count mismatch")
+    stats_payload = checkpoint.get("source_feature_stats", {})
+    encoded = json.dumps(
+        stats_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    actual_hash = hashlib.sha256(encoded).hexdigest()
+    if str(contract.get("stats_sha256", "")) != actual_hash:
+        raise ValueError("pretrain source statistics hash mismatch")
+    return dict(contract)
+
+
+def _validate_pretrain_parent_split_checkpoint_contract(
+    checkpoint: dict[str, object],
+    *,
+    parent_manifest: dict[str, object],
+) -> dict[str, object]:
+    if str(checkpoint.get("checkpoint_schema_version", "")) != "tr-only-track-pretrain-checkpoint-v3":
+        return {}
+    parent_split = checkpoint.get("pretrain_parent_split")
+    if not isinstance(parent_split, dict) or not bool(parent_split.get("enabled", False)):
+        raise ValueError("V3 pretrain checkpoint is missing an enabled pretrain_parent_split")
+    expected_values = {
+        "schema_version": "tr-only-pretrain-parent-split-manifest-v1",
+        "assignment_algorithm": "source-stratified-session-group-search-v1",
+        "label_scope": "supervised_train_only",
+        "rd_metadata_contract": "not_applicable_tr_only",
+    }
+    for key, expected in expected_values.items():
+        if str(parent_split.get(key, "")) != expected:
+            raise ValueError(f"pretrain parent split checkpoint contract mismatch for {key}")
+
+    parsed_sets: dict[str, set[str]] = {}
+    for partition in ("train", "validation"):
+        ids_key = f"{partition}_parent_sample_ids"
+        raw_ids = parent_split.get(ids_key)
+        if not isinstance(raw_ids, list):
+            raise ValueError(f"pretrain parent split checkpoint {ids_key} must be a list")
+        normalized_ids = [str(item).strip() for item in raw_ids if str(item).strip()]
+        parent_ids = set(normalized_ids)
+        if not parent_ids or normalized_ids != sorted(parent_ids) or len(parent_ids) != len(normalized_ids):
+            raise ValueError(f"pretrain parent split checkpoint {ids_key} must be sorted and unique")
+        if int(parent_split.get(f"{partition}_parent_count", -1)) != len(parent_ids):
+            raise ValueError(f"pretrain parent split checkpoint {partition} parent count mismatch")
+        actual_hash = hashlib.sha256(
+            "\n".join(sorted(parent_ids)).encode("utf-8")
+        ).hexdigest()
+        if str(parent_split.get(f"{partition}_parent_ids_sha256", "")) != actual_hash:
+            raise ValueError(f"pretrain parent split checkpoint {partition} parent hash mismatch")
+        parsed_sets[partition] = parent_ids
+    if parsed_sets["train"] & parsed_sets["validation"]:
+        raise ValueError("pretrain parent split checkpoint train/validation overlap")
+    scope_parent_ids = parsed_sets["train"] | parsed_sets["validation"]
+    scope_hash = hashlib.sha256(
+        "\n".join(sorted(scope_parent_ids)).encode("utf-8")
+    ).hexdigest()
+    if int(parent_split.get("scope_parent_count", -1)) != len(scope_parent_ids):
+        raise ValueError("pretrain parent split checkpoint scope parent count mismatch")
+    if str(parent_split.get("scope_parent_ids_sha256", "")) != scope_hash:
+        raise ValueError("pretrain parent split checkpoint scope parent hash mismatch")
+    full_parent_count = int(
+        parent_manifest.get("actual_parent_count", parent_manifest.get("parent_count", -1))
+    )
+    full_parent_hash = str(
+        parent_manifest.get(
+            "actual_parent_ids_sha256",
+            parent_manifest.get("parent_ids_sha256", ""),
+        )
+    )
+    if len(scope_parent_ids) != full_parent_count or scope_hash != full_parent_hash:
+        raise ValueError("pretrain parent split checkpoint scope does not match parent_manifest")
+
+    assignments = parent_split.get("group_assignments")
+    if not isinstance(assignments, dict) or not assignments:
+        raise ValueError("pretrain parent split checkpoint group assignments are missing")
+    normalized_assignments = {
+        str(group_id): str(partition)
+        for group_id, partition in assignments.items()
+    }
+    if set(normalized_assignments.values()) - {"pretrain_train", "pretrain_validation"}:
+        raise ValueError("pretrain parent split checkpoint contains an unknown group partition")
+    assignment_text = "\n".join(
+        f"{group_id}\t{partition}"
+        for group_id, partition in sorted(normalized_assignments.items())
+    )
+    if str(parent_split.get("group_assignments_sha256", "")) != hashlib.sha256(
+        assignment_text.encode("utf-8")
+    ).hexdigest():
+        raise ValueError("pretrain parent split checkpoint group assignment hash mismatch")
+    return dict(parent_split)
+
+
 def _pretrained_track_info_for_summary(info: dict[str, object] | None) -> dict[str, object] | None:
     if info is None:
         return None
@@ -861,10 +1090,20 @@ def _pretrained_track_info_for_summary(info: dict[str, object] | None) -> dict[s
         "missing_keys": [str(key) for key in info.get("missing_keys", [])],
         "unexpected_keys": [str(key) for key in info.get("unexpected_keys", [])],
         "trajectory_feature_schema": str(info.get("trajectory_feature_schema", "")),
+        "checkpoint_schema_version": str(info.get("checkpoint_schema_version", "")),
+        "code_contract": dict(info.get("code_contract", {}))
+        if isinstance(info.get("code_contract"), dict)
+        else {},
         "temporal_contract": dict(info.get("temporal_contract", {}))
         if isinstance(info.get("temporal_contract"), dict)
         else {},
         "parent_manifest": dict(info.get("parent_manifest", {})) if isinstance(info.get("parent_manifest"), dict) else {},
+        "pretrain_parent_split": dict(info.get("pretrain_parent_split", {}))
+        if isinstance(info.get("pretrain_parent_split"), dict)
+        else {},
+        "source_statistics_contract": dict(info.get("source_statistics_contract", {}))
+        if isinstance(info.get("source_statistics_contract"), dict)
+        else {},
         "source_feature_stats": stats_summary,
     }
 
@@ -901,6 +1140,16 @@ def _load_pretrained_track_encoder(
                 f"checkpoint_count={actual_count}, expected_count={expected_count}, "
                 f"checkpoint_hash={actual_hash}, expected_hash={expected_hash}"
             )
+        if str(checkpoint.get("checkpoint_schema_version", "")) in {
+            "tr-only-track-pretrain-checkpoint-v2",
+            "tr-only-track-pretrain-checkpoint-v3",
+        }:
+            expected_index_hash = str(expected_parent_manifest.get("source_index_sha256", ""))
+            actual_index_hash = str(parent_manifest.get("source_index_sha256", ""))
+            if expected_index_hash and actual_index_hash != expected_index_hash:
+                raise ValueError(
+                    "pretrain checkpoint source index hash does not match the current Expert1 index"
+                )
     checkpoint_config = checkpoint.get("config", {})
     checkpoint_temporal = checkpoint.get("temporal_contract", {})
     if not isinstance(checkpoint_temporal, dict):
@@ -957,21 +1206,36 @@ def _load_pretrained_track_encoder(
             "pretrained track encoder state shapes must match exactly: "
             f"incompatible={incompatible_shapes}"
         )
-    representation_builder.sequence_encoder.load_state_dict(encoder_state, strict=True)
     source_feature_stats = _deserialize_pretrain_source_feature_stats(
         checkpoint.get("source_feature_stats", {}),
         expected_feature_dim=track_sequence_feature_dim(expected_schema),
     )
+    source_statistics_contract = _validate_pretrain_source_statistics_contract(
+        checkpoint,
+        expected_feature_schema=expected_schema,
+        parent_manifest=parent_manifest,
+    )
+    pretrain_parent_split = _validate_pretrain_parent_split_checkpoint_contract(
+        checkpoint,
+        parent_manifest=parent_manifest,
+    )
+    representation_builder.sequence_encoder.load_state_dict(encoder_state, strict=True)
     return {
         "loaded_keys": len(encoder_state),
         "missing_keys": [],
         "unexpected_keys": [],
         "trajectory_feature_schema": checkpoint_schema,
+        "checkpoint_schema_version": str(checkpoint.get("checkpoint_schema_version", "legacy")),
+        "code_contract": dict(checkpoint.get("code_contract", {}))
+        if isinstance(checkpoint.get("code_contract"), dict)
+        else {},
         "temporal_contract": {
             "encoding_mode": checkpoint_encoding_mode,
             "pooling_mode": checkpoint_pooling_mode,
         },
         "parent_manifest": parent_manifest,
+        "pretrain_parent_split": pretrain_parent_split,
+        "source_statistics_contract": source_statistics_contract,
         "source_feature_stats": source_feature_stats,
     }
 
@@ -1457,6 +1721,8 @@ def _rel(path: Path) -> str:
 
 
 def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
+    rd_metrics_applicable = bool(metrics.get("rd_metrics_applicable", True))
+    rd_value = lambda key, default=0.0: metrics.get(key, default) if rd_metrics_applicable else None
     return {
         "loss": metrics["loss"],
         "loss_components": metrics.get("loss_components", {}),
@@ -1474,20 +1740,22 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "joint_accuracy_on_rd": metrics.get("joint_accuracy_on_rd", 0.0),
         "joint_macro_f1_on_rd": metrics.get("joint_macro_f1_on_rd", 0.0),
         "joint_minus_traj_macro_f1_on_rd": metrics.get("joint_minus_traj_macro_f1_on_rd", 0.0),
-        "rd_accuracy": metrics.get("rd_accuracy", 0.0),
-        "rd_macro_f1": metrics.get("rd_macro_f1", 0.0),
-        "rd_accuracy_on_rd": metrics.get("rd_accuracy_on_rd", 0.0),
-        "rd_macro_f1_on_rd": metrics.get("rd_macro_f1_on_rd", 0.0),
-        "rd_drone_bird_recall_mean": metrics.get("rd_drone_bird_recall_mean", 0.0),
-        "rd_unknown_clutter_recall_mean": metrics.get("rd_unknown_clutter_recall_mean", 0.0),
-        "rd_drone_as_bird_rate": metrics.get("rd_drone_as_bird_rate", 0.0),
-        "rd_bird_as_drone_rate": metrics.get("rd_bird_as_drone_rate", 0.0),
-        "rd_rescue_count": metrics.get("rd_rescue_count", 0),
-        "rd_harm_count": metrics.get("rd_harm_count", 0),
-        "rd_rescue_rate_on_rd": metrics.get("rd_rescue_rate_on_rd", 0.0),
-        "rd_harm_rate_on_rd": metrics.get("rd_harm_rate_on_rd", 0.0),
-        "rd_net_gain_count": metrics.get("rd_net_gain_count", 0),
-        "rd_net_gain_rate_on_rd": metrics.get("rd_net_gain_rate_on_rd", 0.0),
+        "rd_metrics_applicable": rd_metrics_applicable,
+        "rd_metrics_reason": metrics.get("rd_metrics_reason", ""),
+        "rd_accuracy": rd_value("rd_accuracy"),
+        "rd_macro_f1": rd_value("rd_macro_f1"),
+        "rd_accuracy_on_rd": rd_value("rd_accuracy_on_rd"),
+        "rd_macro_f1_on_rd": rd_value("rd_macro_f1_on_rd"),
+        "rd_drone_bird_recall_mean": rd_value("rd_drone_bird_recall_mean"),
+        "rd_unknown_clutter_recall_mean": rd_value("rd_unknown_clutter_recall_mean"),
+        "rd_drone_as_bird_rate": rd_value("rd_drone_as_bird_rate"),
+        "rd_bird_as_drone_rate": rd_value("rd_bird_as_drone_rate"),
+        "rd_rescue_count": rd_value("rd_rescue_count", 0),
+        "rd_harm_count": rd_value("rd_harm_count", 0),
+        "rd_rescue_rate_on_rd": rd_value("rd_rescue_rate_on_rd"),
+        "rd_harm_rate_on_rd": rd_value("rd_harm_rate_on_rd"),
+        "rd_net_gain_count": rd_value("rd_net_gain_count", 0),
+        "rd_net_gain_rate_on_rd": rd_value("rd_net_gain_rate_on_rd"),
         "final_rescue_count": metrics.get("final_rescue_count", 0),
         "final_harm_count": metrics.get("final_harm_count", 0),
         "final_rescue_rate_on_rd": metrics.get("final_rescue_rate_on_rd", 0.0),
@@ -1496,7 +1764,7 @@ def _epoch_metric_summary(metrics: dict[str, object]) -> dict[str, object]:
         "final_net_gain_rate_on_rd": metrics.get("final_net_gain_rate_on_rd", 0.0),
         "rd_rescue_unadopted_count": metrics.get("rd_rescue_unadopted_count", 0),
         "rd_harm_adopted_count": metrics.get("rd_harm_adopted_count", 0),
-        "rd_raw_tr_rd_accuracy": metrics.get("rd_raw_tr_rd_accuracy", 0.0),
+        "rd_raw_tr_rd_accuracy": rd_value("rd_raw_tr_rd_accuracy"),
         "rd_fusion_weight_mean": metrics.get("rd_fusion_weight_mean", 0.0),
         "rd_fusion_weight_on_rd_mean": metrics.get("rd_fusion_weight_on_rd_mean", 0.0),
         "rd_class_fusion_weight_mean": metrics.get("rd_class_fusion_weight_mean", 0.0),
@@ -1655,6 +1923,23 @@ def _per_class_recall_dict(logits: torch.Tensor, labels: torch.Tensor, class_nam
         mask = labels == idx
         recalls[label_name] = float((preds[mask] == idx).float().mean().item()) if bool(mask.any()) else 0.0
     return recalls
+
+
+def _per_class_metric_dict(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    class_names: list[str],
+) -> dict[str, dict[str, float | int]]:
+    """Return the complete per-class metric contract used by checkpoint gates."""
+    return {
+        item.label_name: {
+            "support": int(item.support),
+            "precision": float(item.precision),
+            "recall": float(item.recall),
+            "f1": float(item.f1),
+        }
+        for item in compute_per_class_metrics(logits, labels, class_names)
+    }
 
 
 def _drone_bird_metrics(logits: torch.Tensor, labels: torch.Tensor) -> dict[str, float]:
@@ -1918,6 +2203,25 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
     parent_clutter_recall = float(metrics.get("parent_clutter_recall", 0.0))
     parent_unknown_clutter_recall_mean = float(metrics.get("parent_unknown_clutter_recall_mean", 0.0))
     parent_mean_logit_macro_f1 = float(metrics.get("parent_mean_logit_macro_f1", 0.0))
+    # A trajectory checkpoint is diagnostically useful even when it is not
+    # publishable.  Keep ranking unchanged, but make publication eligibility
+    # impossible unless both hard classes satisfy precision/recall/F1 gates.
+    per_class_metrics = metrics.get("per_class_metrics", metrics.get("final_per_class_metrics", {}))
+    per_class_metric_contract_present = isinstance(per_class_metrics, dict) and bool(per_class_metrics)
+    if not isinstance(per_class_metrics, dict):
+        per_class_metrics = {}
+    drone_metrics = per_class_metrics.get("DroneTarget", {})
+    bird_metrics = per_class_metrics.get("BirdTarget", {})
+    hard_class_failures: list[str] = []
+    for label_name, values in (("DroneTarget", drone_metrics), ("BirdTarget", bird_metrics)) if per_class_metric_contract_present else ():
+        if not isinstance(values, dict):
+            hard_class_failures.extend(
+                f"{label_name}_{metric}" for metric in ("precision", "recall", "f1")
+            )
+            continue
+        for metric in ("precision", "recall", "f1"):
+            if float(values.get(metric, 0.0)) < 0.90:
+                hard_class_failures.append(f"{label_name}_{metric}")
     if not stage2_enabled:
         # Stage 1 has no learned RD branch.  Do not let RD availability subsets or
         # zero-filled RD diagnostic heads influence trajectory checkpoint ranking.
@@ -1935,7 +2239,7 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
             + 0.12 * parent_unknown_clutter_recall_mean
             + config.tr_only_parent_macro_f1_selection_weight * parent_mean_logit_macro_f1
         )
-        return score, True, {
+        return score, not hard_class_failures, {
             "selection_mode": "tr_only_trajectory_composite",
             "final_macro_f1": final_macro,
             "accuracy": accuracy,
@@ -1960,6 +2264,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
             "parent_unknown_clutter_recall_mean": parent_unknown_clutter_recall_mean,
             "parent_mean_logit_macro_f1": parent_mean_logit_macro_f1,
             "parent_macro_f1_weight": float(config.tr_only_parent_macro_f1_selection_weight),
+            "hard_class_gate_passed": float(not hard_class_failures),
+            "hard_class_gate_failure_count": float(len(hard_class_failures)),
+            "hard_class_gate_failures": ",".join(hard_class_failures),
         }
     source_support = dict(metrics.get("source_support", {}))
     rd_source_support = dict(metrics.get("rd_source_support_on_rd", {}))
@@ -2049,6 +2356,7 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
                 -config.max_final_traj_f1_drop,
                 config.min_final_minus_traj_macro_f1_for_best,
             )
+    eligible = eligible and not hard_class_failures
     return score, eligible, {
         "final_macro_f1": final_macro,
         "accuracy": accuracy,
@@ -2090,6 +2398,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "selection_penalty_total": rd_negative_gain_penalty,
         "final_harm_rate_on_rd": final_harm_rate,
         "final_net_gain_rate_on_rd": final_net_gain_rate,
+        "hard_class_gate_passed": float(not hard_class_failures),
+        "hard_class_gate_failure_count": float(len(hard_class_failures)),
+        "hard_class_gate_failures": ",".join(hard_class_failures),
         "final_unknown_recall": final_unknown_recall,
         "final_clutter_recall": final_clutter_recall,
         "final_unknown_clutter_recall_mean": final_unknown_clutter_recall_mean,
@@ -2106,6 +2417,9 @@ def _expert1_selection_score(metrics: dict[str, object], config: Expert1TrainCon
         "raw_source_gate_active": enough_raw_source if stage2_enabled else False,
         "rd_raw_source_gate_active": enough_rd_raw_source if stage2_enabled else False,
         "unknown_clutter_gate_active": bool(enough_unknown and enough_clutter) if stage2_enabled else False,
+        "hard_class_gate_passed": float(not hard_class_failures),
+        "hard_class_gate_failure_count": float(len(hard_class_failures)),
+        "hard_class_gate_failures": ",".join(hard_class_failures),
     }
 
 
@@ -2692,6 +3006,14 @@ def _expert1_release_gate(
     rd_macro_on_rd = float(metrics.get("rd_macro_f1_on_rd", 0.0))
     without_rd_accuracy = float(metrics.get("without_rd_accuracy", 0.0))
     final_per_class_recall = dict(metrics.get("final_per_class_recall", {}))
+    per_class_metrics = metrics.get("per_class_metrics", metrics.get("final_per_class_metrics", {}))
+    hard_class_gate_failures: list[str] = []
+    if isinstance(per_class_metrics, dict) and per_class_metrics:
+        for label_name in ("DroneTarget", "BirdTarget"):
+            values = per_class_metrics.get(label_name, {})
+            for metric_name in ("precision", "recall", "f1"):
+                if not isinstance(values, dict) or float(values.get(metric_name, 0.0)) < 0.90:
+                    hard_class_gate_failures.append(f"{label_name}_{metric_name}")
     final_unknown_recall = float(final_per_class_recall.get("UnknownTarget", 0.0))
     final_clutter_recall = float(final_per_class_recall.get("ClutterTarget", 0.0))
     final_unknown_clutter_mean = 0.5 * (final_unknown_recall + final_clutter_recall)
@@ -2705,6 +3027,7 @@ def _expert1_release_gate(
     reasons: list[str] = []
     if final_macro < config.min_release_macro_f1:
         reasons.append("macro_f1")
+    reasons.extend(f"hard_class_{item}" for item in hard_class_gate_failures)
     if final_delta < config.min_release_final_minus_traj_macro_f1:
         reasons.append("final_minus_traj_macro_f1")
     if rd_metrics_applicable:
@@ -2741,6 +3064,8 @@ def _expert1_release_gate(
         "release_final_clutter_recall": final_clutter_recall,
         "release_final_unknown_clutter_recall_mean": final_unknown_clutter_mean,
         "release_without_rd_accuracy": without_rd_accuracy,
+        "release_hard_class_gate_passed": not hard_class_gate_failures,
+        "release_hard_class_gate_failures": hard_class_gate_failures,
     }
     return eligible, metrics_summary, reasons
 
@@ -3014,10 +3339,12 @@ def _load_checkpoint_into_modules(
                 "Expert1 checkpoint feature order does not match its declared schema: "
                 f"schema={checkpoint_schema}"
             )
-    if runtime_contract == "source_robust_v3":
+    if runtime_contract in {"source_robust_v3", "source_robust_v4"}:
         source_stats = checkpoint.get("source_feature_stats", {})
         if not isinstance(source_stats, dict) or not source_stats:
-            raise ValueError("source_robust_v3 checkpoint is missing source_feature_stats")
+            raise ValueError(
+                f"{runtime_contract} checkpoint is missing source_feature_stats"
+            )
         missing_physical = [
             source_name
             for source_name, values in source_stats.items()
@@ -3027,7 +3354,7 @@ def _load_checkpoint_into_modules(
         ]
         if missing_physical:
             raise ValueError(
-                "source_robust_v3 checkpoint is missing physical source stats: "
+                f"{runtime_contract} checkpoint is missing physical source stats: "
                 f"sources={sorted(missing_physical)[:5]}"
             )
         expected_physical_stat_dim = len(physical_continuous_feature_indices(checkpoint_schema))
@@ -3045,7 +3372,7 @@ def _load_checkpoint_into_modules(
                 invalid_physical_dims.append(str(source_name))
         if invalid_physical_dims:
             raise ValueError(
-                "source_robust_v3 checkpoint physical source stats have invalid dimensions or values: "
+                f"{runtime_contract} checkpoint physical source stats have invalid dimensions or values: "
                 f"sources={invalid_physical_dims[:5]}, expected_dim={expected_physical_stat_dim}"
             )
     checkpoint_temporal = checkpoint.get("temporal_contract", {})
@@ -4211,7 +4538,7 @@ def _precision_calibration_probe(
         "joint_logit_delta_scale": selected_scale,
     })
     tr_rd_active = torch.tensor(base_metrics["tr_rd_active"], dtype=torch.bool)
-    enable_reject = bool(config.enable_reject_in_eval and stage2_enabled)
+    enable_reject = bool(config.enable_reject_in_eval)
     base_unbiased_logits = _final_logits_with_joint_logit_delta_scale(
         base_metrics["traj_logits"],
         base_metrics["joint_logits"],
@@ -4222,6 +4549,11 @@ def _precision_calibration_probe(
         tr_rd_active,
         probe_config,
         enable_reject=enable_reject,
+        track_quality=_metric_track_quality(
+            base_metrics,
+            device=base_metrics["traj_logits"].device,
+            expected_size=int(base_metrics["traj_logits"].shape[0]),
+        ),
         rd_alignment_quality=_metric_rd_alignment_quality(
             base_metrics,
             device=base_metrics["traj_logits"].device,
@@ -4520,6 +4852,24 @@ def _metric_rd_alignment_quality(
     return quality.clamp(min=0.0, max=1.0)
 
 
+def _metric_track_quality(
+    metrics: dict[str, object],
+    *,
+    device: torch.device,
+    expected_size: int,
+) -> torch.Tensor | None:
+    value = metrics.get("track_quality")
+    if isinstance(value, torch.Tensor):
+        quality = value.to(device=device, dtype=torch.float32)
+    elif isinstance(value, list):
+        quality = torch.tensor(value, device=device, dtype=torch.float32)
+    else:
+        return None
+    if quality.ndim != 1 or quality.shape[0] != expected_size:
+        return None
+    return quality.clamp(min=0.0, max=1.0)
+
+
 def _final_logits_with_joint_logit_delta_scale(
     traj_logits: torch.Tensor,
     joint_logits: torch.Tensor,
@@ -4532,26 +4882,54 @@ def _final_logits_with_joint_logit_delta_scale(
     *,
     enable_reject: bool,
     rd_alignment_quality: torch.Tensor | None = None,
+    track_quality: torch.Tensor | None = None,
 ) -> torch.Tensor:
     if rd_alignment_quality is None:
         rd_alignment_quality = tr_rd_active.to(dtype=traj_logits.dtype) * float(
             config.rd_proportional_fallback_quality
         )
-    final_logits, _ = compose_low_altitude_final_logits(
-        traj_logits,
-        joint_logits,
-        rd_logits,
-        traj_cosine,
-        rd_cosine,
-        rd_pair_fusion_weights,
-        tr_rd_active,
-        rd_alignment_quality,
-        joint_logit_delta_scale=config.joint_logit_delta_scale,
-        rd_specialist_residual_scale=config.rd_specialist_residual_scale,
-        residual_scale_multiplier=0.10,
-        enable_reject=enable_reject,
-        reject_threshold=config.reject_threshold,
-    )
+    # The model's joint path always composes first and applies the
+    # attribution-aware reject action afterwards.  Calling
+    # ``compose_low_altitude_final_logits(..., enable_reject=True)`` here
+    # would use the legacy cosine-only reject helper and would therefore
+    # disagree with main evaluation for pure-TR and stage-2 paths.  Pure TR
+    # is short-circuited before touching any RD tensor so probe outputs are
+    # independent of RD payloads, availability flags and RD-derived values.
+    if not bool(tr_rd_active.bool().any().item()):
+        final_logits = traj_logits
+    else:
+        final_logits, _ = compose_low_altitude_final_logits(
+            traj_logits,
+            joint_logits,
+            rd_logits,
+            traj_cosine,
+            rd_cosine,
+            rd_pair_fusion_weights,
+            tr_rd_active,
+            rd_alignment_quality,
+            joint_logit_delta_scale=config.joint_logit_delta_scale,
+            rd_specialist_residual_scale=config.rd_specialist_residual_scale,
+            residual_scale_multiplier=0.10,
+            enable_reject=False,
+            reject_threshold=config.reject_threshold,
+        )
+    if enable_reject:
+        if track_quality is None:
+            track_quality = torch.ones(
+                (traj_logits.shape[0],),
+                dtype=traj_logits.dtype,
+                device=traj_logits.device,
+            )
+        final_logits, _rejected, _reject_score, _reject_reasons = apply_low_altitude_attribution_reject(
+            final_logits,
+            traj_cosine,
+            torch.ones((traj_logits.shape[0],), dtype=torch.bool, device=traj_logits.device),
+            config.reject_threshold,
+            track_quality=track_quality,
+            min_known_confidence=config.attribution_reject_min_known_confidence,
+            min_known_margin=config.attribution_reject_min_known_margin,
+            min_track_quality=config.attribution_reject_min_track_quality,
+        )
     return final_logits
 
 
@@ -4584,6 +4962,7 @@ def _final_metrics_with_joint_logit_delta_scale(
         "macro_precision": float(metrics.macro_precision),
         "macro_recall": float(metrics.macro_recall),
         "macro_f1": float(metrics.macro_f1),
+        "per_class_metrics": _per_class_metric_dict(final_logits, labels, LOW_ALTITUDE_CLASSES),
         "final_per_class_recall": diagnostics["final_per_class_recall"],
         "final_drone_bird": diagnostics["final_drone_bird"],
         "final_unknown_clutter_recall_mean": diagnostics["final_unknown_clutter_recall_mean"],
@@ -4662,7 +5041,7 @@ def _joint_logit_delta_probe(
     rd_pair_fusion_weights = base_metrics["rd_pair_fusion_weights"]
     tr_rd_active = torch.tensor(base_metrics["tr_rd_active"], dtype=torch.bool)
     precision_logit_bias = base_metrics.get("precision_logit_bias", None)
-    enable_reject = bool(config.enable_reject_in_eval and stage2_enabled)
+    enable_reject = bool(config.enable_reject_in_eval)
     best_result: dict[str, object] | None = None
     for scale in scales:
         probe_config = Expert1TrainConfig(**{
@@ -4679,6 +5058,11 @@ def _joint_logit_delta_probe(
             tr_rd_active,
             probe_config,
             enable_reject=enable_reject,
+            track_quality=_metric_track_quality(
+                base_metrics,
+                device=traj_logits.device,
+                expected_size=int(traj_logits.shape[0]),
+            ),
             rd_alignment_quality=_metric_rd_alignment_quality(
                 base_metrics,
                 device=traj_logits.device,
@@ -4803,6 +5187,7 @@ def _run_epoch(
     rd_proj.train(mode=train)
     model.train(mode=train)
     logits_all: list[torch.Tensor] = []
+    pre_reject_logits_all: list[torch.Tensor] = []
     traj_logits_all: list[torch.Tensor] = []
     rd_logits_all: list[torch.Tensor] = []
     traj_residual_logits_all: list[torch.Tensor] = []
@@ -4821,6 +5206,10 @@ def _run_epoch(
     rd_alignment_quality_all: list[float] = []
     rd_time_sync_status_all: list[str] = []
     tr_rd_active_all: list[bool] = []
+    track_quality_all: list[float] = []
+    rejected_unknown_all: list[bool] = []
+    reject_score_all: list[float] = []
+    reject_reason_payload_all: list[dict[str, bool]] = []
     traj_cosine_all: list[torch.Tensor] = []
     rd_cosine_all: list[torch.Tensor] = []
     fusion_weights_all: list[torch.Tensor] = []
@@ -4868,7 +5257,7 @@ def _run_epoch(
             )
         physical = _to_device(batch.physical_features, device, non_blocking_h2d)
         if (
-            config.physical_representation_contract_version == "source_robust_v3"
+            config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}
             and source_feature_stats is not None
         ):
             physical = _apply_source_physical_norm(
@@ -4877,19 +5266,35 @@ def _run_epoch(
                 source_feature_stats,
                 config.trajectory_feature_schema,
             )
-        rd_features = _to_device(batch.rd_features, device, non_blocking_h2d)
-        rd_patch_features = _to_device(batch.rd_patch_features, device, non_blocking_h2d)
-        rd_deep_patch_features = _to_device(batch.rd_deep_patch_features, device, non_blocking_h2d)
-        rd_is_multimodal = _to_device(batch.rd_is_multimodal, device, non_blocking_h2d)
+        if config.is_pure_tr_only:
+            # Strict TR-only: do not read RD tensors or RD metadata.  These
+            # shape-compatible placeholders are private interface scaffolding
+            # and are masked out before any RD branch/loss can run.
+            batch_size = int(features.shape[0])
+            rd_features = torch.zeros((batch_size, 1, 512, 4), device=device, dtype=features.dtype)
+            rd_patch_features = torch.zeros((batch_size, 1, 64, 64, 3), device=device, dtype=features.dtype)
+            rd_deep_patch_features = torch.zeros((batch_size, 1, 64, 64, 3), device=device, dtype=features.dtype)
+            rd_is_multimodal = torch.zeros((batch_size,), device=device, dtype=torch.bool)
+            rd_time_sync_status = ["not_applicable_tr_only"] * batch_size
+            rd_padding_mask = torch.ones((batch_size, 1), device=device, dtype=torch.bool)
+            rd_time_seconds = torch.zeros((batch_size, 1), device=device, dtype=features.dtype)
+            rd_patch_padding_mask = torch.ones((batch_size, 1), device=device, dtype=torch.bool)
+            rd_deep_patch_padding_mask = torch.ones((batch_size, 1), device=device, dtype=torch.bool)
+        else:
+            rd_features = _to_device(batch.rd_features, device, non_blocking_h2d)
+            rd_patch_features = _to_device(batch.rd_patch_features, device, non_blocking_h2d)
+            rd_deep_patch_features = _to_device(batch.rd_deep_patch_features, device, non_blocking_h2d)
+            rd_is_multimodal = _to_device(batch.rd_is_multimodal, device, non_blocking_h2d)
+            rd_time_sync_status = batch.rd_time_sync_status
+            rd_padding_mask = _to_device(batch.rd_padding_mask, device, non_blocking_h2d)
+            rd_time_seconds = _to_device(batch.rd_time_seconds, device, non_blocking_h2d)
+            rd_patch_padding_mask = _to_device(batch.rd_patch_padding_mask, device, non_blocking_h2d)
+            rd_deep_patch_padding_mask = _to_device(batch.rd_deep_patch_padding_mask, device, non_blocking_h2d)
         rd_alignment_quality = _rd_alignment_quality(
-            batch.rd_time_sync_status,
+            rd_time_sync_status,
             rd_is_multimodal,
             config.rd_proportional_fallback_quality,
         )
-        rd_padding_mask = _to_device(batch.rd_padding_mask, device, non_blocking_h2d)
-        rd_time_seconds = _to_device(batch.rd_time_seconds, device, non_blocking_h2d)
-        rd_patch_padding_mask = _to_device(batch.rd_patch_padding_mask, device, non_blocking_h2d)
-        rd_deep_patch_padding_mask = _to_device(batch.rd_deep_patch_padding_mask, device, non_blocking_h2d)
         track_quality = _track_attribution_quality(
             _to_device(batch.lengths, device, non_blocking_h2d),
             _to_device(batch.window_start_seconds, device, non_blocking_h2d),
@@ -5565,12 +5970,16 @@ def _run_epoch(
                 "rd_count": int(has_rd_mask.sum().item()),
                 "batch_size": int(labels.shape[0]),
                 "rd_alignment_quality_mean": float(rd_alignment_quality.mean().detach().cpu().item()),
-                "rd_time_sync_status_counts": dict(Counter(batch.rd_time_sync_status)),
+                "rd_time_sync_status_counts": dict(Counter(rd_time_sync_status)),
                 "source_counts": dict(Counter(batch.source_names)),
                 "label_counts": dict(Counter(batch.label_names)),
             }
         )
         logits_all.append(output.logits.detach().cpu())
+        pre_reject_logits = getattr(output, "pre_reject_logits", None)
+        if not isinstance(pre_reject_logits, torch.Tensor):
+            pre_reject_logits = output.logits
+        pre_reject_logits_all.append(pre_reject_logits.detach().cpu())
         traj_logits_all.append(output.traj_logits.detach().cpu())
         rd_logits_all.append(output.rd_logits.detach().cpu())
         traj_residual_logits_all.append(output.traj_residual_logits.detach().cpu())
@@ -5585,10 +5994,22 @@ def _run_epoch(
         label_names_all.extend(batch.label_names)
         coarse_label_names_all.extend(batch.coarse_label_names)
         fine_label_names_all.extend(batch.fine_label_names)
-        has_rd_all.extend([bool(x) for x in batch.rd_is_multimodal.tolist()])
+        has_rd_all.extend([bool(x) for x in rd_is_multimodal.tolist()])
         rd_alignment_quality_all.extend([float(x) for x in rd_alignment_quality.detach().cpu().tolist()])
-        rd_time_sync_status_all.extend([str(x or "unavailable") for x in batch.rd_time_sync_status])
+        rd_time_sync_status_all.extend([str(x or "unavailable") for x in rd_time_sync_status])
         tr_rd_active_all.extend([bool(x) for x in output.tr_rd_active.detach().cpu().tolist()])
+        track_quality_all.extend([float(x) for x in track_quality.detach().cpu().tolist()])
+        rejected_unknown_all.extend([bool(x) for x in output.rejected_unknown.detach().cpu().tolist()])
+        if output.reject_score is not None:
+            reject_score_all.extend([float(x) for x in output.reject_score.detach().cpu().tolist()])
+        else:
+            reject_score_all.extend([0.0] * int(labels.shape[0]))
+        reason_rows = [{} for _ in range(int(labels.shape[0]))]
+        for reason_name, reason_values in (output.reject_reasons or {}).items():
+            if isinstance(reason_values, torch.Tensor) and reason_values.ndim == 1:
+                for row_index, reason_value in enumerate(reason_values.detach().cpu().tolist()):
+                    reason_rows[row_index][str(reason_name)] = bool(reason_value)
+        reject_reason_payload_all.extend(reason_rows)
         traj_cosine_all.append(output.traj_cosine.detach().cpu())
         rd_cosine_all.append(output.rd_cosine.detach().cpu())
         fusion_weights_all.append(output.fusion_weights.detach().cpu())
@@ -5608,7 +6029,7 @@ def _run_epoch(
             _epoch_elapsed = _time.time() - _epoch_t0
             _avg_batch = _epoch_elapsed / batch_index
             _eta = _avg_batch * (_total_batches - batch_index)
-            _has_rd_count = sum(1 for x in batch.rd_is_multimodal.tolist() if x)
+            _has_rd_count = sum(1 for x in rd_is_multimodal.tolist() if x)
             print(
                 f"  [{_phase}] batch {batch_index}/{_total_batches} "
                 f"batch_time={_batch_elapsed:.1f}s "
@@ -5616,7 +6037,7 @@ def _run_epoch(
                 f"elapsed={_epoch_elapsed:.0f}s "
                 f"ETA={_eta:.0f}s "
                 f"loss={float(loss.detach().cpu()):.4f} "
-                f"rd={_has_rd_count}/{len(batch.rd_is_multimodal)}",
+                f"rd={_has_rd_count}/{len(rd_is_multimodal)}",
                 flush=True,
             )
             _batch_t0 = _time.time()
@@ -5636,6 +6057,7 @@ def _run_epoch(
             "evaluated_batches": 0,
             "max_batches": int(max_batches),
             "logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
+            "pre_reject_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "traj_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "joint_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "rd_logits": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
@@ -5650,6 +6072,10 @@ def _run_epoch(
             "rd_time_sync_status": rd_time_sync_status_all,
             "tr_rd_active": tr_rd_active_all,
             "rd_activated": tr_rd_active_all,
+            "track_quality": track_quality_all,
+            "rejected_unknown": rejected_unknown_all,
+            "reject_score": reject_score_all,
+            "reject_reason_payload": reject_reason_payload_all,
             "traj_cosine": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "rd_cosine": torch.empty((0, len(LOW_ALTITUDE_CLASSES)), dtype=torch.float32),
             "rd_pair_fusion_weights": torch.empty((0, 3), dtype=torch.float32),
@@ -5685,6 +6111,7 @@ def _run_epoch(
         }
 
     logits_cat = torch.cat(logits_all, dim=0)
+    pre_reject_logits_cat = torch.cat(pre_reject_logits_all, dim=0)
     precision_logit_bias = _normalize_precision_logit_bias(getattr(model, "precision_logit_bias", None))
     traj_logits_cat = torch.cat(traj_logits_all, dim=0)
     rd_logits_cat = torch.cat(rd_logits_all, dim=0)
@@ -5707,6 +6134,7 @@ def _run_epoch(
     )
     rare_class_mask = torch.isin(labels_cat.cpu(), rare_class_indices)
     metrics = compute_classification_metrics(logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
+    per_class_metrics = _per_class_metric_dict(logits_cat, labels_cat, LOW_ALTITUDE_CLASSES)
     traj_metrics = compute_classification_metrics(traj_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     rd_metrics = compute_classification_metrics(rd_logits_cat, labels_cat, num_classes=len(LOW_ALTITUDE_CLASSES))
     joint_logits_cat = torch.cat(joint_logits_all, dim=0) if joint_logits_all else logits_cat
@@ -5911,7 +6339,7 @@ def _run_epoch(
     return {
         "loss": float(np.mean(loss_values)) if loss_values else float("nan"),
         "rd_metrics_applicable": bool(stage2_enabled),
-        "rd_metrics_reason": "" if stage2_enabled else "stage1_traj_only_no_rd_branch",
+        "rd_metrics_reason": "" if stage2_enabled else "not_applicable_tr_only",
         "loss_components": _loss_component_summary(loss_component_values),
         "loss_component_peak_batches": sorted(
             loss_component_peak_batches,
@@ -5924,6 +6352,7 @@ def _run_epoch(
         "macro_precision": metrics.macro_precision,
         "macro_recall": metrics.macro_recall,
         "macro_f1": metrics.macro_f1,
+        "per_class_metrics": per_class_metrics,
         "traj_accuracy": traj_metrics.accuracy,
         "traj_macro_f1": traj_metrics.macro_f1,
         "traj_accuracy_on_rd": traj_metrics_on_rd.accuracy if traj_metrics_on_rd is not None else 0.0,
@@ -6040,6 +6469,7 @@ def _run_epoch(
         "skipped_non_finite_batches": skipped_non_finite_batches,
         "has_valid_batches": True,
         "logits": logits_cat,
+        "pre_reject_logits": pre_reject_logits_cat,
         "traj_logits": traj_logits_cat,
         "joint_logits": joint_logits_cat,
         "rd_logits": rd_logits_cat,
@@ -6051,6 +6481,10 @@ def _run_epoch(
         "rd_time_sync_status": rd_time_sync_status_all,
         "tr_rd_active": tr_rd_active_all,
         "rd_activated": tr_rd_active_all,
+        "track_quality": track_quality_all,
+        "rejected_unknown": rejected_unknown_all,
+        "reject_score": reject_score_all,
+        "reject_reason_payload": reject_reason_payload_all,
         "traj_cosine": traj_cosine_cat,
         "rd_cosine": rd_cosine_cat,
         "rd_pair_fusion_weights": rd_pair_weights_cat,
@@ -6080,7 +6514,10 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         encoding="utf-8",
     )
     loaders = _build_expert1_loaders(config, validate_csv_files=False)
-    expected_pretrain_parent_manifest = _parent_manifest_from_index(loaders.train_loader.dataset.index_df)
+    expected_pretrain_parent_manifest = _parent_manifest_from_index(
+        loaders.train_loader.dataset.index_df,
+        source_index_path=Path(config.data_root) / "processed" / config.index_name,
+    )
     representation_builder, rd_proj, model = _build_expert1_modules(config, device)
     pretrained_track_info = None
     if config.pretrained_track_checkpoint:
@@ -6104,7 +6541,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             expected_trajectory_feature_schema=config.trajectory_feature_schema,
         )
     class_weights = _build_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
-    rd_class_weights = _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
+    # Strict TR-only training has no RD input, availability, or RD-derived
+    # objective.  Reusing the ordinary class weights keeps the runtime free of
+    # an RD-index scan; the RD weights are never consumed in Stage 1 anyway.
+    rd_class_weights = (
+        class_weights.clone()
+        if config.is_pure_tr_only
+        else _build_rd_class_weights_from_index(loaders.train_loader.dataset.index_df).to(device)
+    )
     source_feature_stats = None
     if config.source_normalization:
         if pretrained_track_info is not None:
@@ -6116,12 +6560,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 config.index_name,
                 config.trajectory_feature_schema,
             )
-        if config.physical_representation_contract_version == "source_robust_v3":
+        if config.physical_representation_contract_version in {"source_robust_v3", "source_robust_v4"}:
             physical_source_stats = _fit_physical_source_stats_from_index(
                 loaders.train_loader.dataset.index_df,
                 config.data_root,
                 config.index_name,
                 config.trajectory_feature_schema,
+                config.physical_statistics_weighting,
+                config.physical_representation_contract_version,
             )
             source_feature_stats = _attach_physical_source_stats(
                 source_feature_stats,
@@ -6689,6 +7135,8 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
         "test_evaluation_executed": bool(config.run_test_evaluation),
         "summary": {
             "loss": test_metrics["loss"],
+            "rd_metrics_applicable": bool(test_metrics.get("rd_metrics_applicable", not config.is_pure_tr_only)),
+            "rd_metrics_reason": test_metrics.get("rd_metrics_reason", ""),
             "accuracy": test_metrics["accuracy"],
             "macro_precision": test_metrics["macro_precision"],
             "macro_recall": test_metrics["macro_recall"],
@@ -6703,13 +7151,13 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "joint_accuracy_on_rd": test_metrics["joint_accuracy_on_rd"],
             "joint_macro_f1_on_rd": test_metrics["joint_macro_f1_on_rd"],
             "joint_minus_traj_macro_f1_on_rd": test_metrics["joint_minus_traj_macro_f1_on_rd"],
-            "rd_accuracy": test_metrics["rd_accuracy"],
-            "rd_macro_f1": test_metrics["rd_macro_f1"],
-            "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
-            "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
-            "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"],
-            "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"],
-            "rd_hard_pair_report": test_metrics["rd_hard_pair_report"],
+            "rd_accuracy": test_metrics["rd_accuracy"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_macro_f1": test_metrics["rd_macro_f1"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_accuracy_on_rd": test_metrics["rd_accuracy_on_rd"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_drone_bird_recall_mean": test_metrics["rd_drone_bird_recall_mean"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_unknown_clutter_recall_mean": test_metrics["rd_unknown_clutter_recall_mean"] if test_metrics.get("rd_metrics_applicable", True) else None,
+            "rd_hard_pair_report": test_metrics["rd_hard_pair_report"] if test_metrics.get("rd_metrics_applicable", True) else None,
             "rd_rescue_count": test_metrics["rd_rescue_count"],
             "rd_harm_count": test_metrics["rd_harm_count"],
             "rd_rescue_rate_on_rd": test_metrics["rd_rescue_rate_on_rd"],
@@ -6740,7 +7188,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "min_source_supported_macro_f1": test_metrics["min_source_supported_macro_f1"],
             "raw_tr_rd_supported_macro_f1": test_metrics["raw_tr_rd_supported_macro_f1"],
             "excel_track_supported_macro_f1": test_metrics["excel_track_supported_macro_f1"],
-            "rd_class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"],
+            "rd_class_fusion_weight_mean": test_metrics["rd_class_fusion_weight_mean"] if test_metrics.get("rd_metrics_applicable", True) else None,
             "rd_class_fusion_weight_on_rd_mean": test_metrics["rd_class_fusion_weight_on_rd_mean"],
             "rd_pair_fusion_weight_mean": test_metrics["rd_pair_fusion_weight_mean"],
             "rd_pair_fusion_weight_on_rd_mean": test_metrics["rd_pair_fusion_weight_on_rd_mean"],
@@ -6922,14 +7370,14 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "joint_macro_precision": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_precision", 0.0)),
                 "joint_macro_recall": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_recall", 0.0)),
                 "joint_macro_f1": float(test_metrics["joint_by_source_metrics"].get(source_name, {}).get("macro_f1", 0.0)),
-                "joint_accuracy_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
+                "joint_accuracy_on_rd": None if config.is_pure_tr_only else float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
                 "joint_macro_precision_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
                 "joint_macro_recall_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
                 "joint_macro_f1_on_rd": float(test_metrics["joint_by_source_metrics_on_rd"].get(source_name, {}).get("macro_f1", 0.0)),
-                "rd_accuracy_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
-                "rd_macro_precision_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
-                "rd_macro_recall_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
-                "rd_macro_f1_on_rd": float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_f1", 0.0)),
+                "rd_accuracy_on_rd": None if config.is_pure_tr_only else float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("accuracy", 0.0)),
+                "rd_macro_precision_on_rd": None if config.is_pure_tr_only else float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_precision", 0.0)),
+                "rd_macro_recall_on_rd": None if config.is_pure_tr_only else float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_recall", 0.0)),
+                "rd_macro_f1_on_rd": None if config.is_pure_tr_only else float(test_metrics["rd_by_source_metrics_on_rd"].get(source_name, {}).get("macro_f1", 0.0)),
             }
             for source_name in sorted(set(test_metrics["source_names"]))
         },
@@ -6951,17 +7399,18 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "joint": {
                 "accuracy": test_metrics["joint_accuracy"],
                 "macro_f1": test_metrics["joint_macro_f1"],
-                "accuracy_on_rd": test_metrics["joint_accuracy_on_rd"],
-                "macro_f1_on_rd": test_metrics["joint_macro_f1_on_rd"],
-                "minus_traj_macro_f1_on_rd": test_metrics["joint_minus_traj_macro_f1_on_rd"],
-                "rd_weight_mean": test_metrics["joint_rd_weight_mean"],
-                "rd_weight_on_rd_mean": test_metrics["joint_rd_weight_on_rd_mean"],
+                "accuracy_on_rd": None if config.is_pure_tr_only else test_metrics["joint_accuracy_on_rd"],
+                "macro_f1_on_rd": None if config.is_pure_tr_only else test_metrics["joint_macro_f1_on_rd"],
+                "minus_traj_macro_f1_on_rd": None if config.is_pure_tr_only else test_metrics["joint_minus_traj_macro_f1_on_rd"],
+                "rd_weight_mean": None if config.is_pure_tr_only else test_metrics["joint_rd_weight_mean"],
+                "rd_weight_on_rd_mean": None if config.is_pure_tr_only else test_metrics["joint_rd_weight_on_rd_mean"],
             },
             "rd": {
-                "accuracy": test_metrics["rd_accuracy"],
-                "macro_f1": test_metrics["rd_macro_f1"],
-                "accuracy_on_rd": test_metrics["rd_accuracy_on_rd"],
-                "macro_f1_on_rd": test_metrics["rd_macro_f1_on_rd"],
+                "status": "not_applicable_tr_only" if config.is_pure_tr_only else "applicable",
+                "accuracy": None if config.is_pure_tr_only else test_metrics["rd_accuracy"],
+                "macro_f1": None if config.is_pure_tr_only else test_metrics["rd_macro_f1"],
+                "accuracy_on_rd": None if config.is_pure_tr_only else test_metrics["rd_accuracy_on_rd"],
+                "macro_f1_on_rd": None if config.is_pure_tr_only else test_metrics["rd_macro_f1_on_rd"],
                 "per_class_recall": test_metrics["rd_per_class_recall"],
                 "per_class_recall_on_rd": test_metrics["rd_per_class_recall_on_rd"],
                 "drone_bird": test_metrics["rd_drone_bird"],
@@ -7019,7 +7468,7 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 "route_name_pred": "low_altitude_suspect",
                 "is_correct": LOW_ALTITUDE_CLASSES[int(test_metrics["logits"][idx].argmax().item())] == true_label,
                 "is_route_correct": True,
-                "has_rd": rd_flag,
+                "has_rd": None if config.is_pure_tr_only else rd_flag,
             }
             for idx, (sid, src, true_label, rd_flag) in enumerate(zip(
                 test_metrics["sample_ids"],
@@ -7029,6 +7478,21 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             ))
         ],
     }
+    if config.is_pure_tr_only:
+        # Keep the public report semantically pure: internal shape-compatible
+        # RD tensors are implementation scaffolding, not evaluated branches.
+        evaluation_report["rd_time_sync_metrics"] = {
+            "status": "not_applicable_tr_only",
+            "reason": "RD input, availability and derived metrics are excluded",
+        }
+        evaluation_report["branch_metrics"]["joint"] = {
+            "status": "not_applicable_tr_only",
+            "reason": "pure TR-only has no joint TR+RD branch",
+        }
+        evaluation_report["branch_metrics"]["rd"] = {
+            "status": "not_applicable_tr_only",
+            "reason": "pure TR-only has no RD branch",
+        }
     for source_name in evaluation_report["by_source"]:
         source_indices = [
             idx for idx, name in enumerate(test_metrics["source_names"])
@@ -7052,17 +7516,23 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
                 )
             ]
 
-    rd_mask = torch.tensor(test_metrics["has_rd"], dtype=torch.bool)
-    evaluation_report["by_rd_presence"] = {
-        "with_rd": {
-            "count": int(rd_mask.sum().item()),
-            "accuracy": _subset_accuracy(test_metrics["logits"], test_metrics["labels"], rd_mask),
-        },
-        "without_rd": {
-            "count": int((~rd_mask).sum().item()),
-            "accuracy": _subset_accuracy(test_metrics["logits"], test_metrics["labels"], ~rd_mask),
-        },
-    }
+    if config.is_pure_tr_only:
+        evaluation_report["by_rd_presence"] = {
+            "status": "not_applicable_tr_only",
+            "reason": "strict TR-only path does not inspect RD availability metadata",
+        }
+    else:
+        rd_mask = torch.tensor(test_metrics["has_rd"], dtype=torch.bool)
+        evaluation_report["by_rd_presence"] = {
+            "with_rd": {
+                "count": int(rd_mask.sum().item()),
+                "accuracy": _subset_accuracy(test_metrics["logits"], test_metrics["labels"], rd_mask),
+            },
+            "without_rd": {
+                "count": int((~rd_mask).sum().item()),
+                "accuracy": _subset_accuracy(test_metrics["logits"], test_metrics["labels"], ~rd_mask),
+            },
+        }
     validation_control = {
         "report_scope": "validation",
         "test_used_for_selection": False,
@@ -7384,11 +7854,15 @@ def train_expert1_v1(config: Expert1TrainConfig) -> dict[str, object]:
             "val": len(loaders.split.val_ids),
             "test": len(loaders.split.test_ids),
         },
-        "rd_coverage": {
-            "train": _rd_coverage_from_index(loaders.train_loader.dataset.index_df),
-            "val": _rd_coverage_from_index(loaders.val_loader.dataset.index_df),
-            "test": _rd_coverage_from_index(loaders.test_loader.dataset.index_df),
-        },
+        "rd_coverage": (
+            {"status": "not_applicable_tr_only"}
+            if config.is_pure_tr_only
+            else {
+                "train": _rd_coverage_from_index(loaders.train_loader.dataset.index_df),
+                "val": _rd_coverage_from_index(loaders.val_loader.dataset.index_df),
+                "test": _rd_coverage_from_index(loaders.test_loader.dataset.index_df),
+            }
+        ),
         "best_epoch": selected_checkpoint_epoch,
         "best_selection_score": selected_checkpoint_score,
         "best_selection_reason": selected_checkpoint_reason,

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from config.configmanager import load_expert1_config, load_pretrain_track_config
 
 
@@ -155,6 +157,78 @@ def test_pretrain_temporal_contract_rejects_unknown_modes(tmp_path: Path) -> Non
         assert "temporal encoding mode" in str(exc)
     else:
         raise AssertionError("unknown pretrain temporal encoding must fail fast")
+
+
+def test_pretrain_source_statistics_weighting_rejects_unknown_mode(tmp_path: Path) -> None:
+    config_path = tmp_path / "pretrain-statistics.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "project": {"data_root": "data"},
+                "pretrain_track": {"source_statistics_weighting": "window_magic"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        load_pretrain_track_config(config_path)
+    except ValueError as exc:
+        assert "source_statistics_weighting" in str(exc)
+    else:
+        raise AssertionError("unknown pretrain source statistics weighting must fail fast")
+
+
+def test_pretrain_parent_sampling_rejects_unknown_mode(tmp_path: Path) -> None:
+    config_path = tmp_path / "pretrain-parent-sampling.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "project": {"data_root": "data"},
+                "pretrain_track": {"parent_sampling_mode": "window_magic"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="parent_sampling_mode"):
+        load_pretrain_track_config(config_path)
+
+
+def test_pretrain_parent_validation_requires_split_manifest_and_causal_mode(tmp_path: Path) -> None:
+    missing_path = tmp_path / "pretrain-parent-validation-missing.json"
+    missing_path.write_text(
+        json.dumps(
+            {
+                "project": {"data_root": "data"},
+                "pretrain_track": {
+                    "require_train_parent_manifest": True,
+                    "require_parent_validation": True,
+                    "sampling_mode": "causal_window",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="parent_split_manifest_path"):
+        load_pretrain_track_config(missing_path)
+
+    full_track_path = tmp_path / "pretrain-parent-validation-full-track.json"
+    full_track_path.write_text(
+        json.dumps(
+            {
+                "project": {"data_root": "data"},
+                "pretrain_track": {
+                    "require_train_parent_manifest": True,
+                    "require_parent_validation": True,
+                    "parent_split_manifest_path": "split.json",
+                    "sampling_mode": "full_track",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="causal_window"):
+        load_pretrain_track_config(full_track_path)
 
 
 def test_expert1_rejects_pretrain_and_warm_start_together(tmp_path: Path) -> None:

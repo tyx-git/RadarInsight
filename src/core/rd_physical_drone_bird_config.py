@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .data.rd_physical_window_dataset import PHYSICAL_RD_INPUT_CHANNELS, QUALITY_FEATURE_DIM
+from .data.rd_physical_window_dataset import (
+    LEGACY_QUALITY_SCHEMA,
+    PHYSICAL_RD_INPUT_CHANNELS,
+    QUALITY_FEATURE_DIM,
+    RD_ONLY_QUALITY_NAMES,
+    RD_ONLY_QUALITY_SCHEMA,
+    QUALITY_FEATURE_NAMES,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +26,7 @@ class PhysicalRDDroneBirdConfig:
     input_channels: int = PHYSICAL_RD_INPUT_CHANNELS
     token_dim: int = 256
     quality_dim: int = QUALITY_FEATURE_DIM
+    quality_schema: str = LEGACY_QUALITY_SCHEMA
     include_missing_rd: bool = False
     prefix_max_loss_weight: float = 0.5
     prefix_aux_weight: float = 0.2
@@ -52,9 +60,12 @@ class PhysicalRDDroneBirdConfig:
                 f"physical RD input_channels is schema-fixed at {PHYSICAL_RD_INPUT_CHANNELS}; "
                 f"got {self.input_channels}"
             )
-        if self.quality_dim != QUALITY_FEATURE_DIM:
+        expected_quality_dim = len(QUALITY_FEATURE_NAMES) if self.quality_schema == LEGACY_QUALITY_SCHEMA else len(RD_ONLY_QUALITY_NAMES) if self.quality_schema == RD_ONLY_QUALITY_SCHEMA else -1
+        if expected_quality_dim < 0:
+            raise ValueError(f"unknown physical RD quality schema: {self.quality_schema!r}")
+        if self.quality_dim != expected_quality_dim:
             raise ValueError(
-                f"physical RD quality_dim is schema-fixed at {QUALITY_FEATURE_DIM}; got {self.quality_dim}"
+                f"physical RD quality_dim is schema-fixed at {expected_quality_dim} for {self.quality_schema}; got {self.quality_dim}"
             )
         if not 0.0 < self.prefix_max_loss_weight <= 1.0:
             raise ValueError("prefix_max_loss_weight must be in (0, 1]")

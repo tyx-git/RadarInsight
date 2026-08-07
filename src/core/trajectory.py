@@ -198,7 +198,7 @@ class TrackRepresentationBuilder(nn.Module):
             mode=self.temporal_pooling_mode,
             attention_hidden_dim=max(32, model_dim // 2),
         )
-        supported_physical_contracts = {"legacy_v2", "source_robust_v3"}
+        supported_physical_contracts = {"legacy_v2", "source_robust_v3", "source_robust_v4"}
         if physical_representation_contract_version not in supported_physical_contracts:
             raise ValueError(
                 "unsupported physical representation contract: "
@@ -230,7 +230,7 @@ class TrackRepresentationBuilder(nn.Module):
         if self.physical_representation_contract_version == "legacy_v2":
             physical_input = self.physical_norm(physical_features)
         else:
-            # source_robust_v3 receives signed-log, train-only source-wise
+            # Source-robust contracts receive signed-log, train-only source-wise
             # normalized continuous values with binary masks left untouched.
             physical_input = physical_features
         physical_proj = self.physical_proj(physical_input)
