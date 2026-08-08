@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import time
@@ -20,6 +21,9 @@ from radar_ln3.logging_utils import (
 )
 from radar_ln3.task_models import (
     LiquidTaskClassifier,
+    RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
+    build_v11_paired_model_for_config,
+    capture_training_state,
     build_task_dataloader,
     build_task_dataset,
     evaluate_task,
@@ -29,6 +33,8 @@ from radar_ln3.task_models import (
     task_prefix_loss,
     verify_task_data_contract,
     load_task_config,
+    load_task_checkpoint,
+    restore_training_state,
 )
 
 
@@ -36,6 +42,15 @@ def _strip_records(result: dict[str, Any]) -> dict[str, Any]:
     value = dict(result)
     value.pop("records", None)
     return value
+
+
+def parent_order_sha256(parent_sample_ids: list[str]) -> str:
+    digest = hashlib.sha256()
+    for parent_id in parent_sample_ids:
+        encoded = str(parent_id).encode("utf-8")
+        digest.update(len(encoded).to_bytes(4, byteorder="big", signed=False))
+        digest.update(encoded)
+    return digest.hexdigest()
 
 
 def _finite_metric(value: Any, *, name: str) -> float:
@@ -163,27 +178,151 @@ def train_task(
     max_steps: int | None = None,
     epochs_override: int | None = None,
     skip_validation: bool = False,
+    resume_checkpoint: Path | None = None,
 ) -> dict[str, Any]:
     config = load_task_config(config_path)
     if not config.train.allow_parameter_updates:
         raise PermissionError("task configuration forbids parameter updates")
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        if max_steps is not None or epochs_override is not None or skip_validation:
+            raise ValueError(
+                "V11 formal paired runs forbid max-step/epoch overrides and validation skipping; "
+                "use the isolated src-v3/smoke entry for bounded verification"
+            )
     seed_everything(config.train.seed)
     contract = verify_task_data_contract(project_root, config)
     artifact_dir = project_root / config.train.formal_artifact_dir
+    if config.schema_version != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION and resume_checkpoint is not None:
+        raise ValueError("explicit epoch-boundary resume is currently restricted to the V11 paired protocol")
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION and artifact_dir.exists() and resume_checkpoint is None:
+        existing = list(artifact_dir.iterdir())
+        if existing:
+            raise FileExistsError(
+                "refusing to overwrite an existing V11 formal artifact directory; "
+                f"move/archive it or use a new versioned config: {artifact_dir}"
+            )
     artifact_dir.mkdir(parents=True, exist_ok=True)
     logger = configure_training_logger(artifact_dir / "training.log")
     started_run = time.perf_counter()
     try:
         train_dataset = build_task_dataset(project_root, config, split_name=config.data.train_split_name)
         val_dataset = build_task_dataset(project_root, config, split_name=config.data.validation_split_name)
-        train_loader = build_task_dataloader(train_dataset, batch_size=config.train.batch_size, shuffle=True)
+        loader_generator = torch.Generator(device="cpu")
+        loader_seed = config.train.dataloader_seed if config.train.dataloader_seed is not None else config.train.seed
+        loader_generator.manual_seed(int(loader_seed))
+        train_loader = build_task_dataloader(
+            train_dataset,
+            batch_size=config.train.batch_size,
+            shuffle=True,
+            generator=loader_generator,
+        )
         device = task_device(config)
-        model = LiquidTaskClassifier(config).to(device)
+        model, paired_counterpart, paired_initialization = build_v11_paired_model_for_config(project_root, config)
+        if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+            if paired_counterpart is None:
+                raise RuntimeError("V11 paired counterpart model was not built")
+            initial_loader = build_task_dataloader(
+                train_dataset,
+                batch_size=min(config.train.batch_size, len(train_dataset)),
+                shuffle=False,
+            )
+            initial_batch = next(iter(initial_loader))
+            initial_tensors = {
+                key: value if isinstance(value, torch.Tensor) else value
+                for key, value in initial_batch.items()
+            }
+            shared_inputs = {
+                "tr_features": initial_tensors["tr_features"],
+                "tr_missing_mask": initial_tensors["tr_missing_mask"],
+                "tr_dt_seconds": initial_tensors["tr_dt_seconds"],
+                "tr_dt_valid": initial_tensors["tr_dt_valid"],
+                "tr_motion_features": initial_tensors.get("tr_motion_features"),
+                "tr_motion_valid_mask": initial_tensors.get("tr_motion_valid_mask"),
+                "rd_frames": initial_tensors["rd_frames"],
+                "rd_frame_mask": initial_tensors["rd_frame_mask"],
+                "rd_quality": initial_tensors["rd_quality"],
+                "tr_padding_mask": initial_tensors["tr_padding_mask"],
+            }
+            active = ~initial_tensors["tr_padding_mask"]
+            physical_probe = torch.zeros(
+                (*active.shape, 4),
+                dtype=initial_tensors["tr_features"].dtype,
+                device=torch.device("cpu"),
+            )
+            physical_probe[active] = 0.5
+            if config.train.paired_arm == "control":
+                control_model, treatment_model = model, paired_counterpart
+            else:
+                control_model, treatment_model = paired_counterpart, model
+            control_model.eval()
+            treatment_model.eval()
+            with torch.inference_mode():
+                control_initial = control_model(**shared_inputs)["sequence_logits"]
+                treatment_initial = treatment_model(
+                    **shared_inputs,
+                    rd_physical_features=physical_probe,
+                    rd_physical_valid=active,
+                )["sequence_logits"]
+            maximum_difference = float((control_initial - treatment_initial).abs().max().item())
+            if not torch.equal(control_initial, treatment_initial):
+                raise AssertionError(
+                    "V11 paired CPU reference logits are not exactly equal before training: "
+                    f"maximum_absolute_difference={maximum_difference}"
+                )
+            logits_bytes = control_initial.detach().cpu().contiguous().numpy().tobytes(order="C")
+            paired_initialization.update(
+                {
+                    "initial_cpu_reference_logits_exactly_equal": True,
+                    "initial_logits_maximum_absolute_difference": maximum_difference,
+                    "initial_logits_sha256": hashlib.sha256(logits_bytes).hexdigest(),
+                    "initial_logit_probe": "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid",
+                    "initial_logit_parent_sample_ids": list(initial_batch["parent_sample_ids"]),
+                }
+            )
+            del paired_counterpart, control_model, treatment_model, control_initial, treatment_initial
+        model = model.to(device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.train.learning_rate)
         weights = torch.tensor(config.train.class_weights, dtype=torch.float32, device=device)
         epochs = max(1, int(epochs_override if epochs_override is not None else config.train.epochs))
+        global_step = 0
+        best_selection: dict[str, Any] | None = None
+        best_epoch = -1
+        best_validation: dict[str, Any] | None = None
+        history: list[dict[str, Any]] = []
+        start_epoch = 1
+        resumed_from: str | None = None
+        if resume_checkpoint is not None:
+            resume_path = resume_checkpoint if resume_checkpoint.is_absolute() else project_root / resume_checkpoint
+            resume_path = resume_path.resolve()
+            try:
+                resume_path.relative_to(artifact_dir.resolve())
+            except ValueError as exc:
+                raise ValueError("V11 resume checkpoint must be inside this arm's formal artifact directory") from exc
+            if not resume_path.is_file():
+                raise FileNotFoundError(resume_path)
+            resume_payload = load_task_checkpoint(
+                resume_path,
+                model,
+                expected_schema=config.train.checkpoint_schema,
+                map_location=device,
+                optimizer=optimizer,
+            )
+            run_state = restore_training_state(resume_payload, loader_generator)
+            start_epoch = int(run_state["next_epoch"])
+            global_step = int(run_state["global_step"])
+            best_epoch = int(run_state["best_epoch"])
+            best_selection = run_state.get("best_selection")
+            history = list(run_state.get("history") or [])
+            if start_epoch != int(resume_payload["epoch"]) + 1:
+                raise ValueError("V11 resume next_epoch is inconsistent with checkpoint epoch")
+            if len(history) != int(resume_payload["epoch"]):
+                raise ValueError("V11 resume history length is inconsistent with checkpoint epoch")
+            if not 1 <= start_epoch <= epochs:
+                raise ValueError(f"V11 resume next_epoch={start_epoch} is outside requested epochs={epochs}")
+            resumed_from = str(resume_path)
         steps_per_epoch = len(train_loader)
-        planned_steps = epochs * steps_per_epoch if max_steps is None else min(epochs * steps_per_epoch, max_steps)
+        remaining_epoch_steps = max(0, epochs - start_epoch + 1) * steps_per_epoch
+        planned_steps = remaining_epoch_steps if max_steps is None else min(remaining_epoch_steps, max_steps)
         logger.info(
             "run=start | task=%s | config=%s | device=%s | train_parents=%d | val_parents=%d | batch=%d | epochs=%d | planned_steps=%d | pretraining=not_required",
             config.task.name,
@@ -195,6 +334,16 @@ def train_task(
             epochs,
             planned_steps,
         )
+        if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+            logger.info(
+                "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | shared_exact=%s | new_columns_zero=%s | cuda_bitwise_determinism=false",
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.seed,
+                loader_seed,
+                paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
+                paired_initialization.get("treatment_new_fusion_columns_exactly_zero"),
+            )
         logger.info(
             "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=causal_prefix",
             contract["hashes"]["index_sha256"],
@@ -202,20 +351,17 @@ def train_task(
             contract["hashes"]["stats_sha256"],
             ",".join(config.task.class_names),
         )
-        global_step = 0
-        best_selection: dict[str, Any] | None = None
-        best_epoch = -1
-        best_validation: dict[str, Any] | None = None
-        history: list[dict[str, Any]] = []
         best_checkpoint = project_root / config.train.checkpoint_path
         last_checkpoint = project_root / config.train.last_checkpoint_path
         stop_reason = "epoch_limit"
-        for epoch in range(1, epochs + 1):
+        for epoch in range(start_epoch, epochs + 1):
             model.train()
             epoch_loss = 0.0
             epoch_steps = 0
+            epoch_parent_order: list[str] = []
             epoch_started = time.perf_counter()
             for batch in train_loader:
+                epoch_parent_order.extend(str(value) for value in batch["parent_sample_ids"])
                 tensors = {key: value.to(device) if isinstance(value, torch.Tensor) else value for key, value in batch.items()}
                 output = model(
                     tr_features=tensors["tr_features"],
@@ -224,6 +370,8 @@ def train_task(
                     tr_dt_valid=tensors["tr_dt_valid"],
                     tr_motion_features=tensors.get("tr_motion_features"),
                     tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
+                    rd_physical_features=tensors.get("rd_physical_features"),
+                    rd_physical_valid=tensors.get("rd_physical_valid"),
                     rd_frames=tensors["rd_frames"],
                     rd_frame_mask=tensors["rd_frame_mask"],
                     rd_quality=tensors["rd_quality"],
@@ -260,8 +408,23 @@ def train_task(
                 "selection_metric_value": selection["primary_value"],
                 "checkpoint_selection": selection,
                 "validation": _strip_records(validation),
+                "parent_order_sha256": parent_order_sha256(epoch_parent_order),
+                "parent_order_count": len(epoch_parent_order),
+                "parent_order_unique_count": len(set(epoch_parent_order)),
             }
+            if max_steps is None and len(epoch_parent_order) != len(train_dataset):
+                raise ValueError(
+                    "full V11/task epoch did not consume every selected parent exactly once: "
+                    f"consumed={len(epoch_parent_order)}, expected={len(train_dataset)}"
+                )
+            if max_steps is None and len(set(epoch_parent_order)) != len(epoch_parent_order):
+                raise ValueError("full V11/task epoch repeated a parent in the shuffled order")
             history.append(epoch_record)
+            selected_as_best = checkpoint_selection_is_better(selection, best_selection)
+            if selected_as_best:
+                best_selection = selection
+                best_epoch = epoch
+                best_validation = validation
             logger.info(
                 "epoch | task=%s | epoch=%02d/%02d | train_loss=%.6f | selection=%s:%s | tie=%s:%s | elapsed=%s",
                 config.task.name,
@@ -274,12 +437,62 @@ def train_task(
                 format_metric(selection["tie_break_value"]),
                 format_duration(epoch_record["elapsed_seconds"]),
             )
-            save_task_checkpoint(last_checkpoint, model, optimizer, config=config, epoch=epoch, global_step=global_step, metrics=epoch_record)
-            if checkpoint_selection_is_better(selection, best_selection):
-                best_selection = selection
-                best_epoch = epoch
-                best_validation = validation
-                save_task_checkpoint(best_checkpoint, model, optimizer, config=config, epoch=epoch, global_step=global_step, metrics=epoch_record)
+            logger.info(
+                "order | epoch=%02d/%02d | parents=%d | unique=%d | sha256=%s",
+                epoch,
+                epochs,
+                epoch_record["parent_order_count"],
+                epoch_record["parent_order_unique_count"],
+                epoch_record["parent_order_sha256"],
+            )
+            training_state = None
+            if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+                training_state = capture_training_state(
+                    loader_generator,
+                    run_state={
+                        "next_epoch": epoch + 1,
+                        "global_step": global_step,
+                        "best_epoch": best_epoch,
+                        "best_selection": best_selection,
+                        "history": history,
+                    },
+                )
+            save_task_checkpoint(
+                last_checkpoint,
+                model,
+                optimizer,
+                config=config,
+                epoch=epoch,
+                global_step=global_step,
+                metrics=epoch_record,
+                training_state=training_state,
+            )
+            if config.train.save_every_epoch:
+                if config.train.epoch_checkpoint_dir is None:
+                    raise ValueError("save_every_epoch requires train.epoch_checkpoint_dir")
+                epoch_checkpoint = project_root / config.train.epoch_checkpoint_dir / f"epoch-{epoch:03d}.pt"
+                save_task_checkpoint(
+                    epoch_checkpoint,
+                    model,
+                    optimizer,
+                    config=config,
+                    epoch=epoch,
+                    global_step=global_step,
+                    metrics=epoch_record,
+                    training_state=training_state,
+                )
+                logger.info("checkpoint | task=%s | kind=epoch | epoch=%02d | path=%s", config.task.name, epoch, epoch_checkpoint)
+            if selected_as_best:
+                save_task_checkpoint(
+                    best_checkpoint,
+                    model,
+                    optimizer,
+                    config=config,
+                    epoch=epoch,
+                    global_step=global_step,
+                    metrics=epoch_record,
+                    training_state=training_state,
+                )
                 logger.info(
                     "checkpoint | task=%s | kind=best | path=%s | selection=%s:%s | tie=%s:%s",
                     config.task.name,
@@ -294,6 +507,14 @@ def train_task(
             if config.train.early_stopping_patience and best_epoch > 0 and epoch - best_epoch >= config.train.early_stopping_patience:
                 stop_reason = "early_stopping"
                 break
+        if best_validation is None and best_epoch > 0 and best_checkpoint.is_file():
+            load_task_checkpoint(
+                best_checkpoint,
+                model,
+                expected_schema=config.train.checkpoint_schema,
+                map_location=device,
+            )
+            best_validation = evaluate_task(model, val_dataset, config=config, device=device)
         sample_details = None
         if best_validation is not None and "records" in best_validation:
             sample_details = _write_sample_details(
@@ -326,6 +547,36 @@ def train_task(
             "last_checkpoint": str(last_checkpoint),
             "sample_detail_information": None if sample_details is None else str(sample_details),
             "formal_pretraining": "not_required_and_not_used",
+            "paired_initialization": paired_initialization,
+            "dataloader_contract": {
+                "seed": int(loader_seed),
+                "independent_generator": True,
+                "epoch_parent_order_hashes": [
+                    {
+                        "epoch": int(row["epoch"]),
+                        "sha256": row["parent_order_sha256"],
+                        "count": int(row["parent_order_count"]),
+                    }
+                    for row in history
+                ],
+                "cuda_deterministic_algorithms": bool(config.train.cuda_deterministic_algorithms),
+                "determinism_claim": (
+                    "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+                    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+                    else "seeded_existing_task_contract"
+                ),
+            },
+            "epoch_checkpoint_dir": (
+                None
+                if config.train.epoch_checkpoint_dir is None
+                else str(project_root / config.train.epoch_checkpoint_dir)
+            ),
+            "resume": {
+                "resumed": resumed_from is not None,
+                "checkpoint": resumed_from,
+                "start_epoch": start_epoch,
+                "epoch_boundary_only": True,
+            },
             "test_evaluation": "not_executed",
             "elapsed_seconds": time.perf_counter() - started_run,
         }
@@ -343,10 +594,18 @@ def main() -> None:
     parser.add_argument("--max-steps", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--skip-validation", action="store_true")
+    parser.add_argument("--resume-checkpoint", type=Path, default=None)
     args = parser.parse_args()
     project_root = args.project_root.resolve()
     config_path = args.config if args.config.is_absolute() else project_root / args.config
-    result = train_task(project_root, config_path.resolve(), max_steps=args.max_steps, epochs_override=args.epochs, skip_validation=args.skip_validation)
+    result = train_task(
+        project_root,
+        config_path.resolve(),
+        max_steps=args.max_steps,
+        epochs_override=args.epochs,
+        skip_validation=args.skip_validation,
+        resume_checkpoint=args.resume_checkpoint,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

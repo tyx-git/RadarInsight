@@ -20,7 +20,7 @@ import json
 import random
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -43,6 +43,14 @@ from .features import (
     resolve_causal_tr_feature_contract,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
+from .rd_physical import (
+    RD_PHYSICAL_MASK_MODE,
+    RD_PHYSICAL_NAMES,
+    RD_PHYSICAL_SCHEMA,
+    RD_PHYSICAL_VALUE_DIM,
+    extract_current_event_rd_physical,
+    rd_physical_contract,
+)
 
 
 BASE_LABELS = (
@@ -58,6 +66,8 @@ DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION = "RADAR-LN3-V7"
 WEAK_CLASS_SELECTION_SCHEMA_VERSION = "RADAR-LN3-V8"
 TR_MOTION_GATE_SCHEMA_VERSION = "RADAR-LN3-V9"
 TR_OBSERVATION_INCREMENT_GATE_SCHEMA_VERSION = "RADAR-LN3-V10"
+RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION = "RADAR-LN3-V11"
+RD_PHYSICAL_PAIRED_PROTOCOL = "v10-control-v11-current-event-rd-physical-v1"
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
 _TASK_SCHEMA_PATTERN = re.compile(r"^RADAR-LN3-V(?P<version>\d+)$")
 
@@ -140,6 +150,14 @@ class TaskDataConfig:
     contract_schema_version: str | None
     tr_motion_schema: str | None
     tr_motion_mask_mode: str | None
+    rd_physical_schema: str | None
+    rd_physical_mask_mode: str | None
+    rd_physical_cache_manifest_path: str | None
+    expected_rd_physical_cache_manifest_sha256: str | None
+    train_rd_physical_cache_path: str | None
+    validation_rd_physical_cache_path: str | None
+    expected_train_rd_physical_cache_sha256: str | None
+    expected_validation_rd_physical_cache_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -164,6 +182,7 @@ class TaskModelConfig:
     liquid_state_normalization: str
     rd_frame_aggregation: str
     tr_motion_dim: int
+    rd_physical_dim: int
 
 
 @dataclass(frozen=True)
@@ -183,6 +202,15 @@ class TaskTrainConfig:
     loss_mode: str
     checkpoint_schema: str
     allow_parameter_updates: bool
+    epoch_checkpoint_dir: str | None
+    paired_protocol: str | None
+    paired_arm: str | None
+    paired_seed: int | None
+    dataloader_seed: int | None
+    record_parent_order_hash: bool
+    save_every_epoch: bool
+    cuda_deterministic_algorithms: bool
+    paired_counterpart_config_path: str | None
 
 
 @dataclass(frozen=True)
@@ -258,6 +286,42 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         tr_motion_mask_mode=(
             None if data_payload.get("tr_motion_mask_mode") is None else str(data_payload["tr_motion_mask_mode"])
         ),
+        rd_physical_schema=(
+            None if data_payload.get("rd_physical_schema") is None else str(data_payload["rd_physical_schema"])
+        ),
+        rd_physical_mask_mode=(
+            None if data_payload.get("rd_physical_mask_mode") is None else str(data_payload["rd_physical_mask_mode"])
+        ),
+        rd_physical_cache_manifest_path=(
+            None
+            if data_payload.get("rd_physical_cache_manifest_path") is None
+            else str(data_payload["rd_physical_cache_manifest_path"])
+        ),
+        expected_rd_physical_cache_manifest_sha256=(
+            None
+            if data_payload.get("expected_rd_physical_cache_manifest_sha256") is None
+            else str(data_payload["expected_rd_physical_cache_manifest_sha256"])
+        ),
+        train_rd_physical_cache_path=(
+            None
+            if data_payload.get("train_rd_physical_cache_path") is None
+            else str(data_payload["train_rd_physical_cache_path"])
+        ),
+        validation_rd_physical_cache_path=(
+            None
+            if data_payload.get("validation_rd_physical_cache_path") is None
+            else str(data_payload["validation_rd_physical_cache_path"])
+        ),
+        expected_train_rd_physical_cache_sha256=(
+            None
+            if data_payload.get("expected_train_rd_physical_cache_sha256") is None
+            else str(data_payload["expected_train_rd_physical_cache_sha256"])
+        ),
+        expected_validation_rd_physical_cache_sha256=(
+            None
+            if data_payload.get("expected_validation_rd_physical_cache_sha256") is None
+            else str(data_payload["expected_validation_rd_physical_cache_sha256"])
+        ),
     )
     if data.rd_amplitude_scale <= 0.0:
         raise ValueError("task data rd_amplitude_scale must be positive")
@@ -287,6 +351,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         liquid_state_normalization=str(model_payload.get("liquid_state_normalization", "recurrent")),
         rd_frame_aggregation=str(model_payload.get("rd_frame_aggregation", "masked_mean")),
         tr_motion_dim=int(model_payload.get("tr_motion_dim", 0)),
+        rd_physical_dim=int(model_payload.get("rd_physical_dim", 0)),
     )
     if model.num_classes != spec.num_classes:
         raise ValueError(f"model.num_classes={model.num_classes} does not match task={spec.num_classes}")
@@ -346,6 +411,35 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(
                 "Gate TR-feature validity must use gating_only and must not be exposed as a classification feature"
             )
+    physical_fields = (
+        data.rd_physical_schema,
+        data.rd_physical_mask_mode,
+        data.rd_physical_cache_manifest_path,
+        data.expected_rd_physical_cache_manifest_sha256,
+        data.train_rd_physical_cache_path,
+        data.validation_rd_physical_cache_path,
+        data.expected_train_rd_physical_cache_sha256,
+        data.expected_validation_rd_physical_cache_sha256,
+    )
+    if schema_number < _task_schema_number(RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION):
+        if model.rd_physical_dim != 0 or any(value is not None for value in physical_fields):
+            raise ValueError("task schemas before RADAR-LN3-V11 must not enable RD physical paired inputs")
+    elif schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        if spec.name != "dbb_cu_gate" or data.tr_motion_schema != TR_OBSERVATION_INCREMENT_SCHEMA:
+            raise ValueError("RADAR-LN3-V11 is restricted to the V10 observation-increment DBB/CU Gate")
+        if model.rd_physical_dim not in {0, RD_PHYSICAL_VALUE_DIM}:
+            raise ValueError("RADAR-LN3-V11 rd_physical_dim must be 0 for Control or 4 for Treatment")
+        if model.rd_physical_dim:
+            expected_physical = (
+                RD_PHYSICAL_SCHEMA,
+                RD_PHYSICAL_MASK_MODE,
+            )
+            if (data.rd_physical_schema, data.rd_physical_mask_mode) != expected_physical:
+                raise ValueError("V11 Treatment RD physical schema/mask does not match the frozen contract")
+            if any(value is None for value in physical_fields[2:]):
+                raise ValueError("V11 Treatment requires manifest, train/val cache paths and hashes")
+        elif any(value is not None for value in physical_fields):
+            raise ValueError("V11 Control must not configure or load an RD physical cache")
     train_payload = dict(_required(payload, "train"))
     class_weights = tuple(float(value) for value in _required(train_payload, "class_weights"))
     if len(class_weights) != spec.num_classes or any(value <= 0.0 or not np.isfinite(value) for value in class_weights):
@@ -366,6 +460,21 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         loss_mode=str(_required(train_payload, "loss_mode")),
         checkpoint_schema=str(_required(train_payload, "checkpoint_schema")),
         allow_parameter_updates=_as_bool(_required(train_payload, "allow_parameter_updates")),
+        epoch_checkpoint_dir=(
+            None if train_payload.get("epoch_checkpoint_dir") is None else str(train_payload["epoch_checkpoint_dir"])
+        ),
+        paired_protocol=(None if train_payload.get("paired_protocol") is None else str(train_payload["paired_protocol"])),
+        paired_arm=(None if train_payload.get("paired_arm") is None else str(train_payload["paired_arm"])),
+        paired_seed=(None if train_payload.get("paired_seed") is None else int(train_payload["paired_seed"])),
+        dataloader_seed=(None if train_payload.get("dataloader_seed") is None else int(train_payload["dataloader_seed"])),
+        record_parent_order_hash=_as_bool(train_payload.get("record_parent_order_hash", False)),
+        save_every_epoch=_as_bool(train_payload.get("save_every_epoch", False)),
+        cuda_deterministic_algorithms=_as_bool(train_payload.get("cuda_deterministic_algorithms", False)),
+        paired_counterpart_config_path=(
+            None
+            if train_payload.get("paired_counterpart_config_path") is None
+            else str(train_payload["paired_counterpart_config_path"])
+        ),
     )
     if train.learning_rate <= 0.0 or train.gradient_clip_norm <= 0.0:
         raise ValueError("task learning_rate and gradient_clip_norm must be positive")
@@ -381,6 +490,22 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             )
     if not train.checkpoint_schema.startswith(schema_version):
         raise ValueError(f"task checkpoint schema must use the {schema_version} prefix")
+    if schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        expected_arm = "treatment" if model.rd_physical_dim else "control"
+        if train.paired_protocol != RD_PHYSICAL_PAIRED_PROTOCOL or train.paired_arm != expected_arm:
+            raise ValueError("V11 paired protocol/arm does not match the configured model input")
+        if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
+            raise ValueError("V11 paired seed, model seed and DataLoader seed must be identical")
+        if train.seed not in {42, 43, 44}:
+            raise ValueError("V11 paired seed must be one of 42, 43 or 44")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError("V11 paired training requires exactly 20 epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError("V11 paired training requires epoch checkpoints and parent-order hashes")
+        if train.paired_counterpart_config_path is None:
+            raise ValueError("V11 paired training requires an explicit counterpart config path")
+        if train.cuda_deterministic_algorithms:
+            raise ValueError("V11 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
     if _is_repaired_task_schema(schema_version):
         require_causal_rd_quality_schema(data.rd_quality_schema)
         if data.contract_schema_version is None or not _is_repaired_task_schema(data.contract_schema_version):
@@ -446,6 +571,49 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         ).as_dict()
         if feature_contract.get("tr_motion") != expected_motion_contract:
             raise ValueError("task data contract causal TR fields do not match the configured Gate input")
+    physical_evidence: dict[str, Any] | None = None
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        if feature_contract.get("rd_physical") != rd_physical_contract():
+            raise ValueError("V11 data contract RD physical fields do not match the frozen extractor")
+        cache_contract = dict(contract.get("rd_physical_cache") or {})
+        if cache_contract.get("test_excluded") is not True or int(cache_contract.get("test_rd_payload_access_count", -1)) != 0:
+            raise ValueError("V11 data contract does not prove that test RD payloads are sealed")
+        if config.model.rd_physical_dim:
+            manifest_path = resolve_project_path(project_root, config.data.rd_physical_cache_manifest_path or "")
+            train_cache_path = resolve_project_path(project_root, config.data.train_rd_physical_cache_path or "")
+            val_cache_path = resolve_project_path(project_root, config.data.validation_rd_physical_cache_path or "")
+            expected_physical_hashes = {
+                "manifest_sha256": config.data.expected_rd_physical_cache_manifest_sha256,
+                "train_cache_sha256": config.data.expected_train_rd_physical_cache_sha256,
+                "validation_cache_sha256": config.data.expected_validation_rd_physical_cache_sha256,
+            }
+            actual_physical_hashes = {
+                "manifest_sha256": sha256_file(manifest_path),
+                "train_cache_sha256": sha256_file(train_cache_path),
+                "validation_cache_sha256": sha256_file(val_cache_path),
+            }
+            if expected_physical_hashes != actual_physical_hashes:
+                raise ValueError(
+                    "V11 RD physical manifest/cache hash mismatch: "
+                    f"expected={expected_physical_hashes}, actual={actual_physical_hashes}"
+                )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if (
+                manifest.get("schema_version") != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+                or manifest.get("test_excluded") is not True
+                or int(manifest.get("test_rd_payload_access_count", -1)) != 0
+                or manifest.get("rd_physical_contract") != rd_physical_contract()
+            ):
+                raise ValueError("V11 RD physical cache manifest violates schema, extractor or test-sealing contract")
+            physical_evidence = {
+                "paths": {
+                    "manifest": str(manifest_path),
+                    "train_cache": str(train_cache_path),
+                    "validation_cache": str(val_cache_path),
+                },
+                "hashes": actual_physical_hashes,
+                "test_excluded": True,
+            }
     stats = json.loads(stats_path.read_text(encoding="utf-8"))
     amplitude = dict(stats.get("amplitude", {}))
     center = float(amplitude.get("center"))
@@ -454,7 +622,12 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         raise ValueError("task RD normalization values do not match the recorded train statistics")
     if stats.get("source_split") != "train" or "no validation or test" not in str(stats.get("scope", "")):
         raise ValueError("task normalization statistics are not explicitly train-only")
-    return {"paths": {"index": str(index_path), "contract": str(contract_path), "stats": str(stats_path)}, "hashes": actual_hashes, "contract": contract}
+    return {
+        "paths": {"index": str(index_path), "contract": str(contract_path), "stats": str(stats_path)},
+        "hashes": actual_hashes,
+        "contract": contract,
+        "rd_physical": physical_evidence,
+    }
 
 
 class TaskSequenceDataset(Dataset[PointSequence]):
@@ -535,6 +708,16 @@ def build_task_dataset(
     split_name: str,
     parent_limit: int | None = None,
 ) -> TaskSequenceDataset:
+    rd_physical_cache_path: str | None = None
+    if config.model.rd_physical_dim:
+        if split_name == config.data.train_split_name:
+            rd_physical_cache_path = config.data.train_rd_physical_cache_path
+        elif split_name == config.data.validation_split_name:
+            rd_physical_cache_path = config.data.validation_rd_physical_cache_path
+        else:
+            raise PermissionError(
+                "V11 RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
+            )
     base = CQ08PointSequenceDataset(
         project_root,
         index_path=resolve_project_path(project_root, config.data.index_path),
@@ -547,6 +730,7 @@ def build_task_dataset(
         sample_limit=None,
         expected_schema_version=config.data.index_schema_version,
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
+        rd_physical_cache_path=rd_physical_cache_path,
     )
     view = TaskSequenceDataset(base, config.task)
     selected = _balanced_parent_ids(view, parent_limit)
@@ -564,7 +748,13 @@ def collate_task_sequences(spec: TaskSpec):
     return collate
 
 
-def build_task_dataloader(dataset: TaskSequenceDataset, *, batch_size: int, shuffle: bool) -> DataLoader:
+def build_task_dataloader(
+    dataset: TaskSequenceDataset,
+    *,
+    batch_size: int,
+    shuffle: bool,
+    generator: torch.Generator | None = None,
+) -> DataLoader:
     return DataLoader(
         dataset,
         batch_size=max(1, int(batch_size)),
@@ -572,7 +762,35 @@ def build_task_dataloader(dataset: TaskSequenceDataset, *, batch_size: int, shuf
         num_workers=0,
         collate_fn=collate_task_sequences(dataset.spec),
         pin_memory=torch.cuda.is_available(),
+        generator=generator,
     )
+
+
+class PairedFusionLinear(nn.Linear):
+    """A Linear layer with an explicit shared-base plus intervention path."""
+
+    def __init__(self, in_features: int, out_features: int, *, base_input_dim: int) -> None:
+        super().__init__(in_features, out_features)
+        self.base_input_dim = int(base_input_dim)
+        if not 0 < self.base_input_dim <= self.in_features:
+            raise ValueError("paired Fusion base_input_dim is outside the layer input")
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        if value.shape[-1] != self.in_features:
+            raise ValueError("paired Fusion received an invalid final dimension")
+        base = nn.functional.linear(
+            value[..., : self.base_input_dim],
+            self.weight[:, : self.base_input_dim],
+            self.bias,
+        )
+        if self.base_input_dim == self.in_features:
+            return base
+        intervention = nn.functional.linear(
+            value[..., self.base_input_dim :],
+            self.weight[:, self.base_input_dim :],
+            None,
+        )
+        return base + intervention
 
 
 class LiquidTaskClassifier(nn.Module):
@@ -605,6 +823,9 @@ class LiquidTaskClassifier(nn.Module):
         self.tr_motion_dim = model.tr_motion_dim
         self.tr_motion_schema = config.data.tr_motion_schema
         self.tr_motion_mask_mode = config.data.tr_motion_mask_mode
+        self.rd_physical_dim = model.rd_physical_dim
+        self.rd_physical_schema = config.data.rd_physical_schema
+        self.rd_physical_mask_mode = config.data.rd_physical_mask_mode
         self.tr_motion_contract = (
             resolve_causal_tr_feature_contract(self.tr_motion_schema)
             if self.tr_motion_dim
@@ -644,10 +865,20 @@ class LiquidTaskClassifier(nn.Module):
             + model.rd_embedding_dim
             + model.rd_quality_dim
             + fusion_dt_valid_dim
+            + self.rd_physical_dim
         )
         self.fusion_input_dim = fusion_dim
+        fusion_linear: nn.Module
+        if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+            fusion_linear = PairedFusionLinear(
+                fusion_dim,
+                model.liquid_hidden_dim,
+                base_input_dim=fusion_dim - self.rd_physical_dim,
+            )
+        else:
+            fusion_linear = nn.Linear(fusion_dim, model.liquid_hidden_dim)
         self.fusion = nn.Sequential(
-            nn.Linear(fusion_dim, model.liquid_hidden_dim),
+            fusion_linear,
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.SiLU(),
         )
@@ -667,6 +898,48 @@ class LiquidTaskClassifier(nn.Module):
             nn.Linear(model.liquid_hidden_dim, self.num_classes),
         )
 
+    def prepare_online_rd_physical(
+        self,
+        amplitude_db: np.ndarray,
+        velocity_mps: np.ndarray,
+        *,
+        frame_mask: np.ndarray | Iterable[bool] | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Compute the Treatment input from one raw canonical RD event.
+
+        This is the online counterpart of the versioned cache builder and calls
+        the same extractor. The caller must still provide the existing
+        normalized amplitude/phase ``rd_frames`` to the spatial RD encoder.
+        """
+
+        if self.rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
+            raise ValueError("online RD physical extraction is available only for the V11 Treatment")
+        amplitude = np.asarray(amplitude_db)
+        if amplitude.ndim != 3:
+            raise ValueError("online RD physical amplitude must have shape [frames,21,384]")
+        if amplitude.shape[0] > self.config.data.max_rd_frames_per_point:
+            raise ValueError(
+                "online RD physical input exceeds the frozen per-event frame cap; "
+                f"maximum={self.config.data.max_rd_frames_per_point}, actual={amplitude.shape[0]}"
+            )
+        if frame_mask is not None:
+            active = np.asarray(
+                list(frame_mask) if not isinstance(frame_mask, np.ndarray) else frame_mask,
+                dtype=bool,
+            )
+            if int(active.sum()) > self.config.data.max_rd_frames_per_point:
+                raise ValueError("online RD physical valid-frame count exceeds the frozen per-event frame cap")
+        event = extract_current_event_rd_physical(amplitude_db, velocity_mps, frame_mask=frame_mask)
+        parameter = self.fusion[0].weight
+        return {
+            "rd_physical_features": torch.as_tensor(
+                event.values.copy(),
+                dtype=parameter.dtype,
+                device=parameter.device,
+            ).unsqueeze(0),
+            "rd_physical_valid": torch.tensor([event.valid], dtype=torch.bool, device=parameter.device),
+        }
+
     def forward(
         self,
         *,
@@ -680,6 +953,8 @@ class LiquidTaskClassifier(nn.Module):
         tr_dt_valid: torch.Tensor,
         tr_motion_features: torch.Tensor | None = None,
         tr_motion_valid_mask: torch.Tensor | None = None,
+        rd_physical_features: torch.Tensor | None = None,
+        rd_physical_valid: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 3 or tr_missing_mask.shape[:2] != tr_features.shape[:2]:
             raise ValueError("task TR tensors must have shape [batch, sequence, features]")
@@ -720,6 +995,24 @@ class LiquidTaskClassifier(nn.Module):
             if tr_motion_features is None or tr_motion_valid_mask is None:
                 raise ValueError("legacy task received an incomplete optional TR motion pair")
         fusion_inputs.extend([rd_embedding, rd_quality])
+        if self.rd_physical_dim:
+            expected_physical_shape = (*tr_features.shape[:2], self.rd_physical_dim)
+            if rd_physical_features is None or rd_physical_valid is None:
+                raise ValueError("V11 Treatment requires RD physical values and valid mask")
+            if rd_physical_features.shape != expected_physical_shape or rd_physical_valid.shape != tr_features.shape[:2]:
+                raise ValueError("V11 RD physical value/valid shape does not match the sequence")
+            if rd_physical_valid.dtype != torch.bool or not torch.isfinite(rd_physical_features).all():
+                raise ValueError("V11 RD physical values must be finite and valid must be boolean")
+            if bool((rd_physical_features < 0.0).any()) or bool((rd_physical_features > 1.0).any()):
+                raise ValueError("V11 RD physical values must be bounded to [0,1]")
+            if bool((rd_physical_features.masked_select(~rd_physical_valid.unsqueeze(-1)) != 0).any()):
+                raise ValueError("invalid V11 RD physical values must be exactly zero")
+            if bool(rd_physical_valid.masked_select(tr_padding_mask).any()):
+                raise ValueError("padded V11 events must not contain valid RD physical values")
+            gated_physical = rd_physical_features * rd_physical_valid.to(dtype=tr_features.dtype).unsqueeze(-1)
+            fusion_inputs.append(gated_physical)
+        elif rd_physical_features is not None or rd_physical_valid is not None:
+            raise ValueError("V11 Control and historical tasks must not receive RD physical tensors")
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_events = self.fusion(torch.cat(fusion_inputs, dim=-1))
@@ -752,6 +1045,8 @@ class LiquidTaskClassifier(nn.Module):
         liquid_state: torch.Tensor | None = None,
         tr_motion_features: torch.Tensor | None = None,
         tr_motion_valid_mask: torch.Tensor | None = None,
+        rd_physical_features: torch.Tensor | None = None,
+        rd_physical_valid: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
             raise ValueError("online task TR tensors must have shape [batch, features]")
@@ -792,6 +1087,22 @@ class LiquidTaskClassifier(nn.Module):
             if tr_motion_features is None or tr_motion_valid_mask is None:
                 raise ValueError("legacy online task received an incomplete optional TR motion pair")
         fusion_inputs.extend([rd_embedding, rd_quality])
+        if self.rd_physical_dim:
+            if rd_physical_features is None or rd_physical_valid is None:
+                raise ValueError("online V11 Treatment requires RD physical values and valid mask")
+            if rd_physical_features.shape != (tr_features.shape[0], self.rd_physical_dim):
+                raise ValueError("online V11 RD physical values have an invalid shape")
+            if rd_physical_valid.shape != (tr_features.shape[0],) or rd_physical_valid.dtype != torch.bool:
+                raise ValueError("online V11 RD physical valid must be boolean with shape [batch]")
+            if not torch.isfinite(rd_physical_features).all():
+                raise ValueError("online V11 RD physical values must be finite")
+            if bool((rd_physical_features < 0.0).any()) or bool((rd_physical_features > 1.0).any()):
+                raise ValueError("online V11 RD physical values must be bounded to [0,1]")
+            if bool((rd_physical_features.masked_select(~rd_physical_valid.unsqueeze(-1)) != 0).any()):
+                raise ValueError("invalid online V11 RD physical values must be exactly zero")
+            fusion_inputs.append(rd_physical_features * rd_physical_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
+        elif rd_physical_features is not None or rd_physical_valid is not None:
+            raise ValueError("online V11 Control and historical tasks must not receive RD physical tensors")
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_event = self.fusion(torch.cat(fusion_inputs, dim=-1))
@@ -839,6 +1150,137 @@ def task_prefix_loss(
     return value
 
 
+def build_v11_paired_models(
+    control_config: LiquidTaskConfig,
+    treatment_config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    """Build a V11 pair with exactly shared initialization and zero new columns."""
+
+    if (
+        control_config.schema_version != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+        or treatment_config.schema_version != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+        or control_config.train.paired_arm != "control"
+        or treatment_config.train.paired_arm != "treatment"
+        or control_config.train.paired_protocol != RD_PHYSICAL_PAIRED_PROTOCOL
+        or treatment_config.train.paired_protocol != RD_PHYSICAL_PAIRED_PROTOCOL
+    ):
+        raise ValueError("paired model builder requires V11 Control and Treatment configs")
+    if control_config.train.seed != treatment_config.train.seed:
+        raise ValueError("V11 paired configs must use the same seed")
+    if control_config.model.rd_physical_dim != 0 or treatment_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
+        raise ValueError("V11 paired configs must use Control dim 0 and Treatment dim 4")
+    if replace(control_config.model, rd_physical_dim=RD_PHYSICAL_VALUE_DIM) != treatment_config.model:
+        raise ValueError("V11 paired model configs differ beyond rd_physical_dim")
+    excluded_data = {
+        "rd_physical_schema",
+        "rd_physical_mask_mode",
+        "rd_physical_cache_manifest_path",
+        "expected_rd_physical_cache_manifest_sha256",
+        "train_rd_physical_cache_path",
+        "validation_rd_physical_cache_path",
+        "expected_train_rd_physical_cache_sha256",
+        "expected_validation_rd_physical_cache_sha256",
+    }
+    control_data = {key: value for key, value in control_config.data.__dict__.items() if key not in excluded_data}
+    treatment_data = {key: value for key, value in treatment_config.data.__dict__.items() if key not in excluded_data}
+    if control_data != treatment_data:
+        raise ValueError("V11 paired data configs differ beyond the RD physical cache fields")
+    excluded_train = {
+        "checkpoint_path",
+        "last_checkpoint_path",
+        "formal_artifact_dir",
+        "epoch_checkpoint_dir",
+        "paired_arm",
+        "paired_counterpart_config_path",
+    }
+    control_train = {key: value for key, value in control_config.train.__dict__.items() if key not in excluded_train}
+    treatment_train = {key: value for key, value in treatment_config.train.__dict__.items() if key not in excluded_train}
+    if control_train != treatment_train:
+        raise ValueError("V11 paired training configs differ beyond arm-specific output/counterpart paths")
+    seed_everything(control_config.train.seed)
+    control = LiquidTaskClassifier(control_config)
+    seed_everything(control_config.train.seed)
+    treatment = LiquidTaskClassifier(treatment_config)
+    control_state = control.state_dict()
+    treatment_state = treatment.state_dict()
+    shared_names: list[str] = []
+    for name, control_value in control_state.items():
+        if name == "fusion.0.weight":
+            treatment_value = treatment_state[name]
+            if treatment_value.shape[0] != control_value.shape[0] or treatment_value.shape[1] != control_value.shape[1] + RD_PHYSICAL_VALUE_DIM:
+                raise ValueError("V11 Treatment Fusion width is not Control width plus four")
+            treatment_value[:, : control_value.shape[1]].copy_(control_value)
+            treatment_value[:, control_value.shape[1] :].zero_()
+            shared_names.append(name)
+            continue
+        treatment_value = treatment_state.get(name)
+        if treatment_value is None or treatment_value.shape != control_value.shape:
+            raise ValueError(f"V11 paired model has a non-shared parameter/buffer outside Fusion columns: {name}")
+        treatment_value.copy_(control_value)
+        shared_names.append(name)
+    treatment.load_state_dict(treatment_state, strict=True)
+    shared_equal = True
+    for name, control_value in control.state_dict().items():
+        treatment_value = treatment.state_dict()[name]
+        comparable = treatment_value[:, : control_value.shape[1]] if name == "fusion.0.weight" else treatment_value
+        if not torch.equal(control_value, comparable):
+            shared_equal = False
+            break
+    new_columns = treatment.state_dict()["fusion.0.weight"][:, control.fusion_input_dim :]
+    if not shared_equal or not torch.equal(new_columns, torch.zeros_like(new_columns)):
+        raise AssertionError("V11 shared initialization or zero-column contract failed")
+    return control, treatment, {
+        "paired_protocol": RD_PHYSICAL_PAIRED_PROTOCOL,
+        "seed": control_config.train.seed,
+        "shared_state_entry_count": len(shared_names),
+        "shared_parameters_and_buffers_exactly_equal": True,
+        "control_fusion_input_dim": control.fusion_input_dim,
+        "treatment_fusion_input_dim": treatment.fusion_input_dim,
+        "treatment_new_fusion_columns": RD_PHYSICAL_VALUE_DIM,
+        "treatment_new_fusion_columns_exactly_zero": True,
+    }
+
+
+def build_v11_paired_model_for_config(
+    project_root: Path,
+    config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier | None, dict[str, Any]]:
+    if config.schema_version != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        return LiquidTaskClassifier(config), None, {
+            "paired_protocol": None,
+            "paired_arm": None,
+            "initialization": "single_config_seeded_initialization",
+        }
+    counterpart_path = resolve_project_path(project_root, config.train.paired_counterpart_config_path or "")
+    counterpart = load_task_config(counterpart_path)
+    if counterpart.train.paired_counterpart_config_path is None:
+        raise ValueError("V11 counterpart does not reference this config")
+    reverse_path = resolve_project_path(project_root, counterpart.train.paired_counterpart_config_path)
+    expected_current_path = resolve_project_path(
+        project_root,
+        f"config/RADAR-LN3/{config.config_name}-config.json",
+    )
+    if reverse_path.resolve() != expected_current_path.resolve():
+        raise ValueError(
+            "V11 counterpart reference is not reciprocal: "
+            f"expected={expected_current_path}, actual={reverse_path}"
+        )
+    configs = {config.train.paired_arm: config, counterpart.train.paired_arm: counterpart}
+    if set(configs) != {"control", "treatment"}:
+        raise ValueError("V11 config/counterpart pair does not contain exactly Control and Treatment")
+    control, treatment, evidence = build_v11_paired_models(configs["control"], configs["treatment"])
+    evidence.update(
+        {
+            "paired_arm": config.train.paired_arm,
+            "counterpart_config_path": str(counterpart_path),
+            "counterpart_config_name": counterpart.config_name,
+        }
+    )
+    if config.train.paired_arm == "control":
+        return control, treatment, evidence
+    return treatment, control, evidence
+
+
 def _probabilities(logits: torch.Tensor) -> torch.Tensor:
     if not torch.isfinite(logits).all():
         raise ValueError("task logits must be finite")
@@ -876,6 +1318,7 @@ def save_task_checkpoint(
     epoch: int,
     global_step: int,
     metrics: Mapping[str, Any],
+    training_state: Mapping[str, Any] | None = None,
 ) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -914,6 +1357,18 @@ def save_task_checkpoint(
             "tr_motion_scales": dict(motion_contract.scales),
             "tr_motion_clip_absolute": motion_contract.clip_absolute,
         })
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        model_contract.update(
+            {
+                "rd_physical_dim": config.model.rd_physical_dim,
+                "rd_physical_schema": config.data.rd_physical_schema,
+                "rd_physical_names": list(RD_PHYSICAL_NAMES) if config.model.rd_physical_dim else [],
+                "rd_physical_mask_mode": config.data.rd_physical_mask_mode,
+                "paired_protocol": config.train.paired_protocol,
+                "paired_arm": config.train.paired_arm,
+                "paired_seed": config.train.paired_seed,
+            }
+        )
     payload: dict[str, Any] = {
         "checkpoint_schema": config.train.checkpoint_schema,
         "config_name": config.config_name,
@@ -929,8 +1384,29 @@ def save_task_checkpoint(
         "model_contract": model_contract,
         "model_state": model.state_dict(),
     }
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        payload["data_contract"].update(
+            {
+                "rd_physical_manifest_sha256": config.data.expected_rd_physical_cache_manifest_sha256,
+                "train_rd_physical_cache_sha256": config.data.expected_train_rd_physical_cache_sha256,
+                "validation_rd_physical_cache_sha256": config.data.expected_validation_rd_physical_cache_sha256,
+            }
+        )
     if optimizer is not None:
         payload["optimizer_state"] = optimizer.state_dict()
+    if training_state is not None:
+        payload["training_state"] = dict(training_state)
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        required_resume_fields = {
+            "python_random_state",
+            "numpy_random_state",
+            "torch_cpu_rng_state",
+            "torch_cuda_rng_states",
+            "dataloader_generator_state",
+            "run_state",
+        }
+        if optimizer is None or training_state is None or set(training_state) != required_resume_fields:
+            raise ValueError("V11 checkpoints require optimizer and complete epoch-boundary recovery state")
     torch.save(payload, target)
 
 
@@ -940,6 +1416,7 @@ def load_task_checkpoint(
     *,
     expected_schema: str,
     map_location: str | torch.device,
+    optimizer: torch.optim.Optimizer | None = None,
 ) -> dict[str, Any]:
     payload = torch.load(Path(path), map_location=map_location, weights_only=False)
     if not isinstance(payload, dict) or payload.get("checkpoint_schema") != expected_schema:
@@ -951,6 +1428,14 @@ def load_task_checkpoint(
         "contract_sha256": model.config.data.expected_contract_sha256,
         "stats_sha256": model.config.data.expected_stats_sha256,
     }
+    if model.config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        expected_data_contract.update(
+            {
+                "rd_physical_manifest_sha256": model.config.data.expected_rd_physical_cache_manifest_sha256,
+                "train_rd_physical_cache_sha256": model.config.data.expected_train_rd_physical_cache_sha256,
+                "validation_rd_physical_cache_sha256": model.config.data.expected_validation_rd_physical_cache_sha256,
+            }
+        )
     if payload.get("data_contract") != expected_data_contract:
         raise ValueError("task checkpoint data hashes do not match the configured data contract")
     expected_contract: dict[str, Any] = {
@@ -988,10 +1473,77 @@ def load_task_checkpoint(
             "tr_motion_scales": dict(motion_contract.scales),
             "tr_motion_clip_absolute": motion_contract.clip_absolute,
         })
+    if model.config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        expected_contract.update(
+            {
+                "rd_physical_dim": model.rd_physical_dim,
+                "rd_physical_schema": model.rd_physical_schema,
+                "rd_physical_names": list(RD_PHYSICAL_NAMES) if model.rd_physical_dim else [],
+                "rd_physical_mask_mode": model.rd_physical_mask_mode,
+                "paired_protocol": model.config.train.paired_protocol,
+                "paired_arm": model.config.train.paired_arm,
+                "paired_seed": model.config.train.paired_seed,
+            }
+        )
     if payload.get("model_contract") != expected_contract:
         raise ValueError("task checkpoint model/input contract does not match the configured repaired model")
     model.load_state_dict(payload["model_state"], strict=True)
+    if optimizer is not None:
+        if "optimizer_state" not in payload:
+            raise ValueError("task checkpoint does not contain optimizer state")
+        optimizer.load_state_dict(payload["optimizer_state"])
+    if model.config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        required_resume_fields = {
+            "python_random_state",
+            "numpy_random_state",
+            "torch_cpu_rng_state",
+            "torch_cuda_rng_states",
+            "dataloader_generator_state",
+            "run_state",
+        }
+        training_state = payload.get("training_state")
+        if not isinstance(training_state, dict) or set(training_state) != required_resume_fields:
+            raise ValueError("V11 checkpoint lacks complete epoch-boundary recovery state")
     return payload
+
+
+def capture_training_state(
+    dataloader_generator: torch.Generator,
+    *,
+    run_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "python_random_state": random.getstate(),
+        "numpy_random_state": np.random.get_state(),
+        "torch_cpu_rng_state": torch.get_rng_state(),
+        "torch_cuda_rng_states": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+        "dataloader_generator_state": dataloader_generator.get_state(),
+        "run_state": dict(run_state),
+    }
+
+
+def restore_training_state(
+    payload: Mapping[str, Any],
+    dataloader_generator: torch.Generator,
+) -> dict[str, Any]:
+    training_state = payload.get("training_state")
+    if not isinstance(training_state, Mapping):
+        raise ValueError("checkpoint has no restorable training_state")
+    random.setstate(training_state["python_random_state"])
+    np.random.set_state(training_state["numpy_random_state"])
+    torch.set_rng_state(torch.as_tensor(training_state["torch_cpu_rng_state"], device="cpu"))
+    cuda_states = list(training_state["torch_cuda_rng_states"])
+    if cuda_states:
+        if not torch.cuda.is_available() or len(cuda_states) != torch.cuda.device_count():
+            raise ValueError("checkpoint CUDA RNG state count does not match the current CUDA environment")
+        torch.cuda.set_rng_state_all([torch.as_tensor(value, device="cpu") for value in cuda_states])
+    dataloader_generator.set_state(
+        torch.as_tensor(training_state["dataloader_generator_state"], device="cpu")
+    )
+    run_state = training_state.get("run_state")
+    if not isinstance(run_state, Mapping):
+        raise ValueError("checkpoint training_state lacks a valid run_state")
+    return dict(run_state)
 
 
 def seed_everything(seed: int) -> None:
@@ -1079,6 +1631,8 @@ def evaluate_task(
                 tr_dt_valid=tensor_batch["tr_dt_valid"],
                 tr_motion_features=tensor_batch.get("tr_motion_features"),
                 tr_motion_valid_mask=tensor_batch.get("tr_motion_valid_mask"),
+                rd_physical_features=tensor_batch.get("rd_physical_features"),
+                rd_physical_valid=tensor_batch.get("rd_physical_valid"),
                 rd_frames=tensor_batch["rd_frames"],
                 rd_frame_mask=tensor_batch["rd_frame_mask"],
                 rd_quality=tensor_batch["rd_quality"],
@@ -1131,15 +1685,21 @@ __all__ = [
     "TASK_SPECS",
     "TR_MOTION_GATE_SCHEMA_VERSION",
     "TR_OBSERVATION_INCREMENT_GATE_SCHEMA_VERSION",
+    "RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION",
+    "RD_PHYSICAL_PAIRED_PROTOCOL",
     "WEAK_CLASS_SELECTION_SCHEMA_VERSION",
     "TaskSequenceDataset",
     "TaskSpec",
     "build_task_dataloader",
     "build_task_dataset",
+    "build_v11_paired_model_for_config",
+    "build_v11_paired_models",
+    "capture_training_state",
     "compose_soft_cascade",
     "evaluate_task",
     "load_task_checkpoint",
     "load_task_config",
+    "restore_training_state",
     "save_task_checkpoint",
     "seed_everything",
     "summarize_task_records",

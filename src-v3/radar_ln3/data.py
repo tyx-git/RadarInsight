@@ -21,6 +21,7 @@ from .features import (
     parse_feature_json,
     resolve_causal_tr_feature_contract,
 )
+from .rd_physical import RD_PHYSICAL_VALUE_DIM, load_rd_physical_cache
 
 
 RD_QUALITY_SCHEMA = "causal-current-event-v1"
@@ -138,6 +139,8 @@ class PointSequence:
     rd_frames: torch.Tensor
     rd_frame_mask: torch.Tensor
     rd_quality: torch.Tensor
+    rd_physical_features: torch.Tensor
+    rd_physical_valid: torch.Tensor
     label: torch.Tensor
     event_count: int
     source_name: str
@@ -202,6 +205,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         expected_schema_version: str = "RADAR-LN3-V0",
         enable_tr_motion: bool = False,
         tr_motion_schema: str | None = None,
+        rd_physical_cache_path: str | Path | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         path = Path(str(index_path).replace("\\", "/"))
@@ -261,6 +265,21 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self.parent_ids = selected
         self._groups = {parent_id: group.reset_index(drop=True) for parent_id, group in self.frame.groupby("parent_sample_id", sort=False)}
         self._tensor_cache = _TensorCache(self.project_root, max_size=tensor_cache_size)
+        self.rd_physical_cache_path: Path | None = None
+        self._rd_physical_values: dict[str, np.ndarray] | None = None
+        self._rd_physical_valid: dict[str, bool] | None = None
+        self.rd_physical_cache_metadata: dict[str, Any] | None = None
+        if rd_physical_cache_path is not None:
+            cache_path = Path(str(rd_physical_cache_path).replace("\\", "/"))
+            self.rd_physical_cache_path = cache_path if cache_path.is_absolute() else self.project_root / cache_path
+            expected_ids = self.frame["sample_id"].astype(str).tolist()
+            mapping, metadata = load_rd_physical_cache(
+                self.rd_physical_cache_path,
+                expected_sample_ids=expected_ids,
+            )
+            self._rd_physical_values = mapping
+            self._rd_physical_valid = dict(metadata.pop("valid_by_sample_id"))
+            self.rd_physical_cache_metadata = metadata
 
     def __len__(self) -> int:
         return len(self.parent_ids)
@@ -303,6 +322,8 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         rd_values: list[np.ndarray] = []
         rd_masks: list[np.ndarray] = []
         quality_values: list[np.ndarray] = []
+        rd_physical_values: list[torch.Tensor] = []
+        rd_physical_valid_values: list[bool] = []
         labels = set()
         if self.tr_motion_schema == TR_MOTION_SCHEMA:
             motion_state: CausalTRMotionState | CausalTRObservationIncrementState | None = CausalTRMotionState()
@@ -347,6 +368,18 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
                     max_rd_frames_per_point=self.max_rd_frames_per_point,
                 )
             )
+            sample_id = str(row["sample_id"])
+            if self._rd_physical_values is None or self._rd_physical_valid is None:
+                rd_physical_values.append(torch.zeros((0,), dtype=torch.float32))
+                rd_physical_valid_values.append(False)
+            else:
+                try:
+                    physical_value = self._rd_physical_values[sample_id]
+                    physical_valid = self._rd_physical_valid[sample_id]
+                except KeyError as exc:
+                    raise ValueError(f"RD physical cache lacks Dataset event: {sample_id}") from exc
+                rd_physical_values.append(torch.from_numpy(np.asarray(physical_value, dtype=np.float32)))
+                rd_physical_valid_values.append(bool(physical_valid))
             labels.add(str(row["label_name"]))
         if len(labels) != 1:
             raise ValueError(f"parent sequence has inconsistent labels: {parent_id}")
@@ -368,6 +401,8 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             rd_frames=torch.from_numpy(np.stack(rd_values, axis=0)).float(),
             rd_frame_mask=torch.from_numpy(np.stack(rd_masks, axis=0)),
             rd_quality=torch.from_numpy(np.stack(quality_values, axis=0)).float(),
+            rd_physical_features=torch.stack(rd_physical_values, dim=0).float(),
+            rd_physical_valid=torch.tensor(rd_physical_valid_values, dtype=torch.bool),
             label=torch.tensor(label_id, dtype=torch.long),
             event_count=len(group),
             source_name=str(group.iloc[0]["source_name"]),
@@ -382,6 +417,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
     value_dim = int(items[0].tr_features.shape[-1])
     missing_dim = int(items[0].tr_missing_mask.shape[-1])
     motion_dim = int(items[0].tr_motion_features.shape[-1])
+    rd_physical_dim = int(items[0].rd_physical_features.shape[-1])
     max_frames = int(items[0].rd_frames.shape[1])
     rd_shape = tuple(items[0].rd_frames.shape[2:])
     batch_size = len(items)
@@ -394,6 +430,8 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
     rd_frames = torch.zeros((batch_size, max_length, max_frames, *rd_shape), dtype=torch.float32)
     rd_frame_mask = torch.zeros((batch_size, max_length, max_frames), dtype=torch.bool)
     rd_quality = torch.zeros((batch_size, max_length, len(RD_QUALITY_NAMES)), dtype=torch.float32)
+    rd_physical = torch.zeros((batch_size, max_length, rd_physical_dim), dtype=torch.float32)
+    rd_physical_valid = torch.zeros((batch_size, max_length), dtype=torch.bool)
     padding_mask = torch.ones((batch_size, max_length), dtype=torch.bool)
     labels = torch.empty((batch_size,), dtype=torch.long)
     for batch_index, item in enumerate(items):
@@ -403,6 +441,8 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
             or item.tr_missing_mask.shape[-1] != missing_dim
             or item.tr_motion_features.shape[-1] != motion_dim
             or item.tr_motion_valid_mask.shape != item.tr_motion_features.shape
+            or item.rd_physical_features.shape[-1] != rd_physical_dim
+            or item.rd_physical_valid.shape != (length,)
             or tuple(item.rd_frames.shape[2:]) != rd_shape
         ):
             raise ValueError("incompatible point sequence shapes")
@@ -415,9 +455,11 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         rd_frames[batch_index, :length] = item.rd_frames
         rd_frame_mask[batch_index, :length] = item.rd_frame_mask
         rd_quality[batch_index, :length] = item.rd_quality
+        rd_physical[batch_index, :length] = item.rd_physical_features
+        rd_physical_valid[batch_index, :length] = item.rd_physical_valid
         padding_mask[batch_index, :length] = False
         labels[batch_index] = item.label
-    return {
+    result = {
         "tr_features": tr_features,
         "tr_missing_mask": tr_missing,
         "tr_dt_seconds": dt,
@@ -435,6 +477,12 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         "label_names": [item.label_name for item in items],
         "source_names": [item.source_name for item in items],
     }
+    if rd_physical_dim:
+        if rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
+            raise ValueError(f"RD physical feature dimension must be {RD_PHYSICAL_VALUE_DIM}")
+        result["rd_physical_features"] = rd_physical
+        result["rd_physical_valid"] = rd_physical_valid
+    return result
 
 
 def build_point_dataloader(

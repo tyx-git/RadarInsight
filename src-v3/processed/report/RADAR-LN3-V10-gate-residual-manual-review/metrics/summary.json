@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V10-gate-residual-review-metrics-v1",
+  "scope": "CQ08 V3 train parent descriptive reference vs 12 V10 validation residual parents; test excluded",
+  "index_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "review_dir": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review",
+  "train_parent_count": 1081,
+  "train_event_count": 20684,
+  "residual_parent_count": 12,
+  "residual_event_count": 232,
+  "residual_label_counts": {
+    "BirdTarget": 6,
+    "UnknownTarget": 6
+  },
+  "residual_rd_present_event_count": 217,
+  "manual_decisions": 0,
+  "reference_unit": "parent median; same-label CQ08 train only",
+  "threshold_fitting": "未执行",
+  "label_changes": "未执行",
+  "v11": "未创建",
+  "training": "未执行",
+  "test": "未执行",
+  "interpretation_limits": [
+    "P05-P95 and empirical percentiles are descriptive comparison ranges, not label or reject thresholds",
+    "model route/confidence is not semantic label evidence",
+    "UnknownTarget remains a closed-set label and is not equivalent to open-set rejection",
+    "manual semantic decisions remain external-human-review work",
+    "RD metrics are computed only on V3 mapped frames and do not recover missing wall-clock time"
+  ],
+  "outputs": {
+    "guide": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review\\metrics\\review-metrics-guide.md",
+    "html": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review\\metrics\\index.html",
+    "summary": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review\\metrics\\summary.json",
+    "files": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review\\metrics\\files.sha256.json"
+  }
+}

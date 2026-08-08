@@ -1,0 +1,346 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V11",
+  "paired_protocol": "v10-control-v11-current-event-rd-physical-v1",
+  "scope": "complete V11 implementation readiness; no formal training, test, OOF or P95",
+  "release_decision": "可以进入用户手动V11 Control/Treatment三seed正式训练；尚无V11性能结论，不能进入第二阶段OOF、test、正式级联或部署",
+  "data": {
+    "source": "CQ08 V3 only",
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-tr-rd-physical-gate-data-contract.json",
+    "contract_sha256": "3d0caa41de518ff4f49e42b42187803db03f31ca7f8197b3c7c472da327e54e4",
+    "manifest": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-rd-physical-cache-manifest.json",
+    "manifest_sha256": "353222973278fcfa63d055d628c391f9fcaedbc8021d500757827237ce48b2e7",
+    "train_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-train-rd-physical-event-cache.npz",
+    "train_cache_sha256": "7261431fe1e39465ad3eb11802f9972b09da62299c3465101dafcd03aac42ba5",
+    "validation_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-val-rd-physical-event-cache.npz",
+    "validation_cache_sha256": "91776d1dfce1f4804d31e490a86339ada463647ffae3e65703e741f21817e7fc",
+    "train_event_count": 20684,
+    "train_valid_event_count": 20482,
+    "validation_event_count": 4474,
+    "validation_valid_event_count": 4434,
+    "full_online_source_recomputation_maximum_absolute_error": 0.0,
+    "test_event_count_sealed": 4505,
+    "test_rd_payload_access_count": 0,
+    "test_cache_generated": false
+  },
+  "single_factor": {
+    "control": "retrain V10 architecture under V11 paired protocol; Fusion input 127; no RD physical cache loaded",
+    "treatment": "append exactly four current-event RD physical values; Fusion input 131",
+    "unchanged": [
+      "CQ08 V3 parent rows, labels and train/val split",
+      "TR 14 values, 11 missing flags and 9 no-dt observation increments",
+      "RD CNN input/encoder and 7 causal current-event RD quality values",
+      "CfC liquid dynamics, dimensions, causal-prefix loss, class weights, batch size and learning rate",
+      "parent_min_precision_recall checkpoint selection and validation evaluator"
+    ],
+    "pretraining": "not_required_and_not_used"
+  },
+  "paired_reproducibility": {
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "shared_parameters_and_buffers_exactly_equal": true,
+    "treatment_four_new_fusion_columns_zero": true,
+    "CPU_reference_initial_logits_bitwise_equal_all_seeds": true,
+    "all_seed_initialization_evidence": [
+      {
+        "seed": 42,
+        "paired_protocol": "v10-control-v11-current-event-rd-physical-v1",
+        "shared_state_entry_count": 42,
+        "shared_parameters_and_buffers_exactly_equal": true,
+        "control_fusion_input_dim": 127,
+        "treatment_fusion_input_dim": 131,
+        "treatment_new_fusion_columns": 4,
+        "treatment_new_fusion_columns_exactly_zero": true,
+        "CPU_initial_logits_bitwise_equal": true,
+        "maximum_absolute_difference": 0.0,
+        "initial_logits_sha256": "0489582846c5f2609b6ff51ba67b7cad67448b0c0fbb838573707ee74bdc2ef2"
+      },
+      {
+        "seed": 43,
+        "paired_protocol": "v10-control-v11-current-event-rd-physical-v1",
+        "shared_state_entry_count": 42,
+        "shared_parameters_and_buffers_exactly_equal": true,
+        "control_fusion_input_dim": 127,
+        "treatment_fusion_input_dim": 131,
+        "treatment_new_fusion_columns": 4,
+        "treatment_new_fusion_columns_exactly_zero": true,
+        "CPU_initial_logits_bitwise_equal": true,
+        "maximum_absolute_difference": 0.0,
+        "initial_logits_sha256": "95574002590fa6620e605ecb8c8143b9898dfecfb978ffe68691616f020255c4"
+      },
+      {
+        "seed": 44,
+        "paired_protocol": "v10-control-v11-current-event-rd-physical-v1",
+        "shared_state_entry_count": 42,
+        "shared_parameters_and_buffers_exactly_equal": true,
+        "control_fusion_input_dim": 127,
+        "treatment_fusion_input_dim": 131,
+        "treatment_new_fusion_columns": 4,
+        "treatment_new_fusion_columns_exactly_zero": true,
+        "CPU_initial_logits_bitwise_equal": true,
+        "maximum_absolute_difference": 0.0,
+        "initial_logits_sha256": "4fa414990ebbb47008bd48405cd9cae90830ddceaa8c9403e5f6471c95ee06a0"
+      }
+    ],
+    "independent_same_seed_DataLoader_generators": true,
+    "each_epoch_parent_order_sha256": true,
+    "CUDA_strict_deterministic_algorithms": false,
+    "determinism_claim": "fixed shared initialization and sampling order; not bitwise CUDA determinism",
+    "observed_CUDA_initial_maximum_absolute_difference_seed42": 3.427267074584961e-07
+  },
+  "checkpointing": {
+    "save_each_epoch": true,
+    "best_model_semantics": "own-arm validation parent_min_precision_recall best",
+    "last_model_semantics": "last completed epoch",
+    "epoch_boundary_recovery": {
+      "model_logits_exact": true,
+      "optimizer_state_present": true,
+      "python_rng_exact": true,
+      "numpy_rng_exact": true,
+      "torch_cpu_rng_exact": true,
+      "dataloader_generator_exact": true,
+      "cuda_rng_exact": true,
+      "run_state_exact": true
+    },
+    "resume_requires_explicit_checkpoint_inside_same_arm_artifact": true
+  },
+  "focused_validation": {
+    "cache_validator": {
+      "status": "passed",
+      "schema_version": "RADAR-LN3-V11",
+      "paired_protocol": "v10-control-v11-current-event-rd-physical-v1",
+      "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+      "manifest_sha256": "353222973278fcfa63d055d628c391f9fcaedbc8021d500757827237ce48b2e7",
+      "contract_sha256": "3d0caa41de518ff4f49e42b42187803db03f31ca7f8197b3c7c472da327e54e4",
+      "split_results": {
+        "train": {
+          "event_count": 20684,
+          "cache_sha256": "7261431fe1e39465ad3eb11802f9972b09da62299c3465101dafcd03aac42ba5",
+          "sample_set_exact": true,
+          "sample_order_exact": true,
+          "duplicate_count": 0,
+          "valid_event_count": 20482,
+          "invalid_event_count": 202,
+          "rd_present_equals_valid": true,
+          "full_online_source_recomputation_exact": true,
+          "maximum_absolute_error": 0.0
+        },
+        "val": {
+          "event_count": 4474,
+          "cache_sha256": "91776d1dfce1f4804d31e490a86339ada463647ffae3e65703e741f21817e7fc",
+          "sample_set_exact": true,
+          "sample_order_exact": true,
+          "duplicate_count": 0,
+          "valid_event_count": 4434,
+          "invalid_event_count": 40,
+          "rd_present_equals_valid": true,
+          "full_online_source_recomputation_exact": true,
+          "maximum_absolute_error": 0.0
+        }
+      },
+      "canonical_rd_tensor_accessed_count": 1313,
+      "track_333": {
+        "event_count": 22,
+        "points_1_to_15_valid_count": 0,
+        "points_1_to_15_all_zero": true,
+        "points_16_to_22_valid_count": 7
+      },
+      "config_results": [
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-config.json",
+          "sha256": "80cb5b45d33f0199ce67a5d3d31e24b930ae53906178c988dbfdaea748365571",
+          "arm": "control",
+          "seed": 42,
+          "rd_physical_dim": 0,
+          "cache_loaded_by_contract": false,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-formal"
+        },
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-config.json",
+          "sha256": "dbb867c88530e2290ddccdcf6ba09fa2a8bcf7aaca94bb36157d1cd76df5220c",
+          "arm": "treatment",
+          "seed": 42,
+          "rd_physical_dim": 4,
+          "cache_loaded_by_contract": true,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-formal"
+        },
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-config.json",
+          "sha256": "ccee2ef1e049606733ba3b1c9343a1306ba324810b864f68c0bfd197aeab0cf5",
+          "arm": "control",
+          "seed": 43,
+          "rd_physical_dim": 0,
+          "cache_loaded_by_contract": false,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-formal"
+        },
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-config.json",
+          "sha256": "a9cea4b2f1d1ae42f086880109a30f83c7a5f4c7dc1f57df77c30542fdd0659e",
+          "arm": "treatment",
+          "seed": 43,
+          "rd_physical_dim": 4,
+          "cache_loaded_by_contract": true,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-formal"
+        },
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-config.json",
+          "sha256": "e8ae9a38a72b785925c1c37b677bcb502ea4995d38d586915023ec4c3fd4111f",
+          "arm": "control",
+          "seed": 44,
+          "rd_physical_dim": 0,
+          "cache_loaded_by_contract": false,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-formal"
+        },
+        {
+          "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-config.json",
+          "sha256": "f4121afb3379146b5a93eb75642668b3a62b90107abd67c27c4fedd083877437",
+          "arm": "treatment",
+          "seed": 44,
+          "rd_physical_dim": 4,
+          "cache_loaded_by_contract": true,
+          "artifact_dir": "artifacts/RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-formal"
+        }
+      ],
+      "artifact_directories_unique": true,
+      "test_row_count_sealed": 4505,
+      "test_rd_payload_access_count": 0,
+      "test_cache_generated": false,
+      "formal_training": "未执行",
+      "test_evaluation": "未执行",
+      "OOF": "未执行"
+    },
+    "CPU_smoke": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V11-rd-physical-paired-cpu\\result.json",
+      "sha256": "510c264ea97e75e6852718d18a3c3073c25d145ae7bdb5246ccd492ccd214c97"
+    },
+    "CUDA_smoke": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V11-rd-physical-paired-cuda\\result.json",
+      "sha256": "6eb12b19b0667098df5ee18e4450d35b32ee134a3bdecd2cb893b352d3f571c8"
+    },
+    "paired_report_test": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V11-rd-physical-paired-report-test-result.json",
+      "sha256": "dd550c7aa985838a1ba2380bac7e4219e5e8c9028ce1320b15154fa91576ef0c"
+    },
+    "V10_observation_increment_regression": "passed",
+    "V9_motion_regression": "passed",
+    "V7_V8_repair_regression": "passed",
+    "compileall": "passed",
+    "src_v3_static_isolation": {
+      "status": "passed",
+      "root": "F:\\Project\\RadarInsight\\src-v3",
+      "violations": []
+    }
+  },
+  "configs": [
+    {
+      "seed": 42,
+      "arm": "control",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-config.json",
+      "sha256": "80cb5b45d33f0199ce67a5d3d31e24b930ae53906178c988dbfdaea748365571",
+      "rd_physical_dim": 0,
+      "loads_rd_physical_cache": false,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-config.json"
+    },
+    {
+      "seed": 42,
+      "arm": "treatment",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-config.json",
+      "sha256": "dbb867c88530e2290ddccdcf6ba09fa2a8bcf7aaca94bb36157d1cd76df5220c",
+      "rd_physical_dim": 4,
+      "loads_rd_physical_cache": true,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-config.json"
+    },
+    {
+      "seed": 43,
+      "arm": "control",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-config.json",
+      "sha256": "ccee2ef1e049606733ba3b1c9343a1306ba324810b864f68c0bfd197aeab0cf5",
+      "rd_physical_dim": 0,
+      "loads_rd_physical_cache": false,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-config.json"
+    },
+    {
+      "seed": 43,
+      "arm": "treatment",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-config.json",
+      "sha256": "a9cea4b2f1d1ae42f086880109a30f83c7a5f4c7dc1f57df77c30542fdd0659e",
+      "rd_physical_dim": 4,
+      "loads_rd_physical_cache": true,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-config.json"
+    },
+    {
+      "seed": 44,
+      "arm": "control",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-config.json",
+      "sha256": "e8ae9a38a72b785925c1c37b677bcb502ea4995d38d586915023ec4c3fd4111f",
+      "rd_physical_dim": 0,
+      "loads_rd_physical_cache": false,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-config.json"
+    },
+    {
+      "seed": 44,
+      "arm": "treatment",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-config.json",
+      "sha256": "f4121afb3379146b5a93eb75642668b3a62b90107abd67c27c4fedd083877437",
+      "rd_physical_dim": 4,
+      "loads_rd_physical_cache": true,
+      "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-formal",
+      "manual_training_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m train.tasks --project-root F:\\Project\\RadarInsight --config F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-config.json"
+    }
+  ],
+  "formal_artifacts": [
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed42-formal",
+      "exists": false,
+      "content_count": 0
+    },
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-formal",
+      "exists": false,
+      "content_count": 0
+    },
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed43-formal",
+      "exists": false,
+      "content_count": 0
+    },
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-formal",
+      "exists": false,
+      "content_count": 0
+    },
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-control-seed44-formal",
+      "exists": false,
+      "content_count": 0
+    },
+    {
+      "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-formal",
+      "exists": false,
+      "content_count": 0
+    }
+  ],
+  "post_training_report_command": "Set-Location F:\\Project\\RadarInsight\\src-v3; ..\\.venv\\Scripts\\python.exe -m report.rd_physical_paired --project-root F:\\Project\\RadarInsight",
+  "known_limits": [
+    "Smoke validates contracts, finite loss/gradient/update and recovery; it is not classification performance",
+    "validation CU support remains 23 parents; three paired seeds and the frozen stage-one gate are mandatory",
+    "UnknownTarget open-set reject/abstain calibration remains separate and unexecuted",
+    "V11 changes only the DBB/CU Gate; specialists and formal three-checkpoint cascade are outside this stage",
+    "CUDA initial paired forwards are numerically but not bitwise identical under the user-selected non-strict protocol"
+  ],
+  "formal_training": "未执行",
+  "formal_validation_performance": "未评估",
+  "test_evaluation": "未执行",
+  "OOF": "未执行",
+  "P95": "未执行",
+  "formal_cascade": "未执行"
+}

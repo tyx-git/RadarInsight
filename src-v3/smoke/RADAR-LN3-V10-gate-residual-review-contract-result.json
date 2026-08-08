@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V10-gate-residual-review-contract-test-v1",
+  "package_validation": {
+    "status": "passed",
+    "schema_version": "RADAR-LN3-V10-gate-residual-manual-review-v1",
+    "package_dir": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-manual-review",
+    "parent_count": 12,
+    "event_count": 232,
+    "rd_present_event_count": 217,
+    "rd_missing_event_count": 15,
+    "review_decisions_completed": 12,
+    "human_observations_recorded": 12,
+    "automatic_label_changes": 0,
+    "review_status": "completed_keep_current_labels_under_user_policy",
+    "v11_release": "ready_for_design_pending_explicit_authorization",
+    "test": "未执行",
+    "training": "未执行"
+  },
+  "human_input_overwrite_guard": "passed",
+  "invalid_decision_guard": "passed",
+  "human_observations_recorded": 12,
+  "review_decisions_completed": 12,
+  "automatic_label_changes": 0,
+  "v11_release": "ready_for_design_pending_explicit_authorization",
+  "test": "未执行",
+  "training": "未执行"
+}

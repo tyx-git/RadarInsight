@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
+
+from .tr_only_contract import TR_ONLY_ALLOWED_SOURCES
 
 
 @dataclass(frozen=True)
@@ -47,11 +50,23 @@ class TrackPretrainConfig:
     allow_legacy_feature_contract: bool = False
     seed: int = 42
     device: str = "cuda"
+    # Explicit source subset for a versioned pretraining contract.  Values
+    # must remain a subset of the strict TR-only allowlist.
+    allowed_source_names: list[str] = field(
+        default_factory=lambda: sorted(TR_ONLY_ALLOWED_SOURCES)
+    )
 
     def validate_active_training_contract(self) -> None:
         """Prevent the active pretraining command from silently using V1/V2."""
         if bool(self.allow_legacy_feature_contract):
             return
+        requested_sources = {str(value).strip() for value in self.allowed_source_names}
+        invalid_sources = sorted(requested_sources - set(TR_ONLY_ALLOWED_SOURCES))
+        if not requested_sources or invalid_sources:
+            raise ValueError(
+                "pretraining allowed_source_names must be a non-empty subset of "
+                f"{sorted(TR_ONLY_ALLOWED_SOURCES)}; got {sorted(requested_sources)}"
+            )
         if str(self.trajectory_feature_schema).strip().lower() != "v3":
             raise ValueError(
                 "active track pretraining requires trajectory_feature_schema='v3'; "

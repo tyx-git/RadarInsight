@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "scope": "focused cache publication and Windows ACL inheritance; no formal training",
+  "first_write_status": "created",
+  "second_write_status": "reused_identical",
+  "sha256_stable": true,
+  "npz_fields": [
+    "sample_ids",
+    "valid",
+    "values"
+  ],
+  "arrays_equal": true,
+  "windows_acl": {
+    "protected": false,
+    "inherited_rule_count": 9,
+    "broad_read_allowed": true
+  },
+  "versioned_caches": {
+    "train": {
+      "path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-train-rd-physical-event-cache.npz",
+      "sha256": "7261431fe1e39465ad3eb11802f9972b09da62299c3465101dafcd03aac42ba5",
+      "npz_fields": [
+        "sample_ids",
+        "valid",
+        "values"
+      ],
+      "event_count": 20684,
+      "write_status": "reused_identical",
+      "windows_acl": {
+        "protected": false,
+        "inherited_rule_count": 9,
+        "broad_read_allowed": true
+      }
+    },
+    "validation": {
+      "path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V11-cq08-val-rd-physical-event-cache.npz",
+      "sha256": "91776d1dfce1f4804d31e490a86339ada463647ffae3e65703e741f21817e7fc",
+      "npz_fields": [
+        "sample_ids",
+        "valid",
+        "values"
+      ],
+      "event_count": 4474,
+      "write_status": "reused_identical",
+      "windows_acl": {
+        "protected": false,
+        "inherited_rule_count": 9,
+        "broad_read_allowed": true
+      }
+    }
+  },
+  "treatment_contracts": [
+    {
+      "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed42-config.json",
+      "seed": 42,
+      "data_contract_status": "passed"
+    },
+    {
+      "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed43-config.json",
+      "seed": 43,
+      "data_contract_status": "passed"
+    },
+    {
+      "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V11-cq08-liquid-dbb-cu-gate-rd-physical-treatment-seed44-config.json",
+      "seed": 44,
+      "data_contract_status": "passed"
+    }
+  ],
+  "bounded_dataset": {
+    "parent_count": 1,
+    "sequence_length": 21,
+    "rd_physical_shape": [
+      21,
+      4
+    ],
+    "rd_physical_valid_shape": [
+      21
+    ],
+    "finite": true
+  },
+  "formal_training": "未执行",
+  "test_evaluation": "未执行"
+}

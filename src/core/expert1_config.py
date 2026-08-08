@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .tr_only_contract import TR_ONLY_ALLOWED_SOURCES
+
 
 @dataclass(frozen=True)
 class Expert1TrainConfig:
@@ -182,6 +184,12 @@ class Expert1TrainConfig:
     load_only_fusion_eligible_rd: bool = True
     seed: int = 42
     device: str = "cuda"
+    # The default preserves the historical CQ08+raw TR-only contract.  A
+    # versioned experiment may explicitly freeze a strict subset, such as
+    # CQ08-only, without changing the global allowlist.
+    required_tr_only_sources: list[str] = field(
+        default_factory=lambda: sorted(TR_ONLY_ALLOWED_SOURCES)
+    )
 
     @property
     def is_pure_tr_only(self) -> bool:

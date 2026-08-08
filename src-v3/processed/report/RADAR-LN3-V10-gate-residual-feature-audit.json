@@ -1,0 +1,2855 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V10-gate-residual-feature-audit-v1",
+  "scope": "CQ08 V3 validation BirdTarget/UnknownTarget descriptive residual audit only; no threshold, classifier, normalization or parameter fitted; test excluded",
+  "index_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V10-cq08-liquid-dbb-cu-gate-observation-increment-formal\\sample_detail_information.json",
+  "group_counts": {
+    "BirdTarget:correct": 46,
+    "BirdTarget:wrong": 6,
+    "UnknownTarget:correct": 9,
+    "UnknownTarget:wrong": 6
+  },
+  "tr_feature_names": [
+    "reported_speed_delta_scaled",
+    "radial_speed_delta_scaled",
+    "course_delta_scaled",
+    "geometric_step_distance_scaled",
+    "range_delta_scaled",
+    "radial_range_direction_agreement",
+    "radial_sign_flip",
+    "consecutive_step_direction_cosine",
+    "causal_path_straightness"
+  ],
+  "rd_feature_names": [
+    "velocity_bandwidth_mps",
+    "zero_velocity_energy_fraction",
+    "velocity_spectral_entropy",
+    "top10_velocity_energy_fraction",
+    "abs_peak_velocity_mps",
+    "phase_coherence",
+    "velocity_profile_change"
+  ],
+  "rd_contract": {
+    "frames_per_event_maximum": 12,
+    "uses_V3_mapped_frames_only": true,
+    "uses_physical_velocity_axis": true,
+    "uses_future_parent_statistics_as_model_input": false,
+    "parent_aggregation_for_diagnostics_only": "median of causal event features"
+  },
+  "groups": {
+    "BirdTarget:correct": {
+      "parent_count": 46,
+      "event_count": 892,
+      "rd_present_event_count": 885,
+      "rd_present_fraction": {
+        "count": 46,
+        "mean": 0.9936594202898551,
+        "std": 0.042533901745919915,
+        "p05": 1.0,
+        "median": 1.0,
+        "p95": 1.0,
+        "minimum": 0.7083333333333334,
+        "maximum": 1.0
+      },
+      "tr_parent_features": {
+        "reported_speed_delta_scaled": {
+          "count": 46,
+          "mean": 0.0032008153667329284,
+          "std": 0.024956425037340628,
+          "p05": -0.025598524138331413,
+          "median": 0.0016195999924093485,
+          "p95": 0.03245224943384528,
+          "minimum": -0.06261619925498962,
+          "maximum": 0.09968850016593933
+        },
+        "radial_speed_delta_scaled": {
+          "count": 46,
+          "mean": -0.0005760869497190351,
+          "std": 0.02165890938523827,
+          "p05": -0.02737500239163637,
+          "median": 0.0,
+          "p95": 0.030999999027699232,
+          "minimum": -0.07999999821186066,
+          "maximum": 0.06800000369548798
+        },
+        "course_delta_scaled": {
+          "count": 46,
+          "mean": 0.0009760621906025335,
+          "std": 0.058385826109612717,
+          "p05": -0.05869356542825699,
+          "median": 0.0004957889032084495,
+          "p95": 0.10371425747871399,
+          "minimum": -0.22456537187099457,
+          "maximum": 0.11794091016054153
+        },
+        "geometric_step_distance_scaled": {
+          "count": 46,
+          "mean": 0.11056046135237683,
+          "std": 0.1310936809929186,
+          "p05": 0.015457022469490767,
+          "median": 0.03636306896805763,
+          "p95": 0.3448197543621063,
+          "minimum": 0.013445558026432991,
+          "maximum": 0.5320927500724792
+        },
+        "range_delta_scaled": {
+          "count": 46,
+          "mean": -0.00673362299763223,
+          "std": 0.09339191820063536,
+          "p05": -0.15567288175225258,
+          "median": -0.005775900091975927,
+          "p95": 0.17164720222353935,
+          "minimum": -0.2971203327178955,
+          "maximum": 0.23867973685264587
+        },
+        "radial_range_direction_agreement": {
+          "count": 46,
+          "mean": 1.0,
+          "std": 0.0,
+          "p05": 1.0,
+          "median": 1.0,
+          "p95": 1.0,
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "radial_sign_flip": {
+          "count": 46,
+          "mean": 0.0,
+          "std": 0.0,
+          "p05": 0.0,
+          "median": 0.0,
+          "p95": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "consecutive_step_direction_cosine": {
+          "count": 46,
+          "mean": 0.7957724306894385,
+          "std": 0.1773190737803605,
+          "p05": 0.4325108677148819,
+          "median": 0.8666607141494751,
+          "p95": 0.9849905520677567,
+          "minimum": 0.2844603359699249,
+          "maximum": 0.9903848767280579
+        },
+        "causal_path_straightness": {
+          "count": 46,
+          "mean": 0.8540167510509491,
+          "std": 0.11117436457691228,
+          "p05": 0.6574327945709229,
+          "median": 0.8760902583599091,
+          "p95": 0.9808686226606369,
+          "minimum": 0.5511519908905029,
+          "maximum": 0.9954917430877686
+        }
+      },
+      "rd_parent_features": {
+        "velocity_bandwidth_mps": {
+          "count": 46,
+          "mean": 33.772906209422175,
+          "std": 11.427304474647963,
+          "p05": 16.868947949139965,
+          "median": 36.18849581012637,
+          "p95": 46.86390967797067,
+          "minimum": 9.504745047469898,
+          "maximum": 47.99493901351505
+        },
+        "zero_velocity_energy_fraction": {
+          "count": 46,
+          "mean": 0.36869173212118295,
+          "std": 0.27548529856583737,
+          "p05": 0.05731866790044322,
+          "median": 0.29107721748867277,
+          "p95": 0.8355498968832651,
+          "minimum": 0.0356085504031496,
+          "maximum": 0.9086401783707289
+        },
+        "velocity_spectral_entropy": {
+          "count": 46,
+          "mean": 0.7476582686645711,
+          "std": 0.21320470908347222,
+          "p05": 0.3823239489984523,
+          "median": 0.8060009439271876,
+          "p95": 0.9825292933563419,
+          "minimum": 0.3496876258210487,
+          "maximum": 0.9885073066515936
+        },
+        "top10_velocity_energy_fraction": {
+          "count": 46,
+          "mean": 0.45540161102979615,
+          "std": 0.27477936198564445,
+          "p05": 0.1082209410050329,
+          "median": 0.44521966933655,
+          "p95": 0.8527072947128198,
+          "minimum": 0.07568265784002393,
+          "maximum": 0.9086401783707287
+        },
+        "abs_peak_velocity_mps": {
+          "count": 46,
+          "mean": 1.20615277601325,
+          "std": 1.9767250510114471,
+          "p05": 0.22193211317062378,
+          "median": 0.22193211317062378,
+          "p95": 5.54830265045166,
+          "minimum": 0.22193211317062378,
+          "maximum": 7.32375955581665
+        },
+        "phase_coherence": {
+          "count": 46,
+          "mean": 0.06809759630943787,
+          "std": 0.05596868326457195,
+          "p05": 0.019589975957427546,
+          "median": 0.057377105545051516,
+          "p95": 0.17338260732357233,
+          "minimum": 0.013562603024052683,
+          "maximum": 0.32562006493985646
+        },
+        "velocity_profile_change": {
+          "count": 46,
+          "mean": 0.14029293127139936,
+          "std": 0.07285139088737196,
+          "p05": 0.06443262971630898,
+          "median": 0.11464533622344952,
+          "p95": 0.3183726229405429,
+          "minimum": 0.03376080953588468,
+          "maximum": 0.3806399111228247
+        }
+      },
+      "parent_ids": [
+        "cq08|track|1301",
+        "cq08|track|2569",
+        "cq08|track|2582",
+        "cq08|track|2589",
+        "cq08|track|2687",
+        "cq08|track|361",
+        "cq08|track|390",
+        "cq08|track|399",
+        "cq08|track|401",
+        "cq08|track|403",
+        "cq08|track|422",
+        "cq08|track|432",
+        "cq08|track|441",
+        "cq08|track|444",
+        "cq08|track|497",
+        "cq08|track|521",
+        "cq08|track|528",
+        "cq08|track|531",
+        "cq08|track|561",
+        "cq08|track|573",
+        "cq08|track|590",
+        "cq08|track|633",
+        "cq08|track|665",
+        "cq08|track|676",
+        "cq08|track|721",
+        "cq08|track|731",
+        "cq08|track|735",
+        "cq08|track|749",
+        "cq08|track|751",
+        "cq08|track|756",
+        "cq08|track|774",
+        "cq08|track|780",
+        "cq08|track|782",
+        "cq08|track|801",
+        "cq08|track|802",
+        "cq08|track|814",
+        "cq08|track|816",
+        "cq08|track|817",
+        "cq08|track|818",
+        "cq08|track|847",
+        "cq08|track|851",
+        "cq08|track|861",
+        "cq08|track|875",
+        "cq08|track|886",
+        "cq08|track|936",
+        "cq08|track|951"
+      ]
+    },
+    "BirdTarget:wrong": {
+      "parent_count": 6,
+      "event_count": 121,
+      "rd_present_event_count": 106,
+      "rd_present_fraction": {
+        "count": 6,
+        "mean": 0.8863636363636364,
+        "std": 0.25409863380679426,
+        "p05": 0.48863636363636365,
+        "median": 1.0,
+        "p95": 1.0,
+        "minimum": 0.3181818181818182,
+        "maximum": 1.0
+      },
+      "tr_parent_features": {
+        "reported_speed_delta_scaled": {
+          "count": 6,
+          "mean": 0.005493399890838191,
+          "std": 0.04921579731721478,
+          "p05": -0.046329385600984097,
+          "median": -0.005553025141125545,
+          "p95": 0.08229967253282666,
+          "minimum": -0.05452694743871689,
+          "maximum": 0.1044342964887619
+        },
+        "radial_speed_delta_scaled": {
+          "count": 6,
+          "mean": 0.003666666569188237,
+          "std": 0.006944221993413393,
+          "p05": 0.0,
+          "median": 0.0,
+          "p95": 0.014999999548308551,
+          "minimum": 0.0,
+          "maximum": 0.01899999938905239
+        },
+        "course_delta_scaled": {
+          "count": 6,
+          "mean": 0.010483499305943647,
+          "std": 0.0793389851825894,
+          "p05": -0.11383151123300195,
+          "median": 0.024455010890960693,
+          "p95": 0.09148090705275536,
+          "minimum": -0.1495937705039978,
+          "maximum": 0.09789707511663437
+        },
+        "geometric_step_distance_scaled": {
+          "count": 6,
+          "mean": 0.2790578107039134,
+          "std": 0.09532503720981075,
+          "p05": 0.16917380690574646,
+          "median": 0.25838539004325867,
+          "p95": 0.41895677894353867,
+          "minimum": 0.16053883731365204,
+          "maximum": 0.43693429231643677
+        },
+        "range_delta_scaled": {
+          "count": 6,
+          "mean": -0.1674301140010357,
+          "std": 0.07635536524183018,
+          "p05": -0.27273377776145935,
+          "median": -0.1515168398618698,
+          "p95": -0.08228262327611446,
+          "minimum": -0.2778890132904053,
+          "maximum": -0.0813702866435051
+        },
+        "radial_range_direction_agreement": {
+          "count": 6,
+          "mean": 1.0,
+          "std": 0.0,
+          "p05": 1.0,
+          "median": 1.0,
+          "p95": 1.0,
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "radial_sign_flip": {
+          "count": 6,
+          "mean": 0.0,
+          "std": 0.0,
+          "p05": 0.0,
+          "median": 0.0,
+          "p95": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "consecutive_step_direction_cosine": {
+          "count": 6,
+          "mean": 0.8780348499615988,
+          "std": 0.11344738956778726,
+          "p05": 0.692504420876503,
+          "median": 0.9246502816677094,
+          "p95": 0.9588248133659363,
+          "minimum": 0.6342074275016785,
+          "maximum": 0.9589967727661133
+        },
+        "causal_path_straightness": {
+          "count": 6,
+          "mean": 0.9164434274037679,
+          "std": 0.05379883440413835,
+          "p05": 0.8292099833488464,
+          "median": 0.9372521340847015,
+          "p95": 0.9551751762628555,
+          "minimum": 0.800887942314148,
+          "maximum": 0.9558042287826538
+        }
+      },
+      "rd_parent_features": {
+        "velocity_bandwidth_mps": {
+          "count": 6,
+          "mean": 34.20492579710471,
+          "std": 7.469336654975641,
+          "p05": 26.438449698391533,
+          "median": 32.61696338923406,
+          "p95": 44.95923201862961,
+          "minimum": 26.364683128530373,
+          "maximum": 46.432866303431865
+        },
+        "zero_velocity_energy_fraction": {
+          "count": 6,
+          "mean": 0.41231148957033764,
+          "std": 0.2357187585534408,
+          "p05": 0.10323548317842517,
+          "median": 0.4510315592341813,
+          "p95": 0.6885115363729558,
+          "minimum": 0.09047860127666829,
+          "maximum": 0.7071125283492619
+        },
+        "velocity_spectral_entropy": {
+          "count": 6,
+          "mean": 0.757813933773596,
+          "std": 0.17068576320539974,
+          "p05": 0.52571214110809,
+          "median": 0.7754950830996525,
+          "p95": 0.9582574807880238,
+          "minimum": 0.49890893399071373,
+          "maximum": 0.9710835915803782
+        },
+        "top10_velocity_energy_fraction": {
+          "count": 6,
+          "mean": 0.4525234415638284,
+          "std": 0.21448838969090767,
+          "p05": 0.16005314314857808,
+          "median": 0.48980474068779245,
+          "p95": 0.6943038266049104,
+          "minimum": 0.1275997258985079,
+          "maximum": 0.7133486296047764
+        },
+        "abs_peak_velocity_mps": {
+          "count": 6,
+          "mean": 0.22193211317062378,
+          "std": 0.0,
+          "p05": 0.22193211317062378,
+          "median": 0.22193211317062378,
+          "p95": 0.22193211317062378,
+          "minimum": 0.22193211317062378,
+          "maximum": 0.22193211317062378
+        },
+        "phase_coherence": {
+          "count": 6,
+          "mean": 0.06338156108768049,
+          "std": 0.024328999888605277,
+          "p05": 0.029318988008820747,
+          "median": 0.0649730395698355,
+          "p95": 0.08948899533217564,
+          "minimum": 0.022319838334082055,
+          "maximum": 0.09012448465470473
+        },
+        "velocity_profile_change": {
+          "count": 6,
+          "mean": 0.12923184157365378,
+          "std": 0.015509434043504423,
+          "p05": 0.10510557429604808,
+          "median": 0.13396921856887345,
+          "p95": 0.14266149006370238,
+          "minimum": 0.099033930278776,
+          "maximum": 0.14277389228863702
+        }
+      },
+      "parent_ids": [
+        "cq08|track|2367",
+        "cq08|track|2956",
+        "cq08|track|333",
+        "cq08|track|3581",
+        "cq08|track|845",
+        "cq08|track|852"
+      ]
+    },
+    "UnknownTarget:correct": {
+      "parent_count": 9,
+      "event_count": 162,
+      "rd_present_event_count": 162,
+      "rd_present_fraction": {
+        "count": 9,
+        "mean": 1.0,
+        "std": 0.0,
+        "p05": 1.0,
+        "median": 1.0,
+        "p95": 1.0,
+        "minimum": 1.0,
+        "maximum": 1.0
+      },
+      "tr_parent_features": {
+        "reported_speed_delta_scaled": {
+          "count": 9,
+          "mean": -0.0020761461863811645,
+          "std": 0.10593450472909903,
+          "p05": -0.15903688669204713,
+          "median": -0.000615999975707382,
+          "p95": 0.14958127737045285,
+          "minimum": -0.2245137095451355,
+          "maximum": 0.20095029473304749
+        },
+        "radial_speed_delta_scaled": {
+          "count": 9,
+          "mean": -0.027777777777777776,
+          "std": 0.04700479290258608,
+          "p05": -0.10889999866485596,
+          "median": -0.004999999888241291,
+          "p95": 0.014999999478459355,
+          "minimum": -0.13449999690055847,
+          "maximum": 0.01899999938905239
+        },
+        "course_delta_scaled": {
+          "count": 9,
+          "mean": 0.07263988494459125,
+          "std": 0.23143728211952583,
+          "p05": -0.13363546431064605,
+          "median": -0.005061078816652298,
+          "p95": 0.5005373001098632,
+          "minimum": -0.15685750544071198,
+          "maximum": 0.6095619201660156
+        },
+        "geometric_step_distance_scaled": {
+          "count": 9,
+          "mean": 0.30557353960143196,
+          "std": 0.1537212963786451,
+          "p05": 0.20198309421539307,
+          "median": 0.23885521292686462,
+          "p95": 0.5842925906181334,
+          "minimum": 0.18951556086540222,
+          "maximum": 0.710090696811676
+        },
+        "range_delta_scaled": {
+          "count": 9,
+          "mean": -0.010973070230748918,
+          "std": 0.20273049265950735,
+          "p05": -0.19236686825752258,
+          "median": -0.12745541334152222,
+          "p95": 0.3263860464096069,
+          "minimum": -0.197719544172287,
+          "maximum": 0.3964481055736542
+        },
+        "radial_range_direction_agreement": {
+          "count": 9,
+          "mean": 1.0,
+          "std": 0.0,
+          "p05": 1.0,
+          "median": 1.0,
+          "p95": 1.0,
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "radial_sign_flip": {
+          "count": 9,
+          "mean": 0.1111111111111111,
+          "std": 0.31426968052735443,
+          "p05": 0.0,
+          "median": 0.0,
+          "p95": 0.5999999999999996,
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "consecutive_step_direction_cosine": {
+          "count": 9,
+          "mean": 0.7434767563309934,
+          "std": 0.2709540893566039,
+          "p05": 0.28142365887761117,
+          "median": 0.8183748126029968,
+          "p95": 0.9700310707092286,
+          "minimum": 0.04754145070910454,
+          "maximum": 0.9809470176696777
+        },
+        "causal_path_straightness": {
+          "count": 9,
+          "mean": 0.7965559760729471,
+          "std": 0.16901905293669914,
+          "p05": 0.5125275731086731,
+          "median": 0.890592098236084,
+          "p95": 0.9582489490509033,
+          "minimum": 0.5062294602394104,
+          "maximum": 0.9674934148788452
+        }
+      },
+      "rd_parent_features": {
+        "velocity_bandwidth_mps": {
+          "count": 9,
+          "mean": 28.62326290466875,
+          "std": 10.24755515488987,
+          "p05": 13.003666154342316,
+          "median": 27.971638501274104,
+          "p95": 41.73407402270548,
+          "minimum": 10.019882269744791,
+          "maximum": 42.9983039766752
+        },
+        "zero_velocity_energy_fraction": {
+          "count": 9,
+          "mean": 0.5860179061840244,
+          "std": 0.24052047632212095,
+          "p05": 0.24246284333931714,
+          "median": 0.6768323686037139,
+          "p95": 0.9130599161676662,
+          "minimum": 0.18754527321816583,
+          "maximum": 0.9594069470378452
+        },
+        "velocity_spectral_entropy": {
+          "count": 9,
+          "mean": 0.5832052461723948,
+          "std": 0.2276065598555034,
+          "p05": 0.24302192011158108,
+          "median": 0.5191309272931008,
+          "p95": 0.8869072708205202,
+          "minimum": 0.18335415670073407,
+          "maximum": 0.9177839096799507
+        },
+        "top10_velocity_energy_fraction": {
+          "count": 9,
+          "mean": 0.6142353296274762,
+          "std": 0.23413667320190037,
+          "p05": 0.2747245580667367,
+          "median": 0.6864758858047214,
+          "p95": 0.926383221407582,
+          "minimum": 0.23311038117681973,
+          "maximum": 0.9612667345640694
+        },
+        "abs_peak_velocity_mps": {
+          "count": 9,
+          "mean": 0.22193211317062378,
+          "std": 0.0,
+          "p05": 0.22193211317062378,
+          "median": 0.22193211317062378,
+          "p95": 0.22193211317062378,
+          "minimum": 0.22193211317062378,
+          "maximum": 0.22193211317062378
+        },
+        "phase_coherence": {
+          "count": 9,
+          "mean": 0.11853404504578714,
+          "std": 0.05769738091728737,
+          "p05": 0.048291072276065085,
+          "median": 0.10356532179749733,
+          "p95": 0.21036037252764145,
+          "minimum": 0.042322448077149154,
+          "maximum": 0.24845823571099215
+        },
+        "velocity_profile_change": {
+          "count": 9,
+          "mean": 0.1213226778228521,
+          "std": 0.0605259813430548,
+          "p05": 0.04845738726826444,
+          "median": 0.1002955536166488,
+          "p95": 0.21518220525326476,
+          "minimum": 0.024159514898801956,
+          "maximum": 0.23717092264919082
+        }
+      },
+      "parent_ids": [
+        "cq08|track|2119",
+        "cq08|track|2124",
+        "cq08|track|2125",
+        "cq08|track|2709",
+        "cq08|track|2907",
+        "cq08|track|2912",
+        "cq08|track|3123",
+        "cq08|track|3619",
+        "cq08|track|3878"
+      ]
+    },
+    "UnknownTarget:wrong": {
+      "parent_count": 6,
+      "event_count": 111,
+      "rd_present_event_count": 111,
+      "rd_present_fraction": {
+        "count": 6,
+        "mean": 1.0,
+        "std": 0.0,
+        "p05": 1.0,
+        "median": 1.0,
+        "p95": 1.0,
+        "minimum": 1.0,
+        "maximum": 1.0
+      },
+      "tr_parent_features": {
+        "reported_speed_delta_scaled": {
+          "count": 6,
+          "mean": 0.016343525067592662,
+          "std": 0.021593742081346266,
+          "p05": -0.005154512589797378,
+          "median": 0.010526225669309497,
+          "p95": 0.04964226158335805,
+          "minimum": -0.005401750095188618,
+          "maximum": 0.055872898548841476
+        },
+        "radial_speed_delta_scaled": {
+          "count": 6,
+          "mean": -0.005166666737447183,
+          "std": 0.008801830699570946,
+          "p05": -0.019750000210478902,
+          "median": 0.0,
+          "p95": 0.0,
+          "minimum": -0.024000000208616257,
+          "maximum": 0.0
+        },
+        "course_delta_scaled": {
+          "count": 6,
+          "mean": -0.011586675575623909,
+          "std": 0.04247656856115583,
+          "p05": -0.07088985200971365,
+          "median": -0.010725611355155706,
+          "p95": 0.04058517375960946,
+          "minimum": -0.08350200951099396,
+          "maximum": 0.0469270683825016
+        },
+        "geometric_step_distance_scaled": {
+          "count": 6,
+          "mean": 0.2530781477689743,
+          "std": 0.08023669179027634,
+          "p05": 0.16946814209222794,
+          "median": 0.22520257532596588,
+          "p95": 0.3626035526394844,
+          "minimum": 0.1637597680091858,
+          "maximum": 0.36635175347328186
+        },
+        "range_delta_scaled": {
+          "count": 6,
+          "mean": -0.04605511389672756,
+          "std": 0.13946216851350346,
+          "p05": -0.20810705795884132,
+          "median": -0.05185463838279247,
+          "p95": 0.12740078009665012,
+          "minimum": -0.21972642838954926,
+          "maximum": 0.14462457597255707
+        },
+        "radial_range_direction_agreement": {
+          "count": 6,
+          "mean": 1.0,
+          "std": 0.0,
+          "p05": 1.0,
+          "median": 1.0,
+          "p95": 1.0,
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "radial_sign_flip": {
+          "count": 6,
+          "mean": 0.0,
+          "std": 0.0,
+          "p05": 0.0,
+          "median": 0.0,
+          "p95": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "consecutive_step_direction_cosine": {
+          "count": 6,
+          "mean": 0.9355470240116119,
+          "std": 0.02972398207380438,
+          "p05": 0.8936392962932587,
+          "median": 0.9352047443389893,
+          "p95": 0.9728821367025375,
+          "minimum": 0.8862605094909668,
+          "maximum": 0.975346028804779
+        },
+        "causal_path_straightness": {
+          "count": 6,
+          "mean": 0.9384766817092896,
+          "std": 0.030589109336994078,
+          "p05": 0.8976999670267105,
+          "median": 0.9383884370326996,
+          "p95": 0.9726119339466095,
+          "minimum": 0.8904538750648499,
+          "maximum": 0.9731283187866211
+        }
+      },
+      "rd_parent_features": {
+        "velocity_bandwidth_mps": {
+          "count": 6,
+          "mean": 29.1130870011833,
+          "std": 15.45186275463452,
+          "p05": 9.13781828951686,
+          "median": 30.366827225432722,
+          "p95": 47.324962813576306,
+          "minimum": 8.167789237345081,
+          "maximum": 47.78533919072407
+        },
+        "zero_velocity_energy_fraction": {
+          "count": 6,
+          "mean": 0.522233414979051,
+          "std": 0.36308635037171044,
+          "p05": 0.06147357535445122,
+          "median": 0.5607574404507346,
+          "p95": 0.9384444924494745,
+          "minimum": 0.05217486589539255,
+          "maximum": 0.9417184652260406
+        },
+        "velocity_spectral_entropy": {
+          "count": 6,
+          "mean": 0.6381879381553351,
+          "std": 0.2874910311044662,
+          "p05": 0.2601058334906295,
+          "median": 0.6286362378780131,
+          "p95": 0.9815703381477723,
+          "minimum": 0.2090044621159259,
+          "maximum": 0.9884203045728855
+        },
+        "top10_velocity_energy_fraction": {
+          "count": 6,
+          "mean": 0.5522314217259574,
+          "std": 0.3471298085588917,
+          "p05": 0.09921690386054914,
+          "median": 0.6053638800884197,
+          "p95": 0.9392065304043917,
+          "minimum": 0.08278196760783225,
+          "maximum": 0.942734515832597
+        },
+        "abs_peak_velocity_mps": {
+          "count": 6,
+          "mean": 0.5178416073322296,
+          "std": 0.6616737441329278,
+          "p05": 0.22193211317062378,
+          "median": 0.22193211317062378,
+          "p95": 1.55352483689785,
+          "minimum": 0.22193211317062378,
+          "maximum": 1.9973890781402588
+        },
+        "phase_coherence": {
+          "count": 6,
+          "mean": 0.07341738789658929,
+          "std": 0.04130110617117975,
+          "p05": 0.01727801377847866,
+          "median": 0.08346042313104313,
+          "p95": 0.12409427599939456,
+          "minimum": 0.013941137923043825,
+          "maximum": 0.13201170107397786
+        },
+        "velocity_profile_change": {
+          "count": 6,
+          "mean": 0.11468978824013092,
+          "std": 0.03790669319853817,
+          "p05": 0.061284553407368395,
+          "median": 0.11770388699682782,
+          "p95": 0.16162215565807536,
+          "minimum": 0.04466231803018576,
+          "maximum": 0.1747856223771368
+        }
+      },
+      "parent_ids": [
+        "cq08|track|1547",
+        "cq08|track|2862",
+        "cq08|track|2908",
+        "cq08|track|3122",
+        "cq08|track|3154",
+        "cq08|track|4171"
+      ]
+    }
+  },
+  "parents": [
+    {
+      "parent_sample_id": "cq08|track|1301",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9904733300209045,
+      "event_count": 24,
+      "rd_present_event_count": 24,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.014641700312495232,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.020141711458563805,
+        "geometric_step_distance_scaled": 0.5320927500724792,
+        "range_delta_scaled": -0.2971203327178955,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9874160289764404,
+        "causal_path_straightness": 0.932536244392395
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 27.636433932758383,
+        "zero_velocity_energy_fraction": 0.2757638194506217,
+        "velocity_spectral_entropy": 0.7351186367058287,
+        "top10_velocity_energy_fraction": 0.5468304447608741,
+        "abs_peak_velocity_mps": 1.775456964969635,
+        "phase_coherence": 0.05609864159098671,
+        "velocity_profile_change": 0.3532125212712389
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|1547",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.6844606399536133,
+      "event_count": 24,
+      "rd_present_event_count": 24,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.015548351220786572,
+        "radial_speed_delta_scaled": -0.024000000208616257,
+        "course_delta_scaled": 0.007562489248812199,
+        "geometric_step_distance_scaled": 0.36635175347328186,
+        "range_delta_scaled": 0.04587126150727272,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.965490460395813,
+        "causal_path_straightness": 0.9731283187866211
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.94383368213301,
+        "zero_velocity_energy_fraction": 0.08936970373162723,
+        "velocity_spectral_entropy": 0.9610204388724327,
+        "top10_velocity_energy_fraction": 0.1485217126186998,
+        "abs_peak_velocity_mps": 1.9973890781402588,
+        "phase_coherence": 0.027288641344783166,
+        "velocity_profile_change": 0.1747856223771368
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2119",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.8027979731559753,
+      "event_count": 13,
+      "rd_present_event_count": 13,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.000615999975707382,
+        "radial_speed_delta_scaled": -0.13449999690055847,
+        "course_delta_scaled": -0.09880240261554718,
+        "geometric_step_distance_scaled": 0.2921251654624939,
+        "range_delta_scaled": 0.14403854310512543,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9523391127586365,
+        "causal_path_straightness": 0.9674934148788452
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 17.479341981238605,
+        "zero_velocity_energy_fraction": 0.8435393698623977,
+        "velocity_spectral_entropy": 0.3325235652278516,
+        "top10_velocity_energy_fraction": 0.874057951672851,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.13223602663160192,
+        "velocity_profile_change": 0.0925345280568143
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2124",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.8462429046630859,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.06082165241241455,
+        "radial_speed_delta_scaled": -0.05400000140070915,
+        "course_delta_scaled": 0.33700037002563477,
+        "geometric_step_distance_scaled": 0.710090696811676,
+        "range_delta_scaled": 0.3964481055736542,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8339062333106995,
+        "causal_path_straightness": 0.8371318578720093
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 42.9983039766752,
+        "zero_velocity_energy_fraction": 0.18754527321816583,
+        "velocity_spectral_entropy": 0.9177839096799507,
+        "top10_velocity_energy_fraction": 0.23311038117681973,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.057244008574438975,
+        "velocity_profile_change": 0.1821991291593757
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2125",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.9974651336669922,
+      "event_count": 18,
+      "rd_present_event_count": 18,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.2245137095451355,
+        "radial_speed_delta_scaled": 0.01899999938905239,
+        "course_delta_scaled": -0.15685750544071198,
+        "geometric_step_distance_scaled": 0.3955954313278198,
+        "range_delta_scaled": 0.22129295766353607,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6815462112426758,
+        "causal_path_straightness": 0.5062294602394104
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 35.19976767292482,
+        "zero_velocity_energy_fraction": 0.40412359416417165,
+        "velocity_spectral_entropy": 0.746948065630173,
+        "top10_velocity_energy_fraction": 0.464975195467942,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.10356532179749733,
+        "velocity_profile_change": 0.23717092264919082
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2367",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.9239934682846069,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.02173670008778572,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.07223240286111832,
+        "geometric_step_distance_scaled": 0.36502423882484436,
+        "range_delta_scaled": -0.2778890132904053,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9589967727661133,
+        "causal_path_straightness": 0.9480890035629272
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 26.659749407975013,
+        "zero_velocity_energy_fraction": 0.5458657264298681,
+        "velocity_spectral_entropy": 0.6966993311862808,
+        "top10_velocity_energy_fraction": 0.6070322094145177,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.08758252736458835,
+        "velocity_profile_change": 0.14232428338889846
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2569",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9043506979942322,
+      "event_count": 24,
+      "rd_present_event_count": 17,
+      "rd_present_fraction": 0.7083333333333334,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.025604799389839172,
+        "radial_speed_delta_scaled": 0.035999998450279236,
+        "course_delta_scaled": -0.0016878555761650205,
+        "geometric_step_distance_scaled": 0.1757771223783493,
+        "range_delta_scaled": 0.0569588802754879,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9272754192352295,
+        "causal_path_straightness": 0.9170703887939453
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 31.277105882211302,
+        "zero_velocity_energy_fraction": 0.27827983086568586,
+        "velocity_spectral_entropy": 0.6690524406452251,
+        "top10_velocity_energy_fraction": 0.5931989948236879,
+        "abs_peak_velocity_mps": 2.441253185272217,
+        "phase_coherence": 0.07834597499215336,
+        "velocity_profile_change": 0.3806399111228247
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2582",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9929191470146179,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.01655139960348606,
+        "radial_speed_delta_scaled": 0.008999999612569809,
+        "course_delta_scaled": 0.010601799935102463,
+        "geometric_step_distance_scaled": 0.34343457221984863,
+        "range_delta_scaled": -0.15035617351531982,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9502816200256348,
+        "causal_path_straightness": 0.9769090414047241
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 47.4085471342324,
+        "zero_velocity_energy_fraction": 0.059512617779712305,
+        "velocity_spectral_entropy": 0.9885073066515936,
+        "top10_velocity_energy_fraction": 0.08126470991512615,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.013562603024052683,
+        "velocity_profile_change": 0.1411152408839237
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2589",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9708797931671143,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.009471400640904903,
+        "radial_speed_delta_scaled": 0.039000000804662704,
+        "course_delta_scaled": 0.005826377775520086,
+        "geometric_step_distance_scaled": 0.4861229956150055,
+        "range_delta_scaled": 0.23867973685264587,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9718711972236633,
+        "causal_path_straightness": 0.9788756966590881
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 46.50368599394555,
+        "zero_velocity_energy_fraction": 0.05740847080978567,
+        "velocity_spectral_entropy": 0.9777395980306288,
+        "top10_velocity_energy_fraction": 0.11419551176463559,
+        "abs_peak_velocity_mps": 7.32375955581665,
+        "phase_coherence": 0.023010491579391848,
+        "velocity_profile_change": 0.15804651025662217
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2687",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9982616305351257,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.014449499547481537,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.011085666716098785,
+        "geometric_step_distance_scaled": 0.027027050033211708,
+        "range_delta_scaled": 0.006019100081175566,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8364179730415344,
+        "causal_path_straightness": 0.9521545767784119
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 33.27047737234409,
+        "zero_velocity_energy_fraction": 0.0356085504031496,
+        "velocity_spectral_entropy": 0.6392050541205665,
+        "top10_velocity_energy_fraction": 0.5548402543565523,
+        "abs_peak_velocity_mps": 3.328981637954712,
+        "phase_coherence": 0.0921539789110465,
+        "velocity_profile_change": 0.33523013313081484
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2709",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.975274384021759,
+      "event_count": 18,
+      "rd_present_event_count": 18,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.07252775132656097,
+        "radial_speed_delta_scaled": -0.004999999888241291,
+        "course_delta_scaled": -0.08053477108478546,
+        "geometric_step_distance_scaled": 0.2504303455352783,
+        "range_delta_scaled": -0.17723287642002106,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7907318472862244,
+        "causal_path_straightness": 0.890592098236084
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 23.6426804191456,
+        "zero_velocity_energy_fraction": 0.709913193915034,
+        "velocity_spectral_entropy": 0.47827547938567194,
+        "top10_velocity_energy_fraction": 0.7656297550287638,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.1421133663490637,
+        "velocity_profile_change": 0.08490419582245817
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2862",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.9914721846580505,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.005504100117832422,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.02901371195912361,
+        "geometric_step_distance_scaled": 0.1637597680091858,
+        "range_delta_scaled": 0.14462457597255707,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9355354309082031,
+        "causal_path_straightness": 0.9568668603897095
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 8.167789237345081,
+        "zero_velocity_energy_fraction": 0.9286225741197759,
+        "velocity_spectral_entropy": 0.4134099476147403,
+        "top10_velocity_energy_fraction": 0.928622574119776,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.07322691865886712,
+        "velocity_profile_change": 0.1111512595389163
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2907",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.9539514183998108,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.01651499979197979,
+        "radial_speed_delta_scaled": -0.01899999938905239,
+        "course_delta_scaled": -0.005061078816652298,
+        "geometric_step_distance_scaled": 0.23185808956623077,
+        "range_delta_scaled": -0.197719544172287,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9536571502685547,
+        "causal_path_straightness": 0.9150376915931702
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 10.019882269744791,
+        "zero_velocity_energy_fraction": 0.9594069470378452,
+        "velocity_spectral_entropy": 0.18335415670073407,
+        "top10_velocity_energy_fraction": 0.9612667345640694,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.15321357775261546,
+        "velocity_profile_change": 0.024159514898801956
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2908",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.8084373474121094,
+      "event_count": 21,
+      "rd_present_event_count": 21,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.004412800073623657,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.033053379505872726,
+        "geometric_step_distance_scaled": 0.19214636087417603,
+        "range_delta_scaled": -0.17324894666671753,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.975346028804779,
+        "causal_path_straightness": 0.9710627794265747
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 12.047905446032193,
+        "zero_velocity_energy_fraction": 0.9417184652260406,
+        "velocity_spectral_entropy": 0.2090044621159259,
+        "top10_velocity_energy_fraction": 0.942734515832597,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.13201170107397786,
+        "velocity_profile_change": 0.04466231803018576
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2912",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.9609604477882385,
+      "event_count": 23,
+      "rd_present_event_count": 23,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.009162000380456448,
+        "radial_speed_delta_scaled": 0.004999999888241291,
+        "course_delta_scaled": 0.05745942145586014,
+        "geometric_step_distance_scaled": 0.22068439424037933,
+        "range_delta_scaled": -0.18433785438537598,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8183748126029968,
+        "causal_path_straightness": 0.89748215675354
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 27.971638501274104,
+        "zero_velocity_energy_fraction": 0.6768323686037139,
+        "velocity_spectral_entropy": 0.5191309272931008,
+        "top10_velocity_energy_fraction": 0.6864758858047214,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.24845823571099215,
+        "velocity_profile_change": 0.1002955536166488
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|2956",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.9081764817237854,
+      "event_count": 22,
+      "rd_present_event_count": 22,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.0006699000368826091,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.02234695479273796,
+        "geometric_step_distance_scaled": 0.16053883731365204,
+        "range_delta_scaled": -0.15000389516353607,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9371421337127686,
+        "causal_path_straightness": 0.9558042287826538
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 40.538329164222866,
+        "zero_velocity_energy_fraction": 0.1415061288836958,
+        "velocity_spectral_entropy": 0.9197791484109606,
+        "top10_velocity_energy_fraction": 0.25741339489878856,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0510320472404519,
+        "velocity_profile_change": 0.12332050634786432
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3122",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.8407235741615295,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.030950350686907768,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.08350200951099396,
+        "geometric_step_distance_scaled": 0.18659326434135437,
+        "range_delta_scaled": -0.14958053827285767,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9348740577697754,
+        "causal_path_straightness": 0.9199100136756897
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 36.17904241563092,
+        "zero_velocity_energy_fraction": 0.42187602025520804,
+        "velocity_spectral_entropy": 0.7592443400276299,
+        "top10_velocity_energy_fraction": 0.4642589149542311,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09369392760321915,
+        "velocity_profile_change": 0.12213175550089106
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3123",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.9071868658065796,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.01373360026627779,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.005574410781264305,
+        "geometric_step_distance_scaled": 0.22100695967674255,
+        "range_delta_scaled": -0.1511615663766861,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9809470176696777,
+        "causal_path_straightness": 0.9443822503089905
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 24.365364205037434,
+        "zero_velocity_energy_fraction": 0.7089372142065664,
+        "velocity_spectral_entropy": 0.511763170194969,
+        "top10_velocity_energy_fraction": 0.7306422208357386,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.10171823539102288,
+        "velocity_profile_change": 0.08694728893716624
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3154",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.6877450346946716,
+      "event_count": 18,
+      "rd_present_event_count": 18,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.005401750095188618,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.021559489890933037,
+        "geometric_step_distance_scaled": 0.25825878977775574,
+        "range_delta_scaled": -0.21972642838954926,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9157756567001343,
+        "causal_path_straightness": 0.9194382429122925
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 24.554612035234527,
+        "zero_velocity_energy_fraction": 0.6996388606462611,
+        "velocity_spectral_entropy": 0.49802813572839644,
+        "top10_velocity_energy_fraction": 0.7464688452226083,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.10034200077564463,
+        "velocity_profile_change": 0.12087207466105569
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|333",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.645257294178009,
+      "event_count": 22,
+      "rd_present_event_count": 7,
+      "rd_present_fraction": 0.3181818181818182,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.05452694743871689,
+        "radial_speed_delta_scaled": 0.01899999938905239,
+        "course_delta_scaled": 0.09789707511663437,
+        "geometric_step_distance_scaled": 0.26961109042167664,
+        "range_delta_scaled": -0.15302978456020355,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8673954010009766,
+        "causal_path_straightness": 0.9264152646064758
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 29.325377746079564,
+        "zero_velocity_energy_fraction": 0.6327085604440376,
+        "velocity_spectral_entropy": 0.6061217624602185,
+        "top10_velocity_energy_fraction": 0.6371694176053125,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09012448465470473,
+        "velocity_profile_change": 0.099033930278776
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3581",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.7313465476036072,
+      "event_count": 23,
+      "rd_present_event_count": 23,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.1044342964887619,
+        "radial_speed_delta_scaled": 0.003000000026077032,
+        "course_delta_scaled": -0.1495937705039978,
+        "geometric_step_distance_scaled": 0.2471596896648407,
+        "range_delta_scaled": -0.08501963317394257,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6342074275016785,
+        "causal_path_straightness": 0.800887942314148
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 26.364683128530373,
+        "zero_velocity_energy_fraction": 0.7071125283492619,
+        "velocity_spectral_entropy": 0.49890893399071373,
+        "top10_velocity_energy_fraction": 0.7133486296047764,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.07891403189921908,
+        "velocity_profile_change": 0.12701533894913963
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|361",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9953073859214783,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.03566649928689003,
+        "radial_speed_delta_scaled": 0.06800000369548798,
+        "course_delta_scaled": -0.17303122580051422,
+        "geometric_step_distance_scaled": 0.12827296555042267,
+        "range_delta_scaled": 0.08235417306423187,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9200589656829834,
+        "causal_path_straightness": 0.667941689491272
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 31.980981732117026,
+        "zero_velocity_energy_fraction": 0.3314340141620276,
+        "velocity_spectral_entropy": 0.7824531394017115,
+        "top10_velocity_energy_fraction": 0.4929520487008178,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.07289910571356413,
+        "velocity_profile_change": 0.2678000923697272
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3619",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.928059995174408,
+      "event_count": 27,
+      "rd_present_event_count": 27,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.02729859948158264,
+        "radial_speed_delta_scaled": 0.008999999612569809,
+        "course_delta_scaled": -0.014581399969756603,
+        "geometric_step_distance_scaled": 0.23885521292686462,
+        "range_delta_scaled": -0.12745541334152222,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6322469711303711,
+        "causal_path_straightness": 0.688680112361908
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 36.09465802422734,
+        "zero_velocity_energy_fraction": 0.4590239961272811,
+        "velocity_spectral_entropy": 0.7184756289077273,
+        "top10_velocity_energy_fraction": 0.4748140186947672,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.08593518512770275,
+        "velocity_profile_change": 0.1119986407427231
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|3878",
+      "label_name": "UnknownTarget",
+      "prediction_status": "correct",
+      "pred_id": 1,
+      "confidence": 0.9974249601364136,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.20095029473304749,
+        "radial_speed_delta_scaled": -0.07050000131130219,
+        "course_delta_scaled": 0.6095619201660156,
+        "geometric_step_distance_scaled": 0.18951556086540222,
+        "range_delta_scaled": -0.022629983723163605,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 1.0,
+        "consecutive_step_direction_cosine": 0.04754145070910454,
+        "causal_path_straightness": 0.5219747424125671
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 39.837729091750894,
+        "zero_velocity_energy_fraction": 0.3248391985210441,
+        "velocity_spectral_entropy": 0.8405923125313746,
+        "top10_velocity_energy_fraction": 0.3371458234016121,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.042322448077149154,
+        "velocity_profile_change": 0.17169432652248975
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|390",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9984266757965088,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.0018236500909551978,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.006472333334386349,
+        "geometric_step_distance_scaled": 0.04258138686418533,
+        "range_delta_scaled": -0.009474540129303932,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8971074223518372,
+        "causal_path_straightness": 0.8882416486740112
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 44.216107801839435,
+        "zero_velocity_energy_fraction": 0.1277369191364517,
+        "velocity_spectral_entropy": 0.9334763150128321,
+        "top10_velocity_energy_fraction": 0.20479601680414639,
+        "abs_peak_velocity_mps": 5.54830265045166,
+        "phase_coherence": 0.05710102875367356,
+        "velocity_profile_change": 0.11535693687548715
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|399",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9982751607894897,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.007171900011599064,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.011553244665265083,
+        "geometric_step_distance_scaled": 0.029767895117402077,
+        "range_delta_scaled": -0.008614219725131989,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8585944175720215,
+        "causal_path_straightness": 0.9082339406013489
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.164308031127014,
+        "zero_velocity_energy_fraction": 0.0657615493172308,
+        "velocity_spectral_entropy": 0.9474003020897237,
+        "top10_velocity_energy_fraction": 0.17164570983136845,
+        "abs_peak_velocity_mps": 5.54830265045166,
+        "phase_coherence": 0.02126924972628555,
+        "velocity_profile_change": 0.12947389279514127
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|401",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9979244470596313,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.0027717999182641506,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.00014795555034652352,
+        "geometric_step_distance_scaled": 0.03568761795759201,
+        "range_delta_scaled": 0.0012949749361723661,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8847559094429016,
+        "causal_path_straightness": 0.8703798055648804
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 44.88480065362544,
+        "zero_velocity_energy_fraction": 0.1855096846454555,
+        "velocity_spectral_entropy": 0.9390428089797035,
+        "top10_velocity_energy_fraction": 0.18756392364218882,
+        "abs_peak_velocity_mps": 1.1096606254577637,
+        "phase_coherence": 0.020561463451108174,
+        "velocity_profile_change": 0.12118108252300358
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|403",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9978030323982239,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.010031499899923801,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.0011395333567634225,
+        "geometric_step_distance_scaled": 0.03327441215515137,
+        "range_delta_scaled": -0.00016512999718543142,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9111883640289307,
+        "causal_path_straightness": 0.862882137298584
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 44.775621400812504,
+        "zero_velocity_energy_fraction": 0.18244860265584867,
+        "velocity_spectral_entropy": 0.9379613600872501,
+        "top10_velocity_energy_fraction": 0.18645124367015528,
+        "abs_peak_velocity_mps": 0.6657963395118713,
+        "phase_coherence": 0.03196276064698207,
+        "velocity_profile_change": 0.1232998383812891
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|4171",
+      "label_name": "UnknownTarget",
+      "prediction_status": "wrong",
+      "pred_id": 0,
+      "confidence": 0.8970077037811279,
+      "event_count": 13,
+      "rd_present_event_count": 13,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.055872898548841476,
+        "radial_speed_delta_scaled": -0.007000000216066837,
+        "course_delta_scaled": 0.0469270683825016,
+        "geometric_step_distance_scaled": 0.35135895013809204,
+        "range_delta_scaled": 0.07572939246892929,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8862605094909668,
+        "causal_path_straightness": 0.8904538750648499
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 47.78533919072407,
+        "zero_velocity_energy_fraction": 0.05217486589539255,
+        "velocity_spectral_entropy": 0.9884203045728855,
+        "top10_velocity_energy_fraction": 0.08278196760783225,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.013941137923043825,
+        "velocity_profile_change": 0.11453569933259994
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|422",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9973829388618469,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.01671219989657402,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.002004844369366765,
+        "geometric_step_distance_scaled": 0.02055361494421959,
+        "range_delta_scaled": 0.015691040083765984,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7599563598632812,
+        "causal_path_straightness": 0.8884385824203491
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 18.586967565856266,
+        "zero_velocity_energy_fraction": 0.8434440585142742,
+        "velocity_spectral_entropy": 0.3496876258210487,
+        "top10_velocity_energy_fraction": 0.8532781251571371,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.11920626253734667,
+        "velocity_profile_change": 0.048478215287348636
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|432",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9979988932609558,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.06261619925498962,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.02598184533417225,
+        "geometric_step_distance_scaled": 0.028202824294567108,
+        "range_delta_scaled": 0.0010596549836918712,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7994335293769836,
+        "causal_path_straightness": 0.8117173910140991
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 32.192551098054885,
+        "zero_velocity_energy_fraction": 0.4416604461880015,
+        "velocity_spectral_entropy": 0.7405804138107632,
+        "top10_velocity_energy_fraction": 0.5408983252611793,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.04830735136946312,
+        "velocity_profile_change": 0.21870879267316257
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|441",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9979552030563354,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.004069599788635969,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.006308999843895435,
+        "geometric_step_distance_scaled": 0.01660291478037834,
+        "range_delta_scaled": 0.011648500338196754,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7480828166007996,
+        "causal_path_straightness": 0.7516399621963501
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 42.212549482181345,
+        "zero_velocity_energy_fraction": 0.22291838909365377,
+        "velocity_spectral_entropy": 0.9211995831303263,
+        "top10_velocity_energy_fraction": 0.25493030289844126,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.030025679089560445,
+        "velocity_profile_change": 0.11161853505593669
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|444",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9407674670219421,
+      "event_count": 23,
+      "rd_present_event_count": 23,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.014539799652993679,
+        "radial_speed_delta_scaled": -0.036500003188848495,
+        "course_delta_scaled": 0.09104446321725845,
+        "geometric_step_distance_scaled": 0.19527897238731384,
+        "range_delta_scaled": -0.18044528365135193,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.850043773651123,
+        "causal_path_straightness": 0.8138421773910522
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 16.659979367585287,
+        "zero_velocity_energy_fraction": 0.8522568472457674,
+        "velocity_spectral_entropy": 0.3729369582479305,
+        "top10_velocity_energy_fraction": 0.8735227601032785,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0922559323472324,
+        "velocity_profile_change": 0.1088757061640439
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|497",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9855418801307678,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.019924800843000412,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.011890889145433903,
+        "geometric_step_distance_scaled": 0.2123931646347046,
+        "range_delta_scaled": 0.12967130541801453,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8921136856079102,
+        "causal_path_straightness": 0.9389275312423706
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 18.926695161830835,
+        "zero_velocity_energy_fraction": 0.6823344981040476,
+        "velocity_spectral_entropy": 0.5882879121471386,
+        "top10_velocity_energy_fraction": 0.7011894339666989,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09423497737356876,
+        "velocity_profile_change": 0.10303112074638324
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|521",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9935199618339539,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.08484440296888351,
+        "radial_speed_delta_scaled": -0.07800000160932541,
+        "course_delta_scaled": -0.22456537187099457,
+        "geometric_step_distance_scaled": 0.17780491709709167,
+        "range_delta_scaled": -0.12312224507331848,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.820647656917572,
+        "causal_path_straightness": 0.8262996673583984
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 21.657238545506527,
+        "zero_velocity_energy_fraction": 0.7532918000499482,
+        "velocity_spectral_entropy": 0.46083937461881536,
+        "top10_velocity_energy_fraction": 0.8009558228040479,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0666978308539898,
+        "velocity_profile_change": 0.09566039133931521
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|528",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9965213537216187,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.014434600248932838,
+        "radial_speed_delta_scaled": 0.01600000075995922,
+        "course_delta_scaled": -0.04816266521811485,
+        "geometric_step_distance_scaled": 0.27151742577552795,
+        "range_delta_scaled": -0.13542084395885468,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9893590211868286,
+        "causal_path_straightness": 0.9862930774688721
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 14.1951646364918,
+        "zero_velocity_energy_fraction": 0.5173059019904609,
+        "velocity_spectral_entropy": 0.5436166198048982,
+        "top10_velocity_energy_fraction": 0.7300458582591192,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0700210873839599,
+        "velocity_profile_change": 0.22553459547053298
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|531",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9962918758392334,
+      "event_count": 17,
+      "rd_present_event_count": 17,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.00031060000765137374,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.10508409142494202,
+        "geometric_step_distance_scaled": 0.02920473739504814,
+        "range_delta_scaled": 0.01667395979166031,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.4292008578777313,
+        "causal_path_straightness": 0.6713008880615234
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 42.52643659978482,
+        "zero_velocity_energy_fraction": 0.19058911412425936,
+        "velocity_spectral_entropy": 0.9058050612477695,
+        "top10_velocity_energy_fraction": 0.2617433095743386,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.06537100652990467,
+        "velocity_profile_change": 0.1074707337608912
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|561",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9981400966644287,
+      "event_count": 22,
+      "rd_present_event_count": 22,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.0073736002668738365,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.03393634408712387,
+        "geometric_step_distance_scaled": 0.019737722352147102,
+        "range_delta_scaled": -0.011161340400576591,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7116662859916687,
+        "causal_path_straightness": 0.8316258788108826
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 20.367305391413545,
+        "zero_velocity_energy_fraction": 0.5388755306251172,
+        "velocity_spectral_entropy": 0.5039749361929401,
+        "top10_velocity_energy_fraction": 0.8194815544518868,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.07890256156135311,
+        "velocity_profile_change": 0.23003772497656638
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|573",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.975575864315033,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.09968850016593933,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.06719773262739182,
+        "geometric_step_distance_scaled": 0.15019328892230988,
+        "range_delta_scaled": -0.05019069463014603,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.5023853182792664,
+        "causal_path_straightness": 0.5511519908905029
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 19.09067954820568,
+        "zero_velocity_energy_fraction": 0.6837843189370939,
+        "velocity_spectral_entropy": 0.6078579532236131,
+        "top10_velocity_energy_fraction": 0.7059639048492308,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09406597517452782,
+        "velocity_profile_change": 0.16390049299881648
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|590",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9980233907699585,
+      "event_count": 23,
+      "rd_present_event_count": 23,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.001382900052703917,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.02683304436504841,
+        "geometric_step_distance_scaled": 0.019089382141828537,
+        "range_delta_scaled": 0.013159595429897308,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6611962914466858,
+        "causal_path_straightness": 0.8219062089920044
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 42.54869452395575,
+        "zero_velocity_energy_fraction": 0.197789956886124,
+        "velocity_spectral_entropy": 0.9268310883642467,
+        "top10_velocity_energy_fraction": 0.24452525642985107,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0263940089466262,
+        "velocity_profile_change": 0.11821222489592831
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|633",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9978207349777222,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.013654850423336029,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.025790777057409286,
+        "geometric_step_distance_scaled": 0.016126902773976326,
+        "range_delta_scaled": -0.0005328599945642054,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.632595419883728,
+        "causal_path_straightness": 0.7696390748023987
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 31.72588979137889,
+        "zero_velocity_energy_fraction": 0.5904897066856596,
+        "velocity_spectral_entropy": 0.5804926975941234,
+        "top10_velocity_energy_fraction": 0.5967829382753368,
+        "abs_peak_velocity_mps": 0.6657963395118713,
+        "phase_coherence": 0.19144138891898088,
+        "velocity_profile_change": 0.11507270509454576
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|665",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9982907176017761,
+      "event_count": 24,
+      "rd_present_event_count": 24,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.00020565000886563212,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.006610400043427944,
+        "geometric_step_distance_scaled": 0.013574996963143349,
+        "range_delta_scaled": -0.010636679828166962,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7357445359230042,
+        "causal_path_straightness": 0.8473559021949768
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 41.362988308659055,
+        "zero_velocity_energy_fraction": 0.2024175585397016,
+        "velocity_spectral_entropy": 0.9133242446513423,
+        "top10_velocity_energy_fraction": 0.2688514797330027,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.04570734281177663,
+        "velocity_profile_change": 0.11093676971135275
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|676",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9985003471374512,
+      "event_count": 17,
+      "rd_present_event_count": 17,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.00010859999747481197,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.0018788444576784968,
+        "geometric_step_distance_scaled": 0.013445558026432991,
+        "range_delta_scaled": -0.007612214889377356,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6575348973274231,
+        "causal_path_straightness": 0.7982951402664185
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 33.40499139342187,
+        "zero_velocity_energy_fraction": 0.49193987037173764,
+        "velocity_spectral_entropy": 0.7230827587350505,
+        "top10_velocity_energy_fraction": 0.5386504901312498,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.06350375109296953,
+        "velocity_profile_change": 0.14463853765895435
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|721",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9970302581787109,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.016387199983000755,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.06220386549830437,
+        "geometric_step_distance_scaled": 0.04463847354054451,
+        "range_delta_scaled": 0.028276709839701653,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.5437150597572327,
+        "causal_path_straightness": 0.7909573316574097
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 44.04726055364464,
+        "zero_velocity_energy_fraction": 0.1935605835041637,
+        "velocity_spectral_entropy": 0.9461975154038741,
+        "top10_velocity_energy_fraction": 0.20644635222516888,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.029678141841839235,
+        "velocity_profile_change": 0.10513889658186691
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|731",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9789080619812012,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.03399129956960678,
+        "radial_speed_delta_scaled": -0.07999999821186066,
+        "course_delta_scaled": -0.03398730978369713,
+        "geometric_step_distance_scaled": 0.26818597316741943,
+        "range_delta_scaled": 0.18841612339019775,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8868758678436279,
+        "causal_path_straightness": 0.8818007111549377
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 47.99493901351505,
+        "zero_velocity_energy_fraction": 0.05728873359732906,
+        "velocity_spectral_entropy": 0.9878990762555316,
+        "top10_velocity_energy_fraction": 0.07568265784002393,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.02034498504134245,
+        "velocity_profile_change": 0.11978482584315964
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|735",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9984857439994812,
+      "event_count": 22,
+      "rd_present_event_count": 22,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.008516449481248856,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.006645600311458111,
+        "geometric_step_distance_scaled": 0.020792771130800247,
+        "range_delta_scaled": -0.0030414299108088017,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9258241653442383,
+        "causal_path_straightness": 0.9322733879089355
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 22.41941741178111,
+        "zero_velocity_energy_fraction": 0.7868241286472809,
+        "velocity_spectral_entropy": 0.48924985703378926,
+        "top10_velocity_energy_fraction": 0.7895901231227518,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09296279264372145,
+        "velocity_profile_change": 0.10193669494637292
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|749",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9966956377029419,
+      "event_count": 16,
+      "rd_present_event_count": 16,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.010199349373579025,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.00746796652674675,
+        "geometric_step_distance_scaled": 0.3452814817428589,
+        "range_delta_scaled": -0.15744511783123016,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9366489052772522,
+        "causal_path_straightness": 0.9778372049331665
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.40675311043055,
+        "zero_velocity_energy_fraction": 0.09387908420192037,
+        "velocity_spectral_entropy": 0.9645249701735434,
+        "top10_velocity_energy_fraction": 0.15553097332920351,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.03325290714251303,
+        "velocity_profile_change": 0.11421796735235329
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|751",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9985002279281616,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.0036792000755667686,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.0002799111243803054,
+        "geometric_step_distance_scaled": 0.037038519978523254,
+        "range_delta_scaled": -0.01533939503133297,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8747270107269287,
+        "causal_path_straightness": 0.9443438053131104
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 46.06849844878964,
+        "zero_velocity_energy_fraction": 0.07249249722016522,
+        "velocity_spectral_entropy": 0.9735950272050005,
+        "top10_velocity_energy_fraction": 0.13625174755649502,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.035037214085940245,
+        "velocity_profile_change": 0.10527081635418398
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|756",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9644210934638977,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.022809499874711037,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.09960475564002991,
+        "geometric_step_distance_scaled": 0.04448440670967102,
+        "range_delta_scaled": -0.009700549766421318,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.4424408972263336,
+        "causal_path_straightness": 0.6770023703575134
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 39.90501482633632,
+        "zero_velocity_energy_fraction": 0.31527079003859965,
+        "velocity_spectral_entropy": 0.8295487484526636,
+        "top10_velocity_energy_fraction": 0.3549990813178239,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.07681785547965479,
+        "velocity_profile_change": 0.09157555145699711
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|774",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9981124401092529,
+      "event_count": 22,
+      "rd_present_event_count": 22,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.0029393997974693775,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.0021033999510109425,
+        "geometric_step_distance_scaled": 0.02848738618195057,
+        "range_delta_scaled": -0.006026470102369785,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.938069224357605,
+        "causal_path_straightness": 0.9459981322288513
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.31864038584645,
+        "zero_velocity_energy_fraction": 0.07046260546858629,
+        "velocity_spectral_entropy": 0.9713167522329338,
+        "top10_velocity_energy_fraction": 0.14127099219218475,
+        "abs_peak_velocity_mps": 4.882506489753723,
+        "phase_coherence": 0.023763830095684786,
+        "velocity_profile_change": 0.1079654464970384
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|780",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9982516169548035,
+      "event_count": 24,
+      "rd_present_event_count": 24,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.007842199876904488,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.0012765554711222649,
+        "geometric_step_distance_scaled": 0.04619288817048073,
+        "range_delta_scaled": -0.002173769986256957,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9425705075263977,
+        "causal_path_straightness": 0.9456178545951843
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.63366347014439,
+        "zero_velocity_energy_fraction": 0.10699423069644534,
+        "velocity_spectral_entropy": 0.9591184130283144,
+        "top10_velocity_energy_fraction": 0.16351283033398697,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.03168970933121033,
+        "velocity_profile_change": 0.10407164785228715
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|782",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9984366297721863,
+      "event_count": 22,
+      "rd_present_event_count": 22,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.025579698383808136,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.006165999919176102,
+        "geometric_step_distance_scaled": 0.05044933035969734,
+        "range_delta_scaled": 0.00476366002112627,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8933510780334473,
+        "causal_path_straightness": 0.9560122489929199
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 46.98398423931238,
+        "zero_velocity_energy_fraction": 0.04299032757342608,
+        "velocity_spectral_entropy": 0.9841258584649129,
+        "top10_velocity_energy_fraction": 0.10622941741849867,
+        "abs_peak_velocity_mps": 4.660574436187744,
+        "phase_coherence": 0.019338306262789245,
+        "velocity_profile_change": 0.09759908943716925
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|801",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9975215792655945,
+      "event_count": 17,
+      "rd_present_event_count": 17,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.00438310019671917,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.01783871091902256,
+        "geometric_step_distance_scaled": 0.024095971137285233,
+        "range_delta_scaled": -0.012363560497760773,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8265780806541443,
+        "causal_path_straightness": 0.8579028248786926
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 34.816580645922386,
+        "zero_velocity_energy_fraction": 0.4765433568817055,
+        "velocity_spectral_entropy": 0.7465124507920803,
+        "top10_velocity_energy_fraction": 0.5048952647181841,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.05765318233642947,
+        "velocity_profile_change": 0.09213899690415406
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|802",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9981820583343506,
+      "event_count": 18,
+      "rd_present_event_count": 18,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.008985050022602081,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.0014249668456614017,
+        "geometric_step_distance_scaled": 0.024562720209360123,
+        "range_delta_scaled": -0.01926586963236332,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7116118669509888,
+        "causal_path_straightness": 0.6875597238540649
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 33.038755266498576,
+        "zero_velocity_energy_fraction": 0.46747217649549067,
+        "velocity_spectral_entropy": 0.7228644260357271,
+        "top10_velocity_energy_fraction": 0.5391480122734831,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.05604065624632226,
+        "velocity_profile_change": 0.10257937508815095
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|814",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9959802627563477,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.014876799657940865,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.038680244237184525,
+        "geometric_step_distance_scaled": 0.038124918937683105,
+        "range_delta_scaled": -0.03431416302919388,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.8873847126960754,
+        "causal_path_straightness": 0.8211395144462585
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 19.666648063151822,
+        "zero_velocity_energy_fraction": 0.7673128521554092,
+        "velocity_spectral_entropy": 0.44234599390842533,
+        "top10_velocity_energy_fraction": 0.827600740688475,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.21571526830757415,
+        "velocity_profile_change": 0.10475660107662624
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|816",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9955729246139526,
+      "event_count": 25,
+      "rd_present_event_count": 25,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.0022611001040786505,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.11794091016054153,
+        "geometric_step_distance_scaled": 0.1820656657218933,
+        "range_delta_scaled": -0.017956599593162537,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9070162177085876,
+        "causal_path_straightness": 0.7961716651916504
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 37.56041097433036,
+        "zero_velocity_energy_fraction": 0.3608764419817937,
+        "velocity_spectral_entropy": 0.8648635463388874,
+        "top10_velocity_energy_fraction": 0.3688083051689002,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.04185958822734046,
+        "velocity_profile_change": 0.15182804007768952
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|817",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9982250332832336,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.014429500326514244,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.021177111193537712,
+        "geometric_step_distance_scaled": 0.3283267021179199,
+        "range_delta_scaled": 0.15805979073047638,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9777141213417053,
+        "causal_path_straightness": 0.9815329313278198
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 17.495853693804,
+        "zero_velocity_energy_fraction": 0.6707356261425123,
+        "velocity_spectral_entropy": 0.517037631681371,
+        "top10_velocity_energy_fraction": 0.7626917311574668,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.09725831651528224,
+        "velocity_profile_change": 0.1946652700751751
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|818",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9962525367736816,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.01389089971780777,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.0015094889095053077,
+        "geometric_step_distance_scaled": 0.23074570298194885,
+        "range_delta_scaled": 0.17617633938789368,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9396600723266602,
+        "causal_path_straightness": 0.977207601070404
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 19.29070947553269,
+        "zero_velocity_energy_fraction": 0.6816232410341924,
+        "velocity_spectral_entropy": 0.452009932276249,
+        "top10_velocity_energy_fraction": 0.8431588732645613,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.08202932028238238,
+        "velocity_profile_change": 0.18459220791450484
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|845",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.9218032956123352,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.01043615024536848,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.006544733420014381,
+        "geometric_step_distance_scaled": 0.19507871568202972,
+        "range_delta_scaled": -0.0813702866435051,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9583089351654053,
+        "causal_path_straightness": 0.9532880187034607
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 35.90854903238855,
+        "zero_velocity_energy_fraction": 0.35619739203849454,
+        "velocity_spectral_entropy": 0.8542908350130243,
+        "top10_velocity_energy_fraction": 0.3725772719610672,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.05031643703303682,
+        "velocity_profile_change": 0.14092309818860727
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|847",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.997772753238678,
+      "event_count": 20,
+      "rd_present_event_count": 20,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.007612599991261959,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.0014500333927571774,
+        "geometric_step_distance_scaled": 0.015233729034662247,
+        "range_delta_scaled": -0.0016208000015467405,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6896734237670898,
+        "causal_path_straightness": 0.9286064505577087
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 37.85027325153291,
+        "zero_velocity_energy_fraction": 0.30387460411165973,
+        "velocity_spectral_entropy": 0.8406454541979883,
+        "top10_velocity_energy_fraction": 0.3974872899722822,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.04622726767968293,
+        "velocity_profile_change": 0.11165102856428476
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|851",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.5738953948020935,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.006038700230419636,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.016862355172634125,
+        "geometric_step_distance_scaled": 0.21128609776496887,
+        "range_delta_scaled": -0.13498073816299438,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9903848767280579,
+        "causal_path_straightness": 0.9954917430877686
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 9.504745047469898,
+        "zero_velocity_energy_fraction": 0.9086401783707289,
+        "velocity_spectral_entropy": 0.4282974402501306,
+        "top10_velocity_energy_fraction": 0.9086401783707287,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.10041383549111219,
+        "velocity_profile_change": 0.0648661118109344
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|852",
+      "label_name": "BirdTarget",
+      "prediction_status": "wrong",
+      "pred_id": 1,
+      "confidence": 0.9781740307807922,
+      "event_count": 19,
+      "rd_present_event_count": 19,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.015895800665020943,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.026563066989183426,
+        "geometric_step_distance_scaled": 0.43693429231643677,
+        "range_delta_scaled": -0.2572680711746216,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9121584296226501,
+        "causal_path_straightness": 0.9141761064529419
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 46.432866303431865,
+        "zero_velocity_energy_fraction": 0.09047860127666829,
+        "velocity_spectral_entropy": 0.9710835915803782,
+        "top10_velocity_energy_fraction": 0.1275997258985079,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.022319838334082055,
+        "velocity_profile_change": 0.14277389228863702
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|861",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9983580708503723,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.0026797999162226915,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.0031591332517564297,
+        "geometric_step_distance_scaled": 0.022483982145786285,
+        "range_delta_scaled": -0.005525330081582069,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.9017559289932251,
+        "causal_path_straightness": 0.937595009803772
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 43.93425817409362,
+        "zero_velocity_energy_fraction": 0.07061158854692338,
+        "velocity_spectral_entropy": 0.9453076486845489,
+        "top10_velocity_energy_fraction": 0.1946806414339559,
+        "abs_peak_velocity_mps": 2.885117530822754,
+        "phase_coherence": 0.030203970820161245,
+        "velocity_profile_change": 0.12721184867158208
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|875",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9978474378585815,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.011336199939250946,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.00121955550275743,
+        "geometric_step_distance_scaled": 0.02566208876669407,
+        "range_delta_scaled": 0.011426275596022606,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.7704392075538635,
+        "causal_path_straightness": 0.9033327698707581
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 45.108165023291484,
+        "zero_velocity_energy_fraction": 0.08071960479389463,
+        "velocity_spectral_entropy": 0.9650228806960774,
+        "top10_velocity_energy_fraction": 0.15341872956917477,
+        "abs_peak_velocity_mps": 7.32375955581665,
+        "phase_coherence": 0.01892141851945732,
+        "velocity_profile_change": 0.11089415588122228
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|886",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9973306655883789,
+      "event_count": 23,
+      "rd_present_event_count": 23,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.0016862000338733196,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.02997046709060669,
+        "geometric_step_distance_scaled": 0.028859157115221024,
+        "range_delta_scaled": -0.009277909994125366,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.2844603359699249,
+        "causal_path_straightness": 0.5899205207824707
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 39.62507253339571,
+        "zero_velocity_energy_fraction": 0.1338525322845098,
+        "velocity_spectral_entropy": 0.8945667816678905,
+        "top10_velocity_energy_fraction": 0.3081200326048792,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.0577203833421002,
+        "velocity_profile_change": 0.13514861543411566
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|936",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.997300922870636,
+      "event_count": 17,
+      "rd_present_event_count": 17,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": 0.0015529999509453773,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": 0.11143478006124496,
+        "geometric_step_distance_scaled": 0.026135364547371864,
+        "range_delta_scaled": -0.014047075062990189,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.3198091685771942,
+        "causal_path_straightness": 0.6539298295974731
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 20.06063698657204,
+        "zero_velocity_energy_fraction": 0.8118674119902378,
+        "velocity_spectral_entropy": 0.37527001575927715,
+        "top10_velocity_energy_fraction": 0.834756909268171,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.32562006493985646,
+        "velocity_profile_change": 0.03376080953588468
+      }
+    },
+    {
+      "parent_sample_id": "cq08|track|951",
+      "label_name": "BirdTarget",
+      "prediction_status": "correct",
+      "pred_id": 0,
+      "confidence": 0.9973316192626953,
+      "event_count": 15,
+      "rd_present_event_count": 15,
+      "rd_present_fraction": 1.0,
+      "tr_features": {
+        "reported_speed_delta_scaled": -0.003031899919733405,
+        "radial_speed_delta_scaled": 0.0,
+        "course_delta_scaled": -0.03372769057750702,
+        "geometric_step_distance_scaled": 0.02488270029425621,
+        "range_delta_scaled": -0.022145140916109085,
+        "radial_range_direction_agreement": 1.0,
+        "radial_sign_flip": 0.0,
+        "consecutive_step_direction_cosine": 0.6798933148384094,
+        "causal_path_straightness": 0.8388782739639282
+      },
+      "rd_features": {
+        "velocity_bandwidth_mps": 19.24720368868402,
+        "zero_velocity_energy_fraction": 0.6773650252556259,
+        "velocity_spectral_entropy": 0.40348574871597764,
+        "top10_velocity_energy_fraction": 0.8509948033798678,
+        "abs_peak_velocity_mps": 0.22193211317062378,
+        "phase_coherence": 0.08683996122124008,
+        "velocity_profile_change": 0.06428813568476717
+      }
+    }
+  ],
+  "interpretation_limits": [
+    "validation labels are used descriptively and must not define a deployment threshold",
+    "six wrong Bird and six wrong Unknown parents are low-support residual groups",
+    "physical RD differences can motivate one new input branch but are not model-performance evidence",
+    "UnknownTarget remains a closed-set label; open-set reject/abstain is not evaluated",
+    "test, multi-seed, stable and formal cascade are excluded"
+  ],
+  "test": "未执行",
+  "formal_training": "V10正式训练已由用户完成；本描述性审计未启动训练",
+  "output_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V10-gate-residual-feature-audit.json"
+}

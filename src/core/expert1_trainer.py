@@ -101,6 +101,7 @@ def _build_expert1_loaders(
         allow_rd_segment_store_fallback=config.allow_rd_segment_store_fallback,
         load_only_fusion_eligible_rd=config.load_only_fusion_eligible_rd,
         pure_tr_only=config.is_pure_tr_only,
+        required_tr_only_sources=config.required_tr_only_sources,
         trajectory_feature_schema=config.trajectory_feature_schema,
         physical_representation_contract_version=config.physical_representation_contract_version,
         pin_memory=config.pin_memory,

@@ -12,6 +12,7 @@ def validate_tr_only_sources(
     source_names: Iterable[object],
     *,
     context: str,
+    required_source_names: Iterable[object] | None = None,
 ) -> set[str]:
     """Validate the source vocabulary before any TR-only data is consumed.
 
@@ -32,6 +33,19 @@ def validate_tr_only_sources(
             f"{context} requires strict TR-only sources {sorted(TR_ONLY_ALLOWED_SOURCES)}; "
             f"unsupported source_name values={invalid}"
         )
+    if required_source_names is not None:
+        required = {str(value).strip() for value in required_source_names}
+        invalid_required = sorted(required - set(TR_ONLY_ALLOWED_SOURCES))
+        if not required or invalid_required:
+            raise ValueError(
+                f"{context} has an invalid required TR-only source set: "
+                f"{sorted(required)}; allowed={sorted(TR_ONLY_ALLOWED_SOURCES)}"
+            )
+        if normalized != required:
+            raise ValueError(
+                f"{context} source set mismatch: observed={sorted(normalized)}, "
+                f"required={sorted(required)}"
+            )
     return normalized
 
 

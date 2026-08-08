@@ -491,6 +491,7 @@ def build_expert1_dataloaders(
     allow_rd_segment_store_fallback: bool = False,
     load_only_fusion_eligible_rd: bool = True,
     pure_tr_only: bool = False,
+    required_tr_only_sources: set[str] | frozenset[str] | list[str] | None = None,
     trajectory_feature_schema: str = "v1",
     physical_representation_contract_version: str = "legacy_v2",
     pin_memory: bool = True,
@@ -503,16 +504,16 @@ def build_expert1_dataloaders(
     if pure_tr_only:
         if "source_name" not in frame.columns:
             raise ValueError("pure TR-only Expert1 index is missing source_name")
+        required_sources = (
+            set(TR_ONLY_ALLOWED_SOURCES)
+            if required_tr_only_sources is None
+            else {str(value).strip() for value in required_tr_only_sources}
+        )
         validate_tr_only_sources(
             frame["source_name"].tolist(),
             context="build_expert1_dataloaders(pure_tr_only=True)",
+            required_source_names=required_sources,
         )
-        source_values = set(frame["source_name"].astype(str).str.strip())
-        if source_values != set(TR_ONLY_ALLOWED_SOURCES):
-            raise ValueError(
-                "pure TR-only Expert1 index must contain both CQ08 and raw sources; "
-                f"observed={sorted(source_values)}, expected={sorted(TR_ONLY_ALLOWED_SOURCES)}"
-            )
     if "split_name" in frame.columns:
         persisted_split_labels = frame["split_name"].astype(str)
         invalid_split_labels = ~persisted_split_labels.isin({"train", "val", "test"})

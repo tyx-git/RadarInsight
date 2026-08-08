@@ -903,7 +903,7 @@ def pretrain_track_encoder(config: TrackPretrainConfig) -> dict[str, object]:
         dataset_role="pretrain_train",
         shuffle=True,
         parent_sampling_mode=config.parent_sampling_mode,
-        allowed_source_names=TR_ONLY_ALLOWED_SOURCES,
+        allowed_source_names=frozenset(config.allowed_source_names),
     )
     actual_train_parent_ids = set(
         getattr(train_loader.dataset, "actual_parent_ids", set())
@@ -931,7 +931,7 @@ def pretrain_track_encoder(config: TrackPretrainConfig) -> dict[str, object]:
             dataset_role="pretrain_validation",
             shuffle=False,
             parent_sampling_mode="window_shuffle_v1",
-            allowed_source_names=TR_ONLY_ALLOWED_SOURCES,
+            allowed_source_names=frozenset(config.allowed_source_names),
         )
         actual_validation_parent_ids = set(
             getattr(validation_loader.dataset, "actual_parent_ids", set())

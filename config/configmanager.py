@@ -92,6 +92,11 @@ def load_expert1_config(path: str | Path = "config/config.json") -> Expert1Train
     values.pop("min_rd_net_gain_rate_for_best", None)
     values.pop("max_rd_harm_rate_for_best", None)
     config = _make_dataclass(Expert1TrainConfig, values, reject_unknown=True)
+    requested_sources = {str(value).strip() for value in config.required_tr_only_sources}
+    if not requested_sources or not requested_sources.issubset({"cq08_track", "raw_tr_rd"}):
+        raise ValueError(
+            "required_tr_only_sources must be a non-empty subset of ['cq08_track', 'raw_tr_rd']"
+        )
     if config.is_pure_tr_only and config.prefer_stage2_checkpoint:
         raise ValueError(
             "pure TR-only config requires prefer_stage2_checkpoint=false; "
@@ -201,6 +206,11 @@ def load_pretrain_track_config(path: str | Path = "config/config.json") -> Track
         _clean_section(payload, "pretrain_track"),
         reject_unknown=True,
     )
+    requested_sources = {str(value).strip() for value in config.allowed_source_names}
+    if not requested_sources or not requested_sources.issubset({"cq08_track", "raw_tr_rd"}):
+        raise ValueError(
+            "allowed_source_names must be a non-empty subset of ['cq08_track', 'raw_tr_rd']"
+        )
     if str(config.sampling_mode).strip().lower() not in {"full_track", "causal_window"}:
         raise ValueError(
             "unsupported pretrain sampling_mode: "
