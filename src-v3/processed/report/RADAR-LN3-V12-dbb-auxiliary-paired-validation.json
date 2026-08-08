@@ -1,0 +1,2655 @@
+{
+  "status": "completed_but_gate_failed",
+  "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+  "seed_results": {
+    "42": {
+      "seed": 42,
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_cpu_logit_hash_equal": true,
+      "gate": {
+        "passed": false,
+        "checks": {
+          "treatment_DBB_precision_recall_f1_at_least_0_95": true,
+          "treatment_CU_precision_recall_f1_at_least_0_90": false,
+          "DBB_to_CU_not_higher_than_control": true,
+          "CU_to_DBB_not_higher_than_control": false,
+          "at_least_one_error_direction_reduced_by_parent": false,
+          "CU_min_precision_recall_f1_strictly_improved": false
+        },
+        "control_best_epoch": 18,
+        "treatment_best_epoch": 18,
+        "control_best": {
+          "DBB": {
+            "precision": 0.9805825242718447,
+            "recall": 0.9665071770334929,
+            "f1": 0.9734939759036145,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.7307692307692307,
+            "recall": 0.8260869565217391,
+            "f1": 0.7755102040816326,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 7,
+            "CU_to_DBB": 4
+          },
+          "overall": {
+            "accuracy": 0.9525862068965517,
+            "macro_precision": 0.8556758775205378,
+            "macro_recall": 0.896297066777616,
+            "macro_f1": 0.8745020899926236,
+            "balanced_accuracy": 0.896297066777616
+          }
+        },
+        "treatment_best": {
+          "DBB": {
+            "precision": 0.9758454106280193,
+            "recall": 0.9665071770334929,
+            "f1": 0.9711538461538461,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.72,
+            "recall": 0.782608695652174,
+            "f1": 0.7499999999999999,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 7,
+            "CU_to_DBB": 5
+          },
+          "overall": {
+            "accuracy": 0.9482758620689655,
+            "macro_precision": 0.8479227053140097,
+            "macro_recall": 0.8745579363428334,
+            "macro_f1": 0.860576923076923,
+            "balanced_accuracy": 0.8745579363428334
+          }
+        },
+        "error_reduction_parent_counts": {
+          "DBB_to_CU": 0,
+          "CU_to_DBB": -1
+        },
+        "same_epoch_attribution_guards": {
+          "epoch20": {
+            "control": {
+              "DBB": {
+                "precision": 0.9850746268656716,
+                "recall": 0.9473684210526315,
+                "f1": 0.9658536585365853,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6451612903225806,
+                "recall": 0.8695652173913043,
+                "f1": 0.7407407407407407,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 11,
+                "CU_to_DBB": 3
+              },
+              "overall": {
+                "accuracy": 0.9396551724137931,
+                "macro_precision": 0.8151179585941262,
+                "macro_recall": 0.9084668192219679,
+                "macro_f1": 0.853297199638663,
+                "balanced_accuracy": 0.9084668192219679
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9852941176470589,
+                "recall": 0.9617224880382775,
+                "f1": 0.9733656174334141,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.7142857142857143,
+                "recall": 0.8695652173913043,
+                "f1": 0.7843137254901961,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 8,
+                "CU_to_DBB": 3
+              },
+              "overall": {
+                "accuracy": 0.9525862068965517,
+                "macro_precision": 0.8497899159663866,
+                "macro_recall": 0.915643852714791,
+                "macro_f1": 0.8788396714618051,
+                "balanced_accuracy": 0.915643852714791
+              }
+            }
+          },
+          "control_best_epoch": {
+            "epoch": 18,
+            "control": {
+              "DBB": {
+                "precision": 0.9805825242718447,
+                "recall": 0.9665071770334929,
+                "f1": 0.9734939759036145,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.7307692307692307,
+                "recall": 0.8260869565217391,
+                "f1": 0.7755102040816326,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 4
+              },
+              "overall": {
+                "accuracy": 0.9525862068965517,
+                "macro_precision": 0.8556758775205378,
+                "macro_recall": 0.896297066777616,
+                "macro_f1": 0.8745020899926236,
+                "balanced_accuracy": 0.896297066777616
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9758454106280193,
+                "recall": 0.9665071770334929,
+                "f1": 0.9711538461538461,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.72,
+                "recall": 0.782608695652174,
+                "f1": 0.7499999999999999,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9482758620689655,
+                "macro_precision": 0.8479227053140097,
+                "macro_recall": 0.8745579363428334,
+                "macro_f1": 0.860576923076923,
+                "balanced_accuracy": 0.8745579363428334
+              }
+            }
+          },
+          "treatment_best_epoch": {
+            "epoch": 18,
+            "control": {
+              "DBB": {
+                "precision": 0.9805825242718447,
+                "recall": 0.9665071770334929,
+                "f1": 0.9734939759036145,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.7307692307692307,
+                "recall": 0.8260869565217391,
+                "f1": 0.7755102040816326,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 4
+              },
+              "overall": {
+                "accuracy": 0.9525862068965517,
+                "macro_precision": 0.8556758775205378,
+                "macro_recall": 0.896297066777616,
+                "macro_f1": 0.8745020899926236,
+                "balanced_accuracy": 0.896297066777616
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9758454106280193,
+                "recall": 0.9665071770334929,
+                "f1": 0.9711538461538461,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.72,
+                "recall": 0.782608695652174,
+                "f1": 0.7499999999999999,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9482758620689655,
+                "macro_precision": 0.8479227053140097,
+                "macro_recall": 0.8745579363428334,
+                "macro_f1": 0.860576923076923,
+                "balanced_accuracy": 0.8745579363428334
+              }
+            }
+          }
+        }
+      },
+      "runs": {
+        "control": {
+          "arm": "control",
+          "seed": 42,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-config.json",
+          "config_sha256": "5a43cbf8f4e33a00ae6514b13a157cb3052df59d6abd6f926309bf3d5d0467e0",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-formal\\training-summary.json",
+          "summary_sha256": "f375ddfc30560b4e3d3c43b12fd566eb02ff524041a0903dbf60f504fd7da2d3",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-formal\\best_model.pt",
+          "best_checkpoint_sha256": "2cafd0d0d2315917bd11111cd48ce0fe4eafb66b4a784845f72cbcc6dcaf2fbb",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-formal\\last_model.pt",
+          "last_checkpoint_sha256": "f93761f58367a2404c0db6c07d2730cbf273d62a5d995f0cfe15001077820fcc",
+          "best_epoch": 18,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.9805825242718447,
+              "recall": 0.9665071770334929,
+              "f1": 0.9734939759036145,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.7307692307692307,
+              "recall": 0.8260869565217391,
+              "f1": 0.7755102040816326,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 7,
+              "CU_to_DBB": 4
+            },
+            "overall": {
+              "accuracy": 0.9525862068965517,
+              "macro_precision": 0.8556758775205378,
+              "macro_recall": 0.896297066777616,
+              "macro_f1": 0.8745020899926236,
+              "balanced_accuracy": 0.896297066777616
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.9805825242718447,
+                "recall": 0.9665071770334929,
+                "f1": 0.9734939759036145,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.7307692307692307,
+                "recall": 0.8260869565217391,
+                "f1": 0.7755102040816326,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 4
+              },
+              "overall": {
+                "accuracy": 0.9525862068965517,
+                "macro_precision": 0.8556758775205378,
+                "macro_recall": 0.896297066777616,
+                "macro_f1": 0.8745020899926236,
+                "balanced_accuracy": 0.896297066777616
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 7,
+                "parent_sample_ids": [
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|3581",
+                  "cq08|track|444",
+                  "cq08|track|845",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 4,
+                "parent_sample_ids": [
+                  "cq08|track|2862",
+                  "cq08|track|3122",
+                  "cq08|track|3154",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "DroneTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "BalloonTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9850746268656716,
+              "recall": 0.9473684210526315,
+              "f1": 0.9658536585365853,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6451612903225806,
+              "recall": 0.8695652173913043,
+              "f1": 0.7407407407407407,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 11,
+              "CU_to_DBB": 3
+            },
+            "overall": {
+              "accuracy": 0.9396551724137931,
+              "macro_precision": 0.8151179585941262,
+              "macro_recall": 0.9084668192219679,
+              "macro_f1": 0.853297199638663,
+              "balanced_accuracy": 0.9084668192219679
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 42,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "control",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "403e00355c35c646199d3e57cc7bdea31379a898f37dae287faa3c70447ef772",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 42,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "61c9ae2b0b67402a706ef9e00cae0feaf02b2a162b34114761f9a5091e9df224",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "081796a8d78784ab944085c1f162b0dc12e7361c9c52f6932e95f7834a1c24dc",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "34bf590de1c1dde6400c5ade2030661d5388cd7f717a4bc4bfa6d3011503f2cb",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "d6ce5ec4efd6c6db7759d8aef55b893b0195f42ae7653f1c014cac79f5a78d0b",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "aad7d28590245bbd618fdf8d331c4fd74bca65818ffc29972aeee4faab97a2ab",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "1eebf033a9a0081941145ad4028c402f3bb63fff318536bc53e7ea2a1f1b4ddf",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "8eac375e0f6e1764202af4d192a667d4b19e957dcb002c77dcf46ca3e29f2cad",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "88a6fcb8f953885dbc90238144fa758535c8ef58870ef0c70ea7f756cb290ded",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "9b6e2eb5feebe5cc4adc4fdc25710f2186972bda4ee5cfb7c6a99d274e5477f3",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "7ec8798a497772d9f4d2d47ea60013354be529be1664c9ca1f4e3c362f128afa",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "a3c96e8528e7b2e78ac85aabed238f0285cd44b8e2ec72d200e362f48c81d988",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "1bd5984a42d07c16cda4ecf6b3213d69c79885edfa67308d39d90e78346b12eb",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "6097671734bb7722c00355a12cfc02ea6eaf2e5876366e2ad1c5f56fbbce8470",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "3e7a4b61289fdfa232d4a6020604f0cfab7b8462773e7badf5ed7aa222b422eb",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "db73bd449b7856f2bfabde8f6d6fa79c654cdf3d7df2b17406265794e193263d",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "c85620c8a3cf5c3d0aebf5030474f51da176aeba8cba362e433555b7bb396550",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "dad344157d73824a582863f1b0b2406765bd627dc825447cac452178769ff1d9",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "b98e9d704cbecf922945fd059f4c1319613a43a244a74ea1b8fc4ec59a9eb495",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "96886c7986eac4ee14d7553a7e1870a2bb1439d9ad0b2fdaadd6f264dc1c8536",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "7dc845d16f69c520967cf9edb4931904afaedab426b0da76719c7a1590c68271",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        },
+        "treatment": {
+          "arm": "treatment",
+          "seed": 42,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-config.json",
+          "config_sha256": "afa7ba4951d4f87295749e12322eecea7b3f7884cbf97dd9c34f0d08623f3476",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-formal\\training-summary.json",
+          "summary_sha256": "36fcb68027f524db5e7965a58634926ceb133e51f45591a7d1f7ed0e6a90135d",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-formal\\best_model.pt",
+          "best_checkpoint_sha256": "52d5ddc4153c7b3ecd875a72d5b3cee041d3706d0d5f586e60682faf02591c2d",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed42-formal\\last_model.pt",
+          "last_checkpoint_sha256": "34ff19981334d2418fffb72602f7fdacb27ec20d816df4c338bff933aab5c74f",
+          "best_epoch": 18,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.9758454106280193,
+              "recall": 0.9665071770334929,
+              "f1": 0.9711538461538461,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.72,
+              "recall": 0.782608695652174,
+              "f1": 0.7499999999999999,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 7,
+              "CU_to_DBB": 5
+            },
+            "overall": {
+              "accuracy": 0.9482758620689655,
+              "macro_precision": 0.8479227053140097,
+              "macro_recall": 0.8745579363428334,
+              "macro_f1": 0.860576923076923,
+              "balanced_accuracy": 0.8745579363428334
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.9758454106280193,
+                "recall": 0.9665071770334929,
+                "f1": 0.9711538461538461,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.72,
+                "recall": 0.782608695652174,
+                "f1": 0.7499999999999999,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9482758620689655,
+                "macro_precision": 0.8479227053140097,
+                "macro_recall": 0.8745579363428334,
+                "macro_f1": 0.860576923076923,
+                "balanced_accuracy": 0.8745579363428334
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 7,
+                "parent_sample_ids": [
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|3581",
+                  "cq08|track|845",
+                  "cq08|track|851",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 5,
+                "parent_sample_ids": [
+                  "cq08|track|1547",
+                  "cq08|track|2862",
+                  "cq08|track|3122",
+                  "cq08|track|3154",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "DroneTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "BalloonTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9852941176470589,
+              "recall": 0.9617224880382775,
+              "f1": 0.9733656174334141,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.7142857142857143,
+              "recall": 0.8695652173913043,
+              "f1": 0.7843137254901961,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 8,
+              "CU_to_DBB": 3
+            },
+            "overall": {
+              "accuracy": 0.9525862068965517,
+              "macro_precision": 0.8497899159663866,
+              "macro_recall": 0.915643852714791,
+              "macro_f1": 0.8788396714618051,
+              "balanced_accuracy": 0.915643852714791
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 42,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "treatment",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed42",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "403e00355c35c646199d3e57cc7bdea31379a898f37dae287faa3c70447ef772",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 42,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "61c9ae2b0b67402a706ef9e00cae0feaf02b2a162b34114761f9a5091e9df224",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "081796a8d78784ab944085c1f162b0dc12e7361c9c52f6932e95f7834a1c24dc",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "34bf590de1c1dde6400c5ade2030661d5388cd7f717a4bc4bfa6d3011503f2cb",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "d6ce5ec4efd6c6db7759d8aef55b893b0195f42ae7653f1c014cac79f5a78d0b",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "aad7d28590245bbd618fdf8d331c4fd74bca65818ffc29972aeee4faab97a2ab",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "1eebf033a9a0081941145ad4028c402f3bb63fff318536bc53e7ea2a1f1b4ddf",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "8eac375e0f6e1764202af4d192a667d4b19e957dcb002c77dcf46ca3e29f2cad",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "88a6fcb8f953885dbc90238144fa758535c8ef58870ef0c70ea7f756cb290ded",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "9b6e2eb5feebe5cc4adc4fdc25710f2186972bda4ee5cfb7c6a99d274e5477f3",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "7ec8798a497772d9f4d2d47ea60013354be529be1664c9ca1f4e3c362f128afa",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "a3c96e8528e7b2e78ac85aabed238f0285cd44b8e2ec72d200e362f48c81d988",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "1bd5984a42d07c16cda4ecf6b3213d69c79885edfa67308d39d90e78346b12eb",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "6097671734bb7722c00355a12cfc02ea6eaf2e5876366e2ad1c5f56fbbce8470",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "3e7a4b61289fdfa232d4a6020604f0cfab7b8462773e7badf5ed7aa222b422eb",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "db73bd449b7856f2bfabde8f6d6fa79c654cdf3d7df2b17406265794e193263d",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "c85620c8a3cf5c3d0aebf5030474f51da176aeba8cba362e433555b7bb396550",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "dad344157d73824a582863f1b0b2406765bd627dc825447cac452178769ff1d9",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "b98e9d704cbecf922945fd059f4c1319613a43a244a74ea1b8fc4ec59a9eb495",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "96886c7986eac4ee14d7553a7e1870a2bb1439d9ad0b2fdaadd6f264dc1c8536",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "7dc845d16f69c520967cf9edb4931904afaedab426b0da76719c7a1590c68271",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        }
+      }
+    },
+    "43": {
+      "seed": 43,
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_cpu_logit_hash_equal": true,
+      "gate": {
+        "passed": false,
+        "checks": {
+          "treatment_DBB_precision_recall_f1_at_least_0_95": true,
+          "treatment_CU_precision_recall_f1_at_least_0_90": false,
+          "DBB_to_CU_not_higher_than_control": true,
+          "CU_to_DBB_not_higher_than_control": false,
+          "at_least_one_error_direction_reduced_by_parent": true,
+          "CU_min_precision_recall_f1_strictly_improved": false
+        },
+        "control_best_epoch": 20,
+        "treatment_best_epoch": 14,
+        "control_best": {
+          "DBB": {
+            "precision": 0.9851485148514851,
+            "recall": 0.9521531100478469,
+            "f1": 0.9683698296836983,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.6666666666666666,
+            "recall": 0.8695652173913043,
+            "f1": 0.7547169811320754,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 10,
+            "CU_to_DBB": 3
+          },
+          "overall": {
+            "accuracy": 0.9439655172413793,
+            "macro_precision": 0.8259075907590758,
+            "macro_recall": 0.9108591637195755,
+            "macro_f1": 0.8615434054078869,
+            "balanced_accuracy": 0.9108591637195755
+          }
+        },
+        "treatment_best": {
+          "DBB": {
+            "precision": 0.9619047619047619,
+            "recall": 0.9665071770334929,
+            "f1": 0.964200477326969,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.6818181818181818,
+            "recall": 0.6521739130434783,
+            "f1": 0.6666666666666666,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 7,
+            "CU_to_DBB": 8
+          },
+          "overall": {
+            "accuracy": 0.9353448275862069,
+            "macro_precision": 0.8218614718614718,
+            "macro_recall": 0.8093405450384856,
+            "macro_f1": 0.8154335719968178,
+            "balanced_accuracy": 0.8093405450384856
+          }
+        },
+        "error_reduction_parent_counts": {
+          "DBB_to_CU": 3,
+          "CU_to_DBB": -5
+        },
+        "same_epoch_attribution_guards": {
+          "epoch20": {
+            "control": {
+              "DBB": {
+                "precision": 0.9851485148514851,
+                "recall": 0.9521531100478469,
+                "f1": 0.9683698296836983,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.8695652173913043,
+                "f1": 0.7547169811320754,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 3
+              },
+              "overall": {
+                "accuracy": 0.9439655172413793,
+                "macro_precision": 0.8259075907590758,
+                "macro_recall": 0.9108591637195755,
+                "macro_f1": 0.8615434054078869,
+                "balanced_accuracy": 0.9108591637195755
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9800995024875622,
+                "recall": 0.9425837320574163,
+                "f1": 0.9609756097560976,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6129032258064516,
+                "recall": 0.8260869565217391,
+                "f1": 0.7037037037037037,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 12,
+                "CU_to_DBB": 4
+              },
+              "overall": {
+                "accuracy": 0.9310344827586207,
+                "macro_precision": 0.7965013641470069,
+                "macro_recall": 0.8843353442895777,
+                "macro_f1": 0.8323396567299006,
+                "balanced_accuracy": 0.8843353442895777
+              }
+            }
+          },
+          "control_best_epoch": {
+            "epoch": 20,
+            "control": {
+              "DBB": {
+                "precision": 0.9851485148514851,
+                "recall": 0.9521531100478469,
+                "f1": 0.9683698296836983,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.8695652173913043,
+                "f1": 0.7547169811320754,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 3
+              },
+              "overall": {
+                "accuracy": 0.9439655172413793,
+                "macro_precision": 0.8259075907590758,
+                "macro_recall": 0.9108591637195755,
+                "macro_f1": 0.8615434054078869,
+                "balanced_accuracy": 0.9108591637195755
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9800995024875622,
+                "recall": 0.9425837320574163,
+                "f1": 0.9609756097560976,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6129032258064516,
+                "recall": 0.8260869565217391,
+                "f1": 0.7037037037037037,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 12,
+                "CU_to_DBB": 4
+              },
+              "overall": {
+                "accuracy": 0.9310344827586207,
+                "macro_precision": 0.7965013641470069,
+                "macro_recall": 0.8843353442895777,
+                "macro_f1": 0.8323396567299006,
+                "balanced_accuracy": 0.8843353442895777
+              }
+            }
+          },
+          "treatment_best_epoch": {
+            "epoch": 14,
+            "control": {
+              "DBB": {
+                "precision": 0.9490740740740741,
+                "recall": 0.9808612440191388,
+                "f1": 0.9647058823529412,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.75,
+                "recall": 0.5217391304347826,
+                "f1": 0.6153846153846153,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 4,
+                "CU_to_DBB": 11
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.849537037037037,
+                "macro_recall": 0.7513001872269607,
+                "macro_f1": 0.7900452488687782,
+                "balanced_accuracy": 0.7513001872269607
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9619047619047619,
+                "recall": 0.9665071770334929,
+                "f1": 0.964200477326969,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6818181818181818,
+                "recall": 0.6521739130434783,
+                "f1": 0.6666666666666666,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 8
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.8218614718614718,
+                "macro_recall": 0.8093405450384856,
+                "macro_f1": 0.8154335719968178,
+                "balanced_accuracy": 0.8093405450384856
+              }
+            }
+          }
+        }
+      },
+      "runs": {
+        "control": {
+          "arm": "control",
+          "seed": 43,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-config.json",
+          "config_sha256": "b9e150f9ca5abb46a8c4d57881ecf24579fad195e79688641b33a2d706a86e52",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-formal\\training-summary.json",
+          "summary_sha256": "20a8c7b1588d785057fa78637682cdb8c7af58428e35c23a7349f7c2140e572b",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-formal\\best_model.pt",
+          "best_checkpoint_sha256": "f3417ba5cc76e325f12b1d415ce3f4e16d451490d294ce6b8997ab1b5ed858a4",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-formal\\last_model.pt",
+          "last_checkpoint_sha256": "b38a4af45087c2873340e2edaa345e4fb247f879eccd51eab78172536c264e39",
+          "best_epoch": 20,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.9851485148514851,
+              "recall": 0.9521531100478469,
+              "f1": 0.9683698296836983,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6666666666666666,
+              "recall": 0.8695652173913043,
+              "f1": 0.7547169811320754,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 10,
+              "CU_to_DBB": 3
+            },
+            "overall": {
+              "accuracy": 0.9439655172413793,
+              "macro_precision": 0.8259075907590758,
+              "macro_recall": 0.9108591637195755,
+              "macro_f1": 0.8615434054078869,
+              "balanced_accuracy": 0.9108591637195755
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.9851485148514851,
+                "recall": 0.9521531100478469,
+                "f1": 0.9683698296836983,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.8695652173913043,
+                "f1": 0.7547169811320754,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 3
+              },
+              "overall": {
+                "accuracy": 0.9439655172413793,
+                "macro_precision": 0.8259075907590758,
+                "macro_recall": 0.9108591637195755,
+                "macro_f1": 0.8615434054078869,
+                "balanced_accuracy": 0.9108591637195755
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 10,
+                "parent_sample_ids": [
+                  "cq08|track|1301",
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|3581",
+                  "cq08|track|444",
+                  "cq08|track|521",
+                  "cq08|track|845",
+                  "cq08|track|851",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 3,
+                "parent_sample_ids": [
+                  "cq08|track|2862",
+                  "cq08|track|3122",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "DroneTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "BalloonTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9851485148514851,
+              "recall": 0.9521531100478469,
+              "f1": 0.9683698296836983,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6666666666666666,
+              "recall": 0.8695652173913043,
+              "f1": 0.7547169811320754,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 10,
+              "CU_to_DBB": 3
+            },
+            "overall": {
+              "accuracy": 0.9439655172413793,
+              "macro_precision": 0.8259075907590758,
+              "macro_recall": 0.9108591637195755,
+              "macro_f1": 0.8615434054078869,
+              "balanced_accuracy": 0.9108591637195755
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 43,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "control",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "4ae8a67485c8feb7cc618aed15ed8355de4d1708e29398234965233215330acb",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 43,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "fd36869cf19f18b0fcc12ea5de65523fdba43e7ce98d4de0edfc210033cd29c0",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "d0b4b2401abbd311ab11f3109dd49aea539058f1c662a7ca7fadc6df10fcc3d3",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "da53b838f91cdba47c69084f5a2f29bcf6313d742f054758c63bf254120e817d",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "790d1a811b09ca9877b0d8635eb366662e1f1c3336c5251b6ec8e290b20b5a40",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "70264563910ced1855e0eba3408c26ae6932bfd40eb2f2c7294fd8e9c006d84a",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "32c9a42d8ce52218000cc8e525b3426bee6668403aa2c796a400578b5ed65243",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "8e3a9fbb2ed064e3a7015a2c3944336a6096b7170d27305403dfbf94d4b9736d",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "5ff41267de3b8158aec2195d69ae2b3d7b47e9e2b49bae4841b7e4277cf05bdf",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "47358be503c6e6bde46a8c55900dbb346b31614d15b77a75dea7840f614dc514",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "3567bf9370cda817cd5b76bbc0f0887f8c7bde2f526cbea1723c4f092685aebc",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "aef90cc30149777bd200c2dec5e61619430f88a36127eebeefb8c1e2c8826c60",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "13982a75903f1748301fb187e561f810de453a9e77dab3891267d11c766d778f",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "bc197c2d0e2ebc8464a70b7a6039a1a7196b714637fc4cd81adf51c68dc0864a",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "8e4dc37d3892bdeede57284f765c5787217670ea0ffb442799d8b8dda851d72b",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "7c712b3d5f1132df508a7a60147c7c5efc3ae9b1f12bef92c9c8fc52d9a8b5ab",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "103791d9c7ea7cb2e381fe39d58edda8cb1bf860457cbd1215983d605aa82826",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "0e74e75c99a80094597fd255e45500f457e106d25847de309343b78ceaccb153",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "1cbf6d3958faad2bfcb61fc6bc487f2003a73f5a80954c4c93161dafd5d74978",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "3d95cab17f5eddfba86818bc9fdc369e817e61a6a1ba10a41d97ada155af2ae8",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "ea24a9ea9bbcd009731beaaa9764be5df02e91b3d640969739805cb09007548a",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        },
+        "treatment": {
+          "arm": "treatment",
+          "seed": 43,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-config.json",
+          "config_sha256": "446612add73c8af729cafa0881779150aa0b200869a3ed059fab91edecba4285",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-formal\\training-summary.json",
+          "summary_sha256": "e04359bcb33bdc544fa32f0c9f66002805ed4396faa70be53c58e3e1ff5c6dc5",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-formal\\best_model.pt",
+          "best_checkpoint_sha256": "01e0d89568cfad5a2451e81669f29ec529d20651aa56ec8e2ee2ce68ff9d536c",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed43-formal\\last_model.pt",
+          "last_checkpoint_sha256": "d9f537241edb07029e73bd608326c2f6a074211b56fc34379756cfdbe34c906f",
+          "best_epoch": 14,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.9619047619047619,
+              "recall": 0.9665071770334929,
+              "f1": 0.964200477326969,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6818181818181818,
+              "recall": 0.6521739130434783,
+              "f1": 0.6666666666666666,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 7,
+              "CU_to_DBB": 8
+            },
+            "overall": {
+              "accuracy": 0.9353448275862069,
+              "macro_precision": 0.8218614718614718,
+              "macro_recall": 0.8093405450384856,
+              "macro_f1": 0.8154335719968178,
+              "balanced_accuracy": 0.8093405450384856
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.9619047619047619,
+                "recall": 0.9665071770334929,
+                "f1": 0.964200477326969,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6818181818181818,
+                "recall": 0.6521739130434783,
+                "f1": 0.6666666666666666,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 7,
+                "CU_to_DBB": 8
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.8218614718614718,
+                "macro_recall": 0.8093405450384856,
+                "macro_f1": 0.8154335719968178,
+                "balanced_accuracy": 0.8093405450384856
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 7,
+                "parent_sample_ids": [
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|444",
+                  "cq08|track|845",
+                  "cq08|track|851",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 7,
+                "parent_sample_ids": [
+                  "cq08|track|1547",
+                  "cq08|track|2862",
+                  "cq08|track|2908",
+                  "cq08|track|3122",
+                  "cq08|track|3123",
+                  "cq08|track|3154",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 1,
+                "parent_sample_ids": [
+                  "cq08|track|3605"
+                ]
+              },
+              "DroneTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "BalloonTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9800995024875622,
+              "recall": 0.9425837320574163,
+              "f1": 0.9609756097560976,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6129032258064516,
+              "recall": 0.8260869565217391,
+              "f1": 0.7037037037037037,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 12,
+              "CU_to_DBB": 4
+            },
+            "overall": {
+              "accuracy": 0.9310344827586207,
+              "macro_precision": 0.7965013641470069,
+              "macro_recall": 0.8843353442895777,
+              "macro_f1": 0.8323396567299006,
+              "balanced_accuracy": 0.8843353442895777
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 43,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "treatment",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed43",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "4ae8a67485c8feb7cc618aed15ed8355de4d1708e29398234965233215330acb",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 43,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "fd36869cf19f18b0fcc12ea5de65523fdba43e7ce98d4de0edfc210033cd29c0",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "d0b4b2401abbd311ab11f3109dd49aea539058f1c662a7ca7fadc6df10fcc3d3",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "da53b838f91cdba47c69084f5a2f29bcf6313d742f054758c63bf254120e817d",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "790d1a811b09ca9877b0d8635eb366662e1f1c3336c5251b6ec8e290b20b5a40",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "70264563910ced1855e0eba3408c26ae6932bfd40eb2f2c7294fd8e9c006d84a",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "32c9a42d8ce52218000cc8e525b3426bee6668403aa2c796a400578b5ed65243",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "8e3a9fbb2ed064e3a7015a2c3944336a6096b7170d27305403dfbf94d4b9736d",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "5ff41267de3b8158aec2195d69ae2b3d7b47e9e2b49bae4841b7e4277cf05bdf",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "47358be503c6e6bde46a8c55900dbb346b31614d15b77a75dea7840f614dc514",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "3567bf9370cda817cd5b76bbc0f0887f8c7bde2f526cbea1723c4f092685aebc",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "aef90cc30149777bd200c2dec5e61619430f88a36127eebeefb8c1e2c8826c60",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "13982a75903f1748301fb187e561f810de453a9e77dab3891267d11c766d778f",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "bc197c2d0e2ebc8464a70b7a6039a1a7196b714637fc4cd81adf51c68dc0864a",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "8e4dc37d3892bdeede57284f765c5787217670ea0ffb442799d8b8dda851d72b",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "7c712b3d5f1132df508a7a60147c7c5efc3ae9b1f12bef92c9c8fc52d9a8b5ab",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "103791d9c7ea7cb2e381fe39d58edda8cb1bf860457cbd1215983d605aa82826",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "0e74e75c99a80094597fd255e45500f457e106d25847de309343b78ceaccb153",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "1cbf6d3958faad2bfcb61fc6bc487f2003a73f5a80954c4c93161dafd5d74978",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "3d95cab17f5eddfba86818bc9fdc369e817e61a6a1ba10a41d97ada155af2ae8",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "ea24a9ea9bbcd009731beaaa9764be5df02e91b3d640969739805cb09007548a",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        }
+      }
+    },
+    "44": {
+      "seed": 44,
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_cpu_logit_hash_equal": true,
+      "gate": {
+        "passed": false,
+        "checks": {
+          "treatment_DBB_precision_recall_f1_at_least_0_95": true,
+          "treatment_CU_precision_recall_f1_at_least_0_90": false,
+          "DBB_to_CU_not_higher_than_control": true,
+          "CU_to_DBB_not_higher_than_control": true,
+          "at_least_one_error_direction_reduced_by_parent": true,
+          "CU_min_precision_recall_f1_strictly_improved": true
+        },
+        "control_best_epoch": 15,
+        "treatment_best_epoch": 15,
+        "control_best": {
+          "DBB": {
+            "precision": 0.9754901960784313,
+            "recall": 0.9521531100478469,
+            "f1": 0.9636803874092009,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.6428571428571429,
+            "recall": 0.782608695652174,
+            "f1": 0.7058823529411765,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 10,
+            "CU_to_DBB": 5
+          },
+          "overall": {
+            "accuracy": 0.9353448275862069,
+            "macro_precision": 0.8091736694677871,
+            "macro_recall": 0.8673809028500103,
+            "macro_f1": 0.8347813701751887,
+            "balanced_accuracy": 0.8673809028500103
+          }
+        },
+        "treatment_best": {
+          "DBB": {
+            "precision": 0.975609756097561,
+            "recall": 0.9569377990430622,
+            "f1": 0.9661835748792269,
+            "support": 209
+          },
+          "CU": {
+            "precision": 0.6666666666666666,
+            "recall": 0.782608695652174,
+            "f1": 0.72,
+            "support": 23
+          },
+          "errors": {
+            "DBB_to_CU": 9,
+            "CU_to_DBB": 5
+          },
+          "overall": {
+            "accuracy": 0.9396551724137931,
+            "macro_precision": 0.8211382113821137,
+            "macro_recall": 0.8697732473476181,
+            "macro_f1": 0.8430917874396134,
+            "balanced_accuracy": 0.8697732473476181
+          }
+        },
+        "error_reduction_parent_counts": {
+          "DBB_to_CU": 1,
+          "CU_to_DBB": 0
+        },
+        "same_epoch_attribution_guards": {
+          "epoch20": {
+            "control": {
+              "DBB": {
+                "precision": 0.9444444444444444,
+                "recall": 0.9760765550239234,
+                "f1": 0.96,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6875,
+                "recall": 0.4782608695652174,
+                "f1": 0.5641025641025642,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 5,
+                "CU_to_DBB": 12
+              },
+              "overall": {
+                "accuracy": 0.9267241379310345,
+                "macro_precision": 0.8159722222222222,
+                "macro_recall": 0.7271687122945705,
+                "macro_f1": 0.7620512820512821,
+                "balanced_accuracy": 0.7271687122945705
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.9481132075471698,
+                "recall": 0.9617224880382775,
+                "f1": 0.9548693586698338,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6,
+                "recall": 0.5217391304347826,
+                "f1": 0.5581395348837209,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 8,
+                "CU_to_DBB": 11
+              },
+              "overall": {
+                "accuracy": 0.9181034482758621,
+                "macro_precision": 0.7740566037735849,
+                "macro_recall": 0.74173080923653,
+                "macro_f1": 0.7565044467767774,
+                "balanced_accuracy": 0.74173080923653
+              }
+            }
+          },
+          "control_best_epoch": {
+            "epoch": 15,
+            "control": {
+              "DBB": {
+                "precision": 0.9754901960784313,
+                "recall": 0.9521531100478469,
+                "f1": 0.9636803874092009,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6428571428571429,
+                "recall": 0.782608695652174,
+                "f1": 0.7058823529411765,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.8091736694677871,
+                "macro_recall": 0.8673809028500103,
+                "macro_f1": 0.8347813701751887,
+                "balanced_accuracy": 0.8673809028500103
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.975609756097561,
+                "recall": 0.9569377990430622,
+                "f1": 0.9661835748792269,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.782608695652174,
+                "f1": 0.72,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 9,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9396551724137931,
+                "macro_precision": 0.8211382113821137,
+                "macro_recall": 0.8697732473476181,
+                "macro_f1": 0.8430917874396134,
+                "balanced_accuracy": 0.8697732473476181
+              }
+            }
+          },
+          "treatment_best_epoch": {
+            "epoch": 15,
+            "control": {
+              "DBB": {
+                "precision": 0.9754901960784313,
+                "recall": 0.9521531100478469,
+                "f1": 0.9636803874092009,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6428571428571429,
+                "recall": 0.782608695652174,
+                "f1": 0.7058823529411765,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.8091736694677871,
+                "macro_recall": 0.8673809028500103,
+                "macro_f1": 0.8347813701751887,
+                "balanced_accuracy": 0.8673809028500103
+              }
+            },
+            "treatment": {
+              "DBB": {
+                "precision": 0.975609756097561,
+                "recall": 0.9569377990430622,
+                "f1": 0.9661835748792269,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.782608695652174,
+                "f1": 0.72,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 9,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9396551724137931,
+                "macro_precision": 0.8211382113821137,
+                "macro_recall": 0.8697732473476181,
+                "macro_f1": 0.8430917874396134,
+                "balanced_accuracy": 0.8697732473476181
+              }
+            }
+          }
+        }
+      },
+      "runs": {
+        "control": {
+          "arm": "control",
+          "seed": 44,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-config.json",
+          "config_sha256": "8593840c59b7cc3fd6cdc77c66a3b6abe714d5a75a4a30d7b982854082084e05",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-formal\\training-summary.json",
+          "summary_sha256": "1a0d887010e6076bef166d78aaa296a0a068ab1a1cdc3c7cd1c536a48b2f4fa5",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-formal\\best_model.pt",
+          "best_checkpoint_sha256": "c1302e3ec70b5a4763e63e21822c3942ef716e5c74a98ca776392c577f660931",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-formal\\last_model.pt",
+          "last_checkpoint_sha256": "4151ea8599e7745f97636938d41206fe4191072bb5d23d495e1cb958eab4695a",
+          "best_epoch": 15,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.9754901960784313,
+              "recall": 0.9521531100478469,
+              "f1": 0.9636803874092009,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6428571428571429,
+              "recall": 0.782608695652174,
+              "f1": 0.7058823529411765,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 10,
+              "CU_to_DBB": 5
+            },
+            "overall": {
+              "accuracy": 0.9353448275862069,
+              "macro_precision": 0.8091736694677871,
+              "macro_recall": 0.8673809028500103,
+              "macro_f1": 0.8347813701751887,
+              "balanced_accuracy": 0.8673809028500103
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.9754901960784313,
+                "recall": 0.9521531100478469,
+                "f1": 0.9636803874092009,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6428571428571429,
+                "recall": 0.782608695652174,
+                "f1": 0.7058823529411765,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 10,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9353448275862069,
+                "macro_precision": 0.8091736694677871,
+                "macro_recall": 0.8673809028500103,
+                "macro_f1": 0.8347813701751887,
+                "balanced_accuracy": 0.8673809028500103
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 8,
+                "parent_sample_ids": [
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|3581",
+                  "cq08|track|444",
+                  "cq08|track|845",
+                  "cq08|track|851",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 5,
+                "parent_sample_ids": [
+                  "cq08|track|2119",
+                  "cq08|track|2862",
+                  "cq08|track|2908",
+                  "cq08|track|3154",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "DroneTarget_to_CU": {
+                "count": 1,
+                "parent_sample_ids": [
+                  "cq08|track|2109"
+                ]
+              },
+              "BalloonTarget_to_CU": {
+                "count": 1,
+                "parent_sample_ids": [
+                  "cq08|track|3027"
+                ]
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9444444444444444,
+              "recall": 0.9760765550239234,
+              "f1": 0.96,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6875,
+              "recall": 0.4782608695652174,
+              "f1": 0.5641025641025642,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 5,
+              "CU_to_DBB": 12
+            },
+            "overall": {
+              "accuracy": 0.9267241379310345,
+              "macro_precision": 0.8159722222222222,
+              "macro_recall": 0.7271687122945705,
+              "macro_f1": 0.7620512820512821,
+              "balanced_accuracy": 0.7271687122945705
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 44,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "control",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "8728b8a25172ea8d16f7eba3e72d347fde491c966a23ed0982d37d9152f163ab",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 44,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "a56d1161b159646c5af299d3cbf8c21755719e5f97db0f3f1f5dde81a5293e7d",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "81358ceeb3bbd62a00357c8a52efac1e36bafa91964729b9c0b11a1e2592de6e",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "664332bba1e98cf2269704f89468c89928b01fc32fdd90051e2622cf01d6877e",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "fb97e7c2109271ead028a235156bc65ed24239a1e4df7ef2b16d106b800d54b5",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "9d8536e67492df14dcd52e39c98110cc82cd95063d7e58567ce46d6900080236",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "75b40e73f91f5c51ddf006ec74bde280eea7e6d3d7d444e1b6c04627be688248",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "a05c7fad6f13238d46bcfe4da4e36bccab75d08abeffef2c8929d4c0f154204d",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "9c1845b1176ccdb165a7f9d207062475b6092a4995ff8e84bdcda387bca4d166",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "9f040343dc8a22cdd4126c87d9995f4d4d27fa2e683ac4bf2043727dd9e42f96",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "2f596aa8b21136161f79e01b8c21841e74df4f43c29a00c011e243aca7a3445e",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "a580d02d78e3c30038a569aef48caeaa1de06df3412ea3fb52ad3b2ed3928373",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "082cb5b1c7bfc269fa9e2d2164a7e985ab8db7b6977b298686c522f60d115f61",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "541467ff9c70f25ce6fc8db298c3d5cca015bb7f5b9a59f12463b63fdd46dfa6",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "a45ef29385a5143ee1daf8172c6cb223927422f50dccc1aab03429d5eeb7d79c",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "8011c534c9b6b1459739fce6499910171eaacfd33af9fa295f09d5332972045d",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "a23c4f2fbbe9b192f3b390deebe2e0dd6d2b14a540e2221e1cca11cde8dcd662",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "c32b6e2a241c3b5aebe1711f96bd0b79682844e947bb96915a7c1a5e3540965d",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "e7beeabcfdf7304f5b8e62f7db32f6930c83aee48a29a5880e7292d2db3a6380",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "3527732188b44f38f4eee015576c1d94608185eb58eaa75d0c3ae9015d908f23",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "b6500d6652da816e7b5116abf15307facfbafc61c750d146a91cf2568458f923",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        },
+        "treatment": {
+          "arm": "treatment",
+          "seed": 44,
+          "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-config.json",
+          "config_sha256": "378d060c6aeda01c29dabefc45a66cb7bcf20b49f673ba2b373d677e35e125b6",
+          "artifact_dir": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-formal",
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-formal\\training-summary.json",
+          "summary_sha256": "1ab73bad678eaecc5b36c27565c1639b2a46be89c7d574d99f89dbcf7b317264",
+          "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-formal\\best_model.pt",
+          "best_checkpoint_sha256": "b6f7d2f1891669c753323f6ea57f185155b63fe8deb73e33e4413ce0f65819b3",
+          "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-treatment-seed44-formal\\last_model.pt",
+          "last_checkpoint_sha256": "f6126658ff43d40eb33d9e13b096b51e4d94b4722097913ef06160cf4fa89c40",
+          "best_epoch": 15,
+          "best_metrics": {
+            "DBB": {
+              "precision": 0.975609756097561,
+              "recall": 0.9569377990430622,
+              "f1": 0.9661835748792269,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6666666666666666,
+              "recall": 0.782608695652174,
+              "f1": 0.72,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 9,
+              "CU_to_DBB": 5
+            },
+            "overall": {
+              "accuracy": 0.9396551724137931,
+              "macro_precision": 0.8211382113821137,
+              "macro_recall": 0.8697732473476181,
+              "macro_f1": 0.8430917874396134,
+              "balanced_accuracy": 0.8697732473476181
+            }
+          },
+          "independent_best_checkpoint_validation": {
+            "device": "cuda",
+            "parent_count": 232,
+            "window_count": 4474,
+            "metrics": {
+              "DBB": {
+                "precision": 0.975609756097561,
+                "recall": 0.9569377990430622,
+                "f1": 0.9661835748792269,
+                "support": 209
+              },
+              "CU": {
+                "precision": 0.6666666666666666,
+                "recall": 0.782608695652174,
+                "f1": 0.72,
+                "support": 23
+              },
+              "errors": {
+                "DBB_to_CU": 9,
+                "CU_to_DBB": 5
+              },
+              "overall": {
+                "accuracy": 0.9396551724137931,
+                "macro_precision": 0.8211382113821137,
+                "macro_recall": 0.8697732473476181,
+                "macro_f1": 0.8430917874396134,
+                "balanced_accuracy": 0.8697732473476181
+              }
+            },
+            "semantic_errors": {
+              "BirdTarget_to_CU": {
+                "count": 8,
+                "parent_sample_ids": [
+                  "cq08|track|2367",
+                  "cq08|track|2956",
+                  "cq08|track|333",
+                  "cq08|track|3581",
+                  "cq08|track|444",
+                  "cq08|track|845",
+                  "cq08|track|851",
+                  "cq08|track|852"
+                ]
+              },
+              "UnknownTarget_to_DBB": {
+                "count": 5,
+                "parent_sample_ids": [
+                  "cq08|track|2119",
+                  "cq08|track|2862",
+                  "cq08|track|2908",
+                  "cq08|track|3154",
+                  "cq08|track|4171"
+                ]
+              },
+              "ClutterTarget_to_DBB": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "DroneTarget_to_CU": {
+                "count": 0,
+                "parent_sample_ids": []
+              },
+              "BalloonTarget_to_CU": {
+                "count": 1,
+                "parent_sample_ids": [
+                  "cq08|track|3027"
+                ]
+              }
+            },
+            "matches_training_summary": true
+          },
+          "epoch20_metrics": {
+            "DBB": {
+              "precision": 0.9481132075471698,
+              "recall": 0.9617224880382775,
+              "f1": 0.9548693586698338,
+              "support": 209
+            },
+            "CU": {
+              "precision": 0.6,
+              "recall": 0.5217391304347826,
+              "f1": 0.5581395348837209,
+              "support": 23
+            },
+            "errors": {
+              "DBB_to_CU": 8,
+              "CU_to_DBB": 11
+            },
+            "overall": {
+              "accuracy": 0.9181034482758621,
+              "macro_precision": 0.7740566037735849,
+              "macro_recall": 0.74173080923653,
+              "macro_f1": 0.7565044467767774,
+              "balanced_accuracy": 0.74173080923653
+            }
+          },
+          "paired_initialization": {
+            "paired_protocol": "v11-control-v12-dbb-subclass-auxiliary-v1",
+            "seed": 44,
+            "shared_state_entry_count": 46,
+            "shared_parameters_and_buffers_exactly_equal": true,
+            "model_structures_identical": true,
+            "control_auxiliary_loss_weight": 0.0,
+            "treatment_auxiliary_loss_weight": 0.2,
+            "auxiliary_class_names": [
+              "DroneTarget",
+              "BirdTarget",
+              "BalloonTarget"
+            ],
+            "paired_arm": "treatment",
+            "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44-config.json",
+            "counterpart_config_name": "RADAR-LN3-V12-cq08-liquid-dbb-cu-gate-dbb-auxiliary-control-seed44",
+            "initial_auxiliary_logits_exactly_equal": true,
+            "initial_cpu_reference_logits_exactly_equal": true,
+            "initial_logits_maximum_absolute_difference": 0.0,
+            "initial_logits_sha256": "8728b8a25172ea8d16f7eba3e72d347fde491c966a23ed0982d37d9152f163ab",
+            "initial_logit_probe": "identical V12 model/input; only the configured training loss weight differs",
+            "initial_logit_parent_sample_ids": [
+              "cq08|track|1",
+              "cq08|track|101"
+            ]
+          },
+          "loader_contract": {
+            "seed": 44,
+            "independent_generator": true,
+            "epoch_parent_order_hashes": [
+              {
+                "epoch": 1,
+                "sha256": "a56d1161b159646c5af299d3cbf8c21755719e5f97db0f3f1f5dde81a5293e7d",
+                "count": 1081
+              },
+              {
+                "epoch": 2,
+                "sha256": "81358ceeb3bbd62a00357c8a52efac1e36bafa91964729b9c0b11a1e2592de6e",
+                "count": 1081
+              },
+              {
+                "epoch": 3,
+                "sha256": "664332bba1e98cf2269704f89468c89928b01fc32fdd90051e2622cf01d6877e",
+                "count": 1081
+              },
+              {
+                "epoch": 4,
+                "sha256": "fb97e7c2109271ead028a235156bc65ed24239a1e4df7ef2b16d106b800d54b5",
+                "count": 1081
+              },
+              {
+                "epoch": 5,
+                "sha256": "9d8536e67492df14dcd52e39c98110cc82cd95063d7e58567ce46d6900080236",
+                "count": 1081
+              },
+              {
+                "epoch": 6,
+                "sha256": "75b40e73f91f5c51ddf006ec74bde280eea7e6d3d7d444e1b6c04627be688248",
+                "count": 1081
+              },
+              {
+                "epoch": 7,
+                "sha256": "a05c7fad6f13238d46bcfe4da4e36bccab75d08abeffef2c8929d4c0f154204d",
+                "count": 1081
+              },
+              {
+                "epoch": 8,
+                "sha256": "9c1845b1176ccdb165a7f9d207062475b6092a4995ff8e84bdcda387bca4d166",
+                "count": 1081
+              },
+              {
+                "epoch": 9,
+                "sha256": "9f040343dc8a22cdd4126c87d9995f4d4d27fa2e683ac4bf2043727dd9e42f96",
+                "count": 1081
+              },
+              {
+                "epoch": 10,
+                "sha256": "2f596aa8b21136161f79e01b8c21841e74df4f43c29a00c011e243aca7a3445e",
+                "count": 1081
+              },
+              {
+                "epoch": 11,
+                "sha256": "a580d02d78e3c30038a569aef48caeaa1de06df3412ea3fb52ad3b2ed3928373",
+                "count": 1081
+              },
+              {
+                "epoch": 12,
+                "sha256": "082cb5b1c7bfc269fa9e2d2164a7e985ab8db7b6977b298686c522f60d115f61",
+                "count": 1081
+              },
+              {
+                "epoch": 13,
+                "sha256": "541467ff9c70f25ce6fc8db298c3d5cca015bb7f5b9a59f12463b63fdd46dfa6",
+                "count": 1081
+              },
+              {
+                "epoch": 14,
+                "sha256": "a45ef29385a5143ee1daf8172c6cb223927422f50dccc1aab03429d5eeb7d79c",
+                "count": 1081
+              },
+              {
+                "epoch": 15,
+                "sha256": "8011c534c9b6b1459739fce6499910171eaacfd33af9fa295f09d5332972045d",
+                "count": 1081
+              },
+              {
+                "epoch": 16,
+                "sha256": "a23c4f2fbbe9b192f3b390deebe2e0dd6d2b14a540e2221e1cca11cde8dcd662",
+                "count": 1081
+              },
+              {
+                "epoch": 17,
+                "sha256": "c32b6e2a241c3b5aebe1711f96bd0b79682844e947bb96915a7c1a5e3540965d",
+                "count": 1081
+              },
+              {
+                "epoch": 18,
+                "sha256": "e7beeabcfdf7304f5b8e62f7db32f6930c83aee48a29a5880e7292d2db3a6380",
+                "count": 1081
+              },
+              {
+                "epoch": 19,
+                "sha256": "3527732188b44f38f4eee015576c1d94608185eb58eaa75d0c3ae9015d908f23",
+                "count": 1081
+              },
+              {
+                "epoch": 20,
+                "sha256": "b6500d6652da816e7b5116abf15307facfbafc61c750d146a91cf2568458f923",
+                "count": 1081
+              }
+            ],
+            "cuda_deterministic_algorithms": false,
+            "determinism_claim": "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
+          },
+          "epoch_checkpoint_count": 20
+        }
+      }
+    }
+  },
+  "passing_seed_count": 0,
+  "required_passing_seed_count": 2,
+  "median_gate": {
+    "passed": false,
+    "checks": {
+      "median_treatment_DBB_precision_recall_f1_at_least_0_95": true,
+      "median_treatment_CU_precision_recall_f1_at_least_0_90": false,
+      "median_DBB_to_CU_not_higher_than_control": true,
+      "median_CU_to_DBB_not_higher_than_control": false,
+      "at_least_one_median_error_direction_reduced_by_one_parent": true,
+      "median_CU_min_precision_recall_f1_strictly_improved": true
+    },
+    "control": {
+      "DBB": {
+        "precision": 0.9805825242718447,
+        "recall": 0.9521531100478469,
+        "f1": 0.9683698296836983,
+        "support": 209.0
+      },
+      "CU": {
+        "precision": 0.6666666666666666,
+        "recall": 0.8260869565217391,
+        "f1": 0.7547169811320754,
+        "support": 23.0
+      },
+      "errors": {
+        "DBB_to_CU": 10.0,
+        "CU_to_DBB": 4.0
+      },
+      "overall": {
+        "accuracy": 0.9439655172413793,
+        "macro_precision": 0.8259075907590758,
+        "macro_recall": 0.896297066777616,
+        "macro_f1": 0.8615434054078869,
+        "balanced_accuracy": 0.896297066777616
+      }
+    },
+    "treatment": {
+      "DBB": {
+        "precision": 0.975609756097561,
+        "recall": 0.9665071770334929,
+        "f1": 0.9661835748792269,
+        "support": 209.0
+      },
+      "CU": {
+        "precision": 0.6818181818181818,
+        "recall": 0.782608695652174,
+        "f1": 0.72,
+        "support": 23.0
+      },
+      "errors": {
+        "DBB_to_CU": 7.0,
+        "CU_to_DBB": 5.0
+      },
+      "overall": {
+        "accuracy": 0.9396551724137931,
+        "macro_precision": 0.8218614718614718,
+        "macro_recall": 0.8697732473476181,
+        "macro_f1": 0.8430917874396134,
+        "balanced_accuracy": 0.8697732473476181
+      }
+    },
+    "error_reduction_parent_counts": {
+      "DBB_to_CU": 3.0,
+      "CU_to_DBB": -1.0
+    }
+  },
+  "stage_one_passed": false,
+  "stage_two_status": "blocked_by_v12_retention_gate",
+  "test_evaluation": "未执行",
+  "OOF": "未执行",
+  "P95": "未执行",
+  "generic_stage_one_passed": false,
+  "targeted_mechanism_gate": {
+    "passed": false,
+    "required_passing_seed_count": 2,
+    "passing_seed_count": 0,
+    "seed_results": {
+      "42": {
+        "passed": false,
+        "control": {
+          "BirdTarget_to_CU": {
+            "count": 7,
+            "parent_sample_ids": [
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|3581",
+              "cq08|track|444",
+              "cq08|track|845",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 4,
+            "parent_sample_ids": [
+              "cq08|track|2862",
+              "cq08|track|3122",
+              "cq08|track|3154",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "DroneTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "BalloonTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          }
+        },
+        "treatment": {
+          "BirdTarget_to_CU": {
+            "count": 7,
+            "parent_sample_ids": [
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|3581",
+              "cq08|track|845",
+              "cq08|track|851",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 5,
+            "parent_sample_ids": [
+              "cq08|track|1547",
+              "cq08|track|2862",
+              "cq08|track|3122",
+              "cq08|track|3154",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "DroneTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "BalloonTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          }
+        },
+        "BirdTarget_to_CU_reduction": 0,
+        "UnknownTarget_to_DBB_reduction": -1
+      },
+      "43": {
+        "passed": false,
+        "control": {
+          "BirdTarget_to_CU": {
+            "count": 10,
+            "parent_sample_ids": [
+              "cq08|track|1301",
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|3581",
+              "cq08|track|444",
+              "cq08|track|521",
+              "cq08|track|845",
+              "cq08|track|851",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 3,
+            "parent_sample_ids": [
+              "cq08|track|2862",
+              "cq08|track|3122",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "DroneTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "BalloonTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          }
+        },
+        "treatment": {
+          "BirdTarget_to_CU": {
+            "count": 7,
+            "parent_sample_ids": [
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|444",
+              "cq08|track|845",
+              "cq08|track|851",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 7,
+            "parent_sample_ids": [
+              "cq08|track|1547",
+              "cq08|track|2862",
+              "cq08|track|2908",
+              "cq08|track|3122",
+              "cq08|track|3123",
+              "cq08|track|3154",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 1,
+            "parent_sample_ids": [
+              "cq08|track|3605"
+            ]
+          },
+          "DroneTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "BalloonTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          }
+        },
+        "BirdTarget_to_CU_reduction": 3,
+        "UnknownTarget_to_DBB_reduction": -4
+      },
+      "44": {
+        "passed": false,
+        "control": {
+          "BirdTarget_to_CU": {
+            "count": 8,
+            "parent_sample_ids": [
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|3581",
+              "cq08|track|444",
+              "cq08|track|845",
+              "cq08|track|851",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 5,
+            "parent_sample_ids": [
+              "cq08|track|2119",
+              "cq08|track|2862",
+              "cq08|track|2908",
+              "cq08|track|3154",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "DroneTarget_to_CU": {
+            "count": 1,
+            "parent_sample_ids": [
+              "cq08|track|2109"
+            ]
+          },
+          "BalloonTarget_to_CU": {
+            "count": 1,
+            "parent_sample_ids": [
+              "cq08|track|3027"
+            ]
+          }
+        },
+        "treatment": {
+          "BirdTarget_to_CU": {
+            "count": 8,
+            "parent_sample_ids": [
+              "cq08|track|2367",
+              "cq08|track|2956",
+              "cq08|track|333",
+              "cq08|track|3581",
+              "cq08|track|444",
+              "cq08|track|845",
+              "cq08|track|851",
+              "cq08|track|852"
+            ]
+          },
+          "UnknownTarget_to_DBB": {
+            "count": 5,
+            "parent_sample_ids": [
+              "cq08|track|2119",
+              "cq08|track|2862",
+              "cq08|track|2908",
+              "cq08|track|3154",
+              "cq08|track|4171"
+            ]
+          },
+          "ClutterTarget_to_DBB": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "DroneTarget_to_CU": {
+            "count": 0,
+            "parent_sample_ids": []
+          },
+          "BalloonTarget_to_CU": {
+            "count": 1,
+            "parent_sample_ids": [
+              "cq08|track|3027"
+            ]
+          }
+        },
+        "BirdTarget_to_CU_reduction": 0,
+        "UnknownTarget_to_DBB_reduction": 0
+      }
+    },
+    "median": {
+      "BirdTarget_to_CU_reduction": 0,
+      "UnknownTarget_to_DBB_reduction": -1,
+      "passed": false
+    },
+    "interpretation": "mechanism guard only: protect Bird routing without increasing dangerous Unknown acceptance"
+  },
+  "v12_retention_passed": false,
+  "schema_version": "RADAR-LN3-V12-dbb-auxiliary-paired-report-v1",
+  "scope": "CQ08 V3 validation only; three paired seeds; test sealed",
+  "formal_training": "completed_by_user_manual_commands",
+  "intervention": {
+    "control_dbb_auxiliary_loss_weight": 0.0,
+    "treatment_dbb_auxiliary_loss_weight": 0.2,
+    "supervision": "DBB parent final causal state only; CU excluded",
+    "rd_physical_v11_treatment": "disabled"
+  }
+}

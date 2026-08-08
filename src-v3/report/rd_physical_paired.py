@@ -313,7 +313,11 @@ def _median_gate(control: Mapping[str, Any], treatment: Mapping[str, Any]) -> di
     }
 
 
-def evaluate_completed_runs(runs: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
+def evaluate_completed_runs(
+    runs: Mapping[int, Mapping[str, Any]],
+    *,
+    paired_protocol: str = RD_PHYSICAL_PAIRED_PROTOCOL,
+) -> dict[str, Any]:
     if set(runs) != set(SEEDS) or any(set(value) != set(ARMS) for value in runs.values()):
         raise ValueError("paired report requires Control/Treatment for seeds 42,43,44")
     seed_results: dict[str, Any] = {}
@@ -348,7 +352,7 @@ def evaluate_completed_runs(runs: Mapping[int, Mapping[str, Any]]) -> dict[str, 
     stage_one_passed = passing_seed_count >= 2 and bool(median_gate["passed"])
     return {
         "status": "passed" if stage_one_passed else "completed_but_gate_failed",
-        "paired_protocol": RD_PHYSICAL_PAIRED_PROTOCOL,
+        "paired_protocol": paired_protocol,
         "seed_results": seed_results,
         "passing_seed_count": passing_seed_count,
         "required_passing_seed_count": 2,

@@ -68,6 +68,18 @@ TR_MOTION_GATE_SCHEMA_VERSION = "RADAR-LN3-V9"
 TR_OBSERVATION_INCREMENT_GATE_SCHEMA_VERSION = "RADAR-LN3-V10"
 RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION = "RADAR-LN3-V11"
 RD_PHYSICAL_PAIRED_PROTOCOL = "v10-control-v11-current-event-rd-physical-v1"
+DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION = "RADAR-LN3-V12"
+DBB_AUXILIARY_PAIRED_PROTOCOL = "v11-control-v12-dbb-subclass-auxiliary-v1"
+DBB_AUXILIARY_CLASS_NAMES = ("DroneTarget", "BirdTarget", "BalloonTarget")
+DBB_AUXILIARY_LABEL_TO_ID = {
+    class_name: class_id for class_id, class_name in enumerate(DBB_AUXILIARY_CLASS_NAMES)
+}
+DBB_AUXILIARY_TREATMENT_WEIGHT = 0.20
+DBB_AUXILIARY_CLASS_WEIGHTS = (0.6666666666666666, 1.3388203017832648, 1.327891156462585)
+DBB_AUXILIARY_SUPERVISION_SCOPE = "train_dbb_parents_final_causal_state_only"
+FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
+    {RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION, DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION}
+)
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
 _TASK_SCHEMA_PATTERN = re.compile(r"^RADAR-LN3-V(?P<version>\d+)$")
 
@@ -183,6 +195,7 @@ class TaskModelConfig:
     rd_frame_aggregation: str
     tr_motion_dim: int
     rd_physical_dim: int
+    dbb_auxiliary_num_classes: int
 
 
 @dataclass(frozen=True)
@@ -211,6 +224,9 @@ class TaskTrainConfig:
     save_every_epoch: bool
     cuda_deterministic_algorithms: bool
     paired_counterpart_config_path: str | None
+    dbb_auxiliary_loss_weight: float
+    dbb_auxiliary_class_weights: tuple[float, ...]
+    dbb_auxiliary_supervision_scope: str | None
 
 
 @dataclass(frozen=True)
@@ -352,6 +368,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         rd_frame_aggregation=str(model_payload.get("rd_frame_aggregation", "masked_mean")),
         tr_motion_dim=int(model_payload.get("tr_motion_dim", 0)),
         rd_physical_dim=int(model_payload.get("rd_physical_dim", 0)),
+        dbb_auxiliary_num_classes=int(model_payload.get("dbb_auxiliary_num_classes", 0)),
     )
     if model.num_classes != spec.num_classes:
         raise ValueError(f"model.num_classes={model.num_classes} does not match task={spec.num_classes}")
@@ -440,6 +457,16 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
                 raise ValueError("V11 Treatment requires manifest, train/val cache paths and hashes")
         elif any(value is not None for value in physical_fields):
             raise ValueError("V11 Control must not configure or load an RD physical cache")
+    elif model.rd_physical_dim != 0 or any(value is not None for value in physical_fields):
+        raise ValueError("task schemas after RADAR-LN3-V11 must not silently retain the V11 RD physical treatment")
+    if schema_number < _task_schema_number(DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION):
+        if model.dbb_auxiliary_num_classes != 0:
+            raise ValueError("task schemas before RADAR-LN3-V12 must not enable the DBB auxiliary head")
+    elif schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        if spec.name != "dbb_cu_gate" or data.tr_motion_schema != TR_OBSERVATION_INCREMENT_SCHEMA:
+            raise ValueError("RADAR-LN3-V12 is restricted to the V10 observation-increment DBB/CU Gate")
+        if model.dbb_auxiliary_num_classes != len(DBB_AUXILIARY_CLASS_NAMES):
+            raise ValueError("RADAR-LN3-V12 requires a three-class Drone/Bird/Balloon auxiliary head")
     train_payload = dict(_required(payload, "train"))
     class_weights = tuple(float(value) for value in _required(train_payload, "class_weights"))
     if len(class_weights) != spec.num_classes or any(value <= 0.0 or not np.isfinite(value) for value in class_weights):
@@ -475,6 +502,15 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             if train_payload.get("paired_counterpart_config_path") is None
             else str(train_payload["paired_counterpart_config_path"])
         ),
+        dbb_auxiliary_loss_weight=float(train_payload.get("dbb_auxiliary_loss_weight", 0.0)),
+        dbb_auxiliary_class_weights=tuple(
+            float(value) for value in train_payload.get("dbb_auxiliary_class_weights", [])
+        ),
+        dbb_auxiliary_supervision_scope=(
+            None
+            if train_payload.get("dbb_auxiliary_supervision_scope") is None
+            else str(train_payload["dbb_auxiliary_supervision_scope"])
+        ),
     )
     if train.learning_rate <= 0.0 or train.gradient_clip_norm <= 0.0:
         raise ValueError("task learning_rate and gradient_clip_norm must be positive")
@@ -506,6 +542,36 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError("V11 paired training requires an explicit counterpart config path")
         if train.cuda_deterministic_algorithms:
             raise ValueError("V11 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
+    elif schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        expected_arm = "control" if train.dbb_auxiliary_loss_weight == 0.0 else "treatment"
+        if train.paired_protocol != DBB_AUXILIARY_PAIRED_PROTOCOL or train.paired_arm != expected_arm:
+            raise ValueError("V12 paired protocol/arm does not match the configured auxiliary loss weight")
+        if expected_arm == "treatment" and train.dbb_auxiliary_loss_weight != DBB_AUXILIARY_TREATMENT_WEIGHT:
+            raise ValueError(
+                f"V12 Treatment auxiliary loss weight must be frozen at {DBB_AUXILIARY_TREATMENT_WEIGHT}"
+            )
+        if train.dbb_auxiliary_class_weights != DBB_AUXILIARY_CLASS_WEIGHTS:
+            raise ValueError("V12 DBB auxiliary class weights do not match the frozen train-only contract")
+        if train.dbb_auxiliary_supervision_scope != DBB_AUXILIARY_SUPERVISION_SCOPE:
+            raise ValueError("V12 DBB auxiliary supervision scope must be final causal state only")
+        if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
+            raise ValueError("V12 paired seed, model seed and DataLoader seed must be identical")
+        if train.seed not in {42, 43, 44}:
+            raise ValueError("V12 paired seed must be one of 42, 43 or 44")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError("V12 paired training requires exactly 20 epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError("V12 paired training requires epoch checkpoints and parent-order hashes")
+        if train.paired_counterpart_config_path is None:
+            raise ValueError("V12 paired training requires an explicit counterpart config path")
+        if train.cuda_deterministic_algorithms:
+            raise ValueError("V12 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
+    elif (
+        train.dbb_auxiliary_loss_weight != 0.0
+        or train.dbb_auxiliary_class_weights
+        or train.dbb_auxiliary_supervision_scope is not None
+    ):
+        raise ValueError("DBB auxiliary training fields are reserved for the RADAR-LN3-V12 paired experiment")
     if _is_repaired_task_schema(schema_version):
         require_causal_rd_quality_schema(data.rd_quality_schema)
         if data.contract_schema_version is None or not _is_repaired_task_schema(data.contract_schema_version):
@@ -743,6 +809,12 @@ def collate_task_sequences(spec: TaskSpec):
         task_labels = [spec.encode(item.label_name) for item in items]
         batch["labels"] = torch.tensor(task_labels, dtype=torch.long)
         batch["task_label_names"] = [spec.class_names[value] for value in task_labels]
+        if spec.name == "dbb_cu_gate":
+            auxiliary_labels = [
+                DBB_AUXILIARY_LABEL_TO_ID.get(item.label_name, -1)
+                for item in items
+            ]
+            batch["dbb_auxiliary_labels"] = torch.tensor(auxiliary_labels, dtype=torch.long)
         return batch
 
     return collate
@@ -824,6 +896,7 @@ class LiquidTaskClassifier(nn.Module):
         self.tr_motion_schema = config.data.tr_motion_schema
         self.tr_motion_mask_mode = config.data.tr_motion_mask_mode
         self.rd_physical_dim = model.rd_physical_dim
+        self.dbb_auxiliary_num_classes = model.dbb_auxiliary_num_classes
         self.rd_physical_schema = config.data.rd_physical_schema
         self.rd_physical_mask_mode = config.data.rd_physical_mask_mode
         self.tr_motion_contract = (
@@ -897,6 +970,14 @@ class LiquidTaskClassifier(nn.Module):
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.Linear(model.liquid_hidden_dim, self.num_classes),
         )
+        self.dbb_auxiliary_classifier: nn.Module | None = None
+        if self.dbb_auxiliary_num_classes:
+            if self.task_name != "dbb_cu_gate" or self.dbb_auxiliary_num_classes != len(DBB_AUXILIARY_CLASS_NAMES):
+                raise ValueError("DBB auxiliary head is restricted to the three-subclass DBB/CU Gate contract")
+            self.dbb_auxiliary_classifier = nn.Sequential(
+                nn.LayerNorm(model.liquid_hidden_dim),
+                nn.Linear(model.liquid_hidden_dim, self.dbb_auxiliary_num_classes),
+            )
 
     def prepare_online_rd_physical(
         self,
@@ -955,6 +1036,7 @@ class LiquidTaskClassifier(nn.Module):
         tr_motion_valid_mask: torch.Tensor | None = None,
         rd_physical_features: torch.Tensor | None = None,
         rd_physical_valid: torch.Tensor | None = None,
+        return_dbb_auxiliary_logits: bool = False,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 3 or tr_missing_mask.shape[:2] != tr_features.shape[:2]:
             raise ValueError("task TR tensors must have shape [batch, sequence, features]")
@@ -1022,7 +1104,7 @@ class LiquidTaskClassifier(nn.Module):
         last_indices = valid.long().sum(dim=1).clamp_min(1) - 1
         batch_indices = torch.arange(tr_features.shape[0], device=tr_features.device)
         window_logits = sequence_logits[batch_indices, last_indices]
-        return {
+        result = {
             "window_logits": window_logits,
             "sequence_logits": sequence_logits,
             "liquid_sequence": liquid_state.sequence,
@@ -1031,6 +1113,11 @@ class LiquidTaskClassifier(nn.Module):
             "dt_zero_mask": liquid_state.dt_zero_mask,
             "dt_invalid_mask": liquid_state.dt_invalid_mask,
         }
+        if return_dbb_auxiliary_logits and self.dbb_auxiliary_classifier is None:
+            raise ValueError("DBB auxiliary logits were requested from a model without the V12 auxiliary head")
+        if return_dbb_auxiliary_logits and self.dbb_auxiliary_classifier is not None:
+            result["dbb_auxiliary_sequence_logits"] = self.dbb_auxiliary_classifier(liquid_state.sequence)
+        return result
 
     def forward_online_point(
         self,
@@ -1148,6 +1235,116 @@ def task_prefix_loss(
     if not torch.isfinite(value).item():
         raise ValueError("task prefix loss is non-finite")
     return value
+
+
+def dbb_auxiliary_final_state_loss(
+    sequence_logits: torch.Tensor,
+    auxiliary_labels: torch.Tensor,
+    padding_mask: torch.Tensor,
+    *,
+    class_weights: Iterable[float] = DBB_AUXILIARY_CLASS_WEIGHTS,
+) -> tuple[torch.Tensor, dict[str, int]]:
+    """Apply DBB subclass CE to each selected parent's final causal state.
+
+    ``auxiliary_labels`` uses ``0..2`` for Drone/Bird/Balloon and ``-1`` for
+    Clutter/Unknown.  Early prefixes are intentionally excluded because their
+    evidence need not support the complete-parent subclass label.
+    """
+
+    if sequence_logits.ndim != 3 or sequence_logits.shape[-1] != len(DBB_AUXILIARY_CLASS_NAMES):
+        raise ValueError("DBB auxiliary logits must have shape [batch, sequence, 3]")
+    if auxiliary_labels.shape != (sequence_logits.shape[0],) or padding_mask.shape != sequence_logits.shape[:2]:
+        raise ValueError("DBB auxiliary labels or padding mask shape mismatch")
+    labels = auxiliary_labels.to(device=sequence_logits.device, dtype=torch.long)
+    if bool(((labels < -1) | (labels >= len(DBB_AUXILIARY_CLASS_NAMES))).any()):
+        raise ValueError("DBB auxiliary labels must use -1 for CU or 0..2 for DBB subclasses")
+    selected = labels >= 0
+    selected_parent_count = int(selected.sum().item())
+    if selected_parent_count == 0:
+        zero = sequence_logits.new_zeros(())
+        return zero, {
+            "selected_dbb_parent_count": 0,
+            "excluded_cu_parent_count": int(labels.numel()),
+            "selected_final_state_count": 0,
+        }
+    selected_logits = sequence_logits[selected]
+    selected_padding = padding_mask.to(device=sequence_logits.device)[selected]
+    selected_labels = labels[selected]
+    lengths = (~selected_padding).long().sum(dim=1)
+    if bool((lengths <= 0).any()):
+        raise ValueError("DBB auxiliary loss received an empty selected DBB sequence")
+    final_indices = lengths - 1
+    batch_indices = torch.arange(selected_logits.shape[0], device=selected_logits.device)
+    final_logits = selected_logits[batch_indices, final_indices]
+    weight_tensor = sequence_logits.new_tensor(tuple(float(value) for value in class_weights))
+    if (
+        weight_tensor.shape != (len(DBB_AUXILIARY_CLASS_NAMES),)
+        or not torch.isfinite(weight_tensor).all()
+        or bool((weight_tensor <= 0.0).any())
+    ):
+        raise ValueError("DBB auxiliary class weights must contain three finite positive values")
+    value = nn.functional.cross_entropy(final_logits, selected_labels, weight=weight_tensor)
+    if not torch.isfinite(value).item():
+        raise ValueError("DBB auxiliary prefix loss is non-finite")
+    return value, {
+        "selected_dbb_parent_count": selected_parent_count,
+        "excluded_cu_parent_count": int((~selected).sum().item()),
+        "selected_final_state_count": selected_parent_count,
+    }
+
+
+def task_training_objective(
+    output: Mapping[str, torch.Tensor],
+    batch: Mapping[str, Any],
+    config: LiquidTaskConfig,
+    *,
+    class_weights: torch.Tensor,
+) -> dict[str, Any]:
+    """Compose the frozen main Gate and optional V12 auxiliary objectives."""
+
+    main_loss = task_prefix_loss(
+        output["sequence_logits"],
+        batch["labels"],
+        batch["tr_padding_mask"],
+        class_weights=class_weights,
+    )
+    auxiliary_loss = main_loss.new_zeros(())
+    auxiliary_counts = {
+        "selected_dbb_parent_count": 0,
+        "excluded_cu_parent_count": 0,
+        "selected_final_state_count": 0,
+    }
+    if config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        if "dbb_auxiliary_sequence_logits" not in output or "dbb_auxiliary_labels" not in batch:
+            raise ValueError("V12 training objective requires auxiliary logits and labels")
+        if config.train.dbb_auxiliary_loss_weight > 0.0:
+            auxiliary_loss, auxiliary_counts = dbb_auxiliary_final_state_loss(
+                output["dbb_auxiliary_sequence_logits"],
+                batch["dbb_auxiliary_labels"],
+                batch["tr_padding_mask"],
+                class_weights=config.train.dbb_auxiliary_class_weights,
+            )
+        else:
+            with torch.no_grad():
+                auxiliary_loss, auxiliary_counts = dbb_auxiliary_final_state_loss(
+                    output["dbb_auxiliary_sequence_logits"],
+                    batch["dbb_auxiliary_labels"],
+                    batch["tr_padding_mask"],
+                    class_weights=config.train.dbb_auxiliary_class_weights,
+                )
+    total_loss = (
+        main_loss + config.train.dbb_auxiliary_loss_weight * auxiliary_loss
+        if config.train.dbb_auxiliary_loss_weight > 0.0
+        else main_loss
+    )
+    if not all(torch.isfinite(value).item() for value in (total_loss, main_loss, auxiliary_loss)):
+        raise ValueError("task training objective produced a non-finite loss")
+    return {
+        "loss": total_loss,
+        "main_loss": main_loss,
+        "dbb_auxiliary_loss": auxiliary_loss,
+        "dbb_auxiliary_counts": auxiliary_counts,
+    }
 
 
 def build_v11_paired_models(
@@ -1281,6 +1478,107 @@ def build_v11_paired_model_for_config(
     return treatment, control, evidence
 
 
+def build_v12_paired_models(
+    control_config: LiquidTaskConfig,
+    treatment_config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    """Build structurally identical V12 models; only the loss weight differs."""
+
+    if (
+        control_config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION
+        or treatment_config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION
+        or control_config.train.paired_arm != "control"
+        or treatment_config.train.paired_arm != "treatment"
+        or control_config.train.paired_protocol != DBB_AUXILIARY_PAIRED_PROTOCOL
+        or treatment_config.train.paired_protocol != DBB_AUXILIARY_PAIRED_PROTOCOL
+    ):
+        raise ValueError("paired model builder requires V12 Control and Treatment configs")
+    if control_config.train.seed != treatment_config.train.seed:
+        raise ValueError("V12 paired configs must use the same seed")
+    if control_config.model != treatment_config.model or control_config.data != treatment_config.data:
+        raise ValueError("V12 paired model/data configs must be identical")
+    excluded_train = {
+        "checkpoint_path",
+        "last_checkpoint_path",
+        "formal_artifact_dir",
+        "epoch_checkpoint_dir",
+        "paired_arm",
+        "paired_counterpart_config_path",
+        "dbb_auxiliary_loss_weight",
+    }
+    control_train = {key: value for key, value in control_config.train.__dict__.items() if key not in excluded_train}
+    treatment_train = {key: value for key, value in treatment_config.train.__dict__.items() if key not in excluded_train}
+    if control_train != treatment_train:
+        raise ValueError("V12 paired training configs differ beyond arm paths and auxiliary loss weight")
+    if control_config.train.dbb_auxiliary_loss_weight != 0.0:
+        raise ValueError("V12 Control auxiliary loss weight must be zero")
+    if treatment_config.train.dbb_auxiliary_loss_weight != DBB_AUXILIARY_TREATMENT_WEIGHT:
+        raise ValueError("V12 Treatment auxiliary loss weight does not match the frozen intervention")
+    seed_everything(control_config.train.seed)
+    control = LiquidTaskClassifier(control_config)
+    seed_everything(treatment_config.train.seed)
+    treatment = LiquidTaskClassifier(treatment_config)
+    control_state = control.state_dict()
+    treatment_state = treatment.state_dict()
+    if set(control_state) != set(treatment_state):
+        raise ValueError("V12 paired models do not have identical state entries")
+    unequal = [name for name in control_state if not torch.equal(control_state[name], treatment_state[name])]
+    if unequal:
+        raise AssertionError(f"V12 paired initialization differs: {unequal[:3]}")
+    return control, treatment, {
+        "paired_protocol": DBB_AUXILIARY_PAIRED_PROTOCOL,
+        "seed": control_config.train.seed,
+        "shared_state_entry_count": len(control_state),
+        "shared_parameters_and_buffers_exactly_equal": True,
+        "model_structures_identical": True,
+        "control_auxiliary_loss_weight": 0.0,
+        "treatment_auxiliary_loss_weight": DBB_AUXILIARY_TREATMENT_WEIGHT,
+        "auxiliary_class_names": list(DBB_AUXILIARY_CLASS_NAMES),
+    }
+
+
+def build_paired_model_for_config(
+    project_root: Path,
+    config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier | None, dict[str, Any]]:
+    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        return build_v11_paired_model_for_config(project_root, config)
+    if config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        return LiquidTaskClassifier(config), None, {
+            "paired_protocol": None,
+            "paired_arm": None,
+            "initialization": "single_config_seeded_initialization",
+        }
+    counterpart_path = resolve_project_path(project_root, config.train.paired_counterpart_config_path or "")
+    counterpart = load_task_config(counterpart_path)
+    if counterpart.train.paired_counterpart_config_path is None:
+        raise ValueError("V12 counterpart does not reference this config")
+    reverse_path = resolve_project_path(project_root, counterpart.train.paired_counterpart_config_path)
+    expected_current_path = resolve_project_path(
+        project_root,
+        f"config/RADAR-LN3/{config.config_name}-config.json",
+    )
+    if reverse_path.resolve() != expected_current_path.resolve():
+        raise ValueError(
+            "V12 counterpart reference is not reciprocal: "
+            f"expected={expected_current_path}, actual={reverse_path}"
+        )
+    configs = {config.train.paired_arm: config, counterpart.train.paired_arm: counterpart}
+    if set(configs) != {"control", "treatment"}:
+        raise ValueError("V12 config/counterpart pair does not contain exactly Control and Treatment")
+    control, treatment, evidence = build_v12_paired_models(configs["control"], configs["treatment"])
+    evidence.update(
+        {
+            "paired_arm": config.train.paired_arm,
+            "counterpart_config_path": str(counterpart_path),
+            "counterpart_config_name": counterpart.config_name,
+        }
+    )
+    if config.train.paired_arm == "control":
+        return control, treatment, evidence
+    return treatment, control, evidence
+
+
 def _probabilities(logits: torch.Tensor) -> torch.Tensor:
     if not torch.isfinite(logits).all():
         raise ValueError("task logits must be finite")
@@ -1369,6 +1667,19 @@ def save_task_checkpoint(
                 "paired_seed": config.train.paired_seed,
             }
         )
+    if config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        model_contract.update(
+            {
+                "dbb_auxiliary_num_classes": config.model.dbb_auxiliary_num_classes,
+                "dbb_auxiliary_class_names": list(DBB_AUXILIARY_CLASS_NAMES),
+                "dbb_auxiliary_class_weights": list(config.train.dbb_auxiliary_class_weights),
+                "dbb_auxiliary_supervision_scope": config.train.dbb_auxiliary_supervision_scope,
+                "dbb_auxiliary_loss_weight": config.train.dbb_auxiliary_loss_weight,
+                "paired_protocol": config.train.paired_protocol,
+                "paired_arm": config.train.paired_arm,
+                "paired_seed": config.train.paired_seed,
+            }
+        )
     payload: dict[str, Any] = {
         "checkpoint_schema": config.train.checkpoint_schema,
         "config_name": config.config_name,
@@ -1396,7 +1707,7 @@ def save_task_checkpoint(
         payload["optimizer_state"] = optimizer.state_dict()
     if training_state is not None:
         payload["training_state"] = dict(training_state)
-    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+    if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS:
         required_resume_fields = {
             "python_random_state",
             "numpy_random_state",
@@ -1406,7 +1717,7 @@ def save_task_checkpoint(
             "run_state",
         }
         if optimizer is None or training_state is None or set(training_state) != required_resume_fields:
-            raise ValueError("V11 checkpoints require optimizer and complete epoch-boundary recovery state")
+            raise ValueError("formal paired checkpoints require optimizer and complete epoch-boundary recovery state")
     torch.save(payload, target)
 
 
@@ -1485,6 +1796,19 @@ def load_task_checkpoint(
                 "paired_seed": model.config.train.paired_seed,
             }
         )
+    if model.config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+        expected_contract.update(
+            {
+                "dbb_auxiliary_num_classes": model.dbb_auxiliary_num_classes,
+                "dbb_auxiliary_class_names": list(DBB_AUXILIARY_CLASS_NAMES),
+                "dbb_auxiliary_class_weights": list(model.config.train.dbb_auxiliary_class_weights),
+                "dbb_auxiliary_supervision_scope": model.config.train.dbb_auxiliary_supervision_scope,
+                "dbb_auxiliary_loss_weight": model.config.train.dbb_auxiliary_loss_weight,
+                "paired_protocol": model.config.train.paired_protocol,
+                "paired_arm": model.config.train.paired_arm,
+                "paired_seed": model.config.train.paired_seed,
+            }
+        )
     if payload.get("model_contract") != expected_contract:
         raise ValueError("task checkpoint model/input contract does not match the configured repaired model")
     model.load_state_dict(payload["model_state"], strict=True)
@@ -1503,7 +1827,7 @@ def load_task_checkpoint(
         }
         training_state = payload.get("training_state")
         if not isinstance(training_state, dict) or set(training_state) != required_resume_fields:
-            raise ValueError("V11 checkpoint lacks complete epoch-boundary recovery state")
+            raise ValueError("formal paired checkpoint lacks complete epoch-boundary recovery state")
     return payload
 
 
@@ -1687,6 +2011,13 @@ __all__ = [
     "TR_OBSERVATION_INCREMENT_GATE_SCHEMA_VERSION",
     "RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION",
     "RD_PHYSICAL_PAIRED_PROTOCOL",
+    "DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION",
+    "DBB_AUXILIARY_PAIRED_PROTOCOL",
+    "DBB_AUXILIARY_CLASS_NAMES",
+    "DBB_AUXILIARY_TREATMENT_WEIGHT",
+    "DBB_AUXILIARY_CLASS_WEIGHTS",
+    "DBB_AUXILIARY_SUPERVISION_SCOPE",
+    "FORMAL_PAIRED_SCHEMA_VERSIONS",
     "WEAK_CLASS_SELECTION_SCHEMA_VERSION",
     "TaskSequenceDataset",
     "TaskSpec",
@@ -1694,6 +2025,8 @@ __all__ = [
     "build_task_dataset",
     "build_v11_paired_model_for_config",
     "build_v11_paired_models",
+    "build_v12_paired_models",
+    "build_paired_model_for_config",
     "capture_training_state",
     "compose_soft_cascade",
     "evaluate_task",
@@ -1705,6 +2038,8 @@ __all__ = [
     "summarize_task_records",
     "task_device",
     "task_prefix_loss",
+    "dbb_auxiliary_final_state_loss",
+    "task_training_objective",
     "task_spec",
     "verify_task_data_contract",
 ]

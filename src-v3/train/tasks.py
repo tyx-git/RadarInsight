@@ -20,9 +20,11 @@ from radar_ln3.logging_utils import (
     log_metric_set,
 )
 from radar_ln3.task_models import (
+    DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
+    FORMAL_PAIRED_SCHEMA_VERSIONS,
     LiquidTaskClassifier,
     RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
-    build_v11_paired_model_for_config,
+    build_paired_model_for_config,
     capture_training_state,
     build_task_dataloader,
     build_task_dataset,
@@ -30,7 +32,7 @@ from radar_ln3.task_models import (
     save_task_checkpoint,
     seed_everything,
     task_device,
-    task_prefix_loss,
+    task_training_objective,
     verify_task_data_contract,
     load_task_config,
     load_task_checkpoint,
@@ -183,22 +185,22 @@ def train_task(
     config = load_task_config(config_path)
     if not config.train.allow_parameter_updates:
         raise PermissionError("task configuration forbids parameter updates")
-    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+    if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS:
         if max_steps is not None or epochs_override is not None or skip_validation:
             raise ValueError(
-                "V11 formal paired runs forbid max-step/epoch overrides and validation skipping; "
+                "formal paired runs forbid max-step/epoch overrides and validation skipping; "
                 "use the isolated src-v3/smoke entry for bounded verification"
             )
     seed_everything(config.train.seed)
     contract = verify_task_data_contract(project_root, config)
     artifact_dir = project_root / config.train.formal_artifact_dir
-    if config.schema_version != RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION and resume_checkpoint is not None:
-        raise ValueError("explicit epoch-boundary resume is currently restricted to the V11 paired protocol")
-    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION and artifact_dir.exists() and resume_checkpoint is None:
+    if config.schema_version not in FORMAL_PAIRED_SCHEMA_VERSIONS and resume_checkpoint is not None:
+        raise ValueError("explicit epoch-boundary resume is restricted to a formal paired protocol")
+    if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS and artifact_dir.exists() and resume_checkpoint is None:
         existing = list(artifact_dir.iterdir())
         if existing:
             raise FileExistsError(
-                "refusing to overwrite an existing V11 formal artifact directory; "
+                "refusing to overwrite an existing formal paired artifact directory; "
                 f"move/archive it or use a new versioned config: {artifact_dir}"
             )
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -217,10 +219,10 @@ def train_task(
             generator=loader_generator,
         )
         device = task_device(config)
-        model, paired_counterpart, paired_initialization = build_v11_paired_model_for_config(project_root, config)
-        if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        model, paired_counterpart, paired_initialization = build_paired_model_for_config(project_root, config)
+        if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS:
             if paired_counterpart is None:
-                raise RuntimeError("V11 paired counterpart model was not built")
+                raise RuntimeError("formal paired counterpart model was not built")
             initial_loader = build_task_dataloader(
                 train_dataset,
                 batch_size=min(config.train.batch_size, len(train_dataset)),
@@ -244,12 +246,6 @@ def train_task(
                 "tr_padding_mask": initial_tensors["tr_padding_mask"],
             }
             active = ~initial_tensors["tr_padding_mask"]
-            physical_probe = torch.zeros(
-                (*active.shape, 4),
-                dtype=initial_tensors["tr_features"].dtype,
-                device=torch.device("cpu"),
-            )
-            physical_probe[active] = 0.5
             if config.train.paired_arm == "control":
                 control_model, treatment_model = model, paired_counterpart
             else:
@@ -258,15 +254,35 @@ def train_task(
             treatment_model.eval()
             with torch.inference_mode():
                 control_initial = control_model(**shared_inputs)["sequence_logits"]
-                treatment_initial = treatment_model(
-                    **shared_inputs,
-                    rd_physical_features=physical_probe,
-                    rd_physical_valid=active,
-                )["sequence_logits"]
+                if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+                    physical_probe = torch.zeros(
+                        (*active.shape, 4),
+                        dtype=initial_tensors["tr_features"].dtype,
+                        device=torch.device("cpu"),
+                    )
+                    physical_probe[active] = 0.5
+                    treatment_initial = treatment_model(
+                        **shared_inputs,
+                        rd_physical_features=physical_probe,
+                        rd_physical_valid=active,
+                    )["sequence_logits"]
+                    initial_probe = "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid"
+                else:
+                    treatment_output = treatment_model(**shared_inputs, return_dbb_auxiliary_logits=True)
+                    treatment_initial = treatment_output["sequence_logits"]
+                    control_auxiliary = control_model(
+                        **shared_inputs,
+                        return_dbb_auxiliary_logits=True,
+                    )["dbb_auxiliary_sequence_logits"]
+                    treatment_auxiliary = treatment_output["dbb_auxiliary_sequence_logits"]
+                    if not torch.equal(control_auxiliary, treatment_auxiliary):
+                        raise AssertionError("V12 paired auxiliary logits are not exactly equal before training")
+                    paired_initialization["initial_auxiliary_logits_exactly_equal"] = True
+                    initial_probe = "identical V12 model/input; only the configured training loss weight differs"
             maximum_difference = float((control_initial - treatment_initial).abs().max().item())
             if not torch.equal(control_initial, treatment_initial):
                 raise AssertionError(
-                    "V11 paired CPU reference logits are not exactly equal before training: "
+                    "paired CPU reference logits are not exactly equal before training: "
                     f"maximum_absolute_difference={maximum_difference}"
                 )
             logits_bytes = control_initial.detach().cpu().contiguous().numpy().tobytes(order="C")
@@ -275,7 +291,7 @@ def train_task(
                     "initial_cpu_reference_logits_exactly_equal": True,
                     "initial_logits_maximum_absolute_difference": maximum_difference,
                     "initial_logits_sha256": hashlib.sha256(logits_bytes).hexdigest(),
-                    "initial_logit_probe": "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid",
+                    "initial_logit_probe": initial_probe,
                     "initial_logit_parent_sample_ids": list(initial_batch["parent_sample_ids"]),
                 }
             )
@@ -297,7 +313,7 @@ def train_task(
             try:
                 resume_path.relative_to(artifact_dir.resolve())
             except ValueError as exc:
-                raise ValueError("V11 resume checkpoint must be inside this arm's formal artifact directory") from exc
+                raise ValueError("paired resume checkpoint must be inside this arm's formal artifact directory") from exc
             if not resume_path.is_file():
                 raise FileNotFoundError(resume_path)
             resume_payload = load_task_checkpoint(
@@ -314,11 +330,11 @@ def train_task(
             best_selection = run_state.get("best_selection")
             history = list(run_state.get("history") or [])
             if start_epoch != int(resume_payload["epoch"]) + 1:
-                raise ValueError("V11 resume next_epoch is inconsistent with checkpoint epoch")
+                raise ValueError("paired resume next_epoch is inconsistent with checkpoint epoch")
             if len(history) != int(resume_payload["epoch"]):
-                raise ValueError("V11 resume history length is inconsistent with checkpoint epoch")
+                raise ValueError("paired resume history length is inconsistent with checkpoint epoch")
             if not 1 <= start_epoch <= epochs:
-                raise ValueError(f"V11 resume next_epoch={start_epoch} is outside requested epochs={epochs}")
+                raise ValueError(f"paired resume next_epoch={start_epoch} is outside requested epochs={epochs}")
             resumed_from = str(resume_path)
         steps_per_epoch = len(train_loader)
         remaining_epoch_steps = max(0, epochs - start_epoch + 1) * steps_per_epoch
@@ -344,6 +360,16 @@ def train_task(
                 paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
                 paired_initialization.get("treatment_new_fusion_columns_exactly_zero"),
             )
+        elif config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
+            logger.info(
+                "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | shared_exact=%s | dbb_aux_weight=%.3f | supervision=final_state_only | cuda_bitwise_determinism=false",
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.seed,
+                loader_seed,
+                paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
+                config.train.dbb_auxiliary_loss_weight,
+            )
         logger.info(
             "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=causal_prefix",
             contract["hashes"]["index_sha256"],
@@ -357,6 +383,11 @@ def train_task(
         for epoch in range(start_epoch, epochs + 1):
             model.train()
             epoch_loss = 0.0
+            epoch_main_loss = 0.0
+            epoch_auxiliary_loss = 0.0
+            epoch_auxiliary_dbb_parents = 0
+            epoch_auxiliary_cu_parents = 0
+            epoch_auxiliary_final_states = 0
             epoch_steps = 0
             epoch_parent_order: list[str] = []
             epoch_started = time.perf_counter()
@@ -376,8 +407,15 @@ def train_task(
                     rd_frame_mask=tensors["rd_frame_mask"],
                     rd_quality=tensors["rd_quality"],
                     tr_padding_mask=tensors["tr_padding_mask"],
+                    return_dbb_auxiliary_logits=(
+                        config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION
+                    ),
                 )
-                loss = task_prefix_loss(output["sequence_logits"], tensors["labels"], tensors["tr_padding_mask"], class_weights=weights)
+                objective = task_training_objective(output, tensors, config, class_weights=weights)
+                loss = objective["loss"]
+                main_loss = objective["main_loss"]
+                auxiliary_loss = objective["dbb_auxiliary_loss"]
+                auxiliary_counts = objective["dbb_auxiliary_counts"]
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 grad_norm = float(torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.gradient_clip_norm).item())
@@ -385,10 +423,29 @@ def train_task(
                 global_step += 1
                 epoch_steps += 1
                 epoch_loss += float(loss.item())
+                epoch_main_loss += float(main_loss.item())
+                epoch_auxiliary_loss += float(auxiliary_loss.item())
+                epoch_auxiliary_dbb_parents += auxiliary_counts["selected_dbb_parent_count"]
+                epoch_auxiliary_cu_parents += auxiliary_counts["excluded_cu_parent_count"]
+                epoch_auxiliary_final_states += auxiliary_counts["selected_final_state_count"]
                 if not torch.isfinite(loss).item() or not np.isfinite(grad_norm):
                     raise ValueError("task training produced non-finite loss or gradient")
                 if epoch_steps == 1 or epoch_steps % max(1, min(50, steps_per_epoch // 10)) == 0:
-                    logger.info("progress | task=%s | epoch=%02d/%02d | step=%04d/%04d | global=%05d/%05d | loss=%.6f | grad=%.3f", config.task.name, epoch, epochs, epoch_steps, steps_per_epoch, global_step, planned_steps, float(loss.item()), grad_norm)
+                    logger.info(
+                        "progress | task=%s | epoch=%02d/%02d | step=%04d/%04d | global=%05d/%05d | total=%.6f | main=%.6f | dbb_aux=%.6f | aux_w=%.3f | grad=%.3f",
+                        config.task.name,
+                        epoch,
+                        epochs,
+                        epoch_steps,
+                        steps_per_epoch,
+                        global_step,
+                        planned_steps,
+                        float(loss.item()),
+                        float(main_loss.item()),
+                        float(auxiliary_loss.item()),
+                        config.train.dbb_auxiliary_loss_weight,
+                        grad_norm,
+                    )
                 if max_steps is not None and global_step >= max_steps:
                     stop_reason = "max_train_steps"
                     break
@@ -402,6 +459,12 @@ def train_task(
                 "epoch": epoch,
                 "global_step": global_step,
                 "train_loss": epoch_loss / max(1, epoch_steps),
+                "train_main_loss": epoch_main_loss / max(1, epoch_steps),
+                "train_dbb_auxiliary_loss": epoch_auxiliary_loss / max(1, epoch_steps),
+                "dbb_auxiliary_loss_weight": config.train.dbb_auxiliary_loss_weight,
+                "dbb_auxiliary_selected_parent_count": epoch_auxiliary_dbb_parents,
+                "dbb_auxiliary_excluded_cu_parent_count": epoch_auxiliary_cu_parents,
+                "dbb_auxiliary_selected_final_state_count": epoch_auxiliary_final_states,
                 "train_steps": epoch_steps,
                 "elapsed_seconds": time.perf_counter() - epoch_started,
                 "selection_metric": config.train.checkpoint_selection_metric,
@@ -414,11 +477,11 @@ def train_task(
             }
             if max_steps is None and len(epoch_parent_order) != len(train_dataset):
                 raise ValueError(
-                    "full V11/task epoch did not consume every selected parent exactly once: "
+                    "full task epoch did not consume every selected parent exactly once: "
                     f"consumed={len(epoch_parent_order)}, expected={len(train_dataset)}"
                 )
             if max_steps is None and len(set(epoch_parent_order)) != len(epoch_parent_order):
-                raise ValueError("full V11/task epoch repeated a parent in the shuffled order")
+                raise ValueError("full task epoch repeated a parent in the shuffled order")
             history.append(epoch_record)
             selected_as_best = checkpoint_selection_is_better(selection, best_selection)
             if selected_as_best:
@@ -426,11 +489,14 @@ def train_task(
                 best_epoch = epoch
                 best_validation = validation
             logger.info(
-                "epoch | task=%s | epoch=%02d/%02d | train_loss=%.6f | selection=%s:%s | tie=%s:%s | elapsed=%s",
+                "epoch | task=%s | epoch=%02d/%02d | total=%.6f | main=%.6f | dbb_aux=%.6f | aux_w=%.3f | selection=%s:%s | tie=%s:%s | elapsed=%s",
                 config.task.name,
                 epoch,
                 epochs,
                 epoch_record["train_loss"],
+                epoch_record["train_main_loss"],
+                epoch_record["train_dbb_auxiliary_loss"],
+                epoch_record["dbb_auxiliary_loss_weight"],
                 selection["primary_metric"],
                 format_metric(selection["primary_value"]),
                 selection["tie_break_metric"] or "none",
@@ -446,7 +512,7 @@ def train_task(
                 epoch_record["parent_order_sha256"],
             )
             training_state = None
-            if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+            if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS:
                 training_state = capture_training_state(
                     loader_generator,
                     run_state={
@@ -562,7 +628,7 @@ def train_task(
                 "cuda_deterministic_algorithms": bool(config.train.cuda_deterministic_algorithms),
                 "determinism_claim": (
                     "fixed_shared_initialization_and_sampling_order_not_bitwise_cuda_determinism"
-                    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+                    if config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS
                     else "seeded_existing_task_contract"
                 ),
             },

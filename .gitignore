@@ -36,3 +36,4 @@ tmp/model_deletion_log.json
 todos.md
 *.md
 .*
+src-v3/smoke/
