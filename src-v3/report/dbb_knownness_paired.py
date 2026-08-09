@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import statistics
@@ -63,6 +64,7 @@ EXPECTED_COUNTS = {
 }
 PAIRED_REPORT = Path("src-v3/processed/report/RADAR-LN3-V12-dbb-auxiliary-paired-validation.json")
 OUTPUT_REPORT = Path("src-v3/processed/report/RADAR-LN3-V12-dbb-knownness-paired-diagnostic.json")
+OUTPUT_SCORES = Path("src-v3/processed/report/RADAR-LN3-V12-dbb-knownness-paired-validation-scores.csv")
 UNKNOWN_BIRD_MINIMUM_DELTA = 0.02
 UNKNOWN_DBB_MINIMUM_AUC = 0.90
 CU_DBB_MAXIMUM_AUC_DECLINE = 0.01
@@ -415,6 +417,29 @@ def _semantic_gate_errors(
     }
 
 
+def _validation_score_rows(
+    validation: Mapping[str, Any],
+    validation_scores: Mapping[str, np.ndarray],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, parent in enumerate(validation["rows"]):
+        rows.append(
+            {
+                "parent_sample_id": str(parent["parent_sample_id"]),
+                "track_id": str(parent["track_id"]),
+                "label_name": str(parent["label_name"]),
+                "sequence_length": int(parent["sequence_length"]),
+                **{
+                    score_name: float(validation_scores[score_name][index])
+                    for score_name in SCORE_NAMES
+                },
+            }
+        )
+    if len(rows) != EXPECTED_COUNTS["val"]["DroneTarget"] + EXPECTED_COUNTS["val"]["BirdTarget"] + EXPECTED_COUNTS["val"]["BalloonTarget"] + EXPECTED_COUNTS["val"]["ClutterTarget"] + EXPECTED_COUNTS["val"]["UnknownTarget"]:
+        raise AssertionError("V12 knownness validation score row count drifted")
+    return rows
+
+
 def _expected_semantic_errors(paired: Mapping[str, Any], seed: int, arm: str) -> dict[str, Any]:
     return dict(
         paired["seed_results"][str(seed)]["runs"][arm]["independent_best_checkpoint_validation"][
@@ -538,6 +563,7 @@ def _run_arm(
         },
         "scores": _score_report(train, validation, train_scores, validation_scores),
         "validation_gate_errors": semantic_errors,
+        "validation_score_rows": _validation_score_rows(validation, validation_scores),
     }
 
 
@@ -699,6 +725,29 @@ def run(project_root: Path, *, batch_size: int) -> dict[str, Any]:
         raise ValueError("V12 knownness parent order differs across seeds")
     comparison = build_paired_comparison(runs)
     evidence = evaluate_v13_design_evidence(runs, comparison)
+    score_columns = [
+        "seed",
+        "arm",
+        "parent_sample_id",
+        "track_id",
+        "label_name",
+        "sequence_length",
+        *SCORE_NAMES,
+    ]
+    score_rows: list[dict[str, Any]] = []
+    for seed in SEEDS:
+        for arm in ARMS:
+            for row in runs[seed][arm].pop("validation_score_rows"):
+                score_rows.append({"seed": seed, "arm": arm, **row})
+    expected_score_rows = len(SEEDS) * len(ARMS) * sum(EXPECTED_COUNTS["val"].values())
+    if len(score_rows) != expected_score_rows:
+        raise AssertionError("V12 knownness unified validation score row count drifted")
+    score_path = root / OUTPUT_SCORES
+    score_path.parent.mkdir(parents=True, exist_ok=True)
+    with score_path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=score_columns, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(score_rows)
     report = {
         "status": "passed",
         "schema_version": "RADAR-LN3-V12-dbb-knownness-paired-diagnostic-v1",
@@ -721,6 +770,15 @@ def run(project_root: Path, *, batch_size: int) -> dict[str, Any]:
             ),
         },
         "runs": {str(seed): runs[seed] for seed in SEEDS},
+        "validation_score_table": {
+            "path": str(score_path),
+            "sha256": sha256_file(score_path),
+            "row_count": len(score_rows),
+            "columns": score_columns,
+            "contains_hidden_state": False,
+            "contains_TR_or_RD_payload": False,
+            "contains_threshold": False,
+        },
         "paired_comparison": comparison,
         "v13_design_evidence_gate": evidence,
         "interpretation_boundaries": [
