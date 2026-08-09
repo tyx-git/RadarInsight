@@ -35,6 +35,36 @@ RD_QUALITY_NAMES = (
     "rd_frames_truncated",
 )
 
+DT_REASON_PADDING = 0
+DT_REASON_FIRST_EVENT = 1
+DT_REASON_ZERO_DELTA = 2
+DT_REASON_POSITIVE_DELTA = 3
+DT_REASON_NAMES = (
+    "padding",
+    "first_event_no_predecessor",
+    "zero_delta_at_second_precision",
+    "positive_delta_at_second_precision",
+)
+DT_REASON_TO_ID = {name: index for index, name in enumerate(DT_REASON_NAMES)}
+
+
+def encode_dt_reason(value: Any, *, dt_valid: bool) -> int:
+    """Encode the frozen V3 time reason for dynamics-only consumption."""
+
+    reason = str(value)
+    try:
+        reason_id = DT_REASON_TO_ID[reason]
+    except KeyError as exc:
+        raise ValueError(f"unsupported tr_dt_reason: {reason!r}") from exc
+    if reason_id == DT_REASON_PADDING:
+        raise ValueError("padding is a collate-only dt reason and cannot appear in the index")
+    expected_valid = reason_id == DT_REASON_POSITIVE_DELTA
+    if bool(dt_valid) != expected_valid:
+        raise ValueError(
+            f"tr_dt_reason/tr_dt_valid mismatch: reason={reason!r}, dt_valid={bool(dt_valid)}"
+        )
+    return reason_id
+
 
 def require_causal_rd_quality_schema(schema: str | None) -> None:
     if schema != RD_QUALITY_SCHEMA:
@@ -134,6 +164,7 @@ class PointSequence:
     tr_missing_mask: torch.Tensor
     tr_dt_seconds: torch.Tensor
     tr_dt_valid: torch.Tensor
+    tr_dt_reason: torch.Tensor
     tr_motion_features: torch.Tensor
     tr_motion_valid_mask: torch.Tensor
     rd_frames: torch.Tensor
@@ -262,6 +293,32 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self.frame["parent_sample_id"] = self.frame["parent_sample_id"].astype(str)
         self.frame["causal_event_index"] = pd.to_numeric(self.frame["causal_event_index"], errors="raise").astype(int)
         self.frame = self.frame.sort_values(["parent_sample_id", "causal_event_index"], kind="stable").reset_index(drop=True)
+        if self.expected_schema_version == "RADAR-LN3-V3":
+            reasons = self.frame["tr_dt_reason"].astype(str)
+            unsupported_reasons = sorted(set(reasons) - set(DT_REASON_NAMES[1:]))
+            if unsupported_reasons:
+                raise ValueError(f"V3 point index contains unsupported dt reasons: {unsupported_reasons}")
+            valid = self.frame["tr_dt_valid"].map(_as_bool)
+            expected_valid = reasons.eq("positive_delta_at_second_precision")
+            if not valid.equals(expected_valid):
+                raise ValueError("V3 point index has a tr_dt_reason/tr_dt_valid mismatch")
+            raw_dt = pd.to_numeric(self.frame["tr_dt_seconds"], errors="raise")
+            if not np.isfinite(raw_dt.to_numpy(dtype=np.float64)).all():
+                raise ValueError("V3 point index contains a non-finite raw dt")
+            zero_reason = reasons.isin(("first_event_no_predecessor", "zero_delta_at_second_precision"))
+            if bool(raw_dt[zero_reason].abs().gt(1.0e-9).any()) or bool(raw_dt[expected_valid].le(0.0).any()):
+                raise ValueError("V3 point index raw dt does not match its dt reason")
+            for parent_id, parent in self.frame.groupby("parent_sample_id", sort=False):
+                event_indices = parent["causal_event_index"].tolist()
+                if event_indices != list(range(len(parent))):
+                    raise ValueError(f"V3 parent causal event indices are not contiguous from zero: {parent_id}")
+                parent_reasons = parent["tr_dt_reason"].astype(str).tolist()
+                if (
+                    not parent_reasons
+                    or parent_reasons[0] != "first_event_no_predecessor"
+                    or "first_event_no_predecessor" in parent_reasons[1:]
+                ):
+                    raise ValueError(f"V3 parent dt reason does not mark exactly one first event: {parent_id}")
         self.parent_ids = selected
         self._groups = {parent_id: group.reset_index(drop=True) for parent_id, group in self.frame.groupby("parent_sample_id", sort=False)}
         self._tensor_cache = _TensorCache(self.project_root, max_size=tensor_cache_size)
@@ -317,6 +374,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         tr_masks: list[torch.Tensor] = []
         dt_values: list[float] = []
         dt_valid_values: list[bool] = []
+        dt_reason_values: list[int] = []
         motion_values: list[torch.Tensor] = []
         motion_masks: list[torch.Tensor] = []
         rd_values: list[np.ndarray] = []
@@ -340,6 +398,10 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             dt_valid = _as_bool(row["tr_dt_valid"]) if "tr_dt_valid" in row.index else True
             dt_values.append(dt_seconds)
             dt_valid_values.append(dt_valid)
+            if "tr_dt_reason" in row.index:
+                dt_reason_values.append(encode_dt_reason(row["tr_dt_reason"], dt_valid=dt_valid))
+            else:
+                dt_reason_values.append(DT_REASON_POSITIVE_DELTA if dt_valid else DT_REASON_ZERO_DELTA)
             if motion_state is None:
                 motion = np.zeros((0,), dtype=np.float32)
                 motion_valid = np.zeros((0,), dtype=bool)
@@ -396,6 +458,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             tr_missing_mask=torch.stack(tr_masks, dim=0).float(),
             tr_dt_seconds=torch.tensor(dt_values, dtype=torch.float32),
             tr_dt_valid=torch.tensor(dt_valid_values, dtype=torch.bool),
+            tr_dt_reason=torch.tensor(dt_reason_values, dtype=torch.long),
             tr_motion_features=torch.stack(motion_values, dim=0).float(),
             tr_motion_valid_mask=torch.stack(motion_masks, dim=0).bool(),
             rd_frames=torch.from_numpy(np.stack(rd_values, axis=0)).float(),
@@ -425,6 +488,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
     tr_missing = torch.zeros((batch_size, max_length, missing_dim), dtype=torch.float32)
     dt = torch.zeros((batch_size, max_length), dtype=torch.float32)
     dt_valid = torch.zeros((batch_size, max_length), dtype=torch.bool)
+    dt_reason = torch.full((batch_size, max_length), DT_REASON_PADDING, dtype=torch.long)
     tr_motion = torch.zeros((batch_size, max_length, motion_dim), dtype=torch.float32)
     tr_motion_valid = torch.zeros((batch_size, max_length, motion_dim), dtype=torch.bool)
     rd_frames = torch.zeros((batch_size, max_length, max_frames, *rd_shape), dtype=torch.float32)
@@ -443,6 +507,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
             or item.tr_motion_valid_mask.shape != item.tr_motion_features.shape
             or item.rd_physical_features.shape[-1] != rd_physical_dim
             or item.rd_physical_valid.shape != (length,)
+            or item.tr_dt_reason.shape != (length,)
             or tuple(item.rd_frames.shape[2:]) != rd_shape
         ):
             raise ValueError("incompatible point sequence shapes")
@@ -450,6 +515,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         tr_missing[batch_index, :length] = item.tr_missing_mask
         dt[batch_index, :length] = item.tr_dt_seconds
         dt_valid[batch_index, :length] = item.tr_dt_valid
+        dt_reason[batch_index, :length] = item.tr_dt_reason
         tr_motion[batch_index, :length] = item.tr_motion_features
         tr_motion_valid[batch_index, :length] = item.tr_motion_valid_mask
         rd_frames[batch_index, :length] = item.rd_frames
@@ -464,6 +530,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         "tr_missing_mask": tr_missing,
         "tr_dt_seconds": dt,
         "tr_dt_valid": dt_valid,
+        "tr_dt_reason": dt_reason,
         "tr_motion_features": tr_motion,
         "tr_motion_valid_mask": tr_motion_valid,
         "rd_frames": rd_frames,
@@ -490,6 +557,7 @@ def build_point_dataloader(
     *,
     batch_size: int,
     shuffle: bool = False,
+    generator: torch.Generator | None = None,
 ) -> DataLoader:
     """Build the v3 parent-sequence DataLoader with the isolated collate."""
 
@@ -500,11 +568,18 @@ def build_point_dataloader(
         num_workers=0,
         collate_fn=collate_point_sequences,
         pin_memory=torch.cuda.is_available(),
+        generator=generator,
     )
 
 
 __all__ = [
     "CQ08PointSequenceDataset",
+    "DT_REASON_FIRST_EVENT",
+    "DT_REASON_NAMES",
+    "DT_REASON_PADDING",
+    "DT_REASON_POSITIVE_DELTA",
+    "DT_REASON_TO_ID",
+    "DT_REASON_ZERO_DELTA",
     "PointSequence",
     "RD_QUALITY_NAMES",
     "RD_QUALITY_SCHEMA",
@@ -512,5 +587,6 @@ __all__ = [
     "build_point_dataloader",
     "collate_point_sequences",
     "encode_causal_rd_quality",
+    "encode_dt_reason",
     "require_causal_rd_quality_schema",
 ]

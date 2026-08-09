@@ -6,7 +6,8 @@ paths and identifiers to the model.  The three supported tasks are:
 
 * ``dbb_cu_gate``: DBB versus CU;
 * ``dbb_specialist``: Drone versus Bird versus Balloon;
-* ``cu_specialist``: Clutter versus Unknown.
+* historical ``cu_specialist``: Clutter versus Unknown;
+* V13 ``cu_specialist``: Clutter-accept versus Clutter-reject evidence.
 
 V5-V8 use the shared causal TR+RD liquid contract.  V9 is a deliberately
 isolated DBB/CU Gate experiment that adds causal TR motion-consistency values;
@@ -20,7 +21,7 @@ import json
 import random
 import re
 from collections import OrderedDict
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -31,6 +32,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from .data import (
     CQ08PointSequenceDataset,
+    DT_REASON_NAMES,
     PointSequence,
     RD_QUALITY_NAMES,
     RD_QUALITY_SCHEMA,
@@ -77,6 +79,14 @@ DBB_AUXILIARY_LABEL_TO_ID = {
 DBB_AUXILIARY_TREATMENT_WEIGHT = 0.20
 DBB_AUXILIARY_CLASS_WEIGHTS = (0.6666666666666666, 1.3388203017832648, 1.327891156462585)
 DBB_AUXILIARY_SUPERVISION_SCOPE = "train_dbb_parents_final_causal_state_only"
+HIERARCHICAL_CASCADE_SCHEMA_VERSION = "RADAR-LN3-V13"
+HIERARCHICAL_LOSS_MODE = "parent_final_hierarchical_nll_with_prefix_auxiliary"
+HIERARCHICAL_CHECKPOINT_SELECTION = "hierarchical_parent_route_guarded"
+HIERARCHICAL_CU_OUTPUT_NAMES = (
+    "CLUTTER_ACCEPT_EVIDENCE",
+    "CLUTTER_REJECT_EVIDENCE",
+)
+DT_REASON_DYNAMICS_MODE = "v3_reason_aware_dynamics_only"
 FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
     {RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION, DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION}
 )
@@ -196,6 +206,7 @@ class TaskModelConfig:
     tr_motion_dim: int
     rd_physical_dim: int
     dbb_auxiliary_num_classes: int
+    dt_reason_mode: str
 
 
 @dataclass(frozen=True)
@@ -227,6 +238,16 @@ class TaskTrainConfig:
     dbb_auxiliary_loss_weight: float
     dbb_auxiliary_class_weights: tuple[float, ...]
     dbb_auxiliary_supervision_scope: str | None
+    prefix_auxiliary_weight: float
+    prefix_auxiliary_min_events: int
+    joint_artifact_dir: str | None
+    joint_last_checkpoint_path: str | None
+    joint_best_checkpoint_path: str | None
+    joint_checkpoint_schema: str | None
+    gate_min_precision_recall_target: float | None
+    dbb_min_precision_recall_target: float | None
+    cu_min_precision_recall_target: float | None
+    drone_bird_min_precision_recall_target: float | None
 
 
 @dataclass(frozen=True)
@@ -237,6 +258,36 @@ class LiquidTaskConfig:
     data: TaskDataConfig
     model: TaskModelConfig
     train: TaskTrainConfig
+
+
+def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
+    """Return a semantic identity for one task configuration.
+
+    The identity is independent of JSON whitespace and key order.  V13 stores
+    it in both task and joint checkpoints so a same-named config edited in
+    place cannot be used to resume or assemble a different product run.
+    """
+
+    payload = {
+        "schema_version": config.schema_version,
+        "config_name": config.config_name,
+        "task": {
+            "name": config.task.name,
+            "class_names": list(config.task.class_names),
+            "label_to_id": dict(config.task.label_to_id),
+            "allowed_base_labels": sorted(config.task.allowed_base_labels),
+        },
+        "data": asdict(config.data),
+        "model": asdict(config.model),
+        "train": asdict(config.train),
+    }
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def task_spec(name: str) -> TaskSpec:
@@ -269,6 +320,8 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         )
     task_payload = dict(_required(payload, "task"))
     spec = task_spec(str(_required(task_payload, "name")))
+    if schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION and spec.name == "cu_specialist":
+        spec = replace(spec, class_names=HIERARCHICAL_CU_OUTPUT_NAMES)
     configured_classes = tuple(str(value) for value in _required(task_payload, "class_names"))
     if configured_classes != spec.class_names:
         raise ValueError(f"task class_names do not match frozen mapping for {spec.name}")
@@ -369,6 +422,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         tr_motion_dim=int(model_payload.get("tr_motion_dim", 0)),
         rd_physical_dim=int(model_payload.get("rd_physical_dim", 0)),
         dbb_auxiliary_num_classes=int(model_payload.get("dbb_auxiliary_num_classes", 0)),
+        dt_reason_mode=str(model_payload.get("dt_reason_mode", "legacy_dt_valid_only")),
     )
     if model.num_classes != spec.num_classes:
         raise ValueError(f"model.num_classes={model.num_classes} does not match task={spec.num_classes}")
@@ -511,15 +565,98 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             if train_payload.get("dbb_auxiliary_supervision_scope") is None
             else str(train_payload["dbb_auxiliary_supervision_scope"])
         ),
+        prefix_auxiliary_weight=float(train_payload.get("prefix_auxiliary_weight", 0.0)),
+        prefix_auxiliary_min_events=max(1, int(train_payload.get("prefix_auxiliary_min_events", 1))),
+        joint_artifact_dir=(
+            None if train_payload.get("joint_artifact_dir") is None else str(train_payload["joint_artifact_dir"])
+        ),
+        joint_last_checkpoint_path=(
+            None
+            if train_payload.get("joint_last_checkpoint_path") is None
+            else str(train_payload["joint_last_checkpoint_path"])
+        ),
+        joint_best_checkpoint_path=(
+            None
+            if train_payload.get("joint_best_checkpoint_path") is None
+            else str(train_payload["joint_best_checkpoint_path"])
+        ),
+        joint_checkpoint_schema=(
+            None
+            if train_payload.get("joint_checkpoint_schema") is None
+            else str(train_payload["joint_checkpoint_schema"])
+        ),
+        gate_min_precision_recall_target=(
+            None
+            if train_payload.get("gate_min_precision_recall_target") is None
+            else float(train_payload["gate_min_precision_recall_target"])
+        ),
+        dbb_min_precision_recall_target=(
+            None
+            if train_payload.get("dbb_min_precision_recall_target") is None
+            else float(train_payload["dbb_min_precision_recall_target"])
+        ),
+        cu_min_precision_recall_target=(
+            None
+            if train_payload.get("cu_min_precision_recall_target") is None
+            else float(train_payload["cu_min_precision_recall_target"])
+        ),
+        drone_bird_min_precision_recall_target=(
+            None
+            if train_payload.get("drone_bird_min_precision_recall_target") is None
+            else float(train_payload["drone_bird_min_precision_recall_target"])
+        ),
     )
     if train.learning_rate <= 0.0 or train.gradient_clip_norm <= 0.0:
         raise ValueError("task learning_rate and gradient_clip_norm must be positive")
-    if train.loss_mode != "causal_prefix":
-        raise ValueError("task training must use causal_prefix loss")
+    if schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        if train.loss_mode != HIERARCHICAL_LOSS_MODE:
+            raise ValueError(f"V13 task training must use {HIERARCHICAL_LOSS_MODE}")
+        if train.checkpoint_selection_metric != HIERARCHICAL_CHECKPOINT_SELECTION:
+            raise ValueError(f"V13 checkpoint selection must use {HIERARCHICAL_CHECKPOINT_SELECTION}")
+        if not 0.0 <= train.prefix_auxiliary_weight <= 1.0:
+            raise ValueError("V13 prefix_auxiliary_weight must be in [0,1]")
+        if train.prefix_auxiliary_weight > 0.0 and train.prefix_auxiliary_min_events < 2:
+            raise ValueError("V13 prefix auxiliary supervision must exclude the first evidence event")
+        if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
+            raise ValueError(f"V13 model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
+        if data.contract_schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+            raise ValueError("V13 tasks must consume the V13 reason-aware data contract")
+        if model.dbb_auxiliary_num_classes != 0 or model.rd_physical_dim != 0:
+            raise ValueError("V13 must not silently retain V11/V12 experimental branches")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError("V13 requires 20 fixed epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError("V13 requires epoch checkpoints and parent-order hashes")
+        if train.dataloader_seed != train.seed:
+            raise ValueError("V13 model seed and DataLoader seed must match")
+        if any(value is not None for value in (train.paired_protocol, train.paired_arm, train.paired_seed, train.paired_counterpart_config_path)):
+            raise ValueError("V13 is one joint product run, not a paired-arm experiment")
+        if any(
+            value is None
+            for value in (
+                train.joint_artifact_dir,
+                train.joint_last_checkpoint_path,
+                train.joint_best_checkpoint_path,
+                train.joint_checkpoint_schema,
+            )
+        ):
+            raise ValueError("V13 requires explicit joint artifact and checkpoint fields")
+        if not str(train.joint_checkpoint_schema).startswith(HIERARCHICAL_CASCADE_SCHEMA_VERSION):
+            raise ValueError("V13 joint checkpoint schema must use the V13 prefix")
+        targets = (
+            train.gate_min_precision_recall_target,
+            train.dbb_min_precision_recall_target,
+            train.cu_min_precision_recall_target,
+            train.drone_bird_min_precision_recall_target,
+        )
+        if any(value is None or not 0.0 < float(value) <= 1.0 for value in targets):
+            raise ValueError("V13 product selection targets must all be in (0,1]")
+    elif train.loss_mode != "causal_prefix":
+        raise ValueError("historical task training must use causal_prefix loss")
     if schema_number == _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         if train.checkpoint_selection_metric != "parent_macro_f1":
             raise ValueError("RADAR-LN3-V7 must preserve parent_macro_f1 checkpoint selection")
-    if schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION):
+    if schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION) and schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
         if train.checkpoint_selection_metric != "parent_min_precision_recall":
             raise ValueError(
                 "task schemas from RADAR-LN3-V8 onward must use parent_min_precision_recall checkpoint selection"
@@ -572,6 +709,21 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         or train.dbb_auxiliary_supervision_scope is not None
     ):
         raise ValueError("DBB auxiliary training fields are reserved for the RADAR-LN3-V12 paired experiment")
+    if schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        if (
+            model.dt_reason_mode != "legacy_dt_valid_only"
+            or train.prefix_auxiliary_weight != 0.0
+            or train.prefix_auxiliary_min_events != 1
+            or train.joint_artifact_dir is not None
+            or train.joint_last_checkpoint_path is not None
+            or train.joint_best_checkpoint_path is not None
+            or train.joint_checkpoint_schema is not None
+            or train.gate_min_precision_recall_target is not None
+            or train.dbb_min_precision_recall_target is not None
+            or train.cu_min_precision_recall_target is not None
+            or train.drone_bird_min_precision_recall_target is not None
+        ):
+            raise ValueError("dt reason dynamics and prefix auxiliary weight are reserved for V13")
     if _is_repaired_task_schema(schema_version):
         require_causal_rd_quality_schema(data.rd_quality_schema)
         if data.contract_schema_version is None or not _is_repaired_task_schema(data.contract_schema_version):
@@ -897,6 +1049,7 @@ class LiquidTaskClassifier(nn.Module):
         self.tr_motion_mask_mode = config.data.tr_motion_mask_mode
         self.rd_physical_dim = model.rd_physical_dim
         self.dbb_auxiliary_num_classes = model.dbb_auxiliary_num_classes
+        self.dt_reason_mode = model.dt_reason_mode
         self.rd_physical_schema = config.data.rd_physical_schema
         self.rd_physical_mask_mode = config.data.rd_physical_mask_mode
         self.tr_motion_contract = (
@@ -1032,6 +1185,7 @@ class LiquidTaskClassifier(nn.Module):
         rd_quality: torch.Tensor,
         tr_padding_mask: torch.Tensor,
         tr_dt_valid: torch.Tensor,
+        tr_dt_reason: torch.Tensor | None = None,
         tr_motion_features: torch.Tensor | None = None,
         tr_motion_valid_mask: torch.Tensor | None = None,
         rd_physical_features: torch.Tensor | None = None,
@@ -1044,6 +1198,11 @@ class LiquidTaskClassifier(nn.Module):
             raise ValueError("task TR feature dimensions do not match model")
         if tr_dt_seconds.shape != tr_features.shape[:2] or tr_dt_valid.shape != tr_features.shape[:2]:
             raise ValueError("task dt and dt_valid shapes do not match TR sequence")
+        if self.dt_reason_mode == DT_REASON_DYNAMICS_MODE:
+            if tr_dt_reason is None or tr_dt_reason.shape != tr_features.shape[:2]:
+                raise ValueError("V13 task requires tr_dt_reason with shape [batch,sequence]")
+        elif tr_dt_reason is not None:
+            tr_dt_reason = None
         if rd_quality.shape != (*tr_features.shape[:2], self.rd_quality_dim):
             raise ValueError("task RD quality shape does not match model")
         if tr_padding_mask.shape != tr_features.shape[:2]:
@@ -1098,7 +1257,13 @@ class LiquidTaskClassifier(nn.Module):
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_events = self.fusion(torch.cat(fusion_inputs, dim=-1))
-        liquid_state = self.liquid(point_events, tr_dt_seconds, tr_padding_mask, dt_valid=tr_dt_valid)
+        liquid_state = self.liquid(
+            point_events,
+            tr_dt_seconds,
+            tr_padding_mask,
+            dt_valid=tr_dt_valid,
+            dt_reason=tr_dt_reason,
+        )
         sequence_logits = self.classifier(liquid_state.sequence)
         valid = ~tr_padding_mask
         last_indices = valid.long().sum(dim=1).clamp_min(1) - 1
@@ -1112,6 +1277,8 @@ class LiquidTaskClassifier(nn.Module):
             "dt_clamped_mask": liquid_state.dt_clamped_mask,
             "dt_zero_mask": liquid_state.dt_zero_mask,
             "dt_invalid_mask": liquid_state.dt_invalid_mask,
+            "dt_first_event_mask": liquid_state.dt_first_event_mask,
+            "dt_zero_delta_mask": liquid_state.dt_zero_delta_mask,
         }
         if return_dbb_auxiliary_logits and self.dbb_auxiliary_classifier is None:
             raise ValueError("DBB auxiliary logits were requested from a model without the V12 auxiliary head")
@@ -1126,6 +1293,7 @@ class LiquidTaskClassifier(nn.Module):
         tr_missing_mask: torch.Tensor,
         tr_dt_seconds: torch.Tensor,
         tr_dt_valid: torch.Tensor,
+        tr_dt_reason: torch.Tensor | None = None,
         rd_frames: torch.Tensor,
         rd_frame_mask: torch.Tensor,
         rd_quality: torch.Tensor,
@@ -1141,6 +1309,11 @@ class LiquidTaskClassifier(nn.Module):
             raise ValueError("online task TR feature dimensions do not match model")
         if tr_dt_seconds.shape != (tr_features.shape[0],) or tr_dt_valid.shape != (tr_features.shape[0],):
             raise ValueError("online task dt tensors must have shape [batch]")
+        if self.dt_reason_mode == DT_REASON_DYNAMICS_MODE:
+            if tr_dt_reason is None or tr_dt_reason.shape != tr_dt_seconds.shape:
+                raise ValueError("online V13 task requires tr_dt_reason with shape [batch]")
+        elif tr_dt_reason is not None:
+            tr_dt_reason = None
         if rd_frames.ndim != 5 or rd_frames.shape[2:] != (2, 21, 384):
             raise ValueError("online task RD frames must have shape [batch, K, 2, 21, 384]")
         if rd_frame_mask.shape != rd_frames.shape[:2]:
@@ -1193,7 +1366,13 @@ class LiquidTaskClassifier(nn.Module):
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_event = self.fusion(torch.cat(fusion_inputs, dim=-1))
-        state, dt_clamped, dt_zero = self.liquid.step(point_event, tr_dt_seconds, liquid_state, tr_dt_valid)
+        state, dt_clamped, dt_zero = self.liquid.step(
+            point_event,
+            tr_dt_seconds,
+            liquid_state,
+            tr_dt_valid,
+            tr_dt_reason,
+        )
         logits = self.classifier(self.liquid.readout(state))
         return {
             "window_logits": logits,
@@ -1644,6 +1823,22 @@ def save_task_checkpoint(
     }
     if _task_schema_number(config.schema_version) >= _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         model_contract["dt_valid_feature_mode"] = config.model.dt_valid_feature_mode
+    if config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        model_contract.update({
+            "dt_reason_mode": config.model.dt_reason_mode,
+            "dt_reason_names": list(DT_REASON_NAMES),
+            "loss_mode": config.train.loss_mode,
+            "prefix_auxiliary_weight": config.train.prefix_auxiliary_weight,
+            "prefix_auxiliary_min_events": config.train.prefix_auxiliary_min_events,
+            "checkpoint_selection_metric": config.train.checkpoint_selection_metric,
+            "cu_output_semantics": ["CLUTTER_ACCEPT_EVIDENCE", "CLUTTER_REJECT_EVIDENCE"],
+            "product_selection_targets": {
+                "gate_min_precision_recall": config.train.gate_min_precision_recall_target,
+                "dbb_min_precision_recall": config.train.dbb_min_precision_recall_target,
+                "cu_min_precision_recall": config.train.cu_min_precision_recall_target,
+                "drone_bird_min_precision_recall": config.train.drone_bird_min_precision_recall_target,
+            },
+        })
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
         model_contract.update({
@@ -1695,6 +1890,8 @@ def save_task_checkpoint(
         "model_contract": model_contract,
         "model_state": model.state_dict(),
     }
+    if config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        payload["config_identity_sha256"] = task_config_identity_sha256(config)
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         payload["data_contract"].update(
             {
@@ -1734,6 +1931,12 @@ def load_task_checkpoint(
         raise ValueError(f"invalid task checkpoint schema; expected={expected_schema}")
     if payload.get("task_name") != model.task_name:
         raise ValueError("task checkpoint belongs to a different task")
+    if model.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        if payload.get("config_name") != model.config.config_name:
+            raise ValueError("V13 task checkpoint belongs to a different named configuration")
+        expected_config_identity = task_config_identity_sha256(model.config)
+        if payload.get("config_identity_sha256") != expected_config_identity:
+            raise ValueError("V13 task checkpoint configuration identity mismatch")
     expected_data_contract = {
         "index_sha256": model.config.data.expected_index_sha256,
         "contract_sha256": model.config.data.expected_contract_sha256,
@@ -1773,6 +1976,22 @@ def load_task_checkpoint(
     }
     if _task_schema_number(model.config.schema_version) >= _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         expected_contract["dt_valid_feature_mode"] = model.dt_valid_feature_mode
+    if model.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        expected_contract.update({
+            "dt_reason_mode": model.config.model.dt_reason_mode,
+            "dt_reason_names": list(DT_REASON_NAMES),
+            "loss_mode": model.config.train.loss_mode,
+            "prefix_auxiliary_weight": model.config.train.prefix_auxiliary_weight,
+            "prefix_auxiliary_min_events": model.config.train.prefix_auxiliary_min_events,
+            "checkpoint_selection_metric": model.config.train.checkpoint_selection_metric,
+            "cu_output_semantics": ["CLUTTER_ACCEPT_EVIDENCE", "CLUTTER_REJECT_EVIDENCE"],
+            "product_selection_targets": {
+                "gate_min_precision_recall": model.config.train.gate_min_precision_recall_target,
+                "dbb_min_precision_recall": model.config.train.dbb_min_precision_recall_target,
+                "cu_min_precision_recall": model.config.train.cu_min_precision_recall_target,
+                "drone_bird_min_precision_recall": model.config.train.drone_bird_min_precision_recall_target,
+            },
+        })
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)
         expected_contract.update({
@@ -1953,6 +2172,7 @@ def evaluate_task(
                 tr_missing_mask=tensor_batch["tr_missing_mask"],
                 tr_dt_seconds=tensor_batch["tr_dt_seconds"],
                 tr_dt_valid=tensor_batch["tr_dt_valid"],
+                tr_dt_reason=tensor_batch.get("tr_dt_reason"),
                 tr_motion_features=tensor_batch.get("tr_motion_features"),
                 tr_motion_valid_mask=tensor_batch.get("tr_motion_valid_mask"),
                 rd_physical_features=tensor_batch.get("rd_physical_features"),
@@ -2018,6 +2238,11 @@ __all__ = [
     "DBB_AUXILIARY_CLASS_WEIGHTS",
     "DBB_AUXILIARY_SUPERVISION_SCOPE",
     "FORMAL_PAIRED_SCHEMA_VERSIONS",
+    "HIERARCHICAL_CASCADE_SCHEMA_VERSION",
+    "HIERARCHICAL_CHECKPOINT_SELECTION",
+    "HIERARCHICAL_CU_OUTPUT_NAMES",
+    "HIERARCHICAL_LOSS_MODE",
+    "DT_REASON_DYNAMICS_MODE",
     "WEAK_CLASS_SELECTION_SCHEMA_VERSION",
     "TaskSequenceDataset",
     "TaskSpec",
@@ -2041,5 +2266,6 @@ __all__ = [
     "dbb_auxiliary_final_state_loss",
     "task_training_objective",
     "task_spec",
+    "task_config_identity_sha256",
     "verify_task_data_contract",
 ]

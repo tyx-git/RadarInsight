@@ -1,18 +1,30 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+import numpy as np
 import torch
 from torch import nn
 
 from . import LABELS
 from .data import CQ08PointSequenceDataset, build_point_dataloader, require_causal_rd_quality_schema
 from .metrics import confidence_summary, grouped_summaries, summarize_records
-from .rejection import RejectionPolicy
-from .stable import StableDecision, TargetStableStateMachine
+from .rejection import (
+    HierarchicalActionDecision,
+    HierarchicalRejectionPolicy,
+    RejectionPolicy,
+)
+from .stable import (
+    HierarchicalStableDecision,
+    HierarchicalStableStateMachine,
+    StableDecision,
+    TargetStableStateMachine,
+)
 from .task_models import (
+    HIERARCHICAL_CASCADE_SCHEMA_VERSION,
     LiquidTaskClassifier,
     LiquidTaskConfig,
     compose_soft_cascade,
@@ -69,6 +81,7 @@ def _shared_model_contract(config: LiquidTaskConfig) -> tuple[Any, ...]:
         model.dt_valid_feature_mode,
         model.liquid_invalid_dt_update_mode,
         model.liquid_invalid_dt_observation_gain,
+        model.dt_reason_mode,
         model.liquid_state_normalization,
         model.rd_frame_aggregation,
         model.tr_motion_dim,
@@ -89,6 +102,37 @@ def validate_cascade_configs(configs: Mapping[str, LiquidTaskConfig]) -> None:
         raise ValueError("soft cascade task configurations do not share one data contract")
     if len({_shared_model_contract(config) for config in ordered}) != 1:
         raise ValueError("soft cascade task configurations do not share one encoder/dynamics contract")
+    if ordered[0].schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        shared_train = {
+            (
+                config.train.batch_size,
+                config.train.learning_rate,
+                config.train.seed,
+                config.train.device,
+                config.train.epochs,
+                config.train.gradient_clip_norm,
+                config.train.loss_mode,
+                config.train.checkpoint_selection_metric,
+                config.train.prefix_auxiliary_weight,
+                config.train.prefix_auxiliary_min_events,
+                config.train.dataloader_seed,
+                config.train.record_parent_order_hash,
+                config.train.save_every_epoch,
+                config.train.joint_artifact_dir,
+                config.train.joint_last_checkpoint_path,
+                config.train.joint_best_checkpoint_path,
+                config.train.joint_checkpoint_schema,
+                config.train.gate_min_precision_recall_target,
+                config.train.dbb_min_precision_recall_target,
+                config.train.cu_min_precision_recall_target,
+                config.train.drone_bird_min_precision_recall_target,
+            )
+            for config in ordered
+        }
+        if len(shared_train) != 1:
+            raise ValueError("V13 tasks do not share one joint training/product checkpoint contract")
+        if len({config.train.formal_artifact_dir for config in ordered}) != len(EXPECTED_TASKS):
+            raise ValueError("V13 task checkpoints require distinct task artifact directories")
 
 
 class LiquidSoftCascade(nn.Module):
@@ -137,10 +181,10 @@ class LiquidSoftCascade(nn.Module):
 
 @dataclass
 class CascadeOnlineStepResult:
-    window_probabilities: torch.Tensor
-    window_label_id: int
-    window_label_name: str
-    window_confidence: float
+    window_probabilities: torch.Tensor | None
+    window_label_id: int | None
+    window_label_name: str | None
+    window_confidence: float | None
     decision_state: str
     rejected: bool | None
     rejection_score: float | None
@@ -155,6 +199,30 @@ class CascadeOnlineStepResult:
     dt_clamped: bool
     dt_zero: bool
     dt_invalid: bool
+    gate_action: str | None = None
+    conditional_action: str | None = None
+    final_action: str | None = None
+    diagnostic_gate_route: str | None = None
+    diagnostic_label_id: int | None = None
+    diagnostic_label_name: str | None = None
+    accepted_label_id: int | None = None
+    accepted_label_name: str | None = None
+    rejected_to_unknown: bool | None = None
+    stable_state_name: str | None = None
+    stable_rejected_to_unknown: bool = False
+    action_trigger_reasons: tuple[str, ...] = ()
+    soft_posterior_audit_probabilities: torch.Tensor | None = None
+    soft_posterior_audit_label_id: int | None = None
+    soft_posterior_audit_label_name: str | None = None
+    soft_posterior_audit_confidence: float | None = None
+    gate_dbb_probability: float | None = None
+    gate_margin: float | None = None
+    specialist_label_id: int | None = None
+    specialist_confidence: float | None = None
+    specialist_margin: float | None = None
+    valid_point_count: int | None = None
+    track_quality: float | None = None
+    gap_fraction: float | None = None
 
 
 class OnlineLiquidSoftCascade:
@@ -167,11 +235,18 @@ class OnlineLiquidSoftCascade:
         confirm_count: int = 2,
         ema_decay: float = 0.65,
         rejection_policy: RejectionPolicy | None = None,
+        hierarchical_rejection_policy: HierarchicalRejectionPolicy | None = None,
     ) -> None:
         self.model = model
         self.confirm_count = max(1, int(confirm_count))
         self.ema_decay = float(ema_decay)
         self.rejection_policy = rejection_policy or RejectionPolicy()
+        self.hierarchical_rejection_policy = hierarchical_rejection_policy or HierarchicalRejectionPolicy()
+        self.hierarchical_mode = model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION
+        if self.hierarchical_mode and rejection_policy is not None:
+            raise ValueError("V13 online cascade must not use the legacy five-class rejection policy")
+        if not self.hierarchical_mode and hierarchical_rejection_policy is not None:
+            raise ValueError("historical online cascade must not use the V13 hierarchical rejection policy")
         self.reset()
 
     def reset(self) -> None:
@@ -179,6 +254,10 @@ class OnlineLiquidSoftCascade:
         self.dbb_state: torch.Tensor | None = None
         self.cu_state: torch.Tensor | None = None
         self.stable = TargetStableStateMachine(confirm_count=self.confirm_count, ema_decay=self.ema_decay)
+        self.hierarchical_stable = HierarchicalStableStateMachine(confirm_count=self.confirm_count)
+        self.valid_point_count = 0
+        self.rd_observed_count = 0
+        self.zero_delta_count = 0
 
     @torch.inference_mode()
     def step(self, **point: torch.Tensor) -> CascadeOnlineStepResult:
@@ -193,30 +272,95 @@ class OnlineLiquidSoftCascade:
         probabilities = compose_soft_cascade(
             gate["window_logits"], dbb["window_logits"], cu["window_logits"]
         )
-        decision: StableDecision = self.stable.update_probabilities(probabilities[0].cpu())
-        rejection = self.rejection_policy.decide(probabilities[0].cpu())
+        gate_probabilities = torch.softmax(gate["window_logits"], dim=-1)
+        dbb_probabilities = torch.softmax(dbb["window_logits"], dim=-1)
+        cu_probabilities = torch.softmax(cu["window_logits"], dim=-1)
         window_id = int(probabilities[0].argmax().item())
-        if rejection.class_label_id != window_id:
-            raise RuntimeError("rejection policy changed the five-class classification label")
+        action: HierarchicalActionDecision | None = None
+        hierarchical_stable: HierarchicalStableDecision | None = None
+        if self.hierarchical_mode:
+            self.valid_point_count += 1
+            self.rd_observed_count += int(float(point["rd_quality"][0, 0].item()) >= 0.5)
+            reason = point.get("tr_dt_reason")
+            if reason is None:
+                raise ValueError("V13 online cascade requires tr_dt_reason")
+            self.zero_delta_count += int(int(reason.reshape(-1)[0].item()) == 2)
+            track_quality = self.rd_observed_count / self.valid_point_count
+            gap_fraction = self.zero_delta_count / max(1, self.valid_point_count - 1)
+            action = self.hierarchical_rejection_policy.decide(
+                gate_probabilities[0].cpu(),
+                dbb_probabilities[0].cpu(),
+                cu_probabilities[0].cpu(),
+                valid_point_count=self.valid_point_count,
+                track_quality=track_quality,
+                gap_fraction=min(1.0, gap_fraction),
+            )
+            hierarchical_stable = self.hierarchical_stable.update(action)
+            decision_state = action.decision_state
+            rejected = action.rejected_to_unknown
+            rejection_score = None
+            rejection_source = action.calibration_source
+            stable_label_id = hierarchical_stable.stable_label_id
+            stable_label_name = hierarchical_stable.stable_label_name
+            stable_confidence = None
+            stable_confirmed = hierarchical_stable.stable_confirmed
+        else:
+            decision = self.stable.update_probabilities(probabilities[0].cpu())
+            rejection = self.rejection_policy.decide(probabilities[0].cpu())
+            if rejection.class_label_id != window_id:
+                raise RuntimeError("rejection policy changed the five-class classification label")
+            decision_state = rejection.decision_state
+            rejected = rejection.rejected
+            rejection_score = rejection.rejection_score
+            rejection_source = rejection.calibration_source
+            stable_label_id = decision.stable_label_id
+            stable_label_name = decision.stable_label_name
+            stable_confidence = decision.stable_confidence
+            stable_confirmed = decision.stable_confirmed
+        audit_confidence = float(probabilities[0, window_id].item())
         return CascadeOnlineStepResult(
-            window_probabilities=probabilities,
-            window_label_id=window_id,
-            window_label_name=LABELS[window_id],
-            window_confidence=float(probabilities[0, window_id].item()),
-            decision_state=rejection.decision_state,
-            rejected=rejection.rejected,
-            rejection_score=rejection.rejection_score,
-            rejection_calibration_source=rejection.calibration_source,
-            stable_label_id=decision.stable_label_id,
-            stable_label_name=decision.stable_label_name,
-            stable_confidence=decision.stable_confidence,
-            stable_confirmed=decision.stable_confirmed,
-            gate_probabilities=torch.softmax(gate["window_logits"], dim=-1),
-            dbb_probabilities=torch.softmax(dbb["window_logits"], dim=-1),
-            cu_probabilities=torch.softmax(cu["window_logits"], dim=-1),
+            window_probabilities=None if self.hierarchical_mode else probabilities,
+            window_label_id=None if self.hierarchical_mode else window_id,
+            window_label_name=None if self.hierarchical_mode else LABELS[window_id],
+            window_confidence=None if self.hierarchical_mode else audit_confidence,
+            decision_state=decision_state,
+            rejected=rejected,
+            rejection_score=rejection_score,
+            rejection_calibration_source=rejection_source,
+            stable_label_id=stable_label_id,
+            stable_label_name=stable_label_name,
+            stable_confidence=stable_confidence,
+            stable_confirmed=stable_confirmed,
+            gate_probabilities=gate_probabilities,
+            dbb_probabilities=dbb_probabilities,
+            cu_probabilities=cu_probabilities,
             dt_clamped=bool(gate["dt_clamped_mask"][0].item()),
             dt_zero=bool(gate["dt_zero_mask"][0].item()),
             dt_invalid=bool(gate["dt_invalid_mask"][0].item()),
+            gate_action=None if action is None else action.gate_action,
+            conditional_action=None if action is None else action.conditional_action,
+            final_action=None if action is None else action.final_action,
+            diagnostic_gate_route=None if action is None else action.diagnostic_gate_route,
+            diagnostic_label_id=None if action is None else action.diagnostic_label_id,
+            diagnostic_label_name=None if action is None else action.diagnostic_label_name,
+            accepted_label_id=None if action is None else action.accepted_label_id,
+            accepted_label_name=None if action is None else action.accepted_label_name,
+            rejected_to_unknown=None if action is None else action.rejected_to_unknown,
+            stable_state_name=None if hierarchical_stable is None else hierarchical_stable.state_name,
+            stable_rejected_to_unknown=False if hierarchical_stable is None else hierarchical_stable.stable_rejected_to_unknown,
+            action_trigger_reasons=() if action is None else action.trigger_reasons,
+            soft_posterior_audit_probabilities=probabilities if self.hierarchical_mode else None,
+            soft_posterior_audit_label_id=window_id if self.hierarchical_mode else None,
+            soft_posterior_audit_label_name=LABELS[window_id] if self.hierarchical_mode else None,
+            soft_posterior_audit_confidence=audit_confidence if self.hierarchical_mode else None,
+            gate_dbb_probability=None if action is None else action.gate_dbb_probability,
+            gate_margin=None if action is None else action.gate_margin,
+            specialist_label_id=None if action is None else action.specialist_label_id,
+            specialist_confidence=None if action is None else action.specialist_confidence,
+            specialist_margin=None if action is None else action.specialist_margin,
+            valid_point_count=None if action is None else action.valid_point_count,
+            track_quality=None if action is None else action.track_quality,
+            gap_fraction=None if action is None else action.gap_fraction,
         )
 
 
@@ -238,10 +382,69 @@ def load_cascade(
         )
         models[name] = model.eval()
         payloads[name] = payload
+    if configs["dbb_cu_gate"].schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        config_identity_matches = all(
+            payloads[name].get("config_name") == configs[name].config_name
+            for name in EXPECTED_TASKS
+        )
+        epochs = {int(payloads[name].get("epoch", -1)) for name in EXPECTED_TASKS}
+        steps = {int(payloads[name].get("global_step", -1)) for name in EXPECTED_TASKS}
+        selection_payloads = [
+            dict(payloads[name].get("metrics") or {}).get("checkpoint_selection")
+            for name in EXPECTED_TASKS
+        ]
+        checkpoint_set_ids = {
+            str(dict(payloads[name].get("metrics") or {}).get("checkpoint_set_id", ""))
+            for name in EXPECTED_TASKS
+        }
+        valid_selections = all(
+            isinstance(selection, dict)
+            and selection.get("metric") == configs[name].train.checkpoint_selection_metric
+            and isinstance(selection.get("ranking_key"), list)
+            and len(selection["ranking_key"]) == 9
+            for name, selection in zip(EXPECTED_TASKS, selection_payloads)
+        )
+        selections = {
+            json.dumps(selection, sort_keys=True, ensure_ascii=False)
+            for selection in selection_payloads
+            if isinstance(selection, dict)
+        }
+        if (
+            not config_identity_matches
+            or epochs == {-1}
+            or steps == {-1}
+            or min(epochs) < 1
+            or min(steps) < 1
+            or len(epochs) != 1
+            or len(steps) != 1
+            or not valid_selections
+            or len(selections) != 1
+            or len(checkpoint_set_ids) != 1
+            or len(next(iter(checkpoint_set_ids))) != 32
+            or any(
+                character not in "0123456789abcdef"
+                for character in next(iter(checkpoint_set_ids))
+            )
+        ):
+            raise ValueError(
+                "V13 task checkpoints do not match their configs or are not one jointly selected epoch/global-step/product candidate"
+            )
     cascade = LiquidSoftCascade(
         models["dbb_cu_gate"], models["dbb_specialist"], models["cu_specialist"]
     ).to(device).eval()
     return cascade, payloads
+
+
+def build_cascade(configs: Mapping[str, LiquidTaskConfig], *, device: torch.device) -> LiquidSoftCascade:
+    """Build one initialized three-task cascade without loading checkpoints."""
+
+    validate_cascade_configs(configs)
+    models = {name: LiquidTaskClassifier(configs[name]).to(device) for name in EXPECTED_TASKS}
+    return LiquidSoftCascade(
+        models["dbb_cu_gate"],
+        models["dbb_specialist"],
+        models["cu_specialist"],
+    ).to(device)
 
 
 def build_cascade_dataset(project_root: Path, config: LiquidTaskConfig, *, split_name: str) -> CQ08PointSequenceDataset:
@@ -269,7 +472,20 @@ def evaluate_cascade(
     split_name: str,
     stable_confirm_count: int = 2,
     stable_ema_decay: float = 0.65,
+    hierarchical_rejection_policy: HierarchicalRejectionPolicy | None = None,
 ) -> dict[str, Any]:
+    if model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        return evaluate_hierarchical_cascade(
+            model,
+            dataset,
+            device=device,
+            batch_size=batch_size,
+            split_name=split_name,
+            rejection_policy=hierarchical_rejection_policy,
+            stable_confirm_count=stable_confirm_count,
+        )
+    if hierarchical_rejection_policy is not None:
+        raise ValueError("historical cascade evaluation cannot use the V13 hierarchical rejection policy")
     loader = build_point_dataloader(dataset, batch_size=batch_size, shuffle=False)
     window_records: list[dict[str, Any]] = []
     parent_records: list[dict[str, Any]] = []
@@ -287,6 +503,7 @@ def evaluate_cascade(
                 tr_missing_mask=tensors["tr_missing_mask"],
                 tr_dt_seconds=tensors["tr_dt_seconds"],
                 tr_dt_valid=tensors["tr_dt_valid"],
+                tr_dt_reason=tensors.get("tr_dt_reason"),
                 rd_frames=tensors["rd_frames"],
                 rd_frame_mask=tensors["rd_frame_mask"],
                 rd_quality=tensors["rd_quality"],
@@ -302,6 +519,21 @@ def evaluate_cascade(
                 for event_index in range(length):
                     probabilities = output["sequence_probabilities"][batch_index, event_index]
                     pred_id = int(probabilities.argmax().item())
+                    gate_event = torch.softmax(
+                        output["gate_sequence_logits"][batch_index, event_index], dim=-1
+                    )
+                    dbb_event = torch.softmax(
+                        output["dbb_sequence_logits"][batch_index, event_index], dim=-1
+                    )
+                    cu_event = torch.softmax(
+                        output["cu_sequence_logits"][batch_index, event_index], dim=-1
+                    )
+                    diagnostic_gate_pred = int(gate_event.argmax().item())
+                    diagnostic_action_pred = (
+                        int(dbb_event.argmax().item())
+                        if diagnostic_gate_pred == 0
+                        else 3 + int(cu_event.argmax().item())
+                    )
                     base = {
                         "true_id": true_id,
                         "pred_id": pred_id,
@@ -313,6 +545,9 @@ def evaluate_cascade(
                         "split_name": split_name,
                         "event_index": event_index,
                         "window_length": event_index + 1,
+                        "soft_posterior_pred_id": pred_id,
+                        "diagnostic_gate_pred_id": diagnostic_gate_pred,
+                        "diagnostic_hierarchical_pred_id": diagnostic_action_pred,
                     }
                     window_records.append(base)
                     final = dict(base)
@@ -392,7 +627,12 @@ def evaluate_cascade(
             "enabled": False,
             "supports_validated_rejection": False,
             "required_calibration_source": "train_parent_grouped_oof",
-            "unknown_target_is_ordinary_class": True,
+            "unknown_target_is_ordinary_class": False if model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION else True,
+            "unknown_training_label_semantics": (
+                "supervises CU Clutter-not-accepted branch; runtime UNKNOWN_REJECTED remains a distinct action"
+                if model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION
+                else "historical closed-set CU class"
+            ),
             "coverage": "not_evaluated",
             "accepted_macro_f1": "not_evaluated",
             "false_acceptance_rate": "not_evaluated",
@@ -404,6 +644,23 @@ def evaluate_cascade(
             "dbb_parent_conditional": summarize_records_with_names(dbb_records, LABELS[:3], "dbb_parent_conditional"),
             "cu_parent_conditional": summarize_records_with_names(cu_records, LABELS[3:], "cu_parent_conditional"),
         },
+        "hierarchical_action": {
+            "product_contract_available": model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION,
+            "diagnostic_argmax_only": True,
+            "diagnostic_parent_metrics": summarize_records(
+                [
+                    {**row, "pred_id": int(row["diagnostic_hierarchical_pred_id"])}
+                    for row in parent_records
+                ],
+                scope=f"{split_name}:diagnostic_hierarchical_argmax_parent_final",
+            ),
+            "calibrated_actions": "not_evaluated",
+            "stable_actions": "not_evaluated_without_train_parent_grouped_oof_calibration",
+            "coverage": "not_evaluated",
+            "false_acceptance_rate": "not_evaluated",
+            "false_rejection_rate": "not_evaluated",
+            "selective_risk": "not_evaluated",
+        },
         "records": {
             "window": window_records,
             "parent": parent_records,
@@ -411,6 +668,577 @@ def evaluate_cascade(
             "stable_unconfirmed": stable_unconfirmed,
         },
     }
+
+
+def evaluate_hierarchical_cascade(
+    model: LiquidSoftCascade,
+    dataset: CQ08PointSequenceDataset,
+    *,
+    device: torch.device,
+    batch_size: int,
+    split_name: str,
+    rejection_policy: HierarchicalRejectionPolicy | None = None,
+    stable_confirm_count: int = 2,
+) -> dict[str, Any]:
+    """Evaluate V13 topology without pretending uncalibrated actions are reject."""
+
+    if model.gate.config.schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        raise ValueError("hierarchical evaluator requires three V13 task models")
+    loader = build_point_dataloader(dataset, batch_size=batch_size, shuffle=False)
+    soft_windows: list[dict[str, Any]] = []
+    diagnostic_windows: list[dict[str, Any]] = []
+    soft_parents: list[dict[str, Any]] = []
+    diagnostic_parents: list[dict[str, Any]] = []
+    gate_parents: list[dict[str, int]] = []
+    dbb_parents: list[dict[str, int]] = []
+    cu_parents: list[dict[str, int]] = []
+    calibrated_window_actions: list[dict[str, Any]] = []
+    calibrated_parent_actions: list[dict[str, Any]] = []
+    calibrated_accepted_parents: list[dict[str, Any]] = []
+    stable_action_records: list[dict[str, Any]] = []
+    stable_unconfirmed_records: list[dict[str, Any]] = []
+    dt_counts = {"first_event": 0, "zero_delta": 0, "positive_delta": 0, "padding": 0}
+    policy = rejection_policy or HierarchicalRejectionPolicy()
+    with torch.inference_mode():
+        for batch in loader:
+            tensors = {key: value.to(device) if isinstance(value, torch.Tensor) else value for key, value in batch.items()}
+            output = model(
+                tr_features=tensors["tr_features"],
+                tr_missing_mask=tensors["tr_missing_mask"],
+                tr_dt_seconds=tensors["tr_dt_seconds"],
+                tr_dt_valid=tensors["tr_dt_valid"],
+                tr_dt_reason=tensors["tr_dt_reason"],
+                rd_frames=tensors["rd_frames"],
+                rd_frame_mask=tensors["rd_frame_mask"],
+                rd_quality=tensors["rd_quality"],
+                tr_padding_mask=tensors["tr_padding_mask"],
+            )
+            reasons = tensors["tr_dt_reason"]
+            dt_counts["padding"] += int((reasons == 0).sum().item())
+            dt_counts["first_event"] += int((reasons == 1).sum().item())
+            dt_counts["zero_delta"] += int((reasons == 2).sum().item())
+            dt_counts["positive_delta"] += int((reasons == 3).sum().item())
+            gate_probs = torch.softmax(output["gate_sequence_logits"], dim=-1)
+            dbb_probs = torch.softmax(output["dbb_sequence_logits"], dim=-1)
+            cu_probs = torch.softmax(output["cu_sequence_logits"], dim=-1)
+            for batch_index, parent_id in enumerate(batch["parent_sample_ids"]):
+                length = int(batch["lengths"][batch_index].item())
+                true_id = int(batch["labels"][batch_index].item())
+                soft_final: dict[str, Any] | None = None
+                diagnostic_final: dict[str, Any] | None = None
+                action_final: dict[str, Any] | None = None
+                rd_observed_count = 0
+                zero_delta_count = 0
+                stable_machine = HierarchicalStableStateMachine(confirm_count=stable_confirm_count)
+                stable_final: HierarchicalStableDecision | None = None
+                for event_index in range(length):
+                    soft = output["sequence_probabilities"][batch_index, event_index]
+                    soft_pred = int(soft.argmax().item())
+                    gate_pred = int(gate_probs[batch_index, event_index].argmax().item())
+                    if gate_pred == 0:
+                        diagnostic_pred = int(dbb_probs[batch_index, event_index].argmax().item())
+                        route_action = "DBB_ACCEPTED_DIAGNOSTIC"
+                    else:
+                        diagnostic_pred = 3 + int(cu_probs[batch_index, event_index].argmax().item())
+                        route_action = (
+                            "CLUTTER_ACCEPTED_DIAGNOSTIC"
+                            if diagnostic_pred == 3
+                            else "UNKNOWN_LABEL_DIAGNOSTIC_NOT_REJECTION"
+                        )
+                    common = {
+                        "true_id": true_id,
+                        "parent_sample_id": parent_id,
+                        "track_id": batch["track_ids"][batch_index],
+                        "source_name": batch["source_names"][batch_index],
+                        "label_name": batch["label_names"][batch_index],
+                        "split_name": split_name,
+                        "event_index": event_index,
+                        "window_length": event_index + 1,
+                        "gate_pred_id": gate_pred,
+                        "route_action": route_action,
+                    }
+                    soft_row = {
+                        **common,
+                        "pred_id": soft_pred,
+                        "confidence": float(soft[soft_pred].item()),
+                    }
+                    diagnostic_probability = (
+                        gate_probs[batch_index, event_index, 0] * dbb_probs[batch_index, event_index, diagnostic_pred]
+                        if diagnostic_pred < 3
+                        else gate_probs[batch_index, event_index, 1] * cu_probs[batch_index, event_index, diagnostic_pred - 3]
+                    )
+                    diagnostic_row = {
+                        **common,
+                        "pred_id": diagnostic_pred,
+                        "confidence": float(diagnostic_probability.item()),
+                    }
+                    soft_windows.append(soft_row)
+                    diagnostic_windows.append(diagnostic_row)
+                    soft_final = soft_row
+                    diagnostic_final = diagnostic_row
+                    if policy.enabled:
+                        rd_observed_count += int(float(tensors["rd_quality"][batch_index, event_index, 0].item()) >= 0.5)
+                        zero_delta_count += int(int(tensors["tr_dt_reason"][batch_index, event_index].item()) == 2)
+                        valid_point_count = event_index + 1
+                        action = policy.decide(
+                            gate_probs[batch_index, event_index].cpu(),
+                            dbb_probs[batch_index, event_index].cpu(),
+                            cu_probs[batch_index, event_index].cpu(),
+                            valid_point_count=valid_point_count,
+                            track_quality=rd_observed_count / valid_point_count,
+                            gap_fraction=min(1.0, zero_delta_count / max(1, valid_point_count - 1)),
+                        )
+                        stable_final = stable_machine.update(action)
+                        action_pred_id = (
+                            None
+                            if action.decision_state == "pending"
+                            else 4
+                            if action.final_action == "UNKNOWN_REJECTED"
+                            else int(action.accepted_label_id)
+                        )
+                        action_row = {
+                            **common,
+                            "pred_id": action_pred_id,
+                            "confidence": (
+                                None
+                                if action.decision_state == "pending"
+                                else action.specialist_confidence
+                            ),
+                            "gate_action": action.gate_action,
+                            "decision_state": action.decision_state,
+                            "conditional_action": action.conditional_action,
+                            "final_action": action.final_action,
+                            "accepted_label_id": action.accepted_label_id,
+                            "accepted_label_name": action.accepted_label_name,
+                            "rejected_to_unknown": action.rejected_to_unknown,
+                            "diagnostic_gate_route": action.diagnostic_gate_route,
+                            "diagnostic_label_id": action.diagnostic_label_id,
+                            "diagnostic_label_name": action.diagnostic_label_name,
+                            "gate_dbb_probability": action.gate_dbb_probability,
+                            "gate_margin": action.gate_margin,
+                            "specialist_label_id": action.specialist_label_id,
+                            "specialist_confidence": action.specialist_confidence,
+                            "specialist_margin": action.specialist_margin,
+                            "trigger_reasons": list(action.trigger_reasons),
+                            "valid_point_count": action.valid_point_count,
+                            "track_quality": action.track_quality,
+                            "gap_fraction": action.gap_fraction,
+                            "calibration_source": action.calibration_source,
+                        }
+                        calibrated_window_actions.append(action_row)
+                        action_final = action_row
+                if soft_final is None or diagnostic_final is None:
+                    raise ValueError(f"empty V13 parent sequence: {parent_id}")
+                soft_parents.append(soft_final)
+                diagnostic_parents.append(diagnostic_final)
+                if policy.enabled:
+                    if action_final is None or stable_final is None:
+                        raise RuntimeError("calibrated V13 evaluation lost its final action state")
+                    calibrated_parent_actions.append(action_final)
+                    if action_final["accepted_label_id"] is not None:
+                        calibrated_accepted_parents.append(action_final)
+                    stable_base = {
+                        "true_id": true_id,
+                        "parent_sample_id": parent_id,
+                        "track_id": batch["track_ids"][batch_index],
+                        "source_name": batch["source_names"][batch_index],
+                        "label_name": batch["label_names"][batch_index],
+                        "split_name": split_name,
+                        "event_count": length,
+                        "stable_state_name": stable_final.state_name,
+                        "stable_confirmed": stable_final.stable_confirmed,
+                        "stable_rejected_to_unknown": stable_final.stable_rejected_to_unknown,
+                    }
+                    if stable_final.stable_confirmed:
+                        stable_action_records.append({
+                            **stable_base,
+                            "pred_id": 4 if stable_final.stable_rejected_to_unknown else int(stable_final.stable_label_id),
+                            "accepted_label_id": stable_final.stable_label_id,
+                        })
+                    else:
+                        stable_unconfirmed_records.append({
+                            **stable_base,
+                            "pred_id": None,
+                            "accepted_label_id": None,
+                            "candidate_action": stable_final.candidate_action,
+                            "candidate_count": stable_final.candidate_count,
+                        })
+                gate_true = 0 if true_id < 3 else 1
+                gate_parents.append({"true_id": gate_true, "pred_id": int(diagnostic_final["gate_pred_id"])})
+                if true_id < 3:
+                    dbb_parents.append({
+                        "true_id": true_id,
+                        "pred_id": int(dbb_probs[batch_index, length - 1].argmax().item()),
+                    })
+                else:
+                    cu_parents.append({
+                        "true_id": true_id - 3,
+                        "pred_id": int(cu_probs[batch_index, length - 1].argmax().item()),
+                    })
+    gate_metrics = summarize_records_with_names(gate_parents, ("DBB", "CU"), "gate_parent_final")
+    dbb_metrics = summarize_records_with_names(dbb_parents, LABELS[:3], "dbb_parent_conditional")
+    cu_metrics = summarize_records_with_names(cu_parents, LABELS[3:], "cu_parent_conditional")
+    diagnostic_metrics = summarize_records(
+        diagnostic_parents,
+        scope=f"{split_name}:diagnostic_hierarchical_argmax_parent_final",
+    )
+    soft_metrics = summarize_records(soft_parents, scope=f"{split_name}:soft_posterior_parent_final")
+    calibrated_summary = summarize_calibrated_actions(
+        calibrated_parent_actions,
+        calibrated_accepted_parents,
+        split_name=split_name,
+        calibration_source=(
+            None if policy.calibration is None else policy.calibration.source
+        ),
+    ) if policy.enabled else {
+        "status": "not_evaluated",
+        "reason": "train parent-grouped OOF calibration artifact was not supplied",
+        "coverage": "not_evaluated",
+        "accepted_accuracy": "not_evaluated",
+        "accepted_macro_f1": "not_evaluated",
+        "false_acceptance_rate": "not_evaluated",
+        "false_rejection_rate": "not_evaluated",
+        "selective_risk": "not_evaluated",
+        "unknown_rejection_recall": "not_evaluated",
+    }
+    stable_summary = summarize_stable_actions(
+        stable_action_records,
+        stable_unconfirmed_records,
+        total_parent_count=len(diagnostic_parents),
+        split_name=split_name,
+    ) if policy.enabled else {
+        "status": "not_evaluated_without_calibration",
+        "stable_coverage": "not_evaluated",
+    }
+    return {
+        "schema_version": HIERARCHICAL_CASCADE_SCHEMA_VERSION,
+        "split": split_name,
+        "class_names": list(LABELS),
+        "dataset_parent_count": len(dataset),
+        "window_count": len(diagnostic_windows),
+        "parent_count": len(diagnostic_parents),
+        "product_semantics": {
+            "architecture": "three_layer_soft_cascade_with_separate_hierarchical_action",
+            "gate": "accept DBB or route to CU",
+            "dbb_specialist": "Drone/Bird/Balloon conditional classification",
+            "cu_specialist": "accept Clutter; UnknownTarget training label is not a calibrated reject action",
+            "cu_output_semantics": ["CLUTTER_ACCEPT_EVIDENCE", "CLUTTER_REJECT_EVIDENCE"],
+            "soft_posterior": "audit probability only",
+            "soft_posterior_used_for_checkpoint_selection": False,
+        },
+        "diagnostic_hierarchical_argmax": {
+            "status": "executed_without_thresholds",
+            "is_validated_rejection": False,
+            "window_metrics": summarize_records(
+                diagnostic_windows,
+                scope=f"{split_name}:diagnostic_hierarchical_argmax_windows",
+            ),
+            "parent_metrics": diagnostic_metrics,
+            "source_metrics": grouped_summaries(
+                diagnostic_parents,
+                field="source_name",
+                scope_prefix=f"{split_name}:diagnostic_hierarchical_parent_source",
+            ),
+        },
+        "soft_posterior": {
+            "window_metrics": summarize_records(soft_windows, scope=f"{split_name}:soft_posterior_windows"),
+            "parent_metrics": soft_metrics,
+        },
+        "component_metrics": {
+            "gate_parent": gate_metrics,
+            "dbb_parent_conditional": dbb_metrics,
+            "cu_parent_conditional": cu_metrics,
+        },
+        "checkpoint_selection_inputs": {
+            "gate_min_precision_recall": minimum_precision_recall(gate_metrics),
+            "dbb_min_precision_recall": minimum_precision_recall(dbb_metrics),
+            "cu_min_precision_recall": minimum_precision_recall(cu_metrics),
+            "diagnostic_parent_macro_f1": diagnostic_metrics["macro_f1"],
+            "soft_parent_macro_f1": soft_metrics["macro_f1"],
+        },
+        "calibrated_hierarchical_action": calibrated_summary,
+        "stable_action": stable_summary,
+        "dt_reason_counts_including_padding": dt_counts,
+        "session_metrics": {
+            "status": "not_available",
+            "reason": "current verified index has no session/capture field",
+        },
+        "records": {
+            "window": diagnostic_windows,
+            "parent": diagnostic_parents,
+            "soft_window": soft_windows,
+            "soft_parent": soft_parents,
+            "calibrated_window_action": calibrated_window_actions,
+            "calibrated_parent_action": calibrated_parent_actions,
+            "calibrated_accepted_parent": calibrated_accepted_parents,
+            "stable_action": stable_action_records,
+            "stable_unconfirmed": stable_unconfirmed_records,
+        },
+    }
+
+
+def summarize_calibrated_actions(
+    parent_actions: list[dict[str, Any]],
+    accepted_actions: list[dict[str, Any]],
+    *,
+    split_name: str,
+    calibration_source: str | None,
+) -> dict[str, Any]:
+    total = len(parent_actions)
+    if total == 0:
+        raise ValueError("calibrated action summary received no parents")
+    if any("decision_state" not in row for row in parent_actions):
+        raise ValueError("calibrated action records lack decision_state")
+    pending_rows = [row for row in parent_actions if row["decision_state"] == "pending"]
+    decided_rows = [row for row in parent_actions if row["decision_state"] != "pending"]
+    unknown_rows = [row for row in parent_actions if int(row["true_id"]) == 4]
+    known_rows = [row for row in parent_actions if int(row["true_id"]) < 4]
+    unknown_rejected = sum(
+        int(row["final_action"] == "UNKNOWN_REJECTED") for row in unknown_rows
+    )
+    unknown_false_accepted = sum(
+        int(row["accepted_label_id"] is not None) for row in unknown_rows
+    )
+    known_false_rejected = sum(
+        int(row["accepted_label_id"] is None) for row in known_rows
+    )
+    rejected_rows = [row for row in parent_actions if row["final_action"] == "UNKNOWN_REJECTED"]
+    if len(accepted_actions) + len(rejected_rows) + len(pending_rows) != total:
+        raise ValueError("accepted/rejected/pending action counts do not partition all parents")
+    accepted_metrics = (
+        _summarize_accepted_known_actions(
+            accepted_actions,
+            scope=f"{split_name}:accepted_parent_actions_known_classes",
+        )
+        if accepted_actions
+        else None
+    )
+    accepted_accuracy = None if accepted_metrics is None else accepted_metrics["accuracy"]
+    action_metrics = summarize_records(
+        decided_rows,
+        scope=f"{split_name}:hierarchical_parent_actions_reject_mapped_to_id4",
+    ) if decided_rows else None
+    drone_bird_metrics = _summarize_drone_bird_safety_metrics(parent_actions)
+    return {
+        "status": "evaluated_with_train_parent_grouped_oof_calibration",
+        "calibration_source": calibration_source,
+        "parent_count": total,
+        "decided_parent_count": len(decided_rows),
+        "pending_parent_count": len(pending_rows),
+        "action_coverage": len(decided_rows) / total,
+        "accepted_parent_count": len(accepted_actions),
+        "rejected_parent_count": len(rejected_rows),
+        "coverage": len(accepted_actions) / total,
+        "accepted_accuracy": accepted_accuracy,
+        "accepted_macro_precision": None if accepted_metrics is None else accepted_metrics["macro_precision"],
+        "accepted_macro_recall": None if accepted_metrics is None else accepted_metrics["macro_recall"],
+        "accepted_macro_f1": None if accepted_metrics is None else accepted_metrics["macro_f1"],
+        "accepted_metrics": accepted_metrics,
+        "action_metrics_reject_mapped_to_unknown_id": action_metrics,
+        "action_mapping_warning": "pred_id=4 denotes UNKNOWN_REJECTED action, not ordinary closed-set Unknown prediction",
+        "false_acceptance_rate": (
+            unknown_false_accepted / len(unknown_rows) if unknown_rows else None
+        ),
+        "false_rejection_rate": (
+            known_false_rejected / len(known_rows) if known_rows else None
+        ),
+        "selective_risk": (
+            None if accepted_accuracy is None else 1.0 - float(accepted_accuracy)
+        ),
+        "unknown_rejection_recall": (
+            unknown_rejected / len(unknown_rows) if unknown_rows else None
+        ),
+        "unknown_support": len(unknown_rows),
+        "known_support": len(known_rows),
+        "rate_denominator_policy": "FAR uses all true Unknown parents; FRR uses all true known parents and conservatively treats final pending/non-acceptance as false rejection; pending is also reported separately",
+        "unknown_false_accept_count": unknown_false_accepted,
+        "known_false_reject_count": known_false_rejected,
+        "drone_bird_action_metrics": drone_bird_metrics,
+    }
+
+
+def _summarize_drone_bird_safety_metrics(
+    parent_actions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Score Drone/Bird acceptance against every parent and every outcome."""
+
+    rows: list[dict[str, Any]] = []
+    precision_values: list[float] = []
+    recall_values: list[float] = []
+    f1_values: list[float] = []
+    for class_id, class_name in ((0, "DroneTarget"), (1, "BirdTarget")):
+        support = sum(int(int(row["true_id"]) == class_id) for row in parent_actions)
+        predicted = sum(
+            int(row.get("accepted_label_id") == class_id) for row in parent_actions
+        )
+        true_positive = sum(
+            int(
+                int(row["true_id"]) == class_id
+                and row.get("accepted_label_id") == class_id
+            )
+            for row in parent_actions
+        )
+        pending_or_rejected = sum(
+            int(
+                int(row["true_id"]) == class_id
+                and row.get("accepted_label_id") is None
+            )
+            for row in parent_actions
+        )
+        accepted_as_other = support - true_positive - pending_or_rejected
+        precision = true_positive / predicted if predicted else 0.0
+        recall = true_positive / support if support else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+        precision_values.append(float(precision))
+        recall_values.append(float(recall))
+        f1_values.append(float(f1))
+        rows.append({
+            "class": class_name,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "support": support,
+            "predicted_count": predicted,
+            "true_positive_count": true_positive,
+            "pending_or_rejected_count": pending_or_rejected,
+            "accepted_as_other_class_count": accepted_as_other,
+        })
+    return {
+        "scope": "hierarchical_drone_bird_safety_all_parent_actions",
+        "per_class": rows,
+        "macro_precision": float(np.mean(precision_values)),
+        "macro_recall": float(np.mean(recall_values)),
+        "macro_f1": float(np.mean(f1_values)),
+        "precision_denominator": "all parents accepted as Drone/Bird, including false accepts from every other class",
+        "recall_denominator": "all true Drone/Bird parents; pending, rejected and accepted-as-other are false negatives",
+    }
+
+
+def _summarize_accepted_known_actions(
+    records: list[dict[str, Any]],
+    *,
+    scope: str,
+) -> dict[str, Any]:
+    """Score accepted outputs over the four classes that can be accepted.
+
+    True Unknown parents accepted as a known class remain false positives in
+    that known class's precision and remain errors in accepted accuracy.  They
+    do not create a fifth accepted class with zero support, because the product
+    has no ``UNKNOWN_ACCEPTED`` action.
+    """
+
+    if not records:
+        raise ValueError("accepted known-action summary received no records")
+    known_count = 4
+    matrix = np.zeros((known_count, known_count), dtype=np.int64)
+    unknown_false_accepts = np.zeros((known_count,), dtype=np.int64)
+    correct = 0
+    for row in records:
+        true_id = int(row["true_id"])
+        pred_id = int(row["pred_id"])
+        if not 0 <= pred_id < known_count:
+            raise ValueError("accepted product action predicted a non-accepted class")
+        if 0 <= true_id < known_count:
+            matrix[true_id, pred_id] += 1
+            correct += int(true_id == pred_id)
+        elif true_id == 4:
+            unknown_false_accepts[pred_id] += 1
+        else:
+            raise ValueError("accepted product action contains an invalid true class")
+    support = matrix.sum(axis=1)
+    predicted = matrix.sum(axis=0) + unknown_false_accepts
+    per_class: list[dict[str, Any]] = []
+    precision_values: list[float] = []
+    recall_values: list[float] = []
+    f1_values: list[float] = []
+    for class_id, class_name in enumerate(LABELS[:known_count]):
+        tp = int(matrix[class_id, class_id])
+        precision = tp / int(predicted[class_id]) if predicted[class_id] else 0.0
+        recall = tp / int(support[class_id]) if support[class_id] else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+        precision_values.append(float(precision))
+        recall_values.append(float(recall))
+        f1_values.append(float(f1))
+        confusion = matrix[class_id].copy()
+        confusion[class_id] = 0
+        destination = int(confusion.argmax()) if int(confusion.sum()) else None
+        per_class.append({
+            "class": class_name,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "support": int(support[class_id]),
+            "predicted_count_including_unknown_false_accepts": int(predicted[class_id]),
+            "unknown_false_accept_count": int(unknown_false_accepts[class_id]),
+            "major_confusion_to": (
+                LABELS[destination]
+                if destination is not None and int(confusion[destination]) > 0
+                else None
+            ),
+            "major_confusion_count": int(confusion[destination]) if destination is not None else 0,
+        })
+    return {
+        "scope": scope,
+        "accepted_parent_count": len(records),
+        "accepted_known_true_parent_count": int(matrix.sum()),
+        "accepted_unknown_false_accept_count": int(unknown_false_accepts.sum()),
+        "accuracy": correct / len(records),
+        "macro_precision": float(np.mean(precision_values)),
+        "macro_recall": float(np.mean(recall_values)),
+        "macro_f1": float(np.mean(f1_values)),
+        "macro_denominator_classes": list(LABELS[:known_count]),
+        "unknown_is_not_an_accepted_class": True,
+        "per_class": per_class,
+        "confusion_matrix_known_true_rows_known_pred_columns": matrix.tolist(),
+        "unknown_false_accepts_by_predicted_known_class": unknown_false_accepts.tolist(),
+    }
+
+
+def summarize_stable_actions(
+    stable_actions: list[dict[str, Any]],
+    unconfirmed: list[dict[str, Any]],
+    *,
+    total_parent_count: int,
+    split_name: str,
+) -> dict[str, Any]:
+    if total_parent_count <= 0:
+        raise ValueError("stable action summary requires a positive parent count")
+    if len(stable_actions) + len(unconfirmed) != total_parent_count:
+        raise ValueError("stable action confirmed/unconfirmed counts do not cover all parents")
+    accepted = [row for row in stable_actions if row["accepted_label_id"] is not None]
+    rejected = [row for row in stable_actions if row["stable_rejected_to_unknown"]]
+    return {
+        "status": "evaluated_with_calibrated_hierarchical_state_machine",
+        "parent_count": total_parent_count,
+        "stable_confirmed_parent_count": len(stable_actions),
+        "stable_unconfirmed_parent_count": len(unconfirmed),
+        "stable_action_coverage": len(stable_actions) / total_parent_count,
+        "stable_accepted_coverage": len(accepted) / total_parent_count,
+        "stable_rejected_count": len(rejected),
+        "stable_action_metrics_reject_mapped_to_unknown_id": (
+            summarize_records(
+                stable_actions,
+                scope=f"{split_name}:stable_hierarchical_actions_reject_mapped_to_id4",
+            )
+            if stable_actions
+            else None
+        ),
+        "action_mapping_warning": "pred_id=4 denotes stable UNKNOWN_REJECTED action",
+    }
+
+
+def minimum_precision_recall(metrics: Mapping[str, Any]) -> float:
+    rows = list(metrics.get("per_class") or [])
+    if not rows or any(int(row.get("support", 0)) <= 0 for row in rows):
+        raise ValueError("product checkpoint floor requires nonzero support for every class")
+    values = [
+        float(value)
+        for row in rows
+        for value in (row.get("precision"), row.get("recall"))
+    ]
+    if not values or any(not torch.isfinite(torch.tensor(value)).item() for value in values):
+        raise ValueError("product checkpoint floor contains a non-finite metric")
+    return min(values)
 
 
 def summarize_records_with_names(records: list[dict[str, int]], names: tuple[str, ...], scope: str) -> dict[str, Any]:
@@ -434,8 +1262,13 @@ __all__ = [
     "LiquidSoftCascade",
     "OnlineLiquidSoftCascade",
     "build_cascade_dataset",
+    "build_cascade",
     "evaluate_cascade",
+    "evaluate_hierarchical_cascade",
     "load_cascade",
+    "minimum_precision_recall",
+    "summarize_calibrated_actions",
+    "summarize_stable_actions",
     "validate_cascade_configs",
     "verify_cascade_data_contracts",
 ]

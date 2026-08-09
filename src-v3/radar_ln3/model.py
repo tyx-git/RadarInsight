@@ -5,7 +5,13 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from .data import require_causal_rd_quality_schema
+from .data import (
+    DT_REASON_FIRST_EVENT,
+    DT_REASON_PADDING,
+    DT_REASON_POSITIVE_DELTA,
+    DT_REASON_ZERO_DELTA,
+    require_causal_rd_quality_schema,
+)
 
 
 @dataclass
@@ -15,6 +21,8 @@ class LiquidForwardState:
     dt_clamped_mask: torch.Tensor
     dt_zero_mask: torch.Tensor
     dt_invalid_mask: torch.Tensor
+    dt_first_event_mask: torch.Tensor | None = None
+    dt_zero_delta_mask: torch.Tensor | None = None
 
 
 class RDSpatialEncoder(nn.Module):
@@ -132,6 +140,7 @@ class CfCLiquidCausalEncoder(nn.Module):
         dt_seconds: torch.Tensor,
         state: torch.Tensor,
         dt_valid: torch.Tensor | None = None,
+        dt_reason: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2 or state.ndim != 2 or event.shape[0] != state.shape[0]:
             raise ValueError("liquid event/state shapes are incompatible")
@@ -141,9 +150,27 @@ class CfCLiquidCausalEncoder(nn.Module):
             dt_valid = torch.ones_like(dt_seconds, dtype=torch.bool)
         if dt_valid.ndim != 1 or dt_valid.shape[0] != event.shape[0]:
             raise ValueError("liquid dt_valid must have shape [batch]")
+        raw_dt = dt_seconds
+        if dt_reason is not None:
+            if dt_reason.shape != dt_seconds.shape or dt_reason.dtype not in (torch.int64, torch.long):
+                raise ValueError("liquid dt_reason must be long with shape [batch]")
+            allowed = (
+                (dt_reason == DT_REASON_FIRST_EVENT)
+                | (dt_reason == DT_REASON_ZERO_DELTA)
+                | (dt_reason == DT_REASON_POSITIVE_DELTA)
+            )
+            if not bool(allowed.all()):
+                raise ValueError("online liquid dt_reason contains padding or an unsupported value")
+            expected_valid = dt_reason == DT_REASON_POSITIVE_DELTA
+            if not torch.equal(expected_valid, dt_valid):
+                raise ValueError("liquid dt_reason and dt_valid are inconsistent")
+            zero_reason = (dt_reason == DT_REASON_FIRST_EVENT) | (dt_reason == DT_REASON_ZERO_DELTA)
+            if bool(raw_dt.masked_select(zero_reason).abs().gt(1.0e-9).any()):
+                raise ValueError("first-event and same-second dt reasons require raw dt=0")
+            if bool(raw_dt.masked_select(expected_valid).le(0.0).any()):
+                raise ValueError("positive-delta dt reason requires raw dt>0")
         if not torch.isfinite(event).all() or not torch.isfinite(state).all() or not torch.isfinite(dt_seconds).all():
             raise ValueError("liquid inputs must be finite")
-        raw_dt = dt_seconds
         negative_mask = raw_dt < 0.0
         zero_mask = raw_dt.abs() <= 1.0e-9
         safe_dt = raw_dt.clamp(min=0.0, max=self.dt_max_seconds)
@@ -159,6 +186,14 @@ class CfCLiquidCausalEncoder(nn.Module):
         if self.invalid_dt_update_mode == "bounded_observation":
             observation_gain = torch.full_like(alpha, self.invalid_dt_observation_gain)
             alpha = torch.where((~dt_valid).unsqueeze(-1), observation_gain, alpha)
+        if dt_reason is not None:
+            # The first event initializes evidence without pretending elapsed
+            # time; same-second later observations use the bounded observation
+            # rule. Positive intervals preserve the continuous-time update.
+            first_gain = torch.ones_like(alpha)
+            zero_gain = torch.full_like(alpha, self.invalid_dt_observation_gain)
+            alpha = torch.where((dt_reason == DT_REASON_FIRST_EVENT).unsqueeze(-1), first_gain, alpha)
+            alpha = torch.where((dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1), zero_gain, alpha)
         next_state = (1.0 - alpha) * state + alpha * candidate
         if self.state_normalization_mode == "recurrent":
             next_state = self.output_norm(next_state)
@@ -175,6 +210,7 @@ class CfCLiquidCausalEncoder(nn.Module):
         dt_seconds: torch.Tensor,
         padding_mask: torch.Tensor,
         dt_valid: torch.Tensor | None = None,
+        dt_reason: torch.Tensor | None = None,
         initial_state: torch.Tensor | None = None,
     ) -> LiquidForwardState:
         if events.ndim != 3:
@@ -185,6 +221,30 @@ class CfCLiquidCausalEncoder(nn.Module):
             dt_valid = torch.ones_like(dt_seconds, dtype=torch.bool)
         if dt_valid.shape != events.shape[:2]:
             raise ValueError("liquid dt_valid must have shape [batch, sequence]")
+        if dt_reason is not None:
+            if dt_reason.shape != events.shape[:2] or dt_reason.dtype not in (torch.int64, torch.long):
+                raise ValueError("liquid dt_reason must be long with shape [batch, sequence]")
+            padded_reasons = dt_reason.masked_select(padding_mask)
+            active_reasons = dt_reason.masked_select(~padding_mask)
+            if bool((padded_reasons != DT_REASON_PADDING).any()):
+                raise ValueError("padded liquid events must use the padding dt reason")
+            if bool((active_reasons == DT_REASON_PADDING).any()):
+                raise ValueError("active liquid events must not use the padding dt reason")
+            active = ~padding_mask
+            active_counts = active.sum(dim=1)
+            if bool((active_counts <= 0).any()):
+                raise ValueError("reason-aware liquid sequence cannot be entirely padded")
+            first_reason = (dt_reason == DT_REASON_FIRST_EVENT) & active
+            first_counts = first_reason.sum(dim=1)
+            if initial_state is None:
+                first_active_indices = active.to(dtype=torch.int64).argmax(dim=1)
+                batch_indices = torch.arange(events.shape[0], device=events.device)
+                if bool((first_counts != 1).any()) or bool(
+                    (dt_reason[batch_indices, first_active_indices] != DT_REASON_FIRST_EVENT).any()
+                ):
+                    raise ValueError("fresh liquid sequences require exactly one first-event reason at their first observation")
+            elif bool((first_counts != 0).any()):
+                raise ValueError("continued liquid sequences must not contain a first-event reason")
         if not torch.isfinite(events).all() or not torch.isfinite(dt_seconds).all():
             raise ValueError("liquid events and dt must be finite")
         batch_size, sequence_length, _ = events.shape
@@ -198,16 +258,45 @@ class CfCLiquidCausalEncoder(nn.Module):
         clamped: list[torch.Tensor] = []
         zero_dt: list[torch.Tensor] = []
         invalid_dt: list[torch.Tensor] = []
+        first_event: list[torch.Tensor] = []
+        zero_delta: list[torch.Tensor] = []
         for event_index in range(sequence_length):
-            candidate_state, dt_clamped, dt_zero = self._step(
-                events[:, event_index], dt_seconds[:, event_index], state, dt_valid[:, event_index]
-            )
             active = ~padding_mask[:, event_index]
+            step_reason = None
+            step_dt = torch.where(active, dt_seconds[:, event_index], torch.zeros_like(dt_seconds[:, event_index]))
+            step_valid = dt_valid[:, event_index] & active
+            if dt_reason is not None:
+                # `_step` is also the online API and correctly rejects the
+                # collate-only padding code. Batch padding is mapped to an
+                # invalid first-observation placeholder before the call; the
+                # candidate state is discarded by `active` immediately after.
+                step_reason = torch.where(
+                    active,
+                    dt_reason[:, event_index],
+                    torch.full_like(dt_reason[:, event_index], DT_REASON_FIRST_EVENT),
+                )
+            candidate_state, dt_clamped, dt_zero = self._step(
+                events[:, event_index],
+                step_dt,
+                state,
+                step_valid,
+                step_reason,
+            )
             state = torch.where(active.unsqueeze(-1), candidate_state, state)
             outputs.append(self.readout(state))
             clamped.append(dt_clamped & active)
             zero_dt.append(dt_zero & active)
             invalid_dt.append((~dt_valid[:, event_index]) & active)
+            first_event.append(
+                torch.zeros_like(active)
+                if dt_reason is None
+                else (dt_reason[:, event_index] == DT_REASON_FIRST_EVENT) & active
+            )
+            zero_delta.append(
+                torch.zeros_like(active)
+                if dt_reason is None
+                else (dt_reason[:, event_index] == DT_REASON_ZERO_DELTA) & active
+            )
         sequence = torch.stack(outputs, dim=1) if outputs else events.new_zeros((batch_size, 0, self.hidden_dim))
         return LiquidForwardState(
             sequence=sequence,
@@ -215,6 +304,8 @@ class CfCLiquidCausalEncoder(nn.Module):
             dt_clamped_mask=torch.stack(clamped, dim=1) if clamped else padding_mask.clone(),
             dt_zero_mask=torch.stack(zero_dt, dim=1) if zero_dt else padding_mask.clone(),
             dt_invalid_mask=torch.stack(invalid_dt, dim=1) if invalid_dt else padding_mask.clone(),
+            dt_first_event_mask=torch.stack(first_event, dim=1) if first_event else padding_mask.clone(),
+            dt_zero_delta_mask=torch.stack(zero_delta, dim=1) if zero_delta else padding_mask.clone(),
         )
 
     def step(
@@ -223,12 +314,20 @@ class CfCLiquidCausalEncoder(nn.Module):
         dt_seconds: torch.Tensor,
         state: torch.Tensor | None = None,
         dt_valid: torch.Tensor | None = None,
+        dt_reason: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2:
             raise ValueError("online liquid event must have shape [batch, features]")
+        fresh_state = state is None
+        if dt_reason is not None:
+            first_reason = dt_reason == DT_REASON_FIRST_EVENT
+            if fresh_state and not bool(first_reason.all()):
+                raise ValueError("a fresh online liquid state requires the first-event reason")
+            if not fresh_state and bool(first_reason.any()):
+                raise ValueError("an existing online liquid state cannot consume another first-event reason")
         if state is None:
             state = event.new_zeros((event.shape[0], self.hidden_dim))
-        return self._step(event, dt_seconds, state, dt_valid)
+        return self._step(event, dt_seconds, state, dt_valid, dt_reason)
 
 
 class RadarLiquidClassifier(nn.Module):

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import torch
 
+from .rejection import HierarchicalActionDecision
+
 
 @dataclass
 class StableDecision:
@@ -115,4 +117,148 @@ class TargetStableStateMachine:
         )
 
 
-__all__ = ["StableDecision", "TargetStableStateMachine"]
+@dataclass(frozen=True)
+class HierarchicalStableDecision:
+    event_action: str
+    state_name: str
+    stable_confirmed: bool
+    stable_label_id: int | None
+    stable_label_name: str | None
+    stable_rejected_to_unknown: bool
+    candidate_action: str | None
+    candidate_label_id: int | None
+    candidate_count: int
+    update_count: int
+    transition_reset: bool
+
+
+class HierarchicalStableStateMachine:
+    """Consecutive-confirmation state machine over calibrated product actions.
+
+    A conflicting event immediately withdraws the previous stable output and
+    starts a new pending transition.  Consequently a rejected or pending event
+    can never coexist with a confirmed concrete target label.
+    """
+
+    _FINAL_ACTIONS = frozenset({"DBB_ACCEPTED", "CLUTTER_ACCEPTED", "UNKNOWN_REJECTED"})
+
+    def __init__(self, *, confirm_count: int = 2) -> None:
+        self.confirm_count = max(1, int(confirm_count))
+        self.reset()
+
+    def reset(self) -> None:
+        self.candidate_key: tuple[str, int | None] | None = None
+        self.candidate_count = 0
+        self.stable_key: tuple[str, int | None] | None = None
+        self.update_count = 0
+
+    @staticmethod
+    def _key(decision: HierarchicalActionDecision) -> tuple[str, int | None] | None:
+        if decision.final_action == "DBB_ACCEPTED":
+            if decision.accepted_label_id not in {0, 1, 2}:
+                raise ValueError("DBB_ACCEPTED must carry a DBB subclass label")
+            return decision.final_action, int(decision.accepted_label_id)
+        if decision.final_action == "CLUTTER_ACCEPTED":
+            if decision.accepted_label_id != 3:
+                raise ValueError("CLUTTER_ACCEPTED must carry ClutterTarget")
+            return decision.final_action, 3
+        if decision.final_action == "UNKNOWN_REJECTED":
+            if decision.accepted_label_id is not None or decision.rejected_to_unknown is not True:
+                raise ValueError("UNKNOWN_REJECTED must not carry an accepted class")
+            return decision.final_action, None
+        if decision.final_action == "NOT_CALIBRATED":
+            return None
+        raise ValueError(f"unsupported hierarchical event action: {decision.final_action!r}")
+
+    @staticmethod
+    def _pending_state(action: str) -> str:
+        return "DBB_PENDING" if action == "DBB_ACCEPTED" else "CU_PENDING"
+
+    def update(self, decision: HierarchicalActionDecision) -> HierarchicalStableDecision:
+        if decision.final_action in {"DBB_PENDING", "CU_PENDING"}:
+            transition_reset = self.candidate_key is not None or self.stable_key is not None
+            self.update_count += 1
+            self.candidate_key = None
+            self.candidate_count = 0
+            self.stable_key = None
+            return HierarchicalStableDecision(
+                event_action=decision.final_action,
+                state_name=decision.final_action,
+                stable_confirmed=False,
+                stable_label_id=None,
+                stable_label_name=None,
+                stable_rejected_to_unknown=False,
+                candidate_action=None,
+                candidate_label_id=None,
+                candidate_count=0,
+                update_count=self.update_count,
+                transition_reset=transition_reset,
+            )
+        key = self._key(decision)
+        self.update_count += 1
+        if key is None:
+            transition_reset = self.candidate_key is not None or self.stable_key is not None
+            self.candidate_key = None
+            self.candidate_count = 0
+            self.stable_key = None
+            return HierarchicalStableDecision(
+                event_action=decision.final_action,
+                state_name="NOT_CALIBRATED",
+                stable_confirmed=False,
+                stable_label_id=None,
+                stable_label_name=None,
+                stable_rejected_to_unknown=False,
+                candidate_action=None,
+                candidate_label_id=None,
+                candidate_count=0,
+                update_count=self.update_count,
+                transition_reset=transition_reset,
+            )
+        transition_reset = key != self.candidate_key
+        if transition_reset:
+            self.candidate_key = key
+            self.candidate_count = 1
+            self.stable_key = None
+        else:
+            self.candidate_count += 1
+        if self.candidate_count >= self.confirm_count:
+            self.stable_key = key
+        if self.stable_key is None:
+            return HierarchicalStableDecision(
+                event_action=decision.final_action,
+                state_name=self._pending_state(key[0]),
+                stable_confirmed=False,
+                stable_label_id=None,
+                stable_label_name=None,
+                stable_rejected_to_unknown=False,
+                candidate_action=key[0],
+                candidate_label_id=key[1],
+                candidate_count=self.candidate_count,
+                update_count=self.update_count,
+                transition_reset=transition_reset,
+            )
+        action, label_id = self.stable_key
+        rejected = action == "UNKNOWN_REJECTED"
+        if rejected and label_id is not None:
+            raise RuntimeError("rejected stable action unexpectedly carries a class label")
+        return HierarchicalStableDecision(
+            event_action=decision.final_action,
+            state_name=action,
+            stable_confirmed=True,
+            stable_label_id=label_id,
+            stable_label_name=None if label_id is None else LABELS[label_id],
+            stable_rejected_to_unknown=rejected,
+            candidate_action=key[0],
+            candidate_label_id=key[1],
+            candidate_count=self.candidate_count,
+            update_count=self.update_count,
+            transition_reset=transition_reset,
+        )
+
+
+__all__ = [
+    "HierarchicalStableDecision",
+    "HierarchicalStableStateMachine",
+    "StableDecision",
+    "TargetStableStateMachine",
+]

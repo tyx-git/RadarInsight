@@ -90,6 +90,9 @@
       ],
       "lengths": [
         2
+      ],
+      "dbb_auxiliary_labels": [
+        2
       ]
     },
     "real_valid_count": 363,

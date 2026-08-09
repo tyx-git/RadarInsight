@@ -1,0 +1,181 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V13-hierarchical-cascade-smoke-v1",
+  "device": "cpu",
+  "data_contract_hashes": {
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+    "stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6"
+  },
+  "full_train_parent_count": 1081,
+  "bounded_train_parent_ids": [
+    "cq08|track|2246",
+    "cq08|track|2368"
+  ],
+  "bounded_train_labels": [
+    "BirdTarget",
+    "UnknownTarget"
+  ],
+  "bounded_evaluation_labels": [
+    "DroneTarget",
+    "BirdTarget",
+    "BalloonTarget",
+    "ClutterTarget",
+    "UnknownTarget"
+  ],
+  "bounded_event_limit_per_parent": 3,
+  "batch_shapes": {
+    "tr_features": [
+      2,
+      3,
+      14
+    ],
+    "tr_missing_mask": [
+      2,
+      3,
+      11
+    ],
+    "tr_dt_seconds": [
+      2,
+      3
+    ],
+    "tr_dt_valid": [
+      2,
+      3
+    ],
+    "tr_dt_reason": [
+      2,
+      3
+    ],
+    "tr_motion_features": [
+      2,
+      3,
+      0
+    ],
+    "tr_motion_valid_mask": [
+      2,
+      3,
+      0
+    ],
+    "rd_frames": [
+      2,
+      3,
+      12,
+      2,
+      21,
+      384
+    ],
+    "rd_frame_mask": [
+      2,
+      3,
+      12
+    ],
+    "rd_quality": [
+      2,
+      3,
+      7
+    ],
+    "tr_padding_mask": [
+      2,
+      3
+    ],
+    "labels": [
+      2
+    ],
+    "lengths": [
+      2
+    ]
+  },
+  "objective": {
+    "loss": 6.79732084274292,
+    "final_hierarchical_nll": 6.79732084274292,
+    "final_gate_nll": 3.1712584495544434,
+    "final_specialist_nll": 3.6260628700256348,
+    "prefix_auxiliary_nll": 0.0,
+    "dbb_parent_count": 1.0,
+    "cu_parent_count": 1.0
+  },
+  "gradient_norms": {
+    "dbb_cu_gate": 36.997989654541016,
+    "dbb_specialist": 4.601962089538574,
+    "cu_specialist": 36.80168151855469
+  },
+  "max_parameter_changes": {
+    "dbb_cu_gate": 0.00010102987289428711,
+    "dbb_specialist": 0.00010102987289428711,
+    "cu_specialist": 0.00010102987289428711
+  },
+  "task_checkpoint_paths": {
+    "dbb_cu_gate": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\dbb_cu_gate.pt",
+    "dbb_specialist": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\dbb_specialist.pt",
+    "cu_specialist": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\cu_specialist.pt"
+  },
+  "task_checkpoint_epochs": {
+    "dbb_cu_gate": 1,
+    "dbb_specialist": 1,
+    "cu_specialist": 1
+  },
+  "task_checkpoint_round_trip_max_difference": 0.0,
+  "edited_same_name_config_checkpoint_rejected": true,
+  "missing_product_selection_checkpoint_rejected": true,
+  "joint_checkpoint_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\joint_checkpoint.pt",
+  "joint_checkpoint_round_trip_max_difference": 0.0,
+  "joint_checkpoint_next_epoch": 2,
+  "offline_online_probability_max_difference": 4.470348358154297e-08,
+  "calibrated_offline_online_action_state_matches": true,
+  "calibrated_action_state_trace": [
+    {
+      "event_index": 0,
+      "offline_final_action": "DBB_PENDING",
+      "online_final_action": "DBB_PENDING",
+      "offline_stable_state": "DBB_PENDING",
+      "online_stable_state": "DBB_PENDING",
+      "matches": true
+    },
+    {
+      "event_index": 1,
+      "offline_final_action": "DBB_ACCEPTED",
+      "online_final_action": "DBB_ACCEPTED",
+      "offline_stable_state": "DBB_PENDING",
+      "online_stable_state": "DBB_PENDING",
+      "matches": true
+    },
+    {
+      "event_index": 2,
+      "offline_final_action": "DBB_ACCEPTED",
+      "online_final_action": "DBB_ACCEPTED",
+      "offline_stable_state": "DBB_ACCEPTED",
+      "online_stable_state": "DBB_ACCEPTED",
+      "matches": true
+    }
+  ],
+  "synthetic_calibration_only": true,
+  "calibrated_evaluator_status": "evaluated_with_train_parent_grouped_oof_calibration",
+  "calibrated_evaluator_action_partition": {
+    "accepted": 5,
+    "rejected": 0,
+    "pending": 0,
+    "total": 5
+  },
+  "calibrated_evaluator_rates_are_synthetic_only": {
+    "coverage": 1.0,
+    "action_coverage": 1.0,
+    "false_acceptance_rate": 1.0,
+    "false_rejection_rate": 0.0,
+    "selective_risk": 0.8
+  },
+  "diagnostic_evaluation_parent_count": 5,
+  "diagnostic_only_not_rejection": true,
+  "legacy_window_classification_fields_disabled": true,
+  "soft_posterior_is_explicit_audit_only": true,
+  "hierarchical_action_probability_margin_quality_fields_present": true,
+  "legacy_single_task_entry_rejected": true,
+  "formal_artifact_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V13-cq08-liquid-hierarchical-cascade-formal",
+  "formal_artifact_created": false,
+  "formal_training": "未执行",
+  "oof_calibration": "未执行",
+  "calibrated_rejection": "未执行",
+  "test": "未执行",
+  "p95": "未执行",
+  "result_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\result.json"
+}

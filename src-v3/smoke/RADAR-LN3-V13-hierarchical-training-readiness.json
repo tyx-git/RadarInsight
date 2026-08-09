@@ -1,0 +1,147 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V13-hierarchical-training-readiness-v1",
+  "training_state": "ready_for_user_confirmation_before_manual_supervised_training",
+  "release_state": "not_ready_for_rejection_calibration_test_or_deployment",
+  "scope": "CQ08 V3 train/validation TR+RD three-checkpoint liquid hierarchy; test sealed",
+  "product_design": {
+    "gate": "accept DBB when calibrated; otherwise route to CU",
+    "dbb_specialist": "Drone/Bird/Balloon conditional classification after DBB acceptance",
+    "cu_specialist_outputs": [
+      "CLUTTER_ACCEPT_EVIDENCE",
+      "CLUTTER_REJECT_EVIDENCE"
+    ],
+    "cu_action": "accept Clutter when calibrated; otherwise UNKNOWN_REJECTED",
+    "soft_posterior": "probability audit only; disabled as a legacy online product label and excluded from checkpoint ranking",
+    "unknown_semantics": "UnknownTarget training labels supervise Clutter-reject evidence; they do not prove open-set rejection"
+  },
+  "training_contract": {
+    "entry": "src-v3/train/cascade.py",
+    "legacy_single_task_entry_rejects_v13": true,
+    "optimization": "one all-parent batch, one parent-final hierarchical graph, one optimizer step across three independent liquid models",
+    "main_loss": "parent-final hierarchical NLL",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "epochs": 20,
+    "early_stopping": false,
+    "pretraining": "not_required_and_not_used",
+    "checkpoint_selection": "product guardrail floors and directional errors, then diagnostic hierarchical parent Macro-F1",
+    "soft_posterior_used_for_checkpoint_selection": false,
+    "checkpoint_atomicity": "same epoch/global step/product selection/config identity/checkpoint_set_id required for all three task checkpoints",
+    "formal_artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V13-cq08-liquid-hierarchical-cascade-formal",
+    "formal_artifact_exists": false
+  },
+  "data_contract": {
+    "source": "CQ08 only",
+    "index_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+    "contract_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V13-cq08-hierarchical-cascade-data-contract.json",
+    "normalization_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V2-cq08-tr-rd-train-normalization-stats.json",
+    "hashes": {
+      "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+      "contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+      "stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6"
+    },
+    "parent_counts": {
+      "all": 1546,
+      "train": 1081,
+      "validation": 232,
+      "test": 233
+    },
+    "train_label_parent_counts": {
+      "DroneTarget": 488,
+      "BirdTarget": 243,
+      "BalloonTarget": 245,
+      "ClutterTarget": 35,
+      "UnknownTarget": 70
+    },
+    "validation_label_parent_counts": {
+      "DroneTarget": 105,
+      "BirdTarget": 52,
+      "BalloonTarget": 52,
+      "ClutterTarget": 8,
+      "UnknownTarget": 15
+    },
+    "dt_reason_counts_all_splits": {
+      "first_event_no_predecessor": 1546,
+      "zero_delta_at_second_precision": 9776,
+      "positive_delta_at_second_precision": 18341
+    },
+    "dt_boundary_validation": "all 1546 parents start at causal_event_index=0, use exactly one first-event reason, and have contiguous event indices",
+    "indexed_tr_event_validity": "all 29663 rows contain at least one TR source value; valid_point_count means received indexed TR observations",
+    "data_rebuild": "未执行; V3 rows/split/RD tensors and V2 normalization are reused read-only"
+  },
+  "configs": {
+    "dbb_cu_gate": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V13-cq08-liquid-hierarchical-dbb-cu-gate-config.json",
+      "file_sha256": "e337a63dd285b22c38f123d1f39cd080d636852e7b2005d7bff4395419f4fba8",
+      "semantic_identity_sha256": "cd0573ac2b33fe2b1a7b6603d48497ed6ed9686fc274172c44dc21ba670ca9ba"
+    },
+    "dbb_specialist": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V13-cq08-liquid-hierarchical-dbb-specialist-config.json",
+      "file_sha256": "5bb20be19f50bdc3f8d8be53dcc82b5e050c5d48a5926f7f0e258f29a0f5c150",
+      "semantic_identity_sha256": "f92ed188a3b74b222f1ea45fa04819dfc877044e5837d59c30b68ff95f5b2eb7"
+    },
+    "cu_specialist": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V13-cq08-liquid-hierarchical-cu-specialist-config.json",
+      "file_sha256": "b43f315c2065c0511bfb9929747783ae41f4539cf07fcec4261b0d865e943dff",
+      "semantic_identity_sha256": "591fb4869375a395e03a7c958f9837d432f6f4b44ba4bf069cff0cda38bf45fc"
+    }
+  },
+  "verification": {
+    "focused_contract": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-focused-contract-result.json",
+      "sha256": "f14bdc84d664dbaa38b8d79b01192aaa0d0865488dc9cad9dc3389f22c6ddcf2",
+      "status": "passed"
+    },
+    "cpu_smoke": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cpu\\result.json",
+      "sha256": "6595aa4b3b2db8c22eef11476ff75d5c36294c191589c7c1fcd573329eb6410a",
+      "status": "passed",
+      "offline_online_probability_max_difference": 4.470348358154297e-08
+    },
+    "cuda_smoke": {
+      "path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V13-hierarchical-cascade-smoke-cuda\\result.json",
+      "sha256": "d2444adabfa6148655a7c0ce156aac71c87daf7023adfe63e0def8396804ccf7",
+      "status": "passed",
+      "offline_online_probability_max_difference": 8.940696716308594e-08
+    },
+    "task_checkpoint_round_trip_max_difference": 0.0,
+    "joint_checkpoint_round_trip_max_difference": 0.0,
+    "offline_online_action_and_stable_state_match": true,
+    "edited_same_name_config_checkpoint_rejected": true,
+    "missing_product_selection_checkpoint_rejected": true,
+    "calibration_requires_exact_deployment_checkpoint_binding": true,
+    "legacy_v7_v8_core_regression": "passed",
+    "existing_v12_best_checkpoints_strict_restore_count": 6
+  },
+  "metric_contract": {
+    "accepted_macro_classes": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "unknown_false_accepts_count_in_known_precision": true,
+    "drone_bird_precision_uses_all_parent_false_positives": true,
+    "drone_bird_recall_counts_pending_rejected_and_other_class_as_false_negative": true,
+    "pending_confidence": null,
+    "unknown_target_label_unknown_reject_action_and_pending_are_distinct": true
+  },
+  "not_executed": {
+    "formal_supervised_training": "未执行",
+    "formal_validation_performance": "未评估",
+    "train_parent_grouped_oof_calibration": "未执行",
+    "validated_rejection_metrics": "未评估",
+    "stable_action_performance": "未评估",
+    "test_evaluation": "未执行",
+    "p95_latency": "未执行",
+    "deployment": "未执行"
+  },
+  "known_blockers_after_supervised_training": [
+    "Train parent-grouped OOF calibration must be generated for the exact frozen three-checkpoint set before any rejection claim",
+    "Validation CU support is only 8 Clutter and 15 Unknown parents, so weak-class results remain statistically unstable",
+    "Cross-split repeated RD/capture provenance remains unresolved; no new generalization claim is allowed",
+    "Test, stable product acceptance and end-to-end P95 remain separately gated"
+  ],
+  "execution_policy": "Do not start training until the user explicitly confirms this repaired V13 contract; after confirmation use only train.cascade with all three configs"
+}

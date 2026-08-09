@@ -1,0 +1,160 @@
+{
+  "schema_version": "RADAR-LN3-V13",
+  "contract_name": "cq08_tr_rd_reason_aware_hierarchical_liquid_cascade_v1",
+  "contract_status": "implementation_prepared_formal_training_not_executed",
+  "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+  "source_contract": "data/processed/RADAR-LN3-V6-cq08-tr-rd-causal-quality-data-contract.json",
+  "source_contract_sha256": "2110938d1d94923edb44c2825e34fb595fb1b34c1353f3f3e512403f91ed8777",
+  "source_normalization_stats": "data/processed/RADAR-LN3-V2-cq08-tr-rd-train-normalization-stats.json",
+  "source_normalization_stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6",
+  "source_purity": {
+    "allowed_sources": ["CQ08"],
+    "excluded_sources": ["raw", "Excel", "RD-only"]
+  },
+  "data_scope": {
+    "index_schema_version": "RADAR-LN3-V3",
+    "parent_count": 1546,
+    "point_count": 29663,
+    "split_parent_counts": {"train": 1081, "val": 232, "test": 233},
+    "split_point_counts": {"train": 20684, "val": 4474, "test": 4505},
+    "label_parent_counts": {
+      "DroneTarget": 698,
+      "BirdTarget": 348,
+      "BalloonTarget": 350,
+      "ClutterTarget": 50,
+      "UnknownTarget": 100
+    },
+    "label_mapping": {
+      "DroneTarget": 0,
+      "BirdTarget": 1,
+      "BalloonTarget": 2,
+      "ClutterTarget": 3,
+      "UnknownTarget": 4
+    },
+    "index_rows_changed": false,
+    "split_changed": false,
+    "normalization_changed": false
+  },
+  "time_contract": {
+    "raw_precision_seconds": 1.0,
+    "dt_field": "tr_dt_seconds",
+    "dt_valid_field": "tr_dt_valid",
+    "dt_reason_field": "tr_dt_reason",
+    "reason_encoding": {
+      "padding": 0,
+      "first_event_no_predecessor": 1,
+      "zero_delta_at_second_precision": 2,
+      "positive_delta_at_second_precision": 3
+    },
+    "observed_counts_all_splits": {
+      "first_event_no_predecessor": 1546,
+      "zero_delta_at_second_precision": 9776,
+      "positive_delta_at_second_precision": 18341
+    },
+    "dynamics_only": true,
+    "first_event_rule": "initialize from the current observation without claiming elapsed physical time",
+    "zero_delta_rule": "apply bounded current-observation update without time decay",
+    "positive_delta_rule": "apply continuous-time liquid update using the retained positive second-precision delta",
+    "padding_rule": "never update state",
+    "no_high_precision_dt_recovery_claim": true,
+    "rd_time_is_not_tr_wall_clock": true
+  },
+  "feature_contract": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "rd_quality_schema": "causal-current-event-v1",
+    "rd_quality_names": [
+      "rd_present",
+      "rd_frame_count_scaled",
+      "rd_local_duration_scaled",
+      "rd_missing",
+      "rd_local_time_non_monotonic",
+      "rd_multiple_frames",
+      "rd_frames_truncated"
+    ],
+    "rd_frame_shape": [2, 21, 384],
+    "rd_normalization_stats": "data/processed/RADAR-LN3-V2-cq08-tr-rd-train-normalization-stats.json",
+    "rd_normalization_stats_sha256": "584eddcaeb8d78677f0f4902d622c2aa313d9374b767a47982c12dc058f826b6",
+    "excluded_model_inputs": [
+      "rd_quality_partial_parent",
+      "rd_quality_parent_order_anomaly",
+      "rd_parent_coverage_status",
+      "rd_parent_order_status",
+      "label_name",
+      "path",
+      "filename",
+      "parent_sample_id",
+      "track_id",
+      "split_name"
+    ],
+    "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification Fusion"
+  },
+  "model_io": {
+    "tr_features": "[B,L,14]",
+    "tr_missing_mask": "[B,L,11]",
+    "tr_dt_seconds": "[B,L]",
+    "tr_dt_valid": "[B,L] bool",
+    "tr_dt_reason": "[B,L] int64 dynamics-only",
+    "rd_frames": "[B,L,K,2,21,384]",
+    "rd_frame_mask": "[B,L,K] bool",
+    "rd_quality": "[B,L,7] causal-current-event-v1",
+    "tr_padding_mask": "[B,L] bool",
+    "gate_logits": "[B,L,2] DBB/CU",
+    "dbb_logits": "[B,L,3] Drone/Bird/Balloon conditioned on DBB",
+    "cu_logits": "[B,L,2] CLUTTER_ACCEPT_EVIDENCE/CLUTTER_REJECT_EVIDENCE",
+    "soft_posterior": "[B,L,5] probability audit only",
+    "hierarchical_action": "DBB_PENDING|DBB_ACCEPTED|CU_PENDING|CLUTTER_ACCEPTED|UNKNOWN_REJECTED"
+  },
+  "training_contract": {
+    "entry": "src-v3/train/cascade.py",
+    "task_entry_forbidden": "src-v3/train/tasks.py rejects V13",
+    "tasks": ["dbb_cu_gate", "dbb_specialist", "cu_specialist"],
+    "optimization": "one all-parent batch, one route-aware hierarchical graph, one optimizer step over three independent encoders",
+    "main_loss": "parent-final hierarchical NLL",
+    "specialist_route_balance": {
+      "reason": "prevent CU specialist dilution in the 976 DBB versus 105 CU train-parent mixture",
+      "dbb_route_weight": 0.5537909836065574,
+      "cu_route_weight": 5.147619047619047,
+      "source": "frozen train-parent DBB/CU inverse-frequency weights, identical to Gate class weights",
+      "branch_internal_weights_remain_separate": true
+    },
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "prefix_semantics": "events 1-2 remain unsupervised pending; eligible prefixes are an explicit low-weight auxiliary",
+    "unknown_semantics": "existing UnknownTarget labels supervise CLUTTER_REJECT_EVIDENCE; this is not proof of open-set generalization",
+    "checkpoint_selection": "Gate floor, DBB floor, CU floor, Drone/Bird safety floor, Unknown-to-DBB and Bird-to-CU error counts, then diagnostic hierarchical parent Macro-F1; soft posterior is reported but never used for selection",
+    "checkpoint_atomicity": "three task best checkpoints update together only when one product ranking improves",
+    "epochs": 20,
+    "early_stopping": false,
+    "pretraining": "not_required_and_not_used"
+  },
+  "action_contract": {
+    "soft_posterior_is_product_action": false,
+    "gate_action": "accept DBB when calibrated, otherwise route to CU",
+    "dbb_action": "select Drone/Bird/Balloon only after DBB acceptance",
+    "cu_action": "accept Clutter when calibrated, otherwise UNKNOWN_REJECTED",
+    "unknown_label_is_rejection_action": false,
+    "calibration_source_required": "train_parent_grouped_oof",
+    "validation_threshold_fitting_forbidden": true,
+    "test_threshold_fitting_forbidden": true,
+    "uncalibrated_mode": "diagnostic hierarchical argmax only; no Coverage/FAR/FRR/reject/stable claim"
+  },
+  "reuse": {
+    "index_reused": true,
+    "normalization_reused": true,
+    "rd_tensors_reused_read_only": true,
+    "v8_v12_checkpoint_compatibility": "forbidden by V13 checkpoint and model/action contract",
+    "version_reason": "V13 changes dt-reason consumption, parent-final hierarchical objective, joint checkpoint selection, rejection and stable action semantics while retaining unchanged V3 rows/split and V2 normalization"
+  },
+  "validation_status": {
+    "focused_loss_dt_action_contract": "passed",
+    "bounded_real_data_smoke": "not_executed_at_generation_time",
+    "formal_training": "not_executed",
+    "oof_calibration": "not_executed",
+    "validation_performance": "not_evaluated",
+    "test": "not_executed",
+    "p95": "not_executed"
+  }
+}
