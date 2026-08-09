@@ -1,0 +1,307 @@
+{
+  "schema_version": "RADAR-LN3-V14",
+  "contract_name": "cq08_strict_open_set_oof_fold_00_training_v1",
+  "contract_status": "oof_calibration_support_training_prepared_not_executed",
+  "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+  "source_contract": "data/processed/RADAR-LN3-V13-cq08-hierarchical-cascade-data-contract.json",
+  "source_contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+  "source_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-oof-fold-00-train-normalization-stats.json",
+  "source_normalization_stats_sha256": "7e6c0aace0a77fe90e9e59e21ebcf067db57b56e1482ed13f8cbce5a147219ed",
+  "source_purity": {
+    "allowed_sources": [
+      "CQ08"
+    ],
+    "excluded_sources": [
+      "raw",
+      "Excel",
+      "RD-only"
+    ]
+  },
+  "data_scope": {
+    "index_schema_version": "RADAR-LN3-V3",
+    "parent_count": 1546,
+    "point_count": 29663,
+    "split_parent_counts": {
+      "train": 1081,
+      "val": 232,
+      "test": 233
+    },
+    "split_point_counts": {
+      "train": 20684,
+      "val": 4474,
+      "test": 4505
+    },
+    "label_parent_counts": {
+      "DroneTarget": 698,
+      "BirdTarget": 348,
+      "BalloonTarget": 350,
+      "ClutterTarget": 50,
+      "UnknownTarget": 100
+    },
+    "train_label_parent_counts": {
+      "DroneTarget": 488,
+      "BirdTarget": 243,
+      "BalloonTarget": 245,
+      "ClutterTarget": 35,
+      "UnknownTarget": 70
+    },
+    "validation_label_parent_counts": {
+      "DroneTarget": 105,
+      "BirdTarget": 52,
+      "BalloonTarget": 52,
+      "ClutterTarget": 8,
+      "UnknownTarget": 15
+    },
+    "test_label_parent_counts_metadata_only": {
+      "DroneTarget": 105,
+      "BirdTarget": 53,
+      "BalloonTarget": 53,
+      "ClutterTarget": 7,
+      "UnknownTarget": 15
+    },
+    "known_train_parent_count": 1011,
+    "known_validation_parent_count": 217,
+    "unknown_train_source_parent_count": 70,
+    "unknown_validation_audit_parent_count": 15,
+    "index_rows_changed": false,
+    "split_changed": false,
+    "rd_tensor_payloads_changed": false,
+    "test_payload_access_count": 0,
+    "oof_fold_id": 0,
+    "optimizer_known_parent_count": 808,
+    "held_out_known_parent_count": 203,
+    "optimizer_label_parent_counts": {
+      "DroneTarget": 390,
+      "BirdTarget": 194,
+      "BalloonTarget": 196,
+      "ClutterTarget": 28
+    },
+    "held_out_label_parent_counts": {
+      "DroneTarget": 98,
+      "BirdTarget": 49,
+      "BalloonTarget": 49,
+      "ClutterTarget": 7
+    },
+    "unknown_optimizer_parent_count": 0,
+    "unknown_held_out_parent_count": 0,
+    "validation_access_count": 0
+  },
+  "strict_open_set_contract": {
+    "known_training_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "unknown_label": "UnknownTarget",
+    "unknown_is_model_class": false,
+    "unknown_is_training_target": false,
+    "unknown_is_normalization_population": false,
+    "unknown_is_sampler_population": false,
+    "unknown_is_optimizer_population": false,
+    "unknown_is_checkpoint_ranking_population": false,
+    "unknown_is_oof_population": false,
+    "unknown_is_threshold_fitting_population": false,
+    "unknown_training_exposure": 0,
+    "normalization_known_parent_count": 808,
+    "normalization_excluded_unknown_parent_count": 70,
+    "normalization_selected_excluded_tensor_overlap_count": 0,
+    "validation_known_checkpoint_selection_parent_count": 0,
+    "validation_unknown_post_freeze_development_audit_parent_count": 0,
+    "validation_unknown_threshold_fitting_allowed": false,
+    "validation_unknown_checkpoint_selection_allowed": false,
+    "test_is_sealed": true,
+    "test_evaluation": "未执行",
+    "oof_fold_train_parent_count": 808,
+    "oof_fold_held_out_parent_count": 203,
+    "oof_fold_held_out_checkpoint_selection_allowed": false,
+    "oof_fold_validation_access_count": 0,
+    "oof_fold_test_payload_access_count": 0
+  },
+  "normalization_contract": {
+    "path": "data/processed/RADAR-LN3-V14-cq08-known-only-oof-fold-00-train-normalization-stats.json",
+    "sha256": "7e6c0aace0a77fe90e9e59e21ebcf067db57b56e1482ed13f8cbce5a147219ed",
+    "schema_version": "RADAR-LN3-V14",
+    "source_split": "train",
+    "known_parent_count": 808,
+    "selected_label_parent_counts": {
+      "BalloonTarget": 196,
+      "BirdTarget": 194,
+      "ClutterTarget": 28,
+      "DroneTarget": 390
+    },
+    "forbidden_labels": [
+      "UnknownTarget"
+    ],
+    "excluded_label_parent_counts": {
+      "BalloonTarget": 49,
+      "BirdTarget": 49,
+      "ClutterTarget": 7,
+      "DroneTarget": 98,
+      "UnknownTarget": 70
+    },
+    "selected_parent_ids_sha256": "5f79c8e882d7d23ca605d50147c3a8fbd3c7d907442a96f4ff3701f673ccc9a0",
+    "selected_rd_tensor_paths_sha256": "1d559a240ea25cbdb7b7b78818f086f6cb9730467405becb51f1af440002db53",
+    "excluded_parent_ids_sha256": "4ccf8da5152956ffc9a489d4afc95a5b5c8467784540c646a734643b1cc31bec",
+    "excluded_rd_tensor_paths_sha256": "5f0c816222c8839139688fbce4433a77f48d3e1c8ac9d0ccb33be15f23f16043",
+    "rd_amplitude_center": 55.9375,
+    "rd_amplitude_scale": 6.92380060902787,
+    "allowed_parent_ids_count": 808,
+    "allowed_parent_ids_sha256": "5f79c8e882d7d23ca605d50147c3a8fbd3c7d907442a96f4ff3701f673ccc9a0"
+  },
+  "time_contract": {
+    "raw_precision_seconds": 1.0,
+    "dt_field": "tr_dt_seconds",
+    "dt_valid_field": "tr_dt_valid",
+    "dt_reason_field": "tr_dt_reason",
+    "reason_encoding": {
+      "padding": 0,
+      "first_event_no_predecessor": 1,
+      "zero_delta_at_second_precision": 2,
+      "positive_delta_at_second_precision": 3
+    },
+    "dynamics_only": true,
+    "first_event_rule": "initialize from the current observation without claiming elapsed physical time",
+    "zero_delta_rule": "apply bounded current-observation update without time decay",
+    "positive_delta_rule": "apply continuous-time liquid update with the positive second-precision delta",
+    "padding_rule": "never update state",
+    "no_high_precision_dt_recovery_claim": true
+  },
+  "feature_contract": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "rd_quality_schema": "causal-current-event-v1",
+    "rd_quality_names": [
+      "rd_present",
+      "rd_frame_count_scaled",
+      "rd_local_duration_scaled",
+      "rd_missing",
+      "rd_local_time_non_monotonic",
+      "rd_multiple_frames",
+      "rd_frames_truncated"
+    ],
+    "rd_frame_shape": [
+      2,
+      21,
+      384
+    ],
+    "rd_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-oof-fold-00-train-normalization-stats.json",
+    "rd_normalization_stats_sha256": "7e6c0aace0a77fe90e9e59e21ebcf067db57b56e1482ed13f8cbce5a147219ed",
+    "excluded_model_inputs": [
+      "label_name",
+      "path",
+      "filename",
+      "parent_sample_id",
+      "track_id",
+      "split_name",
+      "UnknownTarget indicator"
+    ],
+    "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification Fusion"
+  },
+  "model_io": {
+    "tr_features": "[B,L,14]",
+    "tr_missing_mask": "[B,L,11]",
+    "tr_dt_seconds": "[B,L]",
+    "tr_dt_valid": "[B,L] bool",
+    "tr_dt_reason": "[B,L] int64 dynamics-only",
+    "rd_frames": "[B,L,K,2,21,384]",
+    "rd_frame_mask": "[B,L,K] bool",
+    "rd_quality": "[B,L,7] causal-current-event-v1",
+    "tr_padding_mask": "[B,L] bool",
+    "gate_logits": "[B,L,2] DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE",
+    "dbb_logits": "[B,L,3] Drone/Bird/Balloon known conditional evidence",
+    "cu_logits": "[B,L,2] CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE",
+    "open_set_audit_evidence": "[B,L,5] four known evidence values plus UNRESOLVED_OPEN_SET_EVIDENCE; not Unknown posterior",
+    "hierarchical_action": "DBB_PENDING|DBB_ACCEPTED|CU_PENDING|CLUTTER_ACCEPTED|UNKNOWN_REJECTED"
+  },
+  "training_contract": {
+    "entry": "src-v3/train/strict_open_set_oof.py",
+    "single_task_entry_forbidden": true,
+    "optimization_population": "known train parents excluding OOF fold 00",
+    "optimizer_parent_count": 808,
+    "unknown_optimizer_parent_count": 0,
+    "gate_target": "DBB known versus Clutter route evidence; Unknown absent",
+    "dbb_target": "Drone/Bird/Balloon only",
+    "cu_target": "Clutter accept versus DBB known non-Clutter evidence; Unknown absent",
+    "main_loss": "parent-final known-only strict-open-set NLL",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_selection": "fixed final epoch; held-out fold is never used for checkpoint selection",
+    "unknown_checkpoint_selection_exposure": 0,
+    "epochs": 20,
+    "early_stopping": false,
+    "pretraining": "not_required_and_not_used"
+  },
+  "oof_calibration_contract": {
+    "fit_split": "train",
+    "fit_population": "known_only",
+    "grouping": "parent",
+    "prediction_protocol": "out_of_fold",
+    "unknown_oof_count": 0,
+    "validation_used_for_threshold_fitting": false,
+    "test_used": false,
+    "thresholds": [
+      "gate_accept_dbb_probability_and_margin",
+      "dbb_accept_known_probability_and_margin",
+      "cu_accept_clutter_probability_and_margin"
+    ],
+    "status": "未执行"
+  },
+  "action_contract": {
+    "gate_action": "accept DBB route when calibrated; otherwise route to CU",
+    "dbb_action": "accept Drone/Bird/Balloon only when DBB knownness is calibrated and passes",
+    "dbb_knownness_failure": "UNKNOWN_REJECTED",
+    "cu_action": "accept Clutter only when calibrated and passes",
+    "cu_clutter_failure": "UNKNOWN_REJECTED",
+    "unknown_is_rejection_action_only": true,
+    "unknown_is_probability_output": false,
+    "uncalibrated_mode": "named evidence audit only; no Coverage/FAR/FRR/reject/stable claim"
+  },
+  "reuse": {
+    "index_reused": true,
+    "split_reused": true,
+    "rd_tensors_reused_read_only": true,
+    "normalization_reused": false,
+    "v13_checkpoint_compatibility": "forbidden",
+    "v13_calibration_compatibility": "forbidden",
+    "version_reason": "V14 OOF support contract changes only the train-parent subset and fold-train normalization; it is not a deployment data version",
+    "base_v14_contract_reused": false,
+    "fold_specific_normalization": true
+  },
+  "validation_status": {
+    "focused": "未执行",
+    "bounded_cpu_smoke": "未执行",
+    "bounded_cuda_smoke": "未执行",
+    "formal_training": "不适用（OOF校准支持折模型）",
+    "oof_calibration": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "test": "未执行",
+    "p95": "未执行",
+    "oof_fold_training": "未执行",
+    "oof_prediction": "未执行"
+  },
+  "oof_fold_training_contract": {
+    "fold_id": 0,
+    "fit_split": "train",
+    "fit_population": "known_only",
+    "grouping": "parent",
+    "train_parent_count": 808,
+    "held_out_parent_count": 203,
+    "train_parent_ids_sha256": "5f79c8e882d7d23ca605d50147c3a8fbd3c7d907442a96f4ff3701f673ccc9a0",
+    "held_out_parent_ids_sha256": "454dcf0ece07fb06e0c81feb0366dabd4bd0414b215a4004dcc8c7ed09057aeb",
+    "parent_overlap_count": 0,
+    "unknown_training_exposure": 0,
+    "unknown_oof_prediction_count": 0,
+    "validation_access_count": 0,
+    "test_payload_access_count": 0,
+    "epochs": 20,
+    "early_stopping": false,
+    "held_out_checkpoint_selection": false,
+    "held_out_prediction_time": "once_after_fixed_final_epoch",
+    "training": "未执行",
+    "prediction": "未执行"
+  }
+}

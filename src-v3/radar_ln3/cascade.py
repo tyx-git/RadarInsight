@@ -16,6 +16,7 @@ from .rejection import (
     HierarchicalActionDecision,
     HierarchicalRejectionPolicy,
     RejectionPolicy,
+    StrictOpenSetRejectionPolicy,
 )
 from .stable import (
     HierarchicalStableDecision,
@@ -24,10 +25,15 @@ from .stable import (
     TargetStableStateMachine,
 )
 from .task_models import (
+    HIERARCHICAL_SCHEMA_VERSIONS,
     HIERARCHICAL_CASCADE_SCHEMA_VERSION,
+    KNOWN_BASE_LABELS,
+    STRICT_OPEN_SET_SCHEMA_VERSION,
+    UNKNOWN_BASE_LABEL,
     LiquidTaskClassifier,
     LiquidTaskConfig,
     compose_soft_cascade,
+    compose_strict_open_set_evidence,
     load_task_checkpoint,
     resolve_project_path,
     verify_task_data_contract,
@@ -35,6 +41,7 @@ from .task_models import (
 
 
 EXPECTED_TASKS = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
+STRICT_OPEN_SET_EVIDENCE_NAMES = (*LABELS[:4], "UNRESOLVED_OPEN_SET_EVIDENCE")
 
 
 def _shared_data_contract(config: LiquidTaskConfig) -> tuple[Any, ...]:
@@ -102,7 +109,7 @@ def validate_cascade_configs(configs: Mapping[str, LiquidTaskConfig]) -> None:
         raise ValueError("soft cascade task configurations do not share one data contract")
     if len({_shared_model_contract(config) for config in ordered}) != 1:
         raise ValueError("soft cascade task configurations do not share one encoder/dynamics contract")
-    if ordered[0].schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if ordered[0].schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         shared_train = {
             (
                 config.train.batch_size,
@@ -130,9 +137,9 @@ def validate_cascade_configs(configs: Mapping[str, LiquidTaskConfig]) -> None:
             for config in ordered
         }
         if len(shared_train) != 1:
-            raise ValueError("V13 tasks do not share one joint training/product checkpoint contract")
+            raise ValueError("hierarchical tasks do not share one joint training/product checkpoint contract")
         if len({config.train.formal_artifact_dir for config in ordered}) != len(EXPECTED_TASKS):
-            raise ValueError("V13 task checkpoints require distinct task artifact directories")
+            raise ValueError("hierarchical task checkpoints require distinct task artifact directories")
 
 
 class LiquidSoftCascade(nn.Module):
@@ -157,15 +164,15 @@ class LiquidSoftCascade(nn.Module):
         gate = self.gate(**batch)
         dbb = self.dbb_specialist(**batch)
         cu = self.cu_specialist(**batch)
-        sequence_probabilities = compose_soft_cascade(
+        strict_open_set = self.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+        compose = compose_strict_open_set_evidence if strict_open_set else compose_soft_cascade
+        sequence_audit = compose(
             gate["sequence_logits"], dbb["sequence_logits"], cu["sequence_logits"]
         )
-        window_probabilities = compose_soft_cascade(
+        window_audit = compose(
             gate["window_logits"], dbb["window_logits"], cu["window_logits"]
         )
-        return {
-            "sequence_probabilities": sequence_probabilities,
-            "window_probabilities": window_probabilities,
+        result = {
             "gate_sequence_logits": gate["sequence_logits"],
             "dbb_sequence_logits": dbb["sequence_logits"],
             "cu_sequence_logits": cu["sequence_logits"],
@@ -177,6 +184,17 @@ class LiquidSoftCascade(nn.Module):
             "cu_final_state": cu["liquid_final_state"],
             "dt_invalid_mask": gate["dt_invalid_mask"],
         }
+        if strict_open_set:
+            result.update({
+                "sequence_open_set_evidence": sequence_audit,
+                "window_open_set_evidence": window_audit,
+            })
+        else:
+            result.update({
+                "sequence_probabilities": sequence_audit,
+                "window_probabilities": window_audit,
+            })
+        return result
 
 
 @dataclass
@@ -223,6 +241,13 @@ class CascadeOnlineStepResult:
     valid_point_count: int | None = None
     track_quality: float | None = None
     gap_fraction: float | None = None
+    dbb_known_confidence: float | None = None
+    dbb_known_margin: float | None = None
+    clutter_accept_confidence: float | None = None
+    clutter_accept_margin: float | None = None
+    open_set_audit_evidence: torch.Tensor | None = None
+    open_set_audit_evidence_names: tuple[str, ...] = ()
+    unresolved_open_set_evidence: float | None = None
 
 
 class OnlineLiquidSoftCascade:
@@ -235,18 +260,32 @@ class OnlineLiquidSoftCascade:
         confirm_count: int = 2,
         ema_decay: float = 0.65,
         rejection_policy: RejectionPolicy | None = None,
-        hierarchical_rejection_policy: HierarchicalRejectionPolicy | None = None,
+        hierarchical_rejection_policy: HierarchicalRejectionPolicy | StrictOpenSetRejectionPolicy | None = None,
     ) -> None:
         self.model = model
         self.confirm_count = max(1, int(confirm_count))
         self.ema_decay = float(ema_decay)
         self.rejection_policy = rejection_policy or RejectionPolicy()
-        self.hierarchical_rejection_policy = hierarchical_rejection_policy or HierarchicalRejectionPolicy()
-        self.hierarchical_mode = model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION
+        self.hierarchical_mode = model.gate.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS
+        self.strict_open_set_mode = model.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+        if hierarchical_rejection_policy is None:
+            self.hierarchical_rejection_policy = (
+                StrictOpenSetRejectionPolicy()
+                if self.strict_open_set_mode
+                else HierarchicalRejectionPolicy()
+            )
+        else:
+            self.hierarchical_rejection_policy = hierarchical_rejection_policy
+        if self.strict_open_set_mode and not isinstance(self.hierarchical_rejection_policy, StrictOpenSetRejectionPolicy):
+            raise ValueError("V14 online cascade requires the strict-open-set rejection policy")
+        if self.hierarchical_mode and not self.strict_open_set_mode and not isinstance(
+            self.hierarchical_rejection_policy, HierarchicalRejectionPolicy
+        ):
+            raise ValueError("V13 online cascade requires the V13 hierarchical rejection policy")
         if self.hierarchical_mode and rejection_policy is not None:
-            raise ValueError("V13 online cascade must not use the legacy five-class rejection policy")
+            raise ValueError(f"{model.gate.config.schema_version} online cascade must not use the legacy five-class rejection policy")
         if not self.hierarchical_mode and hierarchical_rejection_policy is not None:
-            raise ValueError("historical online cascade must not use the V13 hierarchical rejection policy")
+            raise ValueError("historical online cascade must not use a hierarchical rejection policy")
         self.reset()
 
     def reset(self) -> None:
@@ -269,8 +308,14 @@ class OnlineLiquidSoftCascade:
         self.gate_state = gate["liquid_state"]
         self.dbb_state = dbb["liquid_state"]
         self.cu_state = cu["liquid_state"]
-        probabilities = compose_soft_cascade(
-            gate["window_logits"], dbb["window_logits"], cu["window_logits"]
+        probabilities = (
+            compose_strict_open_set_evidence(
+                gate["window_logits"], dbb["window_logits"], cu["window_logits"]
+            )
+            if self.strict_open_set_mode
+            else compose_soft_cascade(
+                gate["window_logits"], dbb["window_logits"], cu["window_logits"]
+            )
         )
         gate_probabilities = torch.softmax(gate["window_logits"], dim=-1)
         dbb_probabilities = torch.softmax(dbb["window_logits"], dim=-1)
@@ -283,7 +328,7 @@ class OnlineLiquidSoftCascade:
             self.rd_observed_count += int(float(point["rd_quality"][0, 0].item()) >= 0.5)
             reason = point.get("tr_dt_reason")
             if reason is None:
-                raise ValueError("V13 online cascade requires tr_dt_reason")
+                raise ValueError(f"{self.model.gate.config.schema_version} online cascade requires tr_dt_reason")
             self.zero_delta_count += int(int(reason.reshape(-1)[0].item()) == 2)
             track_quality = self.rd_observed_count / self.valid_point_count
             gap_fraction = self.zero_delta_count / max(1, self.valid_point_count - 1)
@@ -349,10 +394,18 @@ class OnlineLiquidSoftCascade:
             stable_state_name=None if hierarchical_stable is None else hierarchical_stable.state_name,
             stable_rejected_to_unknown=False if hierarchical_stable is None else hierarchical_stable.stable_rejected_to_unknown,
             action_trigger_reasons=() if action is None else action.trigger_reasons,
-            soft_posterior_audit_probabilities=probabilities if self.hierarchical_mode else None,
-            soft_posterior_audit_label_id=window_id if self.hierarchical_mode else None,
-            soft_posterior_audit_label_name=LABELS[window_id] if self.hierarchical_mode else None,
-            soft_posterior_audit_confidence=audit_confidence if self.hierarchical_mode else None,
+            soft_posterior_audit_probabilities=(
+                probabilities if self.hierarchical_mode and not self.strict_open_set_mode else None
+            ),
+            soft_posterior_audit_label_id=(
+                window_id if self.hierarchical_mode and not self.strict_open_set_mode else None
+            ),
+            soft_posterior_audit_label_name=(
+                LABELS[window_id] if self.hierarchical_mode and not self.strict_open_set_mode else None
+            ),
+            soft_posterior_audit_confidence=(
+                audit_confidence if self.hierarchical_mode and not self.strict_open_set_mode else None
+            ),
             gate_dbb_probability=None if action is None else action.gate_dbb_probability,
             gate_margin=None if action is None else action.gate_margin,
             specialist_label_id=None if action is None else action.specialist_label_id,
@@ -361,6 +414,17 @@ class OnlineLiquidSoftCascade:
             valid_point_count=None if action is None else action.valid_point_count,
             track_quality=None if action is None else action.track_quality,
             gap_fraction=None if action is None else action.gap_fraction,
+            dbb_known_confidence=None if action is None else action.dbb_known_confidence,
+            dbb_known_margin=None if action is None else action.dbb_known_margin,
+            clutter_accept_confidence=None if action is None else action.clutter_accept_confidence,
+            clutter_accept_margin=None if action is None else action.clutter_accept_margin,
+            open_set_audit_evidence=probabilities if self.strict_open_set_mode else None,
+            open_set_audit_evidence_names=(
+                STRICT_OPEN_SET_EVIDENCE_NAMES if self.strict_open_set_mode else ()
+            ),
+            unresolved_open_set_evidence=(
+                float(probabilities[0, 4].item()) if self.strict_open_set_mode else None
+            ),
         )
 
 
@@ -382,7 +446,12 @@ def load_cascade(
         )
         models[name] = model.eval()
         payloads[name] = payload
-    if configs["dbb_cu_gate"].schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if configs["dbb_cu_gate"].schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+        expected_ranking_key_length = (
+            8
+            if configs["dbb_cu_gate"].schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            else 9
+        )
         config_identity_matches = all(
             payloads[name].get("config_name") == configs[name].config_name
             for name in EXPECTED_TASKS
@@ -401,7 +470,7 @@ def load_cascade(
             isinstance(selection, dict)
             and selection.get("metric") == configs[name].train.checkpoint_selection_metric
             and isinstance(selection.get("ranking_key"), list)
-            and len(selection["ranking_key"]) == 9
+            and len(selection["ranking_key"]) == expected_ranking_key_length
             for name, selection in zip(EXPECTED_TASKS, selection_payloads)
         )
         selections = {
@@ -427,7 +496,7 @@ def load_cascade(
             )
         ):
             raise ValueError(
-                "V13 task checkpoints do not match their configs or are not one jointly selected epoch/global-step/product candidate"
+                "hierarchical task checkpoints do not match their configs or are not one jointly selected epoch/global-step/product candidate"
             )
     cascade = LiquidSoftCascade(
         models["dbb_cu_gate"], models["dbb_specialist"], models["cu_specialist"]
@@ -447,7 +516,25 @@ def build_cascade(configs: Mapping[str, LiquidTaskConfig], *, device: torch.devi
     ).to(device)
 
 
-def build_cascade_dataset(project_root: Path, config: LiquidTaskConfig, *, split_name: str) -> CQ08PointSequenceDataset:
+def build_cascade_dataset(
+    project_root: Path,
+    config: LiquidTaskConfig,
+    *,
+    split_name: str,
+    label_scope: str | None = None,
+    parent_ids: tuple[str, ...] | list[str] | set[str] | frozenset[str] | None = None,
+) -> CQ08PointSequenceDataset:
+    strict_open_set = config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    if strict_open_set:
+        if label_scope not in {"known_only", "development_open_set_audit"}:
+            raise ValueError("V14 Dataset requires an explicit known_only or development_open_set_audit scope")
+        if split_name == config.data.train_split_name and label_scope != "known_only":
+            raise PermissionError("V14 train Dataset is permanently restricted to known_only labels")
+        if label_scope == "development_open_set_audit" and split_name != config.data.validation_split_name:
+            raise PermissionError("V14 open-set audit scope is restricted to the frozen validation split")
+    elif label_scope not in {None, "all"}:
+        raise ValueError("historical cascade Dataset does not support V14 label scopes")
+    strict_known_view = strict_open_set and label_scope == "known_only"
     return CQ08PointSequenceDataset(
         project_root,
         index_path=resolve_project_path(project_root, config.data.index_path),
@@ -460,6 +547,9 @@ def build_cascade_dataset(project_root: Path, config: LiquidTaskConfig, *, split
         sample_limit=None,
         expected_schema_version=config.data.index_schema_version,
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
+        allowed_labels=KNOWN_BASE_LABELS if strict_known_view else None,
+        forbidden_labels={UNKNOWN_BASE_LABEL} if strict_known_view else None,
+        allowed_parent_ids=parent_ids,
     )
 
 
@@ -472,9 +562,29 @@ def evaluate_cascade(
     split_name: str,
     stable_confirm_count: int = 2,
     stable_ema_decay: float = 0.65,
-    hierarchical_rejection_policy: HierarchicalRejectionPolicy | None = None,
+    hierarchical_rejection_policy: HierarchicalRejectionPolicy | StrictOpenSetRejectionPolicy | None = None,
+    evaluation_scope: str | None = None,
 ) -> dict[str, Any]:
+    if model.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+        if hierarchical_rejection_policy is not None and not isinstance(
+            hierarchical_rejection_policy, StrictOpenSetRejectionPolicy
+        ):
+            raise ValueError("V14 evaluation requires the strict-open-set rejection policy")
+        return evaluate_strict_open_set_cascade(
+            model,
+            dataset,
+            device=device,
+            batch_size=batch_size,
+            split_name=split_name,
+            evaluation_scope=evaluation_scope or "development_open_set_audit",
+            rejection_policy=hierarchical_rejection_policy,
+            stable_confirm_count=stable_confirm_count,
+        )
     if model.gate.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+        if hierarchical_rejection_policy is not None and not isinstance(
+            hierarchical_rejection_policy, HierarchicalRejectionPolicy
+        ):
+            raise ValueError("V13 evaluation requires the V13 hierarchical rejection policy")
         return evaluate_hierarchical_cascade(
             model,
             dataset,
@@ -670,6 +780,460 @@ def evaluate_cascade(
     }
 
 
+def summarize_strict_open_set_known_records(
+    records: list[dict[str, Any]],
+    *,
+    scope: str,
+) -> dict[str, Any]:
+    """Summarize four known classes plus one unresolved-action column."""
+
+    matrix = np.zeros((4, 5), dtype=np.int64)
+    for row in records:
+        true_id = int(row["true_id"])
+        pred_id = int(row["pred_id"])
+        if not 0 <= true_id < 4 or not 0 <= pred_id < 5:
+            raise ValueError("V14 known metric record is outside its 4x5 contract")
+        matrix[true_id, pred_id] += 1
+    support = matrix.sum(axis=1)
+    predicted_known = matrix[:, :4].sum(axis=0)
+    per_class: list[dict[str, Any]] = []
+    precision_values: list[float] = []
+    recall_values: list[float] = []
+    f1_values: list[float] = []
+    for class_id, name in enumerate(LABELS[:4]):
+        tp = int(matrix[class_id, class_id])
+        precision = tp / int(predicted_known[class_id]) if predicted_known[class_id] else 0.0
+        recall = tp / int(support[class_id]) if support[class_id] else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+        precision_values.append(float(precision))
+        recall_values.append(float(recall))
+        f1_values.append(float(f1))
+        confusion = matrix[class_id].copy()
+        confusion[class_id] = 0
+        destination = int(confusion.argmax()) if int(confusion.sum()) else None
+        per_class.append({
+            "class": name,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "support": int(support[class_id]),
+            "unresolved_count": int(matrix[class_id, 4]),
+            "major_confusion_to": (
+                STRICT_OPEN_SET_EVIDENCE_NAMES[destination]
+                if destination is not None and confusion[destination] > 0
+                else None
+            ),
+            "major_confusion_count": int(confusion[destination]) if destination is not None else 0,
+        })
+    total = int(matrix.sum())
+    accepted_count = int(matrix[:, :4].sum())
+    return {
+        "scope": scope,
+        "support": total,
+        "accepted_known_count": accepted_count,
+        "unresolved_known_count": int(matrix[:, 4].sum()),
+        "known_action_coverage": accepted_count / total if total else None,
+        "accuracy_including_unresolved_as_error": float(np.trace(matrix[:, :4]) / total) if total else None,
+        "accepted_accuracy": (
+            float(np.trace(matrix[:, :4]) / accepted_count) if accepted_count else None
+        ),
+        "macro_precision": float(np.mean(precision_values)) if precision_values else None,
+        "macro_recall": float(np.mean(recall_values)) if recall_values else None,
+        "macro_f1": float(np.mean(f1_values)) if f1_values else None,
+        "per_class": per_class,
+        "confusion_matrix_rows_known_true_columns_known_plus_unresolved": matrix.tolist(),
+        "prediction_columns": list(STRICT_OPEN_SET_EVIDENCE_NAMES),
+        "unresolved_is_unknown_class": False,
+        "unresolved_semantics": "diagnostic known evidence not accepted as any known class; calibrated rejection not implied",
+    }
+
+
+def _strict_open_set_unknown_audit(
+    records: list[dict[str, Any]],
+    *,
+    split_name: str,
+) -> dict[str, Any]:
+    if not records:
+        return {
+            "status": "not_in_scope",
+            "parent_count": 0,
+            "threshold_fitting_allowed": False,
+        }
+
+    def summary(field: str) -> dict[str, Any]:
+        values = np.asarray([float(row[field]) for row in records], dtype=np.float64)
+        return {
+            "minimum": float(values.min()),
+            "median": float(np.median(values)),
+            "maximum": float(values.max()),
+        }
+
+    return {
+        "status": "frozen_development_open_set_audit_only",
+        "split": split_name,
+        "parent_count": len(records),
+        "gate_diagnostic_route_counts": {
+            "DBB": sum(row["diagnostic_gate_route"] == "DBB" for row in records),
+            "CU": sum(row["diagnostic_gate_route"] == "CU" for row in records),
+        },
+        "gate_dbb_probability": summary("gate_dbb_probability"),
+        "dbb_top_probability": summary("dbb_known_confidence"),
+        "dbb_top_margin": summary("dbb_known_margin"),
+        "clutter_accept_probability": summary("clutter_accept_confidence"),
+        "clutter_accept_margin": summary("clutter_accept_margin"),
+        "threshold_fitting_allowed": False,
+        "checkpoint_selection_allowed": False,
+        "unknown_is_learned_class": False,
+    }
+
+
+def evaluate_strict_open_set_cascade(
+    model: LiquidSoftCascade,
+    dataset: CQ08PointSequenceDataset,
+    *,
+    device: torch.device,
+    batch_size: int,
+    split_name: str,
+    evaluation_scope: str,
+    rejection_policy: StrictOpenSetRejectionPolicy | None = None,
+    stable_confirm_count: int = 2,
+) -> dict[str, Any]:
+    """Evaluate V14 without allowing Unknown into any learned metric."""
+
+    if model.gate.config.schema_version != STRICT_OPEN_SET_SCHEMA_VERSION:
+        raise ValueError("strict open-set evaluator requires three V14 task models")
+    if evaluation_scope not in {"known_only_checkpoint_selection", "development_open_set_audit"}:
+        raise ValueError("unsupported V14 evaluation scope")
+    if hasattr(dataset, "frame"):
+        labels_in_dataset = set(dataset.frame["label_name"].astype(str))
+    else:
+        labels_in_dataset = {
+            str(dataset[index].label_name)
+            for index in range(len(dataset))
+        }
+    if evaluation_scope == "known_only_checkpoint_selection" and UNKNOWN_BASE_LABEL in labels_in_dataset:
+        raise ValueError("UnknownTarget must not enter V14 checkpoint selection evaluation")
+    if split_name == model.gate.config.data.test_split_name:
+        raise PermissionError("V14 test evaluation is sealed")
+    policy = rejection_policy or StrictOpenSetRejectionPolicy()
+    loader = build_point_dataloader(dataset, batch_size=batch_size, shuffle=False)
+    known_windows: list[dict[str, Any]] = []
+    known_parents: list[dict[str, Any]] = []
+    unknown_windows: list[dict[str, Any]] = []
+    unknown_parents: list[dict[str, Any]] = []
+    gate_parents: list[dict[str, int]] = []
+    dbb_parents: list[dict[str, int]] = []
+    cu_acceptance_parents: list[dict[str, int]] = []
+    calibrated_window_actions: list[dict[str, Any]] = []
+    calibrated_parent_actions: list[dict[str, Any]] = []
+    calibrated_accepted_parents: list[dict[str, Any]] = []
+    stable_action_records: list[dict[str, Any]] = []
+    stable_unconfirmed_records: list[dict[str, Any]] = []
+    dt_counts = {"first_event": 0, "zero_delta": 0, "positive_delta": 0}
+    collate_padding_positions = 0
+    with torch.inference_mode():
+        for batch in loader:
+            tensors = {
+                key: value.to(device) if isinstance(value, torch.Tensor) else value
+                for key, value in batch.items()
+            }
+            output = model(
+                tr_features=tensors["tr_features"],
+                tr_missing_mask=tensors["tr_missing_mask"],
+                tr_dt_seconds=tensors["tr_dt_seconds"],
+                tr_dt_valid=tensors["tr_dt_valid"],
+                tr_dt_reason=tensors["tr_dt_reason"],
+                rd_frames=tensors["rd_frames"],
+                rd_frame_mask=tensors["rd_frame_mask"],
+                rd_quality=tensors["rd_quality"],
+                tr_padding_mask=tensors["tr_padding_mask"],
+            )
+            reasons = tensors["tr_dt_reason"]
+            collate_padding_positions += int(tensors["tr_padding_mask"].sum().item())
+            dt_counts["first_event"] += int((reasons == 1).sum().item())
+            dt_counts["zero_delta"] += int((reasons == 2).sum().item())
+            dt_counts["positive_delta"] += int((reasons == 3).sum().item())
+            gate_probs = torch.softmax(output["gate_sequence_logits"], dim=-1)
+            dbb_probs = torch.softmax(output["dbb_sequence_logits"], dim=-1)
+            cu_probs = torch.softmax(output["cu_sequence_logits"], dim=-1)
+            evidence = output["sequence_open_set_evidence"]
+            for batch_index, parent_id in enumerate(batch["parent_sample_ids"]):
+                length = int(batch["lengths"][batch_index].item())
+                true_id = int(batch["labels"][batch_index].item())
+                if not 0 <= true_id <= 4:
+                    raise ValueError("V14 evaluator received an invalid frozen base label")
+                known_final: dict[str, Any] | None = None
+                unknown_final: dict[str, Any] | None = None
+                action_final: dict[str, Any] | None = None
+                stable_final: HierarchicalStableDecision | None = None
+                stable_machine = HierarchicalStableStateMachine(confirm_count=stable_confirm_count)
+                rd_observed_count = 0
+                zero_delta_count = 0
+                for event_index in range(length):
+                    gate_event = gate_probs[batch_index, event_index]
+                    dbb_event = dbb_probs[batch_index, event_index]
+                    cu_event = cu_probs[batch_index, event_index]
+                    audit_event = evidence[batch_index, event_index]
+                    gate_pred = int(gate_event.argmax().item())
+                    dbb_pred = int(dbb_event.argmax().item())
+                    cu_pred = int(cu_event.argmax().item())
+                    pred_id = dbb_pred if gate_pred == 0 else (3 if cu_pred == 0 else 4)
+                    dbb_top = torch.topk(dbb_event, k=2).values
+                    common = {
+                        "true_id": true_id,
+                        "parent_sample_id": parent_id,
+                        "track_id": batch["track_ids"][batch_index],
+                        "source_name": batch["source_names"][batch_index],
+                        "label_name": batch["label_names"][batch_index],
+                        "split_name": split_name,
+                        "event_index": event_index,
+                        "window_length": event_index + 1,
+                        "diagnostic_gate_route": "DBB" if gate_pred == 0 else "CU",
+                        "gate_dbb_probability": float(gate_event[0].item()),
+                        "gate_margin": float((gate_event[0] - gate_event[1]).item()),
+                        "dbb_known_confidence": float(dbb_event[dbb_pred].item()),
+                        "dbb_known_margin": float((dbb_top[0] - dbb_top[1]).item()),
+                        "clutter_accept_confidence": float(cu_event[0].item()),
+                        "clutter_accept_margin": float((cu_event[0] - cu_event[1]).item()),
+                        "audit_evidence": {
+                            name: float(audit_event[index].item())
+                            for index, name in enumerate(STRICT_OPEN_SET_EVIDENCE_NAMES)
+                        },
+                    }
+                    if true_id < 4:
+                        known_row = {
+                            **common,
+                            "pred_id": pred_id,
+                            "pred_name": STRICT_OPEN_SET_EVIDENCE_NAMES[pred_id],
+                            "unresolved": pred_id == 4,
+                        }
+                        known_windows.append(known_row)
+                        known_final = known_row
+                    else:
+                        unknown_row = {
+                            **common,
+                            "pred_id": None,
+                            "pred_name": None,
+                            "unknown_is_evaluation_truth_only": True,
+                        }
+                        unknown_windows.append(unknown_row)
+                        unknown_final = unknown_row
+                    if policy.enabled:
+                        rd_observed_count += int(float(tensors["rd_quality"][batch_index, event_index, 0].item()) >= 0.5)
+                        zero_delta_count += int(int(tensors["tr_dt_reason"][batch_index, event_index].item()) == 2)
+                        valid_points = event_index + 1
+                        action = policy.decide(
+                            gate_event.cpu(),
+                            dbb_event.cpu(),
+                            cu_event.cpu(),
+                            valid_point_count=valid_points,
+                            track_quality=rd_observed_count / valid_points,
+                            gap_fraction=min(1.0, zero_delta_count / max(1, valid_points - 1)),
+                        )
+                        stable_final = stable_machine.update(action)
+                        action_row = {
+                            **common,
+                            "pred_id": (
+                                None
+                                if action.decision_state == "pending"
+                                else 4
+                                if action.final_action == "UNKNOWN_REJECTED"
+                                else int(action.accepted_label_id)
+                            ),
+                            "decision_state": action.decision_state,
+                            "gate_action": action.gate_action,
+                            "conditional_action": action.conditional_action,
+                            "final_action": action.final_action,
+                            "accepted_label_id": action.accepted_label_id,
+                            "accepted_label_name": action.accepted_label_name,
+                            "rejected_to_unknown": action.rejected_to_unknown,
+                            "specialist_label_id": action.specialist_label_id,
+                            "specialist_confidence": action.specialist_confidence,
+                            "specialist_margin": action.specialist_margin,
+                            "valid_point_count": action.valid_point_count,
+                            "track_quality": action.track_quality,
+                            "gap_fraction": action.gap_fraction,
+                            "trigger_reasons": list(action.trigger_reasons),
+                            "calibration_source": action.calibration_source,
+                        }
+                        calibrated_window_actions.append(action_row)
+                        action_final = action_row
+                if true_id < 4:
+                    if known_final is None:
+                        raise ValueError(f"empty V14 known parent sequence: {parent_id}")
+                    known_parents.append(known_final)
+                    final_index = length - 1
+                    final_gate_pred = int(gate_probs[batch_index, final_index].argmax().item())
+                    final_dbb_pred = int(dbb_probs[batch_index, final_index].argmax().item())
+                    final_cu_pred = int(cu_probs[batch_index, final_index].argmax().item())
+                    gate_parents.append({"true_id": 0 if true_id < 3 else 1, "pred_id": final_gate_pred})
+                    cu_acceptance_parents.append({"true_id": 1 if true_id < 3 else 0, "pred_id": final_cu_pred})
+                    if true_id < 3:
+                        dbb_parents.append({"true_id": true_id, "pred_id": final_dbb_pred})
+                else:
+                    if unknown_final is None:
+                        raise ValueError(f"empty V14 Unknown audit sequence: {parent_id}")
+                    unknown_parents.append(unknown_final)
+                if policy.enabled:
+                    if action_final is None or stable_final is None:
+                        raise RuntimeError("calibrated V14 evaluation lost its final action state")
+                    calibrated_parent_actions.append(action_final)
+                    if action_final["accepted_label_id"] is not None:
+                        calibrated_accepted_parents.append(action_final)
+                    stable_base = {
+                        "true_id": true_id,
+                        "parent_sample_id": parent_id,
+                        "track_id": batch["track_ids"][batch_index],
+                        "source_name": batch["source_names"][batch_index],
+                        "label_name": batch["label_names"][batch_index],
+                        "split_name": split_name,
+                        "event_count": length,
+                        "stable_state_name": stable_final.state_name,
+                        "stable_confirmed": stable_final.stable_confirmed,
+                        "stable_rejected_to_unknown": stable_final.stable_rejected_to_unknown,
+                    }
+                    if stable_final.stable_confirmed:
+                        stable_action_records.append({
+                            **stable_base,
+                            "pred_id": 4 if stable_final.stable_rejected_to_unknown else int(stable_final.stable_label_id),
+                            "accepted_label_id": stable_final.stable_label_id,
+                        })
+                    else:
+                        stable_unconfirmed_records.append({
+                            **stable_base,
+                            "pred_id": None,
+                            "accepted_label_id": None,
+                            "candidate_action": stable_final.candidate_action,
+                            "candidate_count": stable_final.candidate_count,
+                        })
+
+    known_metrics = summarize_strict_open_set_known_records(
+        known_parents,
+        scope=f"{split_name}:V14_known_parent_final",
+    )
+    gate_metrics = summarize_records_with_names(
+        gate_parents,
+        ("DBB_ACCEPT_EVIDENCE", "ROUTE_TO_CU_EVIDENCE"),
+        "V14_gate_known_parent_final",
+    )
+    dbb_metrics = summarize_records_with_names(
+        dbb_parents,
+        LABELS[:3],
+        "V14_dbb_known_parent_conditional",
+    )
+    cu_metrics = summarize_records_with_names(
+        cu_acceptance_parents,
+        ("CLUTTER_ACCEPT_EVIDENCE", "NON_CLUTTER_KNOWN_EVIDENCE"),
+        "V14_clutter_acceptance_known_parent",
+    )
+    calibrated_summary = (
+        summarize_calibrated_actions(
+            calibrated_parent_actions,
+            calibrated_accepted_parents,
+            split_name=split_name,
+            calibration_source=None if policy.calibration is None else policy.calibration.source,
+        )
+        if policy.enabled
+        else {
+            "status": "not_evaluated",
+            "reason": "known-only train parent-grouped OOF calibration artifact was not supplied",
+            "coverage": "not_evaluated",
+            "false_acceptance_rate": "not_evaluated",
+            "false_rejection_rate": "not_evaluated",
+            "selective_risk": "not_evaluated",
+        }
+    )
+    stable_summary = (
+        summarize_stable_actions(
+            stable_action_records,
+            stable_unconfirmed_records,
+            total_parent_count=len(known_parents) + len(unknown_parents),
+            split_name=split_name,
+        )
+        if policy.enabled
+        else {"status": "not_evaluated_without_calibration", "stable_coverage": "not_evaluated"}
+    )
+    checkpoint_inputs: dict[str, Any]
+    if evaluation_scope == "known_only_checkpoint_selection":
+        if unknown_parents:
+            raise ValueError("V14 checkpoint inputs unexpectedly contain Unknown parents")
+        checkpoint_inputs = {
+            "status": "available_known_only",
+            "unknown_parent_count": 0,
+            "gate_min_precision_recall": minimum_precision_recall(gate_metrics),
+            "dbb_min_precision_recall": minimum_precision_recall(dbb_metrics),
+            "cu_min_precision_recall": minimum_precision_recall(cu_metrics),
+            "known_parent_macro_f1": known_metrics["macro_f1"],
+            "known_parent_drone_bird_min_precision_recall": minimum_precision_recall_for_names(
+                known_metrics,
+                ("DroneTarget", "BirdTarget"),
+            ),
+            "unknown_used_for_selection": False,
+        }
+    else:
+        checkpoint_inputs = {
+            "status": "forbidden_for_development_open_set_audit",
+            "unknown_parent_count": len(unknown_parents),
+            "unknown_used_for_selection": False,
+        }
+    return {
+        "schema_version": STRICT_OPEN_SET_SCHEMA_VERSION,
+        "split": split_name,
+        "evaluation_scope": evaluation_scope,
+        "dataset_parent_count": len(dataset),
+        "known_parent_count": len(known_parents),
+        "unknown_audit_parent_count": len(unknown_parents),
+        "window_count": len(known_windows) + len(unknown_windows),
+        "product_semantics": {
+            "architecture": "strict_open_set_three_checkpoint_liquid_soft_cascade",
+            "unknown_is_model_class": False,
+            "unknown_training_exposure": 0,
+            "gate": "accept DBB evidence or route to CU evidence",
+            "dbb_specialist": "Drone/Bird/Balloon plus calibrated knownness acceptance",
+            "cu_specialist": "Clutter acceptance versus non-Clutter-known evidence",
+            "unresolved_open_set_evidence_is_unknown_probability": False,
+            "unknown_output": "UNKNOWN_REJECTED action only after known-only OOF calibration",
+        },
+        "known_closed_set": {
+            "window_metrics": summarize_strict_open_set_known_records(
+                known_windows,
+                scope=f"{split_name}:V14_known_causal_windows",
+            ),
+            "parent_metrics": known_metrics,
+        },
+        "component_metrics": {
+            "gate_known_parent": gate_metrics,
+            "dbb_known_parent_conditional": dbb_metrics,
+            "clutter_acceptance_known_parent": cu_metrics,
+        },
+        "development_unknown_audit": _strict_open_set_unknown_audit(
+            unknown_parents,
+            split_name=split_name,
+        ),
+        "checkpoint_selection_inputs": checkpoint_inputs,
+        "calibrated_hierarchical_action": calibrated_summary,
+        "stable_action": stable_summary,
+        "dt_reason_counts_data_events": dt_counts,
+        "collate_padding_positions": collate_padding_positions,
+        "evaluation_batch_size": int(batch_size),
+        "session_metrics": {
+            "status": "not_available",
+            "reason": "current verified index has no session/capture field",
+        },
+        "records": {
+            "known_window": known_windows,
+            "known_parent": known_parents,
+            "development_unknown_window": unknown_windows,
+            "development_unknown_parent": unknown_parents,
+            "calibrated_window_action": calibrated_window_actions,
+            "calibrated_parent_action": calibrated_parent_actions,
+            "calibrated_accepted_parent": calibrated_accepted_parents,
+            "stable_action": stable_action_records,
+            "stable_unconfirmed": stable_unconfirmed_records,
+        },
+    }
+
+
 def evaluate_hierarchical_cascade(
     model: LiquidSoftCascade,
     dataset: CQ08PointSequenceDataset,
@@ -697,7 +1261,8 @@ def evaluate_hierarchical_cascade(
     calibrated_accepted_parents: list[dict[str, Any]] = []
     stable_action_records: list[dict[str, Any]] = []
     stable_unconfirmed_records: list[dict[str, Any]] = []
-    dt_counts = {"first_event": 0, "zero_delta": 0, "positive_delta": 0, "padding": 0}
+    dt_counts = {"first_event": 0, "zero_delta": 0, "positive_delta": 0}
+    collate_padding_positions = 0
     policy = rejection_policy or HierarchicalRejectionPolicy()
     with torch.inference_mode():
         for batch in loader:
@@ -714,7 +1279,7 @@ def evaluate_hierarchical_cascade(
                 tr_padding_mask=tensors["tr_padding_mask"],
             )
             reasons = tensors["tr_dt_reason"]
-            dt_counts["padding"] += int((reasons == 0).sum().item())
+            collate_padding_positions += int(tensors["tr_padding_mask"].sum().item())
             dt_counts["first_event"] += int((reasons == 1).sum().item())
             dt_counts["zero_delta"] += int((reasons == 2).sum().item())
             dt_counts["positive_delta"] += int((reasons == 3).sum().item())
@@ -958,7 +1523,9 @@ def evaluate_hierarchical_cascade(
         },
         "calibrated_hierarchical_action": calibrated_summary,
         "stable_action": stable_summary,
-        "dt_reason_counts_including_padding": dt_counts,
+        "dt_reason_counts_data_events": dt_counts,
+        "collate_padding_positions": collate_padding_positions,
+        "evaluation_batch_size": int(batch_size),
         "session_metrics": {
             "status": "not_available",
             "reason": "current verified index has no session/capture field",
@@ -1241,6 +1808,22 @@ def minimum_precision_recall(metrics: Mapping[str, Any]) -> float:
     return min(values)
 
 
+def minimum_precision_recall_for_names(
+    metrics: Mapping[str, Any],
+    names: tuple[str, ...],
+) -> float:
+    rows = {str(row.get("class")): row for row in metrics.get("per_class") or []}
+    values: list[float] = []
+    for name in names:
+        row = rows.get(name)
+        if row is None or int(row.get("support", 0)) <= 0:
+            raise ValueError(f"checkpoint floor lacks supported class {name}")
+        values.extend((float(row["precision"]), float(row["recall"])))
+    if not values or any(not np.isfinite(value) for value in values):
+        raise ValueError("checkpoint floor contains a non-finite precision/recall")
+    return min(values)
+
+
 def summarize_records_with_names(records: list[dict[str, int]], names: tuple[str, ...], scope: str) -> dict[str, Any]:
     from .task_models import summarize_task_records
 
@@ -1265,8 +1848,11 @@ __all__ = [
     "build_cascade",
     "evaluate_cascade",
     "evaluate_hierarchical_cascade",
+    "evaluate_strict_open_set_cascade",
     "load_cascade",
     "minimum_precision_recall",
+    "minimum_precision_recall_for_names",
+    "summarize_strict_open_set_known_records",
     "summarize_calibrated_actions",
     "summarize_stable_actions",
     "validate_cascade_configs",

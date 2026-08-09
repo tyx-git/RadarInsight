@@ -14,9 +14,11 @@ REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-rejection-calibration-v1"
 TRAIN_PARENT_GROUPED_OOF_SOURCE = "train_parent_grouped_oof"
 MAX_CLASS_PROBABILITY_SCORE = "max_class_probability"
 HIERARCHICAL_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V13-hierarchical-rejection-calibration-v1"
+STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v1"
 HIERARCHICAL_TASK_NAMES = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
 GATE_DBB_PROBABILITY_SCORE = "gate_dbb_probability_and_margin"
 CU_CLUTTER_PROBABILITY_SCORE = "cu_clutter_probability_and_margin"
+DBB_KNOWN_PROBABILITY_SCORE = "dbb_top_probability_and_margin"
 
 
 @dataclass(frozen=True)
@@ -161,6 +163,58 @@ class HierarchicalRejectionCalibration:
 
 
 @dataclass(frozen=True)
+class StrictOpenSetRejectionCalibration:
+    """Three known-only acceptance boundaries fitted from train-parent OOF."""
+
+    schema_version: str
+    source: str
+    gate_score_name: str
+    dbb_known_score_name: str
+    cu_score_name: str
+    gate_accept_dbb_threshold: float
+    gate_accept_dbb_margin: float
+    dbb_accept_known_threshold: float
+    dbb_accept_known_margin: float
+    cu_accept_clutter_threshold: float
+    cu_accept_clutter_margin: float
+    min_valid_points: int = 1
+    min_track_quality: float = 0.0
+    max_gap_fraction: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.schema_version != STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA:
+            raise ValueError(f"unsupported V14 calibration schema: {self.schema_version!r}")
+        if self.source != TRAIN_PARENT_GROUPED_OOF_SOURCE:
+            raise ValueError("V14 rejection calibration must come from train parent-grouped OOF")
+        if self.gate_score_name != GATE_DBB_PROBABILITY_SCORE:
+            raise ValueError(f"unsupported V14 Gate score: {self.gate_score_name!r}")
+        if self.dbb_known_score_name != DBB_KNOWN_PROBABILITY_SCORE:
+            raise ValueError(f"unsupported V14 DBB knownness score: {self.dbb_known_score_name!r}")
+        if self.cu_score_name != CU_CLUTTER_PROBABILITY_SCORE:
+            raise ValueError(f"unsupported V14 Clutter score: {self.cu_score_name!r}")
+        for name, value in (
+            ("gate_accept_dbb_threshold", self.gate_accept_dbb_threshold),
+            ("dbb_accept_known_threshold", self.dbb_accept_known_threshold),
+            ("cu_accept_clutter_threshold", self.cu_accept_clutter_threshold),
+        ):
+            if not 0.0 < float(value) < 1.0:
+                raise ValueError(f"{name} must be in (0,1)")
+        for name, value in (
+            ("gate_accept_dbb_margin", self.gate_accept_dbb_margin),
+            ("dbb_accept_known_margin", self.dbb_accept_known_margin),
+            ("cu_accept_clutter_margin", self.cu_accept_clutter_margin),
+        ):
+            if not 0.0 <= float(value) < 1.0:
+                raise ValueError(f"{name} must be in [0,1)")
+        if int(self.min_valid_points) < 1:
+            raise ValueError("min_valid_points must be positive")
+        if not 0.0 <= float(self.min_track_quality) <= 1.0:
+            raise ValueError("min_track_quality must be in [0,1]")
+        if not 0.0 <= float(self.max_gap_fraction) <= 1.0:
+            raise ValueError("max_gap_fraction must be in [0,1]")
+
+
+@dataclass(frozen=True)
 class HierarchicalActionDecision:
     """One event's product action with class, route and reject kept distinct."""
 
@@ -185,6 +239,10 @@ class HierarchicalActionDecision:
     gap_fraction: float
     trigger_reasons: tuple[str, ...]
     calibration_source: str | None
+    dbb_known_confidence: float | None = None
+    dbb_known_margin: float | None = None
+    clutter_accept_confidence: float | None = None
+    clutter_accept_margin: float | None = None
 
 
 def _normalized_probabilities(values: torch.Tensor, class_count: int, name: str) -> torch.Tensor:
@@ -436,6 +494,226 @@ class HierarchicalRejectionPolicy:
         )
 
 
+class StrictOpenSetRejectionPolicy:
+    """V14 product action: Gate, DBB-knownness and Clutter acceptance.
+
+    Unknown is never a learned branch.  A DBB route whose specialist evidence
+    is below the knownness boundary and a CU route whose Clutter evidence is
+    below its boundary both converge on ``UNKNOWN_REJECTED``.
+    """
+
+    def __init__(
+        self,
+        calibration: StrictOpenSetRejectionCalibration | None = None,
+        *,
+        enabled: bool = False,
+    ) -> None:
+        if enabled and calibration is None:
+            raise RuntimeError("V14 rejection cannot be enabled without known-only train-parent OOF calibration")
+        self.calibration = calibration
+        self.enabled = bool(enabled)
+
+    @property
+    def calibrated(self) -> bool:
+        return self.calibration is not None
+
+    def decide(
+        self,
+        gate_probabilities: torch.Tensor,
+        dbb_probabilities: torch.Tensor,
+        cu_probabilities: torch.Tensor,
+        *,
+        valid_point_count: int,
+        track_quality: float,
+        gap_fraction: float,
+    ) -> HierarchicalActionDecision:
+        gate = _normalized_probabilities(gate_probabilities, 2, "V14 Gate")
+        dbb = _normalized_probabilities(dbb_probabilities, 3, "V14 DBB specialist")
+        cu = _normalized_probabilities(cu_probabilities, 2, "V14 Clutter acceptance head")
+        points = int(valid_point_count)
+        quality = float(track_quality)
+        gaps = float(gap_fraction)
+        if points < 1 or not 0.0 <= quality <= 1.0 or not 0.0 <= gaps <= 1.0:
+            raise ValueError("V14 quality inputs are outside their contract")
+        gate_dbb = float(gate[0].item())
+        gate_margin = float((gate[0] - gate[1]).item())
+        dbb_id = int(dbb.argmax().item())
+        dbb_top = torch.topk(dbb, k=2).values
+        dbb_confidence = float(dbb[dbb_id].item())
+        dbb_margin = float((dbb_top[0] - dbb_top[1]).item())
+        cu_clutter = float(cu[0].item())
+        cu_margin = float((cu[0] - cu[1]).item())
+        diagnostic_route = "DBB" if int(gate.argmax().item()) == 0 else "CU"
+        diagnostic_label_id = dbb_id if diagnostic_route == "DBB" else 3
+        diagnostic_specialist_id = dbb_id if diagnostic_route == "DBB" else 0
+        diagnostic_confidence = dbb_confidence if diagnostic_route == "DBB" else cu_clutter
+        diagnostic_margin = dbb_margin if diagnostic_route == "DBB" else cu_margin
+
+        def decision(
+            *,
+            decision_state: str,
+            gate_action: str,
+            conditional_action: str,
+            final_action: str,
+            accepted_label_id: int | None,
+            rejected_to_unknown: bool | None,
+            reasons: tuple[str, ...],
+            specialist_id: int = diagnostic_specialist_id,
+            specialist_confidence: float = diagnostic_confidence,
+            specialist_margin: float = diagnostic_margin,
+        ) -> HierarchicalActionDecision:
+            return HierarchicalActionDecision(
+                decision_state=decision_state,
+                calibrated=self.calibrated,
+                gate_action=gate_action,
+                conditional_action=conditional_action,
+                final_action=final_action,
+                diagnostic_gate_route=diagnostic_route,
+                diagnostic_label_id=diagnostic_label_id,
+                diagnostic_label_name=LABELS[diagnostic_label_id],
+                accepted_label_id=accepted_label_id,
+                accepted_label_name=None if accepted_label_id is None else LABELS[accepted_label_id],
+                rejected_to_unknown=rejected_to_unknown,
+                gate_dbb_probability=gate_dbb,
+                gate_margin=gate_margin,
+                specialist_label_id=specialist_id,
+                specialist_confidence=specialist_confidence,
+                specialist_margin=specialist_margin,
+                valid_point_count=points,
+                track_quality=quality,
+                gap_fraction=gaps,
+                trigger_reasons=reasons,
+                calibration_source=None if self.calibration is None else self.calibration.source,
+                dbb_known_confidence=dbb_confidence,
+                dbb_known_margin=dbb_margin,
+                clutter_accept_confidence=cu_clutter,
+                clutter_accept_margin=cu_margin,
+            )
+
+        if not self.enabled:
+            return decision(
+                decision_state="not_calibrated" if self.calibration is None else "disabled",
+                gate_action="NOT_CALIBRATED",
+                conditional_action="NOT_CALIBRATED",
+                final_action="NOT_CALIBRATED",
+                accepted_label_id=None,
+                rejected_to_unknown=None,
+                reasons=("missing_known_only_train_parent_grouped_oof_calibration",),
+            )
+        calibration = self.calibration
+        if calibration is None:
+            raise RuntimeError("V14 rejection was enabled without calibration")
+        if points < int(calibration.min_valid_points):
+            pending = "DBB_PENDING" if diagnostic_route == "DBB" else "CU_PENDING"
+            return decision(
+                decision_state="pending",
+                gate_action=pending,
+                conditional_action="PENDING_MINIMUM_EVIDENCE",
+                final_action=pending,
+                accepted_label_id=None,
+                rejected_to_unknown=None,
+                reasons=("insufficient_valid_points",),
+            )
+        quality_reasons: list[str] = []
+        if quality < float(calibration.min_track_quality):
+            quality_reasons.append("track_quality_below_threshold")
+        if gaps > float(calibration.max_gap_fraction):
+            quality_reasons.append("gap_fraction_above_threshold")
+        if quality_reasons:
+            return decision(
+                decision_state="pending",
+                gate_action="CU_PENDING",
+                conditional_action="PENDING_QUALITY_GUARD",
+                final_action="CU_PENDING",
+                accepted_label_id=None,
+                rejected_to_unknown=None,
+                reasons=tuple(quality_reasons),
+            )
+
+        gate_accepts_dbb = (
+            gate_dbb >= float(calibration.gate_accept_dbb_threshold)
+            and gate_margin >= float(calibration.gate_accept_dbb_margin)
+        )
+        if gate_accepts_dbb:
+            dbb_accepts_known = (
+                dbb_confidence >= float(calibration.dbb_accept_known_threshold)
+                and dbb_margin >= float(calibration.dbb_accept_known_margin)
+            )
+            if dbb_accepts_known:
+                return decision(
+                    decision_state="accepted",
+                    gate_action="DBB_ROUTE_ACCEPTED",
+                    conditional_action=f"{LABELS[dbb_id]}_ACCEPTED",
+                    final_action="DBB_ACCEPTED",
+                    accepted_label_id=dbb_id,
+                    rejected_to_unknown=False,
+                    reasons=(
+                        "gate_dbb_probability_and_margin_accepted",
+                        "dbb_known_probability_and_margin_accepted",
+                    ),
+                    specialist_id=dbb_id,
+                    specialist_confidence=dbb_confidence,
+                    specialist_margin=dbb_margin,
+                )
+            reject_reasons = ["gate_dbb_probability_and_margin_accepted"]
+            if dbb_confidence < float(calibration.dbb_accept_known_threshold):
+                reject_reasons.append("dbb_known_probability_below_threshold")
+            if dbb_margin < float(calibration.dbb_accept_known_margin):
+                reject_reasons.append("dbb_known_margin_below_threshold")
+            return decision(
+                decision_state="rejected",
+                gate_action="DBB_ROUTE_ACCEPTED",
+                conditional_action="DBB_KNOWN_NOT_ACCEPTED",
+                final_action="UNKNOWN_REJECTED",
+                accepted_label_id=None,
+                rejected_to_unknown=True,
+                reasons=tuple(reject_reasons),
+                specialist_id=dbb_id,
+                specialist_confidence=dbb_confidence,
+                specialist_margin=dbb_margin,
+            )
+
+        gate_reasons: list[str] = []
+        if gate_dbb < float(calibration.gate_accept_dbb_threshold):
+            gate_reasons.append("gate_dbb_probability_below_threshold")
+        if gate_margin < float(calibration.gate_accept_dbb_margin):
+            gate_reasons.append("gate_dbb_margin_below_threshold")
+        clutter_accepted = (
+            cu_clutter >= float(calibration.cu_accept_clutter_threshold)
+            and cu_margin >= float(calibration.cu_accept_clutter_margin)
+        )
+        if clutter_accepted:
+            return decision(
+                decision_state="accepted",
+                gate_action="ROUTED_TO_CU",
+                conditional_action="CLUTTER_ACCEPTED",
+                final_action="CLUTTER_ACCEPTED",
+                accepted_label_id=3,
+                rejected_to_unknown=False,
+                reasons=tuple(gate_reasons + ["cu_clutter_probability_and_margin_accepted"]),
+                specialist_id=0,
+                specialist_confidence=cu_clutter,
+                specialist_margin=cu_margin,
+            )
+        reject_reasons = list(gate_reasons)
+        if cu_clutter < float(calibration.cu_accept_clutter_threshold):
+            reject_reasons.append("cu_clutter_probability_below_threshold")
+        if cu_margin < float(calibration.cu_accept_clutter_margin):
+            reject_reasons.append("cu_clutter_margin_below_threshold")
+        return decision(
+            decision_state="rejected",
+            gate_action="ROUTED_TO_CU",
+            conditional_action="CLUTTER_NOT_ACCEPTED",
+            final_action="UNKNOWN_REJECTED",
+            accepted_label_id=None,
+            rejected_to_unknown=True,
+            reasons=tuple(reject_reasons),
+            specialist_id=0,
+            specialist_confidence=cu_clutter,
+            specialist_margin=cu_margin,
+        )
+
+
 def load_hierarchical_rejection_calibration(
     path: str | Path,
 ) -> tuple[HierarchicalRejectionCalibration, dict[str, Any]]:
@@ -483,6 +761,76 @@ def load_hierarchical_rejection_calibration(
         cu_score_name=str(payload["cu_score_name"]),
         gate_accept_dbb_threshold=float(payload["gate_accept_dbb_threshold"]),
         gate_accept_dbb_margin=float(payload["gate_accept_dbb_margin"]),
+        cu_accept_clutter_threshold=float(payload["cu_accept_clutter_threshold"]),
+        cu_accept_clutter_margin=float(payload["cu_accept_clutter_margin"]),
+        min_valid_points=int(payload["min_valid_points"]),
+        min_track_quality=float(payload["min_track_quality"]),
+        max_gap_fraction=float(payload["max_gap_fraction"]),
+    )
+    return calibration, payload
+
+
+def load_strict_open_set_rejection_calibration(
+    path: str | Path,
+) -> tuple[StrictOpenSetRejectionCalibration, dict[str, Any]]:
+    """Load a V14 calibration and prove known-only parent-grouped OOF."""
+
+    calibration_path = Path(path).resolve()
+    payload = json.loads(calibration_path.read_text(encoding="utf-8"))
+    required = {
+        "schema_version",
+        "source",
+        "gate_score_name",
+        "dbb_known_score_name",
+        "cu_score_name",
+        "gate_accept_dbb_threshold",
+        "gate_accept_dbb_margin",
+        "dbb_accept_known_threshold",
+        "dbb_accept_known_margin",
+        "cu_accept_clutter_threshold",
+        "cu_accept_clutter_margin",
+        "min_valid_points",
+        "min_track_quality",
+        "max_gap_fraction",
+        "provenance",
+    }
+    missing = sorted(required - set(payload))
+    if missing:
+        raise ValueError(f"V14 calibration artifact is missing fields: {missing}")
+    provenance = dict(payload["provenance"])
+    if (
+        provenance.get("fit_split") != "train"
+        or provenance.get("fit_population") != "known_only"
+        or provenance.get("grouping") != "parent"
+        or provenance.get("prediction_protocol") != "out_of_fold"
+        or provenance.get("unknown_training_exposure") != 0
+        or provenance.get("unknown_threshold_fit_count") != 0
+        or provenance.get("validation_used_for_threshold_fitting") is not False
+        or provenance.get("test_used") is not False
+    ):
+        raise ValueError("V14 calibration provenance is not known-only train parent-grouped OOF")
+    known_parent_count = int(provenance.get("known_parent_count", -1))
+    oof_parent_count = int(provenance.get("oof_prediction_parent_count", -2))
+    oof_unique_parent_count = int(provenance.get("oof_unique_parent_count", -3))
+    if known_parent_count <= 0 or oof_parent_count != known_parent_count or oof_unique_parent_count != known_parent_count:
+        raise ValueError("V14 calibration does not cover every known train parent exactly once")
+    hashes = dict(provenance.get("data_contract_hashes") or {})
+    if set(hashes) != {"index_sha256", "contract_sha256", "stats_sha256"}:
+        raise ValueError("V14 calibration lacks exact data contract hashes")
+    _normalize_hierarchical_deployment_identity(
+        provenance.get("deployment_checkpoint_set"),
+        field_name="V14 calibration provenance deployment_checkpoint_set",
+    )
+    calibration = StrictOpenSetRejectionCalibration(
+        schema_version=str(payload["schema_version"]),
+        source=str(payload["source"]),
+        gate_score_name=str(payload["gate_score_name"]),
+        dbb_known_score_name=str(payload["dbb_known_score_name"]),
+        cu_score_name=str(payload["cu_score_name"]),
+        gate_accept_dbb_threshold=float(payload["gate_accept_dbb_threshold"]),
+        gate_accept_dbb_margin=float(payload["gate_accept_dbb_margin"]),
+        dbb_accept_known_threshold=float(payload["dbb_accept_known_threshold"]),
+        dbb_accept_known_margin=float(payload["dbb_accept_known_margin"]),
         cu_accept_clutter_threshold=float(payload["cu_accept_clutter_threshold"]),
         cu_accept_clutter_margin=float(payload["cu_accept_clutter_margin"]),
         min_valid_points=int(payload["min_valid_points"]),
@@ -559,8 +907,10 @@ def validate_hierarchical_calibration_deployment(
 __all__ = [
     "MAX_CLASS_PROBABILITY_SCORE",
     "CU_CLUTTER_PROBABILITY_SCORE",
+    "DBB_KNOWN_PROBABILITY_SCORE",
     "GATE_DBB_PROBABILITY_SCORE",
     "HIERARCHICAL_REJECTION_CALIBRATION_SCHEMA",
+    "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA",
     "HIERARCHICAL_TASK_NAMES",
     "REJECTION_CALIBRATION_SCHEMA",
     "TRAIN_PARENT_GROUPED_OOF_SOURCE",
@@ -570,6 +920,9 @@ __all__ = [
     "HierarchicalActionDecision",
     "HierarchicalRejectionCalibration",
     "HierarchicalRejectionPolicy",
+    "StrictOpenSetRejectionCalibration",
+    "StrictOpenSetRejectionPolicy",
     "load_hierarchical_rejection_calibration",
+    "load_strict_open_set_rejection_calibration",
     "validate_hierarchical_calibration_deployment",
 ]

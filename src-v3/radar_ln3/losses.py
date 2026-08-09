@@ -267,9 +267,232 @@ def hierarchical_final_state_nll(
     }
 
 
+def strict_open_set_final_state_nll(
+    gate_sequence_logits: torch.Tensor,
+    dbb_sequence_logits: torch.Tensor,
+    cu_sequence_logits: torch.Tensor,
+    base_labels: torch.Tensor,
+    padding_mask: torch.Tensor,
+    *,
+    prefix_auxiliary_weight: float = 0.0,
+    prefix_auxiliary_min_events: int = 1,
+    gate_class_weights: torch.Tensor | None = None,
+    dbb_class_weights: torch.Tensor | None = None,
+    cu_class_weights: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    """Train the V14 hierarchy from known classes only.
+
+    Frozen base-label IDs are ``0..3`` for Drone/Bird/Balloon/Clutter.
+    ``UnknownTarget`` (ID 4) is deliberately not a target: if it reaches this
+    function the call fails before any loss is constructed.  The branches are
+    supervised as follows:
+
+    * Gate: DBB evidence versus Clutter route evidence for every known parent;
+    * DBB specialist: Drone/Bird/Balloon for DBB parents only;
+    * CU acceptance head: Clutter versus non-Clutter-known for every known
+      parent.  The latter negatives are DBB known parents, never Unknown.
+
+    The optional prefix term repeats the same known-only contract only after
+    ``prefix_auxiliary_min_events`` and excludes the parent-final state.
+    """
+
+    shapes = (
+        gate_sequence_logits.shape[:-1],
+        dbb_sequence_logits.shape[:-1],
+        cu_sequence_logits.shape[:-1],
+    )
+    if len(set(shapes)) != 1 or padding_mask.shape != shapes[0]:
+        raise ValueError("strict open-set logits and padding mask shapes do not match")
+    if (
+        gate_sequence_logits.shape[-1] != 2
+        or dbb_sequence_logits.shape[-1] != 3
+        or cu_sequence_logits.shape[-1] != 2
+    ):
+        raise ValueError("strict open-set loss expects gate=2, DBB=3 and CU=2 logits")
+    if base_labels.shape != (gate_sequence_logits.shape[0],):
+        raise ValueError("strict open-set base_labels must have shape [batch]")
+    if not all(
+        torch.isfinite(value).all()
+        for value in (gate_sequence_logits, dbb_sequence_logits, cu_sequence_logits)
+    ):
+        raise ValueError("strict open-set logits must be finite")
+    labels = base_labels.to(device=gate_sequence_logits.device, dtype=torch.long)
+    if bool((labels == 4).any()):
+        raise ValueError("UnknownTarget must never enter the V14 strict-open-set training loss")
+    if bool(((labels < 0) | (labels > 3)).any()):
+        raise ValueError("strict open-set training labels must be known base-label IDs 0..3")
+
+    def normalized_weights(
+        value: torch.Tensor | None,
+        class_count: int,
+        name: str,
+        reference: torch.Tensor,
+    ) -> torch.Tensor | None:
+        if value is None:
+            return None
+        if (
+            value.shape != (class_count,)
+            or not torch.isfinite(value).all()
+            or bool((value <= 0.0).any())
+        ):
+            raise ValueError(f"{name} must contain {class_count} finite positive values")
+        return value.to(device=reference.device, dtype=reference.dtype)
+
+    gate_weights = normalized_weights(gate_class_weights, 2, "gate_class_weights", gate_sequence_logits)
+    dbb_weights = normalized_weights(dbb_class_weights, 3, "dbb_class_weights", dbb_sequence_logits)
+    cu_weights = normalized_weights(cu_class_weights, 2, "cu_class_weights", cu_sequence_logits)
+    prefix_weight = float(prefix_auxiliary_weight)
+    if not 0.0 <= prefix_weight <= 1.0:
+        raise ValueError("prefix_auxiliary_weight must be in [0, 1]")
+    minimum_prefix_events = int(prefix_auxiliary_min_events)
+    if minimum_prefix_events < 1:
+        raise ValueError("prefix_auxiliary_min_events must be positive")
+    lengths = (~padding_mask).long().sum(dim=1)
+    if bool((lengths <= 0).any()):
+        raise ValueError("strict open-set loss received an empty parent sequence")
+
+    batch_indices = torch.arange(labels.shape[0], device=labels.device)
+    final_indices = lengths - 1
+    gate_final = gate_sequence_logits[batch_indices, final_indices]
+    dbb_final = dbb_sequence_logits[batch_indices, final_indices]
+    cu_final = cu_sequence_logits[batch_indices, final_indices]
+    dbb_mask = labels < 3
+    clutter_mask = labels == 3
+    gate_targets = clutter_mask.long()
+    cu_targets = dbb_mask.long()
+
+    final_gate_nll = nn.functional.cross_entropy(
+        gate_final,
+        gate_targets,
+        weight=gate_weights,
+    )
+    final_dbb_nll = (
+        nn.functional.cross_entropy(
+            dbb_final[dbb_mask],
+            labels[dbb_mask],
+            weight=dbb_weights,
+        )
+        if bool(dbb_mask.any())
+        else dbb_final.sum() * 0.0
+    )
+    final_cu_acceptance_nll = nn.functional.cross_entropy(
+        cu_final,
+        cu_targets,
+        weight=cu_weights,
+    )
+    final_nll = final_gate_nll + final_dbb_nll + final_cu_acceptance_nll
+
+    prefix_gate_nll = final_nll.new_zeros(())
+    prefix_dbb_nll = final_nll.new_zeros(())
+    prefix_cu_acceptance_nll = final_nll.new_zeros(())
+    eligible_prefix_count = final_indices.new_zeros(())
+    if prefix_weight > 0.0:
+        event_numbers = torch.arange(
+            1,
+            gate_sequence_logits.shape[1] + 1,
+            device=gate_sequence_logits.device,
+        ).unsqueeze(0)
+        valid = (
+            (~padding_mask)
+            & (event_numbers >= minimum_prefix_events)
+            & (event_numbers < lengths.unsqueeze(1))
+        )
+        eligible_prefix_count = valid.sum()
+
+        def parent_balanced_prefix_mean(
+            per_event: torch.Tensor,
+            selected: torch.Tensor,
+            *,
+            name: str,
+        ) -> torch.Tensor:
+            active = valid & selected
+            counts = active.sum(dim=1)
+            eligible = counts > 0
+            if not bool(eligible.any()):
+                return per_event.new_zeros(())
+            active_float = active.to(dtype=per_event.dtype)
+            means = (per_event * active_float).sum(dim=1) / counts.clamp_min(1)
+            value = means[eligible].mean()
+            if not torch.isfinite(value).item():
+                raise ValueError(f"strict open-set {name} prefix loss is non-finite")
+            return value
+
+        gate_targets_all = gate_targets.unsqueeze(1).expand_as(valid)
+        gate_all = nn.functional.cross_entropy(
+            gate_sequence_logits.reshape(-1, 2),
+            gate_targets_all.reshape(-1),
+            weight=gate_weights,
+            reduction="none",
+        ).reshape_as(valid)
+        prefix_gate_nll = parent_balanced_prefix_mean(
+            gate_all,
+            torch.ones_like(valid),
+            name="Gate",
+        )
+
+        dbb_targets_all = labels.unsqueeze(1).expand_as(valid)
+        dbb_all = torch.zeros_like(gate_all)
+        dbb_positions = dbb_mask.unsqueeze(1).expand_as(valid)
+        if bool((valid & dbb_positions).any()):
+            dbb_all[dbb_positions] = nn.functional.cross_entropy(
+                dbb_sequence_logits[dbb_positions],
+                dbb_targets_all[dbb_positions],
+                weight=dbb_weights,
+                reduction="none",
+            )
+        prefix_dbb_nll = parent_balanced_prefix_mean(
+            dbb_all,
+            dbb_positions,
+            name="DBB",
+        )
+
+        cu_targets_all = cu_targets.unsqueeze(1).expand_as(valid)
+        cu_all = nn.functional.cross_entropy(
+            cu_sequence_logits.reshape(-1, 2),
+            cu_targets_all.reshape(-1),
+            weight=cu_weights,
+            reduction="none",
+        ).reshape_as(valid)
+        prefix_cu_acceptance_nll = parent_balanced_prefix_mean(
+            cu_all,
+            torch.ones_like(valid),
+            name="CU acceptance",
+        )
+
+    prefix_nll = prefix_gate_nll + prefix_dbb_nll + prefix_cu_acceptance_nll
+    total = final_nll + prefix_weight * prefix_nll
+    finite_values = (
+        total,
+        final_nll,
+        final_gate_nll,
+        final_dbb_nll,
+        final_cu_acceptance_nll,
+        prefix_nll,
+    )
+    if not all(torch.isfinite(value).item() for value in finite_values):
+        raise ValueError("strict open-set loss produced a non-finite value")
+    return {
+        "loss": total,
+        "final_hierarchical_nll": final_nll,
+        "final_gate_nll": final_gate_nll,
+        "final_dbb_nll": final_dbb_nll,
+        "final_cu_acceptance_nll": final_cu_acceptance_nll,
+        "final_specialist_nll": final_dbb_nll + final_cu_acceptance_nll,
+        "prefix_auxiliary_nll": prefix_nll,
+        "prefix_gate_nll": prefix_gate_nll,
+        "prefix_dbb_nll": prefix_dbb_nll,
+        "prefix_cu_acceptance_nll": prefix_cu_acceptance_nll,
+        "eligible_prefix_count": eligible_prefix_count,
+        "dbb_parent_count": dbb_mask.sum(),
+        "clutter_parent_count": clutter_mask.sum(),
+        "unknown_parent_count": labels.new_zeros(()),
+    }
+
+
 __all__ = [
     "causal_prefix_loss",
     "final_valid_state_loss",
     "five_class_loss",
     "hierarchical_final_state_nll",
+    "strict_open_set_final_state_nll",
 ]

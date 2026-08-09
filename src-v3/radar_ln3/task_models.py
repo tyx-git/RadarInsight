@@ -7,7 +7,9 @@ paths and identifiers to the model.  The three supported tasks are:
 * ``dbb_cu_gate``: DBB versus CU;
 * ``dbb_specialist``: Drone versus Bird versus Balloon;
 * historical ``cu_specialist``: Clutter versus Unknown;
-* V13 ``cu_specialist``: Clutter-accept versus Clutter-reject evidence.
+* V13 ``cu_specialist``: Clutter-accept versus learned Unknown evidence;
+* V14 strict-open-set ``cu_specialist``: Clutter-accept versus known
+  non-Clutter evidence, with Unknown excluded from every learned target.
 
 V5-V8 use the shared causal TR+RD liquid contract.  V9 is a deliberately
 isolated DBB/CU Gate experiment that adds causal TR motion-consistency values;
@@ -86,6 +88,22 @@ HIERARCHICAL_CU_OUTPUT_NAMES = (
     "CLUTTER_ACCEPT_EVIDENCE",
     "CLUTTER_REJECT_EVIDENCE",
 )
+STRICT_OPEN_SET_SCHEMA_VERSION = "RADAR-LN3-V14"
+STRICT_OPEN_SET_LOSS_MODE = "parent_final_known_only_open_set_nll_with_prefix_auxiliary"
+STRICT_OPEN_SET_CHECKPOINT_SELECTION = "known_only_parent_route_guarded"
+STRICT_OPEN_SET_GATE_OUTPUT_NAMES = (
+    "DBB_ACCEPT_EVIDENCE",
+    "ROUTE_TO_CU_EVIDENCE",
+)
+STRICT_OPEN_SET_CU_OUTPUT_NAMES = (
+    "CLUTTER_ACCEPT_EVIDENCE",
+    "NON_CLUTTER_KNOWN_EVIDENCE",
+)
+KNOWN_BASE_LABELS = BASE_LABELS[:4]
+UNKNOWN_BASE_LABEL = "UnknownTarget"
+HIERARCHICAL_SCHEMA_VERSIONS = frozenset(
+    {HIERARCHICAL_CASCADE_SCHEMA_VERSION, STRICT_OPEN_SET_SCHEMA_VERSION}
+)
 DT_REASON_DYNAMICS_MODE = "v3_reason_aware_dynamics_only"
 FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
     {RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION, DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION}
@@ -147,6 +165,38 @@ TASK_SPECS: dict[str, TaskSpec] = {
         class_names=("ClutterTarget", "UnknownTarget"),
         label_to_id={"ClutterTarget": 0, "UnknownTarget": 1},
         allowed_base_labels=frozenset({"ClutterTarget", "UnknownTarget"}),
+    ),
+}
+
+
+STRICT_OPEN_SET_TASK_SPECS: dict[str, TaskSpec] = {
+    "dbb_cu_gate": TaskSpec(
+        name="dbb_cu_gate",
+        class_names=STRICT_OPEN_SET_GATE_OUTPUT_NAMES,
+        label_to_id={
+            "DroneTarget": 0,
+            "BirdTarget": 0,
+            "BalloonTarget": 0,
+            "ClutterTarget": 1,
+        },
+        allowed_base_labels=frozenset(KNOWN_BASE_LABELS),
+    ),
+    "dbb_specialist": TaskSpec(
+        name="dbb_specialist",
+        class_names=("DroneTarget", "BirdTarget", "BalloonTarget"),
+        label_to_id={"DroneTarget": 0, "BirdTarget": 1, "BalloonTarget": 2},
+        allowed_base_labels=frozenset({"DroneTarget", "BirdTarget", "BalloonTarget"}),
+    ),
+    "cu_specialist": TaskSpec(
+        name="cu_specialist",
+        class_names=STRICT_OPEN_SET_CU_OUTPUT_NAMES,
+        label_to_id={
+            "ClutterTarget": 0,
+            "DroneTarget": 1,
+            "BirdTarget": 1,
+            "BalloonTarget": 1,
+        },
+        allowed_base_labels=frozenset(KNOWN_BASE_LABELS),
     ),
 }
 
@@ -290,9 +340,10 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def task_spec(name: str) -> TaskSpec:
+def task_spec(name: str, *, schema_version: str | None = None) -> TaskSpec:
+    specs = STRICT_OPEN_SET_TASK_SPECS if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION else TASK_SPECS
     try:
-        return TASK_SPECS[str(name)]
+        return specs[str(name)]
     except KeyError as exc:
         raise ValueError(f"unsupported RADAR-LN3 task: {name}") from exc
 
@@ -319,7 +370,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             f"task configuration must be historical {TASK_SCHEMA_VERSION} or a repaired version >= {REPAIRED_TASK_SCHEMA_VERSION}"
         )
     task_payload = dict(_required(payload, "task"))
-    spec = task_spec(str(_required(task_payload, "name")))
+    spec = task_spec(str(_required(task_payload, "name")), schema_version=schema_version)
     if schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION and spec.name == "cu_specialist":
         spec = replace(spec, class_names=HIERARCHICAL_CU_OUTPUT_NAMES)
     configured_classes = tuple(str(value) for value in _required(task_payload, "class_names"))
@@ -608,29 +659,39 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
     )
     if train.learning_rate <= 0.0 or train.gradient_clip_norm <= 0.0:
         raise ValueError("task learning_rate and gradient_clip_norm must be positive")
-    if schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
-        if train.loss_mode != HIERARCHICAL_LOSS_MODE:
-            raise ValueError(f"V13 task training must use {HIERARCHICAL_LOSS_MODE}")
-        if train.checkpoint_selection_metric != HIERARCHICAL_CHECKPOINT_SELECTION:
-            raise ValueError(f"V13 checkpoint selection must use {HIERARCHICAL_CHECKPOINT_SELECTION}")
+    if schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+        expected_loss_mode = (
+            STRICT_OPEN_SET_LOSS_MODE
+            if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            else HIERARCHICAL_LOSS_MODE
+        )
+        expected_selection = (
+            STRICT_OPEN_SET_CHECKPOINT_SELECTION
+            if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            else HIERARCHICAL_CHECKPOINT_SELECTION
+        )
+        if train.loss_mode != expected_loss_mode:
+            raise ValueError(f"{schema_version} task training must use {expected_loss_mode}")
+        if train.checkpoint_selection_metric != expected_selection:
+            raise ValueError(f"{schema_version} checkpoint selection must use {expected_selection}")
         if not 0.0 <= train.prefix_auxiliary_weight <= 1.0:
-            raise ValueError("V13 prefix_auxiliary_weight must be in [0,1]")
+            raise ValueError(f"{schema_version} prefix_auxiliary_weight must be in [0,1]")
         if train.prefix_auxiliary_weight > 0.0 and train.prefix_auxiliary_min_events < 2:
-            raise ValueError("V13 prefix auxiliary supervision must exclude the first evidence event")
+            raise ValueError(f"{schema_version} prefix auxiliary supervision must exclude the first evidence event")
         if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
-            raise ValueError(f"V13 model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
-        if data.contract_schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
-            raise ValueError("V13 tasks must consume the V13 reason-aware data contract")
+            raise ValueError(f"{schema_version} model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
+        if data.contract_schema_version != schema_version:
+            raise ValueError(f"{schema_version} tasks must consume their matching reason-aware data contract")
         if model.dbb_auxiliary_num_classes != 0 or model.rd_physical_dim != 0:
-            raise ValueError("V13 must not silently retain V11/V12 experimental branches")
+            raise ValueError(f"{schema_version} must not silently retain V11/V12 experimental branches")
         if train.epochs != 20 or train.early_stopping_patience != 0:
-            raise ValueError("V13 requires 20 fixed epochs with early stopping disabled")
+            raise ValueError(f"{schema_version} requires 20 fixed epochs with early stopping disabled")
         if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
-            raise ValueError("V13 requires epoch checkpoints and parent-order hashes")
+            raise ValueError(f"{schema_version} requires epoch checkpoints and parent-order hashes")
         if train.dataloader_seed != train.seed:
-            raise ValueError("V13 model seed and DataLoader seed must match")
+            raise ValueError(f"{schema_version} model seed and DataLoader seed must match")
         if any(value is not None for value in (train.paired_protocol, train.paired_arm, train.paired_seed, train.paired_counterpart_config_path)):
-            raise ValueError("V13 is one joint product run, not a paired-arm experiment")
+            raise ValueError(f"{schema_version} is one joint product run, not a paired-arm experiment")
         if any(
             value is None
             for value in (
@@ -640,9 +701,9 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
                 train.joint_checkpoint_schema,
             )
         ):
-            raise ValueError("V13 requires explicit joint artifact and checkpoint fields")
-        if not str(train.joint_checkpoint_schema).startswith(HIERARCHICAL_CASCADE_SCHEMA_VERSION):
-            raise ValueError("V13 joint checkpoint schema must use the V13 prefix")
+            raise ValueError(f"{schema_version} requires explicit joint artifact and checkpoint fields")
+        if not str(train.joint_checkpoint_schema).startswith(schema_version):
+            raise ValueError(f"{schema_version} joint checkpoint schema must use its version prefix")
         targets = (
             train.gate_min_precision_recall_target,
             train.dbb_min_precision_recall_target,
@@ -650,13 +711,20 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             train.drone_bird_min_precision_recall_target,
         )
         if any(value is None or not 0.0 < float(value) <= 1.0 for value in targets):
-            raise ValueError("V13 product selection targets must all be in (0,1]")
+            raise ValueError(f"{schema_version} product selection targets must all be in (0,1]")
+        if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+            if UNKNOWN_BASE_LABEL in spec.allowed_base_labels or UNKNOWN_BASE_LABEL in spec.label_to_id:
+                raise ValueError("V14 strict-open-set task mapping must not expose UnknownTarget")
+            if spec.name == "dbb_cu_gate" and spec.class_names != STRICT_OPEN_SET_GATE_OUTPUT_NAMES:
+                raise ValueError("V14 Gate output semantics are not strict-open-set evidence")
+            if spec.name == "cu_specialist" and spec.class_names != STRICT_OPEN_SET_CU_OUTPUT_NAMES:
+                raise ValueError("V14 CU output semantics are not strict-open-set evidence")
     elif train.loss_mode != "causal_prefix":
         raise ValueError("historical task training must use causal_prefix loss")
     if schema_number == _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         if train.checkpoint_selection_metric != "parent_macro_f1":
             raise ValueError("RADAR-LN3-V7 must preserve parent_macro_f1 checkpoint selection")
-    if schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION) and schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION) and schema_version not in HIERARCHICAL_SCHEMA_VERSIONS:
         if train.checkpoint_selection_metric != "parent_min_precision_recall":
             raise ValueError(
                 "task schemas from RADAR-LN3-V8 onward must use parent_min_precision_recall checkpoint selection"
@@ -709,7 +777,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         or train.dbb_auxiliary_supervision_scope is not None
     ):
         raise ValueError("DBB auxiliary training fields are reserved for the RADAR-LN3-V12 paired experiment")
-    if schema_version != HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if schema_version not in HIERARCHICAL_SCHEMA_VERSIONS:
         if (
             model.dt_reason_mode != "legacy_dt_valid_only"
             or train.prefix_auxiliary_weight != 0.0
@@ -723,7 +791,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             or train.cu_min_precision_recall_target is not None
             or train.drone_bird_min_precision_recall_target is not None
         ):
-            raise ValueError("dt reason dynamics and prefix auxiliary weight are reserved for V13")
+            raise ValueError("dt reason dynamics and prefix auxiliary weight are reserved for hierarchical schemas")
     if _is_repaired_task_schema(schema_version):
         require_causal_rd_quality_schema(data.rd_quality_schema)
         if data.contract_schema_version is None or not _is_repaired_task_schema(data.contract_schema_version):
@@ -840,6 +908,128 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         raise ValueError("task RD normalization values do not match the recorded train statistics")
     if stats.get("source_split") != "train" or "no validation or test" not in str(stats.get("scope", "")):
         raise ValueError("task normalization statistics are not explicitly train-only")
+    if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+        oof_fold_contract = dict(contract.get("oof_fold_training_contract") or {})
+        is_oof_fold = bool(oof_fold_contract)
+        expected_train_counts = (
+            {
+                str(key): int(value)
+                for key, value in dict(
+                    contract.get("data_scope", {}).get("optimizer_label_parent_counts") or {}
+                ).items()
+            }
+            if is_oof_fold
+            else {
+                "BalloonTarget": 245,
+                "BirdTarget": 243,
+                "ClutterTarget": 35,
+                "DroneTarget": 488,
+            }
+        )
+        expected_train_parent_count = (
+            int(oof_fold_contract.get("train_parent_count", -1)) if is_oof_fold else 1011
+        )
+        expected_excluded_unknown_count = (
+            int(dict(stats.get("excluded_label_parent_counts") or {}).get(UNKNOWN_BASE_LABEL, -1))
+            if is_oof_fold
+            else 70
+        )
+        expected_excluded_parent_count = (
+            1081 - expected_train_parent_count if is_oof_fold else 70
+        )
+        expected_excluded_rd_count = expected_excluded_parent_count
+        expected_validation_known_count = 0 if is_oof_fold else 217
+        expected_validation_unknown_count = 0 if is_oof_fold else 15
+        if (
+            stats.get("schema_version") != STRICT_OPEN_SET_SCHEMA_VERSION
+            or int(stats.get("parent_count", -1)) != expected_train_parent_count
+            or stats.get("selected_label_parent_counts") != expected_train_counts
+            or stats.get("allowed_labels") != sorted(KNOWN_BASE_LABELS)
+            or stats.get("forbidden_labels") != [UNKNOWN_BASE_LABEL]
+            or int(stats.get("excluded_parent_count", -1)) != expected_excluded_parent_count
+            or int(stats.get("excluded_label_parent_counts", {}).get(UNKNOWN_BASE_LABEL, -1))
+            != expected_excluded_unknown_count
+            or int(stats.get("excluded_rd_tensor_count", -1)) != expected_excluded_rd_count
+            or int(stats.get("selected_excluded_rd_tensor_path_overlap_count", -1)) != 0
+        ):
+            raise ValueError("V14 normalization does not prove known-only train population and zero Unknown exposure")
+        strict = dict(contract.get("strict_open_set_contract") or {})
+        data_scope = dict(contract.get("data_scope") or {})
+        normalization_contract = dict(contract.get("normalization_contract") or {})
+        oof = dict(contract.get("oof_calibration_contract") or {})
+        action = dict(contract.get("action_contract") or {})
+        if (
+            strict.get("known_training_labels") != list(KNOWN_BASE_LABELS)
+            or strict.get("unknown_label") != UNKNOWN_BASE_LABEL
+            or any(
+                strict.get(field) is not False
+                for field in (
+                    "unknown_is_model_class",
+                    "unknown_is_training_target",
+                    "unknown_is_normalization_population",
+                    "unknown_is_sampler_population",
+                    "unknown_is_optimizer_population",
+                    "unknown_is_checkpoint_ranking_population",
+                    "unknown_is_oof_population",
+                    "unknown_is_threshold_fitting_population",
+                )
+            )
+            or int(strict.get("unknown_training_exposure", -1)) != 0
+            or int(strict.get("normalization_known_parent_count", -1)) != expected_train_parent_count
+            or int(strict.get("normalization_excluded_unknown_parent_count", -1))
+            != expected_excluded_unknown_count
+            or int(strict.get("normalization_selected_excluded_tensor_overlap_count", -1)) != 0
+            or int(strict.get("validation_known_checkpoint_selection_parent_count", -1))
+            != expected_validation_known_count
+            or int(strict.get("validation_unknown_post_freeze_development_audit_parent_count", -1))
+            != expected_validation_unknown_count
+            or strict.get("validation_unknown_threshold_fitting_allowed") is not False
+            or strict.get("validation_unknown_checkpoint_selection_allowed") is not False
+            or strict.get("test_is_sealed") is not True
+            or int(data_scope.get("test_payload_access_count", -1)) != 0
+        ):
+            raise ValueError("V14 strict-open-set data contract allows Unknown leakage or changes frozen support")
+        if (
+            normalization_contract.get("sha256") != actual_hashes["stats_sha256"]
+            or int(normalization_contract.get("known_parent_count", -1)) != expected_train_parent_count
+            or normalization_contract.get("forbidden_labels") != [UNKNOWN_BASE_LABEL]
+            or int(normalization_contract.get("excluded_label_parent_counts", {}).get(UNKNOWN_BASE_LABEL, -1))
+            != expected_excluded_unknown_count
+        ):
+            raise ValueError("V14 data contract normalization provenance does not match the loaded statistics")
+        if is_oof_fold and (
+            oof_fold_contract.get("fit_split") != "train"
+            or oof_fold_contract.get("fit_population") != "known_only"
+            or oof_fold_contract.get("grouping") != "parent"
+            or int(oof_fold_contract.get("unknown_training_exposure", -1)) != 0
+            or int(oof_fold_contract.get("unknown_oof_prediction_count", -1)) != 0
+            or int(oof_fold_contract.get("validation_access_count", -1)) != 0
+            or int(oof_fold_contract.get("test_payload_access_count", -1)) != 0
+            or int(oof_fold_contract.get("epochs", -1)) != 20
+            or oof_fold_contract.get("early_stopping") is not False
+            or oof_fold_contract.get("held_out_checkpoint_selection") is not False
+            or int(stats.get("allowed_parent_ids_count", -1)) != expected_train_parent_count
+            or stats.get("allowed_parent_ids_sha256")
+            != oof_fold_contract.get("train_parent_ids_sha256")
+        ):
+            raise ValueError("V14 OOF fold contract allows held-out, Unknown, validation or test leakage")
+        if (
+            oof.get("fit_split") != "train"
+            or oof.get("fit_population") != "known_only"
+            or oof.get("grouping") != "parent"
+            or oof.get("prediction_protocol") != "out_of_fold"
+            or int(oof.get("unknown_oof_count", -1)) != 0
+            or oof.get("validation_used_for_threshold_fitting") is not False
+            or oof.get("test_used") is not False
+        ):
+            raise ValueError("V14 OOF contract is not known-only train parent-grouped OOF")
+        if (
+            action.get("dbb_knownness_failure") != "UNKNOWN_REJECTED"
+            or action.get("cu_clutter_failure") != "UNKNOWN_REJECTED"
+            or action.get("unknown_is_rejection_action_only") is not True
+            or action.get("unknown_is_probability_output") is not False
+        ):
+            raise ValueError("V14 action contract is not strict open-set")
     return {
         "paths": {"index": str(index_path), "contract": str(contract_path), "stats": str(stats_path)},
         "hashes": actual_hashes,
@@ -863,6 +1053,10 @@ class TaskSequenceDataset(Dataset[PointSequence]):
             str(parent_id): str(group.iloc[0]["label_name"])
             for parent_id, group in base._groups.items()
         }
+        if base.forbidden_labels and any(
+            label in base.forbidden_labels for label in labels_by_parent.values()
+        ):
+            raise ValueError("task Dataset base view contains a forbidden label")
         available = [
             str(parent_id)
             for parent_id in base.parent_ids
@@ -936,6 +1130,7 @@ def build_task_dataset(
             raise PermissionError(
                 "V11 RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
             )
+    strict_open_set = config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
     base = CQ08PointSequenceDataset(
         project_root,
         index_path=resolve_project_path(project_root, config.data.index_path),
@@ -949,6 +1144,8 @@ def build_task_dataset(
         expected_schema_version=config.data.index_schema_version,
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
         rd_physical_cache_path=rd_physical_cache_path,
+        allowed_labels=config.task.allowed_base_labels if strict_open_set else None,
+        forbidden_labels={UNKNOWN_BASE_LABEL} if strict_open_set else None,
     )
     view = TaskSequenceDataset(base, config.task)
     selected = _balanced_parent_ids(view, parent_limit)
@@ -1786,6 +1983,44 @@ def compose_soft_cascade(
     return torch.cat([gate[..., 0:1] * dbb, gate[..., 1:2] * cu], dim=-1)
 
 
+def compose_strict_open_set_evidence(
+    gate_logits: torch.Tensor,
+    dbb_logits: torch.Tensor,
+    cu_logits: torch.Tensor,
+) -> torch.Tensor:
+    """Compose V14 known evidence without inventing an Unknown probability.
+
+    Output order is Drone, Bird, Balloon, Clutter and
+    ``UNRESOLVED_OPEN_SET_EVIDENCE``.  The final value is
+    ``P(route CU) * P(non-Clutter-known evidence | CU head)``.  It is a
+    rejection feature, not a learned Unknown class posterior.
+    """
+
+    if gate_logits.shape[:-1] != dbb_logits.shape[:-1] or gate_logits.shape[:-1] != cu_logits.shape[:-1]:
+        raise ValueError("strict open-set evidence batch/sequence shapes do not match")
+    if gate_logits.shape[-1] != 2 or dbb_logits.shape[-1] != 3 or cu_logits.shape[-1] != 2:
+        raise ValueError("strict open-set evidence expects gate=2, dbb=3 and cu=2 logits")
+    gate = _probabilities(gate_logits)
+    dbb = _probabilities(dbb_logits)
+    cu = _probabilities(cu_logits)
+    evidence = torch.cat(
+        [
+            gate[..., 0:1] * dbb,
+            gate[..., 1:2] * cu[..., 0:1],
+            gate[..., 1:2] * cu[..., 1:2],
+        ],
+        dim=-1,
+    )
+    if not torch.allclose(
+        evidence.sum(dim=-1),
+        torch.ones_like(evidence[..., 0]),
+        atol=1.0e-5,
+        rtol=1.0e-5,
+    ):
+        raise ValueError("strict open-set evidence does not form a normalized audit decomposition")
+    return evidence
+
+
 def save_task_checkpoint(
     path: str | Path,
     model: LiquidTaskClassifier,
@@ -1823,7 +2058,12 @@ def save_task_checkpoint(
     }
     if _task_schema_number(config.schema_version) >= _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         model_contract["dt_valid_feature_mode"] = config.model.dt_valid_feature_mode
-    if config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+        cu_output_semantics = (
+            list(STRICT_OPEN_SET_CU_OUTPUT_NAMES)
+            if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            else list(HIERARCHICAL_CU_OUTPUT_NAMES)
+        )
         model_contract.update({
             "dt_reason_mode": config.model.dt_reason_mode,
             "dt_reason_names": list(DT_REASON_NAMES),
@@ -1831,7 +2071,7 @@ def save_task_checkpoint(
             "prefix_auxiliary_weight": config.train.prefix_auxiliary_weight,
             "prefix_auxiliary_min_events": config.train.prefix_auxiliary_min_events,
             "checkpoint_selection_metric": config.train.checkpoint_selection_metric,
-            "cu_output_semantics": ["CLUTTER_ACCEPT_EVIDENCE", "CLUTTER_REJECT_EVIDENCE"],
+            "cu_output_semantics": cu_output_semantics,
             "product_selection_targets": {
                 "gate_min_precision_recall": config.train.gate_min_precision_recall_target,
                 "dbb_min_precision_recall": config.train.dbb_min_precision_recall_target,
@@ -1839,6 +2079,14 @@ def save_task_checkpoint(
                 "drone_bird_min_precision_recall": config.train.drone_bird_min_precision_recall_target,
             },
         })
+        if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+            model_contract.update({
+                "gate_output_semantics": list(STRICT_OPEN_SET_GATE_OUTPUT_NAMES),
+                "known_training_labels": list(KNOWN_BASE_LABELS),
+                "unknown_training_exposure": 0,
+                "unknown_is_model_class": False,
+                "unknown_is_rejection_action_only": True,
+            })
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
         model_contract.update({
@@ -1890,7 +2138,7 @@ def save_task_checkpoint(
         "model_contract": model_contract,
         "model_state": model.state_dict(),
     }
-    if config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         payload["config_identity_sha256"] = task_config_identity_sha256(config)
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         payload["data_contract"].update(
@@ -1931,12 +2179,12 @@ def load_task_checkpoint(
         raise ValueError(f"invalid task checkpoint schema; expected={expected_schema}")
     if payload.get("task_name") != model.task_name:
         raise ValueError("task checkpoint belongs to a different task")
-    if model.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if model.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         if payload.get("config_name") != model.config.config_name:
-            raise ValueError("V13 task checkpoint belongs to a different named configuration")
+            raise ValueError("hierarchical task checkpoint belongs to a different named configuration")
         expected_config_identity = task_config_identity_sha256(model.config)
         if payload.get("config_identity_sha256") != expected_config_identity:
-            raise ValueError("V13 task checkpoint configuration identity mismatch")
+            raise ValueError("hierarchical task checkpoint configuration identity mismatch")
     expected_data_contract = {
         "index_sha256": model.config.data.expected_index_sha256,
         "contract_sha256": model.config.data.expected_contract_sha256,
@@ -1976,7 +2224,12 @@ def load_task_checkpoint(
     }
     if _task_schema_number(model.config.schema_version) >= _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         expected_contract["dt_valid_feature_mode"] = model.dt_valid_feature_mode
-    if model.config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if model.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+        cu_output_semantics = (
+            list(STRICT_OPEN_SET_CU_OUTPUT_NAMES)
+            if model.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            else list(HIERARCHICAL_CU_OUTPUT_NAMES)
+        )
         expected_contract.update({
             "dt_reason_mode": model.config.model.dt_reason_mode,
             "dt_reason_names": list(DT_REASON_NAMES),
@@ -1984,7 +2237,7 @@ def load_task_checkpoint(
             "prefix_auxiliary_weight": model.config.train.prefix_auxiliary_weight,
             "prefix_auxiliary_min_events": model.config.train.prefix_auxiliary_min_events,
             "checkpoint_selection_metric": model.config.train.checkpoint_selection_metric,
-            "cu_output_semantics": ["CLUTTER_ACCEPT_EVIDENCE", "CLUTTER_REJECT_EVIDENCE"],
+            "cu_output_semantics": cu_output_semantics,
             "product_selection_targets": {
                 "gate_min_precision_recall": model.config.train.gate_min_precision_recall_target,
                 "dbb_min_precision_recall": model.config.train.dbb_min_precision_recall_target,
@@ -1992,6 +2245,14 @@ def load_task_checkpoint(
                 "drone_bird_min_precision_recall": model.config.train.drone_bird_min_precision_recall_target,
             },
         })
+        if model.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+            expected_contract.update({
+                "gate_output_semantics": list(STRICT_OPEN_SET_GATE_OUTPUT_NAMES),
+                "known_training_labels": list(KNOWN_BASE_LABELS),
+                "unknown_training_exposure": 0,
+                "unknown_is_model_class": False,
+                "unknown_is_rejection_action_only": True,
+            })
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)
         expected_contract.update({
@@ -2239,9 +2500,18 @@ __all__ = [
     "DBB_AUXILIARY_SUPERVISION_SCOPE",
     "FORMAL_PAIRED_SCHEMA_VERSIONS",
     "HIERARCHICAL_CASCADE_SCHEMA_VERSION",
+    "HIERARCHICAL_SCHEMA_VERSIONS",
     "HIERARCHICAL_CHECKPOINT_SELECTION",
     "HIERARCHICAL_CU_OUTPUT_NAMES",
     "HIERARCHICAL_LOSS_MODE",
+    "KNOWN_BASE_LABELS",
+    "STRICT_OPEN_SET_CHECKPOINT_SELECTION",
+    "STRICT_OPEN_SET_CU_OUTPUT_NAMES",
+    "STRICT_OPEN_SET_GATE_OUTPUT_NAMES",
+    "STRICT_OPEN_SET_LOSS_MODE",
+    "STRICT_OPEN_SET_SCHEMA_VERSION",
+    "STRICT_OPEN_SET_TASK_SPECS",
+    "UNKNOWN_BASE_LABEL",
     "DT_REASON_DYNAMICS_MODE",
     "WEAK_CLASS_SELECTION_SCHEMA_VERSION",
     "TaskSequenceDataset",
@@ -2254,6 +2524,7 @@ __all__ = [
     "build_paired_model_for_config",
     "capture_training_state",
     "compose_soft_cascade",
+    "compose_strict_open_set_evidence",
     "evaluate_task",
     "load_task_checkpoint",
     "load_task_config",

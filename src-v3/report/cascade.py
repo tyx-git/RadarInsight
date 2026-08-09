@@ -16,6 +16,7 @@ from radar_ln3.cascade import (
     verify_cascade_data_contracts,
 )
 from radar_ln3.task_models import (
+    STRICT_OPEN_SET_SCHEMA_VERSION,
     load_task_config,
     sha256_file,
     task_config_identity_sha256,
@@ -23,7 +24,9 @@ from radar_ln3.task_models import (
 )
 from radar_ln3.rejection import (
     HierarchicalRejectionPolicy,
+    StrictOpenSetRejectionPolicy,
     load_hierarchical_rejection_calibration,
+    load_strict_open_set_rejection_calibration,
     validate_hierarchical_calibration_deployment,
 )
 
@@ -52,12 +55,12 @@ def _deployment_checkpoint_identity(
     epochs = {int(payloads[name].get("epoch", -1)) for name in EXPECTED_TASKS}
     global_steps = {int(payloads[name].get("global_step", -1)) for name in EXPECTED_TASKS}
     if len(epochs) != 1 or len(global_steps) != 1:
-        raise ValueError("evaluated V13 checkpoints do not share epoch/global step")
+        raise ValueError("evaluated hierarchical checkpoints do not share epoch/global step")
     selection = dict(payloads["dbb_cu_gate"].get("metrics") or {}).get(
         "checkpoint_selection"
     )
     if not isinstance(selection, dict):
-        raise ValueError("evaluated V13 checkpoints lack product checkpoint selection")
+        raise ValueError("evaluated hierarchical checkpoints lack product checkpoint selection")
     return {
         "task_config_identity_sha256": {
             name: task_config_identity_sha256(configs[name]) for name in EXPECTED_TASKS
@@ -92,11 +95,33 @@ def run(
         raise PermissionError("cascade test evaluation is disabled until explicitly authorized")
     device = task_device(configs["dbb_cu_gate"])
     cascade, payloads = load_cascade(configs, checkpoint_paths, device=device)
-    dataset = build_cascade_dataset(project_root, configs["dbb_cu_gate"], split_name=split_name)
+    strict_open_set = configs["dbb_cu_gate"].schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    evaluation_scope = (
+        "known_only_checkpoint_selection"
+        if strict_open_set and split_name == configs["dbb_cu_gate"].data.train_split_name
+        else "development_open_set_audit"
+        if strict_open_set
+        else None
+    )
+    dataset = build_cascade_dataset(
+        project_root,
+        configs["dbb_cu_gate"],
+        split_name=split_name,
+        label_scope=(
+            "known_only"
+            if strict_open_set and evaluation_scope == "known_only_checkpoint_selection"
+            else "development_open_set_audit"
+            if strict_open_set
+            else None
+        ),
+    )
     hierarchical_policy = None
     calibration_payload = None
     if calibration_path is not None:
-        calibration, calibration_payload = load_hierarchical_rejection_calibration(calibration_path)
+        if strict_open_set:
+            calibration, calibration_payload = load_strict_open_set_rejection_calibration(calibration_path)
+        else:
+            calibration, calibration_payload = load_hierarchical_rejection_calibration(calibration_path)
         expected_hashes = contracts["dbb_cu_gate"]["hashes"]
         actual_hashes = dict(calibration_payload["provenance"]["data_contract_hashes"])
         if actual_hashes != expected_hashes:
@@ -113,7 +138,11 @@ def run(
             calibration_payload,
             deployment_identity,
         )
-        hierarchical_policy = HierarchicalRejectionPolicy(calibration, enabled=True)
+        hierarchical_policy = (
+            StrictOpenSetRejectionPolicy(calibration, enabled=True)
+            if strict_open_set
+            else HierarchicalRejectionPolicy(calibration, enabled=True)
+        )
     result = evaluate_cascade(
         cascade,
         dataset,
@@ -121,6 +150,7 @@ def run(
         batch_size=batch_size or configs["dbb_cu_gate"].train.batch_size,
         split_name=split_name,
         hierarchical_rejection_policy=hierarchical_policy,
+        evaluation_scope=evaluation_scope,
     )
     target = output_dir or checkpoint_paths["dbb_cu_gate"].parent / "cascade"
     target.mkdir(parents=True, exist_ok=True)
@@ -140,7 +170,11 @@ def run(
         "checkpoint_epochs": {name: int(payloads[name].get("epoch", -1)) for name in EXPECTED_TASKS},
         "data_contracts": contracts,
         "sample_detail_information": str(sample_path),
-        "evaluation_scope": f"{split_name}:three_checkpoint_hierarchical_cascade_with_soft_posterior_audit",
+        "evaluation_scope": (
+            f"{split_name}:strict_open_set_three_checkpoint_with_named_evidence"
+            if strict_open_set
+            else f"{split_name}:three_checkpoint_hierarchical_cascade_with_soft_posterior_audit"
+        ),
         "hierarchical_calibration": (
             "未执行"
             if calibration_path is None
@@ -151,6 +185,9 @@ def run(
             }
         ),
         "full_validation": "executed" if split == "val" else "未执行",
+        "formal_rejection": "executed_with_calibration" if calibration_path is not None else "未执行",
+        "stable": "executed_with_calibration" if calibration_path is not None else "未执行",
+        "p95": "未执行",
         "test_evaluation": "未执行",
     })
     report_path = target / f"evaluation-{split_name}.json"
@@ -161,7 +198,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate the three-layer liquid hierarchy; five-class soft posterior is audit-only."
+        description="Evaluate the V13/V14 three-layer liquid hierarchy with schema-safe audit semantics."
     )
     parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--gate-config", type=Path, required=True)

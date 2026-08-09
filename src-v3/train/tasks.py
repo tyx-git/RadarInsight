@@ -20,6 +20,7 @@ from radar_ln3.logging_utils import (
     log_metric_set,
 )
 from radar_ln3.task_models import (
+    HIERARCHICAL_SCHEMA_VERSIONS,
     DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
     FORMAL_PAIRED_SCHEMA_VERSIONS,
     HIERARCHICAL_CASCADE_SCHEMA_VERSION,
@@ -184,10 +185,10 @@ def train_task(
     resume_checkpoint: Path | None = None,
 ) -> dict[str, Any]:
     config = load_task_config(config_path)
-    if config.schema_version == HIERARCHICAL_CASCADE_SCHEMA_VERSION:
+    if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         raise RuntimeError(
-            "RADAR-LN3-V13 is a joint three-checkpoint product objective; "
-            "use python -m train.cascade with all three V13 configs"
+            f"{config.schema_version} is a joint three-checkpoint product objective; "
+            "use python -m train.cascade with all three matching configs"
         )
     if not config.train.allow_parameter_updates:
         raise PermissionError("task configuration forbids parameter updates")

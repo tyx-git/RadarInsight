@@ -1,0 +1,110 @@
+{
+  "status": "ready_for_user_confirmation_before_manual_execution",
+  "schema_version": "RADAR-LN3-V14-strict-open-set-training-readiness-v1",
+  "generated_at": "2026-08-09",
+  "scope": "V14 strict known-only three-checkpoint supervision and five-fold train parent-grouped OOF execution readiness only",
+  "strict_open_set_contract": {
+    "known_training_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "unknown_label": "UnknownTarget",
+    "unknown_is_model_class": false,
+    "unknown_is_training_target": false,
+    "unknown_is_normalization_population": false,
+    "unknown_is_optimizer_population": false,
+    "unknown_is_checkpoint_ranking_population": false,
+    "unknown_is_oof_population": false,
+    "unknown_is_threshold_fitting_population": false,
+    "unknown_training_exposure": 0,
+    "unknown_output": "UNKNOWN_REJECTED hierarchical action only after known-only OOF calibration"
+  },
+  "frozen_data": {
+    "index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "normalization": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+    "normalization_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+    "contract": "data/processed/RADAR-LN3-V14-cq08-strict-open-set-data-contract.json",
+    "contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+    "known_train_parent_count": 1011,
+    "unknown_train_source_parent_count": 70,
+    "unknown_optimizer_parent_count": 0,
+    "test_payload_access_count": 0
+  },
+  "configs": {
+    "dbb_cu_gate": {
+      "path": "config/RADAR-LN3/RADAR-LN3-V14-cq08-liquid-strict-open-set-dbb-cu-gate-config.json",
+      "sha256": "9d1d708cc3955c1584357a3ea5207b1076d9ad3c59cd8b99d89648c7b0faa8b3"
+    },
+    "dbb_specialist": {
+      "path": "config/RADAR-LN3/RADAR-LN3-V14-cq08-liquid-strict-open-set-dbb-specialist-config.json",
+      "sha256": "23d2f158b368003b3b1c927c6cd7b14cd10d86e09d5c1d431135d571e2ac2da0"
+    },
+    "cu_specialist": {
+      "path": "config/RADAR-LN3/RADAR-LN3-V14-cq08-liquid-strict-open-set-cu-specialist-config.json",
+      "sha256": "3beddc09d60a47edf15276d2be92b8345d0a9fb2e99fdcf1c9643f99252e3af6"
+    }
+  },
+  "oof_protocol": {
+    "assignment_manifest": "data/processed/RADAR-LN3-V14-cq08-known-only-parent-grouped-oof-manifest.json",
+    "assignment_manifest_sha256": "1aea914c9566a8495471590ea5ebf9d6b62da6a6788b25aa7b39c5e6ebf7a46f",
+    "fold_contract": "data/processed/RADAR-LN3-V14-cq08-known-only-parent-grouped-oof-fold-contract.json",
+    "fold_contract_sha256": "8a6404fb7933bb8de29d561986494fde628f15c998c92fedd8b6b6b1088ce559",
+    "fold_count": 5,
+    "known_parent_count": 1011,
+    "every_known_parent_exactly_one_held_out_fold": true,
+    "epochs_per_fold": 20,
+    "early_stopping": false,
+    "held_out_checkpoint_selection": false,
+    "held_out_prediction": "one pass after fixed final epoch",
+    "unknown_oof_parent_count": 0,
+    "validation_access_count": 0,
+    "test_payload_access_count": 0
+  },
+  "verification": {
+    "focused_contract": {
+      "status": "passed",
+      "path": "src-v3/smoke/RADAR-LN3-V14-strict-open-set-focused-contract-result.json",
+      "sha256": "9ea23d1e08590bd9c232e9fc163822af450ceef37771c7e10f4cc4b467627f80"
+    },
+    "bounded_cpu_smoke": {
+      "status": "passed",
+      "path": "src-v3/smoke/RADAR-LN3-V14-strict-open-set-cascade-smoke-cpu/result.json",
+      "sha256": "2dd012a828e10a1b4a558608e19c05a8390feb5777133a9bed27a14739a974af",
+      "checkpoint_round_trip_max_difference": 0.0,
+      "offline_online_evidence_max_difference": 5.960464477539063e-08
+    },
+    "bounded_cuda_smoke": {
+      "status": "passed",
+      "path": "src-v3/smoke/RADAR-LN3-V14-strict-open-set-cascade-smoke-cuda/result.json",
+      "sha256": "fe7aab7fd3b9aa188a2c56806c97ac9ece37477ae371c8d3f23cc4b80b16d546",
+      "checkpoint_round_trip_max_difference": 0.0,
+      "offline_online_evidence_max_difference": 4.470348358154297e-08
+    },
+    "v13_focused_regression": "passed",
+    "v13_formal_three_checkpoint_read_only_restore": "passed; epoch=13, global_step=7033, checkpoint_set_id=611c0817ef0f42afb9ccf9c8658e9602",
+    "historical_cascade_focused_regression": "passed",
+    "compileall": "passed",
+    "src_v3_static_import_isolation": "passed",
+    "diff_check": "passed for scoped changes"
+  },
+  "artifact_preflight": {
+    "formal_v14_artifact_exists": false,
+    "oof_v14_artifact_exists": false,
+    "overwrite_risk": false
+  },
+  "authorization_boundary": {
+    "formal_v14_training": "awaiting_user_confirmation",
+    "five_fold_oof_training": "awaiting_user_confirmation",
+    "threshold_fitting": "not_executable_until_all_five_oof_predictions_and_formal_three_checkpoints_exist",
+    "formal_rejection_evaluation": "未执行",
+    "stable_performance": "未执行",
+    "development_unknown_validation_audit": "未执行",
+    "test": "未执行",
+    "p95": "未执行",
+    "deployment": "未执行"
+  },
+  "interpretation": "Readiness proves code, data boundaries, gradients, checkpoint recovery and offline/online consistency. It is not classification performance, open-set rejection performance or deployment approval."
+}

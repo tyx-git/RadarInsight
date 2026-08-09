@@ -1608,3 +1608,85 @@ Stage 047交付时未执行与边界（当前状态由Stage 048更新）：
 - 本Stage只记录该问题，未修改代码。后续应将其更名为明确的`collate_padding_positions`并记录batch size，或另算与batch无关的数据契约统计；它不影响mask后的V13当前分类指标。
 
 当前决策：V13状态为“正式训练完成、技术契约通过、监督性能未放行”。由于四项基础护栏为0/4，且固定validation已反复使用，本Stage不继续train OOF阈值校准；阈值不能修复Bird→CU与Unknown→DBB的表征重叠，也不能把未达标监督模型包装为已验证拒识。下一阶段应先在train/parent-grouped OOF内部做错误覆盖、Unknown子流型、困难Bird和loss贡献归因，并冻结单一变量后再请求授权。test、calibrated action、stable、session、P95和部署均未执行。
+
+## 2026-08-09 Stage 049 - V14严格Open-set启动与Git基线
+
+用户确认：若当前不是严格open-set，则先按`.rules`保存Git记录，再拆分阶段并按`task_plan_v3.md`实施；只有当前已是严格open-set时才转入错误覆盖归因。只读代码核验已确认V13不是严格open-set：Gate把Unknown映射CU参与CE，CU specialist把Unknown作为第二目标学习，Gate接受DBB后DBB三分类argmax无二次拒识；真实train OOF calibration也尚不存在。因此本Stage进入V14严格open-set改造，不执行替代分支。
+
+Git规则与基线：
+
+- 已完整读取`.rules`。当前起点为受保护分支`main`，规则禁止直接提交；创建普通开发分支`codex/v13-strict-open-set`。Git成功切换分支，但仓库`.git/hooks/post-checkout`无法spawn导致命令退出码1；分支实际存在且当前分支核验通过，未修改用户hook。
+- 提交前运行V12 knownness focused、V13 hierarchical focused、`python -m compileall -q .`和静态隔离，均通过；受限`tmp/`历史目录继续存在权限警告但未纳入提交。
+- 基线提交`d4d39e2 保存V12已知性诊断基线`：仅包含V12 knownness诊断、逐parent分数、focused测试与结果；明确OOF/阈值/正式训练/test未执行。
+- 基线提交`627950a 保存V13三层级联修复基线`：包含V13代码、三配置、V13数据契约、跟踪文件、focused/CPU/CUDA Smoke结果和规范batch=2 validation复核；未提交正式`.pt`、`tmp/`、`__pycache__`或batch=8重复报告。提交使用普通开发分支中文概述、空行和有序列表，符合`.rules`。
+
+严格open-set污染审计：
+
+- V13 train parent=`1081`，其中Unknown=`70`。`hierarchical_final_state_nll`对Unknown产生Gate CU CE和CU specialist第二类CE；Unknown还进入每epochvalidation与`unknown_to_dbb_count` checkpoint ranking。这是已确认的可学习与模型选择暴露。
+- V13 Gate接受DBB后无`dbb_accept_known_threshold`或DBB knownness拒识，直接接受三分类argmax；Unknown误路由DBB时必被强制映射Drone/Bird/Balloon。
+- V2 RD normalization使用全部1081 train parent，包含70个Unknown。即使不使用Unknown标签做CE，继续复用该统计也会让Unknown分布影响输入尺度，不满足本项目冻结的“Unknown零学习暴露”严格定义。
+- V14 known-only train population应为Drone/Bird/Balloon/Clutter=`488/243/245/35`，总计1011；Unknown train 70必须从normalization、Dataset、optimizer、OOF、阈值和checkpoint selection全部排除。Validation Unknown=15只允许冻结development open-set审计；test仍封存。
+- 当前全局最高版本为V13。训练population、normalization、label/loss、输出动作、calibration和checkpoint语义均实质变化，因此使用全局V14；复用V3 index/split/TR/RD张量，不覆盖V2/V13文件。
+
+冻结V14动作设计：
+
+- Gate只用DBB与Clutter known训练`DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE`；Unknown不属于Gate训练CU类。
+- DBB specialist只用Drone/Bird/Balloon训练三分类；运行时除亚类argmax外必须通过独立DBB knownness probability/margin边界，否则直接`UNKNOWN_REJECTED`。
+- CU specialist不学习Unknown类，输出`CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE`；正样本Clutter，负样本只来自DBB known。Gate路由CU后仅Clutter接受条件通过才输出Clutter，否则`UNKNOWN_REJECTED`。
+- 三个接受边界只允许由train known parent-grouped OOF校准，并以known false-rejection/coverage约束拟合；Unknown不能用于选择阈值。真实Unknown检测能力只能在冻结validation/test报告，不作为训练或调参依据。
+- `UNKNOWN_REJECTED`是动作，不是模型class、中心或训练target。Unknown标签仅用于开放集评估真值及FAR/拒识Recall分母。
+
+该段记录的是Stage 049启动时状态；V14实施与验证的当前事实由下方“Stage 049完成”覆盖。正式训练、完整OOF、真实阈值拟合、正式拒识、stable性能、development Unknown validation审计、test、P95和部署仍未执行。
+
+## 2026-08-09 Stage 049 - V14严格Open-set实现、OOF准备与回归完成
+
+本阶段只修改`src-v3/`、`config/RADAR-LN3/`和`data/processed/`中的V14实现/契约；未修改`src/`，未修改标签，未重建V3 index/split/TR/RD tensor，未访问test payload，未启动正式训练、完整OOF训练或真实阈值拟合。用户/历史未跟踪的V13报告和`tmp/`权限受限目录保持原样，不纳入本阶段提交。
+
+严格open-set实现：
+
+- 在`radar_ln3/task_models.py`新增V14强类型TaskSpec：Gate只学习DBB known与Clutter route evidence；DBB specialist只学习Drone/Bird/Balloon；CU specialist学习Clutter与DBB known非Clutter evidence。`UnknownTarget`不存在于任何V14 class mapping、prototype、概率输出或loss target。
+- 在`data.py`为Dataset增加allowed/forbidden label及parent白名单；V14 train、known checkpoint validation和OOF均显式禁止Unknown。Unknown进入train Dataset、loss、checkpoint selection或calibration会fail-closed。
+- 在`losses.py`实现`strict_open_set_final_state_nll`：known parent final state为主损失，prefix仅按既有0.10/最小3事件契约作辅助；Unknown label id=4立即报错。Clutter不会给DBB specialist产生梯度，DBB known进入CU的non-Clutter-known监督，Unknown梯度计数恒为0。
+- `train/cascade.py`支持V13/V14 schema-aware联合训练。V14每epoch只使用217个known validation parent做产品checkpoint ranking，ranking key长度为8；Unknown development审计只在best checkpoint冻结后运行且不能返回selection输入。`train/tasks.py`继续拒绝三层V13/V14走单task正式入口。
+- `rejection.py`实现三道known-only接受边界：Gate DBB route、DBB knownness、Clutter acceptance。Gate通过而DBB knownness失败与CU中Clutter未接受均输出`UNKNOWN_REJECTED`，accepted label为空；无真实OOF calibration时动作保持`NOT_CALIBRATED`。
+- `cascade.py`分别输出known evidence、hierarchical action与stable状态；第五项命名为`UNRESOLVED_OPEN_SET_EVIDENCE`且明确不是Unknown posterior。V13/V14均将数据事件dt reason与collate padding拆分为`dt_reason_counts_data_events`、`collate_padding_positions`和`evaluation_batch_size`，修复历史batch依赖字段语义。
+- `report/cascade.py`按V13/V14 schema加载对应校准，强制校准数据hash和正式三checkpoint部署身份一致；未授权test仍被拒绝。
+
+版本化数据和配置：
+
+- 只读复用V3 index，SHA-256=`a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87`；split与点行不变。
+- 新建V14 known-only train normalization，路径`data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json`，SHA-256=`1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0`。只使用1011个known train parent，标签计数Drone/Bird/Balloon/Clutter=`488/243/245/35`；排除70个Unknown，selected/excluded RD tensor路径交集=0；center/scale=`55.9375/6.945900266082501`。
+- 新建V14数据契约`RADAR-LN3-V14-cq08-strict-open-set-data-contract.json`，SHA-256=`062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378`。V3 index、split和RD tensor均只读复用；训练population、normalization、loss、输出动作、checkpoint及calibration语义实质变化，因此使用全局V14。
+- 三配置SHA-256：Gate=`9d1d708cc3955c1584357a3ea5207b1076d9ad3c59cd8b99d89648c7b0faa8b3`；DBB=`23d2f158b368003b3b1c927c6cd7b14cd10d86e09d5c1d431135d571e2ac2da0`；CU=`3beddc09d60a47edf15276d2be92b8345d0a9fb2e99fdcf1c9643f99252e3af6`。正式artifact路径与V13/V12隔离，检查时尚不存在V14正式或OOF artifact目录。
+- `python -m build.strict_open_set`复跑结果为`reused_identical`；基础normalization、数据契约和三配置hash均保持不变。实施中发现normalization构建器曾会在未使用parent白名单时写入两个null字段并破坏基础文件幂等性，已改为仅在真实传入白名单时写入`allowed_parent_ids_count/sha256`。
+
+Parent-grouped OOF准备：
+
+- assignment manifest为`RADAR-LN3-V14-cq08-known-only-parent-grouped-oof-manifest.json`，SHA-256=`1aea914c9566a8495471590ea5ebf9d6b62da6a6788b25aa7b39c5e6ebf7a46f`。使用seed 42、按label内SHA-256顺序round-robin分5折；1011个known train parent各恰好一次held-out，Unknown OOF=0，validation/test parent=0。
+- fold contract升级为v2，路径`RADAR-LN3-V14-cq08-known-only-parent-grouped-oof-fold-contract.json`，SHA-256=`8a6404fb7933bb8de29d561986494fde628f15c998c92fedd8b6b6b1088ce559`。每折固定20 epoch、关闭early stopping、held-out不参与checkpoint选择、只在最终epoch后单次预测。
+- 为避免fold模型实际使用fold-train normalization却仍声称绑定基础1011-parent统计，新增5份fold-specific数据契约。Fold 00–04 contract SHA-256依次为`eb96b6eb8c49951f4459f9aebd1166e5ae9716759a3a1c8a3ee0b3c1a3c7b0bc`、`44626724546d82f48ef8620e3cd487754a63d33d6c2047435b6e22560de82e07`、`e5e6ee7a330a0fbf14db884d0fbbcb86b47f74075980dd846b1b21628ebbc9de`、`7180a2bbb94df9c369ea45eaaf7d7471b679f3c6984d12e14422181514e0fa4c`、`d8753c55e40709186888f7504ba48a9b76d71a63a507a111d298a06b1b410d4e`。
+- 5份fold-train normalization SHA-256依次为`7e6c0aace0a77fe90e9e59e21ebcf067db57b56e1482ed13f8cbce5a147219ed`、`a223ae8f2f1d7cbebc0509e7bf57597e697dc217cbc74cc6244f3958f56ca2d2`、`72cfc0188371b3dfd8ee3fc93b439166e9c1b6b1e4aa503276b0416bb7fe06c3`、`0724a6552780b94906e0d45ad7644b0c9dfb7d5055fd3ce412632e19a2004f0f`、`f00e2423b96baf919db938273ce89b956d3166da4cfdb93065ef42f8ac1bd6d8`；fold 00–02 train/held-out=`808/203`，fold 03–04=`810/201`，所有fold Unknown/validation/test暴露均为0。
+- 新增`train.strict_open_set_oof`：每次只训练指定fold，20 epoch内从不前向held-out；最终epoch保存校准支持checkpoint后对held-out执行一次parent-final预测。折模型明确不是正式部署checkpoint。
+- 新增`report.strict_open_set_oof`：只有5份预测完整覆盖1011个known parent后才拟合Gate/DBB/Clutter边界；只优化known Precision/Recall、coverage和known false rejection，不声称优化Unknown检测。Calibration必须绑定正式V14三配置语义hash、三checkpoint hash、共同epoch/global step、selection hash及数据/OOF契约hash。
+
+实际测试与回归：
+
+- V14 focused契约测试通过，结果`src-v3/smoke/RADAR-LN3-V14-strict-open-set-focused-contract-result.json`，SHA-256=`9ea23d1e08590bd9c232e9fc163822af450ceef37771c7e10f4cc4b467627f80`。验证train known=1011、validation known=217、development audit=232/其中Unknown 15；Unknown进入loss/selection/calibration均被拒；V14 checkpoint round-trip通过；5折白名单合计恰好覆盖1011且互斥；synthetic known-only拟合通过，混入Unknown立即失败。
+- 有界真实CQ08 CPU Smoke通过，结果SHA-256=`2dd012a828e10a1b4a558608e19c05a8390feb5777133a9bed27a14739a974af`；Bird+Clutter各最多3事件，三模型梯度/参数更新非零，checkpoint恢复最大差0，离线/在线evidence最大差`5.960464477539063e-08`。
+- 有界真实CQ08 CUDA Smoke通过，结果SHA-256=`fe7aab7fd3b9aa188a2c56806c97ac9ece37477ae371c8d3f23cc4b80b16d546`；checkpoint恢复最大差0，离线/在线evidence最大差`4.470348358154297e-08`。
+- 实施中发现`load_cascade`历史固定要求9维ranking key，V14实际为8维；已按schema分别校验V13=9、V14=8。V13正式三best checkpoint随后在CPU只读恢复成功，epoch=13、global step=7033、共同set ID=`611c0817ef0f42afb9ccf9c8658e9602`。
+- V13 hierarchical focused通过；V13 bounded Smoke未重跑，因为其防覆盖护栏正确拒绝在正式V13 artifact已存在时执行。该情况不属于代码失败；正式三checkpoint只读恢复作为兼容性证据。
+- 历史`smoke.causal_cascade_contract_test`通过；全`src-v3` compileall通过；静态搜索无`src/` import、`sys.path`、动态加载绕过；限定`git diff --check`通过。
+- 第一次扩展focused测试时，新helper插入位置截断`_checkpoint_contract`导致输出`checkpoint=null`；测试结果未被采纳。函数结构修复后重新执行，checkpoint round-trip与全部V14/OOF断言完整通过。
+- 创建`src-v3/smoke/RADAR-LN3-V14-strict-open-set-training-readiness.json`。该文件只证明等待用户确认后的手动正式known-only训练和5折OOF技术准备，不是性能或部署放行。
+
+当前执行边界：
+
+- V14正式20 epoch known-only联合训练：未执行。
+- 5折OOF训练及held-out预测：未执行。
+- 真实known-only OOF阈值拟合和calibration artifact：未执行。
+- development Unknown validation审计、正式拒识指标、Coverage/FAR/FRR/Selective Risk、stable性能：未执行。
+- test、session、P95和部署：未执行。
+- 预训练：不需要且未使用。
+
+当前结论：V14已经是本项目冻结定义下的严格known-only open-set实现，Unknown不是模型类、训练target、normalization/optimizer/OOF/threshold/checkpoint ranking population；运行时只能由三道known acceptance边界产生`UNKNOWN_REJECTED`动作。但真实拒识能力仍“未评估”，必须等待用户确认并手动完成正式训练、5折OOF和冻结校准后才能讨论。

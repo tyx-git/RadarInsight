@@ -1,0 +1,66 @@
+{
+  "schema_version": "RADAR-LN3-V14",
+  "stats_name": "cq08_known_only_oof_fold_01_train_normalization_v1",
+  "scope": "V3 train split OOF fold 01; CQ08 known fold-train parents only; held-out fold and Unknown excluded; no validation or test statistics",
+  "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+  "source_split": "train",
+  "parent_count": 808,
+  "selected_parent_ids_sha256": "39191ed8ebeebf54641f017dc7e8cf298afe5ddb52215edab7da1925f6e7823e",
+  "selected_label_parent_counts": {
+    "BalloonTarget": 196,
+    "BirdTarget": 194,
+    "ClutterTarget": 28,
+    "DroneTarget": 390
+  },
+  "allowed_labels": [
+    "BalloonTarget",
+    "BirdTarget",
+    "ClutterTarget",
+    "DroneTarget"
+  ],
+  "allowed_parent_ids_count": 808,
+  "allowed_parent_ids_sha256": "39191ed8ebeebf54641f017dc7e8cf298afe5ddb52215edab7da1925f6e7823e",
+  "forbidden_labels": [
+    "UnknownTarget"
+  ],
+  "excluded_parent_count": 273,
+  "excluded_parent_ids_sha256": "31b11ce0d3eda60ebe900bba28b8cedc92a65ee304159ec2778a92464d042f56",
+  "excluded_label_parent_counts": {
+    "BalloonTarget": 49,
+    "BirdTarget": 49,
+    "ClutterTarget": 7,
+    "DroneTarget": 98,
+    "UnknownTarget": 70
+  },
+  "rd_tensor_count": 808,
+  "selected_rd_tensor_paths_sha256": "12b977cbde36eaca418492652a97f60add8a7e96730dc66ef9740d1530b86d86",
+  "excluded_rd_tensor_count": 273,
+  "excluded_rd_tensor_paths_sha256": "0387d73fa8cdc6a82c670c1c1b1b900f5dc65421f6e52d52bfb384a59f91c908",
+  "selected_excluded_rd_tensor_path_overlap_count": 0,
+  "rd_tensor_frame_count": 55549,
+  "amplitude_value_count": 447947136,
+  "amplitude": {
+    "mean": 55.59384730433335,
+    "std": 6.958790900854811,
+    "min": -19.375,
+    "max": 146.125,
+    "sample_q01": 38.21875,
+    "sample_q25": 52.3125,
+    "sample_median": 55.96875,
+    "sample_q75": 59.28125,
+    "sample_q99": 76.25,
+    "center": 55.96875,
+    "scale": 6.958790900854811,
+    "scale_rule": "max(population_std, sampled_IQR/1.349, 1e-6)",
+    "sample_rule": "up to 4096 evenly strided amplitude values per unique train tensor"
+  },
+  "phase": {
+    "encoding": "phase divided by pi and clipped to [-1,1]",
+    "center": 0.0,
+    "scale": 3.141592653589793
+  },
+  "outputs": {
+    "normalization_stats_path": "data/processed/RADAR-LN3-V14-cq08-known-only-oof-fold-01-train-normalization-stats.json"
+  }
+}

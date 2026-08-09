@@ -237,6 +237,9 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         enable_tr_motion: bool = False,
         tr_motion_schema: str | None = None,
         rd_physical_cache_path: str | Path | None = None,
+        allowed_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
+        forbidden_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
+        allowed_parent_ids: frozenset[str] | set[str] | tuple[str, ...] | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         path = Path(str(index_path).replace("\\", "/"))
@@ -267,6 +270,17 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         frame = frame[frame["split_name"].astype(str).eq(str(split_name))].copy()
         if frame.empty:
             raise ValueError(f"V0 point index has no rows for split={split_name}")
+        allowed = None if allowed_labels is None else frozenset(str(value) for value in allowed_labels)
+        forbidden = frozenset(str(value) for value in (forbidden_labels or ()))
+        if allowed is not None:
+            if not allowed or allowed & forbidden:
+                raise ValueError("Dataset allowed_labels must be non-empty and disjoint from forbidden_labels")
+            frame = frame[frame["label_name"].astype(str).isin(allowed)].copy()
+            if frame.empty:
+                raise ValueError(f"Dataset has no rows after allowed-label filtering for split={split_name}")
+        observed_forbidden = sorted(set(frame["label_name"].astype(str)) & forbidden)
+        if observed_forbidden:
+            raise ValueError(f"Dataset contains forbidden labels after filtering: {observed_forbidden}")
         if frame["source_name"].astype(str).ne("CQ08").any():
             raise ValueError("CQ08 dataset received a non-CQ08 source")
         if frame["sample_id"].astype(str).duplicated().any():
@@ -285,6 +299,21 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
                 continue
             selected.append(str(parent_id))
         selected = sorted(selected)
+        requested_parents = (
+            None
+            if allowed_parent_ids is None
+            else frozenset(str(value) for value in allowed_parent_ids)
+        )
+        if requested_parents is not None:
+            if not requested_parents:
+                raise ValueError("Dataset allowed_parent_ids must be non-empty")
+            unavailable = sorted(requested_parents - set(selected))
+            if unavailable:
+                raise ValueError(
+                    "Dataset allowed_parent_ids contain unavailable parents: "
+                    f"count={len(unavailable)}, first={unavailable[:3]}"
+                )
+            selected = [parent_id for parent_id in selected if parent_id in requested_parents]
         if sample_limit is not None:
             selected = selected[: max(1, int(sample_limit))]
         if not selected:
@@ -320,6 +349,9 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
                 ):
                     raise ValueError(f"V3 parent dt reason does not mark exactly one first event: {parent_id}")
         self.parent_ids = selected
+        self.allowed_labels = allowed
+        self.forbidden_labels = forbidden
+        self.allowed_parent_ids = requested_parents
         self._groups = {parent_id: group.reset_index(drop=True) for parent_id, group in self.frame.groupby("parent_sample_id", sort=False)}
         self._tensor_cache = _TensorCache(self.project_root, max_size=tensor_cache_size)
         self.rd_physical_cache_path: Path | None = None

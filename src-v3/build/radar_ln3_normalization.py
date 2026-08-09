@@ -19,6 +19,15 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sequence_sha256(values: list[str]) -> str:
+    digest = hashlib.sha256()
+    for value in values:
+        encoded = str(value).encode("utf-8")
+        digest.update(len(encoded).to_bytes(4, byteorder="big", signed=False))
+        digest.update(encoded)
+    return digest.hexdigest()
+
+
 def _resolve(root: Path, value: str | Path) -> Path:
     candidate = Path(str(value).replace("\\", "/"))
     return candidate if candidate.is_absolute() else root / candidate
@@ -37,20 +46,86 @@ def _sample_values(values: np.ndarray, *, maximum: int = 4096) -> np.ndarray:
     return flat[::stride][:maximum].copy()
 
 
-def build(project_root: Path, index_path: Path, output_path: Path, split_name: str) -> dict[str, Any]:
+def _write_new_or_identical(path: Path, payload: dict[str, Any]) -> str:
+    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    if path.exists():
+        if path.read_text(encoding="utf-8") != text:
+            raise FileExistsError(f"refusing to overwrite different normalization statistics: {path}")
+        return "reused_identical"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return "created"
+
+
+def build(
+    project_root: Path,
+    index_path: Path,
+    output_path: Path,
+    split_name: str,
+    *,
+    allowed_labels: tuple[str, ...] | None = None,
+    forbidden_labels: tuple[str, ...] = (),
+    allowed_parent_ids: tuple[str, ...] | None = None,
+    schema_version: str = "RADAR-LN3-V2",
+    stats_name: str = "cq08_tr_rd_main_train_normalization_v1",
+    scope: str = "V1 main train split; CQ08 parent/tensor set only; no validation or test statistics",
+) -> dict[str, Any]:
     index_path = index_path.resolve()
     output_path = output_path.resolve()
     frame = pd.read_csv(index_path, low_memory=False)
-    required = {"schema_version", "parent_sample_id", "split_name", "rd_present", "rd_tensor_path"}
+    required = {
+        "schema_version",
+        "parent_sample_id",
+        "split_name",
+        "source_name",
+        "label_name",
+        "rd_present",
+        "rd_tensor_path",
+    }
     missing = sorted(required - set(frame.columns))
     if missing:
         raise ValueError(f"normalization source index is missing columns: {missing}")
-    selected = frame[frame["split_name"].astype(str).eq(str(split_name))].copy()
-    if selected.empty:
+    split_frame = frame[frame["split_name"].astype(str).eq(str(split_name))].copy()
+    if split_frame.empty:
         raise ValueError(f"normalization source index has no split={split_name}")
-    if selected["source_name"].astype(str).ne("CQ08").any():
+    if split_frame["source_name"].astype(str).ne("CQ08").any():
         raise ValueError("normalization source contains a non-CQ08 source")
+    allowed = None if allowed_labels is None else frozenset(str(value) for value in allowed_labels)
+    forbidden = frozenset(str(value) for value in forbidden_labels)
+    if allowed is not None and (not allowed or allowed & forbidden):
+        raise ValueError("normalization allowed_labels must be non-empty and disjoint from forbidden_labels")
+    selected = split_frame
+    if allowed is not None:
+        selected = selected[selected["label_name"].astype(str).isin(allowed)].copy()
+    allowed_parents = (
+        None
+        if allowed_parent_ids is None
+        else frozenset(str(value) for value in allowed_parent_ids)
+    )
+    if allowed_parents is not None:
+        if not allowed_parents:
+            raise ValueError("normalization allowed_parent_ids must be non-empty")
+        selected = selected[
+            selected["parent_sample_id"].astype(str).isin(allowed_parents)
+        ].copy()
+    observed_forbidden = sorted(set(selected["label_name"].astype(str)) & forbidden)
+    if observed_forbidden:
+        raise ValueError(f"normalization selected forbidden labels: {observed_forbidden}")
+    if selected.empty:
+        raise ValueError("normalization source has no rows after label filtering")
+    parent_labels = (
+        split_frame[["parent_sample_id", "label_name"]]
+        .drop_duplicates("parent_sample_id")
+        .assign(
+            parent_sample_id=lambda value: value["parent_sample_id"].astype(str),
+            label_name=lambda value: value["label_name"].astype(str),
+        )
+    )
+    if split_frame.groupby("parent_sample_id")["label_name"].nunique().gt(1).any():
+        raise ValueError("normalization source contains a parent with multiple labels")
     parents = selected["parent_sample_id"].astype(str).drop_duplicates().sort_values().tolist()
+    all_parent_ids = parent_labels["parent_sample_id"].astype(str).sort_values().tolist()
+    excluded_parent_ids = sorted(set(all_parent_ids) - set(parents))
     paths = (
         selected.loc[selected["rd_present"].astype(str).str.lower().isin({"true", "1", "yes"}), "rd_tensor_path"]
         .astype(str)
@@ -60,6 +135,20 @@ def build(project_root: Path, index_path: Path, output_path: Path, split_name: s
     )
     if not paths:
         raise ValueError("normalization source has no present RD tensors")
+    excluded_paths = (
+        split_frame.loc[
+            split_frame["parent_sample_id"].astype(str).isin(excluded_parent_ids)
+            & split_frame["rd_present"].astype(str).str.lower().isin({"true", "1", "yes"}),
+            "rd_tensor_path",
+        ]
+        .astype(str)
+        .drop_duplicates()
+        .sort_values()
+        .tolist()
+    )
+    overlap = sorted(set(paths) & set(excluded_paths))
+    if overlap:
+        raise ValueError("normalization selected and excluded populations share RD tensor paths")
     total_count = 0
     total_sum = 0.0
     total_sum_sq = 0.0
@@ -95,14 +184,43 @@ def build(project_root: Path, index_path: Path, output_path: Path, split_name: s
     robust_scale = float((q75 - q25) / 1.349) if q75 > q25 else 0.0
     scale = max(std, robust_scale, 1.0e-6)
     result: dict[str, Any] = {
-        "schema_version": "RADAR-LN3-V2",
-        "stats_name": "cq08_tr_rd_main_train_normalization_v1",
-        "scope": "V1 main train split; CQ08 parent/tensor set only; no validation or test statistics",
+        "schema_version": str(schema_version),
+        "stats_name": str(stats_name),
+        "scope": str(scope),
         "source_index": str(index_path.relative_to(project_root)).replace("\\", "/"),
         "source_index_sha256": _sha256(index_path),
         "source_split": str(split_name),
         "parent_count": len(parents),
+        "selected_parent_ids_sha256": _sequence_sha256(parents),
+        "selected_label_parent_counts": {
+            str(key): int(value)
+            for key, value in (
+                parent_labels[parent_labels["parent_sample_id"].isin(parents)]
+                .groupby("label_name")
+                .size()
+                .sort_index()
+                .items()
+            )
+        },
+        "allowed_labels": None if allowed is None else sorted(allowed),
+        "forbidden_labels": sorted(forbidden),
+        "excluded_parent_count": int(parent_labels["parent_sample_id"].nunique() - len(parents)),
+        "excluded_parent_ids_sha256": _sequence_sha256(excluded_parent_ids),
+        "excluded_label_parent_counts": {
+            str(key): int(value)
+            for key, value in (
+                parent_labels[~parent_labels["parent_sample_id"].isin(parents)]
+                .groupby("label_name")
+                .size()
+                .sort_index()
+                .items()
+            )
+        },
         "rd_tensor_count": len(paths),
+        "selected_rd_tensor_paths_sha256": _sequence_sha256(paths),
+        "excluded_rd_tensor_count": len(excluded_paths),
+        "excluded_rd_tensor_paths_sha256": _sequence_sha256(excluded_paths),
+        "selected_excluded_rd_tensor_path_overlap_count": len(overlap),
         "rd_tensor_frame_count": tensor_frame_count,
         "amplitude_value_count": total_count,
         "amplitude": {
@@ -129,8 +247,10 @@ def build(project_root: Path, index_path: Path, output_path: Path, split_name: s
             "normalization_stats_path": str(output_path.relative_to(project_root)).replace("\\", "/"),
         },
     }
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if allowed_parents is not None:
+        result["allowed_parent_ids_count"] = len(allowed_parents)
+        result["allowed_parent_ids_sha256"] = _sequence_sha256(sorted(allowed_parents))
+    result["write_status"] = _write_new_or_identical(output_path, result)
     return result
 
 
@@ -140,8 +260,30 @@ def main() -> None:
     parser.add_argument("--index", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--split", default="train")
+    parser.add_argument("--allow-label", action="append", default=None)
+    parser.add_argument("--forbid-label", action="append", default=[])
+    parser.add_argument("--allow-parent-id", action="append", default=None)
+    parser.add_argument("--schema-version", default="RADAR-LN3-V2")
+    parser.add_argument("--stats-name", default="cq08_tr_rd_main_train_normalization_v1")
+    parser.add_argument(
+        "--scope",
+        default="V1 main train split; CQ08 parent/tensor set only; no validation or test statistics",
+    )
     args = parser.parse_args()
-    result = build(args.project_root.resolve(), _resolve(args.project_root.resolve(), args.index), _resolve(args.project_root.resolve(), args.output), args.split)
+    result = build(
+        args.project_root.resolve(),
+        _resolve(args.project_root.resolve(), args.index),
+        _resolve(args.project_root.resolve(), args.output),
+        args.split,
+        allowed_labels=None if args.allow_label is None else tuple(args.allow_label),
+        forbidden_labels=tuple(args.forbid_label),
+        allowed_parent_ids=(
+            None if args.allow_parent_id is None else tuple(args.allow_parent_id)
+        ),
+        schema_version=args.schema_version,
+        stats_name=args.stats_name,
+        scope=args.scope,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

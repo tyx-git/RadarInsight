@@ -1409,6 +1409,94 @@
 - 验证状态：代码、合成动作/指标、真实CQ08 CPU/CUDA Smoke和正式20 epoch监督训练均已完成；真实OOF calibration、validation动作性能、test和P95未执行。
 - 关联版本：V13。
 
+## Finding F143
+
+- Severity：Critical（已确认V13不是严格open-set）
+- 文件位置：`src-v3/radar_ln3/losses.py::hierarchical_final_state_nll`、V13三配置task mapping、`src-v3/train/cascade.py`
+- 问题或结论：UnknownTarget仍参与V13参数学习与checkpoint选择，不符合“Unknown只承担拒识开放集、不作为普通闭集学习目标”。
+- Evidence：V13 Gate mapping把Unknown设为CU；loss中`gate_targets=(labels>=3)`并对Unknown计算Gate CE，`cu_mask=labels>=3`又对Unknown计算CU第二类CE；每epoch selection还使用`unknown_to_dbb_count`。Train Unknown parent=70。
+- Impact：V13学到的是“已知Unknown样本分布”，不是对未见开放空间的严格拒识；validation Unknown又参与模型选择，进一步形成development目标泄漏。
+- Action：V14已把Unknown从normalization、train Dataset、loss、sampler、OOF、threshold与checkpoint ranking全部排除；Unknown只保留为冻结开放集审计真值和`UNKNOWN_REJECTED`动作分母。
+- 验证状态：V13问题已确认；V14代码/数据契约修复、focused及CPU/CUDA Smoke已完成。V14正式训练、真实OOF和拒识性能未执行。
+- 关联版本：V13问题；V14代码级已修复。
+
+## Finding F144
+
+- Severity：Critical（DBB分支缺少开放集拒识）
+- 文件位置：`src-v3/radar_ln3/rejection.py::HierarchicalRejectionPolicy.decide`
+- 问题或结论：V13只要Gate通过DBB阈值，就无条件接受DBB specialist argmax；没有DBB knownness阈值、margin或拒识动作。
+- Evidence：`gate_accepts_dbb`分支直接构造`final_action=DBB_ACCEPTED`，只记录三分类top-two margin而不校验。V13 validation有6个Unknown→DBB，全部被强制映射为已知亚类。
+- Impact：无法实现用户要求的“DBB中不认识的也拒识到Unknown”，Unknown误过Gate即产生危险假接受。
+- Action：V14已新增DBB known acceptance threshold/margin；Gate通过但DBB不通过时直接`UNKNOWN_REJECTED`，且stable不携带具体类。
+- 验证状态：V13问题已确认；V14合成动作、离线/在线一致性与stable冲突防护通过。真实OOF阈值和拒识性能未执行。
+- 关联版本：V13问题；V14代码级已修复。
+
+## Finding F145
+
+- Severity：High（V2 normalization包含Unknown分布）
+- 文件位置：`data/processed/RADAR-LN3-V2-cq08-tr-rd-train-normalization-stats.json`
+- 问题或结论：V2统计由全部1081 train parent生成，包含70个Unknown；若V14直接复用，Unknown仍会影响RD输入中心和尺度。
+- Evidence：V2记录`parent_count=1081`；V3 train标签计数为488/243/245/35/70。V2 center/scale=`55.875/6.911864353489518`，无法从现有文件证明known-only值相同。
+- Impact：即使CE排除Unknown，预处理仍存在Unknown分布暴露，不能声明本项目定义下的严格零学习open-set。
+- Action：已新建V14 known-only normalization，只使用1011个known train parent；记录排除70个Unknown、tensor provenance和hash，不覆盖V2。
+- 验证状态：已解决。V14统计SHA-256=`1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0`，selected/excluded RD tensor路径交集为0，幂等复跑保持hash不变。
+- 关联版本：V2历史统计；V14已替换正式训练输入统计。
+
+## Finding F146
+
+- Severity：High（严格open-set版本必须独立）
+- 文件位置：`config/RADAR-LN3/`、`data/processed/`、V13 task/checkpoint/calibration schema
+- 问题或结论：严格open-set同时改变训练population、normalization、任务标签、loss、动作、OOF校准和checkpoint选择，不能作为V13代码小修或加载V13 checkpoint。
+- Evidence：当前全局最高版本V13；版本规则要求上述任一实质变化递增。V13三checkpoint已经绑定V13 config/data hash和selection，强加载器禁止语义漂移。
+- Impact：复用V13文件名或checkpoint会破坏因果归因和校准绑定，并可能静默把已知Unknown监督带入新方案。
+- Action：已使用全局V14，新建known-only stats、数据契约、三配置、task/joint checkpoint及calibration schema；V3 index/split/TR/RD张量只读复用。
+- 验证状态：V14代码、配置、数据与OOF契约、Smoke已完成；V13 checkpoint不能加载V14，V13正式checkpoint仍能只读恢复。V14正式checkpoint和calibration尚未生成。
+- 关联版本：V14。
+
+## Finding F147
+
+- Severity：Critical（严格open-set代码与数据边界已修复，真实性能未评估）
+- 文件位置：`src-v3/radar_ln3/task_models.py`、`losses.py`、`rejection.py`、`cascade.py`、三份V14配置和V14数据契约
+- 问题或结论：V14现符合本项目冻结的严格known-only open-set定义：Unknown不是模型类、训练target、normalization/optimizer/checkpoint/OOF/threshold population；Gate识别DBB或路由CU，DBB低knownness和CU未接受Clutter均形成`UNKNOWN_REJECTED`。
+- Evidence：Known train=1011、Unknown train source=70但optimizer exposure=0；V14 loss收到label id 4立即失败；TaskSpec没有Unknown mapping；第五项只叫`UNRESOLVED_OPEN_SET_EVIDENCE`且不作为Unknown posterior；focused验证Unknown进入Dataset/loss/selection/calibration均fail-closed；CPU/CUDA真实CQ08 Smoke三模型梯度与更新非零、checkpoint恢复差0、离线/在线最大差`5.96e-8/4.47e-8`。
+- Impact：消除了V13把有限Unknown样本当闭集学习目标及DBB无二次拒识的设计偏差。技术正确性不等于开放集泛化，当前不能宣称Unknown Recall、FAR或Selective Risk达标。
+- Action：只允许用户确认后手动运行V14正式known-only训练、5折known OOF和冻结阈值；不得用validation Unknown调模型、epoch或阈值。
+- 验证状态：代码、数据、loss、checkpoint、动作、offline/online和Smoke通过；正式训练、真实OOF、正式拒识、stable、test和P95未执行。
+- 关联版本：V14。
+
+## Finding F148
+
+- Severity：High（OOF泄漏边界已准备并验证，长时执行未开始）
+- 文件位置：`src-v3/build/strict_open_set_oof*.py`、`radar_ln3/strict_open_set_oof.py`、`train/strict_open_set_oof.py`、`report/strict_open_set_oof.py`及V14 OOF contracts
+- 问题或结论：V14拒识阈值必须来自known train parent-grouped OOF；当前已完成5折assignment、fold-train-only normalization、fold-specific数据契约、固定最终epoch预测和正式checkpoint绑定入口，避免held-out normalization/epoch选择、Unknown、validation或test泄漏。
+- Evidence：1011个known parent恰好一次held-out；fold 00–02为808/203，fold 03–04为810/201；每折Unknown/validation/test计数0；20 epoch、early stopping=false、held-out checkpoint selection=false、最终epoch后单次预测写入v2 fold contract。Focused为5折实际构造Dataset并验证白名单/hash；混入Unknown的synthetic fitter立即失败。
+- Impact：后续阈值可控制known false rejection与coverage并保持来源可追溯；它仍不能用known-only OOF本身证明Unknown检测率。
+- Action：用户确认后逐折手动执行；全部5折完成后才允许`report.strict_open_set_oof`生成calibration，并绑定精确正式V14三checkpoint。缺折、重复parent、hash不匹配或Unknown/validation/test暴露一律拒绝。
+- 验证状态：assignment、fold stats/contracts、入口和focused测试完成；5折训练、OOF预测及真实阈值拟合未执行。
+- 关联版本：V14 OOF calibration support。
+
+## Finding F149
+
+- Severity：High（报告语义问题已修复）
+- 文件位置：`src-v3/radar_ln3/cascade.py::evaluate_strict_open_set_cascade/evaluate_hierarchical_cascade`
+- 问题或结论：历史V13字段`dt_reason_counts_including_padding`把DataLoader batch对齐padding混入dt reason，导致相同数据在batch=2/8分别出现416/1334。V13/V14现拆成数据事件reason、collate padding位置和evaluation batch size。
+- Evidence：代码输出`dt_reason_counts_data_events`、`collate_padding_positions`、`evaluation_batch_size`；分类指标与mask逻辑未改变。V14 CPU/CUDA Smoke和V13 focused通过。
+- Impact：报告消费者不再把batch依赖padding计数误当数据固有dt质量；不会改变模型输入、loss或checkpoint。
+- Action：历史报告保持只读；新报告仅使用新字段，跨batch比较数据质量时只比较数据事件reason。
+- 验证状态：代码级已修复并通过回归；未重跑V13全validation，因为只读正式checkpoint恢复已通过且本修复不改变前向。
+- 关联版本：代码修复，不改变V13/V14数据版本。
+
+## Finding F150
+
+- Severity：Critical（性能与部署仍被明确阻塞）
+- 文件位置：`src-v3/smoke/RADAR-LN3-V14-strict-open-set-training-readiness.json`、V14 formal/OOF artifact预期目录
+- 问题或结论：V14已经达到用户确认后的手动训练准备状态，但当前没有V14正式checkpoint、OOF预测或真实calibration，因此不能评估或放行open-set拒识、stable、test与部署。
+- Evidence：检查时`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal`与`...parent-grouped-oof`均不存在；readiness明确formal training、OOF、threshold fitting、formal rejection、stable、development Unknown audit、test、P95和deployment未执行。
+- Impact：Smoke的合成阈值和有限梯度不能冒充Accuracy、Unknown rejection Recall、FAR/FRR或线上性能；V13历史性能也不能外推到V14。
+- Action：先请求用户确认。若执行，顺序为正式known-only训练→5折OOF→known-only calibration→冻结development validation审计；test/P95另行授权。
+- 验证状态：训练前技术状态已确认；所有真实V14性能项未评估。
+- 关联版本：V14。
+
 ## Finding F129
 
 - Severity：Critical（已确认训练/选优目标不一致；V13代码级已修复）
@@ -1543,13 +1631,13 @@
 
 ## Finding F141
 
-- Severity：Medium（报告口径问题；尚未修复）
+- Severity：Medium（报告口径问题；Stage 049已修复）
 - 文件位置：`src-v3/radar_ln3/cascade.py::evaluate_cascade`输出字段`dt_reason_counts_including_padding`
 - 问题或结论：字段中的`padding`不是数据集固有padding总数，而是DataLoader按每个batch最长序列对齐产生的collate位置，因batch size/分组而变化。
 - Evidence：同一三checkpoint、同一232 parent validation，batch=2报告padding=416，batch=8报告padding=1334；所有分类指标一致。batch=2复跑与training summary核心字段逐值一致。
 - Impact：若把该数用于比较数据版本、dt缺失率或模型间padding比例，会产生虚假的batch依赖差异；当前mask后分类结果不受影响。
-- Action：后续手术式修复为`collate_padding_positions`并记录batch size，或另算batch无关的数据契约计数；修复前不得把该字段当数据质量指标。
-- 验证状态：问题已复现，代码未修改；test未执行。
+- Action：V13/V14现分别输出`dt_reason_counts_data_events`、`collate_padding_positions`和`evaluation_batch_size`；历史报告保持只读，不把旧padding字段用于数据质量比较。
+- 验证状态：问题已复现并完成代码级修复；compileall、V13/V14 focused及历史级联回归通过，test未执行。
 - 关联版本：V13报告语义，数据版本不变。
 
 ## Finding F142

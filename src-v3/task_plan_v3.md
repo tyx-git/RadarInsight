@@ -947,3 +947,62 @@
 是否需要smoke：不需要新训练Smoke；正式checkpoint恢复和validation-only复算已执行。
 是否需要正式训练：用户已完成本轮V13单seed正式训练；不自动重训或启动多seed。
 阻塞条件：Gate、DBB、CU和Drone/Bird四项产品护栏全未通过；CU validation仅23 parent且标签内部异质；OOF拒识、test、stable、P95未执行；跨split RD/capture provenance未裁决。下一阶段必须先做训练集内错误覆盖/子流型与目标权重归因，不能用validation阈值或增加液态容量制造表面提升。
+
+## Stage 049 - V14严格Open-set契约与Unknown零学习边界
+
+目标：把V13的“已知Unknown监督二分类＋未校准拒识接口”升级为严格known-only open-set训练：`UnknownTarget`不得进入参数梯度、归一化统计、训练采样、checkpoint选择或阈值拟合；运行时只能作为`UNKNOWN_REJECTED`动作的开放集评估标签。第一层接受DBB或路由CU；DBB内部分Drone/Bird/Balloon且低knownness拒识Unknown；CU只接受Clutter，未接受者拒识Unknown。
+前置依赖：Stage 048已确认V13不是严格open-set，Gate会用Unknown作为CU监督、CU CE会把Unknown作为第二类学习、DBB分支无二次拒识；用户要求先按`.rules`保存Git记录再实施。开发分支`codex/v13-strict-open-set`已创建，基线提交为`d4d39e2`和`627950a`。
+状态：严格open-set代码、known-only数据边界、三层动作、OOF执行入口、阈值拟合入口、focused测试及有界CPU/CUDA Smoke均已完成；达到“等待用户确认后手动执行V14正式known-only训练与5折OOF”的技术状态。V14正式训练、5折OOF训练/预测、真实阈值拟合、正式拒识、stable性能、development Unknown validation审计、test、P95和部署均未执行。
+最小子任务：
+
+- [x] 读取`.rules`，确认`main`禁止直接提交；创建普通开发分支并按关联工作拆分保存V12诊断与V13三层基线。
+- [x] 明确严格open-set判据：Unknown不得参与任何可学习或模型选择步骤；validation/test Unknown只允许冻结评估，不能用于threshold、loss、采样或checkpoint选择。
+- [x] 冻结V14版本策略：复用V3 index/split和原TR/RD张量；因训练population、normalization、loss、输出动作、校准和checkpoint schema发生实质变化，新建V14 known-only normalization、数据契约和三配置。
+- [x] 新建known-only normalization构建入口，只使用train的Drone/Bird/Balloon/Clutter 1011 parent；排除70个train Unknown，known/Unknown RD tensor路径交集为0；修复基础统计复跑幂等性。
+- [x] 新建V14数据契约，冻结known train=`488/243/245/35`、Unknown optimizer exposure=`0`；validation Unknown=15仅允许best checkpoint冻结后的development审计，test继续封存。
+- [x] 修改Dataset/loader：V14 train和known checkpoint validation只包含四个known类；Unknown进入train Dataset、parent白名单、loss或checkpoint selection均fail-closed。
+- [x] 修改Gate目标：只以DBB和Clutter训练`DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE`，Unknown不映射为CU训练标签。
+- [x] 修改CU目标：仅学习`CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE`，负样本只来自DBB known，不建立Unknown类、prototype或概率输出。
+- [x] 保留DBB三分类known-only CE，并增加独立DBB knownness probability/margin接受边界；Gate接受DBB但knownness未通过时输出`UNKNOWN_REJECTED`。
+- [x] 将分层校准扩展为Gate、DBB knownness和Clutter三道known-only接受边界；loader要求train parent-grouped OOF、Unknown/validation/test零拟合并绑定精确正式三checkpoint身份。
+- [x] 实现5折OOF assignment、fold-train-only normalization、fold-specific数据契约、固定20 epoch折训练/held-out单次预测入口和独立阈值拟合入口；本Stage未执行任何折训练或真实拟合。
+- [x] 修改checkpoint选择：正式训练每epoch只使用217个known validation parent产品护栏；Unknown发展审计在best冻结后才运行且不能返回selection inputs。
+- [x] 修改offline/online动作和stable接口：`DBB_ACCEPTED`前同时通过Gate与DBB knownness；CU只接受Clutter；两条失败路径均汇合`UNKNOWN_REJECTED`且不携带accepted class。
+- [x] 修改评估与报告：分离known closed-set、known acceptance、open-set rejection和development Unknown审计；无真实OOF calibration时Coverage/FAR/FRR/Selective Risk/stable均保持未评估。
+- [x] 修复batch依赖padding报告语义：V13/V14均输出`dt_reason_counts_data_events`、`collate_padding_positions`和`evaluation_batch_size`，不再把collate padding冒充数据固有dt计数。
+- [x] 增加负向测试：Unknown进入normalization/train batch/loss/checkpoint selection/calibration任一环节均被拒绝；V13 checkpoint不能加载V14，V14 ranking key长度固定为8且V13正式checkpoint仍可只读恢复。
+- [x] 运行focused loss/gradient/shape/mask/checkpoint/offline-online、5折白名单与synthetic known-only拟合测试；有界CPU/CUDA Smoke、V13 focused、历史级联focused、compileall、静态隔离和限定差异检查通过。
+- [x] 创建`src-v3/smoke/RADAR-LN3-V14-strict-open-set-training-readiness.json`并覆盖更新三个跟踪文件；所有性能与部署未执行项保持原样。
+
+验证命令：已在`src-v3`运行`python -m build.strict_open_set`幂等复核、`python -m build.strict_open_set_oof_folds`、`python -m smoke.strict_open_set_contract_test`、`python -m smoke.strict_open_set_cascade_smoke --device cpu/cuda`、`python -m smoke.hierarchical_contract_test`和历史`smoke.causal_cascade_contract_test`；另执行全`src-v3` compileall、静态导入隔离、限定`git diff --check`及V13正式三checkpoint只读恢复。
+产物：V14 known-only normalization、数据契约、三配置、5折assignment/fold contract、5份fold-train统计、5份fold数据契约；严格open-set训练/动作/评估实现；`train.strict_open_set_oof`和`report.strict_open_set_oof`入口；focused、CPU/CUDA Smoke及readiness证据。没有创建V14正式`.pt`、OOF预测或calibration artifact。
+验收条件：已满足代码/数据契约验收。静态与运行时证明Unknown学习暴露为0；三道接受边界只能来自known train OOF；Unknown只作为冻结开放集评估真值及`UNKNOWN_REJECTED`动作语义；无校准时不输出产品动作；V13/V14产物不可混用。性能验收未执行。
+是否需要数据重建：不重建V3 index、split或RD张量；已新建V14 known-only normalization与语义契约，因为V2统计包含70个train Unknown。
+是否需要smoke：focused及有界CPU/CUDA Smoke均已通过，产物全部位于`src-v3/smoke/`；Smoke不代表分类或拒识性能。
+是否需要正式训练：需要用户确认后手动执行；本Stage未启动。
+阻塞条件：代码无剩余训练前阻塞；但真实open-set性能仍阻塞于V14正式known-only训练、5折OOF预测、known-only阈值拟合和冻结validation审计。Test、stable性能和P95是后续独立门槛。
+
+## Stage 050 - V14 Known-only训练与Parent-grouped OOF准备
+
+目标：在Stage 049契约通过后，冻结V14三模型known-only训练与parent-grouped OOF执行协议，保证OOF用于阈值拟合而Unknown/validation/test不进入任何学习路径。
+前置依赖：Stage 049全部focused/Smoke通过，known-only normalization和V14数据契约hash冻结。
+状态：执行准备完成，等待用户确认；V14正式训练、5折OOF、真实阈值拟合均未执行。
+最小子任务：
+
+- [x] 冻结fold数=`5`、assignment seed=`42`、group单位=`parent`；1011个known train parent恰好一次held-out，Unknown OOF=0，validation/test access=0。
+- [x] 冻结每折20 epoch、关闭early stopping、held-out不选epoch、只在最终epoch后单次预测；每折使用独立fold-train normalization和数据契约。
+- [x] 实现正式known-only联合训练入口、单折OOF入口和真实OOF汇总/阈值拟合入口；正式与OOF artifact目录均为空，不存在覆盖风险。
+- [x] 冻结阈值目标：仅用known OOF拟合Gate route、DBB knownness和Clutter acceptance边界，以known Precision/Recall和known false-rejection/coverage为约束；不得使用Unknown优化检测率。
+- [x] 冻结calibration部署绑定：正式三配置语义hash、三checkpoint hash、共同epoch/global step、product selection hash、基础数据hash、assignment和fold contract hash必须完全匹配。
+- [ ] 获得用户对手动执行V14正式训练与5折OOF的确认。
+- [ ] 用户手动完成V14正式known-only三checkpoint联合训练。
+- [ ] 用户手动完成5折OOF训练与held-out预测。
+- [ ] OOF完成后核验每个known train parent恰好一次out-of-fold预测、训练fold不含自身parent、Unknown exposure=0。
+- [ ] 仅用known OOF拟合已知接受率/误拒识约束下的三个阈值；不得声称已优化Unknown检测率。
+- [ ] 使用已冻结部署身份写出calibration artifact并通过严格loader回读；在此之前不得运行正式拒识/stable。
+- [ ] calibration冻结后再单次执行development Unknown validation审计；不得由该结果反调模型、epoch或阈值。
+- [ ] test、正式拒识放行、stable性能、P95和部署继续等待独立授权与验收。
+
+验收条件：完整OOF provenance和Unknown零暴露可复核；校准只控制known false rejection，Unknown能力仅在冻结评估中测量。
+是否需要正式训练：需要用户确认后手动执行，当前未执行；不需要预训练。
+阻塞条件：当前唯一流程阻塞是用户确认和后续长时手动执行；性能、拒识、stable、test和P95仍无结果。

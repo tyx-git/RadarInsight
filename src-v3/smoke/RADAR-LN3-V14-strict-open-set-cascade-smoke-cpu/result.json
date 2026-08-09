@@ -1,0 +1,159 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V14-strict-open-set-cascade-smoke-v1",
+  "device": "cpu",
+  "data_contract_hashes": {
+    "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+    "contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+    "stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0"
+  },
+  "full_train_known_parent_count": 1011,
+  "bounded_train_parent_ids": [
+    "cq08|track|2246",
+    "cq08|track|2901"
+  ],
+  "bounded_train_labels": [
+    "BirdTarget",
+    "ClutterTarget"
+  ],
+  "bounded_event_limit_per_parent": 3,
+  "batch_shapes": {
+    "tr_features": [
+      2,
+      3,
+      14
+    ],
+    "tr_missing_mask": [
+      2,
+      3,
+      11
+    ],
+    "tr_dt_seconds": [
+      2,
+      3
+    ],
+    "tr_dt_valid": [
+      2,
+      3
+    ],
+    "tr_dt_reason": [
+      2,
+      3
+    ],
+    "tr_motion_features": [
+      2,
+      3,
+      0
+    ],
+    "tr_motion_valid_mask": [
+      2,
+      3,
+      0
+    ],
+    "rd_frames": [
+      2,
+      3,
+      12,
+      2,
+      21,
+      384
+    ],
+    "rd_frame_mask": [
+      2,
+      3,
+      12
+    ],
+    "rd_quality": [
+      2,
+      3,
+      7
+    ],
+    "tr_padding_mask": [
+      2,
+      3
+    ],
+    "labels": [
+      2
+    ],
+    "lengths": [
+      2
+    ]
+  },
+  "open_set_evidence_shape": [
+    2,
+    3,
+    5
+  ],
+  "unknown_is_probability_output": false,
+  "objective": {
+    "loss": 1.98700749874115,
+    "final_hierarchical_nll": 1.98700749874115,
+    "final_gate_nll": 1.0930278301239014,
+    "final_dbb_nll": 0.671347975730896,
+    "final_cu_acceptance_nll": 0.22263166308403015,
+    "final_specialist_nll": 0.8939796686172485,
+    "prefix_auxiliary_nll": 0.0,
+    "prefix_gate_nll": 0.0,
+    "prefix_dbb_nll": 0.0,
+    "prefix_cu_acceptance_nll": 0.0,
+    "eligible_prefix_count": 0.0,
+    "dbb_parent_count": 1.0,
+    "clutter_parent_count": 1.0,
+    "unknown_parent_count": 0.0
+  },
+  "gradient_norms": {
+    "dbb_cu_gate": 15.930219650268555,
+    "dbb_specialist": 12.41943073272705,
+    "cu_specialist": 2.568711519241333
+  },
+  "max_parameter_changes": {
+    "dbb_cu_gate": 0.00010102987289428711,
+    "dbb_specialist": 0.00010102987289428711,
+    "cu_specialist": 0.00010102987289428711
+  },
+  "task_checkpoint_paths": {
+    "dbb_cu_gate": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V14-strict-open-set-cascade-smoke-cpu\\dbb_cu_gate.pt",
+    "dbb_specialist": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V14-strict-open-set-cascade-smoke-cpu\\dbb_specialist.pt",
+    "cu_specialist": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V14-strict-open-set-cascade-smoke-cpu\\cu_specialist.pt"
+  },
+  "task_checkpoint_epochs": {
+    "dbb_cu_gate": 1,
+    "dbb_specialist": 1,
+    "cu_specialist": 1
+  },
+  "task_checkpoint_round_trip_max_difference": 0.0,
+  "offline_online_evidence_max_difference": 5.960464477539063e-08,
+  "uncalibrated_rejection_status": "not_evaluated",
+  "uncalibrated_stable_status": "not_evaluated_without_calibration",
+  "synthetic_calibration_only": true,
+  "synthetic_action_trace": [
+    {
+      "event_index": 0,
+      "final_action": "DBB_PENDING",
+      "gate_action": "DBB_PENDING",
+      "stable_state_name": "DBB_PENDING",
+      "stable_confirmed": false
+    },
+    {
+      "event_index": 1,
+      "final_action": "DBB_ACCEPTED",
+      "gate_action": "DBB_ROUTE_ACCEPTED",
+      "stable_state_name": "DBB_PENDING",
+      "stable_confirmed": false
+    },
+    {
+      "event_index": 2,
+      "final_action": "DBB_ACCEPTED",
+      "gate_action": "DBB_ROUTE_ACCEPTED",
+      "stable_state_name": "DBB_ACCEPTED",
+      "stable_confirmed": true
+    }
+  ],
+  "formal_training": "未执行",
+  "oof_fold_training": "未执行",
+  "formal_rejection": "未执行",
+  "stable_performance": "未执行",
+  "test": "未执行",
+  "p95": "未执行",
+  "result_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V14-strict-open-set-cascade-smoke-cpu\\result.json"
+}

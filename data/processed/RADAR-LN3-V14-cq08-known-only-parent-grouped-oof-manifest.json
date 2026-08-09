@@ -1,0 +1,5230 @@
+{
+  "schema_version": "RADAR-LN3-V14-known-only-parent-grouped-oof-manifest-v1",
+  "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+  "data_contract": "data/processed/RADAR-LN3-V14-cq08-strict-open-set-data-contract.json",
+  "data_contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+  "normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+  "normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+  "fit_split": "train",
+  "fit_population": "known_only",
+  "grouping": "parent",
+  "prediction_protocol": "out_of_fold",
+  "fold_count": 5,
+  "assignment_seed": 42,
+  "assignment_rule": "within-label deterministic SHA-256(seed,parent_id) order round-robin folds",
+  "known_labels": [
+    "DroneTarget",
+    "BirdTarget",
+    "BalloonTarget",
+    "ClutterTarget"
+  ],
+  "unknown_label": "UnknownTarget",
+  "known_parent_count": 1011,
+  "known_parent_ids_sha256": "bd69711a63e987be581857ab175122d5662fb5f719dbe21698cf044170aa44bb",
+  "unknown_source_parent_count": 70,
+  "unknown_oof_parent_count": 0,
+  "validation_parent_count": 0,
+  "test_parent_count": 0,
+  "every_known_parent_exactly_one_held_out_fold": true,
+  "assignments": [
+    {
+      "parent_sample_id": "cq08|track|1",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|101",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1010",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|103",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1037",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|104",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1041",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|105",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1050",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|106",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1061",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1063",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1068",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|107",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|108",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1085",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|109",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|11",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|110",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1105",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|111",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|112",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1123",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1131",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1137",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1139",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1142",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|115",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1151",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1153",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1154",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|117",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|118",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1182",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1199",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|12",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|120",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1210",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1214",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1226",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|123",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1234",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|124",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|125",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1256",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|126",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|128",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1286",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|129",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1293",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|13",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|130",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1300",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1309",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|131",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1316",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|132",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1321",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|133",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1339",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|134",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1341",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1342",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|135",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1351",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1352",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1356",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|136",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|137",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1373",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|138",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1383",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1386",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|139",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|141",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1411",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1418",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|142",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|143",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1431",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|144",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1448",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|145",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1451",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1452",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1457",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|146",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1462",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1467",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|147",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1484",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1488",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|149",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1494",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1497",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|15",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|150",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1500",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|151",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1518",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|152",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|153",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1539",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|154",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1542",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1553",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|156",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1567",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1568",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|157",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1572",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|158",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1589",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|159",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1600",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1605",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|161",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|162",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1620",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1621",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|163",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1634",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1637",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1641",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1643",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|165",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|166",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1661",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1673",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|168",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1683",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1687",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1689",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|169",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1692",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1696",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|17",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1718",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1725",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1744",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1747",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1751",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|176",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1761",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1762",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1763",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1769",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|177",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1770",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1771",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|178",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1785",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|179",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1793",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1794",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|18",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|180",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|181",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|182",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1827",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|183",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1835",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1838",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1839",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|184",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1841",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1842",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1854",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|186",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1861",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1863",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|187",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1874",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|188",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1880",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|189",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1892",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|19",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|190",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1901",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|191",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|192",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|1923",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1924",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|193",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1932",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1933",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|194",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1945",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1946",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1949",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1952",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|1953",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|196",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|197",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|1982",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|199",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|1996",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|1998",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|20",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|201",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|202",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2029",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|203",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2033",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2037",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|204",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2043",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|205",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2058",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2062",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2066",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|207",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2073",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2079",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2082",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2099",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|21",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|210",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2101",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2105",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|211",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2114",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2116",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2126",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2129",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2130",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2132",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|214",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2140",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2146",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|215",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2158",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2159",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|216",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2163",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2167",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|217",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|218",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2186",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|219",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2192",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|22",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|220",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2202",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|221",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|222",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2220",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2226",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|223",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2234",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2236",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2246",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2247",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2250",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2251",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2252",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|226",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2261",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2268",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2269",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|227",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2270",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2280",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2284",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2288",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|229",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2293",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2299",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|230",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2305",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2308",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2311",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2321",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2323",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|233",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|234",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2344",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|236",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2365",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|237",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|238",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2384",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2387",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|239",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2393",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2395",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|24",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|240",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2408",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2410",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2413",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2418",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|242",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2421",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|243",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2430",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|244",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2440",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2441",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2447",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|245",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2451",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2456",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2457",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2461",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2463",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2468",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|247",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|248",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|249",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2497",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2504",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2506",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2513",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2519",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|253",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2539",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|254",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|255",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|256",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2566",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2567",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|257",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2570",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2571",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2574",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2575",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2581",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|259",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2592",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|26",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|260",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2600",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2601",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2602",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2604",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2606",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2615",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2616",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2619",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|262",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2629",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2641",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2643",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|265",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2650",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2670",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2679",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|268",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2682",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2683",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2684",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2686",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2690",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2693",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2698",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|27",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|270",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2700",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2704",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2705",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2706",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|271",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|272",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|273",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|277",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2798",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2801",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2802",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2803",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2805",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|281",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2813",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2814",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2818",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2819",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2831",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2835",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2847",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2866",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2867",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2869",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2870",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2871",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2873",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2886",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2888",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|29",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|290",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2901",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|291",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2922",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|293",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2937",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2943",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2946",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|295",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2950",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2952",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|2958",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2962",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2963",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2969",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2975",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2976",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2983",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2985",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2986",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2987",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|2994",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|2995",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|2997",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|2998",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|30",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3000",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3002",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3004",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3008",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3009",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3014",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3015",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3019",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|302",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3029",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3031",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3034",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3036",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3051",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3052",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3053",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3054",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3055",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3057",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3059",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3062",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3066",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3069",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3072",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3075",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3077",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3084",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3085",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3086",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3090",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3096",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3099",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|31",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3102",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3107",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3159",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3160",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3161",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3165",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3169",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3170",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3171",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3178",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3183",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3184",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3202",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3204",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3210",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3231",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3237",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3246",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3251",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3253",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3260",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3265",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3278",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|33",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3308",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3309",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3311",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3314",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3319",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3324",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3333",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3337",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3344",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3349",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3350",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3351",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3364",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3388",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3395",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3396",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|34",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|340",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3401",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3404",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3408",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3413",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3417",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|342",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3421",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3422",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3423",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3435",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3438",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3439",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|344",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3441",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3443",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3449",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3450",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3454",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3463",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|347",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3474",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3481",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3490",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3508",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3509",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3510",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3514",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3529",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|353",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3534",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3545",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3555",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3556",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|356",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3564",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3569",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3577",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3578",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3580",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3582",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3586",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3588",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3594",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3598",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3599",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|360",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3601",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3603",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3606",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3608",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3609",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3610",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3611",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3614",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3617",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3620",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3621",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3623",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3626",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3627",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3629",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3630",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3636",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3637",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3638",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3639",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3643",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3644",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|365",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3650",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3653",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3654",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3657",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3662",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3665",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3667",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3680",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3685",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|369",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3690",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3691",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3692",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3693",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3697",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|37",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|370",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3700",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3702",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3703",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3711",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3712",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3713",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3717",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3718",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3719",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3720",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3721",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3722",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3724",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3733",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3735",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3739",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3740",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3745",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3746",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|375",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3751",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3752",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3755",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3756",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|376",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3760",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3763",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3765",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3766",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3768",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3769",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3770",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3771",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3772",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3774",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3775",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3779",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3781",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3783",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3787",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3788",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3790",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3792",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3793",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3795",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3798",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|38",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3802",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3804",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3806",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3807",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3810",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3816",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3817",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3818",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3819",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3820",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3823",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3824",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3827",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3833",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3837",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3838",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|384",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3840",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3843",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3852",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3853",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3859",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3861",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3864",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3867",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3868",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3871",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3872",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3874",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3875",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3881",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3885",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3888",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|389",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3890",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3894",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3895",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3896",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3898",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|39",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3900",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3902",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3907",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|391",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3911",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3912",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3913",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3914",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3915",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3917",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3918",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3920",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3922",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3923",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3925",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3926",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3929",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|393",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3931",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3935",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3937",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3941",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3942",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3944",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3946",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3947",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|395",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3952",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3954",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3955",
+      "label_name": "ClutterTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|396",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3963",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3968",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3969",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3970",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3972",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3973",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3974",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3975",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3978",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|3979",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3982",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3984",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3987",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3988",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|3990",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|3994",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|3998",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|3999",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|40",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4004",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4006",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4007",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4011",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4015",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4022",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4025",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4026",
+      "label_name": "ClutterTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4030",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4035",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4037",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4039",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4041",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4047",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4048",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4051",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4055",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4058",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|406",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4061",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4062",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4064",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4066",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4074",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4075",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4079",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|408",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4081",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4084",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4087",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4089",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|409",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4093",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4094",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4096",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4098",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4099",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|41",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4100",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4105",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|411",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4111",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4112",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4114",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4119",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4124",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4126",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4127",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4129",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4137",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|414",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4140",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4142",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4145",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4146",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4149",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4151",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4152",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|416",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4160",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4163",
+      "label_name": "ClutterTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4165",
+      "label_name": "ClutterTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4167",
+      "label_name": "ClutterTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4169",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4172",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4179",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4182",
+      "label_name": "BalloonTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4185",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4186",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4187",
+      "label_name": "BalloonTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4188",
+      "label_name": "BalloonTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4191",
+      "label_name": "BalloonTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4195",
+      "label_name": "BalloonTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4197",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|42",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|420",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4202",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4203",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4204",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4205",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4207",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4208",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4210",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|4212",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4213",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4214",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4216",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4219",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4221",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4224",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4233",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|4234",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|4248",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|4252",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|4258",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|43",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|435",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|437",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|439",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|44",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|442",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|454",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|457",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|458",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|46",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|460",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|465",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|466",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|47",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|48",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|49",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|498",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|50",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|51",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|510",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|516",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|52",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|520",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|522",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|525",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|527",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|53",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|530",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|533",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|535",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|54",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|540",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|541",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|552",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|556",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|558",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|559",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|56",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|562",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|57",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|570",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|574",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|578",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|58",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|586",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|587",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|59",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|591",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|592",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|595",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|598",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|599",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|6",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|60",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|602",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|603",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|608",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|609",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|61",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|612",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|615",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|616",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|618",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|62",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|620",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|621",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|622",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|623",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|628",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|629",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|63",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|630",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|631",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|632",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|635",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|636",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|64",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|647",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|650",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|651",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|654",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|656",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|657",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|66",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|67",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|672",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|674",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|68",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|683",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|685",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|69",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|691",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|692",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|694",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|696",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|699",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|70",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|706",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|708",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|710",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|711",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|713",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|715",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|716",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|717",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|718",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|72",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|727",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|729",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|730",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|733",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|737",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|739",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|74",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|740",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|741",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|747",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|75",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|753",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|754",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|757",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|762",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|765",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|766",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|768",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|770",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|773",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|779",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|78",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|783",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|784",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|787",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|791",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|793",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|794",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|798",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|81",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|810",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|811",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|819",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|822",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|826",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|83",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|837",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|838",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|84",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|840",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|844",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|848",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|85",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|855",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|856",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|857",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|86",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|860",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|862",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|865",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|866",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|868",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|87",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|870",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|872",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|873",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|874",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|876",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|878",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|88",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|880",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|881",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|887",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|89",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|890",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|894",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|9",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|90",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|900",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|901",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|906",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|91",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|910",
+      "label_name": "BirdTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|911",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|92",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|920",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|927",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|929",
+      "label_name": "BirdTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|932",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|934",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|939",
+      "label_name": "BirdTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|942",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|943",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|946",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|949",
+      "label_name": "BirdTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|956",
+      "label_name": "BirdTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|96",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|965",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|972",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|98",
+      "label_name": "DroneTarget",
+      "fold_id": 1
+    },
+    {
+      "parent_sample_id": "cq08|track|981",
+      "label_name": "DroneTarget",
+      "fold_id": 2
+    },
+    {
+      "parent_sample_id": "cq08|track|99",
+      "label_name": "DroneTarget",
+      "fold_id": 3
+    },
+    {
+      "parent_sample_id": "cq08|track|990",
+      "label_name": "DroneTarget",
+      "fold_id": 4
+    },
+    {
+      "parent_sample_id": "cq08|track|992",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    },
+    {
+      "parent_sample_id": "cq08|track|993",
+      "label_name": "DroneTarget",
+      "fold_id": 0
+    }
+  ],
+  "folds": [
+    {
+      "fold_id": 0,
+      "train_parent_count": 808,
+      "held_out_parent_count": 203,
+      "train_label_parent_counts": {
+        "DroneTarget": 390,
+        "BirdTarget": 194,
+        "BalloonTarget": 196,
+        "ClutterTarget": 28
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 98,
+        "BirdTarget": 49,
+        "BalloonTarget": 49,
+        "ClutterTarget": 7
+      },
+      "train_parent_ids_sha256": "5f79c8e882d7d23ca605d50147c3a8fbd3c7d907442a96f4ff3701f673ccc9a0",
+      "held_out_parent_ids_sha256": "454dcf0ece07fb06e0c81feb0366dabd4bd0414b215a4004dcc8c7ed09057aeb",
+      "parent_overlap_count": 0,
+      "unknown_train_parent_count": 0,
+      "unknown_held_out_parent_count": 0,
+      "validation_parent_count": 0,
+      "test_parent_count": 0
+    },
+    {
+      "fold_id": 1,
+      "train_parent_count": 808,
+      "held_out_parent_count": 203,
+      "train_label_parent_counts": {
+        "DroneTarget": 390,
+        "BirdTarget": 194,
+        "BalloonTarget": 196,
+        "ClutterTarget": 28
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 98,
+        "BirdTarget": 49,
+        "BalloonTarget": 49,
+        "ClutterTarget": 7
+      },
+      "train_parent_ids_sha256": "39191ed8ebeebf54641f017dc7e8cf298afe5ddb52215edab7da1925f6e7823e",
+      "held_out_parent_ids_sha256": "3db8b5afa24044e87ef20bad4bdd980bb7b629fc7f168fd879b982e0e23c6129",
+      "parent_overlap_count": 0,
+      "unknown_train_parent_count": 0,
+      "unknown_held_out_parent_count": 0,
+      "validation_parent_count": 0,
+      "test_parent_count": 0
+    },
+    {
+      "fold_id": 2,
+      "train_parent_count": 808,
+      "held_out_parent_count": 203,
+      "train_label_parent_counts": {
+        "DroneTarget": 390,
+        "BirdTarget": 194,
+        "BalloonTarget": 196,
+        "ClutterTarget": 28
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 98,
+        "BirdTarget": 49,
+        "BalloonTarget": 49,
+        "ClutterTarget": 7
+      },
+      "train_parent_ids_sha256": "b468250e98baf3839d8aa20e4a786f743ba8f9e466a9b54500504b7d614be1e7",
+      "held_out_parent_ids_sha256": "db1bef3964e8a3db6284085506c4c81c398a1be6e017ab6d169c3f77eaf12a7b",
+      "parent_overlap_count": 0,
+      "unknown_train_parent_count": 0,
+      "unknown_held_out_parent_count": 0,
+      "validation_parent_count": 0,
+      "test_parent_count": 0
+    },
+    {
+      "fold_id": 3,
+      "train_parent_count": 810,
+      "held_out_parent_count": 201,
+      "train_label_parent_counts": {
+        "DroneTarget": 391,
+        "BirdTarget": 195,
+        "BalloonTarget": 196,
+        "ClutterTarget": 28
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 97,
+        "BirdTarget": 48,
+        "BalloonTarget": 49,
+        "ClutterTarget": 7
+      },
+      "train_parent_ids_sha256": "fd934236983f0124f3be69fa7ebbd1e8ce8ec92ee5428787755c3747f3b122d8",
+      "held_out_parent_ids_sha256": "902ddf885aa6b3c29528737e5ba154b9a681e06bf42a571889e588cda645eee5",
+      "parent_overlap_count": 0,
+      "unknown_train_parent_count": 0,
+      "unknown_held_out_parent_count": 0,
+      "validation_parent_count": 0,
+      "test_parent_count": 0
+    },
+    {
+      "fold_id": 4,
+      "train_parent_count": 810,
+      "held_out_parent_count": 201,
+      "train_label_parent_counts": {
+        "DroneTarget": 391,
+        "BirdTarget": 195,
+        "BalloonTarget": 196,
+        "ClutterTarget": 28
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 97,
+        "BirdTarget": 48,
+        "BalloonTarget": 49,
+        "ClutterTarget": 7
+      },
+      "train_parent_ids_sha256": "54142054c7a9c4357433bfc706fcce2fb445d035dc4a6937f37c39772a66593e",
+      "held_out_parent_ids_sha256": "bb7ec9fda8b883edca88c9194a2131b2ae61cbd0969a44a6ced2972b59495d1c",
+      "parent_overlap_count": 0,
+      "unknown_train_parent_count": 0,
+      "unknown_held_out_parent_count": 0,
+      "validation_parent_count": 0,
+      "test_parent_count": 0
+    }
+  ],
+  "threshold_fit_contract": {
+    "scores": [
+      "gate_dbb_probability_and_margin",
+      "dbb_top_probability_and_margin",
+      "cu_clutter_probability_and_margin"
+    ],
+    "unknown_threshold_fit_count": 0,
+    "validation_used": false,
+    "test_used": false,
+    "known_false_rejection_and_coverage_constraints_only": true
+  },
+  "execution_status": {
+    "manifest": "prepared",
+    "fold_training": "未执行",
+    "oof_prediction": "未执行",
+    "threshold_fitting": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "test": "未执行",
+    "p95": "未执行"
+  }
+}
