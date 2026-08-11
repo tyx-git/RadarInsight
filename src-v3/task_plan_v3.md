@@ -952,7 +952,7 @@
 
 目标：把V13的“已知Unknown监督二分类＋未校准拒识接口”升级为严格known-only open-set训练：`UnknownTarget`不得进入参数梯度、归一化统计、训练采样、checkpoint选择或阈值拟合；运行时只能作为`UNKNOWN_REJECTED`动作的开放集评估标签。第一层接受DBB或路由CU；DBB内部分Drone/Bird/Balloon且低knownness拒识Unknown；CU只接受Clutter，未接受者拒识Unknown。
 前置依赖：Stage 048已确认V13不是严格open-set，Gate会用Unknown作为CU监督、CU CE会把Unknown作为第二类学习、DBB分支无二次拒识；用户要求先按`.rules`保存Git记录再实施。开发分支`codex/v13-strict-open-set`已创建，基线提交为`d4d39e2`和`627950a`。
-状态：严格open-set代码、known-only数据边界、三层动作、OOF执行入口、阈值拟合入口、focused测试及有界CPU/CUDA Smoke均已完成；达到“等待用户确认后手动执行V14正式known-only训练与5折OOF”的技术状态。V14正式训练、5折OOF训练/预测、真实阈值拟合、正式拒识、stable性能、development Unknown validation审计、test、P95和部署均未执行。
+状态：严格open-set代码、known-only数据边界、三层动作、正式known-only训练、5折parent-grouped OOF、known-only校准以及一次冻结development validation与stable评估均已完成。Unknown学习/归一化/OOF/阈值暴露为0，协议契约通过；冻结开放集性能未达标，V14冻结为“协议有效、性能失败、不可部署”基线。Test、P95和部署均未执行。
 最小子任务：
 
 - [x] 读取`.rules`，确认`main`禁止直接提交；创建普通开发分支并按关联工作拆分保存V12诊断与V13三层基线。
@@ -975,34 +975,115 @@
 - [x] 创建`src-v3/smoke/RADAR-LN3-V14-strict-open-set-training-readiness.json`并覆盖更新三个跟踪文件；所有性能与部署未执行项保持原样。
 
 验证命令：已在`src-v3`运行`python -m build.strict_open_set`幂等复核、`python -m build.strict_open_set_oof_folds`、`python -m smoke.strict_open_set_contract_test`、`python -m smoke.strict_open_set_cascade_smoke --device cpu/cuda`、`python -m smoke.hierarchical_contract_test`和历史`smoke.causal_cascade_contract_test`；另执行全`src-v3` compileall、静态导入隔离、限定`git diff --check`及V13正式三checkpoint只读恢复。
-产物：V14 known-only normalization、数据契约、三配置、5折assignment/fold contract、5份fold-train统计、5份fold数据契约；严格open-set训练/动作/评估实现；`train.strict_open_set_oof`和`report.strict_open_set_oof`入口；focused、CPU/CUDA Smoke及readiness证据。没有创建V14正式`.pt`、OOF预测或calibration artifact。
-验收条件：已满足代码/数据契约验收。静态与运行时证明Unknown学习暴露为0；三道接受边界只能来自known train OOF；Unknown只作为冻结开放集评估真值及`UNKNOWN_REJECTED`动作语义；无校准时不输出产品动作；V13/V14产物不可混用。性能验收未执行。
+产物：V14 known-only normalization、数据契约、三配置、正式三checkpoint、5折assignment/fold contract、5份fold-train统计、5份fold数据契约和held-out预测、严格open-set calibration、冻结development validation报告与样本明细；严格open-set训练/动作/评估实现；focused、CPU/CUDA Smoke及readiness证据。
+验收条件：代码/数据/严格open-set语义与OOF来源契约已满足。Unknown只作为冻结开放集评估真值及`UNKNOWN_REJECTED`动作语义；无校准时不输出产品动作；V13/V14产物不可混用。性能验收未满足：五动作Macro-F1=`0.733411`、Unknown拒识Recall=`0.266667`、FAR=`0.733333`。
 是否需要数据重建：不重建V3 index、split或RD张量；已新建V14 known-only normalization与语义契约，因为V2统计包含70个train Unknown。
 是否需要smoke：focused及有界CPU/CUDA Smoke均已通过，产物全部位于`src-v3/smoke/`；Smoke不代表分类或拒识性能。
-是否需要正式训练：需要用户确认后手动执行；本Stage未启动。
-阻塞条件：代码无剩余训练前阻塞；但真实open-set性能仍阻塞于V14正式known-only训练、5折OOF预测、known-only阈值拟合和冻结validation审计。Test、stable性能和P95是后续独立门槛。
+是否需要正式训练：V14正式联合训练及5折OOF均已由用户完成；本轮无需重训。
+阻塞条件：Unknown高置信误接收、Clutter覆盖不足、Drone→Bird错误和三项OOF校准目标未通过；test、P95和部署继续阻塞。不得使用这15个development Unknown反调阈值或模型。
 
 ## Stage 050 - V14 Known-only训练与Parent-grouped OOF准备
 
 目标：在Stage 049契约通过后，冻结V14三模型known-only训练与parent-grouped OOF执行协议，保证OOF用于阈值拟合而Unknown/validation/test不进入任何学习路径。
 前置依赖：Stage 049全部focused/Smoke通过，known-only normalization和V14数据契约hash冻结。
-状态：执行准备完成，等待用户确认；V14正式训练、5折OOF、真实阈值拟合均未执行。
+状态：V14正式known-only联合训练已由用户手动完成，best epoch=`12`；5折OOF、known-only calibration和一次冻结development validation均已完成。1011个唯一known train parent完整覆盖，Unknown/validation/test拟合暴露为0；正式三checkpoint绑定通过。冻结开放集评估显示性能未达部署门槛。
 最小子任务：
 
 - [x] 冻结fold数=`5`、assignment seed=`42`、group单位=`parent`；1011个known train parent恰好一次held-out，Unknown OOF=0，validation/test access=0。
 - [x] 冻结每折20 epoch、关闭early stopping、held-out不选epoch、只在最终epoch后单次预测；每折使用独立fold-train normalization和数据契约。
-- [x] 实现正式known-only联合训练入口、单折OOF入口和真实OOF汇总/阈值拟合入口；正式与OOF artifact目录均为空，不存在覆盖风险。
+- [x] 实现正式known-only联合训练入口、单折OOF入口和真实OOF汇总/阈值拟合入口；正式artifact和部分OOF artifact现已由用户执行生成，既有产物由hash与拒绝覆盖契约保护。
 - [x] 冻结阈值目标：仅用known OOF拟合Gate route、DBB knownness和Clutter acceptance边界，以known Precision/Recall和known false-rejection/coverage为约束；不得使用Unknown优化检测率。
 - [x] 冻结calibration部署绑定：正式三配置语义hash、三checkpoint hash、共同epoch/global step、product selection hash、基础数据hash、assignment和fold contract hash必须完全匹配。
-- [ ] 获得用户对手动执行V14正式训练与5折OOF的确认。
-- [ ] 用户手动完成V14正式known-only三checkpoint联合训练。
-- [ ] 用户手动完成5折OOF训练与held-out预测。
-- [ ] OOF完成后核验每个known train parent恰好一次out-of-fold预测、训练fold不含自身parent、Unknown exposure=0。
-- [ ] 仅用known OOF拟合已知接受率/误拒识约束下的三个阈值；不得声称已优化Unknown检测率。
-- [ ] 使用已冻结部署身份写出calibration artifact并通过严格loader回读；在此之前不得运行正式拒识/stable。
-- [ ] calibration冻结后再单次执行development Unknown validation审计；不得由该结果反调模型、epoch或阈值。
-- [ ] test、正式拒识放行、stable性能、P95和部署继续等待独立授权与验收。
+- [x] 获得用户对手动执行V14正式训练与5折OOF的确认。
+- [x] 用户手动完成V14正式known-only三checkpoint联合训练；正式best epoch=`12`，三checkpoint原子集合已用于冻结预校准validation。
+- [x] 完成并核验OOF fold 00/01：各20 epoch、各203个held-out parent、held-out仅最终单次预测、Unknown/validation/test exposure均为0。
+- [x] 核验OOF fold 02恢复点：`joint_last_model.pt`为完整epoch 5、global step=`2020`、history count=`5`；未完成epoch 6不计入。
+- [x] 创建`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1`：不使用环境变量，串行恢复/完成缺失fold、校准并执行一次冻结development validation；任一Python退出码、hash、范围或产物契约失败均停止。
+- [x] 首次使用当前PowerShell和Windows PowerShell 5.1执行`-PreflightOnly`，验证当时fold 00/01通过、fold 02可恢复、fold 03/04未启动；完整运行后再次执行增强预检，验证5/5折、1011-parent聚合及calibration均通过且未启动validation。
+- [x] 用户手动完成5折OOF训练与held-out预测；fold 00–02各203个held-out parent，fold 03–04各201个，均为20 epoch。
+- [x] OOF完成后核验每个known train parent恰好一次out-of-fold预测、训练fold不含自身parent、Unknown exposure=0；五折合计1011个唯一known parent。
+- [x] 仅用known OOF拟合已知接受率/误拒识约束下的三个阈值；Unknown threshold fit count=`0`，validation/test未参与。
+- [x] 使用已冻结部署身份写出calibration artifact并通过严格loader/脚本回读；SHA-256=`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`。
+- [x] calibration冻结后单次执行development Unknown validation审计；报告覆盖217 known + 15 Unknown，未用于反调模型、epoch或阈值。
+- [x] 执行冻结development层级拒识与stable评估；动作语义、分母和校准绑定均通过，但性能未达到放行门槛。
+- [ ] test、P95和部署继续等待独立授权与验收。
 
-验收条件：完整OOF provenance和Unknown零暴露可复核；校准只控制known false rejection，Unknown能力仅在冻结评估中测量。
-是否需要正式训练：需要用户确认后手动执行，当前未执行；不需要预训练。
-阻塞条件：当前唯一流程阻塞是用户确认和后续长时手动执行；性能、拒识、stable、test和P95仍无结果。
+验收条件：完整OOF provenance和Unknown零暴露可复核；校准只控制known false rejection，Unknown能力已在冻结development评估中测量且未达标。
+是否需要正式训练：正式V14联合训练和五折OOF均已完成；无需重训，不需要预训练。
+阻塞条件：Unknown FAR=`73.33%`、Unknown拒识Recall=`26.67%`，Clutter P/R/F1=`50.00%/62.50%/55.56%`，Drone Recall与Bird Precision/F1未达90%；test、P95和部署仍未授权、未执行。
+
+## Stage 051 - V14 OOF断点续跑与冻结开放集评估脚本
+
+目标：把剩余OOF、known-only阈值校准和一次冻结development validation五类开放集评估收敛为一个可从任意当前目录执行的PowerShell入口；禁止环境变量、并行fold、test、P95和development Unknown反向调参。
+前置依赖：V14正式三checkpoint保持当前SHA-256；OOF assignment/fold contract保持当前SHA-256；fold 00/01完整，fold 02完整恢复点为epoch 5。
+状态：脚本已串行完成全部五折、calibration和一次冻结development validation；首次运行的`$fieldName不在`插值问题修复后，最终报告及样本明细均已生成并通过范围、语义和部署绑定回读。流水线执行完成，性能验收失败。
+最小子任务：
+
+- [x] 从脚本自身位置解析项目根目录，直接使用`.venv/Scripts/python.exe`和固定V14路径，不读取或设置环境变量。
+- [x] 串行处理fold 00–04：完成折只读复核；缺失预测且存在`joint_last_model.pt`时恢复；全新折从epoch 1开始；非空但不可恢复目录fail-closed。
+- [x] 每折强制复核20 epoch、parent唯一性、train/held-out hash、fold normalization、held-out最终单次预测、Unknown/validation/test零暴露和三checkpoint文件hash。
+- [x] 五折完成后强制复核1011个known train parent各恰好一次OOF，随后调用`report.strict_open_set_oof`并校验calibration仅来自known train parent-grouped OOF且绑定正式三checkpoint。
+- [x] calibration冻结后仅调用`report.cascade --split val`一次，输出217 known + 15 development Unknown的五动作评估；Unknown语义固定为`UNKNOWN_REJECTED`动作而非学习类别。
+- [x] 增加独占锁、外部进程退出码检查、JSON/hash/范围断言和PowerShell 5.1 UTF-8 BOM兼容；任一步失败退出码为1。
+- [x] 当前PowerShell AST解析、Windows PowerShell 5.1 `-PreflightOnly`及`git diff --check`通过；预检未启动GPU训练或创建calibration/validation结果。
+- [x] 用户执行默认完整模式并完成fold 02/03/04；五折均20 epoch且held-out prediction完整。
+- [x] 脚本生成真实calibration；修复后增强预检已严格回读并验证其known-only OOF来源与部署绑定。
+- [x] 修复PowerShell后置断言插值：`$fieldName不在`会被解析成未设置变量，现使用`${fieldName}不在`；同时让`-PreflightOnly`在产物存在时执行五折聚合、calibration和report后置断言。
+- [x] Windows PowerShell 5.1增强预检通过：5/5折、1011个唯一known parent及calibration均通过，未运行validation。
+- [x] 脚本生成并回读一次冻结development validation五类开放集报告。
+- [x] 读取最终报告并复核五类性能、OOF结果、stable口径、深度瓶颈和下一步建议；未由development Unknown结果反调本轮阈值。
+
+验收条件：脚本退出码0，5折总计1011个唯一known parent，Unknown/validation/test拟合暴露为0，calibration绑定正式三checkpoint，冻结validation为232 parent且含15个仅审计Unknown；test/P95/部署保持未执行。
+是否需要正式训练：否；正式模型与五折OOF均已完成。重新执行脚本不会重训已完成fold。
+阻塞条件：脚本无执行阻塞；性能阻塞为Unknown高置信误接收、Clutter低support/低Recall、Drone→Bird和校准子目标全部未通过。Test、P95和部署未执行。
+
+## Stage 052 - V14冻结开放集结果审计与路线冻结
+
+目标：只读核验V14最终validation、五折OOF和calibration产物，输出五动作性能、OOF结果、stable口径、统计限制、深层瓶颈与下一步单因素实验建议；不得重训、改阈值、访问test或把Unknown拒识动作写成学习类别。
+前置依赖：Stage 051默认流水线退出并生成最终报告；正式三checkpoint、calibration和五份OOF预测保持冻结。
+状态：已完成。V14严格open-set协议成立，性能未达到产品门槛；冻结为不可部署基线。
+最小子任务：
+
+- [x] 回读最终报告、sample detail、calibration和五份held-out prediction，核验SHA-256与父样本范围。
+- [x] 核验development validation=`232` parent，其中known=`217`、仅审计Unknown=`15`；Unknown不是模型类别且没有参与阈值或checkpoint选择。
+- [x] 复核五动作parent-final指标：Accuracy=`0.875000`、Macro Precision/Recall/F1=`0.770164/0.741996/0.733411`。
+- [x] 复核Unknown安全指标：拒识Recall=`0.266667`、FAR=`0.733333`、known FRR=`0.009217`、Coverage=`0.974138`、Selective Risk=`0.119469`。
+- [x] 复核stable：228/232确认；仅确认样本Macro-F1=`0.729919`，将4个未确认样本保守计为未命中后总体Accuracy=`0.870690`，stable没有解决Unknown拒识。
+- [x] 从五份held-out records独立重算known OOF动作：Accuracy=`0.915925`、Macro-F1=`0.827326`、known coverage=`0.986152`；与calibration内置汇总一致。
+- [x] 复核校准目标：Gate、DBB knownness、Clutter三项`all_precision_recall_targets_passed=false`；阈值来源有效但不具备部署放行资格。
+- [x] 完成11/11统计谬误扫描，标记低support、基率失衡、固定development多版本反复查看、fold异质性、stable幸存者偏差和epoch协议差异。
+- [x] 覆盖更新三个跟踪文件；不修改模型、数据、配置、checkpoint或calibration。
+- [ ] test、P95、部署和新的正式训练；均未执行。
+
+产物：`src-v3/processed/report/RADAR-LN3-V14-strict-open-set-calibrated-validation/evaluation-val.json`，SHA-256=`50a6387a18dc16d76a8cd1b700fac9e711cb427f08182b3cbaa7ba81e8367b18`；样本明细SHA-256=`cdbe8430f854c47d64a3c80f24ec483d9e413d753c6ca3cd556f362fb3343082`；calibration SHA-256=`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`。
+验收条件：结果与来源可追溯、Unknown语义无混淆、OOF与development分开解释、未执行项明确。技术验收满足，性能验收不满足。
+是否需要正式训练：本Stage不需要且未执行。
+阻塞条件：V14不可进入test或部署放行；下一轮必须先修复校准放行语义并在train/OOF范围内做DBB可拒识表征与Clutter覆盖实验，不能利用这15个development Unknown继续调参。
+
+## Stage 053 - V14校准质量状态与部署Fail-closed修复
+
+目标：修复V14校准“来源/结构通过但性能门槛失败仍显示passed”的安全缺口；把离线审计与部署加载分离，确保当前三项OOF门槛失败的校准只能用于冻结development审计，不能进入默认报告、在线状态机或部署动作。
+前置依赖：Stage 052已确认Gate、DBB knownness和Clutter三项`all_precision_recall_targets_passed=false`，但历史v1 calibration与报告仍使用结构性`passed`。
+状态：已完成。当前V14历史v1 calibration保持原文件和SHA-256不变，读取时从`selection_diagnostics`推导`audit_only/deployment_eligible=false`；未来新产物使用v2显式质量字段。默认deployment、策略构造和online注入均fail-closed；显式audit仅限V14冻结development validation。
+最小子任务：
+
+- [x] 审查calibration生成、loader、策略、offline evaluator、online cascade、报告CLI和PowerShell流水线调用链，确认原实现只校验来源/hash/数值范围。
+- [x] 新增V14 calibration v2 schema，显式写入`calibration_quality_status`、`deployment_eligible`、三组件质量门槛和失败原因。
+- [x] 兼容读取历史v1：必须具有完整`selection_diagnostics`，质量状态只可机械推导，禁止猜测或默认为可部署。
+- [x] loader默认`purpose=deployment`；任一Gate/DBB knownness/Clutter P/R目标失败即抛出`PermissionError`。只有显式`purpose=audit`可读取audit-only校准。
+- [x] `StrictOpenSetRejectionPolicy`默认拒绝audit-only calibration；即使调用方显式构造audit策略，`OnlineLiquidSoftCascade`仍拒绝注入。
+- [x] audit-only策略只允许`development_open_set_audit` evaluator；禁止用于known checkpoint selection、train或test。
+- [x] `report.cascade`新增`--calibration-purpose deployment|audit`，默认deployment；audit输出顶层`status=audit_only`、`execution_status=passed`、`deployment_eligible=false`和质量失败原因。
+- [x] PowerShell流水线从真实诊断派生质量状态；历史报告兼容只读，新执行必须显式`--calibration-purpose audit`；流水线最终状态为`audit_only`而不是部署通过。
+- [x] focused覆盖合格v2、失败v2默认拒绝、显式audit加载、历史v1推导、v2字段/诊断不一致拒绝、策略默认拒绝及online注入拒绝。
+- [x] 使用真实V14 v1 calibration验证默认deployment拒绝、显式audit加载及三项失败原因；原calibration SHA-256保持`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`。
+- [x] 只读复算真实OOF汇总入口，返回`status=audit_only`、`deployment_eligible=false`且`write_status=reused_legacy_v1_with_derived_quality_status`。
+- [x] 正式report CLI默认deployment用途在232-parent前向和写盘前拒绝当前calibration。
+- [x] V14 focused、V13 hierarchical focused、compileall、静态隔离、PowerShell 5.1后置预检和限定diff检查通过。
+- [ ] CPU有界V14 cascade Smoke：未执行；其既有安全前置检测到正式V14 artifact目录并按设计抛出`FileExistsError`，未绕过、未删除正式产物。
+- [ ] 新模型训练、OOF重训、test、P95和部署：均未执行。
+
+产物：代码级v2 schema和fail-closed路径；更新的focused结果与三份跟踪文件。历史calibration、正式checkpoint、配置、数据和冻结validation报告均未改写。
+验收条件：当前V14失败calibration无法从默认loader、默认报告CLI或在线状态接口进入部署动作；显式audit仍可复现冻结development结果并清楚标记不可部署。已满足。
+版本策略：模型、输入、split、阈值和checkpoint均未改变，继续冻结V14；calibration协议内部递增为v2。历史v1只读兼容，不覆盖、不迁移hash。
+阻塞条件：部署安全语义缺口已修复，但模型性能瓶颈未改变；下一阶段仍需在train/OOF范围设计DBB可拒识表征和Clutter覆盖实验，当前V14不得部署。

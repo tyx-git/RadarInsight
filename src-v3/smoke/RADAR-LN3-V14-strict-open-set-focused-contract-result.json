@@ -42,10 +42,23 @@
     "contaminated_error": "V14 checkpoint selection received Unknown exposure or a non-known-only evaluation"
   },
   "calibration": {
-    "valid_schema": "RADAR-LN3-V14-strict-open-set-rejection-calibration-v1",
+    "valid_schema": "RADAR-LN3-V14-strict-open-set-rejection-calibration-v2",
+    "valid_deployment_eligible": true,
     "unknown_threshold_fit_count_zero_required": true,
     "contaminated_calibration_rejected": true,
-    "contaminated_error": "V14 calibration provenance is not known-only train parent-grouped OOF"
+    "contaminated_error": "V14 calibration provenance is not known-only train parent-grouped OOF",
+    "audit_only_default_deployment_rejected": true,
+    "audit_only_deployment_error": "V14 calibration is audit_only and cannot be loaded for deployment; failed quality gates: gate_precision_recall_target_not_met",
+    "audit_only_explicit_audit_loads": true,
+    "audit_only_policy_default_rejected": true,
+    "audit_only_policy_error": "V14 audit-only calibration cannot enable a deployment rejection policy",
+    "audit_only_online_injection_rejected": true,
+    "audit_only_online_error": "V14 audit-only calibration cannot enter the online cascade",
+    "legacy_v1_quality_derived": true,
+    "legacy_v1_default_deployment_rejected": true,
+    "legacy_v1_deployment_error": "V14 calibration is audit_only and cannot be loaded for deployment; failed quality gates: gate_precision_recall_target_not_met",
+    "inconsistent_v2_quality_rejected": true,
+    "inconsistent_v2_quality_error": "V14 deployment_eligible disagrees with OOF diagnostics"
   },
   "checkpoint": {
     "round_trip": true,

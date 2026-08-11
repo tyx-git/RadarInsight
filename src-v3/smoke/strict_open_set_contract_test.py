@@ -4,12 +4,14 @@ import argparse
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable
 
 import torch
 
 from radar_ln3.cascade import (
     EXPECTED_TASKS,
+    OnlineLiquidSoftCascade,
     STRICT_OPEN_SET_EVIDENCE_NAMES,
     build_cascade_dataset,
     summarize_strict_open_set_known_records,
@@ -17,10 +19,12 @@ from radar_ln3.cascade import (
 )
 from radar_ln3.losses import strict_open_set_final_state_nll
 from radar_ln3.rejection import (
+    CALIBRATION_PURPOSE_AUDIT,
     CU_CLUTTER_PROBABILITY_SCORE,
     DBB_KNOWN_PROBABILITY_SCORE,
     GATE_DBB_PROBABILITY_SCORE,
     STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
+    STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1,
     TRAIN_PARENT_GROUPED_OOF_SOURCE,
     StrictOpenSetRejectionCalibration,
     StrictOpenSetRejectionPolicy,
@@ -137,6 +141,8 @@ def _calibration() -> StrictOpenSetRejectionCalibration:
         dbb_accept_known_margin=0.20,
         cu_accept_clutter_threshold=0.70,
         cu_accept_clutter_margin=0.20,
+        calibration_quality_status="deployment_eligible",
+        deployment_eligible=True,
         min_valid_points=2,
         min_track_quality=0.0,
         max_gap_fraction=1.0,
@@ -256,6 +262,9 @@ def _calibration_loader_contract(project_root: Path, config) -> dict[str, Any]:
     smoke_dir = project_root / "src-v3" / "smoke"
     valid_path = smoke_dir / ".RADAR-LN3-V14-calibration-valid.tmp.json"
     invalid_path = smoke_dir / ".RADAR-LN3-V14-calibration-invalid.tmp.json"
+    audit_path = smoke_dir / ".RADAR-LN3-V14-calibration-audit.tmp.json"
+    legacy_path = smoke_dir / ".RADAR-LN3-V14-calibration-legacy.tmp.json"
+    inconsistent_path = smoke_dir / ".RADAR-LN3-V14-calibration-inconsistent.tmp.json"
     zeros = {name: "0" * 64 for name in EXPECTED_TASKS}
     identity = {
         "task_config_identity_sha256": zeros,
@@ -263,6 +272,11 @@ def _calibration_loader_contract(project_root: Path, config) -> dict[str, Any]:
         "epoch": 1,
         "global_step": 1,
         "product_selection_sha256": "0" * 64,
+    }
+    component_targets_passed = {
+        "gate": True,
+        "dbb_knownness": True,
+        "clutter_acceptance": True,
     }
     payload = {
         "schema_version": STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
@@ -276,6 +290,14 @@ def _calibration_loader_contract(project_root: Path, config) -> dict[str, Any]:
         "dbb_accept_known_margin": 0.2,
         "cu_accept_clutter_threshold": 0.7,
         "cu_accept_clutter_margin": 0.2,
+        "calibration_quality_status": "deployment_eligible",
+        "deployment_eligible": True,
+        "quality_gate": {
+            "required_components": list(component_targets_passed),
+            "component_targets_passed": component_targets_passed,
+            "all_required_targets_passed": True,
+            "failure_reasons": [],
+        },
         "min_valid_points": 2,
         "min_track_quality": 0.0,
         "max_gap_fraction": 1.0,
@@ -298,6 +320,10 @@ def _calibration_loader_contract(project_root: Path, config) -> dict[str, Any]:
             },
             "deployment_checkpoint_set": identity,
         },
+        "selection_diagnostics": {
+            name: {"all_precision_recall_targets_passed": passed}
+            for name, passed in component_targets_passed.items()
+        },
     }
     try:
         valid_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -309,14 +335,112 @@ def _calibration_loader_contract(project_root: Path, config) -> dict[str, Any]:
             lambda: load_strict_open_set_rejection_calibration(invalid_path),
             "known-only",
         )
+        audit_payload = copy.deepcopy(payload)
+        audit_payload["selection_diagnostics"]["gate"][
+            "all_precision_recall_targets_passed"
+        ] = False
+        audit_payload["calibration_quality_status"] = "audit_only"
+        audit_payload["deployment_eligible"] = False
+        audit_payload["quality_gate"] = {
+            "required_components": list(component_targets_passed),
+            "component_targets_passed": {
+                "gate": False,
+                "dbb_knownness": True,
+                "clutter_acceptance": True,
+            },
+            "all_required_targets_passed": False,
+            "failure_reasons": ["gate_precision_recall_target_not_met"],
+        }
+        audit_path.write_text(
+            json.dumps(audit_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        deployment_quality_error = _expect_failure(
+            lambda: load_strict_open_set_rejection_calibration(audit_path),
+            "audit_only",
+        )
+        audit_calibration, normalized_audit = load_strict_open_set_rejection_calibration(
+            audit_path,
+            purpose=CALIBRATION_PURPOSE_AUDIT,
+        )
+        policy_quality_error = _expect_failure(
+            lambda: StrictOpenSetRejectionPolicy(audit_calibration, enabled=True),
+            "audit-only",
+        )
+        audit_policy = StrictOpenSetRejectionPolicy(
+            audit_calibration,
+            enabled=True,
+            allow_audit_only=True,
+        )
+        online_audit_error = _expect_failure(
+            lambda: OnlineLiquidSoftCascade(
+                SimpleNamespace(
+                    gate=SimpleNamespace(
+                        config=SimpleNamespace(schema_version=STRICT_OPEN_SET_SCHEMA_VERSION)
+                    )
+                ),
+                hierarchical_rejection_policy=audit_policy,
+            ),
+            "online",
+        )
+        legacy_payload = copy.deepcopy(audit_payload)
+        legacy_payload["schema_version"] = STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1
+        for name in ("calibration_quality_status", "deployment_eligible", "quality_gate"):
+            legacy_payload.pop(name)
+        legacy_path.write_text(
+            json.dumps(legacy_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        legacy_deployment_error = _expect_failure(
+            lambda: load_strict_open_set_rejection_calibration(legacy_path),
+            "audit_only",
+        )
+        legacy_calibration, normalized_legacy = load_strict_open_set_rejection_calibration(
+            legacy_path,
+            purpose=CALIBRATION_PURPOSE_AUDIT,
+        )
+        inconsistent_payload = copy.deepcopy(audit_payload)
+        inconsistent_payload["deployment_eligible"] = True
+        inconsistent_path.write_text(
+            json.dumps(inconsistent_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        inconsistent_quality_error = _expect_failure(
+            lambda: load_strict_open_set_rejection_calibration(
+                inconsistent_path,
+                purpose=CALIBRATION_PURPOSE_AUDIT,
+            ),
+            "disagrees",
+        )
     finally:
         valid_path.unlink(missing_ok=True)
         invalid_path.unlink(missing_ok=True)
+        audit_path.unlink(missing_ok=True)
+        legacy_path.unlink(missing_ok=True)
+        inconsistent_path.unlink(missing_ok=True)
     return {
         "valid_schema": calibration.schema_version,
+        "valid_deployment_eligible": calibration.deployment_eligible,
         "unknown_threshold_fit_count_zero_required": True,
         "contaminated_calibration_rejected": True,
         "contaminated_error": error,
+        "audit_only_default_deployment_rejected": True,
+        "audit_only_deployment_error": deployment_quality_error,
+        "audit_only_explicit_audit_loads": normalized_audit["calibration_quality_status"]
+        == "audit_only",
+        "audit_only_policy_default_rejected": True,
+        "audit_only_policy_error": policy_quality_error,
+        "audit_only_online_injection_rejected": True,
+        "audit_only_online_error": online_audit_error,
+        "legacy_v1_quality_derived": (
+            legacy_calibration.deployment_eligible is False
+            and normalized_legacy["quality_status_source"]
+            == "derived_from_legacy_v1_selection_diagnostics"
+        ),
+        "legacy_v1_default_deployment_rejected": True,
+        "legacy_v1_deployment_error": legacy_deployment_error,
+        "inconsistent_v2_quality_rejected": True,
+        "inconsistent_v2_quality_error": inconsistent_quality_error,
     }
 
 

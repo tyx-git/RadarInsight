@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Mapping
 
 import torch
 
@@ -14,7 +14,18 @@ REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-rejection-calibration-v1"
 TRAIN_PARENT_GROUPED_OOF_SOURCE = "train_parent_grouped_oof"
 MAX_CLASS_PROBABILITY_SCORE = "max_class_probability"
 HIERARCHICAL_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V13-hierarchical-rejection-calibration-v1"
-STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v1"
+STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1 = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v1"
+STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v2"
+STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS = frozenset(
+    {
+        STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1,
+        STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
+    }
+)
+CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE = "deployment_eligible"
+CALIBRATION_QUALITY_AUDIT_ONLY = "audit_only"
+CALIBRATION_PURPOSE_DEPLOYMENT = "deployment"
+CALIBRATION_PURPOSE_AUDIT = "audit"
 HIERARCHICAL_TASK_NAMES = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
 GATE_DBB_PROBABILITY_SCORE = "gate_dbb_probability_and_margin"
 CU_CLUTTER_PROBABILITY_SCORE = "cu_clutter_probability_and_margin"
@@ -177,12 +188,14 @@ class StrictOpenSetRejectionCalibration:
     dbb_accept_known_margin: float
     cu_accept_clutter_threshold: float
     cu_accept_clutter_margin: float
+    calibration_quality_status: str
+    deployment_eligible: bool
     min_valid_points: int = 1
     min_track_quality: float = 0.0
     max_gap_fraction: float = 1.0
 
     def __post_init__(self) -> None:
-        if self.schema_version != STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA:
+        if self.schema_version not in STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS:
             raise ValueError(f"unsupported V14 calibration schema: {self.schema_version!r}")
         if self.source != TRAIN_PARENT_GROUPED_OOF_SOURCE:
             raise ValueError("V14 rejection calibration must come from train parent-grouped OOF")
@@ -192,6 +205,17 @@ class StrictOpenSetRejectionCalibration:
             raise ValueError(f"unsupported V14 DBB knownness score: {self.dbb_known_score_name!r}")
         if self.cu_score_name != CU_CLUTTER_PROBABILITY_SCORE:
             raise ValueError(f"unsupported V14 Clutter score: {self.cu_score_name!r}")
+        if self.calibration_quality_status not in {
+            CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE,
+            CALIBRATION_QUALITY_AUDIT_ONLY,
+        }:
+            raise ValueError(
+                "V14 calibration_quality_status must be deployment_eligible or audit_only"
+            )
+        if bool(self.deployment_eligible) != (
+            self.calibration_quality_status == CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE
+        ):
+            raise ValueError("V14 calibration quality status and deployment_eligible disagree")
         for name, value in (
             ("gate_accept_dbb_threshold", self.gate_accept_dbb_threshold),
             ("dbb_accept_known_threshold", self.dbb_accept_known_threshold),
@@ -507,11 +531,22 @@ class StrictOpenSetRejectionPolicy:
         calibration: StrictOpenSetRejectionCalibration | None = None,
         *,
         enabled: bool = False,
+        allow_audit_only: bool = False,
     ) -> None:
         if enabled and calibration is None:
             raise RuntimeError("V14 rejection cannot be enabled without known-only train-parent OOF calibration")
+        if (
+            enabled
+            and calibration is not None
+            and not calibration.deployment_eligible
+            and not allow_audit_only
+        ):
+            raise PermissionError(
+                "V14 audit-only calibration cannot enable a deployment rejection policy"
+            )
         self.calibration = calibration
         self.enabled = bool(enabled)
+        self.allow_audit_only = bool(allow_audit_only)
 
     @property
     def calibrated(self) -> bool:
@@ -772,8 +807,10 @@ def load_hierarchical_rejection_calibration(
 
 def load_strict_open_set_rejection_calibration(
     path: str | Path,
+    *,
+    purpose: Literal["deployment", "audit"] = CALIBRATION_PURPOSE_DEPLOYMENT,
 ) -> tuple[StrictOpenSetRejectionCalibration, dict[str, Any]]:
-    """Load a V14 calibration and prove known-only parent-grouped OOF."""
+    """Load V14 calibration with an explicit audit/deployment safety boundary."""
 
     calibration_path = Path(path).resolve()
     payload = json.loads(calibration_path.read_text(encoding="utf-8"))
@@ -793,6 +830,7 @@ def load_strict_open_set_rejection_calibration(
         "min_track_quality",
         "max_gap_fraction",
         "provenance",
+        "selection_diagnostics",
     }
     missing = sorted(required - set(payload))
     if missing:
@@ -821,23 +859,96 @@ def load_strict_open_set_rejection_calibration(
         provenance.get("deployment_checkpoint_set"),
         field_name="V14 calibration provenance deployment_checkpoint_set",
     )
+    normalized_payload = dict(payload)
+    quality = strict_open_set_calibration_quality(normalized_payload)
+    normalized_payload.update(quality)
+    if purpose not in {CALIBRATION_PURPOSE_DEPLOYMENT, CALIBRATION_PURPOSE_AUDIT}:
+        raise ValueError(f"unsupported V14 calibration purpose: {purpose!r}")
+    if purpose == CALIBRATION_PURPOSE_DEPLOYMENT and not quality["deployment_eligible"]:
+        reasons = ", ".join(quality["quality_gate"]["failure_reasons"])
+        raise PermissionError(
+            "V14 calibration is audit_only and cannot be loaded for deployment; "
+            f"failed quality gates: {reasons}"
+        )
     calibration = StrictOpenSetRejectionCalibration(
-        schema_version=str(payload["schema_version"]),
-        source=str(payload["source"]),
-        gate_score_name=str(payload["gate_score_name"]),
-        dbb_known_score_name=str(payload["dbb_known_score_name"]),
-        cu_score_name=str(payload["cu_score_name"]),
-        gate_accept_dbb_threshold=float(payload["gate_accept_dbb_threshold"]),
-        gate_accept_dbb_margin=float(payload["gate_accept_dbb_margin"]),
-        dbb_accept_known_threshold=float(payload["dbb_accept_known_threshold"]),
-        dbb_accept_known_margin=float(payload["dbb_accept_known_margin"]),
-        cu_accept_clutter_threshold=float(payload["cu_accept_clutter_threshold"]),
-        cu_accept_clutter_margin=float(payload["cu_accept_clutter_margin"]),
-        min_valid_points=int(payload["min_valid_points"]),
-        min_track_quality=float(payload["min_track_quality"]),
-        max_gap_fraction=float(payload["max_gap_fraction"]),
+        schema_version=str(normalized_payload["schema_version"]),
+        source=str(normalized_payload["source"]),
+        gate_score_name=str(normalized_payload["gate_score_name"]),
+        dbb_known_score_name=str(normalized_payload["dbb_known_score_name"]),
+        cu_score_name=str(normalized_payload["cu_score_name"]),
+        gate_accept_dbb_threshold=float(normalized_payload["gate_accept_dbb_threshold"]),
+        gate_accept_dbb_margin=float(normalized_payload["gate_accept_dbb_margin"]),
+        dbb_accept_known_threshold=float(normalized_payload["dbb_accept_known_threshold"]),
+        dbb_accept_known_margin=float(normalized_payload["dbb_accept_known_margin"]),
+        cu_accept_clutter_threshold=float(normalized_payload["cu_accept_clutter_threshold"]),
+        cu_accept_clutter_margin=float(normalized_payload["cu_accept_clutter_margin"]),
+        calibration_quality_status=str(normalized_payload["calibration_quality_status"]),
+        deployment_eligible=bool(normalized_payload["deployment_eligible"]),
+        min_valid_points=int(normalized_payload["min_valid_points"]),
+        min_track_quality=float(normalized_payload["min_track_quality"]),
+        max_gap_fraction=float(normalized_payload["max_gap_fraction"]),
     )
-    return calibration, payload
+    return calibration, normalized_payload
+
+
+def strict_open_set_calibration_quality(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Derive and verify whether all predeclared V14 OOF quality gates passed."""
+
+    schema_version = str(payload.get("schema_version", ""))
+    if schema_version not in STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS:
+        raise ValueError(f"unsupported V14 calibration schema: {schema_version!r}")
+    diagnostics = payload.get("selection_diagnostics")
+    if not isinstance(diagnostics, Mapping):
+        raise ValueError("V14 calibration lacks selection_diagnostics for quality gating")
+    component_fields = {
+        "gate": "gate",
+        "dbb_knownness": "dbb_knownness",
+        "clutter_acceptance": "clutter_acceptance",
+    }
+    component_targets_passed: dict[str, bool] = {}
+    for output_name, diagnostic_name in component_fields.items():
+        diagnostic = diagnostics.get(diagnostic_name)
+        if not isinstance(diagnostic, Mapping):
+            raise ValueError(f"V14 calibration lacks {diagnostic_name} quality diagnostics")
+        value = diagnostic.get("all_precision_recall_targets_passed")
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"V14 calibration {diagnostic_name} quality result must be boolean"
+            )
+        component_targets_passed[output_name] = value
+    all_required_targets_passed = all(component_targets_passed.values())
+    failure_reasons = [
+        f"{name}_precision_recall_target_not_met"
+        for name, passed in component_targets_passed.items()
+        if not passed
+    ]
+    expected_status = (
+        CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE
+        if all_required_targets_passed
+        else CALIBRATION_QUALITY_AUDIT_ONLY
+    )
+    expected_gate = {
+        "required_components": list(component_fields),
+        "component_targets_passed": component_targets_passed,
+        "all_required_targets_passed": all_required_targets_passed,
+        "failure_reasons": failure_reasons,
+    }
+    if schema_version == STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA:
+        if payload.get("calibration_quality_status") != expected_status:
+            raise ValueError("V14 calibration quality status disagrees with OOF diagnostics")
+        if payload.get("deployment_eligible") is not all_required_targets_passed:
+            raise ValueError("V14 deployment_eligible disagrees with OOF diagnostics")
+        if payload.get("quality_gate") != expected_gate:
+            raise ValueError("V14 quality_gate disagrees with OOF diagnostics")
+        source = "explicit_v2_verified_against_selection_diagnostics"
+    else:
+        source = "derived_from_legacy_v1_selection_diagnostics"
+    return {
+        "calibration_quality_status": expected_status,
+        "deployment_eligible": all_required_targets_passed,
+        "quality_gate": expected_gate,
+        "quality_status_source": source,
+    }
 
 
 def _normalize_hierarchical_deployment_identity(
@@ -909,8 +1020,14 @@ __all__ = [
     "CU_CLUTTER_PROBABILITY_SCORE",
     "DBB_KNOWN_PROBABILITY_SCORE",
     "GATE_DBB_PROBABILITY_SCORE",
+    "CALIBRATION_PURPOSE_AUDIT",
+    "CALIBRATION_PURPOSE_DEPLOYMENT",
+    "CALIBRATION_QUALITY_AUDIT_ONLY",
+    "CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE",
     "HIERARCHICAL_REJECTION_CALIBRATION_SCHEMA",
     "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA",
+    "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1",
+    "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS",
     "HIERARCHICAL_TASK_NAMES",
     "REJECTION_CALIBRATION_SCHEMA",
     "TRAIN_PARENT_GROUPED_OOF_SOURCE",
@@ -924,5 +1041,6 @@ __all__ = [
     "StrictOpenSetRejectionPolicy",
     "load_hierarchical_rejection_calibration",
     "load_strict_open_set_rejection_calibration",
+    "strict_open_set_calibration_quality",
     "validate_hierarchical_calibration_deployment",
 ]

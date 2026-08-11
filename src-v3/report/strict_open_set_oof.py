@@ -9,12 +9,16 @@ import torch
 
 from radar_ln3.cascade import EXPECTED_TASKS, load_cascade, verify_cascade_data_contracts
 from radar_ln3.rejection import (
+    CALIBRATION_PURPOSE_AUDIT,
+    CALIBRATION_QUALITY_AUDIT_ONLY,
+    CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE,
     CU_CLUTTER_PROBABILITY_SCORE,
     DBB_KNOWN_PROBABILITY_SCORE,
     GATE_DBB_PROBABILITY_SCORE,
     STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
     TRAIN_PARENT_GROUPED_OOF_SOURCE,
     load_strict_open_set_rejection_calibration,
+    strict_open_set_calibration_quality,
     validate_hierarchical_calibration_deployment,
 )
 from radar_ln3.strict_open_set_oof import (
@@ -192,6 +196,26 @@ def fit_calibration(
         dbb_target=float(gate.train.dbb_min_precision_recall_target),
         cu_target=float(gate.train.cu_min_precision_recall_target),
     )
+    component_targets_passed = {
+        "gate": bool(fitted["gate"]["all_precision_recall_targets_passed"]),
+        "dbb_knownness": bool(
+            fitted["dbb_knownness"]["all_precision_recall_targets_passed"]
+        ),
+        "clutter_acceptance": bool(
+            fitted["clutter_acceptance"]["all_precision_recall_targets_passed"]
+        ),
+    }
+    deployment_eligible = all(component_targets_passed.values())
+    quality_gate = {
+        "required_components": list(component_targets_passed),
+        "component_targets_passed": component_targets_passed,
+        "all_required_targets_passed": deployment_eligible,
+        "failure_reasons": [
+            f"{name}_precision_recall_target_not_met"
+            for name, passed in component_targets_passed.items()
+            if not passed
+        ],
+    }
     calibration = {
         "schema_version": STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
         "source": TRAIN_PARENT_GROUPED_OOF_SOURCE,
@@ -204,6 +228,13 @@ def fit_calibration(
         "dbb_accept_known_margin": fitted["dbb_knownness"]["margin_threshold"],
         "cu_accept_clutter_threshold": fitted["clutter_acceptance"]["probability_threshold"],
         "cu_accept_clutter_margin": fitted["clutter_acceptance"]["margin_threshold"],
+        "calibration_quality_status": (
+            CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE
+            if deployment_eligible
+            else CALIBRATION_QUALITY_AUDIT_ONLY
+        ),
+        "deployment_eligible": deployment_eligible,
+        "quality_gate": quality_gate,
         "min_valid_points": 1,
         "min_track_quality": 0.0,
         "max_gap_fraction": 1.0,
@@ -240,20 +271,54 @@ def fit_calibration(
     text = json.dumps(calibration, ensure_ascii=False, indent=2) + "\n"
     output_path = output_path.resolve()
     if output_path.exists():
-        if output_path.read_text(encoding="utf-8") != text:
+        existing, existing_payload = load_strict_open_set_rejection_calibration(
+            output_path,
+            purpose=CALIBRATION_PURPOSE_AUDIT,
+        )
+        validate_hierarchical_calibration_deployment(existing_payload, deployment)
+        comparable_fields = (
+            "source",
+            "gate_score_name",
+            "dbb_known_score_name",
+            "cu_score_name",
+            "gate_accept_dbb_threshold",
+            "gate_accept_dbb_margin",
+            "dbb_accept_known_threshold",
+            "dbb_accept_known_margin",
+            "cu_accept_clutter_threshold",
+            "cu_accept_clutter_margin",
+            "min_valid_points",
+            "min_track_quality",
+            "max_gap_fraction",
+            "provenance",
+            "selection_diagnostics",
+        )
+        if any(existing_payload.get(name) != calibration.get(name) for name in comparable_fields):
             raise FileExistsError(f"refusing to overwrite a different V14 calibration: {output_path}")
-        write_status = "reused_identical"
+        existing_quality = strict_open_set_calibration_quality(existing_payload)
+        if existing_quality["deployment_eligible"] != deployment_eligible:
+            raise FileExistsError(f"existing V14 calibration quality disagrees: {output_path}")
+        loaded = existing
+        loaded_payload = existing_payload
+        write_status = (
+            "reused_identical"
+            if existing_payload["schema_version"] == STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA
+            else "reused_legacy_v1_with_derived_quality_status"
+        )
     else:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(text, encoding="utf-8")
         write_status = "created"
-    loaded, loaded_payload = load_strict_open_set_rejection_calibration(output_path)
+        loaded, loaded_payload = load_strict_open_set_rejection_calibration(
+            output_path,
+            purpose=CALIBRATION_PURPOSE_AUDIT,
+        )
     validate_hierarchical_calibration_deployment(loaded_payload, deployment)
     if loaded.source != TRAIN_PARENT_GROUPED_OOF_SOURCE:
         raise RuntimeError("V14 calibration round-trip changed its source")
     return {
-        "status": "passed",
-        "schema_version": calibration["schema_version"],
+        "status": loaded_payload["calibration_quality_status"],
+        "schema_version": loaded_payload["schema_version"],
         "calibration_path": str(output_path),
         "calibration_sha256": sha256_file(output_path),
         "write_status": write_status,
@@ -262,6 +327,9 @@ def fit_calibration(
         "validation_used_for_threshold_fitting": False,
         "test_used": False,
         "deployment_checkpoint_set": deployment,
+        "calibration_quality_status": loaded_payload["calibration_quality_status"],
+        "deployment_eligible": loaded_payload["deployment_eligible"],
+        "quality_gate": loaded_payload["quality_gate"],
         "selected_boundaries": {
             "gate": fitted["gate"],
             "dbb_knownness": fitted["dbb_knownness"],

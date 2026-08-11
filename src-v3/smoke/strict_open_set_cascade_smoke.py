@@ -115,6 +115,8 @@ def _calibration() -> StrictOpenSetRejectionCalibration:
         dbb_accept_known_margin=0.0,
         cu_accept_clutter_threshold=1.0e-6,
         cu_accept_clutter_margin=0.0,
+        calibration_quality_status="deployment_eligible",
+        deployment_eligible=True,
         min_valid_points=2,
         min_track_quality=0.0,
         max_gap_fraction=1.0,

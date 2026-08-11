@@ -278,6 +278,13 @@ class OnlineLiquidSoftCascade:
             self.hierarchical_rejection_policy = hierarchical_rejection_policy
         if self.strict_open_set_mode and not isinstance(self.hierarchical_rejection_policy, StrictOpenSetRejectionPolicy):
             raise ValueError("V14 online cascade requires the strict-open-set rejection policy")
+        if (
+            self.strict_open_set_mode
+            and self.hierarchical_rejection_policy.enabled
+            and self.hierarchical_rejection_policy.calibration is not None
+            and not self.hierarchical_rejection_policy.calibration.deployment_eligible
+        ):
+            raise PermissionError("V14 audit-only calibration cannot enter the online cascade")
         if self.hierarchical_mode and not self.strict_open_set_mode and not isinstance(
             self.hierarchical_rejection_policy, HierarchicalRejectionPolicy
         ):
@@ -916,6 +923,15 @@ def evaluate_strict_open_set_cascade(
     if split_name == model.gate.config.data.test_split_name:
         raise PermissionError("V14 test evaluation is sealed")
     policy = rejection_policy or StrictOpenSetRejectionPolicy()
+    if (
+        policy.enabled
+        and policy.calibration is not None
+        and not policy.calibration.deployment_eligible
+        and evaluation_scope != "development_open_set_audit"
+    ):
+        raise PermissionError(
+            "V14 audit-only calibration is restricted to development_open_set_audit"
+        )
     loader = build_point_dataloader(dataset, batch_size=batch_size, shuffle=False)
     known_windows: list[dict[str, Any]] = []
     known_parents: list[dict[str, Any]] = []

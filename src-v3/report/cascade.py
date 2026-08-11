@@ -23,6 +23,8 @@ from radar_ln3.task_models import (
     task_device,
 )
 from radar_ln3.rejection import (
+    CALIBRATION_PURPOSE_AUDIT,
+    CALIBRATION_PURPOSE_DEPLOYMENT,
     HierarchicalRejectionPolicy,
     StrictOpenSetRejectionPolicy,
     load_hierarchical_rejection_calibration,
@@ -83,7 +85,10 @@ def run(
     batch_size: int | None,
     output_dir: Path | None,
     calibration_path: Path | None = None,
+    calibration_purpose: str = CALIBRATION_PURPOSE_DEPLOYMENT,
 ) -> dict[str, Any]:
+    if calibration_path is None and calibration_purpose != CALIBRATION_PURPOSE_DEPLOYMENT:
+        raise ValueError("calibration-purpose audit requires an explicit calibration artifact")
     configs = {name: load_task_config(config_paths[name]) for name in EXPECTED_TASKS}
     contracts = verify_cascade_data_contracts(project_root, configs)
     split_name = {
@@ -96,6 +101,13 @@ def run(
     device = task_device(configs["dbb_cu_gate"])
     cascade, payloads = load_cascade(configs, checkpoint_paths, device=device)
     strict_open_set = configs["dbb_cu_gate"].schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    if (
+        calibration_purpose == CALIBRATION_PURPOSE_AUDIT
+        and (not strict_open_set or split != "val")
+    ):
+        raise PermissionError(
+            "audit-only calibration is restricted to V14 frozen development validation"
+        )
     evaluation_scope = (
         "known_only_checkpoint_selection"
         if strict_open_set and split_name == configs["dbb_cu_gate"].data.train_split_name
@@ -119,8 +131,13 @@ def run(
     calibration_payload = None
     if calibration_path is not None:
         if strict_open_set:
-            calibration, calibration_payload = load_strict_open_set_rejection_calibration(calibration_path)
+            calibration, calibration_payload = load_strict_open_set_rejection_calibration(
+                calibration_path,
+                purpose=calibration_purpose,
+            )
         else:
+            if calibration_purpose != CALIBRATION_PURPOSE_DEPLOYMENT:
+                raise ValueError("calibration-purpose audit is supported only for V14 strict open-set")
             calibration, calibration_payload = load_hierarchical_rejection_calibration(calibration_path)
         expected_hashes = contracts["dbb_cu_gate"]["hashes"]
         actual_hashes = dict(calibration_payload["provenance"]["data_contract_hashes"])
@@ -139,7 +156,11 @@ def run(
             deployment_identity,
         )
         hierarchical_policy = (
-            StrictOpenSetRejectionPolicy(calibration, enabled=True)
+            StrictOpenSetRejectionPolicy(
+                calibration,
+                enabled=True,
+                allow_audit_only=calibration_purpose == CALIBRATION_PURPOSE_AUDIT,
+            )
             if strict_open_set
             else HierarchicalRejectionPolicy(calibration, enabled=True)
         )
@@ -162,8 +183,27 @@ def run(
         "records": result.get("records", {}),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     report = _without_records(result)
+    calibration_quality_status = (
+        None
+        if calibration_payload is None or not strict_open_set
+        else str(calibration_payload["calibration_quality_status"])
+    )
+    deployment_eligible = (
+        None
+        if calibration_payload is None or not strict_open_set
+        else bool(calibration_payload["deployment_eligible"])
+    )
     report.update({
-        "status": "passed",
+        "status": (
+            "audit_only"
+            if strict_open_set and calibration_quality_status == "audit_only"
+            else "passed"
+        ),
+        "execution_status": "passed",
+        "deployment_eligible": deployment_eligible,
+        "calibration_purpose": (
+            None if calibration_path is None else calibration_purpose
+        ),
         "device": str(device),
         "configs": {name: str(config_paths[name]) for name in EXPECTED_TASKS},
         "checkpoints": {name: str(checkpoint_paths[name]) for name in EXPECTED_TASKS},
@@ -182,11 +222,32 @@ def run(
                 "path": str(calibration_path),
                 "source": calibration_payload["source"],
                 "provenance": calibration_payload["provenance"],
+                "purpose": calibration_purpose,
+                "calibration_quality_status": calibration_quality_status,
+                "deployment_eligible": deployment_eligible,
+                "quality_gate": calibration_payload.get("quality_gate"),
+                "quality_status_source": calibration_payload.get("quality_status_source"),
             }
         ),
         "full_validation": "executed" if split == "val" else "未执行",
-        "formal_rejection": "executed_with_calibration" if calibration_path is not None else "未执行",
-        "stable": "executed_with_calibration" if calibration_path is not None else "未执行",
+        "formal_rejection": (
+            "未执行"
+            if calibration_path is None
+            else "audit_only_evaluated_with_calibration"
+            if strict_open_set and not deployment_eligible
+            else "executed_with_deployment_eligible_calibration"
+            if strict_open_set
+            else "executed_with_calibration"
+        ),
+        "stable": (
+            "未执行"
+            if calibration_path is None
+            else "audit_only_evaluated_with_calibration"
+            if strict_open_set and not deployment_eligible
+            else "executed_with_deployment_eligible_calibration"
+            if strict_open_set
+            else "executed_with_calibration"
+        ),
         "p95": "未执行",
         "test_evaluation": "未执行",
     })
@@ -211,6 +272,15 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument("--calibration", type=Path, default=None)
+    parser.add_argument(
+        "--calibration-purpose",
+        choices=(CALIBRATION_PURPOSE_DEPLOYMENT, CALIBRATION_PURPOSE_AUDIT),
+        default=CALIBRATION_PURPOSE_DEPLOYMENT,
+        help=(
+            "deployment rejects audit-only V14 calibration; audit permits read-only "
+            "development evaluation and marks the report non-deployable"
+        ),
+    )
     args = parser.parse_args()
     root = args.project_root.resolve()
 
@@ -233,6 +303,7 @@ def main() -> None:
         batch_size=args.batch_size,
         output_dir=None if args.output_dir is None else resolve(args.output_dir),
         calibration_path=None if args.calibration is None else resolve(args.calibration),
+        calibration_purpose=args.calibration_purpose,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

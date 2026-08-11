@@ -1690,3 +1690,120 @@ Parent-grouped OOF准备：
 - 预训练：不需要且未使用。
 
 当前结论：V14已经是本项目冻结定义下的严格known-only open-set实现，Unknown不是模型类、训练target、normalization/optimizer/OOF/threshold/checkpoint ranking population；运行时只能由三道known acceptance边界产生`UNKNOWN_REJECTED`动作。但真实拒识能力仍“未评估”，必须等待用户确认并手动完成正式训练、5折OOF和冻结校准后才能讨论。
+
+## 2026-08-11 Stage 051 - V14 OOF断点续跑一键脚本
+
+用户要求：不使用环境变量，在`src-v3/scripts/`创建一个可直接执行的脚本，串行完成剩余OOF、校准和一次冻结后的development validation五类开放集评估；任一步失败必须停止。长时间任务由用户手动执行，本阶段不得代跑完整OOF。
+
+只读核验：
+
+- V14正式联合训练产物存在且`training-summary.json status=passed`，best epoch=`12`、global step=`10120`。正式三checkpoint SHA-256为Gate=`b6fcff98e282709f0fb10d9d2ab447615436635f3b8e82d762a302f490ce462b`、DBB=`b60a2e35c150866073c5d652be93d580df144939182c6b5eff652232d1d33687`、CU=`e8ba8ba540a66759631b93cd6177a6d14602b9f6f7122b674e5477695a3da0c2`。
+- OOF fold 00/01各已完成20 epoch并各写出203个held-out parent；脚本预检逐epoch验证每折train parent恰好消费一次、held-out最终前向次数=1、提前前向=0、Unknown/validation/test exposure=0。
+- Fold 02尚无held-out prediction；只读加载`joint_last_model.pt`确认其为完整epoch=`5`、global step=`2020`、history count=`5`、checkpoint set ID=`49dc04b9152d4e8ea80be754cda001f8`。因此后续必须从该文件恢复，未完成epoch 6不计入。Fold 03/04未启动。
+- Calibration文件与校准后validation报告均不存在；test和P95未执行。
+
+实施：
+
+- 新建`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1`。项目根目录从`$PSScriptRoot`解析；Python、config、checkpoint、OOF、calibration和report均使用直接路径，不读取或设置任何环境变量。
+- 默认模式按fold 00→04串行：已有prediction先严格校验再跳过；缺prediction且有`joint_last_model.pt`则传`--resume-checkpoint`；全新fold从epoch 1开始；若目录非空又无prediction/resume checkpoint则立即停止，禁止覆盖。
+- 每个Python子进程退出码非0立即停止。每折完成后校验schema、20 epoch、early stopping=false、held-out不选checkpoint、最终前单次访问策略、train/held-out parent/hash、fold normalization、三checkpoint文件hash和Unknown/validation/test零暴露。
+- 五折聚合必须恰好覆盖1011个唯一known train parent且与assignment manifest逐ID一致，才运行`report.strict_open_set_oof`。Calibration必须来自`train_parent_grouped_oof`、Unknown拟合计数=0、validation/test未参与，并绑定当前正式三checkpoint。
+- 最后仅执行`report.cascade --split val --batch-size 8`，写入`src-v3/processed/report/RADAR-LN3-V14-strict-open-set-calibrated-validation/`。脚本要求报告为217 known + 15 development Unknown，Unknown只映射到`UNKNOWN_REJECTED`动作，且development Unknown禁止阈值拟合/checkpoint选择。
+- 增加独占锁避免重复启动；增加`-PreflightOnly`仅用于安全自检，默认不带参数仍执行完整流水线。
+- 文件保存为UTF-8 BOM。原因是Windows PowerShell 5.1会把无BOM UTF-8中文脚本按系统ANSI解码；首次5.1兼容检查由此解析失败，加入BOM后问题消除，不涉及训练逻辑。
+
+验证：
+
+- 当前PowerShell AST解析通过，token count=`3781`。
+- 当前PowerShell及Windows PowerShell 5.1均成功执行`-PreflightOnly`：fold 00/01严格校验通过，fold 02识别为可恢复，fold 03/04识别为未启动；退出码0。
+- 静态搜索未发现`$env:`、环境变量赋值、`Start-Process`、`Invoke-Expression`、test或P95执行入口；脚本唯一评估split为`val`。
+- `-PreflightOnly`未启动训练、校准或validation评估，未创建calibration或校准后报告。
+
+该段记录的是脚本首次交付时的历史断点状态：当时正式V14联合训练已完成、OOF完成2/5、calibration尚未执行。此状态已被下方“完整OOF、Calibration生成与脚本后置断言修复”覆盖；当前为5/5 OOF和calibration已完成、冻结development validation待执行。
+
+## 2026-08-11 Stage 051 - 完整OOF、Calibration生成与脚本后置断言修复
+
+用户执行默认完整脚本后报告：fold 04已校验通过，随后脚本报“检索不到变量`$fieldName不在`”。只读核验确认该错误发生在Python calibration已成功写盘之后、冻结development validation开始之前。
+
+实际完成状态：
+
+- Fold 00/01/02均为20 epoch、各203个held-out parent；fold 03/04均为20 epoch、各201个held-out parent。五折status均为`passed`，Unknown OOF count、validation access和test access均为0。
+- 增强预检聚合确认1011个known train parent各恰好一次OOF，无重复、无Unknown、无validation/test拟合暴露。
+- Calibration已生成：`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal/strict-open-set-rejection-calibration.json`，SHA-256=`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`。
+- Calibration来源=`train_parent_grouped_oof`，known parent=`1011`，Unknown threshold fit=`0`，validation fit=`false`，test used=`false`；绑定正式deployment epoch=`12`、global step=`6072`及三checkpoint身份。
+- 冻结边界为Gate probability/margin=`0.542160868644714/0.0843217372894287`，DBB knownness probability/margin=`1e-7/0`，Clutter probability/margin=`0.566431522369385/0.13286304473877`。这些是known-only OOF拟合结果，不代表Unknown性能。
+- 校准后validation报告尚不存在，证明失败后没有部分执行或伪造冻结开放集结果。
+
+根因与修复：
+
+- 根因是PowerShell插值词法边界：消息字符串`"calibration字段$fieldName不在[0,1]"`和对应margin字符串被解析为变量`$fieldName不在`，在`Set-StrictMode -Version Latest`下触发未设置变量异常。OOF、checkpoint、calibration数值和Python入口均无故障。
+- 两处改为明确边界`${fieldName}`。同时增强`-PreflightOnly`：若五折全部存在，则执行完整1011-parent聚合断言；若calibration/report已存在，则执行对应后置断言，但仍不启动训练、校准或评估。
+- 当前PowerShell AST通过；Windows PowerShell 5.1增强预检退出码0，逐折验证5/5、五折聚合1011和calibration部署绑定全部通过。
+- 重新执行默认脚本时，五折将只读校验并跳过；Python calibration入口会按“内容完全相同”复用既有文件；随后仅执行一次冻结development validation。无需重跑任何fold。
+
+当前执行边界：完整OOF和真实known-only calibration已执行；冻结development validation、校准后五类开放集性能、test、P95和部署仍未执行。下一步由用户重新执行同一默认脚本；development Unknown结果不得用于反调本轮阈值。
+
+## 2026-08-11 Stage 052 - V14冻结Development Open-set结果审计
+
+用户报告一键脚本“全部完成”。本阶段只读回查正式V14训练、五份OOF held-out prediction、known-only calibration、冻结development validation及sample detail；未启动训练、未改阈值、未读取test payload、未执行P95或部署。
+
+执行与产物核验：
+
+- 冻结报告`src-v3/processed/report/RADAR-LN3-V14-strict-open-set-calibrated-validation/evaluation-val.json`存在且`status=passed`，SHA-256=`50a6387a18dc16d76a8cd1b700fac9e711cb427f08182b3cbaa7ba81e8367b18`；样本明细SHA-256=`cdbe8430f854c47d64a3c80f24ec483d9e413d753c6ca3cd556f362fb3343082`。
+- 报告范围为CQ08 development validation共232个parent：217 known和15个仅审计Unknown；Unknown不是模型类别，训练暴露、OOF预测、阈值拟合和checkpoint选择暴露均为0。
+- Calibration SHA-256仍为`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`，来源为1011个known train parent的5折OOF，未使用validation/test，绑定正式best epoch 12三checkpoint；正式训练跑满20 epoch、总global step=`10120`，冻结best checkpoint的global step=`6072`，两种步数语义已分开记录。
+- 五折held-out=`203/203/203/201/201`，1011个parent唯一覆盖。每折20 epoch、held-out最终单次前向、Unknown/validation/test暴露为0。
+
+冻结development五动作结果：
+
+- Parent-final Accuracy=`0.875000`，Macro Precision/Recall/F1=`0.770164/0.741996/0.733411`。类别P/R/F1/Support：Drone=`0.989474/0.895238/0.940000/105`；Bird=`0.714286/0.961538/0.819672/52`；Balloon=`0.980392/0.961538/0.970874/52`；Clutter=`0.500000/0.625000/0.555556/8`；`UNKNOWN_REJECTED`动作=`0.666667/0.266667/0.380952/15`。
+- 混淆矩阵真实行为：Drone→Bird=`11`；Unknown→Bird=`7`、→Balloon=`1`、→Clutter=`3`，仅4/15 Unknown被拒识。Unknown FAR=`0.733333`，known FRR=`0.009217`，接受Coverage=`0.974138`，Accepted Accuracy=`0.880531`，Selective Risk=`0.119469`。
+- Stable确认228/232，4个未确认。仅在228个确认样本上Accuracy=`0.885965`、Macro-F1=`0.729919`；若按产品验收把4个未确认保守计为未命中，Accuracy=`202/232=0.870690`、Macro-F1约`0.721353`、Unknown Recall=`3/15=0.200000`。因此stable没有修复开放集问题，且只报告确认样本会产生幸存者偏差。
+
+OOF与校准复算：
+
+- 使用冻结阈值直接从五份held-out records独立重算，合并known OOF Accuracy=`0.915925`、Macro-F1=`0.827326`、known coverage=`0.986152`，与calibration内置汇总逐值一致。类别P/R/F1：Drone=`0.985356/0.965164/0.975155`；Bird=`0.871795/0.839506/0.855346`；Balloon=`0.906977/0.955102/0.930417`；Clutter=`0.629630/0.485714/0.548387`。
+- 分折Accuracy=`0.945813/0.940887/0.852217/0.935323/0.905473`，Macro-F1=`0.800196/0.895717/0.767150/0.904802/0.766726`；Fold 2明显较弱，证明折间异质性不可忽略。
+- Gate阈值=`0.542161/0.084322`，OOF最弱P/R=`0.487805`；DBB knownness阈值=`1e-7/0`，最弱P/R=`0.907336`；Clutter阈值=`0.566432/0.132863`，最弱P/R=`0.542857`。三项`all_precision_recall_targets_passed`均为false；校准来源契约有效，但性能门槛不通过。
+
+已确认瓶颈：
+
+- DBB knownness阈值贴近数值下界，等价于几乎全放行。15个Unknown中8个先进入DBB路由，这8个全部被接受为Bird/Balloon；其DBB top probability中位=`0.978122`、最大=`0.990667`。Unknown错误不是简单低softmax置信度问题。
+- Clutter train仅35、development仅8；OOF Clutter Recall=`0.485714`，折间波动大。当前证据支持样本覆盖/子流型和语义边界优先，不支持继续提高class weight或扩大液态容量。
+- DBB specialist仍有11个Drone→Bird，Bird高Recall以Precision下降换取；这是DBB内部边界问题，不是Gate拒识单独造成。
+- OOF折模型固定epoch 20，正式部署使用best epoch 12。该协议不构成数据泄漏，但可能产生分数尺度迁移；下一OOF需与正式checkpoint选择协议一致。
+- Calibration和流水线当前只验证来源、数值范围与部署绑定，即使三项P/R目标均失败仍输出结构性`passed`。必须增加`deployment_eligible=false`或`audit_only`语义，避免把“文件有效”误读为“性能放行”。
+
+统计审查：
+
+- 按ARS experiment-agent validate流程完成11/11统计谬误扫描。主要限制为类别基率失衡、Clutter/Unknown低support、固定development validation被多版本反复查看、折间异质性、stable确认样本幸存者偏差和OOF/正式epoch协议差异。
+- Unknown拒识Recall仅4/15，Wilson 95%区间约`[0.1090,0.5195]`；Clutter Recall仅5/8，约`[0.3057,0.8632]`。点估计和区间均不支持90%放行，也不能从15/8个样本外推部署泛化。
+- 未发现需要用因果语言解释的实验设计；当前结论限定为该冻结CQ08 development范围。跨split RD/capture provenance旧风险仍未因本轮流水线自动消除。
+
+当前执行边界：V14正式训练、5折known-only OOF、calibration、冻结development层级拒识和stable评估已执行；test、P95和部署未执行。V14冻结为“严格open-set协议正确、性能失败、不可部署”基线；不得使用这15个development Unknown反调本轮阈值、epoch或模型。
+
+## 2026-08-11 Stage 053 - V14校准质量状态与部署Fail-closed
+
+本阶段处理Finding F156，不改变模型性能或阈值。修改范围仅为`src-v3/radar_ln3/rejection.py`、`cascade.py`、两个report入口、focused/Smoke辅助代码、V14 PowerShell流水线和三份跟踪文件；未修改`src/`、数据、配置、标签、正式checkpoint、原calibration或冻结validation结果。
+
+实现：
+
+- V14 calibration schema新增v2。新产物必须显式写入`calibration_quality_status`、`deployment_eligible`和`quality_gate`；quality gate固定要求Gate、DBB knownness、Clutter acceptance三项OOF Precision/Recall门槛全部通过。
+- Loader兼容v1/v2。v1不得因缺少新字段而默认为通过，必须从已有`selection_diagnostics.*.all_precision_recall_targets_passed`机械推导；v2字段必须与诊断逐项一致，否则拒绝。
+- Loader新增用途边界，默认`deployment`。当前真实V14三项均失败，因此默认加载抛出`PermissionError`并列出`gate/dbb_knownness/clutter_acceptance_precision_recall_target_not_met`。只有显式`audit`可读取。
+- 策略层增加第二道防线：audit-only校准默认不能启用；仅offline development审计可显式构造。Online cascade无论调用方是否显式构造audit策略都拒绝注入。
+- `report.cascade`默认deployment；显式audit仅允许V14 validation。新审计报告分离`execution_status=passed`与`status=audit_only`，并写`deployment_eligible=false`、质量来源和失败原因。V13路径不接受audit purpose且原逻辑保持不变。
+- `report.strict_open_set_oof`未来创建v2；若目标已有历史v1且阈值/provenance/诊断完全相同，则只读复用并返回`reused_legacy_v1_with_derived_quality_status`，不覆盖历史hash。
+- PowerShell脚本支持v1/v2、独立推导质量状态。已有legacy报告可只读校验；新评估显式传`--calibration-purpose audit`。最终显示“执行完成、质量audit_only”，不再把执行成功写成部署通过。
+
+验证：
+
+- `python -m smoke.strict_open_set_contract_test`通过；新增断言覆盖合格v2 deployment、失败v2默认拒绝、显式audit、历史v1推导、v2字段篡改拒绝、策略默认拒绝和online注入拒绝。
+- 真实历史calibration探针通过：默认deployment加载被拒绝；显式audit返回`status=audit_only`、`deployment_eligible=false`，三项失败原因完整。原SHA-256复核仍为`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`。
+- 真实`report.strict_open_set_oof`只读复算通过：1011 known parent、Unknown/validation/test拟合暴露0，返回`audit_only`并复用历史v1，无文件改写。
+- 正式`report.cascade`在默认deployment用途下退出码1，错误明确为audit-only不可部署；失败发生在validation前向和报告写盘之前。
+- Windows PowerShell 5.1 `-PreflightOnly`通过：5/5折、1011 parent、calibration与legacy报告全部校验，并显示`audit_only/deployment_eligible=False`。
+- `python -m smoke.hierarchical_contract_test`通过，证明V13路径未回归；`compileall`、`smoke.static_isolation_check`和限定`git diff --check`通过。
+- V14 CPU有界cascade Smoke未执行：其既有防护发现`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal`已存在，主动抛出`FileExistsError`以避免Smoke混入正式artifact。未删除、改名或绕过该安全保护；focused与真实loader/CLI集成测试覆盖了本次改动。
+
+版本与执行边界：本次只改变calibration/report/部署加载语义，模型、数据、split、归一化、阈值和checkpoint不变，因此全局模型版本仍为V14；未来calibration schema使用v2，历史v1只读兼容。正式训练、OOF重训、test、P95和部署均未执行。

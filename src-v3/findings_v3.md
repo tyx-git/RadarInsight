@@ -1417,7 +1417,7 @@
 - Evidence：V13 Gate mapping把Unknown设为CU；loss中`gate_targets=(labels>=3)`并对Unknown计算Gate CE，`cu_mask=labels>=3`又对Unknown计算CU第二类CE；每epoch selection还使用`unknown_to_dbb_count`。Train Unknown parent=70。
 - Impact：V13学到的是“已知Unknown样本分布”，不是对未见开放空间的严格拒识；validation Unknown又参与模型选择，进一步形成development目标泄漏。
 - Action：V14已把Unknown从normalization、train Dataset、loss、sampler、OOF、threshold与checkpoint ranking全部排除；Unknown只保留为冻结开放集审计真值和`UNKNOWN_REJECTED`动作分母。
-- 验证状态：V13问题已确认；V14代码/数据契约修复、focused及CPU/CUDA Smoke已完成。V14正式训练、真实OOF和拒识性能未执行。
+- 验证状态：V13问题已确认；V14代码/数据契约修复、focused及CPU/CUDA Smoke、正式known-only联合训练、5/5 OOF、真实calibration和冻结development拒识/stable评估均已完成。严格open-set语义通过，性能未达标。
 - 关联版本：V13问题；V14代码级已修复。
 
 ## Finding F144
@@ -1428,7 +1428,7 @@
 - Evidence：`gate_accepts_dbb`分支直接构造`final_action=DBB_ACCEPTED`，只记录三分类top-two margin而不校验。V13 validation有6个Unknown→DBB，全部被强制映射为已知亚类。
 - Impact：无法实现用户要求的“DBB中不认识的也拒识到Unknown”，Unknown误过Gate即产生危险假接受。
 - Action：V14已新增DBB known acceptance threshold/margin；Gate通过但DBB不通过时直接`UNKNOWN_REJECTED`，且stable不携带具体类。
-- 验证状态：V13问题已确认；V14合成动作、离线/在线一致性与stable冲突防护通过。真实OOF阈值和拒识性能未执行。
+- 验证状态：V13问题已确认；V14合成动作、离线/在线一致性与stable冲突防护、真实OOF阈值及冻结development拒识/stable评估均已完成。DBB knownness阈值=`1e-7`且Unknown FAR=`0.733333`，真实性能未放行。
 - 关联版本：V13问题；V14代码级已修复。
 
 ## Finding F145
@@ -1450,29 +1450,29 @@
 - Evidence：当前全局最高版本V13；版本规则要求上述任一实质变化递增。V13三checkpoint已经绑定V13 config/data hash和selection，强加载器禁止语义漂移。
 - Impact：复用V13文件名或checkpoint会破坏因果归因和校准绑定，并可能静默把已知Unknown监督带入新方案。
 - Action：已使用全局V14，新建known-only stats、数据契约、三配置、task/joint checkpoint及calibration schema；V3 index/split/TR/RD张量只读复用。
-- 验证状态：V14代码、配置、数据与OOF契约、Smoke已完成；V13 checkpoint不能加载V14，V13正式checkpoint仍能只读恢复。V14正式checkpoint和calibration尚未生成。
+- 验证状态：V14代码、配置、数据与OOF契约、Smoke已完成；V13 checkpoint不能加载V14，V13正式checkpoint仍能只读恢复。V14正式三checkpoint、5/5 OOF和绑定calibration均已生成并严格回读。
 - 关联版本：V14。
 
 ## Finding F147
 
-- Severity：Critical（严格open-set代码与数据边界已修复，真实性能未评估）
+- Severity：Critical（严格open-set代码与数据边界已修复，真实性能已评估但未达标）
 - 文件位置：`src-v3/radar_ln3/task_models.py`、`losses.py`、`rejection.py`、`cascade.py`、三份V14配置和V14数据契约
 - 问题或结论：V14现符合本项目冻结的严格known-only open-set定义：Unknown不是模型类、训练target、normalization/optimizer/checkpoint/OOF/threshold population；Gate识别DBB或路由CU，DBB低knownness和CU未接受Clutter均形成`UNKNOWN_REJECTED`。
 - Evidence：Known train=1011、Unknown train source=70但optimizer exposure=0；V14 loss收到label id 4立即失败；TaskSpec没有Unknown mapping；第五项只叫`UNRESOLVED_OPEN_SET_EVIDENCE`且不作为Unknown posterior；focused验证Unknown进入Dataset/loss/selection/calibration均fail-closed；CPU/CUDA真实CQ08 Smoke三模型梯度与更新非零、checkpoint恢复差0、离线/在线最大差`5.96e-8/4.47e-8`。
-- Impact：消除了V13把有限Unknown样本当闭集学习目标及DBB无二次拒识的设计偏差。技术正确性不等于开放集泛化，当前不能宣称Unknown Recall、FAR或Selective Risk达标。
-- Action：只允许用户确认后手动运行V14正式known-only训练、5折known OOF和冻结阈值；不得用validation Unknown调模型、epoch或阈值。
-- 验证状态：代码、数据、loss、checkpoint、动作、offline/online和Smoke通过；正式训练、真实OOF、正式拒识、stable、test和P95未执行。
+- Impact：消除了V13把有限Unknown样本当闭集学习目标及DBB无二次拒识的设计偏差；冻结development结果同时证明技术正确性没有转化为可用开放集泛化。
+- Action：冻结V14为“协议正确、性能失败”基线；不得使用15个development Unknown反调模型、epoch或阈值。下一轮只允许在train/OOF范围改进knownness表征和Clutter覆盖。
+- 验证状态：代码、数据、loss、checkpoint、动作、offline/online、Smoke、正式训练、5/5 OOF、真实calibration和冻结development拒识/stable均已执行。Unknown拒识Recall=`0.266667`、FAR=`0.733333`；test和P95未执行。
 - 关联版本：V14。
 
 ## Finding F148
 
-- Severity：High（OOF泄漏边界已准备并验证，长时执行未开始）
+- Severity：High（OOF泄漏边界与完整长时执行已验证）
 - 文件位置：`src-v3/build/strict_open_set_oof*.py`、`radar_ln3/strict_open_set_oof.py`、`train/strict_open_set_oof.py`、`report/strict_open_set_oof.py`及V14 OOF contracts
 - 问题或结论：V14拒识阈值必须来自known train parent-grouped OOF；当前已完成5折assignment、fold-train-only normalization、fold-specific数据契约、固定最终epoch预测和正式checkpoint绑定入口，避免held-out normalization/epoch选择、Unknown、validation或test泄漏。
 - Evidence：1011个known parent恰好一次held-out；fold 00–02为808/203，fold 03–04为810/201；每折Unknown/validation/test计数0；20 epoch、early stopping=false、held-out checkpoint selection=false、最终epoch后单次预测写入v2 fold contract。Focused为5折实际构造Dataset并验证白名单/hash；混入Unknown的synthetic fitter立即失败。
 - Impact：后续阈值可控制known false rejection与coverage并保持来源可追溯；它仍不能用known-only OOF本身证明Unknown检测率。
-- Action：用户确认后逐折手动执行；全部5折完成后才允许`report.strict_open_set_oof`生成calibration，并绑定精确正式V14三checkpoint。缺折、重复parent、hash不匹配或Unknown/validation/test暴露一律拒绝。
-- 验证状态：assignment、fold stats/contracts、入口和focused测试完成；5折训练、OOF预测及真实阈值拟合未执行。
+- Action：已使用脚本恢复fold 02并串行完成fold 03/04；5折完成后生成calibration并绑定精确正式V14三checkpoint。后续保持缺折、重复parent、hash不匹配或Unknown/validation/test暴露一律拒绝。
+- 验证状态：assignment、fold stats/contracts、入口、focused测试、5/5折训练/预测、1011-parent聚合和真实阈值拟合均完成并通过增强预检。
 - 关联版本：V14 OOF calibration support。
 
 ## Finding F149
@@ -1488,14 +1488,103 @@
 
 ## Finding F150
 
-- Severity：Critical（性能与部署仍被明确阻塞）
+- Severity：Critical（开放集性能已确认失败，部署被明确阻塞）
 - 文件位置：`src-v3/smoke/RADAR-LN3-V14-strict-open-set-training-readiness.json`、V14 formal/OOF artifact预期目录
-- 问题或结论：V14已经达到用户确认后的手动训练准备状态，但当前没有V14正式checkpoint、OOF预测或真实calibration，因此不能评估或放行open-set拒识、stable、test与部署。
-- Evidence：检查时`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal`与`...parent-grouped-oof`均不存在；readiness明确formal training、OOF、threshold fitting、formal rejection、stable、development Unknown audit、test、P95和deployment未执行。
-- Impact：Smoke的合成阈值和有限梯度不能冒充Accuracy、Unknown rejection Recall、FAR/FRR或线上性能；V13历史性能也不能外推到V14。
-- Action：先请求用户确认。若执行，顺序为正式known-only训练→5折OOF→known-only calibration→冻结development validation审计；test/P95另行授权。
-- 验证状态：训练前技术状态已确认；所有真实V14性能项未评估。
+- 问题或结论：V14严格open-set协议和流水线均完成，但冻结development五动作、Unknown拒识与stable性能未达到产品门槛，不能进入test或部署放行。
+- Evidence：232-parent五动作Accuracy/Macro-F1=`0.875000/0.733411`；Unknown拒识Recall=`4/15=0.266667`、FAR=`11/15=0.733333`；known FRR=`2/217=0.009217`。Stable仅确认228/232，保守全体Accuracy=`202/232=0.870690`、Unknown Recall=`3/15=0.200000`。
+- Impact：模型以高coverage接受大多数Unknown，最危险的Unknown→known错误没有被严格open-set契约本身解决；任何部署会产生不可接受的假接受风险。
+- Action：冻结V14不可部署；先实现校准放行状态，再在train/OOF范围进行显式可拒识DBB表征、Clutter数据覆盖和Drone/Bird边界单因素实验。
+- 验证状态：正式训练、5/5 OOF、calibration、冻结development拒识和stable均已执行；test、P95和部署未执行。
 - 关联版本：V14。
+
+## Finding F151
+
+- Severity：High（长时执行连续性风险；已修复为可恢复脚本）
+- 文件位置：`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-parent-grouped-oof/`、`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1`
+- 问题或结论：V14五折OOF是串行长时任务，fold 02曾在epoch 6期间被用户终止；若继续依赖多条手工命令，容易遗漏`--resume-checkpoint`、跳过折后契约核验，或在OOF未完整时误启动校准。
+- Evidence：初始状态为fold 00/01完成、fold 02停在完整epoch 5、fold 03/04未启动；脚本后续成功恢复并完成全部五折、calibration与冻结development validation，证明断点方案有效。
+- Impact：从头重跑fold 02会改变既有计算轨迹并可能触发防覆盖；漏折、重复parent或手工提前校准会破坏1011-parent OOF覆盖及阈值来源可追溯性。
+- Action：已新增单入口脚本，顺序恢复fold 02、运行fold 03/04、验证5折1011个唯一known parent、拟合并绑定calibration、最后执行一次冻结development validation。已有完整折只读校验后跳过；非空不可恢复目录及任一不一致均fail-closed。
+- 验证状态：用户默认运行已完成剩余长时OOF、calibration和冻结development validation；最终报告与sample detail已回读。
+- 关联版本：V14 OOF执行阶段，不改变数据/config/checkpoint版本。
+
+## Finding F152
+
+- Severity：Medium（Windows脚本兼容性；已修复）
+- 文件位置：`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1`
+- 问题或结论：Windows PowerShell 5.1不会可靠地把无BOM UTF-8中文脚本识别为UTF-8，初次兼容测试出现中文乱码并继发ParserError。
+- Evidence：同一脚本在当前PowerShell AST解析及预检通过，但`powershell.exe -File ... -PreflightOnly`最初在中文字符串处报`Try statement is missing its Catch or Finally block`等伪语法错误；文件加入UTF-8 BOM后，5.1同命令退出码0并正确显示中文。
+- Impact：若不修复，用户在项目现有Windows PowerShell终端无法启动流水线，且错误表象容易被误判为脚本逻辑损坏。
+- Action：脚本固定使用UTF-8 BOM并声明`#Requires -Version 5.1`；继续保留AST与5.1实际预检作为交付检查。
+- 验证状态：已修复并在Windows PowerShell 5.1真实执行增强预检通过；默认完整模式最终完成五折、calibration和冻结validation。
+- 关联版本：运行脚本，不改变RADAR-LN3版本。
+
+## Finding F153
+
+- Severity：High（已确认脚本后置断言Bug；已修复）
+- 文件位置：`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1::Assert-Calibration`原第237/241行
+- 问题或结论：校准范围错误消息把变量与紧随其后的中文直接连接，PowerShell将`$fieldName不在`解析成变量名；在StrictMode下即使数值条件本身为真，构造`-Message`实参时仍访问未设置变量并停止流水线。
+- Evidence：用户实际运行在fold 04通过、calibration写盘后报“检索不到变量`$fieldName不在`”；代码两处均为`"calibration字段$fieldName不在..."`。五折prediction全部passed，calibration SHA-256=`af53913420ab9293885467812d3a1f0990a74eb8a7e7826edd1d5f44e40cf4e1`，校准后validation报告不存在。
+- Impact：没有污染模型、OOF或阈值，但阻止了后置校验和最后一次冻结development validation；若误判为训练失败会浪费重跑五折时间。
+- Action：两处统一改为`${fieldName}`明确变量边界；增强`-PreflightOnly`以在不启动任务时复核已有五折聚合、calibration和report，从而覆盖后置断言路径。
+- 验证状态：Windows PowerShell 5.1增强预检通过；用户随后重新执行默认脚本并生成冻结development validation报告，错误未复现。
+- 关联版本：V14运行脚本修复，不改变数据/config/checkpoint/calibration内容。
+
+## Finding F154
+
+- Severity：High（真实OOF、calibration与冻结审计均完成）
+- 文件位置：五份`held-out-predictions.json`、`artifacts/RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal/strict-open-set-rejection-calibration.json`
+- 问题或结论：V14五折known-only OOF与三道接受边界现已真实完成并可追溯，但这些结果只控制known接受/误拒识，不能单独证明Unknown拒识能力。
+- Evidence：五折held-out=`203/203/203/201/201`，合计1011且每个parent唯一；Unknown OOF/threshold fit=`0`，validation/test拟合均为false。Calibration Gate阈值=`0.542160868644714`、DBB knownness阈值=`1e-7`、Clutter阈值=`0.566431522369385`，绑定正式epoch 12三checkpoint。
+- Impact：DBB knownness概率阈值贴近数值下界，实际几乎不提供DBB开放集过滤；冻结development中进入DBB路由的8个Unknown全部被接受为Bird/Balloon。
+- Action：停止在现有softmax分数上继续搜索validation阈值；下一实验须在known train/OOF中显式训练紧致可拒识表征，并保持Unknown零学习边界。
+- 验证状态：OOF、calibration和冻结development评估均已执行并严格回读；test、P95和部署未执行。
+- 关联版本：V14。
+
+## Finding F155
+
+- Severity：Critical（已确认开放集性能失败）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V14-strict-open-set-calibrated-validation/evaluation-val.json`、`sample_detail_information.json`
+- 问题或结论：V14虽然严格排除了Unknown学习暴露，但三道known acceptance边界无法识别大多数冻结development Unknown；Unknown高置信嵌入DBB/Bird是当前首要安全瓶颈。
+- Evidence：Unknown仅4/15形成`UNKNOWN_REJECTED`，7个被接受为Bird、3个为Clutter、1个为Balloon；FAR=`0.733333`。15个Unknown的DBB top probability中位=`0.978122`、最大=`0.990667`，不是简单低置信边界样本。
+- Impact：Unknown错误接受率远高于可放行水平，并把Bird Precision压到`0.714286`；提高普通softmax阈值会同时伤害known recall，不能直接解决开放空间高置信错误。
+- Action：下一单因素实验采用显式训练的归一化紧致DBB embedding/角度间隔knownness；阈值只由known train parent-grouped OOF控制known误拒识，development Unknown继续封存，不得作为训练负类。
+- 验证状态：冻结development parent-final和stable均确认；test、跨source泛化和多seed未执行。
+- 关联版本：V14。
+
+## Finding F156
+
+- Severity：Critical（已确认校准放行语义缺失；Stage 053已修复）
+- 文件位置：`src-v3/radar_ln3/strict_open_set_oof.py`第602/669行、`src-v3/report/strict_open_set_oof.py`第228/255行、`src-v3/scripts/v14_strict_open_set_oof_pipeline.ps1::Assert-Calibration`
+- 问题或结论：校准产物记录三项`all_precision_recall_targets_passed=false`，但报告和流水线仍以结构性`status=passed`结束，且没有`deployment_eligible=false`或`audit_only`字段；`Assert-Calibration`只校验来源、hash和阈值数值范围，不校验性能门槛。
+- Evidence：Gate最弱P/R=`0.487805`目标0.95，DBB knownness=`0.907336`目标0.95，Clutter=`0.542857`目标0.90，三项均失败；脚本第215–245行仍输出“calibration校验通过”，最终报告`status=passed`。
+- Impact：自动化消费者可能把“产物结构与来源有效”误读为“拒识能力可部署”，造成未达标阈值被线上加载。
+- Action：已新增v2质量字段和v1机械推导兼容；loader/报告默认deployment并fail-closed，显式audit只限冻结development评估，online接口拒绝任何audit-only策略。
+- 验证状态：已修复。V14/V13 focused、真实v1 loader双用途探针、真实OOF只读汇总、默认report CLI负向测试、PowerShell 5.1后置预检、compileall与静态隔离均通过；当前calibration默认部署加载实际失败。CPU有界Smoke因正式artifact保护未执行且未绕过。
+- 关联版本：V14报告/部署语义，数据版本不变。
+
+## Finding F157
+
+- Severity：High（已确认OOF协议与正式模型训练阶段不一致；影响待单因素验证）
+- 文件位置：五份V14 OOF `held-out-predictions.json`、正式`training-summary.json`、calibration provenance
+- 问题或结论：每折OOF固定使用epoch 20最终模型生成分数，而正式部署三checkpoint来自best epoch 12；calibration虽绑定正式checkpoint hash，却没有证明epoch 20折分数与epoch 12正式分数具有相同尺度。
+- Evidence：五折prediction均记录`epoch=20`；正式training summary记录`best_epoch=12`，calibration deployment identity记录epoch 12/global step 6072。该差异不构成Unknown、validation或test泄漏。
+- Impact：概率和margin阈值可能发生训练阶段尺度迁移，降低阈值在正式模型上的可迁移性；它不能解释全部Unknown高置信错误，但会削弱校准可信度。
+- Action：下一OOF采用与正式模型一致的checkpoint选择协议，优先使用fold-train内部嵌套选择；held-out折只在选优完成后前向一次。
+- 验证状态：协议差异已确认；同初始化epoch 12/20阈值尺度paired验证未执行。
+- 关联版本：V14 OOF协议。
+
+## Finding F158
+
+- Severity：High（已确认Clutter覆盖与折间异质性瓶颈）
+- 文件位置：V14五份OOF held-out prediction、calibration combined metrics、冻结development报告
+- 问题或结论：Clutter support不足且不同折表现大幅波动，当前证据不支持通过继续增大class weight或液态容量达到CU门槛。
+- Evidence：known train Clutter仅35、development仅8；OOF Clutter P/R/F1=`0.629630/0.485714/0.548387`。五折总体Accuracy从`0.852217`到`0.945813`，最弱P/R从`0.285714`到`0.796610`；冻结development Clutter P/R/F1=`0.500000/0.625000/0.555556`。
+- Impact：少数parent和子流型分配即可显著改变门槛，单seed或单个固定validation点估计不具备稳定放行证据；CU边界继续限制总体Macro-F1。
+- Action：先在合法CQ08/raw范围审计并分阶段补足Clutter子流型与parent覆盖，采样保持parent级；若没有额外合法样本，将数据不足列为正式阻塞。
+- 验证状态：OOF与冻结development均确认；标签语义子流型全量人工审计和独立test未执行。
+- 关联版本：V14数据覆盖，不修改标签。
+
 
 ## Finding F129
 
