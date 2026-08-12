@@ -1,0 +1,49 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V15-angular-knownness-focused-contract-v1",
+  "margin": {
+    "base_loss": 2.95758056640625,
+    "margin_loss": 6.071575164794922,
+    "margin_changes_training_loss": true
+  },
+  "paired_initialization": {
+    "gate_exact": true,
+    "cu_exact": true,
+    "dbb_common_shape_parameters_exact": true,
+    "dbb_control_readout": "linear",
+    "dbb_treatment_readout": "angular_prototype"
+  },
+  "treatment_forward": {
+    "known_only_parent_count": 1011,
+    "unknown_training_exposure": 0,
+    "dbb_knownness_score_name": "dbb_top_cosine_and_cosine_gap",
+    "inference_margin_pollution_max_difference": 0.0,
+    "offline_online_knownness_max_difference": 8.940696716308594e-08,
+    "offline_online_evidence_max_difference": 1.7881393432617188e-07
+  },
+  "calibration_binding": {
+    "control_binding_passed": true,
+    "treatment_binding_passed": true,
+    "cross_arm_calibration_rejected": true,
+    "missing_cosine_score_rejected": true,
+    "cross_arm_error": "strict-open-set calibration does not match the evaluated model version, paired arm, or DBB knownness score",
+    "missing_cosine_error": "cosine-knownness calibration requires explicit DBB cosine scores"
+  },
+  "nested_oof": {
+    "known_parent_count": 203,
+    "unknown_training_exposure": 0,
+    "unknown_dataset_exposure_rejected": true,
+    "held_out_partition_mismatch_rejected": true,
+    "duplicate_outer_held_out_forward_rejected": true,
+    "unknown_error": "V15 nested OOF smoke_contaminated_unknown Dataset violates known train-parent scope",
+    "held_out_error": "V15 nested OOF smoke_wrong_held_out Dataset violates known train-parent scope",
+    "duplicate_error": "V15 nested OOF outer held-out forward was already claimed; refusing a duplicate pass. If no completed prediction exists, preserve the claim for manual audit: C:\\Users\\lenovo\\AppData\\Local\\Temp\\radar-ln3-v15-forward-claim-iy0jbbo6\\artifacts\\RADAR-LN3-V15-cq08-liquid-strict-open-set-angular-knownness-control-nested-oof\\outer-00\\outer-held-out-forward-claim.json"
+  },
+  "formal_training": "未执行",
+  "nested_oof_training": "未执行",
+  "threshold_fitting": "未执行",
+  "development_unknown_audit": "未执行",
+  "test": "未执行",
+  "p95": "未执行",
+  "result_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V15-angular-knownness-focused-contract-result.json"
+}

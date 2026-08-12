@@ -1,0 +1,66 @@
+{
+  "schema_version": "RADAR-LN3-V15",
+  "stats_name": "cq08_v15_nested_oof_outer_00_inner_train_v1",
+  "scope": "V3 train split; V15 outer fold 00 inner-train known parents only; inner-selection, outer-held-out, Unknown, validation and test excluded",
+  "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+  "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+  "source_split": "train",
+  "parent_count": 605,
+  "selected_parent_ids_sha256": "e438fadb8a56cecb7af43f78965a0a4bc6fe51e5a3f1dbed8b20f9696e21758d",
+  "selected_label_parent_counts": {
+    "BalloonTarget": 147,
+    "BirdTarget": 145,
+    "ClutterTarget": 21,
+    "DroneTarget": 292
+  },
+  "allowed_labels": [
+    "BalloonTarget",
+    "BirdTarget",
+    "ClutterTarget",
+    "DroneTarget"
+  ],
+  "forbidden_labels": [
+    "UnknownTarget"
+  ],
+  "excluded_parent_count": 476,
+  "excluded_parent_ids_sha256": "30333faa68da7901eec36ca71ef6d4584b76dfbb07e3a6de5f42937b926922e3",
+  "excluded_label_parent_counts": {
+    "BalloonTarget": 98,
+    "BirdTarget": 98,
+    "ClutterTarget": 14,
+    "DroneTarget": 196,
+    "UnknownTarget": 70
+  },
+  "rd_tensor_count": 605,
+  "selected_rd_tensor_paths_sha256": "3ddfea4269fd601a5ca961cb87c7eb9aeb0500196f9059feccb4c3acd7504934",
+  "excluded_rd_tensor_count": 476,
+  "excluded_rd_tensor_paths_sha256": "eae71173bd3dfdabc2e5af8126ce92fb55ee5648afef450ee934a15040ad7d41",
+  "selected_excluded_rd_tensor_path_overlap_count": 0,
+  "rd_tensor_frame_count": 41677,
+  "amplitude_value_count": 336083328,
+  "amplitude": {
+    "mean": 55.601514700020616,
+    "std": 6.933605206557234,
+    "min": -19.375,
+    "max": 146.125,
+    "sample_q01": 38.3125,
+    "sample_q25": 52.3125,
+    "sample_median": 55.9375,
+    "sample_q75": 59.25,
+    "sample_q99": 76.1875,
+    "center": 55.9375,
+    "scale": 6.933605206557234,
+    "scale_rule": "max(population_std, sampled_IQR/1.349, 1e-6)",
+    "sample_rule": "up to 4096 evenly strided amplitude values per unique train tensor"
+  },
+  "phase": {
+    "encoding": "phase divided by pi and clipped to [-1,1]",
+    "center": 0.0,
+    "scale": 3.141592653589793
+  },
+  "outputs": {
+    "normalization_stats_path": "data/processed/RADAR-LN3-V15-cq08-nested-oof-outer-00-inner-train-normalization-stats.json"
+  },
+  "allowed_parent_ids_count": 605,
+  "allowed_parent_ids_sha256": "e438fadb8a56cecb7af43f78965a0a4bc6fe51e5a3f1dbed8b20f9696e21758d"
+}

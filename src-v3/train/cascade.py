@@ -33,6 +33,7 @@ from radar_ln3.logging_utils import (
 )
 from radar_ln3.losses import hierarchical_final_state_nll, strict_open_set_final_state_nll
 from radar_ln3.task_models import (
+    ANGULAR_KNOWNNESS_SCHEMA_VERSION,
     HIERARCHICAL_SCHEMA_VERSIONS,
     HIERARCHICAL_CASCADE_SCHEMA_VERSION,
     STRICT_OPEN_SET_SCHEMA_VERSION,
@@ -42,6 +43,7 @@ from radar_ln3.task_models import (
     save_task_checkpoint,
     seed_everything,
     task_config_identity_sha256,
+    is_strict_open_set_schema,
 )
 
 
@@ -94,20 +96,28 @@ def cascade_training_objective(
     cu = configs["cu_specialist"]
     objective = (
         strict_open_set_final_state_nll
-        if gate.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+        if is_strict_open_set_schema(gate.schema_version)
         else hierarchical_final_state_nll
     )
+    keyword_arguments = {
+        "prefix_auxiliary_weight": gate.train.prefix_auxiliary_weight,
+        "prefix_auxiliary_min_events": gate.train.prefix_auxiliary_min_events,
+        "gate_class_weights": output["gate_sequence_logits"].new_tensor(gate.train.class_weights),
+        "dbb_class_weights": output["dbb_sequence_logits"].new_tensor(dbb.train.class_weights),
+        "cu_class_weights": output["cu_sequence_logits"].new_tensor(cu.train.class_weights),
+    }
+    if is_strict_open_set_schema(gate.schema_version):
+        keyword_arguments.update({
+            "dbb_angular_margin": dbb.model.dbb_angular_margin,
+            "dbb_cosine_scale": dbb.model.dbb_cosine_scale,
+        })
     return objective(
         output["gate_sequence_logits"],
         output["dbb_sequence_logits"],
         output["cu_sequence_logits"],
         tensors["labels"],
         tensors["tr_padding_mask"],
-        prefix_auxiliary_weight=gate.train.prefix_auxiliary_weight,
-        prefix_auxiliary_min_events=gate.train.prefix_auxiliary_min_events,
-        gate_class_weights=output["gate_sequence_logits"].new_tensor(gate.train.class_weights),
-        dbb_class_weights=output["dbb_sequence_logits"].new_tensor(dbb.train.class_weights),
-        cu_class_weights=output["cu_sequence_logits"].new_tensor(cu.train.class_weights),
+        **keyword_arguments,
     )
 
 
@@ -129,7 +139,7 @@ def build_product_checkpoint_selection(
     config: LiquidTaskConfig,
 ) -> dict[str, Any]:
     inputs = dict(validation.get("checkpoint_selection_inputs") or {})
-    if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+    if is_strict_open_set_schema(config.schema_version):
         if (
             inputs.get("status") != "available_known_only"
             or int(inputs.get("unknown_parent_count", -1)) != 0
@@ -276,7 +286,7 @@ def _joint_payload(
         },
         "unknown_action": "UNKNOWN_REJECTED requires later train-parent OOF calibration",
     }
-    if gate.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+    if is_strict_open_set_schema(gate.schema_version):
         product_contract.update({
             "unknown_training_exposure": 0,
             "training_population": "known_only",
@@ -372,7 +382,7 @@ def load_joint_checkpoint(
         },
         "unknown_action": "UNKNOWN_REJECTED requires later train-parent OOF calibration",
     }
-    if gate.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+    if is_strict_open_set_schema(gate.schema_version):
         expected_product_contract.update({
             "unknown_training_exposure": 0,
             "training_population": "known_only",
@@ -464,7 +474,7 @@ def train_hierarchical_cascade(
     project_root = project_root.resolve()
     configs = load_hierarchical_configs(config_paths)
     gate = configs["dbb_cu_gate"]
-    strict_open_set = gate.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    strict_open_set = is_strict_open_set_schema(gate.schema_version)
     schema_label = gate.schema_version.replace("RADAR-LN3-", "")
     if gate.train.device != "cuda" or not torch.cuda.is_available():
         raise RuntimeError(f"{gate.schema_version} formal training requires an available CUDA device; CPU fallback is forbidden")
@@ -749,7 +759,8 @@ def train_hierarchical_cascade(
             )
         )
         development_open_set_audit: dict[str, Any] | str = "not_applicable_to_V13"
-        if strict_open_set:
+        development_unknown_access_count = 0
+        if strict_open_set and gate.schema_version != ANGULAR_KNOWNNESS_SCHEMA_VERSION:
             development_dataset = build_cascade_dataset(
                 project_root,
                 gate,
@@ -766,6 +777,14 @@ def train_hierarchical_cascade(
             )
             if development_open_set_audit["checkpoint_selection_inputs"]["status"] != "forbidden_for_development_open_set_audit":
                 raise RuntimeError("V14 development Unknown audit exposed checkpoint selection inputs")
+            development_unknown_access_count = int(
+                development_open_set_audit["unknown_audit_parent_count"]
+            )
+        elif gate.schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+            development_open_set_audit = (
+                "未执行：V15 development Unknown 仅可在两臂正式checkpoint、嵌套OOF和"
+                "对应校准均冻结后，通过独立一次审计入口访问"
+            )
         sample_path = artifact_dir / "sample_detail_information.json"
         sample_path.write_text(
             json.dumps(
@@ -809,6 +828,7 @@ def train_hierarchical_cascade(
             "validation_parent_count": len(val_dataset),
             "training_population": "known_only" if strict_open_set else "all_five_labeled_classes",
             "unknown_training_exposure": 0 if strict_open_set else "V13_supervised_unknown",
+            "development_unknown_access_count_during_formal_training": development_unknown_access_count,
             "epochs": gate.train.epochs,
             "global_step": global_step,
             "best_epoch": best_epoch,
@@ -854,7 +874,7 @@ def train_hierarchical_cascade(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train a V13/V14 three-checkpoint liquid hierarchical cascade jointly.")
+    parser = argparse.ArgumentParser(description="Train a V13/V14/V15 three-checkpoint liquid hierarchical cascade jointly.")
     parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--gate-config", type=Path, required=True)
     parser.add_argument("--dbb-config", type=Path, required=True)

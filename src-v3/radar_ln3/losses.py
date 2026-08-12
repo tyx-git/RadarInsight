@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import torch
 from torch import nn
 
@@ -279,6 +281,8 @@ def strict_open_set_final_state_nll(
     gate_class_weights: torch.Tensor | None = None,
     dbb_class_weights: torch.Tensor | None = None,
     cu_class_weights: torch.Tensor | None = None,
+    dbb_angular_margin: float = 0.0,
+    dbb_cosine_scale: float = 1.0,
 ) -> dict[str, torch.Tensor]:
     """Train the V14 hierarchy from known classes only.
 
@@ -347,6 +351,23 @@ def strict_open_set_final_state_nll(
     minimum_prefix_events = int(prefix_auxiliary_min_events)
     if minimum_prefix_events < 1:
         raise ValueError("prefix_auxiliary_min_events must be positive")
+    angular_margin = float(dbb_angular_margin)
+    cosine_scale = float(dbb_cosine_scale)
+    if not 0.0 <= angular_margin < 1.0:
+        raise ValueError("dbb_angular_margin must be in [0,1)")
+    if not math.isfinite(cosine_scale) or cosine_scale <= 0.0:
+        raise ValueError("dbb_cosine_scale must be finite and positive")
+
+    def dbb_training_logits(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        if angular_margin == 0.0:
+            return logits
+        if logits.ndim != 2 or logits.shape[-1] != 3 or targets.shape != logits.shape[:1]:
+            raise ValueError("DBB angular-margin logits/targets have invalid shapes")
+        if bool(((targets < 0) | (targets >= 3)).any()):
+            raise ValueError("DBB angular-margin targets must be class IDs 0..2")
+        penalty = nn.functional.one_hot(targets, num_classes=3).to(dtype=logits.dtype)
+        return logits - penalty * (angular_margin * cosine_scale)
+
     lengths = (~padding_mask).long().sum(dim=1)
     if bool((lengths <= 0).any()):
         raise ValueError("strict open-set loss received an empty parent sequence")
@@ -368,7 +389,7 @@ def strict_open_set_final_state_nll(
     )
     final_dbb_nll = (
         nn.functional.cross_entropy(
-            dbb_final[dbb_mask],
+            dbb_training_logits(dbb_final[dbb_mask], labels[dbb_mask]),
             labels[dbb_mask],
             weight=dbb_weights,
         )
@@ -435,7 +456,10 @@ def strict_open_set_final_state_nll(
         dbb_positions = dbb_mask.unsqueeze(1).expand_as(valid)
         if bool((valid & dbb_positions).any()):
             dbb_all[dbb_positions] = nn.functional.cross_entropy(
-                dbb_sequence_logits[dbb_positions],
+                dbb_training_logits(
+                    dbb_sequence_logits[dbb_positions],
+                    dbb_targets_all[dbb_positions],
+                ),
                 dbb_targets_all[dbb_positions],
                 weight=dbb_weights,
                 reduction="none",
@@ -483,6 +507,8 @@ def strict_open_set_final_state_nll(
         "prefix_dbb_nll": prefix_dbb_nll,
         "prefix_cu_acceptance_nll": prefix_cu_acceptance_nll,
         "eligible_prefix_count": eligible_prefix_count,
+        "dbb_angular_margin": total.new_tensor(angular_margin),
+        "dbb_cosine_scale": total.new_tensor(cosine_scale),
         "dbb_parent_count": dbb_mask.sum(),
         "clutter_parent_count": clutter_mask.sum(),
         "unknown_parent_count": labels.new_zeros(()),

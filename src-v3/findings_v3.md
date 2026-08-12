@@ -1585,6 +1585,149 @@
 - 验证状态：OOF与冻结development均确认；标签语义子流型全量人工审计和独立test未执行。
 - 关联版本：V14数据覆盖，不修改标签。
 
+## Finding F159
+
+- Severity：Critical（已确认DBB Knownness没有受训练约束的开放集几何；待V15单因素修复验证）
+- 文件位置：`src-v3/radar_ln3/cascade.py::evaluate_strict_open_set_cascade`、`src-v3/radar_ln3/strict_open_set_oof.py::predict_oof_parent_final`、`src-v3/radar_ln3/rejection.py::StrictOpenSetRejectionPolicy`
+- 问题或结论：V14把DBB三分类softmax的最大概率与top-two概率差直接作为knownness；训练目标只有闭集DBB交叉熵，没有归一化embedding、类原型、类内紧致或已知边界约束。
+- Evidence：代码对`dbb_sequence_logits`直接softmax并记录`dbb_known_confidence/dbb_known_margin`；真实OOF只能选出probability threshold=`1e-7`、margin=`0`，等价于近似全部放行；冻结development进入DBB路由的8个Unknown全部被接收，Unknown FAR=`0.733333`。
+- Impact：闭集softmax可对流型外样本高置信，阈值不能从现有分数中形成有效拒识边界；继续在同一隐藏状态上事后搜索Energy/Mahalanobis或development阈值会增加选择偏差，却没有改变表征几何。
+- Action：V15采用Control/Treatment配对，只在Treatment将DBB读出替换为归一化角度原型并以known DBB标签施加固定margin；推理使用无margin cosine分数。Unknown保持零学习暴露，收益只由known parent-grouped OOF与不可退化护栏决定。
+- 验证状态：V14机制和失败结果已确认；V15代码、focused、正式训练、嵌套OOF与冻结development审计未执行。
+- 关联版本：V14问题；V15候选修复。
+
+## Finding F160
+
+- Severity：High（已确认配对初始化会被可变头结构破坏；待V15代码修复）
+- 文件位置：`src-v3/radar_ln3/cascade.py::build_cascade`、`src-v3/radar_ln3/task_models.py::LiquidTaskClassifier.__init__`
+- 问题或结论：当前级联在一次全局seed后按Gate→DBB→CU顺序构造三个模型；若Treatment改变DBB头的参数构造或随机数消耗，后续CU初始化会变化，因此“同seed”不等于非干预模块逐位配对。
+- Evidence：`build_cascade()`字典推导依序实例化三个`LiquidTaskClassifier`，每个encoder/head均使用PyTorch全局RNG；当前没有task-specific initialization seed、base-state hash或Control/Treatment非干预参数相等断言。
+- Impact：Treatment与Control的Gate/CU或DBB encoder可能从不同初值出发，任何性能差异都混入初始化噪声，无法归因给角度knownness头。
+- Action：V15引入固定逐task派生初始化并输出初始state hash；配对测试必须证明Gate、CU和DBB除干预头外参数逐位一致，DataLoader parent顺序hash一致。
+- 验证状态：代码机制已确认；V15修复与paired focused测试未执行。
+- 关联版本：V15实验契约。
+
+## Finding F161
+
+- Severity：Critical（已确认新版本可能静默退出严格open-set路径；实施前必须修复）
+- 文件位置：`src-v3/radar_ln3/task_models.py`、`cascade.py`、`train/cascade.py`、`radar_ln3/strict_open_set_oof.py`中对`STRICT_OPEN_SET_SCHEMA_VERSION`的等值判断
+- 问题或结论：V14严格open-set目前由多个`schema_version == RADAR-LN3-V14`分支激活；直接创建`RADAR-LN3-V15`配置会选回历史TaskSpec、非known-only Dataset或V13 loss/evaluator路径。
+- Evidence：`task_spec()`、`build_cascade_dataset()`、`LiquidSoftCascade.forward()`、`cascade_training_objective()`和OOF predictor均存在V14单值判断；`HIERARCHICAL_SCHEMA_VERSIONS`也只列V13/V14。
+- Impact：V15可能表面使用新配置，实际把Unknown重新当普通类或绕过strict-open-set拒识/评估边界，属于静默语义回退。
+- Action：建立显式strict-open-set schema family并让V14/V15共享Unknown零暴露和动作语义；V15-specific readout另用独立字段区分。增加Unknown暴露和V14/V15 checkpoint混用负向测试。
+- 验证状态：风险已由静态调用链确认；代码尚未修复，V15当前不能训练。
+- 关联版本：V15实施阻塞。
+
+## Finding F162
+
+- Severity：High（已确认并已修复）
+- 文件位置：`src-v3/build/angular_knownness_oof.py::_write_new_or_identical`、`data/processed/RADAR-LN3-V15-cq08-known-only-nested-oof-contract.json`
+- 问题或结论：首次V15 nested OOF合同在每个stage记录了`write_status`，该字段依赖构建时文件是否刚创建；后续相同内容重建时stage contract转为`reused_identical`，使顶层contract误判为不同并阻断幂等preflight。
+- Evidence：实际执行`python -m build.angular_knownness_oof`在无数据、split、配置或hash变化时抛出`FileExistsError`；逐字段比较显示唯一差异是嵌套stage的运行时`write_status`，既有顶层contract SHA-256仍为`bbed0a99a8623660b30b5d823e82eb5eed6165a9d84b1e2eb97ac8ca43b20326`。
+- Impact：会阻塞V15人工训练前重复预检，容易诱导不安全的手动删除或重写合同；不影响已冻结样本集合本身，但影响可重复执行证据。
+- Action：新增只读兼容比较，忽略既有contract中仅描述构建结果的`write_status`；新payload不再把它写入语义contract。既有contract不改写，hash保持不变。
+- 验证状态：已执行`build.angular_knownness_oof`，返回`reused_legacy_runtime_status_only`；5折parent、source hash、stage contract/hash仍通过。
+- 关联版本：V15 nested OOF执行契约。
+
+## Finding F163
+
+- Severity：Critical（已确认并已修复）
+- 文件位置：`src-v3/train/cascade.py::train_hierarchical_cascade`
+- 问题或结论：严格open-set训练入口将V14的训练结束development Unknown审计泛化到所有strict-open-set schema；若V15使用该入口，formal训练尚未冻结OOF/calibration前就会读取15个development Unknown，从而违反V15“development Unknown仅在两臂与阈值全部冻结后一次审计”的设计。
+- Evidence：V14 branch在best checkpoint恢复后无条件构建`development_open_set_audit` Dataset；V15同属strict-open-set family，旧条件会进入该分支。该行为虽不进入optimizer或checkpoint selection，但仍会把冻结development样本提前暴露给实验过程。
+- Impact：人为知晓的development Unknown结果可能影响后续margin、scale、epoch、阈值或路线选择，破坏V15 paired单因素的选择隔离。
+- Action：V15 formal训练只构建known-only train/checkpoint-selection Dataset，明确写入`development_unknown_access_count_during_formal_training=0`；development Unknown留给OOF/calibration后独立一次报告入口。
+- 验证状态：代码路径和focused preflight已确认；V15正式训练未执行，因此没有development Unknown实际访问。
+- 关联版本：V15 strict-open-set formal training。
+
+## Finding F164
+
+- Severity：Critical（已确认并已修复）
+- 文件位置：`src-v3/train/angular_knownness_oof.py`、`src-v3/radar_ln3/angular_knownness_oof.py`
+- 问题或结论：最初outer held-out在最终预测写盘前没有持久化“已经开始唯一一次前向”的状态；若CUDA进程在prediction期间终止，重启无法证明held-out是否已部分被观察，继续运行会违反“only one held-out forward”的嵌套OOF协议。
+- Evidence：原流程只在prediction JSON成功后写`outer_held_out_prediction_pass_count=1`；中间异常没有可审计状态。该问题可由静态流程复现，无需读取held-out数据。
+- Impact：outer held-out可能被重复前向，造成epoch/阈值协议的不可审计重复观察；虽不直接泄漏标签到训练，但损害OOF独立性和结果可信度。
+- Action：在outer final forward前写入contract/config/parent-hash绑定claim；存在claim但无completed prediction时fail-closed，禁止自动重试；completed claim必须绑定prediction SHA-256并由聚合器复核。
+- 验证状态：focused临时路径验证重复claim被拒绝、completed claim与prediction hash可回读；真实OOF未执行。
+- 关联版本：V15 nested OOF。
+
+## Finding F165
+
+- Severity：High（已确认V15实施准备完成，性能仍待验证）
+- 文件位置：`src-v3/radar_ln3/task_models.py::AngularPrototypeReadout`、`losses.py::strict_open_set_final_state_nll`、`rejection.py`、`src-v3/smoke/angular_knownness_contract_test.py`
+- 问题或结论：V15已实现一个可归因的DBB knownness单因素候选：Treatment以L2归一化48维embedding与3个可学习原型产生无标签raw cosine score，训练期仅对真实DBB target施加固定margin=`0.20`/scale=`16`；Unknown不作为class、prototype、loss、normalization、OOF或threshold样本。
+- Evidence：focused实测margin使loss从`2.95758056640625`变为`6.071575164794922`；同一model forward前后inference score/evidence差异=0；Treatment offline/online knownness最大差`8.940696716308594e-08`。Control/Treatment Gate、CU和DBB同名同shape共享参数逐位一致；概率/余弦calibration或paired arm混用被实际拒绝。
+- Impact：本轮修复了V14普通softmax knownness缺少训练几何约束的可验证候选机制，但不会自动证明能改善Unknown FAR、Bird、Clutter或总五类指标。
+- Action：仅在用户手动完成两臂formal→5折nested OOF→各臂calibration后，依据known-only OOF DBB最弱P/R、known FRR和不可退化护栏判定；development Unknown只能在所有该等选择冻结后一次审计。
+- 验证状态：代码/配置/focused/静态隔离/PowerShell preflight通过；正式训练、OOF、calibration、development audit、test、P95和部署未执行。
+- 关联版本：V15。
+
+## Finding F166
+
+- Severity：High（已确认并已修复）
+- 文件位置：`src-v3/scripts/v15_angular_knownness_pipeline.ps1::Invoke-Preflight`、`src-v3/build/angular_knownness.py::build`
+- 问题或结论：V15流水线把可写的实验准备器无条件用于`formal/oof/calibrate/all`全部阶段；正式训练完成后，准备器按防覆盖规则拒绝非空formal artifact，导致合法的OOF阶段在开始前被错误阻断。
+- Evidence：用户执行`-Stage oof -Arm both`时，`build.angular_knownness`抛出`FileExistsError: refusing to prepare over a non-empty V15 artifact`，目标为已完成的Control formal artifact。正式训练摘要同时确认两臂均为`status=passed`、20 epoch、Unknown训练及development Unknown访问均为0。
+- Impact：流程错误会阻断nested OOF与已冻结known-only校准，而不应要求删除或覆盖正式checkpoint；若通过手工删除规避，会破坏正式模型与OOF校准的部署绑定。
+- Action：新增只读`--verify-only`模式；`oof/calibrate`仅核验冻结contract/config、正式三checkpoint/joint checkpoint及零暴露摘要，`formal/all`仍保留可写准备与防覆盖保护。摘要读取显式固定UTF-8，以避免Windows PowerShell代码页破坏中文JSON。
+- 验证状态：`-Stage oof -Arm both -PreflightOnly`退出码0；未启动fold训练、held-out预测、calibration、development Unknown审计、test、P95或部署。
+- 关联版本：V15。
+
+## Finding F167
+
+- Severity：Medium（执行中断；协议恢复点已确认安全）
+- 文件位置：`src-v3/scripts/v15_angular_knownness_pipeline.ps1::Invoke-NestedOOF/Get-StageResume`、`src-v3/train/angular_knownness_oof.py::_run_stage`、Control `outer-02/outer-retrain` artifact。
+- 问题或结论：V15 Control nested OOF在outer fold 02的outer retrain第12/12 epoch中途以子进程exit code `-1`停止。它不是已记录的Python/CUDA训练异常；由于中断发生在epoch checkpoint之后、held-out forward之前，协议允许从上一个完整epoch恢复，而不需要重跑已完成fold或重复观察held-out parent。
+- Evidence：Control outer fold 00/01各自具有completed prediction与forward claim；fold 02具有完成的inner selection summary和`joint_last_model.pt`（SHA-256=`f410fc161321f32ec15f7b267d27e0c35202804de5147f2f87cce6bb8c6b6b5b`），其run state为`next_epoch=12/global_step=4444/history=1..11`。训练日志止于epoch 12 step 0200/0404，没有traceback/OOM；fold 02的forward claim和prediction均不存在。
+- Impact：若删除artifact或从头重训fold 02，会破坏既有训练可追溯性且无必要；若存在claim后仍自动重跑held-out forward则会违反唯一观察协议。当前状态不会污染Unknown、validation、test或校准，因为这些路径均未访问。
+- Action：使用`-Stage oof -Arm control -OuterFold 2`恢复；脚本将只加载fold 02 outer retrain的`joint_last_model.pt`，重做epoch 12并在成功后生成唯一held-out prediction。随后独立完成剩余fold，5/5齐全后再运行calibration。不得运行`-Stage all`或删除任何现有artifact。
+- 验证状态：脚本恢复分支和checkpoint payload已只读核验；实际恢复、剩余fold、5折聚合、校准、development Unknown审计、test、P95和部署均未执行。
+- 关联版本：V15 nested OOF。
+
+## Finding F168
+
+- Severity：Critical（预注册V15主终点失败）
+- 文件位置：两臂V15 `strict-open-set-rejection-calibration.json`、10份outer-held-out prediction
+- 问题或结论：归一化角度原型Treatment没有改善known-only OOF的DBB knownness最弱Precision/Recall，且通过降低coverage换取部分accepted accuracy；按预注册规则不能保留为当前DBB knownness改进方案。
+- Evidence：Control/Treatment各覆盖1011个known train parent且每个parent恰好一次。Control DBB Macro-F1=`0.955973`、最弱P/R=`0.930041`、coverage=`1.0`；Treatment为`0.950422/0.915323/0.983607`。known FRR从`0.016815`升至`0.032641`。Treatment拒绝16个DBB parent，其中10个raw错误、6个raw正确。Treatment低cosine-gap的raw错误ROC-AUC=`0.918093`，与Control低softmax-gap的`0.919322`基本相同；Treatment AP较高`0.418002>0.331366`，主要体现极低gap区域错误更浓。两臂DBB `all_precision_recall_targets_passed=false`。
+- Impact：角度gap有一定错误富集能力，但当前边界仍牺牲正确Drone/Bird/Balloon，Drone Recall从`0.977459`降为`0.948770`；不能宣称达到DBB≥0.95，也不能据此进入Unknown正式拒识、test或部署。
+- Action：冻结V15为失败但有诊断价值的候选；不得继续使用development Unknown搜索margin、scale或阈值。若重测角度knownness，应隔离DBB specialist优化或冻结Gate/CU，一次只改变一个主要因素。
+- 验证状态：正式两臂训练、两臂5折nested OOF、known-only校准和parent配对诊断已完成；development Unknown、test、stable、P95和部署未执行。
+- 关联版本：V15。
+
+## Finding F169
+
+- Severity：High（单折高分被误读风险；已完成语义裁决）
+- 文件位置：Control `outer-04/inner-selection/stage-summary.json::history[epoch=20]`
+- 问题或结论：用户观察到的DBB `Accuracy=0.969388/Macro-F1=0.963904/support=196`是单个inner-selection折、单个epoch的条件三分类快照，不是V15 1011-parent OOF聚合结果，也不是Treatment角度头收益。
+- Evidence：该数值只定位到Control outer-04 epoch 20；Bird与Balloon Recall均为`0.938776`，未满足逐类P/R≥0.95。outer-04冻结epoch 14，因为epoch 20的Clutter acceptance Recall=`0.285714`，低于epoch 14的`0.714286`，known parent Macro-F1也更低`0.788536<0.798485`。
+- Impact：若事后选择该快照，会产生look-elsewhere和局部头替代产品目标的问题，并以Clutter显著退化换取DBB局部提升；无法用于正式checkpoint、阈值或五类结论。
+- Action：继续以外层OOF和事前产品护栏为主；单折快照只作为“DBB能力上限可能存在、跨折/跨目标不稳定”的诊断证据。
+- 验证状态：文件路径、arm、fold、epoch、support、逐类矩阵和实际selected epoch均已核对。
+- 关联版本：V15 Control nested OOF。
+
+## Finding F170
+
+- Severity：High（配对实验存在已确认的训练动力学间接干预）
+- 文件位置：`src-v3/train/cascade.py::train_hierarchical_cascade/cascade_training_objective`、V15两臂训练日志与相同epoch checkpoint
+- 问题或结论：V15表面只替换DBB读出头，但三模型由一个optimizer联合更新，并对全模型参数统一做梯度裁剪；角度Treatment更大的DBB损失/梯度会改变Gate和CU的梯度缩放，因此非干预模块在相同epoch后不再保持配对。
+- Evidence：代码每step执行`objective["loss"].backward()`后对`model.parameters()`调用`clip_grad_norm_(...,100)`。正式日志抽样220个进度点中Control/Treatment `grad>100`分别为`4/220`和`39/220`，最大值`197.469/600.513`。同epoch checkpoint比较显示Gate/CU各40个state tensor全部非零差异；两臂5个outer fold只有fold 04选择相同epoch。
+- Impact：Treatment的Gate CU Recall、Clutter F1和known-action Macro-F1改善不能直接归因于角度几何；它混入了全局裁剪和不同epoch选择产生的训练路径变化。当前实验仍可报告“系统级Treatment结果”，但不是纯DBB头因果效应。
+- Action：下一次若验证DBB角度knownness，应采用冻结Gate/CU或分任务optimizer/分任务梯度裁剪，并保持同epoch护栏；不要同时改变数据覆盖。现有V15结果按`CAUTION`解释。
+- 验证状态：代码、配置、日志与checkpoint均已只读核验；隔离optimizer的paired实验未执行。
+- 关联版本：V15实验协议。
+
+## Finding F171
+
+- Severity：Critical（Gate/Clutter仍是known-only放行瓶颈）
+- 文件位置：两臂V15 calibration `selection_diagnostics.gate/clutter_acceptance/combined_known_action`
+- 问题或结论：无论Control还是Treatment，35个Clutter parent上的Gate路由和Clutter接受均远低于目标；角度DBB头没有解除CU数据覆盖与边界瓶颈。
+- Evidence：Control Gate CU P/R=`0.435897/0.485714`，Clutter accept P/R=`0.520000/0.371429`，最终Clutter P/R/F1=`0.500000/0.314286/0.385965`。Treatment对应为`0.536585/0.628571`、`0.531250/0.485714`和`0.600000/0.428571/0.500000`；均显著低于0.90，support仅35。两份校准三组件均失败并`deployment_eligible=false`。
+- Impact：总体Accuracy较高会被976个DBB known parent的base rate掩盖；Clutter/CU低support和低Recall继续阻塞严格open-set五动作、Unknown拒识安全与部署。
+- Action：优先执行独立的Clutter parent/子流型覆盖和证据归因审计；不得把SMOTE window复制、增加液态容量或角度头作为数据覆盖替代。若合法CQ08/raw没有新增parent，明确记录数据不足。
+- 验证状态：known-only OOF已确认；development Unknown、标签子流型全量人工审计、test和跨source验证未执行。
+- 关联版本：V15，数据仍复用V3/V14 known-only范围。
+
 
 ## Finding F129
 
@@ -1739,3 +1882,91 @@
 - Action：保留epoch 13为冻结V13 best；下一实验仍以事前产品护栏排序，报告loss只作优化诊断。
 - 验证状态：20 epoch全轨迹已审查；没有事后改写checkpoint。
 - 关联版本：V13。
+
+## Finding F172
+
+- Severity：Critical（V15产品监督目标失配；已确认）
+- 文件位置：`src-v3/radar_ln3/task_models.py::STRICT_OPEN_SET_TASK_SPECS`、`src-v3/radar_ln3/losses.py::strict_open_set_final_state_nll`、六份V15配置
+- 问题或结论：V15 CU specialist学习的是Clutter接受证据与DBB-known非Clutter证据，不是ClutterTarget/UnknownTarget二分类；UnknownTarget被排除在loss、normalization、OOF和阈值拟合之外。
+- Evidence：V15 CU class names为`CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE`，Drone/Bird/Balloon映射1；loss对label 4直接报错，且`cu_targets=dbb_mask`。V15两臂OOF各自只有Drone/Bird/Balloon/Clutter 1011 parent，Unknown count=0。
+- Impact：V15 CU Precision/Recall只能描述Clutter versus DBB-known，不可解释为Clutter/Unknown性能；V15不能实现用户冻结的Gate→CU→Clutter/Unknown产品链路。
+- Action：V16恢复Gate的DBB/CU五标签映射，DBB specialist只用DBB，CU specialist只用Clutter/Unknown；真实Unknown标签预测与运行时`UNKNOWN_REJECTED`动作使用不同字段和指标。
+- 验证状态：代码、配置、loss和两臂OOF记录已核实；V16修复未执行。
+- 关联版本：V15失效问题，V16阻塞。
+
+## Finding F173
+
+- Severity：Critical（分层动作路由失配；已确认）
+- 文件位置：`src-v3/radar_ln3/rejection.py::StrictOpenSetRejectionPolicy.decide`第740–781行及对应focused断言
+- 问题或结论：Gate接受DBB后，若DBB knownness失败，当前策略直接输出`UNKNOWN_REJECTED`，没有回退到CU specialist。
+- Evidence：代码路径返回`gate_action=DBB_ROUTE_ACCEPTED`、`conditional_action=DBB_KNOWN_NOT_ACCEPTED`、`final_action=UNKNOWN_REJECTED`；现有strict-open-set focused把该结果作为通过条件。
+- Impact：低置信Bird/Drone/Balloon失去CU复核机会；Unknown拒识原因混合了DBB knownness失败和CU Unknown判断，不能解释三层动作来源。
+- Action：V16局部训练阶段先只输出三个task各自概率与混淆；后续动作实现必须让DBB未接受回退CU，CU判Clutter或Unknown，禁止在DBB分支直接终止为Unknown。
+- 验证状态：代码路径已确认；V16动作修复和完整级联暂未执行。
+- 关联版本：V15失效问题，V16动作候选。
+
+## Finding F174
+
+- Severity：Critical（V15评估范围不能验证真实CU/Unknown；已确认）
+- 文件位置：`src-v3/radar_ln3/cascade.py::build_cascade_dataset/evaluate_strict_open_set_cascade`、`src-v3/radar_ln3/angular_knownness_oof.py`、V15 experiment/nested OOF contract
+- 问题或结论：V15正式训练、checkpoint selection、两臂nested OOF和calibration均只使用known parent；development Unknown也未执行，因此继续分析V15不能补出真实Clutter/Unknown或五类开放集性能。
+- Evidence：两臂各5折均覆盖1011个known parent且Unknown/validation/test暴露为0；两份calibration均绑定known-only分数且`deployment_eligible=false`。development Unknown、test、stable和P95产物不存在。
+- Impact：V15 known FRR、Clutter acceptance和DBB knownness不能冒充Unknown拒识Recall、FAR、FRR、Coverage、Selective Risk或最终五类动作。
+- Action：冻结V15为研究诊断；V16三任务先独立训练和评估，完整级联与拒识校准另设后续Stage。
+- 验证状态：当前真实磁盘状态为Control/Treatment均5/5 OOF完成；早期Treatment 3/5状态已过期。
+- 关联版本：V15冻结。
+
+## Finding F175
+
+- Severity：Critical（跨split同源内容暴露；已确认）
+- 文件位置：`src/process/cq08_split.py`、`data/manifests/cq08_unified_manifest.json`、`data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-split.json`及四个指定parent
+- 问题或结论：V3只按track_id划分，未按capture/raw/RD内容等价组件隔离；至少两组同capture、同raw、同RD内容跨train/val。
+- Evidence：manifest为1550条、45个重复capture组。1339/train与1490/val共享capture `20250616122328`、raw SHA=`761860...c87cb`、RD SHA=`9cb42c...6c1a3`；1343/val与1494/train共享capture `20250616122337`、raw SHA=`3bb1a5...f15c`、RD SHA=`7e29ab...440b`。每组track/point文件hash不同。
+- Impact：V15和历史validation可能包含同一采集/回波/RD内容的近重复暴露，不能宣称可靠跨采集泛化；局部高分可能被泄漏抬高。
+- Action：V16建立capture/raw/RD/规范轨迹内容的provenance组件并以组件为split group；完全等价内容零跨split，跨标签完全等价组未经人工政策裁决不得正式训练。
+- 验证状态：两组已独立hash复现；45个重复capture中10个跨标签组的raw/RD hash均不相同，当前无跨标签完全等价内容证据；全部内容组件和规范轨迹hash仍待V16工具审计。
+- 关联版本：V3/V15数据风险，V16数据重建阻塞。
+
+## Finding F176
+
+- Severity：High（同秒合法观测被误计为gap；已确认）
+- 文件位置：`src-v3/radar_ln3/cascade.py::OnlineLiquidSoftCascade.step/evaluate_strict_open_set_cascade`
+- 问题或结论：offline/online都把`tr_dt_reason==2`累计为`zero_delta_count`后直接作为`gap_fraction`，将秒级精度下的合法同秒观测误当轨迹缺口。
+- Evidence：代码分别以`zero_delta_count/max(1, valid_points-1)`传入policy；V3契约定义reason 2为`zero_delta_at_second_precision`并执行bounded observation update，真实全索引该reason为9776个事件。
+- Impact：质量门控会产生source、类别和轨迹长度相关误拒偏置，并使正常同秒观测触发pending/gap guard。
+- Action：V16分别记录`zero_dt_fraction`与真实`gap_fraction`；reason 2不得增加gap，首点和padding也不进入gap分母。
+- 验证状态：代码与V3契约已核实；修复及offline/online回归未执行。
+- 关联版本：V15动作语义，V16修复。
+
+## Finding F177
+
+- Severity：High（prefix训练与产品验收单位未统一；已确认）
+- 文件位置：`src-v3/radar_ln3/losses.py::strict_open_set_final_state_nll`、`src-v3/train/cascade.py::build_product_checkpoint_selection`、online streaming路径
+- 问题或结论：V15以parent-final为主损失、prefix 0.10辅助并只按parent-final护栏选checkpoint，但online每个prefix都会产生路由和stable输入；早期动作未成为同一产品验收目标。
+- Evidence：loss取`length-1`计算final NLL，event 3至final前状态仅进入辅助项；checkpoint ranking只读取known parent metrics，在线step逐事件调用拒识/stable。
+- Impact：parent-final改善不保证早期Bird不被路由CU、Unknown不被接受DBB或不过早拒识；window、parent和stable指标不能互换。
+- Action：V16独立task先分别报告prefix与parent-final；最小证据量之前为PENDING。prefix loss形式作为后续单因素实验，不与split/标签修复同时调参。
+- 验证状态：调用链已确认；V16 focused gradient与动作验收未执行。
+- 关联版本：V15目标风险，V16实验设计。
+
+## Finding F178
+
+- Severity：High（流程完成与性能通过混淆；已确认）
+- 文件位置：`src-v3/train/cascade.py`训练摘要生成及两臂V15 `training-summary.json`
+- 问题或结论：训练摘要无条件写`status=passed`，即使产品护栏失败，消费者也可能误认为模型达标。
+- Evidence：Control摘要`status=passed`但best guardrails=`1/4`，Gate/DBB/CU/Drone-Bird floor=`0.6364/0.9245/0.5833/0.9038`；Treatment为`0/4`和`0.7000/0.7538/0.7000/0.7460`。
+- Impact：可能错误放行calibration、test或部署，也会把训练命令成功与模型性能验收混为一谈。
+- Action：V16摘要使用`status=completed|failed`描述流程，另设`performance_status=passed|failed`、`guardrails`、`deployment_eligible=false`；独立task训练不声称完整产品达标。
+- 验证状态：真实摘要已核实；V16实现未执行。
+- 关联版本：V15报告缺陷，V16修复。
+
+## Finding F179
+
+- Severity：Critical（V15不再是当前产品候选；结论已冻结）
+- 文件位置：V15全部实现、六配置、两臂正式artifact、10份nested OOF prediction和Stage 057复核记录
+- 问题或结论：V15实验执行和known-only角度knownness数值是真实可复现的，但其CU标签、路由、split和评估语义不匹配当前产品设计；因此“实验执行真实”不等于“产品性能结论有效”。
+- Evidence：两臂正式训练及5/5 OOF完整；同时Finding F172–F178均由代码、配置、hash、artifact或契约复核确认。
+- Impact：不能使用V15高分、OOF或calibration选择V16模型、阈值或部署；V15只保留为历史研究诊断和回归输入。
+- Action：按`.rules`保存V15快照后进入V16；V16重新版本化index/split/stats/contract/config/checkpoint，三任务先独立训练评估，不执行完整级联。
+- 验证状态：V15冻结；V16未执行。
+- 关联版本：V15冻结、V16起点。

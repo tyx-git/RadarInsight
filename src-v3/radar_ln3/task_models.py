@@ -89,6 +89,7 @@ HIERARCHICAL_CU_OUTPUT_NAMES = (
     "CLUTTER_REJECT_EVIDENCE",
 )
 STRICT_OPEN_SET_SCHEMA_VERSION = "RADAR-LN3-V14"
+ANGULAR_KNOWNNESS_SCHEMA_VERSION = "RADAR-LN3-V15"
 STRICT_OPEN_SET_LOSS_MODE = "parent_final_known_only_open_set_nll_with_prefix_auxiliary"
 STRICT_OPEN_SET_CHECKPOINT_SELECTION = "known_only_parent_route_guarded"
 STRICT_OPEN_SET_GATE_OUTPUT_NAMES = (
@@ -101,9 +102,20 @@ STRICT_OPEN_SET_CU_OUTPUT_NAMES = (
 )
 KNOWN_BASE_LABELS = BASE_LABELS[:4]
 UNKNOWN_BASE_LABEL = "UnknownTarget"
-HIERARCHICAL_SCHEMA_VERSIONS = frozenset(
-    {HIERARCHICAL_CASCADE_SCHEMA_VERSION, STRICT_OPEN_SET_SCHEMA_VERSION}
+STRICT_OPEN_SET_SCHEMA_VERSIONS = frozenset(
+    {STRICT_OPEN_SET_SCHEMA_VERSION, ANGULAR_KNOWNNESS_SCHEMA_VERSION}
 )
+HIERARCHICAL_SCHEMA_VERSIONS = frozenset(
+    {HIERARCHICAL_CASCADE_SCHEMA_VERSION, *STRICT_OPEN_SET_SCHEMA_VERSIONS}
+)
+DBB_READOUT_LINEAR = "linear"
+DBB_READOUT_ANGULAR_PROTOTYPE = "angular_prototype"
+DBB_KNOWNNESS_PROBABILITY = "dbb_top_probability_and_margin"
+DBB_KNOWNNESS_COSINE = "dbb_top_cosine_and_cosine_gap"
+DBB_ANGULAR_EMBEDDING_DIM = 48
+DBB_ANGULAR_SCALE = 16.0
+DBB_ANGULAR_MARGIN = 0.20
+DBB_ANGULAR_PAIRED_PROTOCOL = "v15-linear-control-v15-angular-prototype-treatment-v1"
 DT_REASON_DYNAMICS_MODE = "v3_reason_aware_dynamics_only"
 FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
     {RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION, DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION}
@@ -121,6 +133,10 @@ def _task_schema_number(schema_version: str) -> int:
 
 def _is_repaired_task_schema(schema_version: str) -> bool:
     return _task_schema_number(schema_version) >= _task_schema_number(REPAIRED_TASK_SCHEMA_VERSION)
+
+
+def is_strict_open_set_schema(schema_version: str) -> bool:
+    return str(schema_version) in STRICT_OPEN_SET_SCHEMA_VERSIONS
 
 
 @dataclass(frozen=True)
@@ -257,6 +273,11 @@ class TaskModelConfig:
     rd_physical_dim: int
     dbb_auxiliary_num_classes: int
     dt_reason_mode: str
+    dbb_readout_mode: str
+    dbb_embedding_dim: int
+    dbb_cosine_scale: float
+    dbb_angular_margin: float
+    dbb_knownness_score_name: str
 
 
 @dataclass(frozen=True)
@@ -318,6 +339,16 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
     place cannot be used to resume or assemble a different product run.
     """
 
+    model_identity = asdict(config.model)
+    if config.schema_version != ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+        for field_name in (
+            "dbb_readout_mode",
+            "dbb_embedding_dim",
+            "dbb_cosine_scale",
+            "dbb_angular_margin",
+            "dbb_knownness_score_name",
+        ):
+            model_identity.pop(field_name)
     payload = {
         "schema_version": config.schema_version,
         "config_name": config.config_name,
@@ -328,7 +359,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
             "allowed_base_labels": sorted(config.task.allowed_base_labels),
         },
         "data": asdict(config.data),
-        "model": asdict(config.model),
+        "model": model_identity,
         "train": asdict(config.train),
     }
     encoded = json.dumps(
@@ -341,7 +372,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
 
 
 def task_spec(name: str, *, schema_version: str | None = None) -> TaskSpec:
-    specs = STRICT_OPEN_SET_TASK_SPECS if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION else TASK_SPECS
+    specs = STRICT_OPEN_SET_TASK_SPECS if is_strict_open_set_schema(str(schema_version)) else TASK_SPECS
     try:
         return specs[str(name)]
     except KeyError as exc:
@@ -474,6 +505,13 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         rd_physical_dim=int(model_payload.get("rd_physical_dim", 0)),
         dbb_auxiliary_num_classes=int(model_payload.get("dbb_auxiliary_num_classes", 0)),
         dt_reason_mode=str(model_payload.get("dt_reason_mode", "legacy_dt_valid_only")),
+        dbb_readout_mode=str(model_payload.get("dbb_readout_mode", DBB_READOUT_LINEAR)),
+        dbb_embedding_dim=int(model_payload.get("dbb_embedding_dim", 0)),
+        dbb_cosine_scale=float(model_payload.get("dbb_cosine_scale", 1.0)),
+        dbb_angular_margin=float(model_payload.get("dbb_angular_margin", 0.0)),
+        dbb_knownness_score_name=str(
+            model_payload.get("dbb_knownness_score_name", DBB_KNOWNNESS_PROBABILITY)
+        ),
     )
     if model.num_classes != spec.num_classes:
         raise ValueError(f"model.num_classes={model.num_classes} does not match task={spec.num_classes}")
@@ -496,6 +534,8 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         raise ValueError("task liquid_state_normalization must be recurrent or readout_only")
     if model.rd_frame_aggregation not in {"masked_mean", "causal_gru"}:
         raise ValueError("task rd_frame_aggregation must be masked_mean or causal_gru")
+    if model.dbb_readout_mode not in {DBB_READOUT_LINEAR, DBB_READOUT_ANGULAR_PROTOTYPE}:
+        raise ValueError("task DBB readout mode must be linear or angular_prototype")
     if model.liquid_state_normalization != "recurrent" and model.rd_frame_aggregation != "masked_mean":
         raise ValueError("task liquid and RD temporal ablations must be run separately")
     motion_fields_present = (
@@ -662,12 +702,12 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
     if schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         expected_loss_mode = (
             STRICT_OPEN_SET_LOSS_MODE
-            if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            if is_strict_open_set_schema(schema_version)
             else HIERARCHICAL_LOSS_MODE
         )
         expected_selection = (
             STRICT_OPEN_SET_CHECKPOINT_SELECTION
-            if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            if is_strict_open_set_schema(schema_version)
             else HIERARCHICAL_CHECKPOINT_SELECTION
         )
         if train.loss_mode != expected_loss_mode:
@@ -680,8 +720,16 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(f"{schema_version} prefix auxiliary supervision must exclude the first evidence event")
         if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
             raise ValueError(f"{schema_version} model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
-        if data.contract_schema_version != schema_version:
-            raise ValueError(f"{schema_version} tasks must consume their matching reason-aware data contract")
+        allowed_contract_schemas = (
+            {STRICT_OPEN_SET_SCHEMA_VERSION, ANGULAR_KNOWNNESS_SCHEMA_VERSION}
+            if schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION
+            else {schema_version}
+        )
+        if data.contract_schema_version not in allowed_contract_schemas:
+            raise ValueError(
+                f"{schema_version} tasks must consume an approved reason-aware data contract; "
+                f"actual={data.contract_schema_version!r}"
+            )
         if model.dbb_auxiliary_num_classes != 0 or model.rd_physical_dim != 0:
             raise ValueError(f"{schema_version} must not silently retain V11/V12 experimental branches")
         if train.epochs != 20 or train.early_stopping_patience != 0:
@@ -690,7 +738,15 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(f"{schema_version} requires epoch checkpoints and parent-order hashes")
         if train.dataloader_seed != train.seed:
             raise ValueError(f"{schema_version} model seed and DataLoader seed must match")
-        if any(value is not None for value in (train.paired_protocol, train.paired_arm, train.paired_seed, train.paired_counterpart_config_path)):
+        if schema_version != ANGULAR_KNOWNNESS_SCHEMA_VERSION and any(
+            value is not None
+            for value in (
+                train.paired_protocol,
+                train.paired_arm,
+                train.paired_seed,
+                train.paired_counterpart_config_path,
+            )
+        ):
             raise ValueError(f"{schema_version} is one joint product run, not a paired-arm experiment")
         if any(
             value is None
@@ -712,13 +768,58 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         )
         if any(value is None or not 0.0 < float(value) <= 1.0 for value in targets):
             raise ValueError(f"{schema_version} product selection targets must all be in (0,1]")
-        if schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+        if is_strict_open_set_schema(schema_version):
             if UNKNOWN_BASE_LABEL in spec.allowed_base_labels or UNKNOWN_BASE_LABEL in spec.label_to_id:
-                raise ValueError("V14 strict-open-set task mapping must not expose UnknownTarget")
+                raise ValueError("strict-open-set task mapping must not expose UnknownTarget")
             if spec.name == "dbb_cu_gate" and spec.class_names != STRICT_OPEN_SET_GATE_OUTPUT_NAMES:
-                raise ValueError("V14 Gate output semantics are not strict-open-set evidence")
+                raise ValueError("strict-open-set Gate output semantics are invalid")
             if spec.name == "cu_specialist" and spec.class_names != STRICT_OPEN_SET_CU_OUTPUT_NAMES:
-                raise ValueError("V14 CU output semantics are not strict-open-set evidence")
+                raise ValueError("strict-open-set CU output semantics are invalid")
+        if schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+            if (
+                train.paired_protocol != DBB_ANGULAR_PAIRED_PROTOCOL
+                or train.paired_arm not in {"control", "treatment"}
+                or train.paired_seed != train.seed
+                or train.dataloader_seed != train.seed
+                or train.paired_counterpart_config_path is None
+            ):
+                raise ValueError("V15 requires the frozen paired DBB angular-knownness protocol")
+            if train.cuda_deterministic_algorithms:
+                raise ValueError("V15 fixes initialization and parent order but does not claim strict CUDA determinism")
+            if spec.name != "dbb_specialist":
+                if (
+                    model.dbb_readout_mode != DBB_READOUT_LINEAR
+                    or model.dbb_embedding_dim != 0
+                    or model.dbb_cosine_scale != 1.0
+                    or model.dbb_angular_margin != 0.0
+                    or model.dbb_knownness_score_name != DBB_KNOWNNESS_PROBABILITY
+                ):
+                    raise ValueError("V15 Gate/CU must keep the frozen linear readout contract")
+            elif train.paired_arm == "control":
+                if (
+                    model.dbb_readout_mode != DBB_READOUT_LINEAR
+                    or model.dbb_embedding_dim != 0
+                    or model.dbb_cosine_scale != 1.0
+                    or model.dbb_angular_margin != 0.0
+                    or model.dbb_knownness_score_name != DBB_KNOWNNESS_PROBABILITY
+                ):
+                    raise ValueError("V15 Control DBB must retain the linear probability knownness head")
+            elif (
+                model.dbb_readout_mode != DBB_READOUT_ANGULAR_PROTOTYPE
+                or model.dbb_embedding_dim != DBB_ANGULAR_EMBEDDING_DIM
+                or model.dbb_cosine_scale != DBB_ANGULAR_SCALE
+                or model.dbb_angular_margin != DBB_ANGULAR_MARGIN
+                or model.dbb_knownness_score_name != DBB_KNOWNNESS_COSINE
+            ):
+                raise ValueError("V15 Treatment DBB angular head does not match the frozen contract")
+        elif (
+            model.dbb_readout_mode != DBB_READOUT_LINEAR
+            or model.dbb_embedding_dim != 0
+            or model.dbb_cosine_scale != 1.0
+            or model.dbb_angular_margin != 0.0
+            or model.dbb_knownness_score_name != DBB_KNOWNNESS_PROBABILITY
+        ):
+            raise ValueError("DBB angular readout fields are reserved for RADAR-LN3-V15")
     elif train.loss_mode != "causal_prefix":
         raise ValueError("historical task training must use causal_prefix loss")
     if schema_number == _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
@@ -906,9 +1007,17 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
     scale = float(amplitude.get("scale"))
     if abs(center - config.data.rd_amplitude_center) > 1.0e-6 or abs(scale - config.data.rd_amplitude_scale) > 1.0e-6:
         raise ValueError("task RD normalization values do not match the recorded train statistics")
-    if stats.get("source_split") != "train" or "no validation or test" not in str(stats.get("scope", "")):
+    normalization_scope = str(stats.get("scope", "")).lower()
+    explicitly_excludes_validation_and_test = any(
+        phrase in normalization_scope
+        for phrase in (
+            "no validation or test",
+            "validation and test excluded",
+        )
+    )
+    if stats.get("source_split") != "train" or not explicitly_excludes_validation_and_test:
         raise ValueError("task normalization statistics are not explicitly train-only")
-    if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+    if is_strict_open_set_schema(config.schema_version):
         oof_fold_contract = dict(contract.get("oof_fold_training_contract") or {})
         is_oof_fold = bool(oof_fold_contract)
         expected_train_counts = (
@@ -941,7 +1050,12 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         expected_validation_known_count = 0 if is_oof_fold else 217
         expected_validation_unknown_count = 0 if is_oof_fold else 15
         if (
-            stats.get("schema_version") != STRICT_OPEN_SET_SCHEMA_VERSION
+            stats.get("schema_version")
+            not in (
+                {STRICT_OPEN_SET_SCHEMA_VERSION, ANGULAR_KNOWNNESS_SCHEMA_VERSION}
+                if config.schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION
+                else {STRICT_OPEN_SET_SCHEMA_VERSION}
+            )
             or int(stats.get("parent_count", -1)) != expected_train_parent_count
             or stats.get("selected_label_parent_counts") != expected_train_counts
             or stats.get("allowed_labels") != sorted(KNOWN_BASE_LABELS)
@@ -952,7 +1066,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or int(stats.get("excluded_rd_tensor_count", -1)) != expected_excluded_rd_count
             or int(stats.get("selected_excluded_rd_tensor_path_overlap_count", -1)) != 0
         ):
-            raise ValueError("V14 normalization does not prove known-only train population and zero Unknown exposure")
+            raise ValueError("strict-open-set normalization does not prove known-only train population and zero Unknown exposure")
         strict = dict(contract.get("strict_open_set_contract") or {})
         data_scope = dict(contract.get("data_scope") or {})
         normalization_contract = dict(contract.get("normalization_contract") or {})
@@ -988,7 +1102,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or strict.get("test_is_sealed") is not True
             or int(data_scope.get("test_payload_access_count", -1)) != 0
         ):
-            raise ValueError("V14 strict-open-set data contract allows Unknown leakage or changes frozen support")
+            raise ValueError("strict-open-set data contract allows Unknown leakage or changes frozen support")
         if (
             normalization_contract.get("sha256") != actual_hashes["stats_sha256"]
             or int(normalization_contract.get("known_parent_count", -1)) != expected_train_parent_count
@@ -996,7 +1110,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or int(normalization_contract.get("excluded_label_parent_counts", {}).get(UNKNOWN_BASE_LABEL, -1))
             != expected_excluded_unknown_count
         ):
-            raise ValueError("V14 data contract normalization provenance does not match the loaded statistics")
+            raise ValueError("strict-open-set data contract normalization provenance does not match the loaded statistics")
         if is_oof_fold and (
             oof_fold_contract.get("fit_split") != "train"
             or oof_fold_contract.get("fit_population") != "known_only"
@@ -1012,7 +1126,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or stats.get("allowed_parent_ids_sha256")
             != oof_fold_contract.get("train_parent_ids_sha256")
         ):
-            raise ValueError("V14 OOF fold contract allows held-out, Unknown, validation or test leakage")
+            raise ValueError("strict-open-set OOF fold contract allows held-out, Unknown, validation or test leakage")
         if (
             oof.get("fit_split") != "train"
             or oof.get("fit_population") != "known_only"
@@ -1022,14 +1136,14 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or oof.get("validation_used_for_threshold_fitting") is not False
             or oof.get("test_used") is not False
         ):
-            raise ValueError("V14 OOF contract is not known-only train parent-grouped OOF")
+            raise ValueError("strict-open-set OOF contract is not known-only train parent-grouped OOF")
         if (
             action.get("dbb_knownness_failure") != "UNKNOWN_REJECTED"
             or action.get("cu_clutter_failure") != "UNKNOWN_REJECTED"
             or action.get("unknown_is_rejection_action_only") is not True
             or action.get("unknown_is_probability_output") is not False
         ):
-            raise ValueError("V14 action contract is not strict open-set")
+            raise ValueError("strict-open-set action contract is invalid")
     return {
         "paths": {"index": str(index_path), "contract": str(contract_path), "stats": str(stats_path)},
         "hashes": actual_hashes,
@@ -1130,7 +1244,7 @@ def build_task_dataset(
             raise PermissionError(
                 "V11 RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
             )
-    strict_open_set = config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    strict_open_set = is_strict_open_set_schema(config.schema_version)
     base = CQ08PointSequenceDataset(
         project_root,
         index_path=resolve_project_path(project_root, config.data.index_path),
@@ -1214,6 +1328,52 @@ class PairedFusionLinear(nn.Linear):
         return base + intervention
 
 
+class AngularPrototypeReadout(nn.Module):
+    """Label-free cosine inference head with a separately applied train margin."""
+
+    def __init__(
+        self,
+        input_dim: int,
+        embedding_dim: int,
+        class_count: int,
+        *,
+        scale: float,
+    ) -> None:
+        super().__init__()
+        self.input_dim = int(input_dim)
+        self.embedding_dim = int(embedding_dim)
+        self.class_count = int(class_count)
+        self.scale = float(scale)
+        if self.input_dim <= 0 or self.embedding_dim <= 0 or self.class_count < 2:
+            raise ValueError("angular prototype dimensions must be positive")
+        if not np.isfinite(self.scale) or self.scale <= 0.0:
+            raise ValueError("angular prototype scale must be finite and positive")
+        self.normalization = nn.LayerNorm(self.input_dim)
+        self.embedding = nn.Linear(self.input_dim, self.embedding_dim, bias=False)
+        self.prototypes = nn.Parameter(torch.empty(self.class_count, self.embedding_dim))
+        nn.init.xavier_uniform_(self.prototypes)
+
+    def forward_with_scores(self, value: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if value.shape[-1] != self.input_dim:
+            raise ValueError("angular prototype readout received an invalid input dimension")
+        embedding = nn.functional.normalize(
+            self.embedding(self.normalization(value)),
+            p=2.0,
+            dim=-1,
+            eps=1.0e-6,
+        )
+        prototypes = nn.functional.normalize(self.prototypes, p=2.0, dim=-1, eps=1.0e-6)
+        cosine = nn.functional.linear(embedding, prototypes).clamp(-1.0, 1.0)
+        logits = cosine * self.scale
+        if not torch.isfinite(logits).all():
+            raise ValueError("angular prototype readout produced non-finite values")
+        return logits, cosine, embedding
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        logits, _, _ = self.forward_with_scores(value)
+        return logits
+
+
 class LiquidTaskClassifier(nn.Module):
     """Current RD spatial encoder + CfC liquid encoder + task-specific head."""
 
@@ -1247,6 +1407,11 @@ class LiquidTaskClassifier(nn.Module):
         self.rd_physical_dim = model.rd_physical_dim
         self.dbb_auxiliary_num_classes = model.dbb_auxiliary_num_classes
         self.dt_reason_mode = model.dt_reason_mode
+        self.dbb_readout_mode = model.dbb_readout_mode
+        self.dbb_embedding_dim = model.dbb_embedding_dim
+        self.dbb_cosine_scale = model.dbb_cosine_scale
+        self.dbb_angular_margin = model.dbb_angular_margin
+        self.dbb_knownness_score_name = model.dbb_knownness_score_name
         self.rd_physical_schema = config.data.rd_physical_schema
         self.rd_physical_mask_mode = config.data.rd_physical_mask_mode
         self.tr_motion_contract = (
@@ -1316,10 +1481,20 @@ class LiquidTaskClassifier(nn.Module):
             invalid_dt_observation_gain=model.liquid_invalid_dt_observation_gain,
             state_normalization_mode=model.liquid_state_normalization,
         )
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(model.liquid_hidden_dim),
-            nn.Linear(model.liquid_hidden_dim, self.num_classes),
-        )
+        if self.dbb_readout_mode == DBB_READOUT_ANGULAR_PROTOTYPE:
+            if self.task_name != "dbb_specialist":
+                raise ValueError("angular prototype readout is restricted to the DBB specialist")
+            self.classifier = AngularPrototypeReadout(
+                model.liquid_hidden_dim,
+                self.dbb_embedding_dim,
+                self.num_classes,
+                scale=self.dbb_cosine_scale,
+            )
+        else:
+            self.classifier = nn.Sequential(
+                nn.LayerNorm(model.liquid_hidden_dim),
+                nn.Linear(model.liquid_hidden_dim, self.num_classes),
+            )
         self.dbb_auxiliary_classifier: nn.Module | None = None
         if self.dbb_auxiliary_num_classes:
             if self.task_name != "dbb_cu_gate" or self.dbb_auxiliary_num_classes != len(DBB_AUXILIARY_CLASS_NAMES):
@@ -1328,6 +1503,18 @@ class LiquidTaskClassifier(nn.Module):
                 nn.LayerNorm(model.liquid_hidden_dim),
                 nn.Linear(model.liquid_hidden_dim, self.dbb_auxiliary_num_classes),
             )
+
+    def _classification_readout(
+        self,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+        if isinstance(self.classifier, AngularPrototypeReadout):
+            return self.classifier.forward_with_scores(value)
+        logits = self.classifier(value)
+        knownness_scores = (
+            torch.softmax(logits, dim=-1) if self.task_name == "dbb_specialist" else None
+        )
+        return logits, knownness_scores, None
 
     def prepare_online_rd_physical(
         self,
@@ -1461,7 +1648,9 @@ class LiquidTaskClassifier(nn.Module):
             dt_valid=tr_dt_valid,
             dt_reason=tr_dt_reason,
         )
-        sequence_logits = self.classifier(liquid_state.sequence)
+        sequence_logits, dbb_knownness_scores, dbb_embeddings = self._classification_readout(
+            liquid_state.sequence
+        )
         valid = ~tr_padding_mask
         last_indices = valid.long().sum(dim=1).clamp_min(1) - 1
         batch_indices = torch.arange(tr_features.shape[0], device=tr_features.device)
@@ -1477,6 +1666,17 @@ class LiquidTaskClassifier(nn.Module):
             "dt_first_event_mask": liquid_state.dt_first_event_mask,
             "dt_zero_delta_mask": liquid_state.dt_zero_delta_mask,
         }
+        if self.task_name == "dbb_specialist":
+            if dbb_knownness_scores is None:
+                raise RuntimeError("DBB specialist did not produce knownness scores")
+            result["dbb_knownness_sequence_scores"] = dbb_knownness_scores
+            result["dbb_knownness_window_scores"] = dbb_knownness_scores[
+                batch_indices, last_indices
+            ]
+            result["dbb_knownness_score_name"] = self.dbb_knownness_score_name
+            if dbb_embeddings is not None:
+                result["dbb_embedding_sequence"] = dbb_embeddings
+                result["dbb_embedding_final"] = dbb_embeddings[batch_indices, last_indices]
         if return_dbb_auxiliary_logits and self.dbb_auxiliary_classifier is None:
             raise ValueError("DBB auxiliary logits were requested from a model without the V12 auxiliary head")
         if return_dbb_auxiliary_logits and self.dbb_auxiliary_classifier is not None:
@@ -1570,14 +1770,24 @@ class LiquidTaskClassifier(nn.Module):
             tr_dt_valid,
             tr_dt_reason,
         )
-        logits = self.classifier(self.liquid.readout(state))
-        return {
+        logits, dbb_knownness_scores, dbb_embeddings = self._classification_readout(
+            self.liquid.readout(state)
+        )
+        result = {
             "window_logits": logits,
             "liquid_state": state,
             "dt_clamped_mask": dt_clamped,
             "dt_zero_mask": dt_zero,
             "dt_invalid_mask": ~tr_dt_valid,
         }
+        if self.task_name == "dbb_specialist":
+            if dbb_knownness_scores is None:
+                raise RuntimeError("online DBB specialist did not produce knownness scores")
+            result["dbb_knownness_window_scores"] = dbb_knownness_scores
+            result["dbb_knownness_score_name"] = self.dbb_knownness_score_name
+            if dbb_embeddings is not None:
+                result["dbb_embedding"] = dbb_embeddings
+        return result
 
 
 def task_prefix_loss(
@@ -2061,7 +2271,7 @@ def save_task_checkpoint(
     if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         cu_output_semantics = (
             list(STRICT_OPEN_SET_CU_OUTPUT_NAMES)
-            if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            if is_strict_open_set_schema(config.schema_version)
             else list(HIERARCHICAL_CU_OUTPUT_NAMES)
         )
         model_contract.update({
@@ -2079,13 +2289,24 @@ def save_task_checkpoint(
                 "drone_bird_min_precision_recall": config.train.drone_bird_min_precision_recall_target,
             },
         })
-        if config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+        if is_strict_open_set_schema(config.schema_version):
             model_contract.update({
                 "gate_output_semantics": list(STRICT_OPEN_SET_GATE_OUTPUT_NAMES),
                 "known_training_labels": list(KNOWN_BASE_LABELS),
                 "unknown_training_exposure": 0,
                 "unknown_is_model_class": False,
                 "unknown_is_rejection_action_only": True,
+            })
+        if config.schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+            model_contract.update({
+                "dbb_readout_mode": config.model.dbb_readout_mode,
+                "dbb_embedding_dim": config.model.dbb_embedding_dim,
+                "dbb_cosine_scale": config.model.dbb_cosine_scale,
+                "dbb_angular_margin": config.model.dbb_angular_margin,
+                "dbb_knownness_score_name": config.model.dbb_knownness_score_name,
+                "paired_protocol": config.train.paired_protocol,
+                "paired_arm": config.train.paired_arm,
+                "paired_seed": config.train.paired_seed,
             })
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
@@ -2227,7 +2448,7 @@ def load_task_checkpoint(
     if model.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         cu_output_semantics = (
             list(STRICT_OPEN_SET_CU_OUTPUT_NAMES)
-            if model.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            if is_strict_open_set_schema(model.config.schema_version)
             else list(HIERARCHICAL_CU_OUTPUT_NAMES)
         )
         expected_contract.update({
@@ -2245,13 +2466,24 @@ def load_task_checkpoint(
                 "drone_bird_min_precision_recall": model.config.train.drone_bird_min_precision_recall_target,
             },
         })
-        if model.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+        if is_strict_open_set_schema(model.config.schema_version):
             expected_contract.update({
                 "gate_output_semantics": list(STRICT_OPEN_SET_GATE_OUTPUT_NAMES),
                 "known_training_labels": list(KNOWN_BASE_LABELS),
                 "unknown_training_exposure": 0,
                 "unknown_is_model_class": False,
                 "unknown_is_rejection_action_only": True,
+            })
+        if model.config.schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+            expected_contract.update({
+                "dbb_readout_mode": model.config.model.dbb_readout_mode,
+                "dbb_embedding_dim": model.config.model.dbb_embedding_dim,
+                "dbb_cosine_scale": model.config.model.dbb_cosine_scale,
+                "dbb_angular_margin": model.config.model.dbb_angular_margin,
+                "dbb_knownness_score_name": model.config.model.dbb_knownness_score_name,
+                "paired_protocol": model.config.train.paired_protocol,
+                "paired_arm": model.config.train.paired_arm,
+                "paired_seed": model.config.train.paired_seed,
             })
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)

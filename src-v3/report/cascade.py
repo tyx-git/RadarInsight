@@ -17,6 +17,7 @@ from radar_ln3.cascade import (
 )
 from radar_ln3.task_models import (
     STRICT_OPEN_SET_SCHEMA_VERSION,
+    is_strict_open_set_schema,
     load_task_config,
     sha256_file,
     task_config_identity_sha256,
@@ -30,6 +31,7 @@ from radar_ln3.rejection import (
     load_hierarchical_rejection_calibration,
     load_strict_open_set_rejection_calibration,
     validate_hierarchical_calibration_deployment,
+    validate_strict_open_set_calibration_model_binding,
 )
 
 
@@ -100,13 +102,13 @@ def run(
         raise PermissionError("cascade test evaluation is disabled until explicitly authorized")
     device = task_device(configs["dbb_cu_gate"])
     cascade, payloads = load_cascade(configs, checkpoint_paths, device=device)
-    strict_open_set = configs["dbb_cu_gate"].schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    strict_open_set = is_strict_open_set_schema(configs["dbb_cu_gate"].schema_version)
     if (
         calibration_purpose == CALIBRATION_PURPOSE_AUDIT
         and (not strict_open_set or split != "val")
     ):
         raise PermissionError(
-            "audit-only calibration is restricted to V14 frozen development validation"
+            "audit-only calibration is restricted to strict-open-set frozen development validation"
         )
     evaluation_scope = (
         "known_only_checkpoint_selection"
@@ -135,9 +137,15 @@ def run(
                 calibration_path,
                 purpose=calibration_purpose,
             )
+            validate_strict_open_set_calibration_model_binding(
+                calibration,
+                model_schema_version=configs["dbb_cu_gate"].schema_version,
+                paired_arm=configs["dbb_specialist"].train.paired_arm,
+                dbb_known_score_name=configs["dbb_specialist"].model.dbb_knownness_score_name,
+            )
         else:
             if calibration_purpose != CALIBRATION_PURPOSE_DEPLOYMENT:
-                raise ValueError("calibration-purpose audit is supported only for V14 strict open-set")
+                raise ValueError("calibration-purpose audit is supported only for strict-open-set models")
             calibration, calibration_payload = load_hierarchical_rejection_calibration(calibration_path)
         expected_hashes = contracts["dbb_cu_gate"]["hashes"]
         actual_hashes = dict(calibration_payload["provenance"]["data_contract_hashes"])

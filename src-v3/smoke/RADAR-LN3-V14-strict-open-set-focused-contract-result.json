@@ -46,7 +46,7 @@
     "valid_deployment_eligible": true,
     "unknown_threshold_fit_count_zero_required": true,
     "contaminated_calibration_rejected": true,
-    "contaminated_error": "V14 calibration provenance is not known-only train parent-grouped OOF",
+    "contaminated_error": "strict-open-set calibration provenance is not known-only train parent-grouped OOF",
     "audit_only_default_deployment_rejected": true,
     "audit_only_deployment_error": "V14 calibration is audit_only and cannot be loaded for deployment; failed quality gates: gate_precision_recall_target_not_met",
     "audit_only_explicit_audit_loads": true,

@@ -16,10 +16,19 @@ MAX_CLASS_PROBABILITY_SCORE = "max_class_probability"
 HIERARCHICAL_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V13-hierarchical-rejection-calibration-v1"
 STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1 = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v1"
 STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA = "RADAR-LN3-V14-strict-open-set-rejection-calibration-v2"
+V15_CONTROL_REJECTION_CALIBRATION_SCHEMA = (
+    "RADAR-LN3-V15-linear-control-rejection-calibration-v1"
+)
+V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA = (
+    "RADAR-LN3-V15-angular-treatment-rejection-calibration-v1"
+)
+ANGULAR_KNOWNNESS_REJECTION_CALIBRATION_SCHEMA = V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA
 STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS = frozenset(
     {
         STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1,
         STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
+        V15_CONTROL_REJECTION_CALIBRATION_SCHEMA,
+        V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA,
     }
 )
 CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE = "deployment_eligible"
@@ -30,6 +39,7 @@ HIERARCHICAL_TASK_NAMES = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
 GATE_DBB_PROBABILITY_SCORE = "gate_dbb_probability_and_margin"
 CU_CLUTTER_PROBABILITY_SCORE = "cu_clutter_probability_and_margin"
 DBB_KNOWN_PROBABILITY_SCORE = "dbb_top_probability_and_margin"
+DBB_KNOWN_COSINE_SCORE = "dbb_top_cosine_and_cosine_gap"
 
 
 @dataclass(frozen=True)
@@ -190,6 +200,8 @@ class StrictOpenSetRejectionCalibration:
     cu_accept_clutter_margin: float
     calibration_quality_status: str
     deployment_eligible: bool
+    model_schema_version: str | None = None
+    paired_arm: str | None = None
     min_valid_points: int = 1
     min_track_quality: float = 0.0
     max_gap_fraction: float = 1.0
@@ -201,8 +213,26 @@ class StrictOpenSetRejectionCalibration:
             raise ValueError("V14 rejection calibration must come from train parent-grouped OOF")
         if self.gate_score_name != GATE_DBB_PROBABILITY_SCORE:
             raise ValueError(f"unsupported V14 Gate score: {self.gate_score_name!r}")
-        if self.dbb_known_score_name != DBB_KNOWN_PROBABILITY_SCORE:
-            raise ValueError(f"unsupported V14 DBB knownness score: {self.dbb_known_score_name!r}")
+        if self.schema_version == V15_CONTROL_REJECTION_CALIBRATION_SCHEMA:
+            expected_model_schema = "RADAR-LN3-V15"
+            expected_arm = "control"
+            allowed_dbb_scores = {DBB_KNOWN_PROBABILITY_SCORE}
+        elif self.schema_version == V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA:
+            expected_model_schema = "RADAR-LN3-V15"
+            expected_arm = "treatment"
+            allowed_dbb_scores = {DBB_KNOWN_COSINE_SCORE}
+        else:
+            expected_model_schema = None
+            expected_arm = None
+            allowed_dbb_scores = {DBB_KNOWN_PROBABILITY_SCORE}
+        if self.model_schema_version != expected_model_schema or self.paired_arm != expected_arm:
+            raise ValueError(
+                "strict-open-set calibration model schema/paired arm does not match its calibration schema"
+            )
+        if self.dbb_known_score_name not in allowed_dbb_scores:
+            raise ValueError(
+                f"unsupported strict-open-set DBB knownness score: {self.dbb_known_score_name!r}"
+            )
         if self.cu_score_name != CU_CLUTTER_PROBABILITY_SCORE:
             raise ValueError(f"unsupported V14 Clutter score: {self.cu_score_name!r}")
         if self.calibration_quality_status not in {
@@ -221,15 +251,27 @@ class StrictOpenSetRejectionCalibration:
             ("dbb_accept_known_threshold", self.dbb_accept_known_threshold),
             ("cu_accept_clutter_threshold", self.cu_accept_clutter_threshold),
         ):
-            if not 0.0 < float(value) < 1.0:
-                raise ValueError(f"{name} must be in (0,1)")
+            lower = (
+                -1.0
+                if name == "dbb_accept_known_threshold"
+                and self.dbb_known_score_name == DBB_KNOWN_COSINE_SCORE
+                else 0.0
+            )
+            if not lower < float(value) < 1.0:
+                raise ValueError(f"{name} must be in ({lower},1)")
         for name, value in (
             ("gate_accept_dbb_margin", self.gate_accept_dbb_margin),
             ("dbb_accept_known_margin", self.dbb_accept_known_margin),
             ("cu_accept_clutter_margin", self.cu_accept_clutter_margin),
         ):
-            if not 0.0 <= float(value) < 1.0:
-                raise ValueError(f"{name} must be in [0,1)")
+            upper = (
+                2.0
+                if name == "dbb_accept_known_margin"
+                and self.dbb_known_score_name == DBB_KNOWN_COSINE_SCORE
+                else 1.0
+            )
+            if not 0.0 <= float(value) < upper:
+                raise ValueError(f"{name} must be in [0,{upper})")
         if int(self.min_valid_points) < 1:
             raise ValueError("min_valid_points must be positive")
         if not 0.0 <= float(self.min_track_quality) <= 1.0:
@@ -558,6 +600,7 @@ class StrictOpenSetRejectionPolicy:
         dbb_probabilities: torch.Tensor,
         cu_probabilities: torch.Tensor,
         *,
+        dbb_knownness_scores: torch.Tensor | None = None,
         valid_point_count: int,
         track_quality: float,
         gap_fraction: float,
@@ -573,8 +616,21 @@ class StrictOpenSetRejectionPolicy:
         gate_dbb = float(gate[0].item())
         gate_margin = float((gate[0] - gate[1]).item())
         dbb_id = int(dbb.argmax().item())
-        dbb_top = torch.topk(dbb, k=2).values
-        dbb_confidence = float(dbb[dbb_id].item())
+        if (
+            self.calibration is not None
+            and self.calibration.dbb_known_score_name == DBB_KNOWN_COSINE_SCORE
+            and dbb_knownness_scores is None
+        ):
+            raise ValueError("cosine-knownness calibration requires explicit DBB cosine scores")
+        knownness = dbb if dbb_knownness_scores is None else torch.as_tensor(dbb_knownness_scores, dtype=torch.float32)
+        if knownness.shape != (3,) or not torch.isfinite(knownness).all():
+            raise ValueError("strict-open-set DBB knownness scores must be three finite values")
+        if bool((knownness < -1.0 - 1.0e-6).any()) or bool((knownness > 1.0 + 1.0e-6).any()):
+            raise ValueError("strict-open-set DBB knownness scores must be bounded to [-1,1]")
+        if int(knownness.argmax().item()) != dbb_id:
+            raise ValueError("DBB class logits and knownness scores disagree on the top class")
+        dbb_top = torch.topk(knownness, k=2).values
+        dbb_confidence = float(knownness[dbb_id].item())
         dbb_margin = float((dbb_top[0] - dbb_top[1]).item())
         cu_clutter = float(cu[0].item())
         cu_margin = float((cu[0] - cu[1]).item())
@@ -638,6 +694,22 @@ class StrictOpenSetRejectionPolicy:
         calibration = self.calibration
         if calibration is None:
             raise RuntimeError("V14 rejection was enabled without calibration")
+        dbb_score_is_cosine = calibration.dbb_known_score_name == DBB_KNOWN_COSINE_SCORE
+        dbb_accept_reason = (
+            "dbb_known_cosine_and_gap_accepted"
+            if dbb_score_is_cosine
+            else "dbb_known_probability_and_margin_accepted"
+        )
+        dbb_confidence_below_reason = (
+            "dbb_known_cosine_below_threshold"
+            if dbb_score_is_cosine
+            else "dbb_known_probability_below_threshold"
+        )
+        dbb_margin_below_reason = (
+            "dbb_known_cosine_gap_below_threshold"
+            if dbb_score_is_cosine
+            else "dbb_known_margin_below_threshold"
+        )
         if points < int(calibration.min_valid_points):
             pending = "DBB_PENDING" if diagnostic_route == "DBB" else "CU_PENDING"
             return decision(
@@ -684,7 +756,7 @@ class StrictOpenSetRejectionPolicy:
                     rejected_to_unknown=False,
                     reasons=(
                         "gate_dbb_probability_and_margin_accepted",
-                        "dbb_known_probability_and_margin_accepted",
+                        dbb_accept_reason,
                     ),
                     specialist_id=dbb_id,
                     specialist_confidence=dbb_confidence,
@@ -692,9 +764,9 @@ class StrictOpenSetRejectionPolicy:
                 )
             reject_reasons = ["gate_dbb_probability_and_margin_accepted"]
             if dbb_confidence < float(calibration.dbb_accept_known_threshold):
-                reject_reasons.append("dbb_known_probability_below_threshold")
+                reject_reasons.append(dbb_confidence_below_reason)
             if dbb_margin < float(calibration.dbb_accept_known_margin):
-                reject_reasons.append("dbb_known_margin_below_threshold")
+                reject_reasons.append(dbb_margin_below_reason)
             return decision(
                 decision_state="rejected",
                 gate_action="DBB_ROUTE_ACCEPTED",
@@ -810,7 +882,7 @@ def load_strict_open_set_rejection_calibration(
     *,
     purpose: Literal["deployment", "audit"] = CALIBRATION_PURPOSE_DEPLOYMENT,
 ) -> tuple[StrictOpenSetRejectionCalibration, dict[str, Any]]:
-    """Load V14 calibration with an explicit audit/deployment safety boundary."""
+    """Load a schema-bound strict-open-set calibration with a safety boundary."""
 
     calibration_path = Path(path).resolve()
     payload = json.loads(calibration_path.read_text(encoding="utf-8"))
@@ -834,19 +906,44 @@ def load_strict_open_set_rejection_calibration(
     }
     missing = sorted(required - set(payload))
     if missing:
-        raise ValueError(f"V14 calibration artifact is missing fields: {missing}")
+        raise ValueError(f"strict-open-set calibration artifact is missing fields: {missing}")
+    schema_version = str(payload["schema_version"])
+    is_v15 = schema_version in {
+        V15_CONTROL_REJECTION_CALIBRATION_SCHEMA,
+        V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA,
+    }
+    if is_v15:
+        v15_required = {
+            "model_schema_version",
+            "paired_arm",
+            "calibration_quality_status",
+            "deployment_eligible",
+            "quality_gate",
+        }
+        v15_missing = sorted(v15_required - set(payload))
+        if v15_missing:
+            raise ValueError(f"V15 calibration artifact is missing fields: {v15_missing}")
     provenance = dict(payload["provenance"])
+    expected_prediction_protocol = "nested_out_of_fold" if is_v15 else "out_of_fold"
     if (
         provenance.get("fit_split") != "train"
         or provenance.get("fit_population") != "known_only"
         or provenance.get("grouping") != "parent"
-        or provenance.get("prediction_protocol") != "out_of_fold"
+        or provenance.get("prediction_protocol") != expected_prediction_protocol
         or provenance.get("unknown_training_exposure") != 0
         or provenance.get("unknown_threshold_fit_count") != 0
         or provenance.get("validation_used_for_threshold_fitting") is not False
         or provenance.get("test_used") is not False
     ):
-        raise ValueError("V14 calibration provenance is not known-only train parent-grouped OOF")
+        raise ValueError("strict-open-set calibration provenance is not known-only train parent-grouped OOF")
+    if is_v15 and (
+        provenance.get("epoch_protocol")
+        != "inner_parent_selection_then_outer_train_retrain"
+        or provenance.get("outer_held_out_used_for_normalization") is not False
+        or provenance.get("outer_held_out_used_for_epoch_selection") is not False
+        or int(provenance.get("outer_held_out_prediction_pass_count", -1)) != 1
+    ):
+        raise ValueError("V15 calibration provenance violates the nested OOF execution contract")
     known_parent_count = int(provenance.get("known_parent_count", -1))
     oof_parent_count = int(provenance.get("oof_prediction_parent_count", -2))
     oof_unique_parent_count = int(provenance.get("oof_unique_parent_count", -3))
@@ -884,6 +981,16 @@ def load_strict_open_set_rejection_calibration(
         cu_accept_clutter_margin=float(normalized_payload["cu_accept_clutter_margin"]),
         calibration_quality_status=str(normalized_payload["calibration_quality_status"]),
         deployment_eligible=bool(normalized_payload["deployment_eligible"]),
+        model_schema_version=(
+            None
+            if normalized_payload.get("model_schema_version") is None
+            else str(normalized_payload["model_schema_version"])
+        ),
+        paired_arm=(
+            None
+            if normalized_payload.get("paired_arm") is None
+            else str(normalized_payload["paired_arm"])
+        ),
         min_valid_points=int(normalized_payload["min_valid_points"]),
         min_track_quality=float(normalized_payload["min_track_quality"]),
         max_gap_fraction=float(normalized_payload["max_gap_fraction"]),
@@ -892,7 +999,7 @@ def load_strict_open_set_rejection_calibration(
 
 
 def strict_open_set_calibration_quality(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Derive and verify whether all predeclared V14 OOF quality gates passed."""
+    """Derive or verify all predeclared strict-open-set OOF quality gates."""
 
     schema_version = str(payload.get("schema_version", ""))
     if schema_version not in STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS:
@@ -933,14 +1040,19 @@ def strict_open_set_calibration_quality(payload: Mapping[str, Any]) -> dict[str,
         "all_required_targets_passed": all_required_targets_passed,
         "failure_reasons": failure_reasons,
     }
-    if schema_version == STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA:
+    explicit_quality_schemas = {
+        STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
+        V15_CONTROL_REJECTION_CALIBRATION_SCHEMA,
+        V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA,
+    }
+    if schema_version in explicit_quality_schemas:
         if payload.get("calibration_quality_status") != expected_status:
             raise ValueError("V14 calibration quality status disagrees with OOF diagnostics")
         if payload.get("deployment_eligible") is not all_required_targets_passed:
             raise ValueError("V14 deployment_eligible disagrees with OOF diagnostics")
         if payload.get("quality_gate") != expected_gate:
             raise ValueError("V14 quality_gate disagrees with OOF diagnostics")
-        source = "explicit_v2_verified_against_selection_diagnostics"
+        source = "explicit_quality_verified_against_selection_diagnostics"
     else:
         source = "derived_from_legacy_v1_selection_diagnostics"
     return {
@@ -949,6 +1061,49 @@ def strict_open_set_calibration_quality(payload: Mapping[str, Any]) -> dict[str,
         "quality_gate": expected_gate,
         "quality_status_source": source,
     }
+
+
+def validate_strict_open_set_calibration_model_binding(
+    calibration: StrictOpenSetRejectionCalibration,
+    *,
+    model_schema_version: str,
+    paired_arm: str | None,
+    dbb_known_score_name: str,
+) -> None:
+    """Reject V14/V15, paired-arm or DBB-score calibration mixing."""
+
+    model_schema = str(model_schema_version)
+    arm = None if paired_arm is None else str(paired_arm)
+    score = str(dbb_known_score_name)
+    if model_schema == "RADAR-LN3-V14":
+        allowed_schemas = {
+            STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1,
+            STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA,
+        }
+        expected_arm = None
+        expected_score = DBB_KNOWN_PROBABILITY_SCORE
+    elif model_schema == "RADAR-LN3-V15" and arm == "control":
+        allowed_schemas = {V15_CONTROL_REJECTION_CALIBRATION_SCHEMA}
+        expected_arm = "control"
+        expected_score = DBB_KNOWN_PROBABILITY_SCORE
+    elif model_schema == "RADAR-LN3-V15" and arm == "treatment":
+        allowed_schemas = {V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA}
+        expected_arm = "treatment"
+        expected_score = DBB_KNOWN_COSINE_SCORE
+    else:
+        raise ValueError(
+            "strict-open-set calibration binding requires V14 or a declared V15 paired arm"
+        )
+    if (
+        calibration.schema_version not in allowed_schemas
+        or calibration.model_schema_version != (None if model_schema == "RADAR-LN3-V14" else model_schema)
+        or calibration.paired_arm != expected_arm
+        or calibration.dbb_known_score_name != expected_score
+        or score != expected_score
+    ):
+        raise ValueError(
+            "strict-open-set calibration does not match the evaluated model version, paired arm, or DBB knownness score"
+        )
 
 
 def _normalize_hierarchical_deployment_identity(
@@ -1018,6 +1173,7 @@ def validate_hierarchical_calibration_deployment(
 __all__ = [
     "MAX_CLASS_PROBABILITY_SCORE",
     "CU_CLUTTER_PROBABILITY_SCORE",
+    "DBB_KNOWN_COSINE_SCORE",
     "DBB_KNOWN_PROBABILITY_SCORE",
     "GATE_DBB_PROBABILITY_SCORE",
     "CALIBRATION_PURPOSE_AUDIT",
@@ -1028,6 +1184,9 @@ __all__ = [
     "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA",
     "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMA_V1",
     "STRICT_OPEN_SET_REJECTION_CALIBRATION_SCHEMAS",
+    "V15_CONTROL_REJECTION_CALIBRATION_SCHEMA",
+    "V15_TREATMENT_REJECTION_CALIBRATION_SCHEMA",
+    "ANGULAR_KNOWNNESS_REJECTION_CALIBRATION_SCHEMA",
     "HIERARCHICAL_TASK_NAMES",
     "REJECTION_CALIBRATION_SCHEMA",
     "TRAIN_PARENT_GROUPED_OOF_SOURCE",
@@ -1042,5 +1201,6 @@ __all__ = [
     "load_hierarchical_rejection_calibration",
     "load_strict_open_set_rejection_calibration",
     "strict_open_set_calibration_quality",
+    "validate_strict_open_set_calibration_model_binding",
     "validate_hierarchical_calibration_deployment",
 ]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ from .rejection import (
     HierarchicalRejectionPolicy,
     RejectionPolicy,
     StrictOpenSetRejectionPolicy,
+    validate_strict_open_set_calibration_model_binding,
 )
 from .stable import (
     HierarchicalStableDecision,
@@ -27,6 +29,7 @@ from .stable import (
 from .task_models import (
     HIERARCHICAL_SCHEMA_VERSIONS,
     HIERARCHICAL_CASCADE_SCHEMA_VERSION,
+    ANGULAR_KNOWNNESS_SCHEMA_VERSION,
     KNOWN_BASE_LABELS,
     STRICT_OPEN_SET_SCHEMA_VERSION,
     UNKNOWN_BASE_LABEL,
@@ -34,6 +37,7 @@ from .task_models import (
     LiquidTaskConfig,
     compose_soft_cascade,
     compose_strict_open_set_evidence,
+    is_strict_open_set_schema,
     load_task_checkpoint,
     resolve_project_path,
     verify_task_data_contract,
@@ -109,6 +113,17 @@ def validate_cascade_configs(configs: Mapping[str, LiquidTaskConfig]) -> None:
         raise ValueError("soft cascade task configurations do not share one data contract")
     if len({_shared_model_contract(config) for config in ordered}) != 1:
         raise ValueError("soft cascade task configurations do not share one encoder/dynamics contract")
+    if ordered[0].schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+        paired_contracts = {
+            (
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.paired_seed,
+            )
+            for config in ordered
+        }
+        if len(paired_contracts) != 1:
+            raise ValueError("V15 cascade tasks must belong to one paired arm and initialization protocol")
     if ordered[0].schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         shared_train = {
             (
@@ -164,7 +179,7 @@ class LiquidSoftCascade(nn.Module):
         gate = self.gate(**batch)
         dbb = self.dbb_specialist(**batch)
         cu = self.cu_specialist(**batch)
-        strict_open_set = self.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+        strict_open_set = is_strict_open_set_schema(self.gate.config.schema_version)
         compose = compose_strict_open_set_evidence if strict_open_set else compose_soft_cascade
         sequence_audit = compose(
             gate["sequence_logits"], dbb["sequence_logits"], cu["sequence_logits"]
@@ -188,6 +203,9 @@ class LiquidSoftCascade(nn.Module):
             result.update({
                 "sequence_open_set_evidence": sequence_audit,
                 "window_open_set_evidence": window_audit,
+                "dbb_knownness_sequence_scores": dbb["dbb_knownness_sequence_scores"],
+                "dbb_knownness_window_scores": dbb["dbb_knownness_window_scores"],
+                "dbb_knownness_score_name": dbb["dbb_knownness_score_name"],
             })
         else:
             result.update({
@@ -267,7 +285,7 @@ class OnlineLiquidSoftCascade:
         self.ema_decay = float(ema_decay)
         self.rejection_policy = rejection_policy or RejectionPolicy()
         self.hierarchical_mode = model.gate.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS
-        self.strict_open_set_mode = model.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+        self.strict_open_set_mode = is_strict_open_set_schema(model.gate.config.schema_version)
         if hierarchical_rejection_policy is None:
             self.hierarchical_rejection_policy = (
                 StrictOpenSetRejectionPolicy()
@@ -285,6 +303,16 @@ class OnlineLiquidSoftCascade:
             and not self.hierarchical_rejection_policy.calibration.deployment_eligible
         ):
             raise PermissionError("V14 audit-only calibration cannot enter the online cascade")
+        if (
+            self.strict_open_set_mode
+            and self.hierarchical_rejection_policy.calibration is not None
+        ):
+            validate_strict_open_set_calibration_model_binding(
+                self.hierarchical_rejection_policy.calibration,
+                model_schema_version=model.gate.config.schema_version,
+                paired_arm=model.dbb_specialist.config.train.paired_arm,
+                dbb_known_score_name=model.dbb_specialist.config.model.dbb_knownness_score_name,
+            )
         if self.hierarchical_mode and not self.strict_open_set_mode and not isinstance(
             self.hierarchical_rejection_policy, HierarchicalRejectionPolicy
         ):
@@ -327,6 +355,9 @@ class OnlineLiquidSoftCascade:
         gate_probabilities = torch.softmax(gate["window_logits"], dim=-1)
         dbb_probabilities = torch.softmax(dbb["window_logits"], dim=-1)
         cu_probabilities = torch.softmax(cu["window_logits"], dim=-1)
+        dbb_knownness_scores = dbb.get("dbb_knownness_window_scores")
+        if self.strict_open_set_mode and dbb_knownness_scores is None:
+            raise RuntimeError("strict-open-set online DBB knownness scores are missing")
         window_id = int(probabilities[0].argmax().item())
         action: HierarchicalActionDecision | None = None
         hierarchical_stable: HierarchicalStableDecision | None = None
@@ -339,13 +370,22 @@ class OnlineLiquidSoftCascade:
             self.zero_delta_count += int(int(reason.reshape(-1)[0].item()) == 2)
             track_quality = self.rd_observed_count / self.valid_point_count
             gap_fraction = self.zero_delta_count / max(1, self.valid_point_count - 1)
+            decision_inputs = {
+                "valid_point_count": self.valid_point_count,
+                "track_quality": track_quality,
+                "gap_fraction": min(1.0, gap_fraction),
+            }
+            if self.strict_open_set_mode:
+                decision_inputs["dbb_knownness_scores"] = (
+                    None
+                    if dbb_knownness_scores is None
+                    else dbb_knownness_scores[0].cpu()
+                )
             action = self.hierarchical_rejection_policy.decide(
                 gate_probabilities[0].cpu(),
                 dbb_probabilities[0].cpu(),
                 cu_probabilities[0].cpu(),
-                valid_point_count=self.valid_point_count,
-                track_quality=track_quality,
-                gap_fraction=min(1.0, gap_fraction),
+                **decision_inputs,
             )
             hierarchical_stable = self.hierarchical_stable.update(action)
             decision_state = action.decision_state
@@ -456,7 +496,7 @@ def load_cascade(
     if configs["dbb_cu_gate"].schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
         expected_ranking_key_length = (
             8
-            if configs["dbb_cu_gate"].schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+            if is_strict_open_set_schema(configs["dbb_cu_gate"].schema_version)
             else 9
         )
         config_identity_matches = all(
@@ -515,7 +555,22 @@ def build_cascade(configs: Mapping[str, LiquidTaskConfig], *, device: torch.devi
     """Build one initialized three-task cascade without loading checkpoints."""
 
     validate_cascade_configs(configs)
-    models = {name: LiquidTaskClassifier(configs[name]).to(device) for name in EXPECTED_TASKS}
+    if configs["dbb_cu_gate"].schema_version == ANGULAR_KNOWNNESS_SCHEMA_VERSION:
+        models: dict[str, LiquidTaskClassifier] = {}
+        for name in EXPECTED_TASKS:
+            paired_seed = int(configs[name].train.paired_seed)
+            digest = hashlib.sha256(f"{paired_seed}:{name}".encode("utf-8")).digest()
+            task_seed = int.from_bytes(digest[:8], byteorder="big", signed=False) % (2**31)
+            with torch.random.fork_rng(
+                devices=list(range(torch.cuda.device_count())) if torch.cuda.is_available() else [],
+                enabled=True,
+            ):
+                torch.manual_seed(task_seed)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(task_seed)
+                models[name] = LiquidTaskClassifier(configs[name]).to(device)
+    else:
+        models = {name: LiquidTaskClassifier(configs[name]).to(device) for name in EXPECTED_TASKS}
     return LiquidSoftCascade(
         models["dbb_cu_gate"],
         models["dbb_specialist"],
@@ -531,7 +586,7 @@ def build_cascade_dataset(
     label_scope: str | None = None,
     parent_ids: tuple[str, ...] | list[str] | set[str] | frozenset[str] | None = None,
 ) -> CQ08PointSequenceDataset:
-    strict_open_set = config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION
+    strict_open_set = is_strict_open_set_schema(config.schema_version)
     if strict_open_set:
         if label_scope not in {"known_only", "development_open_set_audit"}:
             raise ValueError("V14 Dataset requires an explicit known_only or development_open_set_audit scope")
@@ -572,7 +627,7 @@ def evaluate_cascade(
     hierarchical_rejection_policy: HierarchicalRejectionPolicy | StrictOpenSetRejectionPolicy | None = None,
     evaluation_scope: str | None = None,
 ) -> dict[str, Any]:
-    if model.gate.config.schema_version == STRICT_OPEN_SET_SCHEMA_VERSION:
+    if is_strict_open_set_schema(model.gate.config.schema_version):
         if hierarchical_rejection_policy is not None and not isinstance(
             hierarchical_rejection_policy, StrictOpenSetRejectionPolicy
         ):
@@ -907,8 +962,8 @@ def evaluate_strict_open_set_cascade(
 ) -> dict[str, Any]:
     """Evaluate V14 without allowing Unknown into any learned metric."""
 
-    if model.gate.config.schema_version != STRICT_OPEN_SET_SCHEMA_VERSION:
-        raise ValueError("strict open-set evaluator requires three V14 task models")
+    if not is_strict_open_set_schema(model.gate.config.schema_version):
+        raise ValueError("strict open-set evaluator requires a strict-open-set task family")
     if evaluation_scope not in {"known_only_checkpoint_selection", "development_open_set_audit"}:
         raise ValueError("unsupported V14 evaluation scope")
     if hasattr(dataset, "frame"):
@@ -972,6 +1027,14 @@ def evaluate_strict_open_set_cascade(
             gate_probs = torch.softmax(output["gate_sequence_logits"], dim=-1)
             dbb_probs = torch.softmax(output["dbb_sequence_logits"], dim=-1)
             cu_probs = torch.softmax(output["cu_sequence_logits"], dim=-1)
+            dbb_knownness_scores = output["dbb_knownness_sequence_scores"]
+            if dbb_knownness_scores.shape != dbb_probs.shape:
+                raise ValueError("strict-open-set DBB knownness score shape mismatch")
+            if (
+                str(output["dbb_knownness_score_name"])
+                != model.dbb_specialist.config.model.dbb_knownness_score_name
+            ):
+                raise ValueError("strict-open-set DBB knownness score name changed during forward")
             evidence = output["sequence_open_set_evidence"]
             for batch_index, parent_id in enumerate(batch["parent_sample_ids"]):
                 length = int(batch["lengths"][batch_index].item())
@@ -988,13 +1051,14 @@ def evaluate_strict_open_set_cascade(
                 for event_index in range(length):
                     gate_event = gate_probs[batch_index, event_index]
                     dbb_event = dbb_probs[batch_index, event_index]
+                    dbb_known_event = dbb_knownness_scores[batch_index, event_index]
                     cu_event = cu_probs[batch_index, event_index]
                     audit_event = evidence[batch_index, event_index]
                     gate_pred = int(gate_event.argmax().item())
                     dbb_pred = int(dbb_event.argmax().item())
                     cu_pred = int(cu_event.argmax().item())
                     pred_id = dbb_pred if gate_pred == 0 else (3 if cu_pred == 0 else 4)
-                    dbb_top = torch.topk(dbb_event, k=2).values
+                    dbb_top = torch.topk(dbb_known_event, k=2).values
                     common = {
                         "true_id": true_id,
                         "parent_sample_id": parent_id,
@@ -1007,8 +1071,9 @@ def evaluate_strict_open_set_cascade(
                         "diagnostic_gate_route": "DBB" if gate_pred == 0 else "CU",
                         "gate_dbb_probability": float(gate_event[0].item()),
                         "gate_margin": float((gate_event[0] - gate_event[1]).item()),
-                        "dbb_known_confidence": float(dbb_event[dbb_pred].item()),
+                        "dbb_known_confidence": float(dbb_known_event[dbb_pred].item()),
                         "dbb_known_margin": float((dbb_top[0] - dbb_top[1]).item()),
+                        "dbb_knownness_score_name": str(output["dbb_knownness_score_name"]),
                         "clutter_accept_confidence": float(cu_event[0].item()),
                         "clutter_accept_margin": float((cu_event[0] - cu_event[1]).item()),
                         "audit_evidence": {
@@ -1042,6 +1107,7 @@ def evaluate_strict_open_set_cascade(
                             gate_event.cpu(),
                             dbb_event.cpu(),
                             cu_event.cpu(),
+                            dbb_knownness_scores=dbb_known_event.cpu(),
                             valid_point_count=valid_points,
                             track_quality=rd_observed_count / valid_points,
                             gap_fraction=min(1.0, zero_delta_count / max(1, valid_points - 1)),
@@ -1193,7 +1259,7 @@ def evaluate_strict_open_set_cascade(
             "unknown_used_for_selection": False,
         }
     return {
-        "schema_version": STRICT_OPEN_SET_SCHEMA_VERSION,
+        "schema_version": model.gate.config.schema_version,
         "split": split_name,
         "evaluation_scope": evaluation_scope,
         "dataset_parent_count": len(dataset),

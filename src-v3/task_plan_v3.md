@@ -1087,3 +1087,143 @@
 验收条件：当前V14失败calibration无法从默认loader、默认报告CLI或在线状态接口进入部署动作；显式audit仍可复现冻结development结果并清楚标记不可部署。已满足。
 版本策略：模型、输入、split、阈值和checkpoint均未改变，继续冻结V14；calibration协议内部递增为v2。历史v1只读兼容，不覆盖、不迁移hash。
 阻塞条件：部署安全语义缺口已修复，但模型性能瓶颈未改变；下一阶段仍需在train/OOF范围设计DBB可拒识表征和Clutter覆盖实验，当前V14不得部署。
+
+## Stage 054 - V15 DBB角度Knownness单因素与嵌套OOF准备
+
+目标：在冻结V14严格open-set语义、数据范围、液态容量和三层动作契约的前提下，只改变DBB specialist的读出几何，验证“显式归一化紧致DBB表征”能否改善known-only OOF上的DBB可接受性；同时修复V14折模型固定epoch 20而正式模型使用best epoch 12造成的校准尺度协议不一致。Unknown继续只作为冻结开放集评估真值，任何训练、归一化、checkpoint选择、OOF或阈值拟合暴露必须为0。
+
+前置依赖：Stage 052确认V14 DBB knownness阈值=`1e-7`、冻结development Unknown FAR=`0.733333`；Stage 053已阻止该失败校准进入部署；Finding F157确认OOF固定epoch 20与正式best epoch 12不一致。V14正式checkpoint、OOF、calibration和development报告全部冻结只读。
+
+状态：实施准备、正式Control/Treatment训练、两臂5折嵌套OOF和known-only校准均已完成。V15保持严格known-only open-set；Unknown在normalization、optimizer、checkpoint selection、OOF和阈值拟合中的暴露均为0。预注册主终点未通过：Control/Treatment的DBB knownness最弱Precision/Recall分别为`0.930041/0.915323`，两臂均低于`0.95`，Treatment还使known FRR由`0.016815`升至`0.032641`。两份校准均为`audit_only`且`deployment_eligible=false`。development Unknown一次冻结审计、test、stable、P95和部署均未执行。
+
+最小子任务：
+
+- [x] 冻结研究问题：V15只检验DBB specialist普通线性softmax读出与归一化角度原型读出的差异，不改变Gate、CU、液态隐藏维度、TR/RD输入、dt dynamics、采样、class weight、prefix权重或epoch预算。
+- [x] 冻结严格open-set边界：Unknown不得成为类、prototype、loss target、hard negative、normalization来源、checkpoint selection样本、OOF样本或阈值拟合样本；15个development Unknown不得参与V15设计选择或调参。
+- [x] 冻结配对设计：V15-Control保留普通线性DBB头，V15-Treatment仅使用L2归一化embedding/类原型与固定角度margin；两臂必须逐task独立派生初始化并核验非干预参数逐位一致。
+- [x] 冻结归因指标：primary为known train parent-grouped OOF的DBB knownness最弱Precision/Recall及known FRR；secondary为DBB三类P/R/F1、Gate/Clutter护栏、parent-final五动作审计。Unknown development结果只能在模型和阈值全部冻结后执行一次，不参与胜负判定。
+- [x] 冻结最小改进规则：Treatment必须在不降低Gate、Clutter、Drone/Bird护栏的前提下，提高DBB knownness最弱P/R；若Control/Treatment均未达到DBB P/R≥0.95，则只报告效应和失败，不把development Unknown结果用于继续搜索margin、scale或阈值。
+- [x] 冻结V15版本理由：DBB输出头、训练logit几何、checkpoint/model contract及OOF选优协议发生实质变化，使用下一个全局版本V15；V3 index/split/TR/RD tensor、V14 known-only normalization和V14 parent assignment内容不变时只读复用，不伪造新数据版本。
+- [x] 将严格open-set判定从单一`schema==V14`改为显式V14/V15 family，保证V15不会静默退回V13/闭集路径，且V13/V14历史checkpoint仍严格隔离。
+- [x] 在配置/模型契约中加入DBB readout mode、embedding dim、固定scale、固定angular margin和knownness score语义；仅Treatment允许角度头，Control保持线性头。
+- [x] 实现DBB归一化角度原型头；训练时只对真实DBB final/prefix状态施加固定target margin，推理时输出无margin cosine logits和显式top-cosine/top-gap knownness，不以训练margin污染部署分数。
+- [x] 修改联合loss、离线评估、在线接口、OOF records与校准，使V15 DBB knownness消费显式角度分数；Gate/CU及soft evidence组合继续使用DBB三分类推理logits。
+- [x] 建立逐task派生初始化协议，证明V15 Control/Treatment的Gate、CU和DBB非读出参数逐位一致；Treatment新增头参数不得改变其他模型的RNG初始化。
+- [x] 创建V15 Control/Treatment三配置、V15模型/动作契约和隔离artifact路径；检查`data/`、配置与跟踪文件中的最高版本、内容和SHA-256，记录复用或递增原因。
+- [x] 新建V15嵌套parent-grouped OOF协议：外层held-out不参与归一化、训练或选epoch；只在outer-train内确定epoch，随后以同一outer-train从冻结初始状态重训到该epoch，外层held-out仅前向一次。
+- [x] 明确嵌套epoch selection不得使用Unknown、development validation或test；输出每折selection population、重训epoch、held-out forward count和全部parent/hash证据；新增outer-forward预写claim，崩溃后禁止自动重试该held-out前向。
+- [x] 增加focused负向测试：Unknown暴露、V14/V15 checkpoint/calibration混用、角度margin用于推理、Treatment改变非干预初始化、held-out参与epoch selection、重复held-out前向和缺失cosine score均被拒绝。
+- [x] 运行compileall、src-v3静态隔离、focused loss/gradient/finite/checkpoint/offline-online测试，以及不覆盖正式artifact的CPU有界forward；CUDA短Smoke未执行，避免在未创建的正式V15实验前扩大运行范围。
+- [x] 覆盖更新三个跟踪文件并生成V15 training-readiness；只输出用户手动执行的Control/Treatment正式训练和后续OOF命令，不自动启动长时任务。
+- [ ] Clutter parent/子流型覆盖审计：作为独立数据路线后续执行，不与本轮DBB头实验同时改变；只允许CQ08/raw且不得复制window伪造support。
+- [x] 正式Control/Treatment训练：两臂各20 epoch完成，Control best epoch=`19`，Treatment best epoch=`6`；Unknown训练暴露和正式训练期间development Unknown访问均为0。
+- [x] 完整嵌套OOF与known-only阈值拟合：两臂各5/5折，1011个known train parent各自恰好一次held-out前向；每折Unknown OOF、validation和test访问均为0，Control/Treatment parent集合完全一致。
+- [x] 按预注册主终点完成Control/Treatment判定：Treatment没有提高DBB最弱P/R（`0.930041→0.915323`），known FRR恶化（`0.016815→0.032641`），因此拒绝“角度头改善DBB knownness”的主假设；不以Clutter次级改善覆盖该失败。
+- [ ] 冻结development Unknown一次审计、test、stable、P95和部署：均未执行。
+
+实验假设：若V14的失败主要来自普通softmax没有显式类内紧致/角度边界，则Treatment在known-only OOF上应提高DBB knownness最弱P/R并保持DBB三分类与Gate/CU护栏；若只提高训练分离度、未改善外层OOF，或通过增加known FRR换取表面Precision，则拒绝该Treatment。该假设不承诺改善Unknown，因为Unknown从未参与学习或选择。
+
+版本与数据策略：全局模型/配置版本递增为V15；V3 index与split、V14 known-only normalization、原TR/RD tensor以及parent assignment在内容未变时复用并记录原SHA-256。因模型输出/loss/checkpoint与OOF execution contract变化，新建V15模型/动作契约、三配置、checkpoint schema、OOF execution contract和artifact目录；不得覆盖V14文件。
+
+阻塞条件：在strict-open-set family、角度分数训练/推理分离、配对初始化、嵌套OOF隔离和focused Smoke全部通过前，V15不能进入正式训练；V15 OOF门槛失败时不能进入deployment，development Unknown也不得用于迭代调参。
+
+## Stage 055 - V15角度Knownness实施准备与人工执行冻结
+
+目标：完成V15 Control/Treatment训练、嵌套OOF和校准的可验证执行准备；严格保持Unknown零学习暴露、角度头单因素、冻结development Unknown和test封存。不自动执行正式训练、五折OOF、阈值拟合或development审计。
+
+前置依赖：Stage 054设计冻结；V15 experiment contract SHA-256=`c86626be093e3d32b4fdfb268fdbd1ddc8c72f498e4802b6c4b05c5d2b71597`，nested OOF contract SHA-256=`bbed0a99a8623660b30b5d823e82eb5eed6165a9d84b1e2eb97ac8ca43b20326`；V14 artifact、OOF、calibration和development report只读冻结。
+
+状态：正式Control/Treatment训练、两臂各5折嵌套OOF及known-only校准均已完成并复核。Control fold 02曾在outer retrain中断，后续从已确认安全的epoch边界恢复，最终所有10个outer held-out prediction/claim齐全。两臂校准均因Gate、DBB knownness和Clutter三组件目标未全部通过而标记`audit_only/deployment_eligible=false`。development Unknown一次冻结审计、test、stable、P95和部署仍未执行。
+
+最小子任务：
+
+- [x] 完成V15 strict-open-set family、DBB angular prototype readout、margin仅训练期应用、Control/Treatment独立calibration schema以及checkpoint/model binding。
+- [x] 修复嵌套OOF合同二次构建误判：历史`write_status`仅视为运行时元数据，不改写既有合同或SHA-256。
+- [x] 让`train.cascade`在V15正式训练结束时不读取development Unknown；训练摘要明确记录`development_unknown_access_count_during_formal_training=0`。
+- [x] 实现`train.angular_knownness_oof`的inner selection→冻结初始化outer retrain→outer held-out单次前向；每次held-out前写入claim，若中断且不存在prediction则fail-closed，禁止自动重跑。
+- [x] 实现`report.angular_knownness_oof`：聚合每臂5折、核验1011 known train parent恰好一次、校验fold派生config/hash/claim、只用known OOF拟合对应arm校准并绑定正式三checkpoint。
+- [x] 新增`smoke.angular_knownness_contract_test`，验证margin生效且不污染推理、Unknown泄漏拒绝、paired初始化、offline/online cosine一致、calibration arm/score隔离、nested held-out/重复前向拒绝。
+- [x] 新增`src-v3/scripts/v15_angular_knownness_pipeline.ps1`；`-PreflightOnly`完成幂等合同、focused和静态隔离检查，默认模式才依序执行人工授权的formal→OOF→calibration。
+- [x] 运行全`src-v3` compileall、V15 focused、V14 strict-open-set回归、静态隔离和PowerShell 5.1 preflight；均通过。
+- [x] 用户手动正式训练：Control与Treatment各20 epoch均完成；Control best epoch=`19`、Treatment best epoch=`6`，两臂`global_step=10120`，Unknown训练暴露与development Unknown访问均为`0`。
+- [x] 用户手动完成两臂嵌套5折OOF：每臂fold parent数为`203/203/203/201/201`，合计1011且unique=1011；每折held-out前向次数为1，Unknown OOF、validation和test访问为0。
+- [x] 完成每臂known-only校准并绑定正式三checkpoint：Control calibration SHA-256=`f95b08ae0f14abe4715be70b42f07eb237480c5039d924ccdfcea02883145c4b`；Treatment SHA-256=`d29b04e7a900e725329d1e29f22ecd381d3407ddaa7b5fadcc795458780fee06`。
+- [x] 完成V15配对结果判定：Control DBB Macro-F1=`0.955973`、最弱P/R=`0.930041`、coverage=`1.0`；Treatment DBB Macro-F1=`0.950422`、最弱P/R=`0.915323`、coverage=`0.983607`。Treatment不满足预注册最小改进规则。
+- [x] 核实用户观察到的`0.963904` DBB Macro-F1：它来自Control outer-04 inner-selection epoch 20、support=196的单折快照；该折冻结epoch 14，因为epoch 20的Clutter/CU产品护栏更差。该快照不是1011-parent OOF聚合结果，也未满足Bird/Balloon Recall均≥0.95。
+- [ ] 冻结development Unknown一次审计、test、P95和部署，未执行。
+- [x] 修复OOF阶段预检：`oof/calibrate`不再执行会拒绝非空formal artifact的可写`build.angular_knownness`；改用`--verify-only`核验冻结V15配置/契约，并以UTF-8读取正式训练摘要以兼容Windows PowerShell 5.1。
+- [x] 只读核验V15 OOF中断恢复安全性：Control fold 02未生成held-out forward claim或prediction，inner selection已冻结；outer retrain的`joint_last_model.pt`保存第11个epoch完成状态，恢复时仅重做第12个训练epoch，随后才允许唯一held-out forward。
+
+验证命令：`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v15_angular_knownness_pipeline.ps1 -PreflightOnly`。
+
+产物：V15六份配置、两份数据/OOF契约、两臂正式三checkpoint及joint checkpoint、两臂各5折prediction/forward claim、两份正式checkpoint绑定的strict-open-set calibration、focused smoke和PowerShell执行入口。development Unknown审计报告、test、stable和P95产物仍不存在。
+
+验收条件：Unknown不得进入模型、loss、normalization、checkpoint selection、OOF或threshold fitting；Control/Treatment不混用checkpoint或calibration；outer held-out不被用于normalization/epoch selection且只允许一次最终前向；均已在训练前focused检查通过。
+
+是否需要数据重建：否；只读复用V3 index/split和V14 known-only normalization，V15只新增模型/OOF执行契约。
+
+是否需要smoke：需要，已完成focused CPU contract；CUDA bounded smoke未执行。
+
+是否需要正式训练：已由用户手动完成；Control摘要SHA-256=`9b1be7e2ac70014920ea6da13cf03ffd5a89498565aace16c4038d3fdfc28570`，Treatment摘要SHA-256=`ac4d2b94aa8fc8639909b69bd588566a610a5eb3c29770b0d4823cdfc0091803`。
+
+阻塞条件：V15预注册DBB knownness主终点失败，Gate与Clutter目标也未通过；两份校准均不可部署。角度Treatment虽使known-only最终动作Macro-F1从`0.793345`升至`0.823156`、Clutter Recall从`0.314286`升至`0.428571`，但4/5折选择epoch不同，且联合全模型梯度裁剪使非干预Gate/CU训练状态分叉，不能把该次级收益直接归因于角度几何。development Unknown不得用于继续搜索margin、scale、epoch或阈值。
+
+## Stage 056 - V15嵌套OOF结果审查与下一阶段冻结
+
+目标：在不读取development Unknown和test的前提下，完成V15 Control/Treatment主终点判定、单折高分语义澄清、配对归因审查和下一阶段决策冻结。
+
+前置依赖：Stage 055两臂formal、10个outer held-out prediction/claim及两份known-only calibration已完成；experiment contract与nested OOF contract SHA-256分别为`c86626be093e3d32b4fdfb268fdbd1ddc8c72f498e4802b6c4b05c5d2b71597`和`bbed0a99a8623660b30b5d823e82eb5eed6165a9d84b1e2eb97ac8ca43b20326`。
+
+状态：已完成结果审查和主终点判定；性能未达到部署门槛，后续路线尚未实施。
+
+最小子任务：
+
+- [x] 独立展开两臂10份prediction JSON，确认每臂1011个known parent唯一覆盖、跨臂parent集合差异为0、每折held-out前向为1，Unknown/validation/test暴露均为0。
+- [x] 生成并只读复核Control/Treatment校准；两者均为`audit_only`，Gate、DBB knownness、Clutter三组件均未全通过目标。
+- [x] 报告预注册primary：Treatment DBB最弱P/R较Control下降`0.014719`，known FRR增加`0.015826`，角度knownness候选按预注册规则不保留为当前改进方案。
+- [x] 报告secondary：Treatment accepted accuracy提高`0.008116`，known-action Macro-F1提高`0.029811`，Clutter F1提高`0.114035`，但overall known accuracy下降`0.006924`，Drone Recall下降`0.028689`。
+- [x] 完成parent配对诊断：Treatment DBB knownness拒绝16个DBB parent，其中10个raw误分类、6个raw正确；说明gap具有一定错误富集能力，但代价是拒掉正确known，尚未形成满足0.95门槛的边界。
+- [x] 完成known-only排序诊断：Treatment低cosine-gap识别raw DBB错误的ROC-AUC=`0.918093`、AP=`0.418002`，但Control低softmax-gap ROC-AUC=`0.919322`、AP=`0.331366`；角度头改善极低gap区域的错误浓度，没有改善总体ROC排序或最终P/R门槛。
+- [x] 完成归因护栏：两臂只有outer fold 04选择相同epoch；同epoch下Gate/CU参数也已分叉。训练日志抽样中Control/Treatment `grad>100`分别4/220与39/220，而代码对全模型统一`clip_grad_norm_`，因此DBB角度损失会间接改变Gate/CU更新尺度。
+- [x] 完成统计谬误扫描：禁止以单折inner快照替代外层OOF，禁止忽略Clutter低base rate，禁止从accepted subset推断全体性能，禁止把联合训练关联差异写成角度头直接因果收益；11/11类型已检查，主要风险为look-elsewhere、base-rate neglect、selection/survivorship和因果归因。
+- [ ] 实施下一候选：未执行。优先候选为将DBB角度knownness实验改成真正隔离的DBB specialist单任务/冻结Gate-CU训练，或先进行Clutter parent/子流型覆盖审计；一次只能选一个主要变量。
+- [ ] development Unknown一次冻结审计：未执行。由于两臂primary均失败，该审计若执行只能描述失败候选的开放集行为，不得用于选择或调参。
+- [ ] test、stable、P95、部署：未执行。
+
+验收条件：V15主终点、次终点、单折快照、OOF聚合、阈值来源和归因限制均已区分；没有把Unknown、test或未执行指标补写为结果。已满足。
+
+是否达到训练/部署状态：代码与OOF执行链可复现，但当前模型不达到部署状态；无需重复V15训练。下一实验需先冻结单一问题定义和归因隔离方式。
+
+阻塞条件：DBB最弱P/R、Gate CU和Clutter均未达门槛；联合优化使非干预模块分叉；Clutter仅35个known train parent。V15不得进入test、stable、P95或部署。
+
+## Stage 057 - V15测试冻结与三层产品契约失效复核
+
+目标：按`.rules`在进入V16修复前保存V15实现、配置、focused测试、正式训练和两臂nested OOF的可复现快照；同时明确V15回答的是known-only DBB knownness研究问题，不是当前冻结的“Gate识别DBB/CU、DBB三分类、CU真实Clutter/Unknown二分类”产品问题，禁止继续把V15指标解释为真实CU或五类产品性能。
+
+前置依赖：Stage 056已完成两臂正式训练和两臂5/5 nested OOF；用户随后提供代码审查，要求暂停V15产品路线，修复真实CU标签、分层路由、split、dt质量、监督/评估单位和summary语义后，再分别训练Gate、DBB specialist与CU specialist，暂不进行完整级联联合训练。
+
+状态：V15实验执行完整性已复核，产品契约失效已确认。V15冻结为“known-only角度knownness诊断、不可作为产品候选”；V16实现、数据重建、三任务独立训练和评估尚未执行。
+
+最小子任务：
+
+- [x] 复核V15 Control/Treatment正式训练摘要：两臂均完成20 epoch；Control/Treatment best epoch分别为`19/6`，摘要SHA-256分别为`9b1be7e2ac70014920ea6da13cf03ffd5a89498565aace16c4038d3fdfc28570`和`ac4d2b94aa8fc8639909b69bd588566a610a5eb3c29770b0d4823cdfc0091803`。
+- [x] 复核两臂nested OOF当前真实状态：Control与Treatment均为5/5折，10份prediction和forward claim均存在；更早“Treatment仅3/5”的审查状态已经过期，不写入最终冻结结论。
+- [x] 复核V15 CU训练目标：输出为`CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE`，负类来自Drone/Bird/Balloon，UnknownTarget被loss、normalization、OOF和阈值拟合排除；该指标不能解释为Clutter/Unknown二分类。
+- [x] 复核V15动作路由：Gate接受DBB但DBB knownness未通过时直接产生`UNKNOWN_REJECTED`，没有进入CU specialist；与当前产品设计要求的“DBB不接受时回退CU，再由CU判Clutter/Unknown”不一致。
+- [x] 复核V15训练、checkpoint选择、nested OOF和calibration均为known-only；development Unknown、test、stable、P95和部署均未执行，因此V15不能输出真实Unknown Recall、FAR、FRR或五类产品放行结论。
+- [x] 复核V3 split仅按`track_id`隔离；CQ08 manifest含1550条记录和45个重复capture组。独立hash核验确认1339/train与1490/val、1343/val与1494/train分别共享capture、raw SHA-256和RD NPZ SHA-256，现有validation存在同源暴露风险。
+- [x] 复核10个跨标签重复capture：每组raw SHA-256和RD NPZ SHA-256均不相同，当前没有“跨标签完全等价内容”证据，不申请改标签；V16仍按capture整体同split隔离。
+- [x] 复核offline/online `gap_fraction`把`tr_dt_reason==2`的同秒观测累计为gap；该reason在V3契约中是秒级精度下的合法bounded observation，不是缺帧。
+- [x] 复核V15主损失以parent-final为主、prefix仅0.10辅助且checkpoint只按parent产品护栏选优；prefix/window、parent-final和stable没有形成同一验收协议。
+- [x] 复核训练摘要无条件写`status=passed`；Control/Treatment实际产品护栏仅`1/4`和`0/4`，流程完成与性能达标语义存在混淆。
+- [x] 冻结V15为非产品诊断版本；保留实现、配置、实验/OOF契约、focused测试和结果来源，不修改checkpoint、calibration或历史指标。
+- [x] 运行V15 angular focused、V14 strict-open-set focused、历史causal cascade回归、全`src-v3` compileall、静态导入隔离、V15 OOF只读preflight和`git diff --check`；最终均通过。静态隔离最初两次因工作目录和参数名调用错误未执行，按实际CLI `--root`重跑通过，不属于代码失败。
+- [ ] 建立V16 capture/content provenance、无跨split等价组的新index/split、全train normalization和三任务数据契约；未执行。
+- [ ] 修复真实Gate/DBB/CU独立训练、独立checkpoint和独立评估入口；未执行。
+- [ ] V16三任务正式训练、完整级联、OOF拒识校准、development/test、stable和P95；均未执行。
+
+验收条件：V15代码与实验结果可复现，但所有产品性能解释均明确失效；V16不得加载V15 normalization、checkpoint或calibration，不得沿用V3存在同源跨split暴露的split宣称泛化。
+
+是否达到训练状态：V15无需重训且不可部署；V16尚未达到训练状态。
+
+阻塞条件：V16必须先完成provenance分组、真实Clutter/Unknown监督、三任务独立loss/checkpoint、同秒非gap语义和流程/性能状态分离。任何跨标签完全等价内容若存在且未经人工政策裁决，必须阻止正式训练。

@@ -13,10 +13,13 @@ from . import LABELS
 from .cascade import EXPECTED_TASKS, LiquidSoftCascade, validate_cascade_configs
 from .data import CQ08PointSequenceDataset, build_point_dataloader
 from .task_models import (
+    DBB_KNOWNNESS_COSINE,
+    DBB_KNOWNNESS_PROBABILITY,
     KNOWN_BASE_LABELS,
     STRICT_OPEN_SET_SCHEMA_VERSION,
     UNKNOWN_BASE_LABEL,
     LiquidTaskConfig,
+    is_strict_open_set_schema,
     task_config_identity_sha256,
 )
 
@@ -329,8 +332,8 @@ def predict_oof_parent_final(
     batch_size: int,
     fold_id: int,
 ) -> list[dict[str, Any]]:
-    if model.gate.config.schema_version != STRICT_OPEN_SET_SCHEMA_VERSION:
-        raise ValueError("OOF prediction requires a V14 strict-open-set cascade")
+    if not is_strict_open_set_schema(model.gate.config.schema_version):
+        raise ValueError("OOF prediction requires a strict-open-set cascade")
     if UNKNOWN_BASE_LABEL in set(dataset.frame["label_name"].astype(str)):
         raise ValueError("UnknownTarget entered V14 OOF held-out prediction")
     loader = build_point_dataloader(dataset, batch_size=batch_size, shuffle=False)
@@ -356,6 +359,13 @@ def predict_oof_parent_final(
             gate = torch.softmax(output["gate_sequence_logits"], dim=-1)
             dbb = torch.softmax(output["dbb_sequence_logits"], dim=-1)
             cu = torch.softmax(output["cu_sequence_logits"], dim=-1)
+            dbb_knownness = output["dbb_knownness_sequence_scores"]
+            dbb_score_name = str(output["dbb_knownness_score_name"])
+            if dbb_knownness.shape != dbb.shape or dbb_score_name not in {
+                DBB_KNOWNNESS_PROBABILITY,
+                DBB_KNOWNNESS_COSINE,
+            }:
+                raise ValueError("OOF DBB knownness output violates its score contract")
             for index, parent_id in enumerate(batch["parent_sample_ids"]):
                 length = int(batch["lengths"][index].item())
                 true_id = int(batch["labels"][index].item())
@@ -365,8 +375,11 @@ def predict_oof_parent_final(
                 gate_final = gate[index, final_index]
                 dbb_final = dbb[index, final_index]
                 cu_final = cu[index, final_index]
-                dbb_top = torch.topk(dbb_final, k=2)
-                dbb_id = int(dbb_top.indices[0].item())
+                dbb_id = int(dbb_final.argmax().item())
+                dbb_known_final = dbb_knownness[index, final_index]
+                dbb_known_top = torch.topk(dbb_known_final, k=2)
+                if int(dbb_known_top.indices[0].item()) != dbb_id:
+                    raise ValueError("OOF DBB logits and knownness scores disagree on the top class")
                 rd_observed = int(
                     (tensors["rd_quality"][index, :length, 0] >= 0.5).sum().item()
                 )
@@ -384,8 +397,11 @@ def predict_oof_parent_final(
                     "gate_margin": float((gate_final[0] - gate_final[1]).item()),
                     "dbb_pred_id": dbb_id,
                     "dbb_pred_name": LABELS[dbb_id],
-                    "dbb_top_probability": float(dbb_top.values[0].item()),
-                    "dbb_top_margin": float((dbb_top.values[0] - dbb_top.values[1]).item()),
+                    "dbb_knownness_score_name": dbb_score_name,
+                    "dbb_known_confidence": float(dbb_known_top.values[0].item()),
+                    "dbb_known_margin": float(
+                        (dbb_known_top.values[0] - dbb_known_top.values[1]).item()
+                    ),
                     "cu_clutter_probability": float(cu_final[0].item()),
                     "cu_clutter_margin": float((cu_final[0] - cu_final[1]).item()),
                     "rd_observed_fraction": rd_observed / length,
@@ -393,11 +409,14 @@ def predict_oof_parent_final(
                     "unknown_is_model_class": False,
                     "unknown_training_exposure": 0,
                 }
+                if dbb_score_name == DBB_KNOWNNESS_PROBABILITY:
+                    record["dbb_top_probability"] = record["dbb_known_confidence"]
+                    record["dbb_top_margin"] = record["dbb_known_margin"]
                 numeric = [
                     record["gate_dbb_probability"],
                     record["gate_margin"],
-                    record["dbb_top_probability"],
-                    record["dbb_top_margin"],
+                    record["dbb_known_confidence"],
+                    record["dbb_known_margin"],
                     record["cu_clutter_probability"],
                     record["cu_clutter_margin"],
                     record["rd_observed_fraction"],
@@ -484,13 +503,15 @@ def _dbb_acceptance_metrics(
     *,
     probability_threshold: float,
     margin_threshold: float,
+    confidence_field: str = "dbb_top_probability",
+    margin_field: str = "dbb_top_margin",
 ) -> dict[str, Any]:
     dbb_records = [record for record in records if int(record["true_id"]) < 3]
     if not dbb_records:
         raise ValueError("V14 OOF DBB calibration has no DBB parent")
     accepted = [
-        float(record["dbb_top_probability"]) >= float(probability_threshold)
-        and float(record["dbb_top_margin"]) >= float(margin_threshold)
+        float(record[confidence_field]) >= float(probability_threshold)
+        and float(record[margin_field]) >= float(margin_threshold)
         for record in dbb_records
     ]
     rows: list[dict[str, Any]] = []
@@ -536,7 +557,13 @@ def _dbb_acceptance_metrics(
     }
 
 
-def _quantile_candidates(values: np.ndarray, *, maximum: int = 65) -> list[float]:
+def _quantile_candidates(
+    values: np.ndarray,
+    *,
+    maximum: int = 65,
+    lower: float = 0.0,
+    upper: float = 1.0 - 1.0e-7,
+) -> list[float]:
     array = np.asarray(values, dtype=np.float64)
     if array.ndim != 1 or array.size == 0 or not np.isfinite(array).all():
         raise ValueError("V14 OOF threshold candidates require finite scores")
@@ -544,7 +571,9 @@ def _quantile_candidates(values: np.ndarray, *, maximum: int = 65) -> list[float
         candidates = np.unique(array)
     else:
         candidates = np.quantile(array, np.linspace(0.0, 1.0, maximum))
-    return sorted({float(np.clip(value, 0.0, 1.0 - 1.0e-7)) for value in candidates})
+    if not np.isfinite([lower, upper]).all() or lower >= upper:
+        raise ValueError("OOF threshold candidate bounds are invalid")
+    return sorted({float(np.clip(value, lower, upper)) for value in candidates})
 
 
 def _select_binary_boundary(
@@ -620,18 +649,50 @@ def _select_dbb_boundary(
     records: list[dict[str, Any]],
     *,
     target: float,
+    score_name: str = DBB_KNOWNNESS_PROBABILITY,
 ) -> dict[str, Any]:
     dbb_records = [record for record in records if int(record["true_id"]) < 3]
-    probabilities = np.asarray(
-        [float(record["dbb_top_probability"]) for record in dbb_records],
+    if score_name == DBB_KNOWNNESS_PROBABILITY:
+        confidence_field = "dbb_top_probability"
+        margin_field = "dbb_top_margin"
+        confidence_floor = 1.0e-7
+        confidence_bounds = (0.0, 1.0 - 1.0e-7)
+        margin_bounds = (0.0, 1.0 - 1.0e-7)
+    elif score_name == DBB_KNOWNNESS_COSINE:
+        confidence_field = "dbb_known_confidence"
+        margin_field = "dbb_known_margin"
+        confidence_floor = -1.0 + 1.0e-7
+        confidence_bounds = (-1.0 + 1.0e-7, 1.0 - 1.0e-7)
+        margin_bounds = (0.0, 2.0 - 1.0e-7)
+    else:
+        raise ValueError(f"unsupported DBB OOF knownness score: {score_name!r}")
+    observed_scores = {str(record.get("dbb_knownness_score_name", score_name)) for record in records}
+    if observed_scores != {score_name}:
+        raise ValueError("OOF records mix DBB knownness score semantics")
+    confidences = np.asarray(
+        [float(record[confidence_field]) for record in dbb_records],
         dtype=np.float64,
     )
     margins = np.asarray(
-        [float(record["dbb_top_margin"]) for record in dbb_records],
+        [float(record[margin_field]) for record in dbb_records],
         dtype=np.float64,
     )
-    probability_candidates = sorted({1.0e-7, *_quantile_candidates(probabilities)})
-    margin_candidates = sorted({0.0, *_quantile_candidates(margins)})
+    probability_candidates = sorted({
+        confidence_floor,
+        *_quantile_candidates(
+            confidences,
+            lower=confidence_bounds[0],
+            upper=confidence_bounds[1],
+        ),
+    })
+    margin_candidates = sorted({
+        0.0,
+        *_quantile_candidates(
+            margins,
+            lower=margin_bounds[0],
+            upper=margin_bounds[1],
+        ),
+    })
     best: dict[str, Any] | None = None
     best_key: tuple[float, ...] | None = None
     candidate_count = 0
@@ -642,6 +703,8 @@ def _select_dbb_boundary(
                 records,
                 probability_threshold=probability_threshold,
                 margin_threshold=margin_threshold,
+                confidence_field=confidence_field,
+                margin_field=margin_field,
             )
             pr_values = [
                 float(row[field])
@@ -672,6 +735,9 @@ def _select_dbb_boundary(
                         "lexicographic known-only OOF finite grid: passed P/R count, "
                         "normalized floor, raw floor, Macro-F1, coverage, then less restrictive boundaries"
                     ),
+                    "dbb_knownness_score_name": score_name,
+                    "confidence_field": confidence_field,
+                    "margin_field": margin_field,
                 }
     if best is None:
         raise RuntimeError("V14 OOF DBB boundary search produced no candidate")
@@ -690,10 +756,21 @@ def summarize_known_oof_actions(
     dbb_margin_threshold: float,
     cu_probability_threshold: float,
     cu_margin_threshold: float,
+    dbb_score_name: str = DBB_KNOWNNESS_PROBABILITY,
 ) -> dict[str, Any]:
     if not records or any(int(record["true_id"]) >= 4 for record in records):
         raise ValueError("V14 OOF action summary accepts known parents only")
     predicted: list[int] = []
+    confidence_field = (
+        "dbb_known_confidence"
+        if dbb_score_name == DBB_KNOWNNESS_COSINE
+        else "dbb_top_probability"
+    )
+    margin_field = (
+        "dbb_known_margin"
+        if dbb_score_name == DBB_KNOWNNESS_COSINE
+        else "dbb_top_margin"
+    )
     for record in records:
         gate_accepts = (
             float(record["gate_dbb_probability"]) >= gate_probability_threshold
@@ -701,8 +778,8 @@ def summarize_known_oof_actions(
         )
         if gate_accepts:
             dbb_accepts = (
-                float(record["dbb_top_probability"]) >= dbb_probability_threshold
-                and float(record["dbb_top_margin"]) >= dbb_margin_threshold
+                float(record[confidence_field]) >= dbb_probability_threshold
+                and float(record[margin_field]) >= dbb_margin_threshold
             )
             predicted.append(int(record["dbb_pred_id"]) if dbb_accepts else 4)
         else:
@@ -765,6 +842,7 @@ def fit_known_only_oof_boundaries(
     gate_target: float,
     dbb_target: float,
     cu_target: float,
+    dbb_score_name: str = DBB_KNOWNNESS_PROBABILITY,
 ) -> dict[str, Any]:
     parent_ids = [str(record["parent_sample_id"]) for record in records]
     true_ids = np.asarray([int(record["true_id"]) for record in records], dtype=np.int64)
@@ -782,7 +860,11 @@ def fit_known_only_oof_boundaries(
         positive_name="DBB_ACCEPT_EVIDENCE",
         negative_name="ROUTE_TO_CU_EVIDENCE",
     )
-    dbb = _select_dbb_boundary(records, target=float(dbb_target))
+    dbb = _select_dbb_boundary(
+        records,
+        target=float(dbb_target),
+        score_name=dbb_score_name,
+    )
     cu = _select_binary_boundary(
         np.asarray([float(record["cu_clutter_probability"]) for record in records]),
         true_ids == 3,
@@ -798,9 +880,11 @@ def fit_known_only_oof_boundaries(
         dbb_margin_threshold=dbb["margin_threshold"],
         cu_probability_threshold=cu["probability_threshold"],
         cu_margin_threshold=cu["margin_threshold"],
+        dbb_score_name=dbb_score_name,
     )
     return {
         "fit_population": "known_only",
+        "dbb_knownness_score_name": dbb_score_name,
         "known_parent_count": len(records),
         "unknown_threshold_fit_count": 0,
         "validation_used_for_threshold_fitting": False,
