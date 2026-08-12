@@ -25,6 +25,7 @@ from radar_ln3.task_models import (
     FORMAL_PAIRED_SCHEMA_VERSIONS,
     HIERARCHICAL_CASCADE_SCHEMA_VERSION,
     LiquidTaskClassifier,
+    PRODUCT_LOCAL_SCHEMA_VERSION,
     RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
     build_paired_model_for_config,
     capture_training_state,
@@ -38,7 +39,9 @@ from radar_ln3.task_models import (
     verify_task_data_contract,
     load_task_config,
     load_task_checkpoint,
+    is_product_local_schema,
     restore_training_state,
+    summarize_task_performance_guardrails,
 )
 
 
@@ -183,6 +186,7 @@ def train_task(
     epochs_override: int | None = None,
     skip_validation: bool = False,
     resume_checkpoint: Path | None = None,
+    allow_bounded_smoke: bool = False,
 ) -> dict[str, Any]:
     config = load_task_config(config_path)
     if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
@@ -198,6 +202,15 @@ def train_task(
                 "formal paired runs forbid max-step/epoch overrides and validation skipping; "
                 "use the isolated src-v3/smoke entry for bounded verification"
             )
+    if (
+        is_product_local_schema(config.schema_version)
+        and (max_steps is not None or epochs_override is not None or skip_validation)
+        and not allow_bounded_smoke
+    ):
+        raise ValueError(
+            "V16 formal local-task runs forbid max-step/epoch overrides and validation skipping; "
+            "use the isolated src-v3/smoke entry for bounded verification"
+        )
     seed_everything(config.train.seed)
     contract = verify_task_data_contract(project_root, config)
     artifact_dir = project_root / config.train.formal_artifact_dir
@@ -209,6 +222,13 @@ def train_task(
             raise FileExistsError(
                 "refusing to overwrite an existing formal paired artifact directory; "
                 f"move/archive it or use a new versioned config: {artifact_dir}"
+            )
+    if is_product_local_schema(config.schema_version) and artifact_dir.exists():
+        existing = list(artifact_dir.iterdir())
+        if existing:
+            raise FileExistsError(
+                "refusing to overwrite an existing V16 product-local artifact directory; "
+                f"move/archive it or create a new versioned config: {artifact_dir}"
             )
     artifact_dir.mkdir(parents=True, exist_ok=True)
     logger = configure_training_logger(artifact_dir / "training.log")
@@ -245,6 +265,7 @@ def train_task(
                 "tr_missing_mask": initial_tensors["tr_missing_mask"],
                 "tr_dt_seconds": initial_tensors["tr_dt_seconds"],
                 "tr_dt_valid": initial_tensors["tr_dt_valid"],
+                "tr_dt_reason": initial_tensors.get("tr_dt_reason"),
                 "tr_motion_features": initial_tensors.get("tr_motion_features"),
                 "tr_motion_valid_mask": initial_tensors.get("tr_motion_valid_mask"),
                 "rd_frames": initial_tensors["rd_frames"],
@@ -378,11 +399,12 @@ def train_task(
                 config.train.dbb_auxiliary_loss_weight,
             )
         logger.info(
-            "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=causal_prefix",
+            "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=%s",
             contract["hashes"]["index_sha256"],
             contract["hashes"]["contract_sha256"],
             contract["hashes"]["stats_sha256"],
             ",".join(config.task.class_names),
+            config.train.loss_mode,
         )
         best_checkpoint = project_root / config.train.checkpoint_path
         last_checkpoint = project_root / config.train.last_checkpoint_path
@@ -392,6 +414,9 @@ def train_task(
             epoch_loss = 0.0
             epoch_main_loss = 0.0
             epoch_auxiliary_loss = 0.0
+            epoch_prefix_auxiliary_loss = 0.0
+            epoch_prefix_auxiliary_events = 0
+            epoch_prefix_auxiliary_parents = 0
             epoch_auxiliary_dbb_parents = 0
             epoch_auxiliary_cu_parents = 0
             epoch_auxiliary_final_states = 0
@@ -406,6 +431,7 @@ def train_task(
                     tr_missing_mask=tensors["tr_missing_mask"],
                     tr_dt_seconds=tensors["tr_dt_seconds"],
                     tr_dt_valid=tensors["tr_dt_valid"],
+                    tr_dt_reason=tensors.get("tr_dt_reason"),
                     tr_motion_features=tensors.get("tr_motion_features"),
                     tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
                     rd_physical_features=tensors.get("rd_physical_features"),
@@ -421,6 +447,8 @@ def train_task(
                 objective = task_training_objective(output, tensors, config, class_weights=weights)
                 loss = objective["loss"]
                 main_loss = objective["main_loss"]
+                prefix_auxiliary_loss = objective["prefix_auxiliary_loss"]
+                prefix_auxiliary_counts = objective["prefix_auxiliary_counts"]
                 auxiliary_loss = objective["dbb_auxiliary_loss"]
                 auxiliary_counts = objective["dbb_auxiliary_counts"]
                 optimizer.zero_grad(set_to_none=True)
@@ -431,6 +459,9 @@ def train_task(
                 epoch_steps += 1
                 epoch_loss += float(loss.item())
                 epoch_main_loss += float(main_loss.item())
+                epoch_prefix_auxiliary_loss += float(prefix_auxiliary_loss.item())
+                epoch_prefix_auxiliary_events += int(prefix_auxiliary_counts["eligible_prefix_count"])
+                epoch_prefix_auxiliary_parents += int(prefix_auxiliary_counts["eligible_parent_count"])
                 epoch_auxiliary_loss += float(auxiliary_loss.item())
                 epoch_auxiliary_dbb_parents += auxiliary_counts["selected_dbb_parent_count"]
                 epoch_auxiliary_cu_parents += auxiliary_counts["excluded_cu_parent_count"]
@@ -439,7 +470,7 @@ def train_task(
                     raise ValueError("task training produced non-finite loss or gradient")
                 if epoch_steps == 1 or epoch_steps % max(1, min(50, steps_per_epoch // 10)) == 0:
                     logger.info(
-                        "progress | task=%s | epoch=%02d/%02d | step=%04d/%04d | global=%05d/%05d | total=%.6f | main=%.6f | dbb_aux=%.6f | aux_w=%.3f | grad=%.3f",
+                        "progress | task=%s | epoch=%02d/%02d | step=%04d/%04d | global=%05d/%05d | total=%.6f | main=%.6f | prefix_aux=%.6f | prefix_w=%.3f | dbb_aux=%.6f | dbb_aux_w=%.3f | grad=%.3f",
                         config.task.name,
                         epoch,
                         epochs,
@@ -449,6 +480,8 @@ def train_task(
                         planned_steps,
                         float(loss.item()),
                         float(main_loss.item()),
+                        float(prefix_auxiliary_loss.item()),
+                        config.train.prefix_auxiliary_weight,
                         float(auxiliary_loss.item()),
                         config.train.dbb_auxiliary_loss_weight,
                         grad_norm,
@@ -467,6 +500,10 @@ def train_task(
                 "global_step": global_step,
                 "train_loss": epoch_loss / max(1, epoch_steps),
                 "train_main_loss": epoch_main_loss / max(1, epoch_steps),
+                "train_prefix_auxiliary_loss": epoch_prefix_auxiliary_loss / max(1, epoch_steps),
+                "prefix_auxiliary_loss_weight": config.train.prefix_auxiliary_weight,
+                "prefix_auxiliary_eligible_event_count": epoch_prefix_auxiliary_events,
+                "prefix_auxiliary_eligible_parent_count": epoch_prefix_auxiliary_parents,
                 "train_dbb_auxiliary_loss": epoch_auxiliary_loss / max(1, epoch_steps),
                 "dbb_auxiliary_loss_weight": config.train.dbb_auxiliary_loss_weight,
                 "dbb_auxiliary_selected_parent_count": epoch_auxiliary_dbb_parents,
@@ -496,12 +533,14 @@ def train_task(
                 best_epoch = epoch
                 best_validation = validation
             logger.info(
-                "epoch | task=%s | epoch=%02d/%02d | total=%.6f | main=%.6f | dbb_aux=%.6f | aux_w=%.3f | selection=%s:%s | tie=%s:%s | elapsed=%s",
+                "epoch | task=%s | epoch=%02d/%02d | total=%.6f | main=%.6f | prefix_aux=%.6f | prefix_w=%.3f | dbb_aux=%.6f | dbb_aux_w=%.3f | selection=%s:%s | tie=%s:%s | elapsed=%s",
                 config.task.name,
                 epoch,
                 epochs,
                 epoch_record["train_loss"],
                 epoch_record["train_main_loss"],
+                epoch_record["train_prefix_auxiliary_loss"],
+                epoch_record["prefix_auxiliary_loss_weight"],
                 epoch_record["train_dbb_auxiliary_loss"],
                 epoch_record["dbb_auxiliary_loss_weight"],
                 selection["primary_metric"],
@@ -602,8 +641,22 @@ def train_task(
             log_low_confidence_records(logger, best_validation, threshold=0.60)
         else:
             logger.info("metrics | scope=validation | status=not_executed")
+        performance_validation = (
+            best_validation
+            if best_validation is not None and best_validation.get("parent_metrics") is not None
+            else None
+        )
+        performance = summarize_task_performance_guardrails(
+            performance_validation,
+            target=(
+                config.train.task_min_precision_recall_target
+                if is_product_local_schema(config.schema_version)
+                else None
+            ),
+        )
         result = {
-            "status": "passed",
+            "status": "completed" if is_product_local_schema(config.schema_version) else "passed",
+            **performance,
             "task_name": config.task.name,
             "config_name": config.config_name,
             "device": str(device),
@@ -620,6 +673,19 @@ def train_task(
             "last_checkpoint": str(last_checkpoint),
             "sample_detail_information": None if sample_details is None else str(sample_details),
             "formal_pretraining": "not_required_and_not_used",
+            "local_task_only": is_product_local_schema(config.schema_version),
+            "deployment_eligible": False,
+            "deployment_blockers": (
+                [
+                    "full_cascade_evaluation_not_executed",
+                    "oof_rejection_calibration_not_executed",
+                    "test_not_executed",
+                    "stable_not_executed",
+                    "p95_not_executed",
+                ]
+                if is_product_local_schema(config.schema_version)
+                else []
+            ),
             "paired_initialization": paired_initialization,
             "dataloader_contract": {
                 "seed": int(loader_seed),
@@ -651,11 +717,51 @@ def train_task(
                 "epoch_boundary_only": True,
             },
             "test_evaluation": "not_executed",
+            "full_cascade_evaluation": "not_executed",
+            "oof_rejection_calibration": "not_executed",
+            "stable_evaluation": "not_executed",
+            "p95_latency": "not_executed",
             "elapsed_seconds": time.perf_counter() - started_run,
         }
         (artifact_dir / "training-summary.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        logger.info("run=complete | task=%s | status=passed | best_checkpoint=%s | summary=%s", config.task.name, best_checkpoint, artifact_dir / "training-summary.json")
+        logger.info(
+            "run=complete | task=%s | status=%s | performance_status=%s | best_checkpoint=%s | summary=%s",
+            config.task.name,
+            result["status"],
+            result["performance_status"],
+            best_checkpoint,
+            artifact_dir / "training-summary.json",
+        )
         return result
+    except Exception as error:
+        if is_product_local_schema(config.schema_version):
+            failure = {
+                "status": "failed",
+                "performance_status": "not_evaluated",
+                "task_name": config.task.name,
+                "config_name": config.config_name,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "deployment_eligible": False,
+                "formal_pretraining": "not_required_and_not_used",
+                "full_cascade_evaluation": "not_executed",
+                "oof_rejection_calibration": "not_executed",
+                "test_evaluation": "not_executed",
+                "stable_evaluation": "not_executed",
+                "p95_latency": "not_executed",
+                "elapsed_seconds": time.perf_counter() - started_run,
+            }
+            (artifact_dir / "training-summary.json").write_text(
+                json.dumps(failure, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            logger.exception(
+                "run=failed | task=%s | error_type=%s | summary=%s",
+                config.task.name,
+                type(error).__name__,
+                artifact_dir / "training-summary.json",
+            )
+        raise
     finally:
         close_training_logger(logger)
 

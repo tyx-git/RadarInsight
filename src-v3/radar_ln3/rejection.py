@@ -564,8 +564,9 @@ class StrictOpenSetRejectionPolicy:
     """V14 product action: Gate, DBB-knownness and Clutter acceptance.
 
     Unknown is never a learned branch.  A DBB route whose specialist evidence
-    is below the knownness boundary and a CU route whose Clutter evidence is
-    below its boundary both converge on ``UNKNOWN_REJECTED``.
+    is below the knownness boundary first falls back to the CU specialist.
+    Only a CU decision whose Clutter evidence is below its boundary converges
+    on ``UNKNOWN_REJECTED``.
     """
 
     def __init__(
@@ -767,17 +768,41 @@ class StrictOpenSetRejectionPolicy:
                 reject_reasons.append(dbb_confidence_below_reason)
             if dbb_margin < float(calibration.dbb_accept_known_margin):
                 reject_reasons.append(dbb_margin_below_reason)
+            clutter_accepted_after_fallback = (
+                cu_clutter >= float(calibration.cu_accept_clutter_threshold)
+                and cu_margin >= float(calibration.cu_accept_clutter_margin)
+            )
+            fallback_reasons = reject_reasons + ["dbb_known_not_accepted_fallback_to_cu"]
+            if clutter_accepted_after_fallback:
+                return decision(
+                    decision_state="accepted",
+                    gate_action="DBB_ROUTE_ACCEPTED_THEN_FALLBACK_TO_CU",
+                    conditional_action="DBB_KNOWN_NOT_ACCEPTED__CLUTTER_ACCEPTED",
+                    final_action="CLUTTER_ACCEPTED",
+                    accepted_label_id=3,
+                    rejected_to_unknown=False,
+                    reasons=tuple(
+                        fallback_reasons + ["cu_clutter_probability_and_margin_accepted"]
+                    ),
+                    specialist_id=0,
+                    specialist_confidence=cu_clutter,
+                    specialist_margin=cu_margin,
+                )
+            if cu_clutter < float(calibration.cu_accept_clutter_threshold):
+                fallback_reasons.append("cu_clutter_probability_below_threshold")
+            if cu_margin < float(calibration.cu_accept_clutter_margin):
+                fallback_reasons.append("cu_clutter_margin_below_threshold")
             return decision(
                 decision_state="rejected",
-                gate_action="DBB_ROUTE_ACCEPTED",
-                conditional_action="DBB_KNOWN_NOT_ACCEPTED",
+                gate_action="DBB_ROUTE_ACCEPTED_THEN_FALLBACK_TO_CU",
+                conditional_action="DBB_KNOWN_NOT_ACCEPTED__CLUTTER_NOT_ACCEPTED",
                 final_action="UNKNOWN_REJECTED",
                 accepted_label_id=None,
                 rejected_to_unknown=True,
-                reasons=tuple(reject_reasons),
-                specialist_id=dbb_id,
-                specialist_confidence=dbb_confidence,
-                specialist_margin=dbb_margin,
+                reasons=tuple(fallback_reasons),
+                specialist_id=0,
+                specialist_confidence=cu_clutter,
+                specialist_margin=cu_margin,
             )
 
         gate_reasons: list[str] = []

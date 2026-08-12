@@ -118,6 +118,113 @@ def final_valid_state_loss(
     return value
 
 
+def parent_final_task_ce_with_prefix_auxiliary(
+    sequence_logits: torch.Tensor,
+    labels: torch.Tensor,
+    padding_mask: torch.Tensor,
+    *,
+    class_weights: torch.Tensor | None = None,
+    prefix_auxiliary_weight: float = 0.0,
+    prefix_auxiliary_min_events: int = 3,
+) -> dict[str, torch.Tensor]:
+    """Train one local hierarchy task with an explicit product-aligned target.
+
+    The main objective supervises exactly one final causal state per parent.
+    The optional auxiliary objective starts only after the configured evidence
+    count, excludes each parent's final state, averages eligible prefixes
+    inside a parent, and then averages parents.  Consequently neither padding
+    nor parent length changes a parent's contribution to the auxiliary term.
+    """
+
+    if sequence_logits.ndim != 3:
+        raise ValueError("local task sequence_logits must have shape [batch, sequence, classes]")
+    if labels.shape != (sequence_logits.shape[0],):
+        raise ValueError("local task labels must have shape [batch]")
+    if padding_mask.shape != sequence_logits.shape[:2]:
+        raise ValueError("local task padding_mask must have shape [batch, sequence]")
+    if padding_mask.dtype != torch.bool:
+        raise ValueError("local task padding_mask must be boolean")
+    if not torch.isfinite(sequence_logits).all():
+        raise ValueError("local task sequence_logits must be finite")
+    class_count = int(sequence_logits.shape[-1])
+    if class_count < 2:
+        raise ValueError("local task loss requires at least two classes")
+    targets = labels.to(device=sequence_logits.device, dtype=torch.long)
+    if bool(((targets < 0) | (targets >= class_count)).any()):
+        raise ValueError("local task labels are outside the configured class range")
+    weights = class_weights
+    if weights is not None:
+        if (
+            weights.shape != (class_count,)
+            or not torch.isfinite(weights).all()
+            or bool((weights <= 0.0).any())
+        ):
+            raise ValueError("local task class_weights must match the class count and be finite positive")
+        weights = weights.to(device=sequence_logits.device, dtype=sequence_logits.dtype)
+    prefix_weight = float(prefix_auxiliary_weight)
+    if not 0.0 <= prefix_weight <= 1.0:
+        raise ValueError("local task prefix_auxiliary_weight must be in [0,1]")
+    minimum_events = int(prefix_auxiliary_min_events)
+    if minimum_events < 2:
+        raise ValueError("local task prefix auxiliary supervision must exclude the first evidence event")
+
+    lengths = (~padding_mask).long().sum(dim=1)
+    if bool((lengths <= 0).any()):
+        raise ValueError("local task loss received an empty parent sequence")
+    batch_indices = torch.arange(sequence_logits.shape[0], device=sequence_logits.device)
+    final_indices = lengths - 1
+    final_logits = sequence_logits[batch_indices, final_indices]
+    final_loss = nn.functional.cross_entropy(final_logits, targets, weight=weights)
+
+    prefix_loss = final_loss.new_zeros(())
+    eligible_prefix_count = final_indices.new_zeros(())
+    eligible_parent_count = final_indices.new_zeros(())
+    if prefix_weight > 0.0:
+        event_numbers = torch.arange(
+            1,
+            sequence_logits.shape[1] + 1,
+            device=sequence_logits.device,
+        ).unsqueeze(0)
+        eligible = (
+            (~padding_mask)
+            & (event_numbers >= minimum_events)
+            & (event_numbers < lengths.unsqueeze(1))
+        )
+        eligible_prefix_count = eligible.sum()
+        prefix_counts = eligible.sum(dim=1)
+        eligible_parents = prefix_counts > 0
+        eligible_parent_count = eligible_parents.sum()
+        if bool(eligible_parents.any()):
+            expanded_targets = targets.unsqueeze(1).expand(-1, sequence_logits.shape[1])
+            per_event = nn.functional.cross_entropy(
+                sequence_logits.reshape(-1, class_count),
+                expanded_targets.reshape(-1),
+                weight=weights,
+                reduction="none",
+            ).reshape(sequence_logits.shape[:2])
+            parent_means = (
+                (per_event * eligible.to(dtype=per_event.dtype)).sum(dim=1)
+                / prefix_counts.clamp_min(1)
+            )
+            selected_parent_means = parent_means[eligible_parents]
+            if weights is None:
+                prefix_loss = selected_parent_means.mean()
+            else:
+                selected_parent_weights = weights[targets[eligible_parents]]
+                prefix_loss = selected_parent_means.sum() / selected_parent_weights.sum()
+
+    total_loss = final_loss + prefix_weight * prefix_loss
+    if not all(torch.isfinite(value).item() for value in (total_loss, final_loss, prefix_loss)):
+        raise ValueError("local task loss produced a non-finite value")
+    return {
+        "loss": total_loss,
+        "final_state_loss": final_loss,
+        "prefix_auxiliary_loss": prefix_loss,
+        "eligible_prefix_count": eligible_prefix_count,
+        "eligible_prefix_parent_count": eligible_parent_count,
+    }
+
+
 def hierarchical_final_state_nll(
     gate_sequence_logits: torch.Tensor,
     dbb_sequence_logits: torch.Tensor,
@@ -520,5 +627,6 @@ __all__ = [
     "final_valid_state_loss",
     "five_class_loss",
     "hierarchical_final_state_nll",
+    "parent_final_task_ce_with_prefix_auxiliary",
     "strict_open_set_final_state_nll",
 ]

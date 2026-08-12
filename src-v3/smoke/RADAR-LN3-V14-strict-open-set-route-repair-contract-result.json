@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V14-strict-open-set-route-repair-contract-v1",
+  "legacy_contract_status": "incompatible_and_fail_closed",
+  "legacy_contract_errors": {
+    "dbb_cu_gate": "strict-open-set action contract is legacy-incompatible: DBB knownness failure must route to the CU specialist",
+    "dbb_specialist": "strict-open-set action contract is legacy-incompatible: DBB knownness failure must route to the CU specialist",
+    "cu_specialist": "strict-open-set action contract is legacy-incompatible: DBB knownness failure must route to the CU specialist"
+  },
+  "action": {
+    "dbb_accepted": "DBB_ACCEPTED",
+    "dbb_knownness_failed_then_cu_clutter": "CLUTTER_ACCEPTED",
+    "dbb_knownness_failed_then_cu_unknown": "UNKNOWN_REJECTED",
+    "clutter_accepted": "CLUTTER_ACCEPTED",
+    "clutter_not_accepted": "UNKNOWN_REJECTED",
+    "uncalibrated": "NOT_CALIBRATED",
+    "both_rejection_paths_have_no_accepted_label": true
+  },
+  "historical_v14_artifacts_modified": false,
+  "historical_v14_oof_reexecuted": false,
+  "historical_v14_calibration_reexecuted": false,
+  "formal_training": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "test": "未执行",
+  "p95": "未执行",
+  "result_path": "F:\\Project\\RadarInsight\\src-v3\\smoke\\RADAR-LN3-V14-strict-open-set-route-repair-contract-result.json"
+}

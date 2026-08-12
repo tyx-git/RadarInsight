@@ -1,0 +1,52 @@
+{
+  "schema_version": "RADAR-LN3-V16",
+  "stats_name": "cq08_v16_capture_content_grouped_all_label_train_normalization_v1",
+  "scope": "V16 capture/content-grouped CQ08 train split, all five labels; validation and test excluded from normalization",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_split": "train",
+  "parent_count": 1055,
+  "selected_parent_ids_sha256": "28200aa866ff11ed25b87e560ad70d9b41f35c9fbb36be68615316e8d671d6f8",
+  "selected_label_parent_counts": {
+    "BalloonTarget": 238,
+    "BirdTarget": 239,
+    "ClutterTarget": 33,
+    "DroneTarget": 476,
+    "UnknownTarget": 69
+  },
+  "allowed_labels": null,
+  "forbidden_labels": [],
+  "excluded_parent_count": 0,
+  "excluded_parent_ids_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "excluded_label_parent_counts": {},
+  "rd_tensor_count": 1055,
+  "selected_rd_tensor_paths_sha256": "62fd0bf06b6dddced975778492599507e30398933d11ddae8e4dc15ed206cedc",
+  "excluded_rd_tensor_count": 0,
+  "excluded_rd_tensor_paths_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "selected_excluded_rd_tensor_path_overlap_count": 0,
+  "rd_tensor_frame_count": 72155,
+  "amplitude_value_count": 581857920,
+  "amplitude": {
+    "mean": 55.53033474699842,
+    "std": 6.911083992973033,
+    "min": -19.375,
+    "max": 146.125,
+    "sample_q01": 38.375,
+    "sample_q25": 52.25,
+    "sample_median": 55.90625,
+    "sample_q75": 59.21875,
+    "sample_q99": 76.125,
+    "center": 55.90625,
+    "scale": 6.911083992973033,
+    "scale_rule": "max(population_std, sampled_IQR/1.349, 1e-6)",
+    "sample_rule": "up to 4096 evenly strided amplitude values per unique train tensor"
+  },
+  "phase": {
+    "encoding": "phase divided by pi and clipped to [-1,1]",
+    "center": 0.0,
+    "scale": 3.141592653589793
+  },
+  "outputs": {
+    "normalization_stats_path": "data/processed/RADAR-LN3-V16-cq08-tr-rd-train-normalization-stats.json"
+  }
+}

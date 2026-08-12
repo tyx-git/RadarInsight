@@ -15,6 +15,7 @@ from radar_ln3.cascade import (
     build_cascade,
     build_cascade_dataset,
     evaluate_hierarchical_cascade,
+    hierarchical_time_quality_fractions,
     load_cascade,
     verify_cascade_data_contracts,
 )
@@ -429,7 +430,9 @@ def run(project_root: Path, *, device_name: str) -> dict[str, Any]:
     )
     offline_stable = HierarchicalStableStateMachine(confirm_count=2)
     offline_rd_count = 0
+    offline_first_count = 0
     offline_zero_count = 0
+    offline_positive_count = 0
     action_state_matches = True
     action_rows: list[dict[str, Any]] = []
     with torch.inference_mode():
@@ -440,14 +443,22 @@ def run(project_root: Path, *, device_name: str) -> dict[str, Any]:
     for event_index in range(int(one["lengths"][0].item())):
         valid_points = event_index + 1
         offline_rd_count += int(float(one_device["rd_quality"][0, event_index, 0].item()) >= 0.5)
-        offline_zero_count += int(int(one_device["tr_dt_reason"][0, event_index].item()) == 2)
+        reason_id = int(one_device["tr_dt_reason"][0, event_index].item())
+        offline_first_count += int(reason_id == 1)
+        offline_zero_count += int(reason_id == 2)
+        offline_positive_count += int(reason_id == 3)
+        time_quality = hierarchical_time_quality_fractions(
+            first_event_count=offline_first_count,
+            zero_delta_count=offline_zero_count,
+            positive_delta_count=offline_positive_count,
+        )
         offline_action = synthetic_policy.decide(
             gate_probs[0, event_index].cpu(),
             dbb_probs[0, event_index].cpu(),
             cu_probs[0, event_index].cpu(),
             valid_point_count=valid_points,
             track_quality=offline_rd_count / valid_points,
-            gap_fraction=min(1.0, offline_zero_count / max(1, valid_points - 1)),
+            gap_fraction=time_quality["gap_fraction"],
         )
         offline_stable_result = offline_stable.update(offline_action)
         online_action = calibrated_online.step(

@@ -1227,3 +1227,38 @@
 是否达到训练状态：V15无需重训且不可部署；V16尚未达到训练状态。
 
 阻塞条件：V16必须先完成provenance分组、真实Clutter/Unknown监督、三任务独立loss/checkpoint、同秒非gap语义和流程/性能状态分离。任何跨标签完全等价内容若存在且未经人工政策裁决，必须阻止正式训练。
+
+## Stage 058 - V16真实三任务局部训练链与Capture/Content隔离
+
+目标：建立不依赖V15 known-only语义的V16产品三任务局部基线。第一任务为DBB/CU Gate，使用Drone/Bird/Balloon versus Clutter/Unknown；第二任务为DBB specialist，仅使用Drone/Bird/Balloon；第三任务为CU specialist，仅使用Clutter/Unknown。三个模型分别训练、分别选best、分别评估，本Stage禁止完整级联联合训练、拒识阈值拟合、test、stable、P95和部署。
+
+前置依赖：Stage 057已把V15提交为非产品诊断快照`b6cd7e879fe0a78ac15022de781042b8a23aa140`；已确认V3按track_id切分且至少两组同capture/raw/RD内容跨train/val；已确认10个跨标签capture的raw/RD内容不同，当前无需标签修改申请。
+
+状态：实现与训练准备已完成，等待用户确认后手动启动三任务正式20 epoch训练。当前没有V16正式分类性能；完整级联、OOF拒识校准、test、stable、P95和部署均未执行。
+
+最小子任务：
+
+- [x] 新建V16 provenance构建器，读取1546个V3 parent及CQ08 unified manifest，计算capture ID、原始raw/track/point SHA-256、RD NPZ SHA-256、去除轨迹ID后的规范track/point SHA-256和模型输入语义SHA-256。
+- [x] 使用capture/raw/RD/规范track/规范point/模型输入语义任一相同建立同源连通组件；跨标签仅capture相同允许保留原标签，跨标签内容等价则fail-closed并请求人工裁决。实际得到1501个组件、45个多parent组件、跨标签内容等价冲突0组。
+- [x] 采用保守split迁移：组件内存在旧test则整体test，否则存在旧val则整体val，否则train；27个parent迁移，旧val/test进入新train为0。
+- [x] 创建`RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json`、`...grouped-split.json`和`...grouped-index.csv`；capture/raw/RD/规范track/规范point/模型输入语义六类键跨split违反数均为0。
+- [x] 只用V16 train全五类parent重算RD normalization；train/val/test parent=`1055/247/244`，normalization parent=1055、排除parent=0、selected/excluded RD路径交集=0。
+- [x] 新增V16产品局部任务schema：Gate映射DBB/CU，DBB三分类，CU真实Clutter/Unknown；CU train/val support=`33/69`与`9/15`，Unknown已真实进入CU监督。V16 checkpoint绑定配置identity和V16数据hash，拒绝旧版本或原位改写配置。
+- [x] 将V16局部任务主loss改为每parent最终合法状态CE，保留从第3事件开始、排除final的0.10 parent-balanced prefix辅助；class-weight分母与weighted CE一致，padding与event<3非final梯度均为0。
+- [x] 三任务分别使用`parent_min_precision_recall`选best，门槛Gate≥0.95、DBB≥0.95、CU≥0.90；performance护栏同时检查逐类Precision/Recall/F1，prefix/window与parent-final独立报告。
+- [x] 修复训练摘要：V16局部与未来联合训练均使用`status=completed|failed`描述流程，独立`performance_status`描述性能，`deployment_eligible=false`且未执行项逐项记录。
+- [x] 修复同秒dt质量：全量first/zero/positive=`1546/9776/18341`；同秒只进入`zero_dt_fraction`/`same_second_fraction`，当前V16真实`gap_fraction=0`，offline/online共用同一计算函数。
+- [x] 修复DBB knownness未接受后的动作拓扑：先显式回退CU，CU接受Clutter才输出Clutter，否则输出`UNKNOWN_REJECTED`；旧V14/V15直达Unknown动作契约被fail-closed，历史artifact未改。
+- [x] 阻止V16 product-local三checkpoint进入通用cascade组装/报告入口；本Stage只允许三个局部模型独立训练和评估，完整级联必须使用后续显式版本。
+- [x] 运行配置/数据纯度、split隔离、label、shape、finite、loss梯度、checkpoint保存恢复、prefix/parent评估、全`src-v3` compileall、静态import隔离、V13/V14回归和三任务CPU/CUDA各1步训练入口Smoke；最终均通过。
+- [x] 覆盖更新三个跟踪文件并请求用户确认；确认后仅输出Gate、DBB、CU三条正式训练命令和三条独立validation评估命令。
+- [ ] 三任务正式20 epoch训练与独立validation评估：待用户手动执行。
+- [ ] 完整级联联合训练、三checkpoint组装选优、parent-grouped OOF、正式拒识、development/test、stable、session、P95和部署：均未执行。
+
+实验门槛：Gate的DBB/CU两类Precision、Recall、F1均至少0.95；DBB的Drone/Bird/Balloon各自Precision、Recall、F1均至少0.95；CU的Clutter/Unknown各自Precision、Recall、F1均至少0.90。低support和单split结果只作为局部筛选，不替代最终OOF/test。
+
+版本策略：split规则、index schema、train population、normalization、标签映射、loss、checkpoint和配置语义均实质改变，使用全局新版本V16。原V3/V13/V14/V15文件只读保留，不覆盖、不复用checkpoint或calibration。
+
+是否达到训练状态：达到三任务独立正式训练准备状态；尚未达到性能通过、完整级联、严格开放集拒识或部署状态。正式20 epoch与独立validation必须由用户确认后手动执行。
+
+阻塞条件：当前无代码或数据契约阻塞影响三任务独立训练。性能结论仍被正式训练未执行和CU validation低support（Clutter=9、Unknown=15）阻塞；完整级联、OOF拒识、test、stable、P95和部署继续禁止执行或宣称。

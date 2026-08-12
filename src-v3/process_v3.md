@@ -1975,3 +1975,56 @@ V15执行完整性：
 版本结论：V15代码、配置、实验/OOF契约和结果保留为known-only角度knownness研究快照；因标签映射、split规则、normalization population、loss、checkpoint、动作和评估语义都将实质改变，下一实现必须使用全局新版本V16。V16不得加载V15 checkpoint/calibration或复用V14 known-only normalization。
 
 当前执行边界：V15快照待Git提交；V16 provenance、index/split、normalization、数据契约、三任务独立训练代码和配置均未创建。正式三任务训练、完整级联、OOF、development/test、stable、P95和部署均未执行。
+
+## 2026-08-12 Stage 058 - V16真实三任务局部训练链启动
+
+V15诊断快照已按`.rules`提交，commit=`b6cd7e879fe0a78ac15022de781042b8a23aa140`。Git在commit后报告缺失`.git/hooks/post-commit`可执行文件，但commit对象、提交信息和43文件diff均已生成；未修改或暂存用户现有`todos.md`删除与三个历史大体积报告目录。
+
+本Stage冻结的局部训练范围：
+
+- Gate：Drone/Bird/Balloon→DBB，Clutter/Unknown→CU；目标最弱P/R≥0.95。
+- DBB specialist：只训练Drone/Bird/Balloon；目标三类各自P/R/F1≥0.95。
+- CU specialist：只训练Clutter/Unknown；目标两类各自P/R/F1≥0.90。
+- 三模型分别优化和选择best，不执行联合optimizer、完整级联或三checkpoint组合选优。Unknown在本Stage是CU监督标签；运行时`UNKNOWN_REJECTED`动作仍是不同语义，正式开放集拒识未执行。
+
+数据构建设计：为1546个实际入模parent计算capture、raw、RD、原始/规范track与point、模型输入语义指纹；任一同源键相同即并入同一连通组件。组件split采用`test > val > train`保守优先级，避免任何旧val/test parent进入新train。全量raw约9.746 GiB、RD NPZ约2.548 GiB，provenance为本Stage最耗时的只读步骤；训练不自动启动。
+
+当前执行边界：仅计划与设计已落盘；V16构建器、数据产物、配置、代码修复和Smoke均未完成。
+
+## 2026-08-12 Stage 058 - V16实现、数据重建与训练准备完成
+
+V16全量provenance构建已执行。构建器读取1546个V3 parent、29663个真实事件，按capture ID、raw SHA-256、RD NPZ SHA-256、去ID规范track/point SHA-256和去标签/路径/ID的模型输入语义SHA-256建立连通组件。首次构建与第二次幂等复核均完成；第二次所有V16数据与配置均为`reused_identical`，未覆盖不同内容。
+
+数据结果：
+
+- 1546个parent合并为1501个provenance组件；45个组件包含多个parent，27个组件原先跨V3 split。
+- 组件按`test > val > train`保守迁移，27个parent发生迁移；旧val/test进入V16 train数为0。
+- V16 train/val/test parent=`1055/247/244`；五类support分别为train `476/239/238/33/69`、val `113/56/54/9/15`、test `109/53/58/8/16`，顺序为Drone/Bird/Balloon/Clutter/Unknown。
+- capture/raw/RD/规范track/规范point/模型输入语义六类键跨split违反数均为0；跨标签content-equivalent冲突为0。10个跨标签capture仍整体同split保留原标签，因为raw/RD内容不等价且没有改标证据。
+- 新index最长parent为29、最短12，不存在`max_sequence_length=29`截断parent-final。index/contract/normalization SHA-256分别为`0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c`、`ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373`、`4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013`。
+- normalization只使用1055个V16 train parent并包含全五类；validation/test未用于统计，excluded parent=0、selected/excluded RD路径交集=0。
+
+模型与训练修复：
+
+- 新增V16 product-local schema和三配置。Gate真实映射DBB/CU；DBB specialist只含Drone/Bird/Balloon；CU specialist只含Clutter/Unknown，Unknown train exposure=69，不再使用V15的DBB-known负类替代Unknown。
+- V16主目标为每parent最终合法状态weighted CE；0.10 prefix辅助仅监督event≥3且排除final，先在parent内平均，再按weighted CE分母归一。focused梯度探针确认padding和event<3非final梯度均为0。
+- `train.tasks`现传递`tr_dt_reason`，三任务分别选best并绑定完整config identity/data hash；正式V16 CLI拒绝`--max-steps`、epoch override和skip-validation，仅内部Smoke入口允许有界验证。
+- 训练/报告摘要把流程`status=completed|failed`与`performance_status`分开；V16逐类P/R/F1门槛为Gate/DBB 0.95、CU 0.90，局部结果固定`deployment_eligible=false`。未来`train.cascade`也不再无条件写整体passed。
+- V16 product-local三checkpoint被通用cascade组装器显式拒绝；完整级联必须在后续新版本中重新开放和验收。
+
+时间与动作修复：
+
+- 全量dt reason为first=1546、same-second zero=9776、positive=18341；raw zero占全部事件38.1688%，其中同秒事件占全部事件32.9569%，占非首转换34.7690%。真实来源是每parent首点无前驱和CQ08秒级时间精度下重复时间戳，不是padding或人为改写。
+- 同秒reason仍执行bounded observation update，但只进入`zero_dt_fraction/same_second_fraction`；当前V16没有显式真实gap reason，因此`gap_fraction=0`。offline/online共用一个计算函数。
+- `StrictOpenSetRejectionPolicy`已改为DBB knownness未接受后回退CU；CU接受Clutter则`CLUTTER_ACCEPTED`，否则`UNKNOWN_REJECTED`。旧V14/V15数据契约仍记录DBB直达Unknown，因此当前执行器fail-closed；历史checkpoint/calibration/报告未修改。
+
+验证结果：
+
+- V16 product-local focused：通过；真实三任务support、CU Unknown exposure、loss梯度、配置identity、DBB→CU回退、同秒非gap和局部性能状态语义均通过。
+- V14 route-repair focused：通过；三份旧契约均因过时动作拓扑被拒绝，合成新路由探针通过。
+- V13 hierarchical focused：通过；reason-aware和既有V13动作/指标接口未回归。
+- 三任务CPU与CUDA（RTX 4060 Laptop）各1个optimizer step训练入口Smoke `contract-v3`：全部通过；checkpoint round-trip通过。Smoke未运行validation与checkpoint排名，不能作为分类性能。
+- 全`src-v3` compileall通过；静态隔离通过且violations=0；V16构建器幂等复核通过；正式CLI缩短参数负向保护通过；`git diff --check`通过，仅有行尾提示。
+- 中间调用问题：首次前台V16构建因工具短超时被终止，确认无残留进程/半成品后改为隐藏后台并成功完成；一次静态隔离误用`--project-root`、两次PowerShell/rg检查命令转义错误均按真实CLI重跑通过，不属于代码失败。
+
+当前执行边界：V16已达到Gate、DBB specialist、CU specialist三条独立20 epoch正式训练的技术准备状态，但正式训练与独立validation尚未执行，因此没有V16性能数值。完整级联、三checkpoint组装选优、parent-grouped OOF、正式拒识、development/test、stable、session、P95和部署全部仍为“未执行”。

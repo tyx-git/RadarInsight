@@ -46,6 +46,7 @@ DT_REASON_NAMES = (
     "positive_delta_at_second_precision",
 )
 DT_REASON_TO_ID = {name: index for index, name in enumerate(DT_REASON_NAMES)}
+REASON_AWARE_INDEX_SCHEMA_VERSIONS = frozenset({"RADAR-LN3-V3", "RADAR-LN3-V16"})
 
 
 def encode_dt_reason(value: Any, *, dt_valid: bool) -> int:
@@ -263,10 +264,13 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self.expected_schema_version = str(expected_schema_version)
         if frame["schema_version"].astype(str).ne(self.expected_schema_version).any():
             raise ValueError(f"dataset contains a row outside expected schema {self.expected_schema_version}")
-        if self.expected_schema_version == "RADAR-LN3-V3":
-            missing_v3 = sorted({"tr_dt_valid", "tr_dt_reason"} - set(frame.columns))
-            if missing_v3:
-                raise ValueError(f"V3 point index is missing dt validity columns: {missing_v3}")
+        if self.expected_schema_version in REASON_AWARE_INDEX_SCHEMA_VERSIONS:
+            missing_reason_aware = sorted({"tr_dt_valid", "tr_dt_reason"} - set(frame.columns))
+            if missing_reason_aware:
+                raise ValueError(
+                    f"{self.expected_schema_version} point index is missing dt validity columns: "
+                    f"{missing_reason_aware}"
+                )
         frame = frame[frame["split_name"].astype(str).eq(str(split_name))].copy()
         if frame.empty:
             raise ValueError(f"V0 point index has no rows for split={split_name}")
@@ -322,32 +326,45 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self.frame["parent_sample_id"] = self.frame["parent_sample_id"].astype(str)
         self.frame["causal_event_index"] = pd.to_numeric(self.frame["causal_event_index"], errors="raise").astype(int)
         self.frame = self.frame.sort_values(["parent_sample_id", "causal_event_index"], kind="stable").reset_index(drop=True)
-        if self.expected_schema_version == "RADAR-LN3-V3":
+        if self.expected_schema_version in REASON_AWARE_INDEX_SCHEMA_VERSIONS:
             reasons = self.frame["tr_dt_reason"].astype(str)
             unsupported_reasons = sorted(set(reasons) - set(DT_REASON_NAMES[1:]))
             if unsupported_reasons:
-                raise ValueError(f"V3 point index contains unsupported dt reasons: {unsupported_reasons}")
+                raise ValueError(
+                    f"{self.expected_schema_version} point index contains unsupported dt reasons: "
+                    f"{unsupported_reasons}"
+                )
             valid = self.frame["tr_dt_valid"].map(_as_bool)
             expected_valid = reasons.eq("positive_delta_at_second_precision")
             if not valid.equals(expected_valid):
-                raise ValueError("V3 point index has a tr_dt_reason/tr_dt_valid mismatch")
+                raise ValueError(
+                    f"{self.expected_schema_version} point index has a tr_dt_reason/tr_dt_valid mismatch"
+                )
             raw_dt = pd.to_numeric(self.frame["tr_dt_seconds"], errors="raise")
             if not np.isfinite(raw_dt.to_numpy(dtype=np.float64)).all():
-                raise ValueError("V3 point index contains a non-finite raw dt")
+                raise ValueError(f"{self.expected_schema_version} point index contains a non-finite raw dt")
             zero_reason = reasons.isin(("first_event_no_predecessor", "zero_delta_at_second_precision"))
             if bool(raw_dt[zero_reason].abs().gt(1.0e-9).any()) or bool(raw_dt[expected_valid].le(0.0).any()):
-                raise ValueError("V3 point index raw dt does not match its dt reason")
+                raise ValueError(
+                    f"{self.expected_schema_version} point index raw dt does not match its dt reason"
+                )
             for parent_id, parent in self.frame.groupby("parent_sample_id", sort=False):
                 event_indices = parent["causal_event_index"].tolist()
                 if event_indices != list(range(len(parent))):
-                    raise ValueError(f"V3 parent causal event indices are not contiguous from zero: {parent_id}")
+                    raise ValueError(
+                        f"{self.expected_schema_version} parent causal event indices are not contiguous "
+                        f"from zero: {parent_id}"
+                    )
                 parent_reasons = parent["tr_dt_reason"].astype(str).tolist()
                 if (
                     not parent_reasons
                     or parent_reasons[0] != "first_event_no_predecessor"
                     or "first_event_no_predecessor" in parent_reasons[1:]
                 ):
-                    raise ValueError(f"V3 parent dt reason does not mark exactly one first event: {parent_id}")
+                    raise ValueError(
+                        f"{self.expected_schema_version} parent dt reason does not mark exactly one first "
+                        f"event: {parent_id}"
+                    )
         self.parent_ids = selected
         self.allowed_labels = allowed
         self.forbidden_labels = forbidden

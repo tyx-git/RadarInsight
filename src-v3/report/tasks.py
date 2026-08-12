@@ -10,6 +10,8 @@ from radar_ln3.task_models import (
     evaluate_task,
     load_task_checkpoint,
     load_task_config,
+    is_product_local_schema,
+    summarize_task_performance_guardrails,
     task_device,
     verify_task_data_contract,
 )
@@ -35,14 +37,29 @@ def run(project_root: Path, config_path: Path, checkpoint_path: Path, *, split: 
     sample_path.write_text(json.dumps({"schema_version": f"{config.schema_version}-task-sample-detail-v1", "task_name": config.task.name, "checkpoint": str(checkpoint_path), "split": split_name, "records": result.get("records", {})}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     report = dict(result)
     report.pop("records", None)
+    performance = summarize_task_performance_guardrails(
+        result,
+        target=(
+            config.train.task_min_precision_recall_target
+            if is_product_local_schema(config.schema_version)
+            else None
+        ),
+    )
     report.update({
-        "status": "passed",
+        "status": "completed" if is_product_local_schema(config.schema_version) else "passed",
+        **performance,
         "config": str(config_path),
         "checkpoint": str(checkpoint_path),
         "checkpoint_epoch": int(checkpoint.get("epoch", -1)),
         "checkpoint_global_step": int(checkpoint.get("global_step", -1)),
         "data_contract": contract,
         "sample_detail_information": str(sample_path),
+        "local_task_only": is_product_local_schema(config.schema_version),
+        "deployment_eligible": False,
+        "full_cascade_evaluation": "未执行",
+        "oof_rejection_calibration": "未执行",
+        "stable_evaluation": "未执行",
+        "p95_latency": "未执行",
         "test_evaluation": "未执行",
     })
     output_path = artifact_dir / f"evaluation-{split_name}.json"

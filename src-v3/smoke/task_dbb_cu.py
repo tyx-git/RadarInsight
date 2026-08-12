@@ -16,7 +16,7 @@ from radar_ln3.task_models import (
     save_task_checkpoint,
     seed_everything,
     task_device,
-    task_prefix_loss,
+    task_training_objective,
     verify_task_data_contract,
 )
 
@@ -49,6 +49,7 @@ def run(
         tr_missing_mask=tensors["tr_missing_mask"],
         tr_dt_seconds=tensors["tr_dt_seconds"],
         tr_dt_valid=tensors["tr_dt_valid"],
+        tr_dt_reason=tensors.get("tr_dt_reason"),
         tr_motion_features=tensors.get("tr_motion_features"),
         tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
         rd_frames=tensors["rd_frames"],
@@ -57,7 +58,8 @@ def run(
         tr_padding_mask=tensors["tr_padding_mask"],
     )
     weights = torch.tensor(config.train.class_weights, dtype=torch.float32, device=device)
-    loss = task_prefix_loss(output["sequence_logits"], tensors["labels"], tensors["tr_padding_mask"], class_weights=weights)
+    objective = task_training_objective(output, tensors, config, class_weights=weights)
+    loss = objective["loss"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.train.learning_rate)
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
@@ -81,6 +83,7 @@ def run(
             tr_missing_mask=tensors["tr_missing_mask"],
             tr_dt_seconds=tensors["tr_dt_seconds"],
             tr_dt_valid=tensors["tr_dt_valid"],
+            tr_dt_reason=tensors.get("tr_dt_reason"),
             tr_motion_features=tensors.get("tr_motion_features"),
             tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
             rd_frames=tensors["rd_frames"],
@@ -105,6 +108,7 @@ def run(
             tr_missing_mask=tensors["tr_missing_mask"],
             tr_dt_seconds=tensors["tr_dt_seconds"],
             tr_dt_valid=tensors["tr_dt_valid"],
+            tr_dt_reason=tensors.get("tr_dt_reason"),
             tr_motion_features=tensors.get("tr_motion_features"),
             tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
             rd_frames=tensors["rd_frames"],
@@ -127,6 +131,8 @@ def run(
         "window_logits_shape": list(output["window_logits"].shape),
         "soft_cascade_probability_shape": list(combined.shape),
         "loss": float(loss.item()),
+        "main_loss": float(objective["main_loss"].item()),
+        "prefix_auxiliary_loss": float(objective["prefix_auxiliary_loss"].item()),
         "gradient_norm": grad_norm,
         "motion_gradient_norm": motion_gradient_norm,
         "checkpoint_path": str(checkpoint_path),

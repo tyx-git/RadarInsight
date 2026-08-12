@@ -1,0 +1,292 @@
+{
+  "schema_version": "RADAR-LN3-V16",
+  "source_name": "CQ08",
+  "group_unit": "capture_content_connected_component",
+  "component_keys": [
+    "capture_id",
+    "raw_sha256",
+    "rd_sha256",
+    "normalized_track_sha256",
+    "normalized_point_sha256",
+    "model_input_semantics_sha256"
+  ],
+  "split_policy": "retain V3 split unless connected; component priority is test > val > train",
+  "old_validation_or_test_to_train_count": 0,
+  "parent_counts": {
+    "train": 1055,
+    "val": 247,
+    "test": 244
+  },
+  "point_counts": {
+    "train": 20211,
+    "val": 4725,
+    "test": 4727
+  },
+  "label_parent_counts": {
+    "train": {
+      "DroneTarget": 476,
+      "BirdTarget": 239,
+      "BalloonTarget": 238,
+      "ClutterTarget": 33,
+      "UnknownTarget": 69
+    },
+    "val": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "test": {
+      "DroneTarget": 109,
+      "BirdTarget": 53,
+      "BalloonTarget": 58,
+      "ClutterTarget": 8,
+      "UnknownTarget": 16
+    }
+  },
+  "component_counts": {
+    "train": 1039,
+    "val": 229,
+    "test": 233
+  },
+  "moved_parent_count": 27,
+  "moved_parents": [
+    {
+      "parent_sample_id": "cq08|track|1339",
+      "track_id": 1339,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-596fe6d455d105af612a7bce6ed21e25d1704fa8476cf427921d992ec3c20321"
+    },
+    {
+      "parent_sample_id": "cq08|track|1457",
+      "track_id": 1457,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-037ecedd503b5dab70596b8e632cfc946645158c42772f8f4e528aa3e62575de"
+    },
+    {
+      "parent_sample_id": "cq08|track|1494",
+      "track_id": 1494,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-1c48c839a2b92cf651c8135f4e1f499c836bb985187a53b0cc8e18c9f244a780"
+    },
+    {
+      "parent_sample_id": "cq08|track|17",
+      "track_id": 17,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-6265e16813fa3c0d56e7723e27fe5234414720fb93a7bc931db579bac9d73c74"
+    },
+    {
+      "parent_sample_id": "cq08|track|1932",
+      "track_id": 1932,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-1b8a83a4b80464890f819d870942fc1d97aea78b1a348b67bb98c6763d4f82e6"
+    },
+    {
+      "parent_sample_id": "cq08|track|1945",
+      "track_id": 1945,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-140f85f0bb4e44de519d0e897256111858830b369734ca5a569fe4ce4bb8572c"
+    },
+    {
+      "parent_sample_id": "cq08|track|196",
+      "track_id": 196,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-21addba42974f639e33b85765de36bc1bb8ccce912e6051eac8bc5f4914a8c61"
+    },
+    {
+      "parent_sample_id": "cq08|track|236",
+      "track_id": 236,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-9378e1f9adeea1352a92a13979740fc127584caa1ea4f4c91ce2c421ddd13b99"
+    },
+    {
+      "parent_sample_id": "cq08|track|2619",
+      "track_id": 2619,
+      "label_name": "BirdTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-89c68bd0601171b460ccb7d4c54ad57dfba3d9634b44872011300969cc0f7712"
+    },
+    {
+      "parent_sample_id": "cq08|track|2987",
+      "track_id": 2987,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-f27db48186e209537282d22184c8dc35964f7a2c297612ebb4729602860d2dc2"
+    },
+    {
+      "parent_sample_id": "cq08|track|3004",
+      "track_id": 3004,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-433ce99a610cdc5c9599694d7156b7029f4b8385496b7f327adfeb68bf35ef39"
+    },
+    {
+      "parent_sample_id": "cq08|track|3138",
+      "track_id": 3138,
+      "label_name": "UnknownTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-6de0a5df7802d1c820af5892aca101a4d55bd8c0e3157dcb5da5087e49ff06af"
+    },
+    {
+      "parent_sample_id": "cq08|track|3171",
+      "track_id": 3171,
+      "label_name": "ClutterTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-ea6101c0be33d4f1d962e310dedab473087c4e8d4c614fb7de7c603ef2c36741"
+    },
+    {
+      "parent_sample_id": "cq08|track|3202",
+      "track_id": 3202,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-6acbddf1c2658da27ade77001c2916ee6f773db75cbd4a93c27025d00b430427"
+    },
+    {
+      "parent_sample_id": "cq08|track|3344",
+      "track_id": 3344,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-05e355007840ac9a0ec29b2f8a2ea19e2c2e75dedb0f263a76e716e16669d7d6"
+    },
+    {
+      "parent_sample_id": "cq08|track|3580",
+      "track_id": 3580,
+      "label_name": "BirdTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-23453497b31fa0cdeb7c3992aed377908600340964e34821421965e156fea013"
+    },
+    {
+      "parent_sample_id": "cq08|track|3711",
+      "track_id": 3711,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-6c2b2b8f605bcf9f629b2eb349796cf041b9517185a66975e20496f8758ad786"
+    },
+    {
+      "parent_sample_id": "cq08|track|3783",
+      "track_id": 3783,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-772814e8b382a72bce44ad1be2fd38e0e40f8a12d794dc6323340478afbb618e"
+    },
+    {
+      "parent_sample_id": "cq08|track|3816",
+      "track_id": 3816,
+      "label_name": "ClutterTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-0377addad2362312a68ea5a45f748384004efea1da8b186d2dcaa751a2c969c6"
+    },
+    {
+      "parent_sample_id": "cq08|track|3820",
+      "track_id": 3820,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-c3f46122400c9dd3fda2da410b2c037ce2db1a00e32df95478ebaece6cbda968"
+    },
+    {
+      "parent_sample_id": "cq08|track|4152",
+      "track_id": 4152,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-9f93343ba1c2e1732154050c10f706aa684810a7395eaf3e6c7a959e7a3138c0"
+    },
+    {
+      "parent_sample_id": "cq08|track|4185",
+      "track_id": 4185,
+      "label_name": "BalloonTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-aa651102995a180c7594fc86c23cd269f09f0c376d149cb7a92496b8858981d2"
+    },
+    {
+      "parent_sample_id": "cq08|track|4206",
+      "track_id": 4206,
+      "label_name": "DroneTarget",
+      "from": "val",
+      "to": "test",
+      "component_id": "v16-component-b05d050afab012bc44af0cc19fe988465faa468fb1288550bb188e189c23f144"
+    },
+    {
+      "parent_sample_id": "cq08|track|4213",
+      "track_id": 4213,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-3fed55838117ac99efc0ef2bf645478cbf6b473004afba168ffdd2e17514933a"
+    },
+    {
+      "parent_sample_id": "cq08|track|552",
+      "track_id": 552,
+      "label_name": "BirdTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-302020028be4c690b6e48cf63f8c7fea834b86579e96b188ea8f18d2f08ef2e7"
+    },
+    {
+      "parent_sample_id": "cq08|track|717",
+      "track_id": 717,
+      "label_name": "BirdTarget",
+      "from": "train",
+      "to": "val",
+      "component_id": "v16-component-076a09f505e9a7f4be483da011936a2ff3c3077521d4f4596c4acd454757f71d"
+    },
+    {
+      "parent_sample_id": "cq08|track|75",
+      "track_id": 75,
+      "label_name": "DroneTarget",
+      "from": "train",
+      "to": "test",
+      "component_id": "v16-component-1ad52b35f538529bd14c77c6411b81bef45db5b28ce25fd5ff3252473e2dbc4e"
+    }
+  ],
+  "split_purity": {
+    "parent_cross_split_count": 0,
+    "key_cross_split_group_counts": {
+      "capture_id": 0,
+      "raw_sha256": 0,
+      "rd_sha256": 0,
+      "normalized_track_sha256": 0,
+      "normalized_point_sha256": 0,
+      "model_input_semantics_sha256": 0
+    },
+    "all_checked_keys_zero": true
+  },
+  "paths": {
+    "index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "provenance": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json"
+  },
+  "hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9"
+  }
+}

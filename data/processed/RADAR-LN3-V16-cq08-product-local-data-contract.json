@@ -1,0 +1,250 @@
+{
+  "schema_version": "RADAR-LN3-V16",
+  "contract_name": "cq08_capture_content_grouped_product_local_liquid_tasks_v1",
+  "contract_status": "implementation_prepared_formal_training_not_executed",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_provenance": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+  "source_provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+  "source_split": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-split.json",
+  "source_split_sha256": "ffec88bcc8d8f0727fbf186734a5740eaf2a64ff391914f6088b00908824b7a4",
+  "source_normalization_stats": "data/processed/RADAR-LN3-V16-cq08-tr-rd-train-normalization-stats.json",
+  "source_normalization_stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013",
+  "source_purity": {
+    "allowed_sources": [
+      "CQ08"
+    ],
+    "excluded_sources": [
+      "raw",
+      "Excel",
+      "RD-only"
+    ],
+    "raw_echo_use": "SHA-256 provenance only; not a model tensor",
+    "synthetic_data_used": false
+  },
+  "data_scope": {
+    "parent_count": 1546,
+    "point_count": 29663,
+    "split_parent_counts": {
+      "train": 1055,
+      "val": 247,
+      "test": 244
+    },
+    "split_point_counts": {
+      "train": 20211,
+      "val": 4725,
+      "test": 4727
+    },
+    "split_label_parent_counts": {
+      "train": {
+        "DroneTarget": 476,
+        "BirdTarget": 239,
+        "BalloonTarget": 238,
+        "ClutterTarget": 33,
+        "UnknownTarget": 69
+      },
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    },
+    "label_mapping": {
+      "DroneTarget": 0,
+      "BirdTarget": 1,
+      "BalloonTarget": 2,
+      "ClutterTarget": 3,
+      "UnknownTarget": 4
+    },
+    "test_payload_access_for_hash_only": true,
+    "test_used_for_normalization": false,
+    "test_used_for_checkpoint_selection": false,
+    "test_evaluation": "未执行"
+  },
+  "provenance_contract": {
+    "group_unit": "capture_content_connected_component",
+    "group_keys": [
+      "capture_id",
+      "raw_sha256",
+      "rd_sha256",
+      "normalized_track_sha256",
+      "normalized_point_sha256",
+      "model_input_semantics_sha256"
+    ],
+    "component_count": 1501,
+    "cross_label_content_conflict_count": 0,
+    "old_validation_or_test_to_train_count": 0,
+    "key_cross_split_group_counts": {
+      "capture_id": 0,
+      "raw_sha256": 0,
+      "rd_sha256": 0,
+      "normalized_track_sha256": 0,
+      "normalized_point_sha256": 0,
+      "model_input_semantics_sha256": 0
+    },
+    "all_split_purity_checks_passed": true
+  },
+  "normalization_contract": {
+    "split": "train",
+    "all_five_labels_included": true,
+    "parent_count": 1055,
+    "label_parent_counts": {
+      "BalloonTarget": 238,
+      "BirdTarget": 239,
+      "ClutterTarget": 33,
+      "DroneTarget": 476,
+      "UnknownTarget": 69
+    },
+    "validation_and_test_excluded": true,
+    "sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "time_contract": {
+    "raw_precision_seconds": 1.0,
+    "dt_field": "tr_dt_seconds",
+    "dt_valid_field": "tr_dt_valid",
+    "dt_reason_field": "tr_dt_reason",
+    "observed_counts_all_splits": {
+      "first_event_no_predecessor": 1546,
+      "positive_delta_at_second_precision": 18341,
+      "zero_delta_at_second_precision": 9776
+    },
+    "first_event_rule": "initialize from current observation without elapsed-time claim",
+    "zero_delta_rule": "bounded observation update; counted as zero_dt, never as a gap",
+    "positive_delta_rule": "continuous-time liquid update with retained positive seconds",
+    "gap_fraction_rule": "reserved for genuine missing/unavailable/over-threshold intervals; current V16 index has no such reason",
+    "padding_rule": "never update and never enter a dt denominator"
+  },
+  "feature_contract": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "rd_quality_schema": "causal-current-event-v1",
+    "rd_quality_names": [
+      "rd_present",
+      "rd_frame_count_scaled",
+      "rd_local_duration_scaled",
+      "rd_missing",
+      "rd_local_time_non_monotonic",
+      "rd_multiple_frames",
+      "rd_frames_truncated"
+    ],
+    "rd_frame_shape": [
+      2,
+      21,
+      384
+    ],
+    "rd_normalization_stats": "data/processed/RADAR-LN3-V16-cq08-tr-rd-train-normalization-stats.json",
+    "rd_normalization_stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013",
+    "excluded_model_inputs": [
+      "capture_id",
+      "provenance_component_id",
+      "v3_split_name",
+      "split_name",
+      "label_name",
+      "path",
+      "filename",
+      "parent_sample_id",
+      "track_id",
+      "raw/RD/provenance SHA-256"
+    ],
+    "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification fusion"
+  },
+  "task_contracts": {
+    "dbb_cu_gate": {
+      "class_names": [
+        "DBB",
+        "CU"
+      ],
+      "label_to_id": {
+        "DroneTarget": 0,
+        "BirdTarget": 0,
+        "BalloonTarget": 0,
+        "ClutterTarget": 1,
+        "UnknownTarget": 1
+      },
+      "allowed_training_labels": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget",
+        "ClutterTarget",
+        "UnknownTarget"
+      ],
+      "train_parent_count": 1055,
+      "validation_parent_count": 247,
+      "target_min_precision_recall": 0.95,
+      "loss": "parent-final CE plus 0.10 parent-balanced causal-prefix auxiliary from event 3, excluding final",
+      "checkpoint_selection": "validation parent minimum per-class precision/recall, parent Macro-F1 tie-break"
+    },
+    "dbb_specialist": {
+      "class_names": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "label_to_id": {
+        "DroneTarget": 0,
+        "BirdTarget": 1,
+        "BalloonTarget": 2
+      },
+      "allowed_training_labels": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "train_parent_count": 953,
+      "validation_parent_count": 223,
+      "target_min_precision_recall": 0.95,
+      "loss": "parent-final CE plus 0.10 parent-balanced causal-prefix auxiliary from event 3, excluding final",
+      "checkpoint_selection": "validation parent minimum per-class precision/recall, parent Macro-F1 tie-break"
+    },
+    "cu_specialist": {
+      "class_names": [
+        "ClutterTarget",
+        "UnknownTarget"
+      ],
+      "label_to_id": {
+        "ClutterTarget": 0,
+        "UnknownTarget": 1
+      },
+      "allowed_training_labels": [
+        "ClutterTarget",
+        "UnknownTarget"
+      ],
+      "train_parent_count": 102,
+      "validation_parent_count": 24,
+      "target_min_precision_recall": 0.9,
+      "loss": "parent-final CE plus 0.10 parent-balanced causal-prefix auxiliary from event 3, excluding final",
+      "checkpoint_selection": "validation parent minimum per-class precision/recall, parent Macro-F1 tie-break"
+    }
+  },
+  "training_contract": {
+    "entry": "src-v3/train/tasks.py",
+    "optimization": "three independent runs, optimizers, checkpoints and best epochs",
+    "joint_training": false,
+    "main_loss": "one final valid state per parent",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "prefix_final_state_excluded": true,
+    "epochs": 20,
+    "early_stopping": false,
+    "full_cascade_evaluation": "未执行",
+    "rejection_calibration": "未执行",
+    "stable": "未执行",
+    "test": "未执行",
+    "p95": "未执行"
+  },
+  "action_semantics": {
+    "unknown_supervised_label": "CU specialist label used for local boundary learning",
+    "unknown_rejected_action": "separate future runtime action; not evaluated in this local-task stage",
+    "dbb_not_accepted_future_route": "must fall back to CU; direct UNKNOWN_REJECTED is forbidden in V16 product action"
+  }
+}

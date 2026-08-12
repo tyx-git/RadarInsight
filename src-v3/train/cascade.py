@@ -818,8 +818,24 @@ def train_hierarchical_cascade(
             )
         for name, metrics in best_validation["component_metrics"].items():
             log_metric_set(logger, f"val:{name}", metrics)
+        all_product_guardrails_passed = bool(
+            best_selection is not None
+            and best_selection.get("all_product_guardrails_passed") is True
+        )
         result = {
-            "status": "passed",
+            "status": "completed",
+            "performance_status": (
+                "passed" if all_product_guardrails_passed else "failed"
+            ),
+            "product_guardrails_passed": all_product_guardrails_passed,
+            "deployment_eligible": False,
+            "deployment_blockers": [
+                *([] if all_product_guardrails_passed else ["product_guardrails_failed"]),
+                "oof_rejection_calibration_not_executed",
+                "test_not_executed",
+                "stable_not_executed",
+                "p95_not_executed",
+            ],
             "schema_version": gate.schema_version,
             "device": str(device),
             "configs": {name: str(config_paths[name]) for name in EXPECTED_TASKS},

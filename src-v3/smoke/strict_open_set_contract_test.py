@@ -163,7 +163,8 @@ def _action_contract() -> dict[str, Any]:
         )
 
     dbb_accepted = decide([0.90, 0.10], [0.05, 0.90, 0.05], [0.90, 0.10])
-    dbb_rejected = decide([0.90, 0.10], [0.40, 0.35, 0.25], [0.90, 0.10])
+    dbb_fallback_clutter = decide([0.90, 0.10], [0.40, 0.35, 0.25], [0.90, 0.10])
+    dbb_fallback_unknown = decide([0.90, 0.10], [0.40, 0.35, 0.25], [0.55, 0.45])
     clutter_accepted = decide([0.20, 0.80], [0.90, 0.05, 0.05], [0.90, 0.10])
     cu_rejected = decide([0.20, 0.80], [0.90, 0.05, 0.05], [0.55, 0.45])
     if (
@@ -172,7 +173,13 @@ def _action_contract() -> dict[str, Any]:
         or dbb_accepted.rejected_to_unknown
     ):
         raise AssertionError("V14 failed the Gate+DBB-knownness accept path")
-    for decision, source in ((dbb_rejected, "DBB"), (cu_rejected, "CU")):
+    if (
+        dbb_fallback_clutter.final_action != "CLUTTER_ACCEPTED"
+        or dbb_fallback_clutter.accepted_label_id != 3
+        or dbb_fallback_clutter.gate_action != "DBB_ROUTE_ACCEPTED_THEN_FALLBACK_TO_CU"
+    ):
+        raise AssertionError("V14 DBB knownness failure did not fall back to CU Clutter acceptance")
+    for decision, source in ((dbb_fallback_unknown, "DBB-to-CU"), (cu_rejected, "CU")):
         if (
             decision.final_action != "UNKNOWN_REJECTED"
             or decision.accepted_label_id is not None
@@ -193,7 +200,8 @@ def _action_contract() -> dict[str, Any]:
         raise AssertionError("uncalibrated V14 policy emitted a product action")
     return {
         "dbb_accepted": dbb_accepted.final_action,
-        "dbb_knownness_failed": dbb_rejected.final_action,
+        "dbb_knownness_failed_then_cu_clutter": dbb_fallback_clutter.final_action,
+        "dbb_knownness_failed_then_cu_unknown": dbb_fallback_unknown.final_action,
         "clutter_accepted": clutter_accepted.final_action,
         "clutter_not_accepted": cu_rejected.final_action,
         "uncalibrated": uncalibrated.final_action,
@@ -651,7 +659,7 @@ def _synthetic_oof_calibration_contract() -> dict[str, Any]:
     }
 
 
-def run(project_root: Path) -> dict[str, Any]:
+def _run_legacy_contract(project_root: Path) -> dict[str, Any]:
     root = project_root.resolve()
     config_root = root / "config" / "RADAR-LN3"
     configs = {
@@ -759,6 +767,45 @@ def run(project_root: Path) -> dict[str, Any]:
         "p95": "未执行",
     }
     output = root / "src-v3/smoke/RADAR-LN3-V14-strict-open-set-focused-contract-result.json"
+    result["result_path"] = str(output)
+    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return result
+
+
+def run(project_root: Path) -> dict[str, Any]:
+    """Verify that stale V14 product topology is sealed after route repair."""
+
+    root = project_root.resolve()
+    config_root = root / "config" / "RADAR-LN3"
+    configs = {
+        name: load_task_config(config_root / filename)
+        for name, filename in CONFIG_NAMES.items()
+    }
+    validate_cascade_configs(configs)
+    legacy_contract_errors = {
+        name: _expect_failure(
+            lambda config=config: verify_task_data_contract(root, config),
+            "action contract",
+        )
+        for name, config in configs.items()
+    }
+    result = {
+        "status": "passed",
+        "schema_version": "RADAR-LN3-V14-strict-open-set-route-repair-contract-v1",
+        "legacy_contract_status": "incompatible_and_fail_closed",
+        "legacy_contract_errors": legacy_contract_errors,
+        "action": _action_contract(),
+        "historical_v14_artifacts_modified": False,
+        "historical_v14_oof_reexecuted": False,
+        "historical_v14_calibration_reexecuted": False,
+        "formal_training": "未执行",
+        "formal_rejection": "未执行",
+        "stable": "未执行",
+        "test": "未执行",
+        "p95": "未执行",
+    }
+    output = root / "src-v3/smoke/RADAR-LN3-V14-strict-open-set-route-repair-contract-result.json"
     result["result_path"] = str(output)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2))

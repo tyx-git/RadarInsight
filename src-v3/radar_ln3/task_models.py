@@ -46,6 +46,7 @@ from .features import (
     TR_OBSERVATION_INCREMENT_SCHEMA,
     resolve_causal_tr_feature_contract,
 )
+from .losses import parent_final_task_ce_with_prefix_auxiliary
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
 from .rd_physical import (
     RD_PHYSICAL_MASK_MODE,
@@ -90,6 +91,9 @@ HIERARCHICAL_CU_OUTPUT_NAMES = (
 )
 STRICT_OPEN_SET_SCHEMA_VERSION = "RADAR-LN3-V14"
 ANGULAR_KNOWNNESS_SCHEMA_VERSION = "RADAR-LN3-V15"
+PRODUCT_LOCAL_SCHEMA_VERSION = "RADAR-LN3-V16"
+PRODUCT_LOCAL_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
+PRODUCT_LOCAL_CHECKPOINT_SELECTION = "parent_min_precision_recall"
 STRICT_OPEN_SET_LOSS_MODE = "parent_final_known_only_open_set_nll_with_prefix_auxiliary"
 STRICT_OPEN_SET_CHECKPOINT_SELECTION = "known_only_parent_route_guarded"
 STRICT_OPEN_SET_GATE_OUTPUT_NAMES = (
@@ -137,6 +141,16 @@ def _is_repaired_task_schema(schema_version: str) -> bool:
 
 def is_strict_open_set_schema(schema_version: str) -> bool:
     return str(schema_version) in STRICT_OPEN_SET_SCHEMA_VERSIONS
+
+
+def is_product_local_schema(schema_version: str) -> bool:
+    return str(schema_version) == PRODUCT_LOCAL_SCHEMA_VERSION
+
+
+def requires_task_config_identity(schema_version: str) -> bool:
+    return str(schema_version) in HIERARCHICAL_SCHEMA_VERSIONS or is_product_local_schema(
+        schema_version
+    )
 
 
 @dataclass(frozen=True)
@@ -319,6 +333,7 @@ class TaskTrainConfig:
     dbb_min_precision_recall_target: float | None
     cu_min_precision_recall_target: float | None
     drone_bird_min_precision_recall_target: float | None
+    task_min_precision_recall_target: float | None
 
 
 @dataclass(frozen=True)
@@ -349,6 +364,9 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
             "dbb_knownness_score_name",
         ):
             model_identity.pop(field_name)
+    train_identity = asdict(config.train)
+    if not is_product_local_schema(config.schema_version):
+        train_identity.pop("task_min_precision_recall_target")
     payload = {
         "schema_version": config.schema_version,
         "config_name": config.config_name,
@@ -360,7 +378,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
         },
         "data": asdict(config.data),
         "model": model_identity,
-        "train": asdict(config.train),
+        "train": train_identity,
     }
     encoded = json.dumps(
         payload,
@@ -696,6 +714,11 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             if train_payload.get("drone_bird_min_precision_recall_target") is None
             else float(train_payload["drone_bird_min_precision_recall_target"])
         ),
+        task_min_precision_recall_target=(
+            None
+            if train_payload.get("task_min_precision_recall_target") is None
+            else float(train_payload["task_min_precision_recall_target"])
+        ),
     )
     if train.learning_rate <= 0.0 or train.gradient_clip_norm <= 0.0:
         raise ValueError("task learning_rate and gradient_clip_norm must be positive")
@@ -820,6 +843,63 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             or model.dbb_knownness_score_name != DBB_KNOWNNESS_PROBABILITY
         ):
             raise ValueError("DBB angular readout fields are reserved for RADAR-LN3-V15")
+    elif is_product_local_schema(schema_version):
+        if train.loss_mode != PRODUCT_LOCAL_LOSS_MODE:
+            raise ValueError(f"{schema_version} task training must use {PRODUCT_LOCAL_LOSS_MODE}")
+        if train.checkpoint_selection_metric != PRODUCT_LOCAL_CHECKPOINT_SELECTION:
+            raise ValueError(
+                f"{schema_version} checkpoint selection must use {PRODUCT_LOCAL_CHECKPOINT_SELECTION}"
+            )
+        expected_target = 0.90 if spec.name == "cu_specialist" else 0.95
+        if (
+            train.task_min_precision_recall_target is None
+            or abs(float(train.task_min_precision_recall_target) - expected_target) > 1.0e-12
+        ):
+            raise ValueError(
+                f"{schema_version} {spec.name} minimum precision/recall target must be {expected_target:.2f}"
+            )
+        if not 0.0 <= train.prefix_auxiliary_weight <= 1.0:
+            raise ValueError(f"{schema_version} prefix_auxiliary_weight must be in [0,1]")
+        if train.prefix_auxiliary_weight > 0.0 and train.prefix_auxiliary_min_events < 3:
+            raise ValueError(f"{schema_version} prefix auxiliary supervision must start at event 3 or later")
+        if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
+            raise ValueError(f"{schema_version} model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
+        if data.contract_schema_version != schema_version or data.index_schema_version != schema_version:
+            raise ValueError(f"{schema_version} must consume its own index and data contract")
+        if model.dbb_auxiliary_num_classes != 0 or model.rd_physical_dim != 0 or motion_fields_present:
+            raise ValueError(f"{schema_version} local baseline must not retain V9-V12 experimental inputs or heads")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError(f"{schema_version} requires 20 fixed epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError(f"{schema_version} requires epoch checkpoints and parent-order hashes")
+        if train.dataloader_seed != train.seed:
+            raise ValueError(f"{schema_version} model seed and DataLoader seed must match")
+        if any(
+            value is not None
+            for value in (
+                train.paired_protocol,
+                train.paired_arm,
+                train.paired_seed,
+                train.paired_counterpart_config_path,
+                train.joint_artifact_dir,
+                train.joint_last_checkpoint_path,
+                train.joint_best_checkpoint_path,
+                train.joint_checkpoint_schema,
+                train.gate_min_precision_recall_target,
+                train.dbb_min_precision_recall_target,
+                train.cu_min_precision_recall_target,
+                train.drone_bird_min_precision_recall_target,
+            )
+        ):
+            raise ValueError(f"{schema_version} is three independent local runs, not paired or joint training")
+        if (
+            model.dbb_readout_mode != DBB_READOUT_LINEAR
+            or model.dbb_embedding_dim != 0
+            or model.dbb_cosine_scale != 1.0
+            or model.dbb_angular_margin != 0.0
+            or model.dbb_knownness_score_name != DBB_KNOWNNESS_PROBABILITY
+        ):
+            raise ValueError(f"{schema_version} must use the frozen linear local-task readout")
     elif train.loss_mode != "causal_prefix":
         raise ValueError("historical task training must use causal_prefix loss")
     if schema_number == _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
@@ -878,7 +958,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         or train.dbb_auxiliary_supervision_scope is not None
     ):
         raise ValueError("DBB auxiliary training fields are reserved for the RADAR-LN3-V12 paired experiment")
-    if schema_version not in HIERARCHICAL_SCHEMA_VERSIONS:
+    if schema_version not in HIERARCHICAL_SCHEMA_VERSIONS and not is_product_local_schema(schema_version):
         if (
             model.dt_reason_mode != "legacy_dt_valid_only"
             or train.prefix_auxiliary_weight != 0.0
@@ -891,6 +971,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             or train.dbb_min_precision_recall_target is not None
             or train.cu_min_precision_recall_target is not None
             or train.drone_bird_min_precision_recall_target is not None
+            or train.task_min_precision_recall_target is not None
         ):
             raise ValueError("dt reason dynamics and prefix auxiliary weight are reserved for hierarchical schemas")
     if _is_repaired_task_schema(schema_version):
@@ -1017,6 +1098,92 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
     )
     if stats.get("source_split") != "train" or not explicitly_excludes_validation_and_test:
         raise ValueError("task normalization statistics are not explicitly train-only")
+    if is_product_local_schema(config.schema_version):
+        data_scope = dict(contract.get("data_scope") or {})
+        provenance = dict(contract.get("provenance_contract") or {})
+        normalization = dict(contract.get("normalization_contract") or {})
+        time_contract = dict(contract.get("time_contract") or {})
+        task_contracts = dict(contract.get("task_contracts") or {})
+        action = dict(contract.get("action_semantics") or {})
+        split_counts = {
+            str(split): {str(label): int(count) for label, count in dict(counts).items()}
+            for split, counts in dict(data_scope.get("split_label_parent_counts") or {}).items()
+        }
+        train_counts = split_counts.get(config.data.train_split_name, {})
+        validation_counts = split_counts.get(config.data.validation_split_name, {})
+        if set(train_counts) != set(BASE_LABELS) or set(validation_counts) != set(BASE_LABELS):
+            raise ValueError("V16 data contract must report all five labels in train and validation")
+        if any(train_counts[label] <= 0 or validation_counts[label] <= 0 for label in BASE_LABELS):
+            raise ValueError("V16 train/validation support must be positive for every base label")
+        expected_train_count = sum(train_counts.values())
+        if (
+            stats.get("schema_version") != PRODUCT_LOCAL_SCHEMA_VERSION
+            or int(stats.get("parent_count", -1)) != expected_train_count
+            or stats.get("selected_label_parent_counts") != train_counts
+            or stats.get("allowed_labels") is not None
+            or stats.get("forbidden_labels") != []
+            or int(stats.get("excluded_parent_count", -1)) != 0
+            or int(stats.get("excluded_rd_tensor_count", -1)) != 0
+            or int(stats.get("selected_excluded_rd_tensor_path_overlap_count", -1)) != 0
+        ):
+            raise ValueError("V16 normalization must use every train parent across all five labels and no val/test")
+        if (
+            normalization.get("split") != config.data.train_split_name
+            or normalization.get("all_five_labels_included") is not True
+            or int(normalization.get("parent_count", -1)) != expected_train_count
+            or normalization.get("label_parent_counts") != train_counts
+            or normalization.get("validation_and_test_excluded") is not True
+            or normalization.get("sha256") != actual_hashes["stats_sha256"]
+        ):
+            raise ValueError("V16 normalization provenance does not match the loaded train-only statistics")
+        key_violations = dict(provenance.get("key_cross_split_group_counts") or {})
+        if (
+            provenance.get("group_unit") != "capture_content_connected_component"
+            or provenance.get("all_split_purity_checks_passed") is not True
+            or any(int(value) != 0 for value in key_violations.values())
+            or int(provenance.get("cross_label_content_conflict_count", -1)) != 0
+            or int(provenance.get("old_validation_or_test_to_train_count", -1)) != 0
+        ):
+            raise ValueError("V16 capture/content provenance isolation is not clean")
+        if (
+            time_contract.get("dt_reason_field") != "tr_dt_reason"
+            or time_contract.get("zero_delta_rule")
+            != "bounded observation update; counted as zero_dt, never as a gap"
+            or "never update" not in str(time_contract.get("padding_rule", ""))
+        ):
+            raise ValueError("V16 time contract does not preserve reason-aware zero-dt semantics")
+        task_contract = dict(task_contracts.get(config.task.name) or {})
+        if (
+            task_contract.get("class_names") != list(config.task.class_names)
+            or task_contract.get("label_to_id") != dict(config.task.label_to_id)
+            or sorted(task_contract.get("allowed_training_labels") or [])
+            != sorted(config.task.allowed_base_labels)
+            or int(task_contract.get("train_parent_count", -1))
+            != sum(train_counts[label] for label in config.task.allowed_base_labels)
+            or int(task_contract.get("validation_parent_count", -1))
+            != sum(validation_counts[label] for label in config.task.allowed_base_labels)
+            or abs(
+                float(task_contract.get("target_min_precision_recall", -1.0))
+                - float(config.train.task_min_precision_recall_target or -1.0)
+            )
+            > 1.0e-12
+        ):
+            raise ValueError("V16 local task contract does not match the configured label mapping or support")
+        if config.task.name == "cu_specialist" and (
+            set(config.task.allowed_base_labels) != {"ClutterTarget", "UnknownTarget"}
+            or config.task.label_to_id.get("UnknownTarget") != 1
+            or train_counts.get("UnknownTarget", 0) <= 0
+        ):
+            raise ValueError("V16 CU specialist must learn the real ClutterTarget/UnknownTarget boundary")
+        if (
+            action.get("unknown_supervised_label")
+            != "CU specialist label used for local boundary learning"
+            or action.get("unknown_rejected_action")
+            != "separate future runtime action; not evaluated in this local-task stage"
+            or action.get("dbb_not_accepted_future_route")
+            != "must fall back to CU; direct UNKNOWN_REJECTED is forbidden in V16 product action"
+        ):
+            raise ValueError("V16 action semantics do not preserve the three-layer product route")
     if is_strict_open_set_schema(config.schema_version):
         oof_fold_contract = dict(contract.get("oof_fold_training_contract") or {})
         is_oof_fold = bool(oof_fold_contract)
@@ -1137,8 +1304,13 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             or oof.get("test_used") is not False
         ):
             raise ValueError("strict-open-set OOF contract is not known-only train parent-grouped OOF")
+        if action.get("dbb_knownness_failure") == "UNKNOWN_REJECTED":
+            raise ValueError(
+                "strict-open-set action contract is legacy-incompatible: "
+                "DBB knownness failure must route to the CU specialist"
+            )
         if (
-            action.get("dbb_knownness_failure") != "UNKNOWN_REJECTED"
+            action.get("dbb_knownness_failure") != "ROUTE_TO_CU_SPECIALIST"
             or action.get("cu_clutter_failure") != "UNKNOWN_REJECTED"
             or action.get("unknown_is_rejection_action_only") is not True
             or action.get("unknown_is_probability_output") is not False
@@ -1245,6 +1417,7 @@ def build_task_dataset(
                 "V11 RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
             )
     strict_open_set = is_strict_open_set_schema(config.schema_version)
+    task_filtered_base = strict_open_set or is_product_local_schema(config.schema_version)
     base = CQ08PointSequenceDataset(
         project_root,
         index_path=resolve_project_path(project_root, config.data.index_path),
@@ -1258,7 +1431,7 @@ def build_task_dataset(
         expected_schema_version=config.data.index_schema_version,
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
         rd_physical_cache_path=rd_physical_cache_path,
-        allowed_labels=config.task.allowed_base_labels if strict_open_set else None,
+        allowed_labels=config.task.allowed_base_labels if task_filtered_base else None,
         forbidden_labels={UNKNOWN_BASE_LABEL} if strict_open_set else None,
     )
     view = TaskSequenceDataset(base, config.task)
@@ -1584,7 +1757,7 @@ class LiquidTaskClassifier(nn.Module):
             raise ValueError("task dt and dt_valid shapes do not match TR sequence")
         if self.dt_reason_mode == DT_REASON_DYNAMICS_MODE:
             if tr_dt_reason is None or tr_dt_reason.shape != tr_features.shape[:2]:
-                raise ValueError("V13 task requires tr_dt_reason with shape [batch,sequence]")
+                raise ValueError("reason-aware task requires tr_dt_reason with shape [batch,sequence]")
         elif tr_dt_reason is not None:
             tr_dt_reason = None
         if rd_quality.shape != (*tr_features.shape[:2], self.rd_quality_dim):
@@ -1708,7 +1881,7 @@ class LiquidTaskClassifier(nn.Module):
             raise ValueError("online task dt tensors must have shape [batch]")
         if self.dt_reason_mode == DT_REASON_DYNAMICS_MODE:
             if tr_dt_reason is None or tr_dt_reason.shape != tr_dt_seconds.shape:
-                raise ValueError("online V13 task requires tr_dt_reason with shape [batch]")
+                raise ValueError("online reason-aware task requires tr_dt_reason with shape [batch]")
         elif tr_dt_reason is not None:
             tr_dt_reason = None
         if rd_frames.ndim != 5 or rd_frames.shape[2:] != (2, 21, 384):
@@ -1888,6 +2061,32 @@ def task_training_objective(
 ) -> dict[str, Any]:
     """Compose the frozen main Gate and optional V12 auxiliary objectives."""
 
+    if is_product_local_schema(config.schema_version):
+        local = parent_final_task_ce_with_prefix_auxiliary(
+            output["sequence_logits"],
+            batch["labels"],
+            batch["tr_padding_mask"],
+            class_weights=class_weights,
+            prefix_auxiliary_weight=config.train.prefix_auxiliary_weight,
+            prefix_auxiliary_min_events=config.train.prefix_auxiliary_min_events,
+        )
+        zero = local["loss"].new_zeros(())
+        return {
+            "loss": local["loss"],
+            "main_loss": local["final_state_loss"],
+            "prefix_auxiliary_loss": local["prefix_auxiliary_loss"],
+            "prefix_auxiliary_counts": {
+                "eligible_prefix_count": int(local["eligible_prefix_count"].item()),
+                "eligible_parent_count": int(local["eligible_prefix_parent_count"].item()),
+            },
+            "dbb_auxiliary_loss": zero,
+            "dbb_auxiliary_counts": {
+                "selected_dbb_parent_count": 0,
+                "excluded_cu_parent_count": 0,
+                "selected_final_state_count": 0,
+            },
+        }
+
     main_loss = task_prefix_loss(
         output["sequence_logits"],
         batch["labels"],
@@ -1928,6 +2127,11 @@ def task_training_objective(
     return {
         "loss": total_loss,
         "main_loss": main_loss,
+        "prefix_auxiliary_loss": main_loss.new_zeros(()),
+        "prefix_auxiliary_counts": {
+            "eligible_prefix_count": 0,
+            "eligible_parent_count": 0,
+        },
         "dbb_auxiliary_loss": auxiliary_loss,
         "dbb_auxiliary_counts": auxiliary_counts,
     }
@@ -2308,6 +2512,20 @@ def save_task_checkpoint(
                 "paired_arm": config.train.paired_arm,
                 "paired_seed": config.train.paired_seed,
             })
+    elif is_product_local_schema(config.schema_version):
+        model_contract.update(
+            {
+                "dt_reason_mode": config.model.dt_reason_mode,
+                "dt_reason_names": list(DT_REASON_NAMES),
+                "loss_mode": config.train.loss_mode,
+                "prefix_auxiliary_weight": config.train.prefix_auxiliary_weight,
+                "prefix_auxiliary_min_events": config.train.prefix_auxiliary_min_events,
+                "checkpoint_selection_metric": config.train.checkpoint_selection_metric,
+                "task_min_precision_recall_target": config.train.task_min_precision_recall_target,
+                "local_task_only": True,
+                "full_cascade_evaluation": "not_executed",
+            }
+        )
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
         model_contract.update({
@@ -2359,7 +2577,7 @@ def save_task_checkpoint(
         "model_contract": model_contract,
         "model_state": model.state_dict(),
     }
-    if config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+    if requires_task_config_identity(config.schema_version):
         payload["config_identity_sha256"] = task_config_identity_sha256(config)
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         payload["data_contract"].update(
@@ -2400,12 +2618,12 @@ def load_task_checkpoint(
         raise ValueError(f"invalid task checkpoint schema; expected={expected_schema}")
     if payload.get("task_name") != model.task_name:
         raise ValueError("task checkpoint belongs to a different task")
-    if model.config.schema_version in HIERARCHICAL_SCHEMA_VERSIONS:
+    if requires_task_config_identity(model.config.schema_version):
         if payload.get("config_name") != model.config.config_name:
-            raise ValueError("hierarchical task checkpoint belongs to a different named configuration")
+            raise ValueError("versioned task checkpoint belongs to a different named configuration")
         expected_config_identity = task_config_identity_sha256(model.config)
         if payload.get("config_identity_sha256") != expected_config_identity:
-            raise ValueError("hierarchical task checkpoint configuration identity mismatch")
+            raise ValueError("versioned task checkpoint configuration identity mismatch")
     expected_data_contract = {
         "index_sha256": model.config.data.expected_index_sha256,
         "contract_sha256": model.config.data.expected_contract_sha256,
@@ -2485,6 +2703,20 @@ def load_task_checkpoint(
                 "paired_arm": model.config.train.paired_arm,
                 "paired_seed": model.config.train.paired_seed,
             })
+    elif is_product_local_schema(model.config.schema_version):
+        expected_contract.update(
+            {
+                "dt_reason_mode": model.config.model.dt_reason_mode,
+                "dt_reason_names": list(DT_REASON_NAMES),
+                "loss_mode": model.config.train.loss_mode,
+                "prefix_auxiliary_weight": model.config.train.prefix_auxiliary_weight,
+                "prefix_auxiliary_min_events": model.config.train.prefix_auxiliary_min_events,
+                "checkpoint_selection_metric": model.config.train.checkpoint_selection_metric,
+                "task_min_precision_recall_target": model.config.train.task_min_precision_recall_target,
+                "local_task_only": True,
+                "full_cascade_evaluation": "not_executed",
+            }
+        )
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)
         expected_contract.update({
@@ -2644,6 +2876,67 @@ def summarize_task_records(records: Iterable[Mapping[str, Any]], *, class_names:
     }
 
 
+def summarize_task_performance_guardrails(
+    evaluation: Mapping[str, Any] | None,
+    *,
+    target: float | None,
+) -> dict[str, Any]:
+    """Separate local model quality from successful process execution."""
+
+    if target is None:
+        return {
+            "performance_status": "not_applicable",
+            "target_min_per_class_precision_recall_f1": None,
+            "observed_min_per_class_precision_recall_f1": None,
+            "guardrails": [],
+        }
+    threshold = float(target)
+    if not 0.0 < threshold <= 1.0:
+        raise ValueError("task performance target must be in (0,1]")
+    if evaluation is None:
+        return {
+            "performance_status": "not_evaluated",
+            "target_min_per_class_precision_recall_f1": threshold,
+            "observed_min_per_class_precision_recall_f1": None,
+            "guardrails": [],
+        }
+    per_class = list(dict(evaluation.get("parent_metrics") or {}).get("per_class") or [])
+    if not per_class:
+        raise ValueError("task performance guardrails require parent-final per-class metrics")
+    guardrails: list[dict[str, Any]] = []
+    observed_values: list[float] = []
+    for row in per_class:
+        support = int(row.get("support", 0))
+        if support <= 0:
+            raise ValueError("task performance guardrails cannot pass a zero-support class")
+        metric_values: dict[str, float] = {}
+        for metric_name in ("precision", "recall", "f1"):
+            value = float(row.get(metric_name))
+            if not np.isfinite(value):
+                raise ValueError(
+                    f"task performance metric {row.get('class')}.{metric_name} is not finite"
+                )
+            metric_values[metric_name] = value
+            observed_values.append(value)
+        guardrails.append(
+            {
+                "class": str(row.get("class")),
+                "support": support,
+                **metric_values,
+                "target": threshold,
+                "passed": all(value >= threshold for value in metric_values.values()),
+            }
+        )
+    observed = min(observed_values)
+    passed = all(bool(row["passed"]) for row in guardrails)
+    return {
+        "performance_status": "passed" if passed else "failed",
+        "target_min_per_class_precision_recall_f1": threshold,
+        "observed_min_per_class_precision_recall_f1": observed,
+        "guardrails": guardrails,
+    }
+
+
 def evaluate_task(
     model: LiquidTaskClassifier,
     dataset: TaskSequenceDataset,
@@ -2655,8 +2948,10 @@ def evaluate_task(
     model.eval()
     loader = build_task_dataloader(dataset, batch_size=batch_size or config.train.batch_size, shuffle=False)
     window_records: list[dict[str, Any]] = []
+    eligible_prefix_records: list[dict[str, Any]] = []
     parent_records: list[dict[str, Any]] = []
     dt_invalid = 0
+    dt_reason_counts = {name: 0 for name in DT_REASON_NAMES}
     with torch.inference_mode():
         for batch in loader:
             tensor_batch = {key: value.to(device) if isinstance(value, torch.Tensor) else value for key, value in batch.items()}
@@ -2677,6 +2972,9 @@ def evaluate_task(
             )
             probabilities = _probabilities(output["sequence_logits"])
             dt_invalid += int(output["dt_invalid_mask"].sum().item())
+            active_reasons = tensor_batch["tr_dt_reason"].masked_select(~tensor_batch["tr_padding_mask"])
+            for reason_id, reason_name in enumerate(DT_REASON_NAMES):
+                dt_reason_counts[reason_name] += int((active_reasons == reason_id).sum().item())
             for batch_index, parent_id in enumerate(batch["parent_sample_ids"]):
                 length = int(batch["lengths"][batch_index].item())
                 true_id = int(batch["labels"][batch_index].item())
@@ -2694,21 +2992,84 @@ def evaluate_task(
                         "label_name": batch["label_names"][batch_index],
                         "event_index": event_index,
                         "window_length": event_index + 1,
+                        "product_action_eligible": (
+                            not is_product_local_schema(config.schema_version)
+                            or event_index + 1 >= config.train.prefix_auxiliary_min_events
+                        ),
                     }
                     window_records.append(dict(final))
+                    if (
+                        is_product_local_schema(config.schema_version)
+                        and event_index + 1 >= config.train.prefix_auxiliary_min_events
+                        and event_index + 1 < length
+                    ):
+                        eligible_prefix_records.append(dict(final))
                 if final is None:
                     raise ValueError(f"empty task sequence: {parent_id}")
                 parent_records.append(final)
-    return {
+    active_event_count = sum(
+        count for name, count in dt_reason_counts.items() if name != "padding"
+    )
+    zero_dt_count = (
+        dt_reason_counts["first_event_no_predecessor"]
+        + dt_reason_counts["zero_delta_at_second_precision"]
+    )
+    result = {
         "task_name": config.task.name,
         "class_names": list(config.task.class_names),
         "parent_count": len(parent_records),
         "window_count": len(window_records),
         "window_metrics": summarize_task_records(window_records, class_names=config.task.class_names, scope="causal_prefix_windows"),
-        "parent_metrics": summarize_task_records(parent_records, class_names=config.task.class_names, scope="parent_final_prefix"),
-        "dt_quality": {"dt_invalid_event_count": dt_invalid},
-        "records": {"window": window_records, "parent": parent_records},
+        "parent_metrics": summarize_task_records(
+            parent_records,
+            class_names=config.task.class_names,
+            scope="parent_final" if is_product_local_schema(config.schema_version) else "parent_final_prefix",
+        ),
+        "dt_quality": {
+            "active_event_count": active_event_count,
+            "dt_invalid_event_count": dt_invalid,
+            "dt_reason_counts": dt_reason_counts,
+            "raw_zero_dt_event_count": zero_dt_count,
+            "raw_zero_dt_fraction": (
+                float(zero_dt_count / active_event_count) if active_event_count else None
+            ),
+            "zero_delta_event_count": dt_reason_counts["zero_delta_at_second_precision"],
+            "zero_delta_fraction": (
+                float(dt_reason_counts["zero_delta_at_second_precision"] / active_event_count)
+                if active_event_count
+                else None
+            ),
+            "gap_event_count": 0,
+            "gap_fraction": 0.0 if active_event_count else None,
+            "zero_delta_is_gap": False,
+        },
+        "records": {
+            "window": window_records,
+            "eligible_prefix": eligible_prefix_records,
+            "parent": parent_records,
+        },
     }
+    if is_product_local_schema(config.schema_version):
+        result.update(
+            {
+                "prefix_action_contract": {
+                    "minimum_evidence_events": config.train.prefix_auxiliary_min_events,
+                    "events_before_minimum": "diagnostic_only_pending_for_future_product_action",
+                    "eligible_prefix_excludes_parent_final": True,
+                    "eligible_prefix_count": len(eligible_prefix_records),
+                },
+                "eligible_prefix_metrics": summarize_task_records(
+                    eligible_prefix_records,
+                    class_names=config.task.class_names,
+                    scope="eligible_causal_prefix_auxiliary_excluding_final",
+                ),
+                "full_cascade_evaluation": "未执行",
+                "rejection_calibration": "未执行",
+                "stable": "未执行",
+                "test": "未执行",
+            }
+        )
+    return result
 
 
 __all__ = [
@@ -2743,6 +3104,9 @@ __all__ = [
     "STRICT_OPEN_SET_LOSS_MODE",
     "STRICT_OPEN_SET_SCHEMA_VERSION",
     "STRICT_OPEN_SET_TASK_SPECS",
+    "PRODUCT_LOCAL_CHECKPOINT_SELECTION",
+    "PRODUCT_LOCAL_LOSS_MODE",
+    "PRODUCT_LOCAL_SCHEMA_VERSION",
     "UNKNOWN_BASE_LABEL",
     "DT_REASON_DYNAMICS_MODE",
     "WEAK_CLASS_SELECTION_SCHEMA_VERSION",
@@ -2758,11 +3122,14 @@ __all__ = [
     "compose_soft_cascade",
     "compose_strict_open_set_evidence",
     "evaluate_task",
+    "is_product_local_schema",
+    "is_strict_open_set_schema",
     "load_task_checkpoint",
     "load_task_config",
     "restore_training_state",
     "save_task_checkpoint",
     "seed_everything",
+    "summarize_task_performance_guardrails",
     "summarize_task_records",
     "task_device",
     "task_prefix_loss",

@@ -1970,3 +1970,91 @@
 - Action：按`.rules`保存V15快照后进入V16；V16重新版本化index/split/stats/contract/config/checkpoint，三任务先独立训练评估，不执行完整级联。
 - 验证状态：V15冻结；V16未执行。
 - 关联版本：V15冻结、V16起点。
+
+## Finding F180
+
+- Severity：Critical（跨split同源暴露已修复）
+- 文件位置：`src-v3/build/product_local_v16.py`、V16 provenance/split/index三文件
+- 问题或结论：V3按track_id切分产生的capture/content同源跨split已通过V16连通组件重切分消除。
+- Evidence：1546个parent形成1501个组件，45个多parent组件中27个原跨split；保守迁移27个parent且旧val/test→train为0。capture/raw/RD/规范track/规范point/模型输入语义六类键的跨split违反数均为0；跨标签content-equivalent冲突0组。
+- Impact：V16局部validation不再包含已识别的同capture/同raw/同RD跨split暴露；历史V3–V15泛化指标仍受旧split风险限制，不能被追溯性洗白。
+- Action：V16正式训练只允许加载新index/contract/stats hash；后续版本若改变provenance键或split必须再次递增数据版本。
+- 验证状态：首次全量构建和第二次幂等全量复核均通过；正式分类性能未执行。
+- 关联版本：V16。
+
+## Finding F181
+
+- Severity：Critical（真实CU监督目标已修复）
+- 文件位置：三份V16配置、`src-v3/radar_ln3/task_models.py::TASK_SPECS/build_task_dataset/verify_task_data_contract`
+- 问题或结论：V16 CU specialist恢复为`ClutterTarget` versus `UnknownTarget`真实二分类，不再使用Drone/Bird/Balloon作为Unknown替代负类。
+- Evidence：CU train/val parent=`102/24`，标签support为train Clutter/Unknown=`33/69`、val=`9/15`；底层Dataset和task view都只包含这两类。Gate train/val为DBB/CU=`953/102`与`223/24`。
+- Impact：V16可以真实评估局部Clutter/Unknown标签边界；但真实Unknown标签预测仍不等同运行时`UNKNOWN_REJECTED`开放集动作，后者尚未OOF校准或正式评估。
+- Action：正式局部报告分别输出CU两类P/R/F1；不得把Unknown分类Recall写成拒识Recall/FAR/FRR。
+- 验证状态：focused数据/标签/contract测试通过；正式训练和性能未执行。
+- 关联版本：V16。
+
+## Finding F182
+
+- Severity：High（窗口级训练目标与局部产品目标已统一）
+- 文件位置：`src-v3/radar_ln3/losses.py::parent_final_task_ce_with_prefix_auxiliary`、`src-v3/radar_ln3/task_models.py::task_training_objective/evaluate_task`
+- 问题或结论：V16主损失只监督每parent完整序列最后合法状态；event≥3且非final的causal prefix仅作为0.10辅助并按parent均衡。前两事件不作为可用产品动作。
+- Evidence：V16最长parent=29且配置max=29，不存在截断伪final。focused探针得到padding gradient max=0、event<3非final gradient max=0、eligible prefix只来自声明范围；class-weight辅助分母与weighted CE一致。
+- Impact：训练loss与独立checkpoint选择都以parent-final局部任务为主，不再让所有早期证据不足prefix无条件主导；同时保留早期时序表征辅助。该设计尚未证明比final-only或prefix-ramp性能更优。
+- Action：先完成冻结V16三任务训练；若未达标，下一单因素实验才比较final-only/final+prefix/prefix-ramp，不同时改变split、输入或液态容量。
+- 验证状态：数学/梯度/CPU/CUDA单步通过；正式性能未执行。
+- 关联版本：V16。
+
+## Finding F183
+
+- Severity：High（有效dt来源与gap语义已修复）
+- 文件位置：`src-v3/radar_ln3/data.py`、`src-v3/radar_ln3/cascade.py::hierarchical_time_quality_fractions`
+- 问题或结论：V16保留原始0秒与reason-aware dynamics；同秒观测不再计为gap。有效时间为零的真实来源是1546个首点无前驱和9776个秒级重复时间戳。
+- Evidence：29663事件中first/zero/positive=`1546/9776/18341`；raw zero比例=`38.1688%`，same-second占全部=`32.9569%`、占非首转换=`34.7690%`。负dt=0；同秒仍执行bounded observation。当前V16无显式真实gap reason，故gap_fraction=0。
+- Impact：质量门控不再因合法同秒观测产生类别/source/长度相关误拒偏置；没有伪造更高时间精度。
+- Action：未来若发现真实缺失/超阈值间隔，必须新增显式reason并版本化，不得重新复用same-second计数。
+- 验证状态：全量index校验、focused和V13回归通过；正式动作/stable未执行。
+- 关联版本：V16及共享未来动作接口。
+
+## Finding F184
+
+- Severity：Critical（DBB失败直达Unknown路由已修复）
+- 文件位置：`src-v3/radar_ln3/rejection.py::StrictOpenSetRejectionPolicy.decide`、V14/V16 focused
+- 问题或结论：Gate接受DBB但DBB knownness未接受时，现在显式回退CU；CU接受Clutter则输出Clutter，否则才输出Unknown拒识。
+- Evidence：合成探针得到`DBB_ROUTE_ACCEPTED_THEN_FALLBACK_TO_CU→CLUTTER_ACCEPTED`和同路由→`UNKNOWN_REJECTED`两条路径。旧V14/V15 action contract仍声明DBB失败直达Unknown，三配置均被当前验证器fail-closed。
+- Impact：未来产品动作可区分Gate原路由CU与DBB knownness失败后的CU复核，避免低置信Bird/Drone/Balloon无条件直达Unknown。V15旧calibration与CU目标仍不适配新路由，不能复用。
+- Action：V16局部阶段不启用正式拒识；后续新版本必须用真实CU与train parent-grouped OOF重新校准和逐事件验收。
+- 验证状态：合成路由与旧契约负向测试通过；正式拒识、stable、FAR/FRR未执行。
+- 关联版本：共享路由修复；V16后续产品阶段。
+
+## Finding F185
+
+- Severity：High（流程状态与性能状态已分离）
+- 文件位置：`src-v3/train/tasks.py`、`src-v3/report/tasks.py`、`src-v3/train/cascade.py`
+- 问题或结论：V16成功训练流程写`status=completed`，异常中止写`status=failed`；局部性能独立写`performance_status`并同时检查逐类Precision/Recall/F1。未来联合训练摘要也不再无条件写passed。
+- Evidence：CPU/CUDA一阶段Smoke三任务均为`completed/not_evaluated/deployment_eligible=false`；合成0.94弱指标在0.95门槛下得到`performance_status=failed`。正式CLI缩短参数被拒绝。
+- Impact：artifact消费者不能再把命令运行完成冒充模型达标，也不能把局部三任务通过冒充完整级联/部署通过。
+- Action：正式训练后先读取`performance_status`和逐类guardrails；OOF/test/stable/P95未执行时`deployment_eligible`保持false。
+- 验证状态：focused与CPU/CUDA单步通过；运行中失败摘要代码已编译，未故意制造正式失败artifact。
+- 关联版本：V16及未来联合入口。
+
+## Finding F186
+
+- Severity：High（V16局部checkpoint不可直接冒充完整级联）
+- 文件位置：`src-v3/radar_ln3/cascade.py::validate_cascade_configs`、三份V16配置
+- 问题或结论：V16被明确限定为三个独立局部run；通用cascade组装、报告和联合训练入口对V16 product-local schema fail-closed。
+- Evidence：focused调用`validate_cascade_configs`得到“restricted to independent task training and evaluation”错误；三任务各有独立artifact、best epoch和局部门槛，不存在联合checkpoint set或产品组合选择。
+- Impact：防止把三个局部best直接相乘后宣称五类/开放集性能，也避免在未定义联合checkpoint协议时污染归因。
+- Action：本轮只运行三条`train.tasks`和三条`report.tasks`；完整级联必须创建后续版本并显式定义组装、联合选优、OOF拒识和stable验收。
+- 验证状态：负向scope测试通过；完整级联未执行。
+- 关联版本：V16 product-local。
+
+## Finding F187
+
+- Severity：High（CU低support仍是未解决性能风险）
+- 文件位置：V16 grouped split/data contract
+- 问题或结论：provenance重切分提高独立性，但CU support仍很低，且比旧V3 train Clutter 35降为33；validation仅Clutter=9、Unknown=15。
+- Evidence：V16五类train/val/test为`476/239/238/33/69`、`113/56/54/9/15`、`109/53/58/8/16`。迁移中1个train Clutter进入val、1个train Clutter进入test、1个train Unknown进入test。
+- Impact：单个CU parent会显著改变P/R/F1，0.90门槛的点估计方差大；即使一次validation达标，也不能单独证明稳定泛化或严格open-set安全。
+- Action：先执行冻结局部基线；后续使用train parent-grouped OOF/parent bootstrap报告置信区间和子流型覆盖，不复制window、不从val/test回采、不因模型错误改标签。
+- 验证状态：support/provenance已确认；正式CU性能、OOF区间、test均未执行。
+- 关联版本：V16。

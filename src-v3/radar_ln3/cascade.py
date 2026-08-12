@@ -35,6 +35,7 @@ from .task_models import (
     UNKNOWN_BASE_LABEL,
     LiquidTaskClassifier,
     LiquidTaskConfig,
+    PRODUCT_LOCAL_SCHEMA_VERSION,
     compose_soft_cascade,
     compose_strict_open_set_evidence,
     is_strict_open_set_schema,
@@ -109,6 +110,11 @@ def validate_cascade_configs(configs: Mapping[str, LiquidTaskConfig]) -> None:
         require_causal_rd_quality_schema(config.data.rd_quality_schema)
     if len({config.schema_version for config in ordered}) != 1:
         raise ValueError("soft cascade task configurations must use one run/configuration version")
+    if ordered[0].schema_version == PRODUCT_LOCAL_SCHEMA_VERSION:
+        raise PermissionError(
+            "RADAR-LN3-V16 product-local checkpoints are restricted to independent task training and "
+            "evaluation; full cascade assembly requires a later explicitly versioned product stage"
+        )
     if len({_shared_data_contract(config) for config in ordered}) != 1:
         raise ValueError("soft cascade task configurations do not share one data contract")
     if len({_shared_model_contract(config) for config in ordered}) != 1:
@@ -259,6 +265,7 @@ class CascadeOnlineStepResult:
     valid_point_count: int | None = None
     track_quality: float | None = None
     gap_fraction: float | None = None
+    zero_dt_fraction: float | None = None
     dbb_known_confidence: float | None = None
     dbb_known_margin: float | None = None
     clutter_accept_confidence: float | None = None
@@ -266,6 +273,42 @@ class CascadeOnlineStepResult:
     open_set_audit_evidence: torch.Tensor | None = None
     open_set_audit_evidence_names: tuple[str, ...] = ()
     unresolved_open_set_evidence: float | None = None
+
+
+def hierarchical_time_quality_fractions(
+    *,
+    first_event_count: int,
+    zero_delta_count: int,
+    positive_delta_count: int,
+    genuine_gap_count: int = 0,
+) -> dict[str, float]:
+    """Return distinct raw-zero and genuine-gap diagnostics.
+
+    ``zero_delta_at_second_precision`` is an observed same-second event and is
+    therefore never a gap.  V3/V16 currently have no genuine-gap reason, so
+    callers pass zero unless a future version adds an explicit unavailable or
+    over-threshold interval reason.
+    """
+
+    counts = tuple(
+        int(value)
+        for value in (first_event_count, zero_delta_count, positive_delta_count, genuine_gap_count)
+    )
+    if any(value < 0 for value in counts):
+        raise ValueError("time quality counts must be non-negative")
+    active_events = counts[0] + counts[1] + counts[2]
+    transition_count = max(0, active_events - counts[0])
+    return {
+        "zero_dt_fraction": (
+            float((counts[0] + counts[1]) / active_events) if active_events else 0.0
+        ),
+        "same_second_fraction": (
+            float(counts[1] / transition_count) if transition_count else 0.0
+        ),
+        "gap_fraction": (
+            min(1.0, float(counts[3] / transition_count)) if transition_count else 0.0
+        ),
+    }
 
 
 class OnlineLiquidSoftCascade:
@@ -332,6 +375,9 @@ class OnlineLiquidSoftCascade:
         self.valid_point_count = 0
         self.rd_observed_count = 0
         self.zero_delta_count = 0
+        self.first_event_count = 0
+        self.positive_delta_count = 0
+        self.genuine_gap_count = 0
 
     @torch.inference_mode()
     def step(self, **point: torch.Tensor) -> CascadeOnlineStepResult:
@@ -367,13 +413,21 @@ class OnlineLiquidSoftCascade:
             reason = point.get("tr_dt_reason")
             if reason is None:
                 raise ValueError(f"{self.model.gate.config.schema_version} online cascade requires tr_dt_reason")
-            self.zero_delta_count += int(int(reason.reshape(-1)[0].item()) == 2)
+            reason_id = int(reason.reshape(-1)[0].item())
+            self.first_event_count += int(reason_id == 1)
+            self.zero_delta_count += int(reason_id == 2)
+            self.positive_delta_count += int(reason_id == 3)
             track_quality = self.rd_observed_count / self.valid_point_count
-            gap_fraction = self.zero_delta_count / max(1, self.valid_point_count - 1)
+            time_quality = hierarchical_time_quality_fractions(
+                first_event_count=self.first_event_count,
+                zero_delta_count=self.zero_delta_count,
+                positive_delta_count=self.positive_delta_count,
+                genuine_gap_count=self.genuine_gap_count,
+            )
             decision_inputs = {
                 "valid_point_count": self.valid_point_count,
                 "track_quality": track_quality,
-                "gap_fraction": min(1.0, gap_fraction),
+                "gap_fraction": time_quality["gap_fraction"],
             }
             if self.strict_open_set_mode:
                 decision_inputs["dbb_knownness_scores"] = (
@@ -461,6 +515,11 @@ class OnlineLiquidSoftCascade:
             valid_point_count=None if action is None else action.valid_point_count,
             track_quality=None if action is None else action.track_quality,
             gap_fraction=None if action is None else action.gap_fraction,
+            zero_dt_fraction=(
+                None
+                if not self.hierarchical_mode
+                else time_quality["zero_dt_fraction"]
+            ),
             dbb_known_confidence=None if action is None else action.dbb_known_confidence,
             dbb_known_margin=None if action is None else action.dbb_known_margin,
             clutter_accept_confidence=None if action is None else action.clutter_accept_confidence,
@@ -1047,7 +1106,9 @@ def evaluate_strict_open_set_cascade(
                 stable_final: HierarchicalStableDecision | None = None
                 stable_machine = HierarchicalStableStateMachine(confirm_count=stable_confirm_count)
                 rd_observed_count = 0
+                first_event_count = 0
                 zero_delta_count = 0
+                positive_delta_count = 0
                 for event_index in range(length):
                     gate_event = gate_probs[batch_index, event_index]
                     dbb_event = dbb_probs[batch_index, event_index]
@@ -1101,8 +1162,16 @@ def evaluate_strict_open_set_cascade(
                         unknown_final = unknown_row
                     if policy.enabled:
                         rd_observed_count += int(float(tensors["rd_quality"][batch_index, event_index, 0].item()) >= 0.5)
-                        zero_delta_count += int(int(tensors["tr_dt_reason"][batch_index, event_index].item()) == 2)
+                        reason_id = int(tensors["tr_dt_reason"][batch_index, event_index].item())
+                        first_event_count += int(reason_id == 1)
+                        zero_delta_count += int(reason_id == 2)
+                        positive_delta_count += int(reason_id == 3)
                         valid_points = event_index + 1
+                        time_quality = hierarchical_time_quality_fractions(
+                            first_event_count=first_event_count,
+                            zero_delta_count=zero_delta_count,
+                            positive_delta_count=positive_delta_count,
+                        )
                         action = policy.decide(
                             gate_event.cpu(),
                             dbb_event.cpu(),
@@ -1110,7 +1179,7 @@ def evaluate_strict_open_set_cascade(
                             dbb_knownness_scores=dbb_known_event.cpu(),
                             valid_point_count=valid_points,
                             track_quality=rd_observed_count / valid_points,
-                            gap_fraction=min(1.0, zero_delta_count / max(1, valid_points - 1)),
+                            gap_fraction=time_quality["gap_fraction"],
                         )
                         stable_final = stable_machine.update(action)
                         action_row = {
@@ -1135,6 +1204,7 @@ def evaluate_strict_open_set_cascade(
                             "valid_point_count": action.valid_point_count,
                             "track_quality": action.track_quality,
                             "gap_fraction": action.gap_fraction,
+                            "zero_dt_fraction": time_quality["zero_dt_fraction"],
                             "trigger_reasons": list(action.trigger_reasons),
                             "calibration_source": action.calibration_source,
                         }
@@ -1375,7 +1445,9 @@ def evaluate_hierarchical_cascade(
                 diagnostic_final: dict[str, Any] | None = None
                 action_final: dict[str, Any] | None = None
                 rd_observed_count = 0
+                first_event_count = 0
                 zero_delta_count = 0
+                positive_delta_count = 0
                 stable_machine = HierarchicalStableStateMachine(confirm_count=stable_confirm_count)
                 stable_final: HierarchicalStableDecision | None = None
                 for event_index in range(length):
@@ -1425,15 +1497,23 @@ def evaluate_hierarchical_cascade(
                     diagnostic_final = diagnostic_row
                     if policy.enabled:
                         rd_observed_count += int(float(tensors["rd_quality"][batch_index, event_index, 0].item()) >= 0.5)
-                        zero_delta_count += int(int(tensors["tr_dt_reason"][batch_index, event_index].item()) == 2)
+                        reason_id = int(tensors["tr_dt_reason"][batch_index, event_index].item())
+                        first_event_count += int(reason_id == 1)
+                        zero_delta_count += int(reason_id == 2)
+                        positive_delta_count += int(reason_id == 3)
                         valid_point_count = event_index + 1
+                        time_quality = hierarchical_time_quality_fractions(
+                            first_event_count=first_event_count,
+                            zero_delta_count=zero_delta_count,
+                            positive_delta_count=positive_delta_count,
+                        )
                         action = policy.decide(
                             gate_probs[batch_index, event_index].cpu(),
                             dbb_probs[batch_index, event_index].cpu(),
                             cu_probs[batch_index, event_index].cpu(),
                             valid_point_count=valid_point_count,
                             track_quality=rd_observed_count / valid_point_count,
-                            gap_fraction=min(1.0, zero_delta_count / max(1, valid_point_count - 1)),
+                            gap_fraction=time_quality["gap_fraction"],
                         )
                         stable_final = stable_machine.update(action)
                         action_pred_id = (
@@ -1470,6 +1550,7 @@ def evaluate_hierarchical_cascade(
                             "valid_point_count": action.valid_point_count,
                             "track_quality": action.track_quality,
                             "gap_fraction": action.gap_fraction,
+                            "zero_dt_fraction": time_quality["zero_dt_fraction"],
                             "calibration_source": action.calibration_source,
                         }
                         calibrated_window_actions.append(action_row)
@@ -1931,6 +2012,7 @@ __all__ = [
     "evaluate_cascade",
     "evaluate_hierarchical_cascade",
     "evaluate_strict_open_set_cascade",
+    "hierarchical_time_quality_fractions",
     "load_cascade",
     "minimum_precision_recall",
     "minimum_precision_recall_for_names",

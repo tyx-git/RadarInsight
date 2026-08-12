@@ -1,0 +1,87 @@
+{
+  "schema_version": "RADAR-LN3-V16",
+  "config_name": "RADAR-LN3-V16-cq08-liquid-product-local-dbb-cu-gate",
+  "task": {
+    "name": "dbb_cu_gate",
+    "class_names": [
+      "DBB",
+      "CU"
+    ],
+    "label_to_id": {
+      "DroneTarget": 0,
+      "BirdTarget": 0,
+      "BalloonTarget": 0,
+      "ClutterTarget": 1,
+      "UnknownTarget": 1
+    }
+  },
+  "data": {
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "contract_path": "data/processed/RADAR-LN3-V16-cq08-product-local-data-contract.json",
+    "normalization_stats_path": "data/processed/RADAR-LN3-V16-cq08-tr-rd-train-normalization-stats.json",
+    "train_split_name": "train",
+    "validation_split_name": "val",
+    "test_split_name": "test",
+    "index_schema_version": "RADAR-LN3-V16",
+    "contract_schema_version": "RADAR-LN3-V16",
+    "rd_quality_schema": "causal-current-event-v1",
+    "expected_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "expected_contract_sha256": "ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373",
+    "expected_stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "rd_amplitude_center": 55.90625,
+    "rd_amplitude_scale": 6.911083992973033,
+    "exclude_anomalous_parents": false
+  },
+  "model": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "hidden_dim": 48,
+    "rd_embedding_dim": 24,
+    "liquid_hidden_dim": 48,
+    "rd_height": 21,
+    "rd_width": 384,
+    "liquid_tau_min_seconds": 0.05,
+    "liquid_tau_max_seconds": 30.0,
+    "liquid_zero_dt_event_floor_seconds": 0.001,
+    "liquid_dt_max_seconds": 120.0,
+    "dt_valid_dim": 1,
+    "dt_valid_feature_mode": "dynamics_only",
+    "dt_reason_mode": "v3_reason_aware_dynamics_only",
+    "liquid_invalid_dt_update_mode": "bounded_observation",
+    "liquid_invalid_dt_observation_gain": 0.25,
+    "num_classes": 2,
+    "liquid_state_normalization": "recurrent",
+    "rd_frame_aggregation": "masked_mean"
+  },
+  "train": {
+    "batch_size": 2,
+    "learning_rate": 0.0001,
+    "seed": 42,
+    "device": "cuda",
+    "epochs": 20,
+    "early_stopping_patience": 0,
+    "gradient_clip_norm": 100.0,
+    "checkpoint_selection_metric": "parent_min_precision_recall",
+    "task_min_precision_recall_target": 0.95,
+    "checkpoint_path": "artifacts/RADAR-LN3-V16-cq08-liquid-product-local-dbb-cu-gate-formal/best_model.pt",
+    "last_checkpoint_path": "artifacts/RADAR-LN3-V16-cq08-liquid-product-local-dbb-cu-gate-formal/last_model.pt",
+    "formal_artifact_dir": "artifacts/RADAR-LN3-V16-cq08-liquid-product-local-dbb-cu-gate-formal",
+    "epoch_checkpoint_dir": "artifacts/RADAR-LN3-V16-cq08-liquid-product-local-dbb-cu-gate-formal/epochs",
+    "class_weights": [
+      0.5535152151101784,
+      5.171568627450981
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_schema": "RADAR-LN3-V16-product-local-dbb-cu-gate-checkpoint-v1",
+    "allow_parameter_updates": true,
+    "dataloader_seed": 42,
+    "record_parent_order_hash": true,
+    "save_every_epoch": true,
+    "cuda_deterministic_algorithms": false
+  }
+}

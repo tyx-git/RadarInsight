@@ -15,7 +15,7 @@ from radar_ln3.task_models import (
     save_task_checkpoint,
     seed_everything,
     task_device,
-    task_prefix_loss,
+    task_training_objective,
     verify_task_data_contract,
 )
 
@@ -43,13 +43,15 @@ def run(
         tr_missing_mask=tensors["tr_missing_mask"],
         tr_dt_seconds=tensors["tr_dt_seconds"],
         tr_dt_valid=tensors["tr_dt_valid"],
+        tr_dt_reason=tensors.get("tr_dt_reason"),
         rd_frames=tensors["rd_frames"],
         rd_frame_mask=tensors["rd_frame_mask"],
         rd_quality=tensors["rd_quality"],
         tr_padding_mask=tensors["tr_padding_mask"],
     )
     weights = torch.tensor(config.train.class_weights, dtype=torch.float32, device=device)
-    loss = task_prefix_loss(output["sequence_logits"], tensors["labels"], tensors["tr_padding_mask"], class_weights=weights)
+    objective = task_training_objective(output, tensors, config, class_weights=weights)
+    loss = objective["loss"]
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.train.learning_rate)
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
@@ -63,6 +65,7 @@ def run(
             tr_missing_mask=tensors["tr_missing_mask"],
             tr_dt_seconds=tensors["tr_dt_seconds"],
             tr_dt_valid=tensors["tr_dt_valid"],
+            tr_dt_reason=tensors.get("tr_dt_reason"),
             rd_frames=tensors["rd_frames"],
             rd_frame_mask=tensors["rd_frame_mask"],
             rd_quality=tensors["rd_quality"],
@@ -81,6 +84,7 @@ def run(
             tr_missing_mask=tensors["tr_missing_mask"],
             tr_dt_seconds=tensors["tr_dt_seconds"],
             tr_dt_valid=tensors["tr_dt_valid"],
+            tr_dt_reason=tensors.get("tr_dt_reason"),
             rd_frames=tensors["rd_frames"],
             rd_frame_mask=tensors["rd_frame_mask"],
             rd_quality=tensors["rd_quality"],
@@ -100,6 +104,8 @@ def run(
         "sequence_logits_shape": list(output["sequence_logits"].shape),
         "window_logits_shape": list(output["window_logits"].shape),
         "loss": float(loss.item()),
+        "main_loss": float(objective["main_loss"].item()),
+        "prefix_auxiliary_loss": float(objective["prefix_auxiliary_loss"].item()),
         "gradient_norm": grad_norm,
         "checkpoint_path": str(checkpoint_path),
         "smoke_artifact_scope": "bounded smoke only; not a formal training artifact",
