@@ -2107,7 +2107,7 @@ own-best还混合了checkpoint epoch。相同epoch 15时Treatment相对Control�
 
 用户提出V17提取器没有保留Drone真正关键的宽带旋翼特征。复核确认传入链路并非主要问题：sample/cache对齐、valid门控、配对初始化、Fusion拼接、offline/online和checkpoint round-trip均已有通过证据；V17负结果主要来自三维物理摘要。需要对原判断作两项校正：PRT=142的原始脉冲采样Nyquist并非325 Hz，但其约4 ms单帧时长和train三类parent支持`4/3/0`使其无法校准；Bird 5–15 Hz在4–46 ms单帧内也不足一个15 Hz周期，不能声称被完整保留。
 
-新实验递增为V18。Control继续使用四维`rd_physical`，Treatment增加39维宽带多尺度微多普勒摘要。提取器在无标签局部MTD目标Doppler±8 m/s内细化主体频率，拟合并消除复相干主体正弦，然后统计相对主体正负8–30、30–60、60–90 m/s侧带能量、总能量、RMS/q90范围、对称性、Rayleigh分辨单元熵/集中度/峰数和SNR。噪声底不再从目标行宽带侧带区域估计，而从目标距离邻域十个非目标行按频率估计，避免把Drone宽带侧带自身扣除。
+新实验递增为V18。Control继续使用四维`rd_physical`，Treatment最初设计39维宽带多尺度微多普勒摘要，冗余审查后修订为21维模型输入；完整23维逐帧物理证据仍保留。提取器在无标签局部MTD目标Doppler±8 m/s内细化主体频率，拟合并消除复相干主体正弦，然后统计相对主体正负8–30、30–60、60–90 m/s侧带能量、总能量、RMS/q90范围、对称性、Rayleigh分辨单元熵/集中度/峰数和SNR。噪声底不再从目标行宽带侧带区域估计，而从目标距离邻域十个非目标行按频率估计，避免把Drone宽带侧带自身扣除。
 
 时间调制改为直接读取原始脉冲包络，提取300–600、600–1200和1200–2000 Hz幅度及高频占比、中心频率、集中度、熵和SNR，绕开V17 STFT hop的时间Nyquist。上限冻结为2 kHz，以保证所有候选PRT/PRI帧均满足Nyquist。V17 period被删除；Bird低频扑翼周期不在当前单帧合同中估计。每事件聚合23项中位数和16项q90；181点残差Doppler profile及64点包络调制profile只作审计，不进入模型。
 
@@ -2117,16 +2117,18 @@ own-best还混合了checkpoint epoch。相同epoch 15时Treatment相对Control�
 
 相对侧带不再额外排除绝对速度`±2 m/s`。该截断会把运动主体的一条真实旋翼侧带在跨过零Doppler时系统性删除，破坏相对主体的平移不变性；V18由主体相消和邻距离行噪声底抑制杂波，并用跨绝对零速的合成信号验证正负`30–60 m/s`侧带仍同时保留。
 
-为阻断采样模式捷径，逐帧可靠性不只看`PRTnum`，而按`脉冲数+PRI+载频`冻结8个完整采样模式，并要求每个模式有足够train三类parent支持、速度Nyquist≥90 m/s且调制Nyquist≥2000 Hz。现有V17只读证据核实8个模式最小parent支持仍为Drone/Bird/Balloon=`33/41/25`。PRT=142完整证据仍保存，但39维模型干预严格置0；valid保持当前事件RD存在语义，PRT、载频、CPI、reliability均不进入分类器。全量构建器继续使用V17已审计的canonical tensor→MAT帧号→raw-DAT帧映射，保留Track 1010的46个`+8`反例，test raw/RD payload访问固定0。
+为阻断采样模式捷径，逐帧可靠性不只看`PRTnum`，而按`脉冲数+PRI+载频`冻结8个完整采样模式，并要求每个模式有足够train三类parent支持、速度Nyquist≥90 m/s且调制Nyquist≥2000 Hz。现有V17只读证据核实8个模式最小parent支持仍为Drone/Bird/Balloon=`33/41/25`。PRT=142完整证据仍保存，但21维模型干预严格置0；valid保持当前事件RD存在语义，PRT、载频、CPI、reliability均不进入分类器。全量构建器继续使用V17已审计的canonical tensor→MAT帧号→raw-DAT帧映射，保留Track 1010的46个`+8`反例，test raw/RD payload访问固定0。
 
 train实际共有12个完整采样模式。除上述8个校准模式外，2个PRT=142模式为`3/3/0`与`4/3/0` parent支持；另有validation完全缺失的`226×48µs×15.6GHz`和`226×51µs×16.3GHz`，各仅`4/0/0`。后4个模式全部保留逐帧审计证据但模型干预精确为0；构建器/readiness要求train模式集合与冻结12项完全一致，避免新增模式被静默接收。
 
 checkpoint排序在训练前冻结为：三类全部P/R/F1最弱值、Drone↔Bird双向错误最少、Macro-F1最高。2个百分点门槛只用于两臂完成后的采纳，不参与选epoch。Treatment需同时满足parent Macro-F1提升`>0.02`、Drone/Bird弱项floor提升`>0.02`、两个方向错误均不增加且双向总错误下降、三类各P/R/F1≥0.95，并至少有一个预冻结same-epoch锚点通过同一严格增益门槛。
 
-focused Smoke已通过：真实三类代表事件输出39维finite向量；合成相干主体、宽带侧带和900 Hz包络调制被保留；跨Doppler Nyquist与跨绝对零速的正负侧带同时保留；PRT=142逐帧证据非零但事件干预向量精确为0；39维cache到Dataset/Collate逐值一致；合成readiness聚合覆盖12个观测模式、8个校准模式和4个零干预模式，并按完整parent事件序列保留零干预；Control/Treatment共享40个state entry，Fusion维度`83/122`，新增39列初始为0且梯度最大值`0.982568`；offline/online误差0；builder生成的两份JSON配置均可由正式加载器解析；checkpoint round-trip、readiness SHA绑定、Track 1010映射和PowerShell AST均通过。
+冗余审查确认旧39维包含大量median/q90重复与强共线形状量。修订合同保留18项median：正负8–30/30–60、total、RMS/q90范围、top4 concentration、peak count、侧带SNR、包络RMS、三调制带、centroid、top3、调制熵/SNR；q90仅保留正负8–30和total。删除动作只作用于模型摘要，23维逐帧evidence及181/64点profile不变。调制三带已给出幅度，保留centroid表示频率位置并删除600–2000 fraction。每帧total与六方向带和严格相等，但median是非线性聚合；合成三帧反例中`median(total)=1.0`而六方向带median和为`0.0`，因此median total不能作为零信息列删除。
+
+`pruned21` focused Smoke已通过：旧39维中恰好18项不再进入Fusion；真实三类代表事件输出21维finite向量；合成相干主体、宽带侧带和900 Hz包络调制被保留；跨Doppler Nyquist与跨绝对零速的正负侧带同时保留；PRT=142逐帧证据非零但事件干预向量精确为0；21维cache到Dataset/Collate逐值一致；合成readiness聚合覆盖12个观测模式、8个校准模式和4个零干预模式；Control/Treatment共享40个state entry，Fusion维度`83/104`，新增21列初始为0且梯度最大值`0.921369`；offline/online误差0；builder生成的两份JSON配置均可由正式加载器解析；checkpoint round-trip、readiness SHA绑定、Track 1010映射和PowerShell AST均通过。
 
 prepare支持安全恢复：若上次中断后留下部分V18输出，重新执行会先完成全量重算，再仅复用逐数组/全文完全一致的文件；不同或损坏文件拒绝覆盖。任一正式V18 artifact非空后，prepare在读取原始数据前即阻止重建，防止训练checkpoint与变化后的缓存/配置混用。
 
-当前只达到手动全量prepare状态。prepare将构建独立V18 train/val缓存、manifest、data contract和两配置，然后执行train-only readiness：39维逐项非退化；按parent均衡均值至少4项同时达到方向无关AUC≥0.55与robust effect绝对值≥0.10，且在全部8个完整采样模式中方向不反转、至少两个模式绝对effect≥0.10；所有全局已达判别门槛的特征都必须满足该模式一致性，避免危险反转列仍进入Fusion；各模式三类parent support≥8；PRT=142支持和零干预保持；summary从逐帧证据精确重建。validation仅报告；若train-only门禁失败，不降低阈值并不启动训练。
+当前只达到手动全量prepare状态。prepare将构建独立V18 `pruned21` train/val缓存、manifest、data contract和两配置，然后执行train-only readiness：21维逐项非退化；按parent均衡均值至少4项同时达到方向无关AUC≥0.55与robust effect绝对值≥0.10，且在全部8个完整采样模式中方向不反转、至少两个模式绝对effect≥0.10；所有全局已达判别门槛的特征都必须满足该模式一致性，避免危险反转列仍进入Fusion；各模式三类parent support≥8；PRT=142支持和零干预保持；summary从逐帧证据精确重建。validation仅报告；若train-only门禁失败，不降低阈值并不启动训练。
 
 全量prepare、正式Control/Treatment训练、paired validation、完整级联、OOF、test、正式拒识、stable、P95和部署均未执行。标签、V16 split/normalization、V17 checkpoint/artifact均未修改。

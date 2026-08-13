@@ -37,13 +37,13 @@ from radar_ln3.task_models import (
 CONFIGS = {
     arm: Path(
         "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-"
-        f"rd-physical4-broadband-multiscale-micro-doppler39-{arm}-seed42-config.json"
+        f"rd-physical4-broadband-multiscale-micro-doppler21-pruned-{arm}-seed42-config.json"
     )
     for arm in ("control", "treatment")
 }
 OUTPUT = Path(
     "src-v3/processed/report/"
-    "RADAR-LN3-V18-broadband-multiscale-micro-doppler-train-readiness.json"
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler21-pruned-train-readiness.json"
 )
 LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 SUMMARY_RECONSTRUCTION_ATOL = 1.0e-7
@@ -638,7 +638,7 @@ def run(project_root: Path) -> dict[str, Any]:
     )
     scope = contract["contract"]["v18_scope"]
     checks = {
-        "all_39_features_non_degenerate_train_only": all(
+        "all_21_features_non_degenerate_train_only": all(
             all(values.values()) for values in feature_checks.values()
         ),
         "at_least_four_train_only_drone_bird_features_have_auc_0_55_and_effect_0_10": (
@@ -715,7 +715,7 @@ def run(project_root: Path) -> dict[str, Any]:
         "status": "passed" if passed else "blocked",
         "schema_version": (
             "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-            "training-readiness-v1"
+            "training-readiness-v2-pruned21"
         ),
         "paired_protocol": BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL,
         "paired_configs": {

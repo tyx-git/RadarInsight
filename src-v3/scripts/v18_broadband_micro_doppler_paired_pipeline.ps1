@@ -14,16 +14,16 @@ $python = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $configRoot = Join-Path $projectRoot 'config\RADAR-LN3'
 $readinessPath = Join-Path $projectRoot (
     'src-v3\processed\report\RADAR-LN3-V18-broadband-multiscale-' +
-    'micro-doppler-train-readiness.json'
+    'micro-doppler21-pruned-train-readiness.json'
 )
 $pairedReportPath = Join-Path $projectRoot (
     'src-v3\processed\report\RADAR-LN3-V18-broadband-multiscale-' +
-    'micro-doppler-paired-validation.json'
+    'micro-doppler21-pruned-paired-validation.json'
 )
 $notExecuted = -join ([char[]](0x672A, 0x6267, 0x884C))
 $readinessSchema = (
     'RADAR-LN3-V18-broadband-multiscale-micro-doppler-' +
-    'training-readiness-v1'
+    'training-readiness-v2-pruned21'
 )
 
 function Invoke-RadarPython([string[]]$Arguments) {
@@ -53,14 +53,14 @@ function Assert-File([string]$Path, [string]$Description) {
 function Get-ConfigPath([string]$Arm) {
     return Join-Path $configRoot (
         'RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-' +
-        'broadband-multiscale-micro-doppler39-' + $Arm + '-seed42-config.json'
+        'broadband-multiscale-micro-doppler21-pruned-' + $Arm + '-seed42-config.json'
     )
 }
 
 function Get-ArtifactRoot([string]$Arm) {
     return Join-Path $projectRoot (
         'artifacts\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-' +
-        'broadband-multiscale-micro-doppler39-' + $Arm + '-seed42-formal'
+        'broadband-multiscale-micro-doppler21-pruned-' + $Arm + '-seed42-formal'
     )
 }
 
@@ -283,7 +283,7 @@ try {
     Write-Host ('[V18] project=' + $projectRoot) -ForegroundColor Green
     Write-Host ('[V18] stage=' + $Stage + '; task=DBB specialist; seed=42') -ForegroundColor Green
     Write-Host (
-        '[V18] Control=RD physical4; Treatment=Control+39 broadband multiscale ' +
+        '[V18] Control=RD physical4; Treatment=Control+21 pruned broadband multiscale ' +
         'micro-Doppler summaries; evidence profiles and PRT metadata are audit-only.'
     ) -ForegroundColor Green
     if ($Stage -in @('prepare', 'all')) {

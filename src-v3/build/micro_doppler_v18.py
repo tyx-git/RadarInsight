@@ -53,7 +53,7 @@ VERSION = "RADAR-LN3-V18"
 SOURCE_VERSION = "RADAR-LN3-V16"
 PAIRED_PROTOCOL = (
     "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-"
-    "micro-doppler39-treatment-v1"
+    "micro-doppler21-pruned-treatment-v2"
 )
 CHECKPOINT_SELECTION = (
     "parent_min_precision_recall_f1_then_min_drone_bird_errors_then_macro_f1"
@@ -84,18 +84,18 @@ SOURCE_DBB_CONFIG = Path(
 
 DATA_CONTRACT = Path(
     "data/processed/RADAR-LN3-V18-cq08-dbb-broadband-multiscale-"
-    "micro-doppler-data-contract.json"
+    "micro-doppler21-pruned-data-contract.json"
 )
 CACHE_MANIFEST = Path(
     "data/processed/RADAR-LN3-V18-cq08-dbb-broadband-multiscale-"
-    "micro-doppler-cache-manifest.json"
+    "micro-doppler21-pruned-cache-manifest.json"
 )
 
 
 def _summary_cache(split: str) -> Path:
     return Path(
         f"data/processed/RADAR-LN3-V18-cq08-dbb-{split}-broadband-multiscale-"
-        "micro-doppler39-summary-cache.npz"
+        "micro-doppler21-pruned-summary-cache.npz"
     )
 
 
@@ -115,14 +115,14 @@ def _physical_cache(split: str) -> Path:
 def _config_path(arm: str) -> Path:
     return Path(
         "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-"
-        f"rd-physical4-broadband-multiscale-micro-doppler39-{arm}-seed42-config.json"
+        f"rd-physical4-broadband-multiscale-micro-doppler21-pruned-{arm}-seed42-config.json"
     )
 
 
 def _artifact_dir(arm: str) -> str:
     return (
         "artifacts/RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-"
-        f"broadband-multiscale-micro-doppler39-{arm}-seed42-formal"
+        f"broadband-multiscale-micro-doppler21-pruned-{arm}-seed42-formal"
     )
 
 
@@ -555,7 +555,7 @@ def _build_contract(
             "schema_version": VERSION,
             "contract_name": (
                 "cq08_v16_grouped_dbb_rd_physical4_broadband_multiscale_"
-                "micro_doppler39_paired_v1"
+                "micro_doppler21_pruned_paired_v2"
             ),
             "contract_status": "prepared_for_manual_formal_paired_training",
             "source_contract": SOURCE_CONTRACT.as_posix(),
@@ -649,11 +649,11 @@ def _build_contract(
                 "paired_protocol": PAIRED_PROTOCOL,
                 "control": "V16 DBB local architecture plus current-event rd_physical4",
                 "treatment": (
-                    "Control plus exactly 39 current-event broadband multiscale "
+                    "Control plus exactly 21 redundancy-pruned current-event broadband multiscale "
                     "micro-Doppler summaries"
                 ),
                 "shared_initialization": (
-                    "all shared tensors copied exactly; Treatment's 39 new Fusion "
+                    "all shared tensors copied exactly; Treatment's 21 new Fusion "
                     "columns exactly zero"
                 ),
                 "seed": SEED,
@@ -739,7 +739,7 @@ def _build_manifest(
         "schema_version": VERSION,
         "manifest_type": (
             "cq08_dbb_current_event_broadband_multiscale_"
-            "micro_doppler_paired_cache_v1"
+            "micro_doppler21_pruned_paired_cache_v2"
         ),
         "paired_protocol": PAIRED_PROTOCOL,
         "source_name": "CQ08",
@@ -816,7 +816,7 @@ def _build_config(
     payload["schema_version"] = VERSION
     payload["config_name"] = (
         "RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-"
-        f"broadband-multiscale-micro-doppler39-{arm}-seed42"
+        f"broadband-multiscale-micro-doppler21-pruned-{arm}-seed42"
     )
     payload["data"].update(
         {
@@ -885,7 +885,7 @@ def _build_config(
             "epoch_checkpoint_dir": f"{artifact}/epochs",
             "checkpoint_schema": (
                 "RADAR-LN3-V18-dbb-broadband-multiscale-micro-doppler-"
-                "paired-checkpoint-v1"
+                "paired-checkpoint-v2-pruned21"
             ),
             "paired_protocol": PAIRED_PROTOCOL,
             "paired_arm": arm,

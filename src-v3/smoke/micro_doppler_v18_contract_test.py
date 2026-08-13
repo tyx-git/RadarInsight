@@ -25,11 +25,14 @@ from radar_ln3.micro_doppler import RawEchoFrame, RawTargetRecord, parse_cq08_ra
 from radar_ln3.micro_doppler_broadband import (
     BROADBAND_CANDIDATE_SAMPLING_MODES,
     BROADBAND_EXPECTED_TRAIN_SAMPLING_MODES,
+    BROADBAND_FRAME_NAMES,
     BROADBAND_FRAME_VALUE_DIM,
+    BROADBAND_MEDIAN_FRAME_INDICES,
     BROADBAND_MICRO_DOPPLER_NAMES,
     BROADBAND_MICRO_DOPPLER_SCHEMA,
     BROADBAND_MICRO_DOPPLER_VALUE_DIM,
     BROADBAND_MODULATION_PROFILE_BIN_COUNT,
+    BROADBAND_Q90_FRAME_INDICES,
     BROADBAND_UNCALIBRATED_SAMPLING_MODES,
     aggregate_broadband_frame_values,
     broadband_sampling_mode_name,
@@ -104,6 +107,90 @@ def _representative_event(
     }
 
 
+def _pruned_summary_contract() -> dict[str, Any]:
+    expected_median_indices = (
+        0,
+        1,
+        2,
+        3,
+        6,
+        7,
+        8,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+    )
+    expected_q90_indices = (0, 1, 6)
+    expected_names = tuple(
+        f"median_{BROADBAND_FRAME_NAMES[index]}"
+        for index in expected_median_indices
+    ) + tuple(
+        f"q90_{BROADBAND_FRAME_NAMES[index]}" for index in expected_q90_indices
+    )
+    if (
+        BROADBAND_MEDIAN_FRAME_INDICES != expected_median_indices
+        or BROADBAND_Q90_FRAME_INDICES != expected_q90_indices
+        or BROADBAND_MICRO_DOPPLER_NAMES != expected_names
+        or BROADBAND_MICRO_DOPPLER_VALUE_DIM != 21
+    ):
+        raise AssertionError("V18 pruned 18-median plus 3-q90 feature order changed")
+
+    old_q90_indices = (0, 1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 15, 16, 17, 20, 22)
+    old_names = {
+        *(f"median_{name}" for name in BROADBAND_FRAME_NAMES),
+        *(
+            f"q90_{BROADBAND_FRAME_NAMES[index]}"
+            for index in old_q90_indices
+        ),
+    }
+    removed_names = old_names - set(BROADBAND_MICRO_DOPPLER_NAMES)
+    if len(old_names) != 39 or len(removed_names) != 18:
+        raise AssertionError("V18 pruning must remove exactly 18 of the former 39 summaries")
+
+    # A frame total is algebraically redundant, but the median of frame totals
+    # is not the sum of the six separately aggregated directional medians.
+    frames = np.zeros((3, BROADBAND_FRAME_VALUE_DIM), dtype=np.float32)
+    frames[0, 0] = 1.0
+    frames[1, 1] = 1.0
+    frames[2, 2] = 1.0
+    frames[:, 6] = frames[:, :6].sum(axis=1)
+    frame_identity_error = float(np.max(np.abs(frames[:, 6] - frames[:, :6].sum(axis=1))))
+    summary = aggregate_broadband_frame_values(
+        frames, np.ones((len(frames),), dtype=np.bool_)
+    )
+    total_name = "median_residual_total_8_90mps_energy_fraction"
+    total_value = float(summary[BROADBAND_MICRO_DOPPLER_NAMES.index(total_name)])
+    directional_median_sum = float(np.median(frames[:, :6], axis=0).sum())
+    if (
+        frame_identity_error != 0.0
+        or total_value != 1.0
+        or directional_median_sum != 0.0
+    ):
+        raise AssertionError("V18 median(total) nonlinearity regression failed")
+    return {
+        "frame_evidence_dim": BROADBAND_FRAME_VALUE_DIM,
+        "model_summary_dim": BROADBAND_MICRO_DOPPLER_VALUE_DIM,
+        "median_feature_count": len(BROADBAND_MEDIAN_FRAME_INDICES),
+        "q90_feature_count": len(BROADBAND_Q90_FRAME_INDICES),
+        "former_summary_dim": len(old_names),
+        "removed_summary_count": len(removed_names),
+        "removed_summary_names": sorted(removed_names),
+        "frame_total_identity_maximum_absolute_error": frame_identity_error,
+        "median_total_counterexample": {
+            "median_frame_total": total_value,
+            "sum_of_directional_frame_medians": directional_median_sum,
+        },
+    }
+
+
 def _synthetic_frame(
     *,
     prt_num: int,
@@ -156,6 +243,15 @@ def _synthetic_frame(
 
 
 def _synthetic_broadband_contract() -> dict[str, Any]:
+    total_index = BROADBAND_MICRO_DOPPLER_NAMES.index(
+        "median_residual_total_8_90mps_energy_fraction"
+    )
+    modulation_indices = tuple(
+        BROADBAND_MICRO_DOPPLER_NAMES.index(
+            f"median_pulse_envelope_modulation_{band}_rms_clipped_0_2_over_2"
+        )
+        for band in ("300_600hz", "600_1200hz", "1200_2000hz")
+    )
     calibrated = _synthetic_frame(
         prt_num=360,
         prt_seconds=48.0e-6,
@@ -174,8 +270,8 @@ def _synthetic_broadband_contract() -> dict[str, Any]:
         not extracted.feature_reliable
         or not event.valid
         or not np.any(event.values != 0.0)
-        or float(event.values[6]) <= 0.0
-        or float(event.values[15:18].max(initial=0.0)) <= 0.0
+        or float(event.values[total_index]) <= 0.0
+        or max(float(event.values[index]) for index in modulation_indices) <= 0.0
     ):
         raise AssertionError("V18 synthetic broadband sideband/modulation was not retained")
 
@@ -237,9 +333,9 @@ def _synthetic_broadband_contract() -> dict[str, Any]:
         )
     return {
         "calibrated_summary_nonzero": True,
-        "calibrated_total_sideband_fraction": float(event.values[6]),
+        "calibrated_total_sideband_fraction": float(event.values[total_index]),
         "calibrated_modulation_amplitude_maximum": float(
-            event.values[15:18].max(initial=0.0)
+            max(event.values[index] for index in modulation_indices)
         ),
         "nyquist_edge_negative_30_60mps_fraction": float(edge.values[2]),
         "nyquist_edge_positive_30_60mps_fraction": float(edge.values[3]),
@@ -313,7 +409,7 @@ def _synthetic_configs(root: Path) -> tuple[Any, Any]:
         dataloader_seed=42,
         checkpoint_schema=(
             "RADAR-LN3-V18-dbb-broadband-multiscale-micro-doppler-"
-            "paired-checkpoint-v1"
+            "paired-checkpoint-v2-pruned21"
         ),
         cuda_deterministic_algorithms=False,
     )
@@ -409,7 +505,7 @@ def _paired_model_contract(root: Path) -> dict[str, Any]:
         gradient[:, control.fusion_input_dim :].abs().max().item()
     )
     if gradient_max <= 0.0:
-        raise AssertionError("V18 new 39 Fusion columns receive zero gradient")
+        raise AssertionError("V18 new 21 Fusion columns receive zero gradient")
 
     treatment.eval()
     offline_common = {key: value[:1, :1] for key, value in common.items()}
@@ -654,14 +750,15 @@ def _readiness_binding_contract() -> dict[str, Any]:
         treatment.write_text('{"arm":"treatment"}\n', encoding="utf-8")
         report_path = root / (
             "src-v3/processed/report/"
-            "RADAR-LN3-V18-broadband-multiscale-micro-doppler-train-readiness.json"
+            "RADAR-LN3-V18-broadband-multiscale-"
+            "micro-doppler21-pruned-train-readiness.json"
         )
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report = {
             "status": "passed",
             "schema_version": (
                 "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-                "training-readiness-v1"
+                "training-readiness-v2-pruned21"
             ),
             "paired_configs": {
                 "control": {
@@ -861,9 +958,10 @@ def run(project_root: Path) -> dict[str, Any]:
         "status": "passed",
         "schema_version": (
             "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-            "focused-contract-v1"
+            "focused-contract-v2-pruned21"
         ),
         "extractor_contract": broadband_micro_doppler_contract(),
+        "pruned_summary_contract": _pruned_summary_contract(),
         "representative_events": {
             "DroneTarget": _representative_event(root, 1, 1),
             "BirdTarget": _representative_event(root, 333, 16),
@@ -893,7 +991,8 @@ def run(project_root: Path) -> dict[str, Any]:
     }
     output = root / (
         "src-v3/smoke/"
-        "RADAR-LN3-V18-broadband-multiscale-micro-doppler-focused-contract-result.json"
+        "RADAR-LN3-V18-broadband-multiscale-"
+        "micro-doppler21-pruned-focused-contract-result.json"
     )
     result["result_path"] = str(output)
     output.write_text(

@@ -2215,15 +2215,26 @@
 
 ## Finding F202
 
-- Severity：High（V18宽带39维实验已达到手动prepare状态）
+- Severity：High（V18最初宽带39维候选已被冗余审查取代）
 - 文件位置：`src-v3/radar_ln3/micro_doppler_broadband.py`、`src-v3/build/micro_doppler_v18.py`、`src-v3/report/micro_doppler_v18_readiness.py`、`src-v3/report/micro_doppler_v18_paired.py`、`src-v3/scripts/v18_broadband_micro_doppler_paired_pipeline.ps1`
-- 问题或结论：V18已把实验变量冻结为Control `rd_physical4` versus Treatment `rd_physical4+micro39`，并将信息充分性门槛、epoch排序和最终2个百分点采纳门槛分离；尚无正式性能结果。
+- 问题或结论：V18最初把实验变量设计为Control `rd_physical4` versus Treatment `rd_physical4+micro39`，并将信息充分性门槛、epoch排序和最终2个百分点采纳门槛分离；后续冗余审查发现模型摘要包含确定性派生关系、强共线簇和median/q90重复，因此该39维合同只保留为修订前focused证据，不再作为正式prepare入口。
 - Evidence：39维由23项帧中位数和16项闪烁敏感q90组成；完整181×/64×审计profile不进入模型。focused Smoke显示Fusion输入`83/122`、40个共享state entry一致、39个新增列为0、梯度最大值`0.982568`、offline/online误差0、Track 1010 46帧映射偏移`+8`保持；合成readiness覆盖12个观测模式、8个校准模式和4个零干预模式。PowerShell AST和Python compile通过。
 - Impact：prepare通过只能证明特征可计算、非退化且train-only有最低判别潜力，不能宣称模型提升；只有paired validation同时提高Macro-F1与Drone/Bird弱项floor严格`>0.02`且方向错误下降，才允许采纳。
-- Action：用户串行执行prepare、train、evaluate；任一步失败停止。readiness以parent均衡特征向量计算AUC/effect，要求至少4项在全部8个`脉冲数+PRI+载频`完整采样模式中不反转且至少两个模式达到绝对effect 0.10，并禁止任何全局已达判别门槛的特征发生模式反转/支持不足；现有只读证据核实最小模式train支持为`33/41/25`。若readiness或paired门槛失败，保留V18为负向结果，不降低门槛、不回看validation删特征、不进入多seed/级联。
+- Action：不得执行旧39维路径；改由Finding F203冻结的21维`pruned21`合同串行执行prepare、train、evaluate。readiness和最终采纳门槛保持不变，不因降维降低阈值。
 - 补充物理边界：V18最终复核发现普通频差会在主体靠近Doppler Nyquist边缘时丢失跨边界侧带；现已改为PRF周期上的有符号循环频差。合成跨边界回归证明正负`30–60 m/s`侧带同时保留，且每个FFT bin仅映射一次。
 - 补充调制语义：三个高频频带幅度改为由一侧Parseval带内能量直接换算RMS，调制噪声底改由邻近非目标距离行逐频估计；不再以目标自身宽带中位数估噪，也不再用全包络RMS近似频带幅度。
 - 补充平移不变性：删除绝对零速`±2 m/s`截断，避免运动主体的真实微动侧带跨过零Doppler时被误删；合成跨零回归要求正负`30–60 m/s`侧带同时保留。
 - 补充模式全集：train共有12个`脉冲数+PRI+载频`组合；8个满足三类支持并可校准，2个PRT=142与2个仅4个Drone且validation缺失的226脉冲模式统一零干预。合同外新模式或任一未校准模式产生非零模型证据都会阻断prepare。
-- 验证状态：focused Smoke通过；全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable、P95均未执行。
+- 验证状态：旧39维focused Smoke通过但已被取代；旧39维全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable、P95均未执行。
 - 关联版本：V18。
+
+## Finding F203
+
+- Severity：High（V18模型摘要存在冗余；已修订为21维且保持物理审计信息完整）
+- 文件位置：`src-v3/radar_ln3/micro_doppler_broadband.py`、`src-v3/build/micro_doppler_v18.py`、`src-v3/report/micro_doppler_v18_readiness.py`、`src-v3/smoke/micro_doppler_v18_contract_test.py`
+- 问题或结论：旧39维由23个逐帧量的event median和其中16项的event q90组成，存在60–90 m/s方向带强共线、entropy/concentration近镜像以及大量median/q90重复。当前正式候选缩减为18 median + 3 q90，共21维；删除只发生在事件摘要到Fusion链路，完整23维逐帧evidence与181点残差Doppler/64点包络调制profile继续保存。
+- Evidence：21个模型列精确冻结为正负8–30/30–60、median total、RMS/q90范围、top4 concentration、peak count、侧带SNR、包络RMS、三调制带、centroid、top3、调制熵/SNR，以及q90正负8–30和q90 total。相对旧39维恰好删除18列。逐帧`total=sum(6 directional bands)`的合成误差为0，但三帧反例得到`median(frame total)=1.0`、`sum(median(directional bands))=0.0`，证明不能把帧级线性恒等直接应用到event median；因此median total保留，symmetry删除，q90 total作为瞬态总侧带量保留。调制三带保留能量幅度、centroid保留频率位置，删除可由三带主导的600–2000 fraction。
+- Impact：Fusion输入从`83/122`降至`83/104`，减少18个冗余自由度和小样本过拟合风险，同时不损失逐帧物理审计能力。旧39维cache、配置、checkpoint和报告会被独立`pruned21` schema/protocol/path拒绝，不能静默混用。
+- Action：仅允许执行`micro-doppler21-pruned`流水线。train-only readiness仍要求21维逐项非退化、至少4项达到AUC/effect门槛且在8个校准采样模式中方向一致；最终仍要求Macro-F1和Drone/Bird弱项floor严格提升超过2个百分点、双向错误下降及三类P/R/F1均≥0.95，不因降维放宽。
+- 验证状态：`focused-contract-v2-pruned21`通过；旧39维中18列移除、23维证据保留、Fusion新增21列零初始化且梯度最大值`0.921369`、offline/online误差0、cache/Dataset/Collate、checkpoint round-trip、readiness SHA绑定、Track 1010映射和PowerShell AST均通过。全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable和P95未执行。
+- 关联版本：V18 `pruned21`修订协议v2；V16/V17与旧V18 focused artifact只读保留。

@@ -1310,7 +1310,7 @@
 
 ## Stage 060 - V18宽带多尺度微多普勒物理语义修复
 
-目标：核实并修复V17三维摘要遗漏Drone关键宽带旋翼侧带、把不可估周期混入普通数值以及PRT=142采样模式方向反转的问题。在冻结V16 DBB局部任务、capture/content split、液态容量、loss、seed、20 epoch和四维`rd_physical`基线的前提下，Control保持`rd_physical4`，Treatment只新增39维当前事件宽带多尺度微多普勒摘要；只有冻结validation相对Control产生严格超过2个百分点的实质增益时才采纳。
+目标：核实并修复V17三维摘要遗漏Drone关键宽带旋翼侧带、把不可估周期混入普通数值以及PRT=142采样模式方向反转的问题。在冻结V16 DBB局部任务、capture/content split、液态容量、loss、seed、20 epoch和四维`rd_physical`基线的前提下，Control保持`rd_physical4`，Treatment只新增21维去冗余的当前事件宽带多尺度微多普勒摘要；只有冻结validation相对Control产生严格超过2个百分点的实质增益时才采纳。
 
 前置依赖：Stage 059已证明V17 Treatment未通过；Finding F196-F198确认Bird Recall表观上升伴随Precision/Macro-F1下降、own-best受epoch混杂、PRT=142方向反转。V16 index、provenance、normalization和DBB标签保持冻结，test payload继续封存。
 
@@ -1328,24 +1328,25 @@
 - [x] 修复噪声底：不再用目标行30–90 m/s区域自身估计噪声，改用局部MTD目标距离邻域十个非目标行的逐频率中位数估计指数噪声均值，防止真实宽带旋翼侧带被当作噪声扣除。
 - [x] 直接从原始脉冲包络提取300–600、600–1200、1200–2000 Hz调制幅度、高频占比、中心频率、top3集中度、熵和SNR，绕开旧STFT hop Nyquist；删除V17不可估period普通数值输入。上限冻结为2 kHz，确保所有候选PRT/PRI帧都满足Nyquist，而不是仅对部分PRT=226子模式生效。
 - [x] 修正包络调制幅度/噪声语义：各频带幅度直接由一侧Parseval带内能量换算RMS，不再用全包络RMS乘归一化频带占比；调制噪声底也由邻近非目标距离行逐频估计，不从目标自身300–2000 Hz宽带中位数扣除，以免把宽带旋翼调制当作噪声。
-- [x] 为每帧增加物理可观测性门控：不能只按`PRTnum`合并，冻结为8个`脉冲数+PRI+载频`完整采样模式；每个模式在train三类各至少8 parent、速度Nyquist≥90 m/s、包络调制Nyquist≥2000 Hz。现有V17只读证据核实最小模式支持仍为Drone/Bird/Balloon=`33/41/25`；未通过门控的帧不参与39维聚合。
-- [x] 对PRT=142实施证据中性化：完整23维逐帧证据和审计谱保留，模型39维干预严格为0，valid仍与当前事件RD存在性一致；PRT编号、载频、CPI和可靠性标记均不进入分类器，避免模态存在性或采集模式捷径。
+- [x] 为每帧增加物理可观测性门控：不能只按`PRTnum`合并，冻结为8个`脉冲数+PRI+载频`完整采样模式；每个模式在train三类各至少8 parent、速度Nyquist≥90 m/s、包络调制Nyquist≥2000 Hz。现有V17只读证据核实最小模式支持仍为Drone/Bird/Balloon=`33/41/25`；未通过门控的帧不参与21维聚合。
+- [x] 对PRT=142实施证据中性化：完整23维逐帧证据和审计谱保留，模型21维干预严格为0，valid仍与当前事件RD存在性一致；PRT编号、载频、CPI和可靠性标记均不进入分类器，避免模态存在性或采集模式捷径。
 - [x] 枚举并冻结全部train采样模式：除8个校准模式与2个PRT=142模式外，还存在两个validation缺失的低支持模式`226×48µs×15.6GHz`和`226×51µs×16.3GHz`，各仅4个Drone、0个Bird/Balloon parent；两者也只保留审计证据并严格零干预。出现合同外新模式将阻断prepare。
-- [x] 冻结39维事件聚合：23项逐帧物理量取中位数，16项闪烁敏感量另取q90以保留间歇叶片/翅膀flash；完整181点残差Doppler profile和64点包络调制profile只作审计，不进入模型。
+- [x] 修订并冻结21维事件聚合：23项逐帧物理证据与完整181点残差Doppler/64点包络调制profile继续完整保存，仅模型摘要裁剪为18项median与3项q90。median删除正负60–90 m/s方向带、正负对称性、分辨单元熵和600–2000 Hz fraction；保留正负8–30/30–60、total、RMS/q90范围、top4 concentration、peak count、SNR、包络RMS、三调制带、centroid、top3、调制熵/SNR。q90仅保留正负8–30与total。
+- [x] 裁决帧级恒等与事件聚合差异：每帧`total=sum(6个方向带)`误差为0，但`median(frame total)`一般不等于六个方向带median之和；构造反例得到`1.0`对`0.0`。因此保留median total作为典型总侧带能量，删除由方向带直接决定的symmetry；q90 total保留为瞬态总侧带闪烁量。
 - [x] 创建V18全量构建器：复用V17已审计的canonical tensor→MAT采集帧→真实raw-DAT帧映射，保留Track 1010缺MAT `+8`偏移反例；只处理DBB train/val，test raw/RD payload访问为0。
-- [x] 扩展cache/Dataset/Fusion/online/checkpoint合同到39维；Control/Treatment共享40个参数/缓冲条目逐位一致，Fusion输入维度`83/122`，Treatment新增39列严格置0且获得非零梯度。
+- [x] 将cache/Dataset/Fusion/online/checkpoint合同修订为21维；Control/Treatment共享40个参数/缓冲条目逐位一致，Fusion输入维度`83/104`，Treatment新增21列严格置0且获得非零梯度。summary schema、paired protocol、manifest、checkpoint、readiness、配置、artifact和报告路径均升级为独立`pruned21` v2合同，旧39维产物不能混用。
 - [x] 冻结checkpoint排序：先最大化三类全部Precision/Recall/F1中的最弱值，再最小化Drone↔Bird双向parent错误，最后比较Macro-F1；`+0.02`采纳门槛不参与epoch选择，防止事后按Treatment优势挑epoch。
 - [x] 冻结paired采纳门槛：own-best parent Macro-F1绝对提升`>0.02`，Drone/Bird较弱P/R/F1 floor绝对提升`>0.02`，Drone→Bird和Bird→Drone均不增加且双向总错误至少减少1，Treatment三类各自P/R/F1均≥0.95，并要求至少一个预冻结same-epoch锚点也通过严格`>0.02`增益门槛。
-- [x] 实现train-only readiness：39维逐项非退化；以parent均衡均值为统计单位，至少4项Drone/Bird特征同时满足方向无关AUC≥0.55和robust effect绝对值≥0.10，并要求其方向在全部8个校准完整采样模式中不反转、至少两个模式的绝对effect≥0.10；任何全局已达上述判别门槛但模式内反转/支持不足的特征都会阻断训练，不能让危险列混入39维；各模式三类train parent均≥8；PRT=142支持固定为`4/3/0`并保持零干预；summary必须从逐帧证据精确重建。validation只报告，不决定是否启动训练。
-- [x] focused Smoke通过：代表Drone/Bird/Balloon事件39维shape/finite；合成相干主体+宽带侧带与900 Hz调制被提取，跨Nyquist/跨绝对零速侧带均保留；PRT=142证据保留而模型向量精确为0；39维cache→Dataset/Collate逐值一致；合成readiness聚合严格得到12个观测/8个校准/4个零干预模式且parent统计包含零干预；新增列梯度最大值=`0.982568`；offline/online误差0；两份builder生成的Control/Treatment JSON配置均可由正式`load_task_config`加载；checkpoint round-trip、readiness绑定和Track 1010映射通过。
+- [x] 实现train-only readiness：21维逐项非退化；以parent均衡均值为统计单位，至少4项Drone/Bird特征同时满足方向无关AUC≥0.55和robust effect绝对值≥0.10，并要求其方向在全部8个校准完整采样模式中不反转、至少两个模式的绝对effect≥0.10；任何全局已达上述判别门槛但模式内反转/支持不足的特征都会阻断训练，不能让危险列混入21维；各模式三类train parent均≥8；PRT=142支持固定为`4/3/0`并保持零干预；summary必须从逐帧证据精确重建。validation只报告，不决定是否启动训练。
+- [x] `pruned21` focused Smoke通过：模型21维名称与顺序精确固定，旧39维中恰好18列不再进入Fusion；23维逐帧证据不变；真实三类代表事件shape/finite；合成相干主体+宽带侧带与900 Hz调制、跨Nyquist/跨绝对零速侧带均保留；PRT=142证据保留而模型向量精确为0；21维cache→Dataset/Collate逐值一致；Fusion维度`83/104`，新增21列初始为0且梯度最大值=`0.921369`；offline/online误差0；checkpoint round-trip、readiness绑定和Track 1010映射通过。
 - [x] 新建`src-v3/scripts/v18_broadband_micro_doppler_paired_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量，任一步失败停止，PowerShell AST解析通过。
 - [x] 修复prepare恢复语义：中断后已有文件仅在全数组/全文逐值一致时复用，任何差异或损坏都fail-closed；任一正式V18 artifact非空后禁止重建数据/配置，避免训练产物与重建缓存混用。
-- [ ] 用户手动运行全量`prepare`；只有V18 train-only readiness全部通过后才能训练。若任一39维退化或不足4项达到预设判别门槛，停止实验，不降低门槛迎合validation。
+- [ ] 用户手动运行全量`prepare`；只有V18 `pruned21` train-only readiness全部通过后才能训练。若任一21维退化或不足4项达到预设判别门槛，停止实验，不降低门槛迎合validation。
 - [ ] 用户手动运行Control/Treatment各20 epoch正式训练并执行paired validation；根据冻结`+0.02`门槛决定采纳或拒绝，不以单独Bird Recall上升覆盖Precision、双向错误或Macro-F1失败。
 - [ ] 多seed、完整级联、OOF、test、正式拒识、stable、P95和部署：均未执行；只有seed42局部paired门槛通过后才讨论多seed。
 
-实验假设：若V17失败主要由于主体回波/窄带截断/旧STFT时间分辨率和period缺失语义掩盖了旋翼宽带侧带，则V18 Treatment应同时提高Drone/Bird弱项floor与Macro-F1，并减少双向错误；若只移动Bird边界、只在own-best改善、或未达到2个百分点，则拒绝本39维特征集。该实验只回答DBB specialist局部问题，不代表五类级联或开放集拒识收益。
+实验假设：若V17失败主要由于主体回波/窄带截断/旧STFT时间分辨率和period缺失语义掩盖了旋翼宽带侧带，则V18 Treatment应同时提高Drone/Bird弱项floor与Macro-F1，并减少双向错误；若只移动Bird边界、只在own-best改善、或未达到2个百分点，则拒绝本21维特征集。该实验只回答DBB specialist局部问题，不代表五类级联或开放集拒识收益。
 
-版本策略：V18使用独立cache、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅39维摘要进入Fusion。
+版本策略：V18 `pruned21`使用独立cache、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17及V18最初39维focused证据只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅21维摘要进入Fusion。
 
 当前执行边界：代码与focused Smoke已完成；全量数据处理和正式训练按用户要求未执行。test、完整级联、OOF、正式拒识、stable、P95和部署必须继续记录为“未执行”。

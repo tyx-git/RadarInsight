@@ -16,7 +16,7 @@ from .micro_doppler import (
 
 
 BROADBAND_MICRO_DOPPLER_SCHEMA = (
-    "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-summary-v4"
+    "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-summary-v5-pruned21"
 )
 BROADBAND_MICRO_DOPPLER_EVIDENCE_SCHEMA = (
     "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-evidence-v4"
@@ -94,33 +94,51 @@ BROADBAND_FRAME_NAMES = (
 )
 BROADBAND_FRAME_VALUE_DIM = len(BROADBAND_FRAME_NAMES)
 
-# The q90 branch preserves intermittent blade/wing flashes that an event median
-# deliberately suppresses.  Smooth shape descriptors remain median-only to
-# avoid doubling every correlated statistic.
-BROADBAND_Q90_FRAME_INDICES = (
+# Keep the complete 23-dimensional frame evidence above for physical audit, but
+# expose only the non-redundant event summaries below to the classifier.  The
+# frame-level total is exactly the sum of the six signed bands; after a median
+# over frames, however, median(total) is not reconstructible from the medians of
+# those bands.  Retaining it therefore preserves typical total-sideband energy
+# while removing the two highly collinear 60-90 m/s directional bands.
+BROADBAND_MEDIAN_FRAME_INDICES = (
     0,
     1,
     2,
     3,
-    4,
-    5,
     6,
+    7,
     8,
+    11,
     12,
     13,
     14,
     15,
     16,
     17,
+    19,
     20,
+    21,
     22,
 )
+
+# q90 is reserved for genuinely intermittent sideband flashes.  Duplicating
+# smooth shape, SNR and modulation descriptors at q90 made the original 39
+# columns strongly collinear with their event medians.
+BROADBAND_Q90_FRAME_INDICES = (0, 1, 6)
 BROADBAND_MICRO_DOPPLER_NAMES = tuple(
-    f"median_{name}" for name in BROADBAND_FRAME_NAMES
+    f"median_{BROADBAND_FRAME_NAMES[index]}"
+    for index in BROADBAND_MEDIAN_FRAME_INDICES
 ) + tuple(
     f"q90_{BROADBAND_FRAME_NAMES[index]}" for index in BROADBAND_Q90_FRAME_INDICES
 )
 BROADBAND_MICRO_DOPPLER_VALUE_DIM = len(BROADBAND_MICRO_DOPPLER_NAMES)
+
+if len(BROADBAND_MEDIAN_FRAME_INDICES) != 18:
+    raise RuntimeError("broadband micro-Doppler median model contract must contain 18 columns")
+if len(BROADBAND_Q90_FRAME_INDICES) != 3:
+    raise RuntimeError("broadband micro-Doppler q90 model contract must contain 3 columns")
+if BROADBAND_MICRO_DOPPLER_VALUE_DIM != 21:
+    raise RuntimeError("broadband micro-Doppler model contract must contain 21 columns")
 
 BROADBAND_DOPPLER_PROFILE_AXIS_MPS = np.linspace(
     -BROADBAND_MAX_OFFSET_MPS,
@@ -774,7 +792,7 @@ def aggregate_broadband_frame_values(
     if not reliable.any():
         return np.zeros((BROADBAND_MICRO_DOPPLER_VALUE_DIM,), dtype=np.float32)
     selected = values[reliable]
-    medians = np.median(selected, axis=0)
+    medians = np.median(selected[:, BROADBAND_MEDIAN_FRAME_INDICES], axis=0)
     q90 = np.quantile(selected[:, BROADBAND_Q90_FRAME_INDICES], 0.90, axis=0)
     result = np.concatenate([medians, q90]).astype(np.float32, copy=False)
     return np.clip(result, 0.0, 1.0).astype(np.float32, copy=False)
@@ -870,9 +888,41 @@ def broadband_micro_doppler_contract() -> dict[str, Any]:
         "frame_value_dim": BROADBAND_FRAME_VALUE_DIM,
         "frame_value_names": list(BROADBAND_FRAME_NAMES),
         "event_aggregation": {
-            "median": list(BROADBAND_FRAME_NAMES),
+            "median": [
+                BROADBAND_FRAME_NAMES[index]
+                for index in BROADBAND_MEDIAN_FRAME_INDICES
+            ],
             "q90": [BROADBAND_FRAME_NAMES[index] for index in BROADBAND_Q90_FRAME_INDICES],
-            "purpose": "retain intermittent flashes while keeping smooth shape descriptors median-only",
+            "purpose": (
+                "retain 18 complementary typical-event descriptors and only three "
+                "intermittent sideband-flash q90 descriptors"
+            ),
+            "frame_evidence_policy": (
+                "all 23 frame descriptors remain in the evidence cache; pruning "
+                "changes only the event summary consumed by Fusion"
+            ),
+            "redundancy_pruning": {
+                "median_removed": [
+                    "residual_negative_60_90mps_energy_fraction",
+                    "residual_positive_60_90mps_energy_fraction",
+                    "residual_positive_negative_symmetry",
+                    "residual_resolution_cell_entropy",
+                    "pulse_envelope_modulation_600_2000hz_fraction",
+                ],
+                "q90_retained": [
+                    "residual_negative_8_30mps_energy_fraction",
+                    "residual_positive_8_30mps_energy_fraction",
+                    "residual_total_8_90mps_energy_fraction",
+                ],
+                "median_total_rationale": (
+                    "frame total is algebraically redundant, but median(frame total) "
+                    "is not reconstructible from separate directional-band medians"
+                ),
+                "modulation_centroid_rationale": (
+                    "retain frequency location alongside the three band amplitudes; "
+                    "drop the largely derived 600-2000 Hz fraction"
+                ),
+            },
         },
         "value_dtype": "float32",
         "value_bounds": [0.0, 1.0],
@@ -973,7 +1023,10 @@ def broadband_micro_doppler_contract() -> dict[str, Any]:
         },
         "causal_scope": "current TR event raw frames only; no prior/future event, parent statistic, path, label or model output",
         "missing_policy": "no current-event raw/RD frame gives an invalid exact-zero event",
-        "model_policy": "only the 39 event summaries enter Fusion; evidence profiles and sampling metadata never enter the classifier",
+        "model_policy": (
+            "only the 21 redundancy-pruned event summaries enter Fusion; all 23 "
+            "frame descriptors, evidence profiles and sampling metadata remain audit-only"
+        ),
     }
 
 
@@ -987,6 +1040,7 @@ __all__ = [
     "BROADBAND_FRAME_CAP",
     "BROADBAND_FRAME_NAMES",
     "BROADBAND_FRAME_VALUE_DIM",
+    "BROADBAND_MEDIAN_FRAME_INDICES",
     "BROADBAND_MICRO_DOPPLER_MASK_MODE",
     "BROADBAND_MICRO_DOPPLER_NAMES",
     "BROADBAND_MICRO_DOPPLER_SCHEMA",

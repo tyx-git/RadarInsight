@@ -56,9 +56,12 @@ V17_READINESS_REPORT = Path(
 V17_READINESS_SCHEMA = "RADAR-LN3-V17-micro-doppler-training-readiness-v4"
 V18_READINESS_REPORT = Path(
     "src-v3/processed/report/"
-    "RADAR-LN3-V18-broadband-multiscale-micro-doppler-train-readiness.json"
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler21-pruned-train-readiness.json"
 )
-V18_READINESS_SCHEMA = "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v1"
+V18_READINESS_SCHEMA = (
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
+    "training-readiness-v2-pruned21"
+)
 
 
 def _strip_records(result: dict[str, Any]) -> dict[str, Any]:
