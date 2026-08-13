@@ -28,6 +28,8 @@ from radar_ln3.task_models import (
     PRODUCT_LOCAL_SCHEMA_VERSION,
     RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
     MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+    BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+    BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION,
     build_paired_model_for_config,
     capture_training_state,
     build_task_dataloader,
@@ -41,6 +43,7 @@ from radar_ln3.task_models import (
     load_task_config,
     load_task_checkpoint,
     is_product_local_schema,
+    is_micro_doppler_paired_schema,
     restore_training_state,
     summarize_task_performance_guardrails,
 )
@@ -51,6 +54,11 @@ V17_READINESS_REPORT = Path(
     "RADAR-LN3-V17-target-anchored-v3-micro-doppler-train-readiness.json"
 )
 V17_READINESS_SCHEMA = "RADAR-LN3-V17-micro-doppler-training-readiness-v4"
+V18_READINESS_REPORT = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler-train-readiness.json"
+)
+V18_READINESS_SCHEMA = "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v1"
 
 
 def _strip_records(result: dict[str, Any]) -> dict[str, Any]:
@@ -63,8 +71,18 @@ def verify_v17_training_readiness(
     project_root: Path,
     config_path: Path,
     contract_hashes: dict[str, Any],
+    *,
+    schema_version: str = MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
 ) -> dict[str, Any]:
-    report_path = (project_root / V17_READINESS_REPORT).resolve()
+    if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        relative_report = V18_READINESS_REPORT
+        expected_schema = V18_READINESS_SCHEMA
+    elif schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        relative_report = V17_READINESS_REPORT
+        expected_schema = V17_READINESS_SCHEMA
+    else:
+        raise ValueError("micro-Doppler readiness is restricted to V17/V18 paired schemas")
+    report_path = (project_root / relative_report).resolve()
     if not report_path.is_file():
         raise PermissionError(
             "V17 formal training requires the train-only readiness report; run the V17 "
@@ -82,7 +100,7 @@ def verify_v17_training_readiness(
     checks = dict(report.get("checks") or {})
     if (
         report.get("status") != "passed"
-        or report.get("schema_version") != V17_READINESS_SCHEMA
+        or report.get("schema_version") != expected_schema
         or len(matching_configs) != 1
         or matching_configs[0].get("sha256") != config_bytes_hash
         or report.get("contract_hashes") != contract_hashes
@@ -100,7 +118,7 @@ def verify_v17_training_readiness(
     return {
         "path": str(report_path),
         "sha256": digest,
-        "schema_version": V17_READINESS_SCHEMA,
+        "schema_version": expected_schema,
         "status": "passed",
         "validation_used_for_readiness_gate": False,
         "test": "未执行",
@@ -135,6 +153,52 @@ def build_checkpoint_selection(validation: dict[str, Any], metric_name: str) -> 
     """
 
     metric_name = str(metric_name)
+    if metric_name == BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION:
+        metrics = dict(validation.get("parent_metrics") or {})
+        per_class = list(metrics.get("per_class") or [])
+        class_rows = {str(row.get("class")): row for row in per_class}
+        expected = {"DroneTarget", "BirdTarget", "BalloonTarget"}
+        if set(class_rows) != expected:
+            raise ValueError(
+                "broadband micro-Doppler checkpoint selection requires all three DBB classes"
+            )
+        class_values: list[float] = []
+        for class_name in sorted(expected):
+            row = class_rows[class_name]
+            if int(row.get("support", 0)) <= 0:
+                raise ValueError(
+                    "broadband micro-Doppler checkpoint selection has a zero-support class"
+                )
+            for field in ("precision", "recall", "f1"):
+                class_values.append(
+                    _finite_metric(row.get(field), name=f"{class_name}.{field}")
+                )
+        matrix = np.asarray(
+            metrics.get("confusion_matrix_rows_true_columns_pred"), dtype=np.int64
+        )
+        if matrix.shape != (3, 3):
+            raise ValueError(
+                "broadband micro-Doppler checkpoint selection requires a 3x3 parent matrix"
+            )
+        expected_class_order = ("DroneTarget", "BirdTarget", "BalloonTarget")
+        if tuple(str(row.get("class")) for row in per_class) != expected_class_order:
+            raise ValueError(
+                "broadband micro-Doppler confusion matrix requires class order "
+                f"{expected_class_order}"
+            )
+        bidirectional_errors = int(matrix[0, 1] + matrix[1, 0])
+        weak_class_floor = min(class_values)
+        macro_f1 = _finite_metric(metrics.get("macro_f1"), name="parent_macro_f1")
+        return {
+            "metric": metric_name,
+            "primary_metric": "parent_min_class_precision_recall_f1",
+            "primary_value": weak_class_floor,
+            "tie_break_metric": "negative_drone_bird_bidirectional_parent_errors_then_macro_f1",
+            "tie_break_value": -float(bidirectional_errors),
+            "drone_bird_bidirectional_parent_errors": bidirectional_errors,
+            "macro_f1": macro_f1,
+            "ranking_key": [weak_class_floor, -float(bidirectional_errors), macro_f1],
+        }
     if metric_name == "parent_min_precision_recall":
         metrics = dict(validation.get("parent_metrics") or {})
         per_class = list(metrics.get("per_class") or [])
@@ -270,11 +334,18 @@ def train_task(
     seed_everything(config.train.seed)
     contract = verify_task_data_contract(project_root, config)
     v17_readiness: dict[str, Any] | None = None
-    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    readiness_field_name = (
+        "v18_training_readiness"
+        if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        else "v17_training_readiness"
+    )
+    readiness_hash_field_name = readiness_field_name + "_sha256"
+    if is_micro_doppler_paired_schema(config.schema_version):
         v17_readiness = verify_v17_training_readiness(
             project_root,
             config_path,
             dict(contract["hashes"]),
+            schema_version=config.schema_version,
         )
     artifact_dir = project_root / config.train.formal_artifact_dir
     if config.schema_version not in FORMAL_PAIRED_SCHEMA_VERSIONS and resume_checkpoint is not None:
@@ -340,7 +411,7 @@ def train_task(
                 "rd_quality": initial_tensors["rd_quality"],
                 "tr_padding_mask": initial_tensors["tr_padding_mask"],
             }
-            if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+            if is_micro_doppler_paired_schema(config.schema_version):
                 shared_inputs.update(
                     {
                         "rd_physical_features": initial_tensors["rd_physical_features"],
@@ -369,7 +440,7 @@ def train_task(
                         rd_physical_valid=active,
                     )["sequence_logits"]
                     initial_probe = "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid"
-                elif config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+                elif is_micro_doppler_paired_schema(config.schema_version):
                     treatment_initial = treatment_model(
                         **shared_inputs,
                         micro_doppler_features=initial_tensors["micro_doppler_features"],
@@ -377,7 +448,8 @@ def train_task(
                     )["sequence_logits"]
                     initial_probe = (
                         "same real DBB batch and shared RD-physical4 input; Treatment additionally "
-                        "receives real current-event micro-Doppler3 through exactly-zero Fusion columns"
+                        f"receives real current-event micro-Doppler{config.model.micro_doppler_dim} "
+                        "through exactly-zero Fusion columns"
                     )
                 else:
                     treatment_output = treatment_model(**shared_inputs, return_dbb_auxiliary_logits=True)
@@ -436,17 +508,18 @@ def train_task(
                 optimizer=optimizer,
             )
             if (
-                config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+                is_micro_doppler_paired_schema(config.schema_version)
                 and (
                     v17_readiness is None
                     or dict(resume_payload.get("metrics") or {}).get(
-                        "v17_training_readiness_sha256"
+                        readiness_hash_field_name
                     )
                     != v17_readiness["sha256"]
                 )
             ):
                 raise ValueError(
-                    "V17 resume checkpoint is not bound to the current passed readiness report"
+                    f"{config.schema_version} resume checkpoint is not bound to the current "
+                    "passed readiness report"
                 )
             run_state = restore_training_state(resume_payload, loader_generator)
             start_epoch = int(run_state["next_epoch"])
@@ -498,11 +571,12 @@ def train_task(
                 paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
                 config.train.dbb_auxiliary_loss_weight,
             )
-        elif config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        elif is_micro_doppler_paired_schema(config.schema_version):
             logger.info(
                 "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | "
                 "shared_rd_physical_dim=4 | micro_doppler_dim=%d | shared_exact=%s | "
-                "new_columns_zero=%s | full_stft_model_input=false | cuda_bitwise_determinism=false",
+                "new_columns_zero=%s | full_evidence_tensor_model_input=false | "
+                "cuda_bitwise_determinism=false",
                 config.train.paired_protocol,
                 config.train.paired_arm,
                 config.train.seed,
@@ -641,7 +715,7 @@ def train_task(
                 "parent_order_sha256": parent_order_sha256(epoch_parent_order),
                 "parent_order_count": len(epoch_parent_order),
                 "parent_order_unique_count": len(set(epoch_parent_order)),
-                "v17_training_readiness_sha256": (
+                readiness_hash_field_name: (
                     None if v17_readiness is None else v17_readiness["sha256"]
                 ),
             }
@@ -813,7 +887,7 @@ def train_task(
                 else []
             ),
             "paired_initialization": paired_initialization,
-            "v17_training_readiness": v17_readiness,
+            readiness_field_name: v17_readiness,
             "dataloader_contract": {
                 "seed": int(loader_seed),
                 "independent_generator": True,
@@ -871,7 +945,7 @@ def train_task(
                 "error_message": str(error),
                 "deployment_eligible": False,
                 "formal_pretraining": "not_required_and_not_used",
-                "v17_training_readiness": v17_readiness,
+                readiness_field_name: v17_readiness,
                 "full_cascade_evaluation": "not_executed",
                 "oof_rejection_calibration": "not_executed",
                 "test_evaluation": "not_executed",

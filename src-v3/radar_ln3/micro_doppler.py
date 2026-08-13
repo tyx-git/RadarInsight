@@ -603,6 +603,7 @@ def load_micro_doppler_cache(
     path: str | Path,
     *,
     expected_sample_ids: Iterable[str] | None = None,
+    expected_value_dim: int = MICRO_DOPPLER_VALUE_DIM,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     cache_path = Path(path)
     with np.load(cache_path, allow_pickle=False) as payload:
@@ -617,8 +618,14 @@ def load_micro_doppler_cache(
     identifiers = [str(value) for value in sample_ids.tolist()]
     if len(identifiers) != len(set(identifiers)):
         raise ValueError("micro-Doppler cache contains duplicate sample_ids")
-    if values.shape != (len(identifiers), MICRO_DOPPLER_VALUE_DIM) or values.dtype != np.float32:
-        raise ValueError("micro-Doppler cache values must be float32 with shape [N,3]")
+    expected_dim = int(expected_value_dim)
+    if expected_dim <= 0:
+        raise ValueError("micro-Doppler cache expected value dimension must be positive")
+    if values.shape != (len(identifiers), expected_dim) or values.dtype != np.float32:
+        raise ValueError(
+            "micro-Doppler cache values must be float32 with the configured shape: "
+            f"expected={[len(identifiers), expected_dim]}, actual={list(values.shape)}"
+        )
     if valid.shape != (len(identifiers),) or valid.dtype != np.bool_:
         raise ValueError("micro-Doppler cache valid must be bool with shape [N]")
     if not np.isfinite(values).all() or np.any(values < 0.0) or np.any(values > 1.0):

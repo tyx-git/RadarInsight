@@ -22,6 +22,7 @@ from .features import (
     resolve_causal_tr_feature_contract,
 )
 from .micro_doppler import MICRO_DOPPLER_VALUE_DIM, load_micro_doppler_cache
+from .micro_doppler_broadband import BROADBAND_MICRO_DOPPLER_VALUE_DIM
 from .rd_physical import RD_PHYSICAL_VALUE_DIM, load_rd_physical_cache
 
 
@@ -244,6 +245,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         tr_motion_schema: str | None = None,
         rd_physical_cache_path: str | Path | None = None,
         micro_doppler_cache_path: str | Path | None = None,
+        micro_doppler_value_dim: int = MICRO_DOPPLER_VALUE_DIM,
         allowed_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
         forbidden_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
         allowed_parent_ids: frozenset[str] | set[str] | tuple[str, ...] | None = None,
@@ -397,6 +399,14 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self._micro_doppler_valid: dict[str, bool] | None = None
         self.micro_doppler_cache_metadata: dict[str, Any] | None = None
         if micro_doppler_cache_path is not None:
+            expected_micro_doppler_dim = int(micro_doppler_value_dim)
+            if expected_micro_doppler_dim not in {
+                MICRO_DOPPLER_VALUE_DIM,
+                BROADBAND_MICRO_DOPPLER_VALUE_DIM,
+            }:
+                raise ValueError(
+                    "Dataset micro-Doppler cache dimension does not match a registered contract"
+                )
             cache_path = Path(str(micro_doppler_cache_path).replace("\\", "/"))
             self.micro_doppler_cache_path = (
                 cache_path if cache_path.is_absolute() else self.project_root / cache_path
@@ -405,6 +415,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             mapping, metadata = load_micro_doppler_cache(
                 self.micro_doppler_cache_path,
                 expected_sample_ids=expected_ids,
+                expected_value_dim=expected_micro_doppler_dim,
             )
             self._micro_doppler_values = mapping
             self._micro_doppler_valid = dict(metadata.pop("valid_by_sample_id"))
@@ -646,9 +657,14 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         result["rd_physical_features"] = rd_physical
         result["rd_physical_valid"] = rd_physical_valid
     if micro_doppler_dim:
-        if micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM:
+        if micro_doppler_dim not in {
+            MICRO_DOPPLER_VALUE_DIM,
+            BROADBAND_MICRO_DOPPLER_VALUE_DIM,
+        }:
             raise ValueError(
-                f"micro-Doppler feature dimension must be {MICRO_DOPPLER_VALUE_DIM}"
+                "micro-Doppler feature dimension does not match a registered contract: "
+                f"actual={micro_doppler_dim}, allowed="
+                f"{[MICRO_DOPPLER_VALUE_DIM, BROADBAND_MICRO_DOPPLER_VALUE_DIM]}"
             )
         result["micro_doppler_features"] = micro_doppler
         result["micro_doppler_valid"] = micro_doppler_valid

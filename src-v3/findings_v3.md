@@ -2179,3 +2179,51 @@
 - Action：不在V17继续调权重或阈值。若未来重开，只允许一个预注册变量：优先把STFT窗长/hop、可分辨周期和谱展宽改为物理时间/速度分辨率一致的mode-invariant摘要，并将“周期不可估”用于证据门控或中性插补而非类别输入；先用train-only检查主要共享模式中的效应方向一致性，再做Control/Treatment。完整STFT张量仍属于独立新数据/模型契约，不能以本轮摘要失败直接否定。
 - 验证状态：帧映射、目标局部峰、目标/全局功率门禁、采样模式统计和10条切换parent均已只读复核；未改标签、未调阈值、未启动后续训练。
 - 关联版本：V17 target-anchored修订协议v3；潜在后续必须递增版本。
+
+## Finding F199
+
+- Severity：High（V17传入链路无主导故障；物理摘要合同是主要瓶颈）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、`src-v3/radar_ln3/data.py`、`src-v3/radar_ln3/task_models.py`、V17 readiness/paired报告
+- 问题或结论：V17出现Bird Recall上升而Precision下降，不是cache错位、valid掩码、Fusion拼接或offline/online分叉造成；三维提取器把高CV/展宽映射为Bird，但该数值方向受采样模式影响且没有专门保留Drone宽带旋翼侧带。
+- Evidence：V17 focused已证明sample/cache对齐、共享初始化、三列零初始化、非零梯度、offline/online首事件误差0和checkpoint round-trip；正式两臂parent顺序一致。事件级方向无关AUC在train/val为CV约`0.673/0.694`、展宽约`0.575/0.608`、period约`0.518/0.549`，新增信息弱且period接近无信息。PRT=142 train三类parent=`4/3/0`，validation为Drone 2 parent、Bird/Balloon 0。
+- Impact：继续调class weight、dropout或液态状态正则只能移动边界，不能恢复被提取公式遗漏的侧带物理信息；同时会把PRT=142极端Drone继续推向Bird。
+- Action：V17不重训；新版本采用宽带侧带、原始脉冲包络调制、物理可观测性门控和PRT=142零干预，并保持传入链路其余变量冻结。
+- 验证状态：代码和历史结果已复核；V18全量prepare/训练未执行。
+- 关联版本：V17结论，V18修复。
+
+## Finding F200
+
+- Severity：High（旧Nyquist/周期解释需要物理校正）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py::_stft_linear_power`、V17 evidence cache、`src-v3/radar_ln3/micro_doppler_broadband.py`
+- 问题或结论：PRT=142并非简单受325 Hz Nyquist限制；原始脉冲采样调制Nyquist远高于旧STFT hop Nyquist，但其单帧仅约4 ms，统计窗极短且三类支持不足。PRT≥360的旧STFT hop Nyquist约306–326 Hz，400–800 Hz旋翼闪烁确会混叠。Bird 5–15 Hz在最长约46 ms单帧内仍不足一个15 Hz周期，不能声称被完整保留。
+- Evidence：V17 raw metadata显示PRT=142单帧时长约`3.976–4.402 ms`，PRT 226约`4.520–11.526 ms`，360/570/900约`17.28–45.90 ms`；旧STFT时间步为segment/2乘PRI。PRT=142的主要问题是7个左右原生STFT时间窗和`4/3/0` parent支持，而非原始脉冲采样本身低于400 Hz。
+- Impact：如果按错误Nyquist解释只缩短STFT窗，会提高表面时间带宽但进一步损害频率/速度分辨率；如果继续输出Bird扑翼period，则会制造不可辨识数值。
+- Action：V18绕开旧STFT hop，直接对raw pulse envelope提取300–2000 Hz调制；2 kHz上限保证全部候选PRT/PRI帧满足Nyquist。明确不估计5–15 Hz周期，并用每帧速度/调制Nyquist门控物理可观测性。
+- 验证状态：focused合成900 Hz调制提取通过；全量分布待prepare。
+- 关联版本：V18。
+
+## Finding F201
+
+- Severity：High（目标行自身估噪会吞掉宽带旋翼侧带；已在V18修复）
+- 文件位置：`src-v3/radar_ln3/micro_doppler_broadband.py::_neighbor_range_noise_spectrum`
+- 问题或结论：简单把V17的±8 m/s扩到±90 m/s仍不充分；若噪声底从目标行30–90 m/s区域自身中位数估计，真正宽带的Drone旋翼侧带会被当成噪声扣除，重复“保Bird削Drone”的物理偏置。
+- Evidence：目标行是唯一包含待分类目标的距离行，V18局部MTD已确定其邻域10–20；邻域内除目标行外最多10个距离行可提供频率分辨的独立噪声/杂波样本。最终focused合成相干主体+宽带正负侧带在邻行噪声、循环频差与零速平移不变修复后得到总侧带fraction=`0.239978`并保留900 Hz包络调制。
+- Impact：目标行自估噪会使侧带越宽、被扣除越多，系统性压低Drone证据；全量训练即使收敛也可能再次出现Bird边界扩张。
+- Action：V18固定使用目标距离邻域非目标行的逐频率中位数除`ln(2)`估计指数噪声均值；噪声估计、主体消除、侧带统计都写入版本化合同，禁止prepare后改公式。
+- 验证状态：focused synthetic和真实代表事件通过；全量readiness待执行。
+- 关联版本：V18。
+
+## Finding F202
+
+- Severity：High（V18宽带39维实验已达到手动prepare状态）
+- 文件位置：`src-v3/radar_ln3/micro_doppler_broadband.py`、`src-v3/build/micro_doppler_v18.py`、`src-v3/report/micro_doppler_v18_readiness.py`、`src-v3/report/micro_doppler_v18_paired.py`、`src-v3/scripts/v18_broadband_micro_doppler_paired_pipeline.ps1`
+- 问题或结论：V18已把实验变量冻结为Control `rd_physical4` versus Treatment `rd_physical4+micro39`，并将信息充分性门槛、epoch排序和最终2个百分点采纳门槛分离；尚无正式性能结果。
+- Evidence：39维由23项帧中位数和16项闪烁敏感q90组成；完整181×/64×审计profile不进入模型。focused Smoke显示Fusion输入`83/122`、40个共享state entry一致、39个新增列为0、梯度最大值`0.982568`、offline/online误差0、Track 1010 46帧映射偏移`+8`保持；合成readiness覆盖12个观测模式、8个校准模式和4个零干预模式。PowerShell AST和Python compile通过。
+- Impact：prepare通过只能证明特征可计算、非退化且train-only有最低判别潜力，不能宣称模型提升；只有paired validation同时提高Macro-F1与Drone/Bird弱项floor严格`>0.02`且方向错误下降，才允许采纳。
+- Action：用户串行执行prepare、train、evaluate；任一步失败停止。readiness以parent均衡特征向量计算AUC/effect，要求至少4项在全部8个`脉冲数+PRI+载频`完整采样模式中不反转且至少两个模式达到绝对effect 0.10，并禁止任何全局已达判别门槛的特征发生模式反转/支持不足；现有只读证据核实最小模式train支持为`33/41/25`。若readiness或paired门槛失败，保留V18为负向结果，不降低门槛、不回看validation删特征、不进入多seed/级联。
+- 补充物理边界：V18最终复核发现普通频差会在主体靠近Doppler Nyquist边缘时丢失跨边界侧带；现已改为PRF周期上的有符号循环频差。合成跨边界回归证明正负`30–60 m/s`侧带同时保留，且每个FFT bin仅映射一次。
+- 补充调制语义：三个高频频带幅度改为由一侧Parseval带内能量直接换算RMS，调制噪声底改由邻近非目标距离行逐频估计；不再以目标自身宽带中位数估噪，也不再用全包络RMS近似频带幅度。
+- 补充平移不变性：删除绝对零速`±2 m/s`截断，避免运动主体的真实微动侧带跨过零Doppler时被误删；合成跨零回归要求正负`30–60 m/s`侧带同时保留。
+- 补充模式全集：train共有12个`脉冲数+PRI+载频`组合；8个满足三类支持并可校准，2个PRT=142与2个仅4个Drone且validation缺失的226脉冲模式统一零干预。合同外新模式或任一未校准模式产生非零模型证据都会阻断prepare。
+- 验证状态：focused Smoke通过；全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable、P95均未执行。
+- 关联版本：V18。

@@ -56,6 +56,14 @@ from .micro_doppler import (
     extract_current_event_micro_doppler,
     micro_doppler_contract,
 )
+from .micro_doppler_broadband import (
+    BROADBAND_MICRO_DOPPLER_MASK_MODE,
+    BROADBAND_MICRO_DOPPLER_NAMES,
+    BROADBAND_MICRO_DOPPLER_SCHEMA,
+    BROADBAND_MICRO_DOPPLER_VALUE_DIM,
+    broadband_micro_doppler_contract,
+    extract_current_event_broadband_micro_doppler,
+)
 from .rd_physical import (
     RD_PHYSICAL_MASK_MODE,
     RD_PHYSICAL_NAMES,
@@ -104,8 +112,15 @@ MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V17"
 MICRO_DOPPLER_PAIRED_PROTOCOL = (
     "v17-dbb-rd-physical4-control-versus-plus-target-anchored-micro-doppler3-treatment-v3"
 )
+BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V18"
+BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL = (
+    "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler39-treatment-v1"
+)
 PRODUCT_LOCAL_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 PRODUCT_LOCAL_CHECKPOINT_SELECTION = "parent_min_precision_recall"
+BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION = (
+    "parent_min_precision_recall_f1_then_min_drone_bird_errors_then_macro_f1"
+)
 STRICT_OPEN_SET_LOSS_MODE = "parent_final_known_only_open_set_nll_with_prefix_auxiliary"
 STRICT_OPEN_SET_CHECKPOINT_SELECTION = "known_only_parent_route_guarded"
 STRICT_OPEN_SET_GATE_OUTPUT_NAMES = (
@@ -138,6 +153,7 @@ FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
         RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
         DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     }
 )
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
@@ -163,7 +179,29 @@ def is_product_local_schema(schema_version: str) -> bool:
     return str(schema_version) in {
         PRODUCT_LOCAL_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     }
+
+
+def is_micro_doppler_paired_schema(schema_version: str) -> bool:
+    return str(schema_version) in {
+        MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+    }
+
+
+def micro_doppler_contract_for_config(config: "LiquidTaskConfig") -> dict[str, Any]:
+    if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        return broadband_micro_doppler_contract()
+    return micro_doppler_contract()
+
+
+def micro_doppler_names_for_config(config: "LiquidTaskConfig") -> tuple[str, ...]:
+    if not config.model.micro_doppler_dim:
+        return ()
+    if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        return BROADBAND_MICRO_DOPPLER_NAMES
+    return MICRO_DOPPLER_NAMES
 
 
 def requires_task_config_identity(schema_version: str) -> bool:
@@ -399,7 +437,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
         ):
             model_identity.pop(field_name)
     data_identity = asdict(config.data)
-    if config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if not is_micro_doppler_paired_schema(config.schema_version):
         model_identity.pop("micro_doppler_dim")
         for field_name in (
             "micro_doppler_schema",
@@ -764,27 +802,47 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
                 raise ValueError("V11 Treatment requires manifest, train/val cache paths and hashes")
         elif any(value is not None for value in physical_fields):
             raise ValueError("V11 Control must not configure or load an RD physical cache")
-    elif schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    elif is_micro_doppler_paired_schema(schema_version):
         if spec.name != "dbb_specialist" or motion_fields_present:
-            raise ValueError("RADAR-LN3-V17 is restricted to the DBB specialist without TR derived inputs")
+            raise ValueError(
+                f"{schema_version} is restricted to the DBB specialist without TR derived inputs"
+            )
         if model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
             raise ValueError("RADAR-LN3-V17 Control and Treatment both require the frozen four RD physical values")
         if (data.rd_physical_schema, data.rd_physical_mask_mode) != (
             RD_PHYSICAL_SCHEMA,
             RD_PHYSICAL_MASK_MODE,
         ) or any(value is None for value in physical_fields[2:]):
-            raise ValueError("RADAR-LN3-V17 requires the frozen RD physical cache contract in both arms")
-        if model.micro_doppler_dim not in {0, MICRO_DOPPLER_VALUE_DIM}:
-            raise ValueError("RADAR-LN3-V17 micro_doppler_dim must be 0 for Control or 3 for Treatment")
-        if (data.micro_doppler_schema, data.micro_doppler_mask_mode) != (
+            raise ValueError(
+                f"{schema_version} requires the frozen RD physical cache contract in both arms"
+            )
+        expected_micro_dim = (
+            BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else MICRO_DOPPLER_VALUE_DIM
+        )
+        expected_micro_contract = (
+            BROADBAND_MICRO_DOPPLER_SCHEMA,
+            BROADBAND_MICRO_DOPPLER_MASK_MODE,
+        ) if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION else (
             MICRO_DOPPLER_SCHEMA,
             MICRO_DOPPLER_MASK_MODE,
-        ) or any(value is None for value in micro_doppler_fields[2:]):
-            raise ValueError("RADAR-LN3-V17 requires versioned summary and STFT cache paths/hashes")
+        )
+        if model.micro_doppler_dim not in {0, expected_micro_dim}:
+            raise ValueError(
+                f"{schema_version} micro_doppler_dim must be 0 for Control or "
+                f"{expected_micro_dim} for Treatment"
+            )
+        if (data.micro_doppler_schema, data.micro_doppler_mask_mode) != expected_micro_contract or any(
+            value is None for value in micro_doppler_fields[2:]
+        ):
+            raise ValueError(
+                f"{schema_version} requires versioned summary/evidence cache paths and hashes"
+            )
     elif model.rd_physical_dim != 0 or any(value is not None for value in physical_fields):
         raise ValueError("task schemas after RADAR-LN3-V11 must not silently retain the V11 RD physical treatment")
     if (
-        schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        not is_micro_doppler_paired_schema(schema_version)
         and (model.micro_doppler_dim != 0 or any(value is not None for value in micro_doppler_fields))
     ):
         raise ValueError("micro-Doppler inputs and cache fields are reserved for RADAR-LN3-V17")
@@ -1010,12 +1068,17 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         ):
             raise ValueError("DBB angular readout fields are reserved for RADAR-LN3-V15")
     elif is_product_local_schema(schema_version):
-        is_v17_micro = schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        is_v17_micro = is_micro_doppler_paired_schema(schema_version)
         if train.loss_mode != PRODUCT_LOCAL_LOSS_MODE:
             raise ValueError(f"{schema_version} task training must use {PRODUCT_LOCAL_LOSS_MODE}")
-        if train.checkpoint_selection_metric != PRODUCT_LOCAL_CHECKPOINT_SELECTION:
+        expected_selection = (
+            BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION
+            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else PRODUCT_LOCAL_CHECKPOINT_SELECTION
+        )
+        if train.checkpoint_selection_metric != expected_selection:
             raise ValueError(
-                f"{schema_version} checkpoint selection must use {PRODUCT_LOCAL_CHECKPOINT_SELECTION}"
+                f"{schema_version} checkpoint selection must use {expected_selection}"
             )
         expected_target = 0.90 if spec.name == "cu_specialist" else 0.95
         if (
@@ -1046,7 +1109,9 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         if not is_v17_micro and (model.rd_physical_dim != 0 or model.micro_doppler_dim != 0):
             raise ValueError("RADAR-LN3-V16 local baseline must not retain experimental physical inputs")
         if is_v17_micro and spec.name != "dbb_specialist":
-            raise ValueError("RADAR-LN3-V17 is a DBB-specialist-only paired experiment")
+            raise ValueError(
+                f"{schema_version} is a DBB-specialist-only paired experiment"
+            )
         if train.epochs != 20 or train.early_stopping_patience != 0:
             raise ValueError(f"{schema_version} requires 20 fixed epochs with early stopping disabled")
         if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
@@ -1088,7 +1153,11 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
     if schema_number == _task_schema_number(DT_VALID_DYNAMICS_ONLY_SCHEMA_VERSION):
         if train.checkpoint_selection_metric != "parent_macro_f1":
             raise ValueError("RADAR-LN3-V7 must preserve parent_macro_f1 checkpoint selection")
-    if schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION) and schema_version not in HIERARCHICAL_SCHEMA_VERSIONS:
+    if (
+        schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION)
+        and schema_version not in HIERARCHICAL_SCHEMA_VERSIONS
+        and schema_version != BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+    ):
         if train.checkpoint_selection_metric != "parent_min_precision_recall":
             raise ValueError(
                 "task schemas from RADAR-LN3-V8 onward must use parent_min_precision_recall checkpoint selection"
@@ -1135,25 +1204,42 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError("V12 paired training requires an explicit counterpart config path")
         if train.cuda_deterministic_algorithms:
             raise ValueError("V12 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
-    elif schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    elif is_micro_doppler_paired_schema(schema_version):
         expected_arm = "treatment" if model.micro_doppler_dim else "control"
+        expected_protocol = (
+            BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
+            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else MICRO_DOPPLER_PAIRED_PROTOCOL
+        )
         if (
-            train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
+            train.paired_protocol != expected_protocol
             or train.paired_arm != expected_arm
         ):
-            raise ValueError("V17 paired protocol/arm does not match the configured micro-Doppler input")
+            raise ValueError(
+                f"{schema_version} paired protocol/arm does not match the configured micro-Doppler input"
+            )
         if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
-            raise ValueError("V17 paired seed, model seed and DataLoader seed must be identical")
+            raise ValueError(
+                f"{schema_version} paired seed, model seed and DataLoader seed must be identical"
+            )
         if train.seed != 42:
-            raise ValueError("V17 fast paired screening is frozen to seed 42")
+            raise ValueError(f"{schema_version} fast paired screening is frozen to seed 42")
         if train.epochs != 20 or train.early_stopping_patience != 0:
-            raise ValueError("V17 paired training requires exactly 20 epochs with early stopping disabled")
+            raise ValueError(
+                f"{schema_version} paired training requires exactly 20 epochs with early stopping disabled"
+            )
         if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
-            raise ValueError("V17 paired training requires epoch checkpoints and parent-order hashes")
+            raise ValueError(
+                f"{schema_version} paired training requires epoch checkpoints and parent-order hashes"
+            )
         if train.paired_counterpart_config_path is None:
-            raise ValueError("V17 paired training requires an explicit counterpart config path")
+            raise ValueError(
+                f"{schema_version} paired training requires an explicit counterpart config path"
+            )
         if train.cuda_deterministic_algorithms:
-            raise ValueError("V17 fixes initialization/sampling only and must not claim strict CUDA determinism")
+            raise ValueError(
+                f"{schema_version} fixes initialization/sampling only and must not claim strict CUDA determinism"
+            )
     elif (
         train.dbb_auxiliary_loss_weight != 0.0
         or train.dbb_auxiliary_class_weights
@@ -1285,21 +1371,37 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
                 "test_excluded": True,
             }
     micro_doppler_evidence: dict[str, Any] | None = None
-    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(config.schema_version):
         if feature_contract.get("rd_physical") != rd_physical_contract():
             raise ValueError("V17 data contract RD physical fields do not match the frozen extractor")
-        if feature_contract.get("micro_doppler") != micro_doppler_contract():
+        configured_micro_contract = micro_doppler_contract_for_config(config)
+        if feature_contract.get("micro_doppler") != configured_micro_contract:
             raise ValueError("V17 data contract micro-Doppler fields do not match the frozen extractor")
-        scope = dict(contract.get("v17_scope") or {})
+        scope_field = (
+            "v18_scope"
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "v17_scope"
+        )
+        scope = dict(contract.get(scope_field) or {})
+        complete_evidence_field = (
+            "complete_evidence_profiles_are_model_input"
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "complete_stft_tensor_is_model_input"
+        )
         if (
             scope.get("task") != "dbb_specialist"
             or scope.get("labels") != list(DBB_AUXILIARY_CLASS_NAMES)
             or scope.get("splits_processed") != ["train", "val"]
-            or scope.get("complete_stft_tensor_is_model_input") is not False
-            or int(scope.get("test_raw_payload_access_count", -1)) != 0
+            or scope.get(complete_evidence_field) is not False
+        ):
+            raise ValueError(
+                f"{config.schema_version} data contract scope allows a non-DBB, test or evidence-model-input deviation"
+            )
+        if (
+            int(scope.get("test_raw_payload_access_count", -1)) != 0
             or int(scope.get("test_rd_payload_access_count", -1)) != 0
         ):
-            raise ValueError("V17 data contract scope allows a non-DBB, test or STFT-model-input deviation")
+            raise ValueError(f"{config.schema_version} data contract scope accesses sealed test payload")
         manifest_path = resolve_project_path(
             project_root, config.data.micro_doppler_cache_manifest_path or ""
         )
@@ -1345,22 +1447,33 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         actual_v17_hashes = {name: sha256_file(path) for name, path in paths.items()}
         if expected_v17_hashes != actual_v17_hashes:
             raise ValueError(
-                "V17 physical/summary/STFT cache hash mismatch: "
+                f"{config.schema_version} physical/summary/evidence cache hash mismatch: "
                 f"expected={expected_v17_hashes}, actual={actual_v17_hashes}"
             )
         if (
             config.data.expected_rd_physical_cache_manifest_sha256
             != config.data.expected_micro_doppler_cache_manifest_sha256
         ):
-            raise ValueError("V17 config binds different hashes for the shared evidence manifest")
+            raise ValueError(
+                f"{config.schema_version} config binds different hashes for the shared evidence manifest"
+            )
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_manifest_type = (
+            "cq08_dbb_current_event_broadband_multiscale_micro_doppler_paired_cache_v1"
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "cq08_dbb_current_event_target_anchored_micro_doppler_paired_cache_v3"
+        )
+        expected_protocol = (
+            BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else MICRO_DOPPLER_PAIRED_PROTOCOL
+        )
         if (
-            manifest.get("schema_version") != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
-            or manifest.get("manifest_type")
-            != "cq08_dbb_current_event_target_anchored_micro_doppler_paired_cache_v3"
-            or manifest.get("paired_protocol") != MICRO_DOPPLER_PAIRED_PROTOCOL
+            manifest.get("schema_version") != config.schema_version
+            or manifest.get("manifest_type") != expected_manifest_type
+            or manifest.get("paired_protocol") != expected_protocol
             or manifest.get("rd_physical_contract") != rd_physical_contract()
-            or manifest.get("micro_doppler_contract") != micro_doppler_contract()
+            or manifest.get("micro_doppler_contract") != configured_micro_contract
             or manifest.get("test_excluded") is not True
             or int(manifest.get("test_raw_payload_access_count", -1)) != 0
             or int(manifest.get("test_rd_payload_access_count", -1)) != 0
@@ -1369,7 +1482,9 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             != actual_v17_hashes["frame_provenance"]
             or manifest.get("legacy_mat_list_ordinal_is_raw_dat_frame_index") is not False
         ):
-            raise ValueError("V17 cache manifest violates paired extractor, contract or test sealing")
+            raise ValueError(
+                f"{config.schema_version} cache manifest violates paired extractor, contract or test sealing"
+            )
         manifest_files = dict(manifest.get("cache_files") or {})
         expected_stft_fields = {
             "sample_ids",
@@ -1394,6 +1509,32 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             "frame_frequency_hz",
             "frame_cpi_count",
         }
+        if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+            expected_stft_fields = {
+                "sample_ids",
+                "valid",
+                "event_offsets",
+                "raw_dat_frame_indices_zero_based",
+                "legacy_mat_list_ordinals_zero_based",
+                "canonical_tensor_frame_indices_zero_based",
+                "mat_acquisition_frame_numbers_one_based",
+                "frame_values",
+                "frame_feature_reliable",
+                "residual_doppler_profiles",
+                "envelope_modulation_profiles",
+                "target_range_indices",
+                "target_doppler_indices",
+                "target_doppler_mps",
+                "refined_body_doppler_mps",
+                "velocity_nyquist_mps",
+                "rayleigh_velocity_mps",
+                "residual_sideband_snr_db",
+                "envelope_modulation_snr_db",
+                "frame_prt_num",
+                "frame_prt_seconds",
+                "frame_frequency_hz",
+                "frame_cpi_count",
+            }
         if set(
             dict(manifest.get("cache_alignment_fields") or {}).get("stft") or []
         ) != expected_stft_fields:
@@ -1421,10 +1562,16 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             },
             "test_excluded": True,
         }
+        complete_evidence_input_field = (
+            "complete_evidence_profiles_are_model_input"
+            if config.schema_version
+            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "complete_stft_tensor_is_model_input"
+        )
         micro_doppler_evidence = {
             "paths": {name: str(path) for name, path in paths.items()},
             "hashes": actual_v17_hashes,
-            "complete_stft_tensor_is_model_input": False,
+            complete_evidence_input_field: False,
             "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
             "test_excluded": True,
         }
@@ -1765,7 +1912,7 @@ def build_task_dataset(
             )
     micro_doppler_cache_path: str | None = None
     if (
-        config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        is_micro_doppler_paired_schema(config.schema_version)
         or config.model.micro_doppler_dim
     ):
         if split_name == config.data.train_split_name:
@@ -1792,6 +1939,11 @@ def build_task_dataset(
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
         rd_physical_cache_path=rd_physical_cache_path,
         micro_doppler_cache_path=micro_doppler_cache_path,
+        micro_doppler_value_dim=(
+            BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else MICRO_DOPPLER_VALUE_DIM
+        ),
         allowed_labels=config.task.allowed_base_labels if task_filtered_base else None,
         forbidden_labels={UNKNOWN_BASE_LABEL} if strict_open_set else None,
     )
@@ -1998,6 +2150,7 @@ class LiquidTaskClassifier(nn.Module):
         if config.schema_version in {
             RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
             MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         }:
             fusion_linear = PairedFusionLinear(
                 fusion_dim,
@@ -2114,13 +2267,20 @@ class LiquidTaskClassifier(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """Run the frozen V17 current-event raw-I/Q extractor online."""
 
-        if self.micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM:
-            raise ValueError("online micro-Doppler extraction is available only for V17 Treatment")
-        event = extract_current_event_micro_doppler(
-            frames,
-            raw_frame_indices,
-            track_point_index=track_point_index,
-        )
+        if self.config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+            if self.micro_doppler_dim != BROADBAND_MICRO_DOPPLER_VALUE_DIM:
+                raise ValueError("online broadband micro-Doppler extraction requires V17B Treatment")
+            event = extract_current_event_broadband_micro_doppler(
+                frames, raw_frame_indices, track_point_index=track_point_index
+            )
+        else:
+            if self.micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM:
+                raise ValueError("online micro-Doppler extraction is available only for V17 Treatment")
+            event = extract_current_event_micro_doppler(
+                frames,
+                raw_frame_indices,
+                track_point_index=track_point_index,
+            )
         parameter = self.fusion[0].weight
         return {
             "micro_doppler_features": torch.as_tensor(
@@ -2812,35 +2972,54 @@ def build_v17_paired_models(
     control_config: LiquidTaskConfig,
     treatment_config: LiquidTaskConfig,
 ) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
-    """Build the DBB physical4 versus physical4+micro3 single-factor pair."""
+    """Build one isolated DBB physical4 versus physical4+micro pair."""
+
+    schema_version = control_config.schema_version
+    expected_protocol = (
+        BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
+        if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        else MICRO_DOPPLER_PAIRED_PROTOCOL
+    )
+    intervention_dim = (
+        BROADBAND_MICRO_DOPPLER_VALUE_DIM
+        if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        else MICRO_DOPPLER_VALUE_DIM
+    )
 
     if (
-        control_config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
-        or treatment_config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        not is_micro_doppler_paired_schema(schema_version)
+        or treatment_config.schema_version != schema_version
         or control_config.task.name != "dbb_specialist"
         or treatment_config.task.name != "dbb_specialist"
         or control_config.train.paired_arm != "control"
         or treatment_config.train.paired_arm != "treatment"
-        or control_config.train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
-        or treatment_config.train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
+        or control_config.train.paired_protocol != expected_protocol
+        or treatment_config.train.paired_protocol != expected_protocol
     ):
         raise ValueError("paired model builder requires V17 DBB Control and Treatment configs")
     if control_config.train.seed != treatment_config.train.seed:
-        raise ValueError("V17 paired configs must use the same seed")
+        raise ValueError(f"{schema_version} paired configs must use the same seed")
     if (
         control_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM
         or treatment_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM
         or control_config.model.micro_doppler_dim != 0
-        or treatment_config.model.micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM
+        or treatment_config.model.micro_doppler_dim != intervention_dim
     ):
-        raise ValueError("V17 pair must compare physical4 against physical4 plus micro-Doppler3")
+        raise ValueError(
+            f"{schema_version} pair must compare physical4 against physical4 plus "
+            f"micro-Doppler{intervention_dim}"
+        )
     if (
-        replace(control_config.model, micro_doppler_dim=MICRO_DOPPLER_VALUE_DIM)
+        replace(control_config.model, micro_doppler_dim=intervention_dim)
         != treatment_config.model
     ):
-        raise ValueError("V17 paired model configs differ beyond micro_doppler_dim")
+        raise ValueError(
+            f"{schema_version} paired model configs differ beyond micro_doppler_dim"
+        )
     if control_config.data != treatment_config.data:
-        raise ValueError("V17 paired data configs, including shared evidence caches, must be identical")
+        raise ValueError(
+            f"{schema_version} paired data configs, including shared evidence caches, must be identical"
+        )
     excluded_train = {
         "checkpoint_path",
         "last_checkpoint_path",
@@ -2860,7 +3039,9 @@ def build_v17_paired_models(
         if key not in excluded_train
     }
     if control_train != treatment_train:
-        raise ValueError("V17 paired training configs differ beyond arm-specific paths")
+        raise ValueError(
+            f"{schema_version} paired training configs differ beyond arm-specific paths"
+        )
     seed_everything(control_config.train.seed)
     control = LiquidTaskClassifier(control_config)
     seed_everything(treatment_config.train.seed)
@@ -2879,7 +3060,7 @@ def build_v17_paired_models(
                 if (
                     treatment_value.shape[0] != control_value.shape[0]
                     or treatment_value.shape[1]
-                    != control_value.shape[1] + MICRO_DOPPLER_VALUE_DIM
+                    != control_value.shape[1] + intervention_dim
                 ):
                     raise ValueError("V17 Treatment Fusion width is not Control width plus three")
                 treatment_value[:, : control_value.shape[1]].copy_(control_value)
@@ -2910,14 +3091,14 @@ def build_v17_paired_models(
     if not torch.equal(new_columns, torch.zeros_like(new_columns)):
         raise AssertionError("V17 new micro-Doppler Fusion columns are not exactly zero")
     return control, treatment, {
-        "paired_protocol": MICRO_DOPPLER_PAIRED_PROTOCOL,
+        "paired_protocol": expected_protocol,
         "seed": control_config.train.seed,
         "shared_state_entry_count": len(shared_names),
         "shared_parameters_and_buffers_exactly_equal": True,
         "control_fusion_input_dim": control.fusion_input_dim,
         "treatment_fusion_input_dim": treatment.fusion_input_dim,
         "shared_rd_physical_columns": RD_PHYSICAL_VALUE_DIM,
-        "treatment_new_fusion_columns": MICRO_DOPPLER_VALUE_DIM,
+        "treatment_new_fusion_columns": intervention_dim,
         "treatment_new_fusion_columns_exactly_zero": True,
     }
 
@@ -2967,7 +3148,7 @@ def build_paired_model_for_config(
 ) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier | None, dict[str, Any]]:
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         return build_v11_paired_model_for_config(project_root, config)
-    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(config.schema_version):
         return build_v17_paired_model_for_config(project_root, config)
     if config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
         return LiquidTaskClassifier(config), None, {
@@ -3185,7 +3366,13 @@ def save_task_checkpoint(
                 "paired_seed": config.train.paired_seed,
             }
         )
-    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(config.schema_version):
+        complete_evidence_input_field = (
+            "complete_evidence_profiles_are_model_input"
+            if config.schema_version
+            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "complete_stft_tensor_is_model_input"
+        )
         model_contract.update(
             {
                 "rd_physical_dim": config.model.rd_physical_dim,
@@ -3195,10 +3382,10 @@ def save_task_checkpoint(
                 "micro_doppler_dim": config.model.micro_doppler_dim,
                 "micro_doppler_schema": config.data.micro_doppler_schema,
                 "micro_doppler_names": (
-                    list(MICRO_DOPPLER_NAMES) if config.model.micro_doppler_dim else []
+                    list(micro_doppler_names_for_config(config))
                 ),
                 "micro_doppler_mask_mode": config.data.micro_doppler_mask_mode,
-                "complete_stft_tensor_is_model_input": False,
+                complete_evidence_input_field: False,
                 "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
                 "paired_protocol": config.train.paired_protocol,
                 "paired_arm": config.train.paired_arm,
@@ -3243,7 +3430,7 @@ def save_task_checkpoint(
                 "validation_rd_physical_cache_sha256": config.data.expected_validation_rd_physical_cache_sha256,
             }
         )
-    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(config.schema_version):
         payload["data_contract"].update(
             {
                 "evidence_manifest_sha256": config.data.expected_micro_doppler_cache_manifest_sha256,
@@ -3306,7 +3493,7 @@ def load_task_checkpoint(
                 "validation_rd_physical_cache_sha256": model.config.data.expected_validation_rd_physical_cache_sha256,
             }
         )
-    if model.config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(model.config.schema_version):
         expected_data_contract.update(
             {
                 "evidence_manifest_sha256": model.config.data.expected_micro_doppler_cache_manifest_sha256,
@@ -3422,7 +3609,13 @@ def load_task_checkpoint(
                 "paired_seed": model.config.train.paired_seed,
             }
         )
-    if model.config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_micro_doppler_paired_schema(model.config.schema_version):
+        complete_evidence_input_field = (
+            "complete_evidence_profiles_are_model_input"
+            if model.config.schema_version
+            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "complete_stft_tensor_is_model_input"
+        )
         expected_contract.update(
             {
                 "rd_physical_dim": model.rd_physical_dim,
@@ -3432,10 +3625,10 @@ def load_task_checkpoint(
                 "micro_doppler_dim": model.micro_doppler_dim,
                 "micro_doppler_schema": model.micro_doppler_schema,
                 "micro_doppler_names": (
-                    list(MICRO_DOPPLER_NAMES) if model.micro_doppler_dim else []
+                    list(micro_doppler_names_for_config(model.config))
                 ),
                 "micro_doppler_mask_mode": model.micro_doppler_mask_mode,
-                "complete_stft_tensor_is_model_input": False,
+                complete_evidence_input_field: False,
                 "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
                 "paired_protocol": model.config.train.paired_protocol,
                 "paired_arm": model.config.train.paired_arm,
@@ -3803,6 +3996,9 @@ __all__ = [
     "DBB_AUXILIARY_TREATMENT_WEIGHT",
     "DBB_AUXILIARY_CLASS_WEIGHTS",
     "DBB_AUXILIARY_SUPERVISION_SCOPE",
+    "BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION",
+    "BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL",
+    "BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION",
     "FORMAL_PAIRED_SCHEMA_VERSIONS",
     "HIERARCHICAL_CASCADE_SCHEMA_VERSION",
     "HIERARCHICAL_SCHEMA_VERSIONS",
@@ -3835,6 +4031,9 @@ __all__ = [
     "compose_strict_open_set_evidence",
     "evaluate_task",
     "is_product_local_schema",
+    "is_micro_doppler_paired_schema",
+    "micro_doppler_contract_for_config",
+    "micro_doppler_names_for_config",
     "is_strict_open_set_schema",
     "load_task_checkpoint",
     "load_task_config",
