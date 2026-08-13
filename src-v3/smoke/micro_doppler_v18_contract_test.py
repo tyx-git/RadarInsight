@@ -17,8 +17,15 @@ from build.micro_doppler_v17 import (
     _CanonicalFrameProvenance,
 )
 from build.micro_doppler_v18 import (
+    REUSABLE_EVIDENCE_MANIFEST,
+    SOURCE_CONTRACT,
+    SOURCE_INDEX,
+    SOURCE_PROVENANCE,
+    SOURCE_STATS,
+    SOURCE_CANONICAL_FRAME_INDEX as V18_SOURCE_CANONICAL_FRAME_INDEX,
     _build_config as build_v18_config,
     _config_path as v18_config_path,
+    _reuse_prepared_evidence,
 )
 from radar_ln3.data import CQ08PointSequenceDataset, collate_point_sequences
 from radar_ln3.micro_doppler import RawEchoFrame, RawTargetRecord, parse_cq08_raw_echo
@@ -28,6 +35,8 @@ from radar_ln3.micro_doppler_broadband import (
     BROADBAND_FRAME_NAMES,
     BROADBAND_FRAME_VALUE_DIM,
     BROADBAND_MEDIAN_FRAME_INDICES,
+    BROADBAND_MODE_STABLE_INFORMATIVE_NAMES,
+    BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES,
     BROADBAND_MICRO_DOPPLER_NAMES,
     BROADBAND_MICRO_DOPPLER_SCHEMA,
     BROADBAND_MICRO_DOPPLER_VALUE_DIM,
@@ -41,7 +50,11 @@ from radar_ln3.micro_doppler_broadband import (
     extract_broadband_micro_doppler_frame,
     extract_current_event_broadband_micro_doppler,
 )
-from report.micro_doppler_v18_readiness import _split_report
+from report.micro_doppler_v18_readiness import (
+    MIN_NONDEGENERATE_STD,
+    MIN_NONDEGENERATE_UNIQUE,
+    _split_report,
+)
 from report.micro_doppler_v18_paired import _strictly_exceeds_adoption_gain
 from radar_ln3.task_models import (
     BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION,
@@ -107,28 +120,18 @@ def _representative_event(
     }
 
 
-def _pruned_summary_contract() -> dict[str, Any]:
+def _stable_summary_contract() -> dict[str, Any]:
     expected_median_indices = (
-        0,
         1,
         2,
         3,
-        6,
         7,
-        8,
         11,
-        12,
         13,
         14,
-        15,
-        16,
-        17,
-        19,
-        20,
-        21,
         22,
     )
-    expected_q90_indices = (0, 1, 6)
+    expected_q90_indices: tuple[int, ...] = ()
     expected_names = tuple(
         f"median_{BROADBAND_FRAME_NAMES[index]}"
         for index in expected_median_indices
@@ -139,9 +142,9 @@ def _pruned_summary_contract() -> dict[str, Any]:
         BROADBAND_MEDIAN_FRAME_INDICES != expected_median_indices
         or BROADBAND_Q90_FRAME_INDICES != expected_q90_indices
         or BROADBAND_MICRO_DOPPLER_NAMES != expected_names
-        or BROADBAND_MICRO_DOPPLER_VALUE_DIM != 21
+        or BROADBAND_MICRO_DOPPLER_VALUE_DIM != 8
     ):
-        raise AssertionError("V18 pruned 18-median plus 3-q90 feature order changed")
+        raise AssertionError("V18 stable8 feature order changed")
 
     old_q90_indices = (0, 1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 15, 16, 17, 20, 22)
     old_names = {
@@ -152,8 +155,14 @@ def _pruned_summary_contract() -> dict[str, Any]:
         ),
     }
     removed_names = old_names - set(BROADBAND_MICRO_DOPPLER_NAMES)
-    if len(old_names) != 39 or len(removed_names) != 18:
-        raise AssertionError("V18 pruning must remove exactly 18 of the former 39 summaries")
+    if len(old_names) != 39 or len(removed_names) != 31:
+        raise AssertionError("V18 stable8 must remove exactly 31 former summaries")
+    if (
+        set(BROADBAND_MODE_STABLE_INFORMATIVE_NAMES)
+        - set(BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES)
+        != set(BROADBAND_MICRO_DOPPLER_NAMES)
+    ):
+        raise AssertionError("V18 stable8 does not match the train-only selection contract")
 
     # A frame total is algebraically redundant, but the median of frame totals
     # is not the sum of the six separately aggregated directional medians.
@@ -167,14 +176,16 @@ def _pruned_summary_contract() -> dict[str, Any]:
         frames, np.ones((len(frames),), dtype=np.bool_)
     )
     total_name = "median_residual_total_8_90mps_energy_fraction"
-    total_value = float(summary[BROADBAND_MICRO_DOPPLER_NAMES.index(total_name)])
+    total_value = float(np.median(frames[:, 6]))
     directional_median_sum = float(np.median(frames[:, :6], axis=0).sum())
     if (
         frame_identity_error != 0.0
         or total_value != 1.0
         or directional_median_sum != 0.0
+        or total_name in BROADBAND_MICRO_DOPPLER_NAMES
+        or summary.shape != (8,)
     ):
-        raise AssertionError("V18 median(total) nonlinearity regression failed")
+        raise AssertionError("V18 stable8 evidence-only total regression failed")
     return {
         "frame_evidence_dim": BROADBAND_FRAME_VALUE_DIM,
         "model_summary_dim": BROADBAND_MICRO_DOPPLER_VALUE_DIM,
@@ -183,6 +194,13 @@ def _pruned_summary_contract() -> dict[str, Any]:
         "former_summary_dim": len(old_names),
         "removed_summary_count": len(removed_names),
         "removed_summary_names": sorted(removed_names),
+        "mode_stable_informative_count_before_collinearity_pruning": len(
+            BROADBAND_MODE_STABLE_INFORMATIVE_NAMES
+        ),
+        "collinear_evidence_only_names": list(
+            BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES
+        ),
+        "mode_reversing_total_is_model_input": False,
         "frame_total_identity_maximum_absolute_error": frame_identity_error,
         "median_total_counterexample": {
             "median_frame_total": total_value,
@@ -243,15 +261,6 @@ def _synthetic_frame(
 
 
 def _synthetic_broadband_contract() -> dict[str, Any]:
-    total_index = BROADBAND_MICRO_DOPPLER_NAMES.index(
-        "median_residual_total_8_90mps_energy_fraction"
-    )
-    modulation_indices = tuple(
-        BROADBAND_MICRO_DOPPLER_NAMES.index(
-            f"median_pulse_envelope_modulation_{band}_rms_clipped_0_2_over_2"
-        )
-        for band in ("300_600hz", "600_1200hz", "1200_2000hz")
-    )
     calibrated = _synthetic_frame(
         prt_num=360,
         prt_seconds=48.0e-6,
@@ -270,8 +279,8 @@ def _synthetic_broadband_contract() -> dict[str, Any]:
         not extracted.feature_reliable
         or not event.valid
         or not np.any(event.values != 0.0)
-        or float(event.values[total_index]) <= 0.0
-        or max(float(event.values[index]) for index in modulation_indices) <= 0.0
+        or float(extracted.values[6]) <= 0.0
+        or float(extracted.values[15:18].max(initial=0.0)) <= 0.0
     ):
         raise AssertionError("V18 synthetic broadband sideband/modulation was not retained")
 
@@ -333,10 +342,13 @@ def _synthetic_broadband_contract() -> dict[str, Any]:
         )
     return {
         "calibrated_summary_nonzero": True,
-        "calibrated_total_sideband_fraction": float(event.values[total_index]),
-        "calibrated_modulation_amplitude_maximum": float(
-            max(event.values[index] for index in modulation_indices)
+        "calibrated_total_sideband_fraction_evidence_only": float(
+            extracted.values[6]
         ),
+        "calibrated_modulation_amplitude_maximum": float(
+            extracted.values[15:18].max(initial=0.0)
+        ),
+        "mode_reversing_total_is_model_input": False,
         "nyquist_edge_negative_30_60mps_fraction": float(edge.values[2]),
         "nyquist_edge_positive_30_60mps_fraction": float(edge.values[3]),
         "nyquist_edge_crossing_sidebands_both_retained": True,
@@ -367,6 +379,167 @@ def _track_1010_mapping(root: Path) -> dict[str, Any]:
         "canonical_frame_count": 46,
         "raw_dat_minus_legacy_ordinal": 8,
         "mapping_preserved": True,
+    }
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _reusable_evidence_contract(root: Path) -> dict[str, Any]:
+    source_paths = {
+        "index": root / SOURCE_INDEX,
+        "contract": root / SOURCE_CONTRACT,
+        "provenance": root / SOURCE_PROVENANCE,
+        "stats": root / SOURCE_STATS,
+        "canonical_frame_index": root / V18_SOURCE_CANONICAL_FRAME_INDEX,
+    }
+    source_hashes = {
+        name: _sha256_file(path) for name, path in source_paths.items()
+    }
+    index = pd.read_csv(source_paths["index"], low_memory=False)
+    arrays, statistics, audit = _reuse_prepared_evidence(
+        root, index=index, source_hashes=source_hashes
+    )
+    if (
+        audit["mode"] != "reuse_sha256_bound_pruned21_frame_evidence"
+        or audit["selection_population"] != "train_parent_only"
+        or audit["validation_used_for_feature_selection"] is not False
+        or audit["test_payload_access_count"] != 0
+        or audit["model_input_names"] != list(BROADBAND_MICRO_DOPPLER_NAMES)
+    ):
+        raise AssertionError("V18 stable8 reusable evidence audit is invalid")
+    split_rows: dict[str, Any] = {}
+    for split in ("train", "val"):
+        values = arrays[split]["summary_values"]
+        row = statistics[split]
+        expected_source_access = {
+            "train": {
+                "raw_file_count": 953,
+                "raw_frame_count": 65887,
+                "rd_tensor_count": 953,
+            },
+            "val": {
+                "raw_file_count": 223,
+                "raw_frame_count": 15323,
+                "rd_tensor_count": 223,
+            },
+        }[split]
+        if (
+            values.shape[1] != BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            or values.dtype != np.float32
+            or row["source_pruned21_build_access_counts"]
+            != expected_source_access
+            or row["stable8_prepare_access_counts"]
+            != {
+                "raw_file_count": 0,
+                "raw_frame_count": 0,
+                "rd_tensor_count": 0,
+            }
+            or "raw_file_access_count" in row
+            or "raw_frame_count_in_accessed_files" in row
+            or "canonical_rd_tensor_accessed_count" in row
+            or row["payload_access_semantics"]
+            != (
+                "source_pruned21_build_access_counts are historical counts from the "
+                "SHA-256-bound evidence build; stable8_prepare_access_counts describe "
+                "this reaggregation invocation"
+            )
+            or row["summary_reaggregation_source"]
+            != "SHA-256-bound pruned21 frame evidence; no raw/RD payload re-read"
+        ):
+            raise AssertionError(
+                f"V18 stable8 {split} reusable evidence contract failed"
+            )
+        split_rows[split] = {
+            "event_count": int(values.shape[0]),
+            "feature_dim": int(values.shape[1]),
+            "raw_payload_access_count": 0,
+            "rd_payload_access_count": 0,
+            "same_name_pruned21_values_exact": True,
+        }
+    manifest = json.loads(
+        (root / REUSABLE_EVIDENCE_MANIFEST).read_text(encoding="utf-8")
+    )
+    train_evidence_path = (
+        root / manifest["cache_files"]["train"]["stft"]["path"]
+    ).resolve()
+    with tempfile.TemporaryDirectory(prefix="radar-ln3-v18-stable8-train-") as temporary:
+        summary_path = Path(temporary) / "stable8-train-summary.npz"
+        np.savez(
+            summary_path,
+            sample_ids=arrays["train"]["sample_ids"],
+            values=arrays["train"]["summary_values"],
+            valid=arrays["train"]["valid"],
+        )
+        train_report = _split_report(
+            split="train",
+            index=index,
+            summary_path=summary_path,
+            evidence_path=train_evidence_path,
+        )
+    if (
+        set(train_report["informative_feature_names"])
+        != set(BROADBAND_MICRO_DOPPLER_NAMES)
+        or train_report["informative_feature_count"]
+        != BROADBAND_MICRO_DOPPLER_VALUE_DIM
+        or set(train_report["direction_consistent_informative_feature_names"])
+        != set(BROADBAND_MICRO_DOPPLER_NAMES)
+        or train_report["direction_consistent_informative_feature_count"]
+        != BROADBAND_MICRO_DOPPLER_VALUE_DIM
+        or any(
+            row["standard_deviation"] < MIN_NONDEGENERATE_STD
+            or row["unique_count_float32"] < MIN_NONDEGENERATE_UNIQUE
+            or row["zero_fraction"] >= 0.995
+            or row["one_fraction"] >= 0.995
+            for row in train_report["features"]
+        )
+    ):
+        raise AssertionError("V18 stable8 actual train-only readiness probe failed")
+    discrimination = train_report["drone_bird_discrimination"]
+    mode_effects = train_report[
+        "within_calibrated_sampling_mode_parent_balanced_effects"
+    ]
+    transfer_rows: dict[str, Any] = {}
+    for name in BROADBAND_MICRO_DOPPLER_NAMES:
+        global_row = discrimination[name]
+        global_effect = float(
+            global_row["drone_minus_bird_robust_effect_median_over_pooled_iqr"]
+        )
+        sign = 1.0 if global_effect > 0.0 else -1.0
+        signed_mode_effects = [
+            sign
+            * float(
+                row["drone_minus_bird_robust_effect_median_over_pooled_iqr"][
+                    name
+                ]
+            )
+            for row in mode_effects.values()
+        ]
+        transfer_rows[name] = {
+            "direction_free_auc": float(global_row["direction_free_auc"]),
+            "global_robust_effect": global_effect,
+            "minimum_signed_mode_effect": min(signed_mode_effects),
+            "mode_sign_reversal_count": sum(value < 0.0 for value in signed_mode_effects),
+            "strong_same_direction_mode_count": sum(
+                value >= 0.10 for value in signed_mode_effects
+            ),
+        }
+    return {
+        "source_manifest_sha256": audit["source_manifest_sha256"],
+        "source_blocked_readiness_sha256": audit[
+            "source_blocked_readiness_sha256"
+        ],
+        "source_only_failed_check": audit["source_only_failed_check"],
+        "model_input_names": audit["model_input_names"],
+        "splits": split_rows,
+        "actual_train_only_all_8_informative": True,
+        "actual_train_only_all_8_mode_direction_consistent": True,
+        "actual_train_only_transferability": transfer_rows,
     }
 
 
@@ -409,7 +582,7 @@ def _synthetic_configs(root: Path) -> tuple[Any, Any]:
         dataloader_seed=42,
         checkpoint_schema=(
             "RADAR-LN3-V18-dbb-broadband-multiscale-micro-doppler-"
-            "paired-checkpoint-v2-pruned21"
+            "paired-checkpoint-v3-stable8"
         ),
         cuda_deterministic_algorithms=False,
     )
@@ -505,7 +678,7 @@ def _paired_model_contract(root: Path) -> dict[str, Any]:
         gradient[:, control.fusion_input_dim :].abs().max().item()
     )
     if gradient_max <= 0.0:
-        raise AssertionError("V18 new 21 Fusion columns receive zero gradient")
+        raise AssertionError("V18 new 8 Fusion columns receive zero gradient")
 
     treatment.eval()
     offline_common = {key: value[:1, :1] for key, value in common.items()}
@@ -751,14 +924,14 @@ def _readiness_binding_contract() -> dict[str, Any]:
         report_path = root / (
             "src-v3/processed/report/"
             "RADAR-LN3-V18-broadband-multiscale-"
-            "micro-doppler21-pruned-train-readiness.json"
+            "micro-doppler8-stable-train-readiness.json"
         )
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report = {
             "status": "passed",
             "schema_version": (
                 "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-                "training-readiness-v2-pruned21"
+                "training-readiness-v3-stable8"
             ),
             "paired_configs": {
                 "control": {
@@ -958,10 +1131,10 @@ def run(project_root: Path) -> dict[str, Any]:
         "status": "passed",
         "schema_version": (
             "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-            "focused-contract-v2-pruned21"
+            "focused-contract-v3-stable8"
         ),
         "extractor_contract": broadband_micro_doppler_contract(),
-        "pruned_summary_contract": _pruned_summary_contract(),
+        "stable_summary_contract": _stable_summary_contract(),
         "representative_events": {
             "DroneTarget": _representative_event(root, 1, 1),
             "BirdTarget": _representative_event(root, 333, 16),
@@ -969,6 +1142,7 @@ def run(project_root: Path) -> dict[str, Any]:
         },
         "synthetic_broadband": _synthetic_broadband_contract(),
         "track_1010_frame_mapping": _track_1010_mapping(root),
+        "reusable_evidence": _reusable_evidence_contract(root),
         "cache_dataset_contract": _cache_dataset_contract(root),
         "paired_model": _paired_model_contract(root),
         "generated_config_load": _generated_config_load_contract(root),
@@ -992,7 +1166,7 @@ def run(project_root: Path) -> dict[str, Any]:
     output = root / (
         "src-v3/smoke/"
         "RADAR-LN3-V18-broadband-multiscale-"
-        "micro-doppler21-pruned-focused-contract-result.json"
+        "micro-doppler8-stable-focused-contract-result.json"
     )
     result["result_path"] = str(output)
     output.write_text(

@@ -2220,7 +2220,7 @@
 - 问题或结论：V18最初把实验变量设计为Control `rd_physical4` versus Treatment `rd_physical4+micro39`，并将信息充分性门槛、epoch排序和最终2个百分点采纳门槛分离；后续冗余审查发现模型摘要包含确定性派生关系、强共线簇和median/q90重复，因此该39维合同只保留为修订前focused证据，不再作为正式prepare入口。
 - Evidence：39维由23项帧中位数和16项闪烁敏感q90组成；完整181×/64×审计profile不进入模型。focused Smoke显示Fusion输入`83/122`、40个共享state entry一致、39个新增列为0、梯度最大值`0.982568`、offline/online误差0、Track 1010 46帧映射偏移`+8`保持；合成readiness覆盖12个观测模式、8个校准模式和4个零干预模式。PowerShell AST和Python compile通过。
 - Impact：prepare通过只能证明特征可计算、非退化且train-only有最低判别潜力，不能宣称模型提升；只有paired validation同时提高Macro-F1与Drone/Bird弱项floor严格`>0.02`且方向错误下降，才允许采纳。
-- Action：不得执行旧39维路径；改由Finding F203冻结的21维`pruned21`合同串行执行prepare、train、evaluate。readiness和最终采纳门槛保持不变，不因降维降低阈值。
+- Action：不得执行旧39维路径。该Finding当时转向Finding F203的21维`pruned21`候选，但其train-only readiness随后被Finding F204阻断；当前只允许执行F204冻结的8维`stable8`合同，门槛不因再次降维而降低。
 - 补充物理边界：V18最终复核发现普通频差会在主体靠近Doppler Nyquist边缘时丢失跨边界侧带；现已改为PRF周期上的有符号循环频差。合成跨边界回归证明正负`30–60 m/s`侧带同时保留，且每个FFT bin仅映射一次。
 - 补充调制语义：三个高频频带幅度改为由一侧Parseval带内能量直接换算RMS，调制噪声底改由邻近非目标距离行逐频估计；不再以目标自身宽带中位数估噪，也不再用全包络RMS近似频带幅度。
 - 补充平移不变性：删除绝对零速`±2 m/s`截断，避免运动主体的真实微动侧带跨过零Doppler时被误删；合成跨零回归要求正负`30–60 m/s`侧带同时保留。
@@ -2232,9 +2232,20 @@
 
 - Severity：High（V18模型摘要存在冗余；已修订为21维且保持物理审计信息完整）
 - 文件位置：`src-v3/radar_ln3/micro_doppler_broadband.py`、`src-v3/build/micro_doppler_v18.py`、`src-v3/report/micro_doppler_v18_readiness.py`、`src-v3/smoke/micro_doppler_v18_contract_test.py`
-- 问题或结论：旧39维由23个逐帧量的event median和其中16项的event q90组成，存在60–90 m/s方向带强共线、entropy/concentration近镜像以及大量median/q90重复。当前正式候选缩减为18 median + 3 q90，共21维；删除只发生在事件摘要到Fusion链路，完整23维逐帧evidence与181点残差Doppler/64点包络调制profile继续保存。
+- 问题或结论：旧39维由23个逐帧量的event median和其中16项的event q90组成，存在60–90 m/s方向带强共线、entropy/concentration近镜像以及大量median/q90重复，因此曾缩减为18 median + 3 q90，共21维。该`pruned21`候选随后被train-only模式反转门禁阻断，已由Finding F204的`stable8`取代；完整23维逐帧evidence与181点残差Doppler/64点包络调制profile始终保留。
 - Evidence：21个模型列精确冻结为正负8–30/30–60、median total、RMS/q90范围、top4 concentration、peak count、侧带SNR、包络RMS、三调制带、centroid、top3、调制熵/SNR，以及q90正负8–30和q90 total。相对旧39维恰好删除18列。逐帧`total=sum(6 directional bands)`的合成误差为0，但三帧反例得到`median(frame total)=1.0`、`sum(median(directional bands))=0.0`，证明不能把帧级线性恒等直接应用到event median；因此median total保留，symmetry删除，q90 total作为瞬态总侧带量保留。调制三带保留能量幅度、centroid保留频率位置，删除可由三带主导的600–2000 fraction。
 - Impact：Fusion输入从`83/122`降至`83/104`，减少18个冗余自由度和小样本过拟合风险，同时不损失逐帧物理审计能力。旧39维cache、配置、checkpoint和报告会被独立`pruned21` schema/protocol/path拒绝，不能静默混用。
-- Action：仅允许执行`micro-doppler21-pruned`流水线。train-only readiness仍要求21维逐项非退化、至少4项达到AUC/effect门槛且在8个校准采样模式中方向一致；最终仍要求Macro-F1和Drone/Bird弱项floor严格提升超过2个百分点、双向错误下降及三类P/R/F1均≥0.95，不因降维放宽。
-- 验证状态：`focused-contract-v2-pruned21`通过；旧39维中18列移除、23维证据保留、Fusion新增21列零初始化且梯度最大值`0.921369`、offline/online误差0、cache/Dataset/Collate、checkpoint round-trip、readiness SHA绑定、Track 1010映射和PowerShell AST均通过。全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable和P95未执行。
+- Action：`micro-doppler21-pruned`只读保留为中间特征筛选证据，禁止继续训练；当前执行入口见Finding F204的`micro-doppler8-stable`。最终仍要求Macro-F1和Drone/Bird弱项floor严格提升超过2个百分点、双向错误下降及三类P/R/F1均≥0.95，不因降维放宽。
+- 验证状态：`focused-contract-v2-pruned21`通过，用户已执行全量prepare，但train-only readiness因6项全局有效特征在采样模式内反转而正确阻断；正式`pruned21`训练、paired validation、OOF、test、正式拒识、stable和P95未执行。
 - 关联版本：V18 `pruned21`修订协议v2；V16/V17与旧V18 focused artifact只读保留。
+
+## Finding F204
+
+- Severity：High（V18 pruned21 readiness发现真实采样模式条件反转；已修订为stable8）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V18-broadband-multiscale-micro-doppler21-pruned-train-readiness.json`、`src-v3/radar_ln3/micro_doppler_broadband.py`、`src-v3/build/micro_doppler_v18.py`、`src-v3/report/micro_doppler_v18_readiness.py`
+- 问题或结论：`pruned21 prepare`成功，但train-only readiness正确阻断训练。21项中16项达到全局Drone/Bird AUC/effect门槛，只有10项在全部8个校准采样模式中不反转；因此问题不是数据构建失败或门槛过严，而是全局判别方向混合了采样模式条件效应。当前正式候选进一步冻结为8项全局有效、模式零反转且去除强共线项的median摘要。
+- Evidence：6个阻断特征为median total、600–1200 Hz调制幅度、调制centroid、top3 concentration、q90正8–30和q90 total。median/q90 total在两个PRT=900模式出现约`+0.46至+0.69`强反转；600–1200 Hz在两个PRT=226模式约`+0.29至+0.32`反转；centroid/top3在PRT=900反转可达约`+0.40至+0.80`。train-only派生探针显示模式稳定的合并带/q90候选与现有安全列Spearman多为`0.92–0.997`，不值得扩维。10个安全项中q90 abs offset与RMS相关约`0.946`、peak count与RMS约`0.901`，最终作为evidence-only移除。
+- Impact：如果绕过旧门禁，液态状态会在整条轨迹上累积模式相关的错误方向，重现V17 Drone→Bird高置信错误。stable8把Fusion从`104`降至`91`，保留正8–30、负/正30–60、RMS offset、top4 concentration、sideband SNR、envelope RMS和modulation SNR；完整23维frame evidence仍可支持未来mode-aware研究。
+- Action：只允许执行`stable8` v3流水线。新readiness要求8/8项全部非退化、全局AUC≥0.55、绝对effect≥0.10、8模式零反转且至少两个模式绝对effect≥0.10；不再使用“至少4项”宽松门槛。旧blocked report和manifest必须SHA绑定且唯一失败项匹配，随后只读重聚合，不访问raw/RD；任何不一致都fail-closed。
+- 验证状态：focused v3通过；实际train-only复算8/8全局有效且8/8模式一致，train/val `18266/4288`事件从旧23维evidence重聚合后与旧summary同名列逐值相等，raw/RD访问0，Fusion `83/91`、新增8列零初始化、梯度最大值`0.930194`、offline/online误差0。正式stable8 prepare、训练、paired validation、OOF、test、拒识、stable和P95未执行。
+- 关联版本：V18 `stable8`修订协议v3；V18 pruned21 blocked产物只读保留为特征选择来源。

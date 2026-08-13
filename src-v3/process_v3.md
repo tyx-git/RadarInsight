@@ -2107,7 +2107,7 @@ own-best还混合了checkpoint epoch。相同epoch 15时Treatment相对Control�
 
 用户提出V17提取器没有保留Drone真正关键的宽带旋翼特征。复核确认传入链路并非主要问题：sample/cache对齐、valid门控、配对初始化、Fusion拼接、offline/online和checkpoint round-trip均已有通过证据；V17负结果主要来自三维物理摘要。需要对原判断作两项校正：PRT=142的原始脉冲采样Nyquist并非325 Hz，但其约4 ms单帧时长和train三类parent支持`4/3/0`使其无法校准；Bird 5–15 Hz在4–46 ms单帧内也不足一个15 Hz周期，不能声称被完整保留。
 
-新实验递增为V18。Control继续使用四维`rd_physical`，Treatment最初设计39维宽带多尺度微多普勒摘要，冗余审查后修订为21维模型输入；完整23维逐帧物理证据仍保留。提取器在无标签局部MTD目标Doppler±8 m/s内细化主体频率，拟合并消除复相干主体正弦，然后统计相对主体正负8–30、30–60、60–90 m/s侧带能量、总能量、RMS/q90范围、对称性、Rayleigh分辨单元熵/集中度/峰数和SNR。噪声底不再从目标行宽带侧带区域估计，而从目标距离邻域十个非目标行按频率估计，避免把Drone宽带侧带自身扣除。
+新实验递增为V18。Control继续使用四维`rd_physical`，Treatment最初设计39维宽带多尺度微多普勒摘要，冗余审查后形成21维候选，train-only采样模式一致性门禁又将正式模型输入收敛为8维`stable8`；完整23维逐帧物理证据始终保留。提取器在无标签局部MTD目标Doppler±8 m/s内细化主体频率，拟合并消除复相干主体正弦，然后统计相对主体正负8–30、30–60、60–90 m/s侧带能量、总能量、RMS/q90范围、对称性、Rayleigh分辨单元熵/集中度/峰数和SNR。噪声底不再从目标行宽带侧带区域估计，而从目标距离邻域十个非目标行按频率估计，避免把Drone宽带侧带自身扣除。
 
 时间调制改为直接读取原始脉冲包络，提取300–600、600–1200和1200–2000 Hz幅度及高频占比、中心频率、集中度、熵和SNR，绕开V17 STFT hop的时间Nyquist。上限冻结为2 kHz，以保证所有候选PRT/PRI帧均满足Nyquist。V17 period被删除；Bird低频扑翼周期不在当前单帧合同中估计。每事件聚合23项中位数和16项q90；181点残差Doppler profile及64点包络调制profile只作审计，不进入模型。
 
@@ -2117,7 +2117,7 @@ own-best还混合了checkpoint epoch。相同epoch 15时Treatment相对Control�
 
 相对侧带不再额外排除绝对速度`±2 m/s`。该截断会把运动主体的一条真实旋翼侧带在跨过零Doppler时系统性删除，破坏相对主体的平移不变性；V18由主体相消和邻距离行噪声底抑制杂波，并用跨绝对零速的合成信号验证正负`30–60 m/s`侧带仍同时保留。
 
-为阻断采样模式捷径，逐帧可靠性不只看`PRTnum`，而按`脉冲数+PRI+载频`冻结8个完整采样模式，并要求每个模式有足够train三类parent支持、速度Nyquist≥90 m/s且调制Nyquist≥2000 Hz。现有V17只读证据核实8个模式最小parent支持仍为Drone/Bird/Balloon=`33/41/25`。PRT=142完整证据仍保存，但21维模型干预严格置0；valid保持当前事件RD存在语义，PRT、载频、CPI、reliability均不进入分类器。全量构建器继续使用V17已审计的canonical tensor→MAT帧号→raw-DAT帧映射，保留Track 1010的46个`+8`反例，test raw/RD payload访问固定0。
+为阻断采样模式捷径，逐帧可靠性不只看`PRTnum`，而按`脉冲数+PRI+载频`冻结8个完整采样模式，并要求每个模式有足够train三类parent支持、速度Nyquist≥90 m/s且调制Nyquist≥2000 Hz。现有V17只读证据核实8个模式最小parent支持仍为Drone/Bird/Balloon=`33/41/25`。PRT=142完整证据仍保存，但事件级模型干预严格置0；valid保持当前事件RD存在语义，PRT、载频、CPI、reliability均不进入分类器。全量构建器继续使用V17已审计的canonical tensor→MAT帧号→raw-DAT帧映射，保留Track 1010的46个`+8`反例，test raw/RD payload访问固定0。
 
 train实际共有12个完整采样模式。除上述8个校准模式外，2个PRT=142模式为`3/3/0`与`4/3/0` parent支持；另有validation完全缺失的`226×48µs×15.6GHz`和`226×51µs×16.3GHz`，各仅`4/0/0`。后4个模式全部保留逐帧审计证据但模型干预精确为0；构建器/readiness要求train模式集合与冻结12项完全一致，避免新增模式被静默接收。
 
@@ -2129,6 +2129,12 @@ checkpoint排序在训练前冻结为：三类全部P/R/F1最弱值、Drone↔Bi
 
 prepare支持安全恢复：若上次中断后留下部分V18输出，重新执行会先完成全量重算，再仅复用逐数组/全文完全一致的文件；不同或损坏文件拒绝覆盖。任一正式V18 artifact非空后，prepare在读取原始数据前即阻止重建，防止训练checkpoint与变化后的缓存/配置混用。
 
-当前只达到手动全量prepare状态。prepare将构建独立V18 `pruned21` train/val缓存、manifest、data contract和两配置，然后执行train-only readiness：21维逐项非退化；按parent均衡均值至少4项同时达到方向无关AUC≥0.55与robust effect绝对值≥0.10，且在全部8个完整采样模式中方向不反转、至少两个模式绝对effect≥0.10；所有全局已达判别门槛的特征都必须满足该模式一致性，避免危险反转列仍进入Fusion；各模式三类parent support≥8；PRT=142支持和零干预保持；summary从逐帧证据精确重建。validation仅报告；若train-only门禁失败，不降低阈值并不启动训练。
+中间阶段只达到手动全量`pruned21 prepare`状态。该prepare构建独立21维train/val缓存、manifest、data contract和两配置，然后执行train-only readiness：21维逐项非退化；按parent均衡均值至少4项同时达到方向无关AUC≥0.55与robust effect绝对值≥0.10，且在全部8个完整采样模式中方向不反转、至少两个模式绝对effect≥0.10；所有全局已达判别门槛的特征都必须满足该模式一致性，避免危险反转列仍进入Fusion；各模式三类parent support≥8；PRT=142支持和零干预保持；summary从逐帧证据精确重建。validation仅报告；门禁实际失败后没有降低阈值，也没有启动训练。
+
+用户手动执行`pruned21 prepare`后，readiness唯一阻断项为全局有效特征未全部保持采样模式方向一致。16个全局有效特征中只有10个满足8模式零反转；median/q90 total在两个PRT=900模式由全局负效应翻为约`+0.46至+0.69`，600–1200 Hz调制幅度在两个PRT=226模式翻为约`+0.29至+0.32`，centroid和top3在PRT=900也发生强反转。q90正8–30的部分反向接近零，但q90分支没有一项满足完整模式一致性。该阻断证明readiness正在发现真实域条件反转，不是门槛实现错误，禁止绕过或只忽略反向模式。
+
+只用train parent和既有23维frame evidence继续做候选审计：正负合并30–90、q90 envelope RMS、q90 modulation SNR虽可做到模式一致，但与已有安全median的Spearman相关约`0.92–0.997`；较独立的`q90-median modulation SNR`仍有一个弱反转模式。因此不新增派生列。10个安全候选内部，q90 abs offset与RMS相关约`0.946`，peak count与RMS约`0.901`，两者降为evidence-only，最终冻结8维模式稳定模型输入。
+
+`stable8`实际train-only重算已经由focused Smoke完成：8项全局AUC约`0.685–0.927`、绝对robust effect约`0.581–1.180`，全部8个模式零反转；正8–30项有5个模式绝对effect≥0.10，其余7项至少8个或冻结要求数量的强同向模式。旧`pruned21` manifest SHA-256=`aa1b21bdb50430604fb9d05af6ccee6f47101b6bc443a046849c454fb1aae955`，blocked readiness SHA-256=`a35b3a54ec88ab6c30f9042cebbfd86605a51455d2e6e5de6e3dabf1e4267406`；新prepare将校验两者并重聚合train/val `18266/4288`事件。本次重聚合raw文件、raw帧和RD tensor访问均为0；报告另保留来源`pruned21`证据最初构建时train/val各`953/223`个raw文件与RD tensor的历史访问计数，二者不会混写。正式stable8 prepare、训练和paired validation仍未执行。
 
 全量prepare、正式Control/Treatment训练、paired validation、完整级联、OOF、test、正式拒识、stable、P95和部署均未执行。标签、V16 split/normalization、V17 checkpoint/artifact均未修改。

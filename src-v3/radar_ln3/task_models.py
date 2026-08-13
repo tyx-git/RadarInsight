@@ -115,7 +115,7 @@ MICRO_DOPPLER_PAIRED_PROTOCOL = (
 BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V18"
 BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL = (
     "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-"
-    "micro-doppler21-pruned-treatment-v2"
+    "micro-doppler8-stable-treatment-v3"
 )
 PRODUCT_LOCAL_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 PRODUCT_LOCAL_CHECKPOINT_SELECTION = "parent_min_precision_recall"
@@ -1461,7 +1461,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         expected_manifest_type = (
             "cq08_dbb_current_event_broadband_multiscale_"
-            "micro_doppler21_pruned_paired_cache_v2"
+            "micro_doppler8_stable_paired_cache_v3"
             if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
             else "cq08_dbb_current_event_target_anchored_micro_doppler_paired_cache_v3"
         )

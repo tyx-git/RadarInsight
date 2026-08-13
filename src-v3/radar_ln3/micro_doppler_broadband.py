@@ -16,7 +16,7 @@ from .micro_doppler import (
 
 
 BROADBAND_MICRO_DOPPLER_SCHEMA = (
-    "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-summary-v5-pruned21"
+    "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-summary-v6-stable8"
 )
 BROADBAND_MICRO_DOPPLER_EVIDENCE_SCHEMA = (
     "cq08-current-event-raw-iq-broadband-multiscale-micro-doppler-evidence-v4"
@@ -95,36 +95,26 @@ BROADBAND_FRAME_NAMES = (
 BROADBAND_FRAME_VALUE_DIM = len(BROADBAND_FRAME_NAMES)
 
 # Keep the complete 23-dimensional frame evidence above for physical audit, but
-# expose only the non-redundant event summaries below to the classifier.  The
-# frame-level total is exactly the sum of the six signed bands; after a median
-# over frames, however, median(total) is not reconstructible from the medians of
-# those bands.  Retaining it therefore preserves typical total-sideband energy
-# while removing the two highly collinear 60-90 m/s directional bands.
+# expose only train-only transferable event summaries to the classifier.  Each
+# retained descriptor clears the frozen global AUC/effect gate and keeps its
+# Drone-minus-Bird effect direction in all eight calibrated pulse/PRI/carrier
+# modes.  Potentially useful but mode-reversing descriptors remain evidence-only
+# for a future explicitly mode-aware model; they cannot enter this global head.
 BROADBAND_MEDIAN_FRAME_INDICES = (
-    0,
     1,
     2,
     3,
-    6,
     7,
-    8,
     11,
-    12,
     13,
     14,
-    15,
-    16,
-    17,
-    19,
-    20,
-    21,
     22,
 )
 
-# q90 is reserved for genuinely intermittent sideband flashes.  Duplicating
-# smooth shape, SNR and modulation descriptors at q90 made the original 39
-# columns strongly collinear with their event medians.
-BROADBAND_Q90_FRAME_INDICES = (0, 1, 6)
+# The original q90 descriptors either reversed direction by sampling mode or
+# were near-duplicates of retained medians.  The complete frame evidence still
+# permits future q90/flash research without exposing those unstable columns now.
+BROADBAND_Q90_FRAME_INDICES: tuple[int, ...] = ()
 BROADBAND_MICRO_DOPPLER_NAMES = tuple(
     f"median_{BROADBAND_FRAME_NAMES[index]}"
     for index in BROADBAND_MEDIAN_FRAME_INDICES
@@ -132,13 +122,34 @@ BROADBAND_MICRO_DOPPLER_NAMES = tuple(
     f"q90_{BROADBAND_FRAME_NAMES[index]}" for index in BROADBAND_Q90_FRAME_INDICES
 )
 BROADBAND_MICRO_DOPPLER_VALUE_DIM = len(BROADBAND_MICRO_DOPPLER_NAMES)
+BROADBAND_MODE_STABLE_INFORMATIVE_NAMES = (
+    "median_residual_positive_8_30mps_energy_fraction",
+    "median_residual_negative_30_60mps_energy_fraction",
+    "median_residual_positive_30_60mps_energy_fraction",
+    "median_residual_rms_offset_mps_over_90",
+    "median_residual_q90_abs_offset_mps_over_90",
+    "median_residual_top4_resolution_cell_concentration",
+    "median_residual_resolution_cell_peak_count_over_12",
+    "median_residual_sideband_snr_db_over_30",
+    "median_pulse_envelope_rms_clipped_0_2_over_2",
+    "median_pulse_envelope_modulation_snr_db_over_30",
+)
+BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES = (
+    "median_residual_q90_abs_offset_mps_over_90",
+    "median_residual_resolution_cell_peak_count_over_12",
+)
 
-if len(BROADBAND_MEDIAN_FRAME_INDICES) != 18:
-    raise RuntimeError("broadband micro-Doppler median model contract must contain 18 columns")
-if len(BROADBAND_Q90_FRAME_INDICES) != 3:
-    raise RuntimeError("broadband micro-Doppler q90 model contract must contain 3 columns")
-if BROADBAND_MICRO_DOPPLER_VALUE_DIM != 21:
-    raise RuntimeError("broadband micro-Doppler model contract must contain 21 columns")
+if len(BROADBAND_MEDIAN_FRAME_INDICES) != 8:
+    raise RuntimeError("broadband micro-Doppler stable median contract must contain 8 columns")
+if BROADBAND_Q90_FRAME_INDICES:
+    raise RuntimeError("broadband micro-Doppler stable contract must not expose q90 columns")
+if BROADBAND_MICRO_DOPPLER_VALUE_DIM != 8:
+    raise RuntimeError("broadband micro-Doppler stable model contract must contain 8 columns")
+if set(BROADBAND_MICRO_DOPPLER_NAMES) != (
+    set(BROADBAND_MODE_STABLE_INFORMATIVE_NAMES)
+    - set(BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES)
+):
+    raise RuntimeError("broadband stable model columns differ from the train-only selection")
 
 BROADBAND_DOPPLER_PROFILE_AXIS_MPS = np.linspace(
     -BROADBAND_MAX_OFFSET_MPS,
@@ -793,7 +804,11 @@ def aggregate_broadband_frame_values(
         return np.zeros((BROADBAND_MICRO_DOPPLER_VALUE_DIM,), dtype=np.float32)
     selected = values[reliable]
     medians = np.median(selected[:, BROADBAND_MEDIAN_FRAME_INDICES], axis=0)
-    q90 = np.quantile(selected[:, BROADBAND_Q90_FRAME_INDICES], 0.90, axis=0)
+    q90 = (
+        np.quantile(selected[:, BROADBAND_Q90_FRAME_INDICES], 0.90, axis=0)
+        if BROADBAND_Q90_FRAME_INDICES
+        else np.zeros((0,), dtype=np.float32)
+    )
     result = np.concatenate([medians, q90]).astype(np.float32, copy=False)
     return np.clip(result, 0.0, 1.0).astype(np.float32, copy=False)
 
@@ -894,33 +909,37 @@ def broadband_micro_doppler_contract() -> dict[str, Any]:
             ],
             "q90": [BROADBAND_FRAME_NAMES[index] for index in BROADBAND_Q90_FRAME_INDICES],
             "purpose": (
-                "retain 18 complementary typical-event descriptors and only three "
-                "intermittent sideband-flash q90 descriptors"
+                "retain only eight train-only discriminative descriptors whose "
+                "Drone-minus-Bird direction does not reverse in any calibrated mode"
             ),
             "frame_evidence_policy": (
                 "all 23 frame descriptors remain in the evidence cache; pruning "
                 "changes only the event summary consumed by Fusion"
             ),
             "redundancy_pruning": {
-                "median_removed": [
-                    "residual_negative_60_90mps_energy_fraction",
-                    "residual_positive_60_90mps_energy_fraction",
-                    "residual_positive_negative_symmetry",
-                    "residual_resolution_cell_entropy",
-                    "pulse_envelope_modulation_600_2000hz_fraction",
-                ],
-                "q90_retained": [
-                    "residual_negative_8_30mps_energy_fraction",
-                    "residual_positive_8_30mps_energy_fraction",
-                    "residual_total_8_90mps_energy_fraction",
-                ],
-                "median_total_rationale": (
-                    "frame total is algebraically redundant, but median(frame total) "
-                    "is not reconstructible from separate directional-band medians"
+                "selection_source": (
+                    "frozen train parents only; validation is report-only and test is sealed"
                 ),
-                "modulation_centroid_rationale": (
-                    "retain frequency location alongside the three band amplitudes; "
-                    "drop the largely derived 600-2000 Hz fraction"
+                "retention_rule": (
+                    "global direction-free AUC >= 0.55, absolute robust effect >= 0.10, "
+                    "no sign reversal across all eight calibrated sampling modes, and "
+                    "at least two modes with absolute robust effect >= 0.10"
+                ),
+                "mode_reversing_evidence_only": [
+                    "residual_total_8_90mps_energy_fraction",
+                    "pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2",
+                    "pulse_envelope_modulation_centroid_hz_over_2000",
+                    "pulse_envelope_modulation_top3_concentration",
+                    "q90 residual positive 8-30 m/s",
+                    "q90 residual total 8-90 m/s",
+                ],
+                "collinear_evidence_only": [
+                    "residual_q90_abs_offset_mps_over_90",
+                    "residual_resolution_cell_peak_count_over_12",
+                ],
+                "q90_policy": (
+                    "no q90 descriptor enters the stable global model; all 23 frame "
+                    "descriptors remain available for later mode-aware research"
                 ),
             },
         },
@@ -1024,7 +1043,7 @@ def broadband_micro_doppler_contract() -> dict[str, Any]:
         "causal_scope": "current TR event raw frames only; no prior/future event, parent statistic, path, label or model output",
         "missing_policy": "no current-event raw/RD frame gives an invalid exact-zero event",
         "model_policy": (
-            "only the 21 redundancy-pruned event summaries enter Fusion; all 23 "
+            "only the 8 train-only mode-stable event summaries enter Fusion; all 23 "
             "frame descriptors, evidence profiles and sampling metadata remain audit-only"
         ),
     }
@@ -1045,6 +1064,8 @@ __all__ = [
     "BROADBAND_MICRO_DOPPLER_NAMES",
     "BROADBAND_MICRO_DOPPLER_SCHEMA",
     "BROADBAND_MICRO_DOPPLER_VALUE_DIM",
+    "BROADBAND_MODE_STABLE_INFORMATIVE_NAMES",
+    "BROADBAND_COLLINEAR_EVIDENCE_ONLY_NAMES",
     "BROADBAND_MIN_TRAIN_PARENTS_PER_CLASS_PER_MODE",
     "BROADBAND_UNCALIBRATED_SAMPLING_MODES",
     "BROADBAND_MODULATION_PROFILE_AXIS_HZ",

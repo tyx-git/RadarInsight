@@ -29,14 +29,14 @@ MIN_ABSOLUTE_IMPROVEMENT = 0.02
 STRICT_IMPROVEMENT_EPSILON = 1.0e-12
 OUTPUT = Path(
     "src-v3/processed/report/"
-    "RADAR-LN3-V18-broadband-multiscale-micro-doppler21-pruned-paired-validation.json"
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-paired-validation.json"
 )
 
 
 def config_path(arm: str) -> Path:
     return Path(
         "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-"
-        f"rd-physical4-broadband-multiscale-micro-doppler21-pruned-{arm}-seed42-config.json"
+        f"rd-physical4-broadband-multiscale-micro-doppler8-stable-{arm}-seed42-config.json"
     )
 
 
@@ -191,7 +191,7 @@ def _load_arm(root: Path, arm: str) -> dict[str, Any]:
         or initialization.get("treatment_new_fusion_columns_exactly_zero") is not True
         or initialization.get("initial_cpu_reference_logits_exactly_equal") is not True
         or int(initialization.get("shared_rd_physical_columns", -1)) != 4
-        or int(initialization.get("treatment_new_fusion_columns", -1)) != 21
+        or int(initialization.get("treatment_new_fusion_columns", -1)) != 8
     ):
         raise ValueError(f"V18 {arm} lacks valid paired-initialization evidence")
     readiness = dict(summary.get("v18_training_readiness") or {})
@@ -199,7 +199,7 @@ def _load_arm(root: Path, arm: str) -> dict[str, Any]:
     if (
         readiness.get("status") != "passed"
         or readiness.get("schema_version")
-        != "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v2-pruned21"
+        != "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v3-stable8"
         or readiness.get("validation_used_for_readiness_gate") is not False
         or readiness.get("test") != "未执行"
         or not readiness_path.is_file()
@@ -382,7 +382,7 @@ def run(project_root: Path, output_path: Path | None = None) -> dict[str, Any]:
         "status": "passed" if passed else "completed_but_gate_failed",
         "schema_version": (
             "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-            "paired-validation-v2-pruned21"
+            "paired-validation-v3-stable8"
         ),
         "paired_protocol": BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL,
         "scope": "DBB specialist validation parent-final local task only",

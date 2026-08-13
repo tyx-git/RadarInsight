@@ -37,13 +37,13 @@ from radar_ln3.task_models import (
 CONFIGS = {
     arm: Path(
         "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-"
-        f"rd-physical4-broadband-multiscale-micro-doppler21-pruned-{arm}-seed42-config.json"
+        f"rd-physical4-broadband-multiscale-micro-doppler8-stable-{arm}-seed42-config.json"
     )
     for arm in ("control", "treatment")
 }
 OUTPUT = Path(
     "src-v3/processed/report/"
-    "RADAR-LN3-V18-broadband-multiscale-micro-doppler21-pruned-train-readiness.json"
+    "RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-train-readiness.json"
 )
 LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 SUMMARY_RECONSTRUCTION_ATOL = 1.0e-7
@@ -638,14 +638,19 @@ def run(project_root: Path) -> dict[str, Any]:
     )
     scope = contract["contract"]["v18_scope"]
     checks = {
-        "all_21_features_non_degenerate_train_only": all(
+        "all_8_features_non_degenerate_train_only": all(
             all(values.values()) for values in feature_checks.values()
         ),
-        "at_least_four_train_only_drone_bird_features_have_auc_0_55_and_effect_0_10": (
-            train["informative_feature_count"] >= 4
+        "all_8_train_only_drone_bird_features_have_auc_0_55_and_effect_0_10": (
+            train["informative_feature_count"] == BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            and set(train["informative_feature_names"])
+            == set(BROADBAND_MICRO_DOPPLER_NAMES)
         ),
-        "at_least_four_parent_balanced_features_keep_direction_across_all_calibrated_sampling_modes": (
-            train["direction_consistent_informative_feature_count"] >= 4
+        "all_8_parent_balanced_features_keep_direction_across_all_calibrated_sampling_modes": (
+            train["direction_consistent_informative_feature_count"]
+            == BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            and set(train["direction_consistent_informative_feature_names"])
+            == set(BROADBAND_MICRO_DOPPLER_NAMES)
         ),
         "no_globally_informative_drone_bird_feature_reverses_or_lacks_mode_support": (
             set(train["informative_feature_names"])
@@ -715,7 +720,7 @@ def run(project_root: Path) -> dict[str, Any]:
         "status": "passed" if passed else "blocked",
         "schema_version": (
             "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
-            "training-readiness-v2-pruned21"
+            "training-readiness-v3-stable8"
         ),
         "paired_protocol": BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL,
         "paired_configs": {
@@ -729,10 +734,12 @@ def run(project_root: Path) -> dict[str, Any]:
         "checks": checks,
         "feature_checks": feature_checks,
         "train_only_thresholds": {
-            "minimum_informative_feature_count": 4,
+            "required_informative_feature_count": BROADBAND_MICRO_DOPPLER_VALUE_DIM,
             "minimum_direction_free_auc": MIN_DIRECTION_FREE_AUC,
             "minimum_absolute_robust_effect": MIN_ROBUST_EFFECT,
-            "minimum_direction_consistent_informative_feature_count": 4,
+            "required_direction_consistent_informative_feature_count": (
+                BROADBAND_MICRO_DOPPLER_VALUE_DIM
+            ),
             "all_globally_informative_features_must_be_mode_consistent": True,
             "minimum_calibrated_sampling_modes_with_abs_effect_0_10": 2,
             "minimum_train_parents_per_class_per_calibrated_sampling_mode": (

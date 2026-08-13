@@ -1310,7 +1310,7 @@
 
 ## Stage 060 - V18宽带多尺度微多普勒物理语义修复
 
-目标：核实并修复V17三维摘要遗漏Drone关键宽带旋翼侧带、把不可估周期混入普通数值以及PRT=142采样模式方向反转的问题。在冻结V16 DBB局部任务、capture/content split、液态容量、loss、seed、20 epoch和四维`rd_physical`基线的前提下，Control保持`rd_physical4`，Treatment只新增21维去冗余的当前事件宽带多尺度微多普勒摘要；只有冻结validation相对Control产生严格超过2个百分点的实质增益时才采纳。
+目标：核实并修复V17三维摘要遗漏Drone关键宽带旋翼侧带、把不可估周期混入普通数值以及PRT=142采样模式方向反转的问题。在冻结V16 DBB局部任务、capture/content split、液态容量、loss、seed、20 epoch和四维`rd_physical`基线的前提下，Control保持`rd_physical4`；Treatment经历39维候选、21维去冗余候选后，最终只新增8维经train-only验证的模式稳定当前事件摘要。只有冻结validation相对Control产生严格超过2个百分点的实质增益时才采纳。
 
 前置依赖：Stage 059已证明V17 Treatment未通过；Finding F196-F198确认Bird Recall表观上升伴随Precision/Macro-F1下降、own-best受epoch混杂、PRT=142方向反转。V16 index、provenance、normalization和DBB标签保持冻结，test payload继续封存。
 
@@ -1339,14 +1339,18 @@
 - [x] 冻结paired采纳门槛：own-best parent Macro-F1绝对提升`>0.02`，Drone/Bird较弱P/R/F1 floor绝对提升`>0.02`，Drone→Bird和Bird→Drone均不增加且双向总错误至少减少1，Treatment三类各自P/R/F1均≥0.95，并要求至少一个预冻结same-epoch锚点也通过严格`>0.02`增益门槛。
 - [x] 实现train-only readiness：21维逐项非退化；以parent均衡均值为统计单位，至少4项Drone/Bird特征同时满足方向无关AUC≥0.55和robust effect绝对值≥0.10，并要求其方向在全部8个校准完整采样模式中不反转、至少两个模式的绝对effect≥0.10；任何全局已达上述判别门槛但模式内反转/支持不足的特征都会阻断训练，不能让危险列混入21维；各模式三类train parent均≥8；PRT=142支持固定为`4/3/0`并保持零干预；summary必须从逐帧证据精确重建。validation只报告，不决定是否启动训练。
 - [x] `pruned21` focused Smoke通过：模型21维名称与顺序精确固定，旧39维中恰好18列不再进入Fusion；23维逐帧证据不变；真实三类代表事件shape/finite；合成相干主体+宽带侧带与900 Hz调制、跨Nyquist/跨绝对零速侧带均保留；PRT=142证据保留而模型向量精确为0；21维cache→Dataset/Collate逐值一致；Fusion维度`83/104`，新增21列初始为0且梯度最大值=`0.921369`；offline/online误差0；checkpoint round-trip、readiness绑定和Track 1010映射通过。
+- [x] 用户手动执行`pruned21 prepare`后，train-only readiness按设计阻断；唯一失败项为`no_globally_informative_drone_bird_feature_reverses_or_lacks_mode_support`。21维中16项达到全局AUC/effect门槛，仅10项跨8个校准模式不反转；6个危险全局特征为median total、600–1200 Hz调制幅度、调制centroid、top3 concentration、q90正8–30和q90 total。median/q90 total在两个PRT=900模式强反转，前四项也存在绝对effect≥0.10的真实反转，不能通过忽略近零符号或降低门槛放行。
+- [x] 冻结`stable8` v3修订：从10项全局有效且模式一致的候选中，再将与RMS高度共线的q90 abs offset（Spearman约0.946）和量化peak count（与RMS约0.901）降为evidence-only；最终模型仅保留正8–30、负/正30–60、RMS offset、top4 concentration、sideband SNR、envelope RMS、modulation SNR共8项median。所有q90与其余23维帧量仍保留在evidence，不进入当前全局分类头。
+- [x] 实现旧证据安全复用：新`stable8 prepare`要求旧`pruned21` manifest和blocked readiness同时存在且SHA-256、schema、唯一失败项、train-only/validation-report-only/test-sealed语义全部匹配；随后从23维frame evidence重新聚合8维，并要求与旧summary同名列逐值相等。focused只读回归覆盖train/val=`18266/4288`事件，raw/RD payload访问均为0。
+- [x] `stable8` actual train-only复算通过：8/8项均满足全局AUC≥0.55和绝对effect≥0.10，8/8项在全部8个校准模式零反转且至少两个模式绝对effect≥0.10；其中7项在8个模式均有强同向效应，正8–30项有5个强同向模式、其余3个弱同向模式。Fusion维度`83/91`，新增8列零初始化、梯度最大值=`0.930194`、offline/online误差0。
 - [x] 新建`src-v3/scripts/v18_broadband_micro_doppler_paired_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量，任一步失败停止，PowerShell AST解析通过。
 - [x] 修复prepare恢复语义：中断后已有文件仅在全数组/全文逐值一致时复用，任何差异或损坏都fail-closed；任一正式V18 artifact非空后禁止重建数据/配置，避免训练产物与重建缓存混用。
-- [ ] 用户手动运行全量`prepare`；只有V18 `pruned21` train-only readiness全部通过后才能训练。若任一21维退化或不足4项达到预设判别门槛，停止实验，不降低门槛迎合validation。
+- [ ] 用户手动运行`stable8 prepare`；它仅从SHA绑定的旧frame evidence重聚合并生成独立summary/manifest/config/readiness，不重复解析raw。只有8/8项非退化、全局有效且模式一致时才能训练，任何一项失败都停止且不降低门槛。
 - [ ] 用户手动运行Control/Treatment各20 epoch正式训练并执行paired validation；根据冻结`+0.02`门槛决定采纳或拒绝，不以单独Bird Recall上升覆盖Precision、双向错误或Macro-F1失败。
 - [ ] 多seed、完整级联、OOF、test、正式拒识、stable、P95和部署：均未执行；只有seed42局部paired门槛通过后才讨论多seed。
 
-实验假设：若V17失败主要由于主体回波/窄带截断/旧STFT时间分辨率和period缺失语义掩盖了旋翼宽带侧带，则V18 Treatment应同时提高Drone/Bird弱项floor与Macro-F1，并减少双向错误；若只移动Bird边界、只在own-best改善、或未达到2个百分点，则拒绝本21维特征集。该实验只回答DBB specialist局部问题，不代表五类级联或开放集拒识收益。
+实验假设：若V17失败主要由于主体回波/窄带截断/旧STFT时间分辨率和period缺失语义掩盖了旋翼宽带侧带，则V18 Treatment应同时提高Drone/Bird弱项floor与Macro-F1，并减少双向错误；若只移动Bird边界、只在own-best改善、或未达到2个百分点，则拒绝本8维`stable8`特征集。该实验只回答DBB specialist局部问题，不代表五类级联或开放集拒识收益。
 
-版本策略：V18 `pruned21`使用独立cache、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17及V18最初39维focused证据只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅21维摘要进入Fusion。
+版本策略：V18 `stable8` v3使用独立summary、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17、V18最初39维focused证据及`pruned21` blocked产物只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅8维模式稳定摘要进入Fusion。
 
 当前执行边界：代码与focused Smoke已完成；全量数据处理和正式训练按用户要求未执行。test、完整级联、OOF、正式拒识、stable、P95和部署必须继续记录为“未执行”。
