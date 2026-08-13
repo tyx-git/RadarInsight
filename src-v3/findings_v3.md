@@ -2058,3 +2058,124 @@
 - Action：先执行冻结局部基线；后续使用train parent-grouped OOF/parent bootstrap报告置信区间和子流型覆盖，不复制window、不从val/test回采、不因模型错误改标签。
 - 验证状态：support/provenance已确认；正式CU性能、OOF区间、test均未执行。
 - 关联版本：V16。
+
+## Finding F188
+
+- Severity：High（微多普勒历史探针证据失效；已纠正）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、`src-v3/smoke/micro_doppler_v17_contract_test.py`
+- 问题或结论：先前声称的`Drone CV=0.52 vs Bird CV=0.13`来自错误的Python I/Q reshape，不能证明微多普勒判别潜力或作为V17收益先验。
+- Evidence：现有MATLAB解析把交错复数样本按列reshape为`[31,PRTnum]`；V17改为`order="F"`后，代表事件归一化CV为Drone Track 1=`0.127563`、Bird Track 333=`0.181750`、Balloon Track 3010=`0.060699`。三类各3帧的目标距离行与MATLAB逐值一致。
+- Impact：若继续使用旧数值冻结阈值或预期方向，会把解析错误当成物理规律，并可能选择迎合错误先验的特征公式。
+- Action：旧数值明确作废；V17特征公式不按三条代表事件调参，正式训练必须先通过train-only全量非退化、效应和采样模式审计。
+- 验证状态：focused Smoke通过；全量train-only分布尚未执行。
+- 关联版本：V17。
+
+## Finding F189
+
+- Severity：High（采样模式捷径风险；已建立训练前门槛）
+- 文件位置：`src-v3/build/micro_doppler_v17.py`、`src-v3/report/micro_doppler_v17_readiness.py`
+- 问题或结论：STFT速度映射、时间bin数量和调制周期都受PRTnum、PRT秒与载频影响；若这些采集模式与DBB标签强相关，三维摘要可能学习雷达模式而非旋翼/扑翼物理结构。
+- Evidence：raw帧显式携带frequency、PRTnum、PRT和CPI count；V17 evidence cache现逐帧保存这些元数据。readiness按标签报告分布、计算PRTnum/PRT秒/载频的Cramér's V，并在相同三元采样模式内重新计算Drone/Bird robust effect。
+- Impact：仅看全局Drone/Bird均值差可能得到来源捷径驱动的假收益，validation改善也未必能迁移到新采集模式。
+- Action：train-only要求单字段Cramér's V≤0.50，且至少一个Drone/Bird各≥8有效事件的共享模式内存在绝对effect≥0.10；失败则流水线停止，不启动正式训练。采样元数据和CPI count不得进入模型。
+- 验证状态：代码/报告契约已实现和编译；真实全量门槛尚未执行。
+- 关联版本：V17。
+
+## Finding F190
+
+- Severity：High（STFT峰可能偏离目标多普勒；已建立训练前对齐门槛）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、`src-v3/report/micro_doppler_v17_readiness.py`
+- 问题或结论：仅在目标距离行取STFT全局积分峰，仍可能被该距离行的零速杂波或旁瓣主导；若目标速度落在冻结的±8 m/s峰频带外，CV与调制周期就不再描述目标微动。
+- Evidence：V17现同时保存局部MTD目标Doppler index/物理速度和STFT积分峰速度。Drone/Bird/Balloon各3帧focused探针最大绝对偏差约`4.77 m/s`，9/9均在±8 m/s内。
+- Impact：代表帧通过不能保证全量；若某类或某采集模式大量偏离，Treatment可能学习杂波闪烁而非旋翼/扑翼。
+- Action：train-only readiness要求至少90%逐帧目标多普勒落入STFT峰±8 m/s频带，并报告中位、P95和最大偏差；失败即停止，不事后扩大频带迎合validation。
+- 验证状态：focused 9帧通过；全量train对齐率尚未执行。
+- 关联版本：V17。
+
+## Finding F191
+
+- Severity：High（V17单因素配对与模型输入契约；已实现）
+- 文件位置：`src-v3/radar_ln3/data.py`、`src-v3/radar_ln3/task_models.py`、`src-v3/train/tasks.py`
+- 问题或结论：V17已把实验变量限制为Treatment新增三维当前事件微多普勒摘要；两臂共同加入四维`rd_physical`，其余架构、液态状态、loss、seed、parent顺序和训练规则保持一致。
+- Evidence：Control/Treatment Fusion输入维度=`83/86`；40个共享state entry逐位相同，Treatment新增3列严格为0，初始logits逐位一致，新列梯度最大值=`0.666845`。两臂固定seed42、20 epoch、无early stopping并记录每epoch parent hash。
+- Impact：若Treatment改善，可归因于三维摘要相对“已有四维RD物理特征”的增量；不能归因于完整STFT网络、液态容量、Gate/CU或拒识机制。
+- Action：paired报告必须核验全部20 epoch parent顺序、各自best与不同same-epoch护栏，并要求Drone↔Bird方向一致改善和三类P/R/F1≥0.95。
+- 验证状态：focused模型、梯度、两臂checkpoint round-trip通过；正式训练未执行。
+- 关联版本：V17。
+
+## Finding F192
+
+- Severity：Medium（完整STFT张量定位；合同已明确）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、V17 data contract/manifest生成路径
+- 问题或结论：本轮模型不消费完整Doppler-time STFT张量；它仅作为版本化证据保存，避免把“3维摘要实验”与“STFT深网新输入契约”混为一个变量。
+- Evidence：每raw帧保存`64×16 float16`相对谱、目标距离行、raw frame index、逐帧摘要和采样元数据；checkpoint model contract固定`complete_stft_tensor_is_model_input=false`。模型只接收3维[0,1]摘要。
+- Impact：本轮负结果只能否定当前摘要及聚合口径，不能否定完整Doppler-time谱；正结果也不能宣称STFT张量网络有效。
+- Action：只有V17摘要paired通过且需要进一步保留时，才另开后续版本研究完整张量编码；不得在V17中增加CNN/attention或液态容量。
+- 验证状态：合同、cache schema和负向输入检查已实现；正式缓存尚未构建。
+- 关联版本：V17，完整张量模型属于后续版本。
+
+## Finding F193
+
+- Severity：High（V17训练状态边界；当前仅可prepare）
+- 文件位置：`src-v3/scripts/v17_micro_doppler_paired_pipeline.ps1`、`src-v3/report/micro_doppler_v17_readiness.py`
+- 问题或结论：V17 focused Smoke通过不等于已达到正式训练状态；旧探针失效后，必须以train-only全量分布和采样模式门槛作为训练前硬闸。
+- Evidence：当前没有V17 cache、manifest、data contract、生成配置、正式artifact或paired validation报告。脚本`prepare`串行运行builder、focused、readiness和静态隔离；readiness非passed即退出，train不会启动。
+- Impact：跳过prepare直接根据三条代表事件训练，会产生选择偏差，且无法判断调制周期不可估率或采样模式混杂。
+- Action：用户先运行`-Stage prepare`；仅退出码0后再运行`-Stage train`和`-Stage evaluate`，或一次性`-Stage all`让失败自动停止。`train.tasks`本身也强制绑定readiness v3、两臂配置/data hashes及canonical frame-index hash，无法通过直接Python CLI绕过。
+- 验证状态：脚本AST、compileall、focused、V16回归和静态隔离通过；全量数据处理与训练按用户约束未执行。
+- 关联版本：V17。
+
+## Finding F194
+
+- Severity：Critical（V17原始回波帧错配；已修复并建立反例回归）
+- 文件位置：`src-v3/build/micro_doppler_v17.py`、`src-v3/radar_ln3/micro_doppler.py`、`src-v3/report/micro_doppler_v17_readiness.py`、`src-v3/smoke/micro_doppler_v17_contract_test.py`、`src/process/build_cq08_rd_physical_canonical_store.py`
+- 问题或结论：V17旧构建器把V16的`rd_raw_frame_indices_json`直接作为完整CQ08 `.dat`帧号，但该字段源自canonical构建时的`enumerate(rd_mat_files)`，真实语义是MAT列表零基序号。MAT无缺失时两者数值巧合一致；Track 1010缺少前8个MAT文件时必然错配并使全量prepare失败。
+- Evidence：Track 1010 `.dat`解析得到54帧，manifest只有46个MAT文件且文件名帧号为9–54。V16 point 3记录tensor index=`0`、legacy ordinal=`0`；canonical frame 0的`rd_mat_path`为`..._0009_1010.mat`，因此真实raw-DAT index=`8`。raw index 0的target record为point 1且与该MAT `data_out`最大绝对差=`277.504744`；raw index 8的target record为point 3且与MAT I/Q最大绝对/相对误差均为0。全106026行canonical frame index均可解析MAT帧号、track ID全匹配；仅Track 1010的46行与legacy ordinal不同，偏移统一为`+8`。
+- Impact：旧V17无法完成全量prepare；若代码仅按数组边界读取且未检查point，还可能把其他track point的I/Q错误配给当前事件，污染三维摘要、readiness和后续配对归因。该问题不改变V16模型现有canonical RD输入，因为V16继续按tensor index读取NPZ；影响限定为V17重新读取完整`.dat`的链路。
+- Action：V17改为`parent_sample_id+rd_tensor_frame_indices_json→SHA-256绑定的canonical frame index→rd_mat_path文件名一基采集帧号→raw-DAT零基帧号`；逐帧核验track、track point、tensor path和raw target record。证据缓存分别保存legacy MAT ordinal、canonical tensor index、MAT采集帧号和raw-DAT index；summary/STFT schema升级v2、paired protocol升级v2、checkpoint升级v2、readiness升级v3。readiness冻结要求train检出Track 1010的46个偏移帧且val为0，旧schema/缓存/report/checkpoint均fail-closed。
+- 验证状态：Track 1010全部46个保留MAT帧逐帧I/Q零误差和track-point匹配通过；真实`_build_split`内存Smoke完成18事件、16有效事件和46帧STFT，四套索引序列精确；V17 focused Smoke v2、V16 product-local回归、全`src-v3` compileall、静态隔离和PowerShell AST均通过。全量V17 prepare、正式训练、paired validation、OOF、test、正式拒识、stable和P95仍未执行。
+- 关联版本：V17修订协议v2；V16 index/split/checkpoint不修改。
+
+## Finding F195
+
+- Severity：High（训练前物理门禁发现提取器目标漂移；已修复，修订版全量验证待执行）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、`src-v3/report/micro_doppler_v17_readiness.py`、`src-v3/build/micro_doppler_v17.py`
+- 问题或结论：旧V17 v2在目标距离行上以无约束全局STFT积分峰作为三维摘要频带中心；更强零速杂波可夺取全局峰，使CV、调制周期和全局`-10 dB`展宽不再描述局部MTD已定位目标。首次全量prepare因此被90%目标覆盖门禁正确阻断。
+- Evidence：旧v2 train目标峰±8 m/s覆盖=`58038/65879=0.880979`，validation=`13486/15323=0.880115`；train目标Doppler位于固定±85 m/s轴内的比例=`0.999772`，仅15帧越界，不能解释7841帧失败。Python局部MTD目标Doppler与MATLAB代表帧`detected_doppler_mps`最大误差≤`0.01083 m/s`，目标锚点正确。合成目标+强零速杂波探针中，无约束全局峰距目标`20.8982 m/s`，目标邻域峰距目标`0.6891 m/s`。
+- Impact：若降低readiness门槛或直接训练，Treatment可能学习同距离单元杂波闪烁而非Drone/Bird微动；旧v2分类结果即使提升也不可归因于目标微多普勒。
+- Action：保持90%门槛不变；在局部MTD目标Doppler±8 m/s内选择目标局部STFT峰，CV/周期围绕该峰，`-10 dB`展宽限制为目标峰连续谱瓣；全局峰仅作诊断。另要求至少90% train帧的目标局部峰/全局峰功率比≥0.10（−10 dB），使训练门禁仍能独立发现目标被杂波淹没，而不是仅检查按定义成立的几何邻域。旧v2证据只读估算train/val通过比例约`0.961445/0.964498`，validation不参与阈值定义。新产物使用独立`target-anchored-v3`路径，summary/STFT、paired/checkpoint、readiness分别为v3/v3/v4，旧v2产物只读保留。
+- 验证状态：target-anchored focused Smoke v3、MATLAB Doppler交叉核验、强杂波反例、Track 1010映射、V16回归、compileall、静态隔离和PowerShell AST通过；修订版全量prepare、正式训练、paired validation、OOF、test、正式拒识、stable和P95未执行。
+- 关联版本：V17 target-anchored修订协议v3；V16数据和checkpoint不修改。
+
+## Finding F196
+
+- Severity：High（V17局部配对未通过；Bird Recall表观上升伴随更大的Precision与总体性能损失）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V17-target-anchored-v3-micro-doppler-paired-validation.json`、两臂`sample_detail_information.json`与`training-summary.json`
+- 问题或结论：own-best下Treatment并未提升DBB整体判别，只把决策边界向Bird扩张。Control epoch 15的Bird Precision/Recall/F1为`0.925926/0.892857/0.909091`，Treatment epoch 20为`0.879310/0.910714/0.894737`；Recall只多判对1个Bird parent，却因Drone→Bird由3增至6使Precision下降4.66个百分点、Bird F1下降1.44个百分点。总正确parent由209降为208，Accuracy由`0.937220`降为`0.932735`，Macro-F1由`0.932380`降为`0.928712`，Drone↔Bird双向错误由7增至9。
+- Evidence：两臂parent-final逐ID对齐后只有10个parent改变类别，其中Control正确/Treatment错误为5个、Control错误/Treatment正确为4个、两者均错但错误类改变为1个。Treatment纠正Bird Track 444/665/816和Drone Track 1945，但破坏Drone Track 1535/4237/4238与Bird Track 531/2687，并把原本Drone→Balloon的Track 3960改成Drone→Bird。50,000次固定seed=`17042`的parent bootstrap仅作不确定性诊断：Bird Recall差的95%区间约`[-5.88,+9.80]`个百分点，Bird Precision约`[-12.03,+2.01]`个百分点，Macro-F1约`[-3.24,+2.53]`个百分点；5对4的discordant correctness McNemar exact `p=1.0`。这些区间不能消除不同best epoch带来的选择偏差。
+- Impact：单看Bird Recall会把阈值/边界移动误写成新信息增益；当前Treatment三类逐类P/R/F1均未达到0.95，paired gate状态为`completed_but_gate_failed`，不能进入多seed、完整级联、OOF、test、正式拒识、stable、P95或部署。
+- Action：保留V17为负向但可复核的DBB局部摘要实验；后续结论同时报告Bird Recall、Bird Precision、Drone→Bird、Bird→Drone、双向总错误和Macro-F1，禁止只优化或展示Recall。
+- 验证状态：target-anchored v3两臂20 epoch正式训练与paired validation已执行；完整五类/级联、OOF、test、正式拒识、stable和P95未执行。
+- 关联版本：V17 target-anchored修订协议v3。
+
+## Finding F197
+
+- Severity：High（own-best Bird Recall差异受checkpoint选择混杂，不能直接归因于微多普勒）
+- 文件位置：`src-v3/train/tasks.py::build_checkpoint_selection`、V17两臂`training-summary.json`、V17 paired report的`same_epoch_attribution_guards`
+- 问题或结论：Control best为epoch 15，Treatment best为epoch 20，二者都按`parent_min_precision_recall`独立选择。相同epoch 15时Treatment Bird Recall反而比Control低5.36个百分点，Macro-F1低2.26个百分点；相同epoch 20时Treatment Bird Recall低3.57个百分点，Macro-F1低1.31个百分点。因此own-best的Bird Recall `+1.79`个百分点不是受控的同epoch增益。
+- Evidence：Treatment epoch 19的Macro-F1=`0.944209`、Bird P/R=`0.873016/0.982143`、Drone→Bird/Bird→Drone=`7/0`，但epoch 20因最弱P/R从`0.873016`微升到`0.879310`而胜出，尽管Macro-F1降到`0.928712`且双向错误从7增至9。全20个same-epoch轨迹中Treatment Bird F1较高13次、Macro-F1较高12次，但Bird Precision仅9次、Recall仅10次，方向不稳定；这些epoch高度相关，不能当作20次独立重复。冻结paired报告要求的不同same-epoch护栏没有通过。
+- Impact：当前选优协议对“所有类最弱P/R”是合理的局部护栏，但没有直接编码Drone↔Bird方向错误；在该单因素实验中会把训练轨迹差异与特征效应混合。事后把epoch 18/19改称best又会形成validation回看挑选，不能作为V17收益。
+- Action：V17不追认epoch 18/19。若未来重做该方向，必须在训练前冻结checkpoint的Pareto/层级规则，将逐类P/R/F1门槛置于首层，并在同层候选中再最小化Drone↔Bird双向错误、最后比较Macro-F1；Control/Treatment仍需same-epoch归因护栏和多seed确认。
+- 验证状态：两臂20个epoch的parent顺序hash与初始CPU logits均一致；own-best与same-epoch只读归因已完成，未重选checkpoint。
+- 关联版本：V17；未来规则变更必须使用新实验版本。
+
+## Finding F198
+
+- Severity：High（三维摘要存在真实类间信号，但受采样模式条件反转、类内重叠和液态累积放大限制）
+- 文件位置：`src-v3/radar_ln3/micro_doppler.py`、V17 target-anchored readiness、summary/STFT cache与两臂parent/prefix明细
+- 问题或结论：全局train/val上Bird的CV和谱展宽通常高于Drone，但这个方向并非采样模式不变。train事件级Drone−Bird robust effect在CV/展宽/周期上为`-0.517/-0.250/0.000`，validation为`-0.557/-0.375/+0.103`；然而PRTnum=142的两个共享模式中三项effect全部反向为正，约`+0.80至+1.10`。当前readiness只要求“至少一个共享模式存在绝对效应”，没有要求各主要模式方向一致，因此能通过非退化检查却不能保证全局可迁移边界。
+- Evidence：新增Drone→Bird中的Track 4237/4238分别来自相邻capture `20250616103607/20250616103609`，均使用PRTnum=142；其parent事件均值CV/展宽分别为`0.2706/0.3564`和`0.2990/0.4347`，处于validation Drone分布约第99至100百分位。Treatment从首个可验收prefix起对两轨迹始终判Bird，并在最终达到`0.8051/0.9010`置信度。Track 1535同样具有偏高CV/展宽/周期并被以`0.9911`判Bird。另一方面Bird Track 665的极宽谱被正确恢复，说明信号不是纯噪声，而是缺少条件化后同时扩大真阳性和假阳性。代码对PRTnum<192使用32点STFT窗、其余使用64点窗，hop、物理观测时长和周期可估范围随PRT/载频变化；采样元数据又按防捷径设计不进入模型。调制周期仅`26.82%` raw frame可估，事件中不可估与真实低周期共同编码为0且没有feature-specific有效性语义。Treatment新三列最终Fusion列范数约`0.118/0.174/0.177`，低于全部输入列中位数`0.446`，但相同方向的小偏移可被20余事件的液态状态持续累积成高置信动作。
+- Impact：这更像输入语义未做到跨采样模式物理同尺度，而不是末期液态状态漂移；直接加dropout、状态正则、class weight或继续放大Bird loss可能压回Recall却不能修复模式条件反转。Bird与Balloon的CV中位数也接近，三维摘要同时扰动Bird/Balloon边界，当前负结果不能外推为“完整STFT张量无效”。
+- Action：不在V17继续调权重或阈值。若未来重开，只允许一个预注册变量：优先把STFT窗长/hop、可分辨周期和谱展宽改为物理时间/速度分辨率一致的mode-invariant摘要，并将“周期不可估”用于证据门控或中性插补而非类别输入；先用train-only检查主要共享模式中的效应方向一致性，再做Control/Treatment。完整STFT张量仍属于独立新数据/模型契约，不能以本轮摘要失败直接否定。
+- 验证状态：帧映射、目标局部峰、目标/全局功率门禁、采样模式统计和10条切换parent均已只读复核；未改标签、未调阈值、未启动后续训练。
+- 关联版本：V17 target-anchored修订协议v3；潜在后续必须递增版本。

@@ -37,3 +37,6 @@ todos.md
 *.md
 .*
 src-v3/smoke/
+!src-v3/smoke/
+src-v3/smoke/*
+!src-v3/smoke/micro_doppler_v17_contract_test.py

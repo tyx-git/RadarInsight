@@ -27,6 +27,7 @@ from radar_ln3.task_models import (
     LiquidTaskClassifier,
     PRODUCT_LOCAL_SCHEMA_VERSION,
     RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
+    MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     build_paired_model_for_config,
     capture_training_state,
     build_task_dataloader,
@@ -45,10 +46,65 @@ from radar_ln3.task_models import (
 )
 
 
+V17_READINESS_REPORT = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V17-target-anchored-v3-micro-doppler-train-readiness.json"
+)
+V17_READINESS_SCHEMA = "RADAR-LN3-V17-micro-doppler-training-readiness-v4"
+
+
 def _strip_records(result: dict[str, Any]) -> dict[str, Any]:
     value = dict(result)
     value.pop("records", None)
     return value
+
+
+def verify_v17_training_readiness(
+    project_root: Path,
+    config_path: Path,
+    contract_hashes: dict[str, Any],
+) -> dict[str, Any]:
+    report_path = (project_root / V17_READINESS_REPORT).resolve()
+    if not report_path.is_file():
+        raise PermissionError(
+            "V17 formal training requires the train-only readiness report; run the V17 "
+            f"prepare stage first: {report_path}"
+        )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    expected_config = config_path.resolve()
+    paired_configs = dict(report.get("paired_configs") or {})
+    matching_configs = [
+        dict(value)
+        for value in paired_configs.values()
+        if Path(str(dict(value).get("path", ""))).resolve() == expected_config
+    ]
+    config_bytes_hash = hashlib.sha256(expected_config.read_bytes()).hexdigest()
+    checks = dict(report.get("checks") or {})
+    if (
+        report.get("status") != "passed"
+        or report.get("schema_version") != V17_READINESS_SCHEMA
+        or len(matching_configs) != 1
+        or matching_configs[0].get("sha256") != config_bytes_hash
+        or report.get("contract_hashes") != contract_hashes
+        or not checks
+        or not all(value is True for value in checks.values())
+        or report.get("validation_used_for_readiness_gate") is not False
+        or report.get("test") != "未执行"
+        or report.get("formal_training_at_report_generation") != "未执行"
+    ):
+        raise PermissionError(
+            "V17 formal training readiness is missing, stale, failed or outside the frozen "
+            f"train-only/test-sealed contract: {report_path}"
+        )
+    digest = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    return {
+        "path": str(report_path),
+        "sha256": digest,
+        "schema_version": V17_READINESS_SCHEMA,
+        "status": "passed",
+        "validation_used_for_readiness_gate": False,
+        "test": "未执行",
+    }
 
 
 def parent_order_sha256(parent_sample_ids: list[str]) -> str:
@@ -213,6 +269,13 @@ def train_task(
         )
     seed_everything(config.train.seed)
     contract = verify_task_data_contract(project_root, config)
+    v17_readiness: dict[str, Any] | None = None
+    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        v17_readiness = verify_v17_training_readiness(
+            project_root,
+            config_path,
+            dict(contract["hashes"]),
+        )
     artifact_dir = project_root / config.train.formal_artifact_dir
     if config.schema_version not in FORMAL_PAIRED_SCHEMA_VERSIONS and resume_checkpoint is not None:
         raise ValueError("explicit epoch-boundary resume is restricted to a formal paired protocol")
@@ -223,7 +286,11 @@ def train_task(
                 "refusing to overwrite an existing formal paired artifact directory; "
                 f"move/archive it or use a new versioned config: {artifact_dir}"
             )
-    if is_product_local_schema(config.schema_version) and artifact_dir.exists():
+    if (
+        is_product_local_schema(config.schema_version)
+        and config.schema_version not in FORMAL_PAIRED_SCHEMA_VERSIONS
+        and artifact_dir.exists()
+    ):
         existing = list(artifact_dir.iterdir())
         if existing:
             raise FileExistsError(
@@ -273,6 +340,13 @@ def train_task(
                 "rd_quality": initial_tensors["rd_quality"],
                 "tr_padding_mask": initial_tensors["tr_padding_mask"],
             }
+            if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+                shared_inputs.update(
+                    {
+                        "rd_physical_features": initial_tensors["rd_physical_features"],
+                        "rd_physical_valid": initial_tensors["rd_physical_valid"],
+                    }
+                )
             active = ~initial_tensors["tr_padding_mask"]
             if config.train.paired_arm == "control":
                 control_model, treatment_model = model, paired_counterpart
@@ -295,6 +369,16 @@ def train_task(
                         rd_physical_valid=active,
                     )["sequence_logits"]
                     initial_probe = "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid"
+                elif config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+                    treatment_initial = treatment_model(
+                        **shared_inputs,
+                        micro_doppler_features=initial_tensors["micro_doppler_features"],
+                        micro_doppler_valid=initial_tensors["micro_doppler_valid"],
+                    )["sequence_logits"]
+                    initial_probe = (
+                        "same real DBB batch and shared RD-physical4 input; Treatment additionally "
+                        "receives real current-event micro-Doppler3 through exactly-zero Fusion columns"
+                    )
                 else:
                     treatment_output = treatment_model(**shared_inputs, return_dbb_auxiliary_logits=True)
                     treatment_initial = treatment_output["sequence_logits"]
@@ -351,6 +435,19 @@ def train_task(
                 map_location=device,
                 optimizer=optimizer,
             )
+            if (
+                config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+                and (
+                    v17_readiness is None
+                    or dict(resume_payload.get("metrics") or {}).get(
+                        "v17_training_readiness_sha256"
+                    )
+                    != v17_readiness["sha256"]
+                )
+            ):
+                raise ValueError(
+                    "V17 resume checkpoint is not bound to the current passed readiness report"
+                )
             run_state = restore_training_state(resume_payload, loader_generator)
             start_epoch = int(run_state["next_epoch"])
             global_step = int(run_state["global_step"])
@@ -361,8 +458,11 @@ def train_task(
                 raise ValueError("paired resume next_epoch is inconsistent with checkpoint epoch")
             if len(history) != int(resume_payload["epoch"]):
                 raise ValueError("paired resume history length is inconsistent with checkpoint epoch")
-            if not 1 <= start_epoch <= epochs:
-                raise ValueError(f"paired resume next_epoch={start_epoch} is outside requested epochs={epochs}")
+            if not 1 <= start_epoch <= epochs + 1:
+                raise ValueError(
+                    f"paired resume next_epoch={start_epoch} is outside requested epochs={epochs}; "
+                    "epochs+1 is allowed only to finalize evaluation/summary after a complete last epoch"
+                )
             resumed_from = str(resume_path)
         steps_per_epoch = len(train_loader)
         remaining_epoch_steps = max(0, epochs - start_epoch + 1) * steps_per_epoch
@@ -397,6 +497,19 @@ def train_task(
                 loader_seed,
                 paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
                 config.train.dbb_auxiliary_loss_weight,
+            )
+        elif config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+            logger.info(
+                "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | "
+                "shared_rd_physical_dim=4 | micro_doppler_dim=%d | shared_exact=%s | "
+                "new_columns_zero=%s | full_stft_model_input=false | cuda_bitwise_determinism=false",
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.seed,
+                loader_seed,
+                config.model.micro_doppler_dim,
+                paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
+                paired_initialization.get("treatment_new_fusion_columns_exactly_zero"),
             )
         logger.info(
             "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=%s",
@@ -436,6 +549,16 @@ def train_task(
                     tr_motion_valid_mask=tensors.get("tr_motion_valid_mask"),
                     rd_physical_features=tensors.get("rd_physical_features"),
                     rd_physical_valid=tensors.get("rd_physical_valid"),
+                    micro_doppler_features=(
+                        tensors.get("micro_doppler_features")
+                        if model.micro_doppler_dim
+                        else None
+                    ),
+                    micro_doppler_valid=(
+                        tensors.get("micro_doppler_valid")
+                        if model.micro_doppler_dim
+                        else None
+                    ),
                     rd_frames=tensors["rd_frames"],
                     rd_frame_mask=tensors["rd_frame_mask"],
                     rd_quality=tensors["rd_quality"],
@@ -518,6 +641,9 @@ def train_task(
                 "parent_order_sha256": parent_order_sha256(epoch_parent_order),
                 "parent_order_count": len(epoch_parent_order),
                 "parent_order_unique_count": len(set(epoch_parent_order)),
+                "v17_training_readiness_sha256": (
+                    None if v17_readiness is None else v17_readiness["sha256"]
+                ),
             }
             if max_steps is None and len(epoch_parent_order) != len(train_dataset):
                 raise ValueError(
@@ -687,6 +813,7 @@ def train_task(
                 else []
             ),
             "paired_initialization": paired_initialization,
+            "v17_training_readiness": v17_readiness,
             "dataloader_contract": {
                 "seed": int(loader_seed),
                 "independent_generator": True,
@@ -744,6 +871,7 @@ def train_task(
                 "error_message": str(error),
                 "deployment_eligible": False,
                 "formal_pretraining": "not_required_and_not_used",
+                "v17_training_readiness": v17_readiness,
                 "full_cascade_evaluation": "not_executed",
                 "oof_rejection_calibration": "not_executed",
                 "test_evaluation": "not_executed",

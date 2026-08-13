@@ -1,0 +1,1497 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V17-micro-doppler-training-readiness-v4",
+  "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V17-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler-target-anchored-v3-control-seed42-config.json",
+  "paired_configs": {
+    "control": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V17-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler-target-anchored-v3-control-seed42-config.json",
+      "sha256": "044dc90d7aebeee084ab75671eae9c3fcac6d96d336868803f179e8bfe00b523"
+    },
+    "treatment": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V17-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler-target-anchored-v3-treatment-seed42-config.json",
+      "sha256": "9e1f371fb6d95eaeb1c6facfa467d03a31a09d8b5fb4355bec8977594985e70b"
+    }
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "05d88fe3d0578bbdeb20da1efda4947496d199355a161ccddd3f32f0f850152d",
+    "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "checks": {
+    "all_three_features_non_degenerate_train_only": true,
+    "modulation_period_estimable_for_at_least_5_percent_train_frames": true,
+    "at_least_one_train_only_drone_bird_robust_effect_abs_at_least_0_10": true,
+    "train_summary_reconstructs_from_stft_frame_evidence_within_float32_tolerance": true,
+    "train_sampling_fields_not_strongly_associated_with_dbb_label": true,
+    "train_drone_bird_effect_survives_within_at_least_one_shared_sampling_mode": true,
+    "train_stft_peak_band_contains_local_mtd_target_for_at_least_90_percent_frames": true,
+    "train_target_local_peak_is_within_10db_of_global_peak_for_at_least_90_percent_frames": true,
+    "train_raw_frame_mapping_uses_mat_acquisition_identity_not_legacy_ordinal": true,
+    "frozen_v16_track_1010_missing_mat_counterexample_is_preserved": true,
+    "test_payload_access_zero": true
+  },
+  "feature_checks": {
+    "peak_band_energy_time_cv_clipped_0_2_over_2": {
+      "standard_deviation_at_least_0_005": true,
+      "unique_count_at_least_16": true,
+      "not_more_than_99_percent_at_zero": true,
+      "not_more_than_99_percent_at_one": true
+    },
+    "minus_10db_velocity_spread_ratio": {
+      "standard_deviation_at_least_0_005": true,
+      "unique_count_at_least_16": true,
+      "not_more_than_99_percent_at_zero": true,
+      "not_more_than_99_percent_at_one": true
+    },
+    "modulation_period_seconds_clipped_0_1s_over_0_1s": {
+      "standard_deviation_at_least_0_005": true,
+      "unique_count_at_least_16": true,
+      "not_more_than_99_percent_at_zero": true,
+      "not_more_than_99_percent_at_one": true
+    }
+  },
+  "sampling_shortcut_thresholds": {
+    "maximum_sampling_field_cramers_v": 0.5,
+    "minimum_shared_mode_events_per_drone_bird_class": 8,
+    "minimum_absolute_within_mode_robust_effect": 0.1,
+    "minimum_target_peak_alignment_fraction": 0.9,
+    "minimum_target_local_to_global_power_ratio": 0.1
+  },
+  "split_reports": {
+    "train": {
+      "split": "train",
+      "parent_count": 953,
+      "event_count": 18266,
+      "valid_event_count": 18113,
+      "invalid_event_count": 153,
+      "selected_stft_frame_count": 65879,
+      "modulation_period_estimable_frame_count": 17671,
+      "modulation_period_estimable_frame_fraction": 0.26823418691844136,
+      "features": [
+        {
+          "feature": "peak_band_energy_time_cv_clipped_0_2_over_2",
+          "minimum": 0.0006919130682945251,
+          "q05": 0.027475377544760704,
+          "median": 0.14704811573028564,
+          "q95": 0.3174188435077667,
+          "maximum": 0.5987962484359741,
+          "standard_deviation": 0.08920140564441681,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0,
+          "unique_count_float32": 18080
+        },
+        {
+          "feature": "minus_10db_velocity_spread_ratio",
+          "minimum": 0.046875,
+          "q05": 0.046875,
+          "median": 0.0625,
+          "q95": 0.1796875,
+          "maximum": 1.0,
+          "standard_deviation": 0.12071724981069565,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.010820957323469332,
+          "unique_count_float32": 111
+        },
+        {
+          "feature": "modulation_period_seconds_clipped_0_1s_over_0_1s",
+          "minimum": 0.0,
+          "q05": 0.0,
+          "median": 0.02112000063061714,
+          "q95": 0.11856000125408173,
+          "maximum": 0.21216000616550446,
+          "standard_deviation": 0.036390580236911774,
+          "zero_fraction": 0.42472257494617127,
+          "one_fraction": 0.0,
+          "unique_count_float32": 171
+        }
+      ],
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 476,
+          "valid_event_count": 9015,
+          "selected_stft_frame_count": 34328,
+          "modulation_period_estimable_frame_count": 8878,
+          "modulation_period_estimable_frame_fraction": 0.25862269867163834,
+          "mean": [
+            0.1305550862930101,
+            0.08888051164725458,
+            0.03429643016492435
+          ],
+          "median": [
+            0.11892042309045792,
+            0.0625,
+            0.019200000911951065
+          ],
+          "q25": [
+            0.07520176470279694,
+            0.046875,
+            0.0
+          ],
+          "q75": [
+            0.17508123815059662,
+            0.109375,
+            0.06143999844789505
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 34328,
+              "unique_count": 5,
+              "minimum": 142.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "226",
+                  "count": 13717
+                },
+                {
+                  "value": "360",
+                  "count": 12982
+                },
+                {
+                  "value": "570",
+                  "count": 6428
+                },
+                {
+                  "value": "900",
+                  "count": 1072
+                },
+                {
+                  "value": "142",
+                  "count": 129
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 34328,
+              "unique_count": 6,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 12417
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 8233
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 6992
+                },
+                {
+                  "value": "2e-05",
+                  "count": 6557
+                },
+                {
+                  "value": "3.1e-05",
+                  "count": 67
+                },
+                {
+                  "value": "2.8e-05",
+                  "count": 62
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 34328,
+              "unique_count": 3,
+              "minimum": 15600000000.0,
+              "maximum": 16300000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 19036
+                },
+                {
+                  "value": "15900000000",
+                  "count": 15141
+                },
+                {
+                  "value": "16300000000",
+                  "count": 151
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 34328,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 13225
+                },
+                {
+                  "value": "0",
+                  "count": 12780
+                },
+                {
+                  "value": "2",
+                  "count": 6256
+                },
+                {
+                  "value": "3",
+                  "count": 2067
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "BirdTarget": {
+          "parent_count": 239,
+          "valid_event_count": 4548,
+          "selected_stft_frame_count": 14825,
+          "modulation_period_estimable_frame_count": 4052,
+          "modulation_period_estimable_frame_fraction": 0.2733220910623946,
+          "mean": [
+            0.1866583050951106,
+            0.12876023801671063,
+            0.03055627097166
+          ],
+          "median": [
+            0.18227359652519226,
+            0.078125,
+            0.019200000911951065
+          ],
+          "q25": [
+            0.11308304220438004,
+            0.0625,
+            0.0
+          ],
+          "q75": [
+            0.25787270069122314,
+            0.109375,
+            0.04896000027656555
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 14825,
+              "unique_count": 5,
+              "minimum": 142.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 5351
+                },
+                {
+                  "value": "570",
+                  "count": 4745
+                },
+                {
+                  "value": "226",
+                  "count": 3184
+                },
+                {
+                  "value": "900",
+                  "count": 1331
+                },
+                {
+                  "value": "142",
+                  "count": 214
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 14825,
+              "unique_count": 6,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 7045
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 4382
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 1596
+                },
+                {
+                  "value": "2e-05",
+                  "count": 1588
+                },
+                {
+                  "value": "2.8e-05",
+                  "count": 107
+                },
+                {
+                  "value": "3.1e-05",
+                  "count": 107
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 14825,
+              "unique_count": 3,
+              "minimum": 15600000000.0,
+              "maximum": 16300000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 8740
+                },
+                {
+                  "value": "15900000000",
+                  "count": 5978
+                },
+                {
+                  "value": "16300000000",
+                  "count": 107
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 14825,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 5238
+                },
+                {
+                  "value": "0",
+                  "count": 5232
+                },
+                {
+                  "value": "2",
+                  "count": 3508
+                },
+                {
+                  "value": "3",
+                  "count": 847
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "BalloonTarget": {
+          "parent_count": 238,
+          "valid_event_count": 4550,
+          "selected_stft_frame_count": 16726,
+          "modulation_period_estimable_frame_count": 4741,
+          "modulation_period_estimable_frame_fraction": 0.2834509147435131,
+          "mean": [
+            0.18368117872124107,
+            0.07669127747252748,
+            0.02546349005302885
+          ],
+          "median": [
+            0.18123561143875122,
+            0.0546875,
+            0.030719999223947525
+          ],
+          "q25": [
+            0.1207379400730133,
+            0.046875,
+            0.0
+          ],
+          "q75": [
+            0.23952695727348328,
+            0.0703125,
+            0.04608000069856644
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 16726,
+              "unique_count": 4,
+              "minimum": 226.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 6960
+                },
+                {
+                  "value": "570",
+                  "count": 5627
+                },
+                {
+                  "value": "226",
+                  "count": 3428
+                },
+                {
+                  "value": "900",
+                  "count": 711
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 16726,
+              "unique_count": 4,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 7421
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 5877
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 1883
+                },
+                {
+                  "value": "2e-05",
+                  "count": 1545
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 16726,
+              "unique_count": 2,
+              "minimum": 15600000000.0,
+              "maximum": 15900000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 8966
+                },
+                {
+                  "value": "15900000000",
+                  "count": 7760
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 16726,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 7404
+                },
+                {
+                  "value": "0",
+                  "count": 7086
+                },
+                {
+                  "value": "2",
+                  "count": 1880
+                },
+                {
+                  "value": "3",
+                  "count": 356
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        }
+      },
+      "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+        "peak_band_energy_time_cv_clipped_0_2_over_2": -0.51741623878479,
+        "minus_10db_velocity_spread_ratio": -0.25,
+        "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.0
+      },
+      "maximum_absolute_drone_bird_robust_effect": 0.51741623878479,
+      "summary_reconstructed_from_frame_evidence_within_float32_tolerance": true,
+      "summary_reconstruction_maximum_absolute_error": 2.9802322387695312e-08,
+      "summary_reconstruction_absolute_tolerance": 1e-07,
+      "sampling_mode_shortcut_audit": {
+        "metadata_is_model_input": false,
+        "cpi_count_is_association_gate_input": false,
+        "association_by_field": {
+          "frame_prt_num": {
+            "cramers_v_with_three_dbb_labels": 0.18271313975821876,
+            "distribution": {
+              "count": 65879,
+              "unique_count": 5,
+              "minimum": 142.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 25293
+                },
+                {
+                  "value": "226",
+                  "count": 20329
+                },
+                {
+                  "value": "570",
+                  "count": 16800
+                },
+                {
+                  "value": "900",
+                  "count": 3114
+                },
+                {
+                  "value": "142",
+                  "count": 343
+                }
+              ],
+              "top_values_truncated": false
+            }
+          },
+          "frame_prt_seconds": {
+            "cramers_v_with_three_dbb_labels": 0.1536158831835058,
+            "distribution": {
+              "count": 65879,
+              "unique_count": 6,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 26883
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 18492
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 10471
+                },
+                {
+                  "value": "2e-05",
+                  "count": 9690
+                },
+                {
+                  "value": "3.1e-05",
+                  "count": 174
+                },
+                {
+                  "value": "2.8e-05",
+                  "count": 169
+                }
+              ],
+              "top_values_truncated": false
+            }
+          },
+          "frame_frequency_hz": {
+            "cramers_v_with_three_dbb_labels": 0.040648421621153716,
+            "distribution": {
+              "count": 65879,
+              "unique_count": 3,
+              "minimum": 15600000000.0,
+              "maximum": 16300000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 36742
+                },
+                {
+                  "value": "15900000000",
+                  "count": 28879
+                },
+                {
+                  "value": "16300000000",
+                  "count": 258
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "maximum_sampling_field_cramers_v": 0.18271313975821876,
+        "combined_mode_count": 12,
+        "shared_drone_bird_modes_with_minimum_support": [
+          {
+            "sampling_mode": "prt_num=142|prt_seconds=2.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 169,
+            "drone_valid_event_count": 41,
+            "bird_valid_event_count": 71,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": 0.8005749583244324,
+              "minus_10db_velocity_spread_ratio": 1.0526316165924072,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.7456556558609009
+            },
+            "maximum_absolute_drone_bird_robust_effect": 1.0526316165924072
+          },
+          {
+            "sampling_mode": "prt_num=142|prt_seconds=3.1e-05|frequency_hz=16300000000",
+            "selected_frame_count": 174,
+            "drone_valid_event_count": 47,
+            "bird_valid_event_count": 71,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": 0.8311421275138855,
+              "minus_10db_velocity_spread_ratio": 1.0952380895614624,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.7023809552192688
+            },
+            "maximum_absolute_drone_bird_robust_effect": 1.0952380895614624
+          },
+          {
+            "sampling_mode": "prt_num=226|prt_seconds=2.4e-05|frequency_hz=15900000000",
+            "selected_frame_count": 10471,
+            "drone_valid_event_count": 3294,
+            "bird_valid_event_count": 781,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.2732934057712555,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.1111111044883728
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.2732934057712555
+          },
+          {
+            "sampling_mode": "prt_num=226|prt_seconds=2e-05|frequency_hz=15600000000",
+            "selected_frame_count": 9690,
+            "drone_valid_event_count": 2988,
+            "bird_valid_event_count": 774,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.2681697607040405,
+              "minus_10db_velocity_spread_ratio": 0.3333333432674408,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.12121211737394333
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.3333333432674408
+          },
+          {
+            "sampling_mode": "prt_num=360|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 14922,
+            "drone_valid_event_count": 4208,
+            "bird_valid_event_count": 1813,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.734225869178772,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": -0.2745097577571869
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.734225869178772
+          },
+          {
+            "sampling_mode": "prt_num=360|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 10371,
+            "drone_valid_event_count": 4203,
+            "bird_valid_event_count": 1809,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.7344173789024353,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": -0.26143789291381836
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.7344173789024353
+          },
+          {
+            "sampling_mode": "prt_num=570|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 10086,
+            "drone_valid_event_count": 2222,
+            "bird_valid_event_count": 1616,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.2779289186000824,
+              "minus_10db_velocity_spread_ratio": -0.5,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.419642835855484
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.5
+          },
+          {
+            "sampling_mode": "prt_num=570|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 6714,
+            "drone_valid_event_count": 2212,
+            "bird_valid_event_count": 1615,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.27540668845176697,
+              "minus_10db_velocity_spread_ratio": -0.5,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.419642835855484
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.5
+          },
+          {
+            "sampling_mode": "prt_num=900|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 1791,
+            "drone_valid_event_count": 362,
+            "bird_valid_event_count": 485,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.42330294847488403,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.21250000596046448
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.42330294847488403
+          },
+          {
+            "sampling_mode": "prt_num=900|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 1323,
+            "drone_valid_event_count": 362,
+            "bird_valid_event_count": 478,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.4237039089202881,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.21250000596046448
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.4237039089202881
+          }
+        ],
+        "minimum_events_per_drone_bird_class_for_shared_mode": 8,
+        "maximum_absolute_drone_bird_robust_effect_within_shared_mode": 1.0952380895614624,
+        "frame_cpi_count_distribution": {
+          "count": 65879,
+          "unique_count": 4,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "top_values": [
+            {
+              "value": "1",
+              "count": 25867
+            },
+            {
+              "value": "0",
+              "count": 25098
+            },
+            {
+              "value": "2",
+              "count": 11644
+            },
+            {
+              "value": "3",
+              "count": 3270
+            }
+          ],
+          "top_values_truncated": false
+        }
+      },
+      "target_peak_alignment_audit": {
+        "peak_semantics": "strongest integrated STFT peak inside the local-MTD target +/-8 m/s neighborhood",
+        "peak_band_half_width_mps": 8.0,
+        "aligned_frame_count": 65869,
+        "selected_frame_count": 65879,
+        "aligned_frame_fraction": 0.9998482065605124,
+        "median_absolute_error_mps": 0.8750373125076294,
+        "q95_absolute_error_mps": 6.380960464477539,
+        "maximum_absolute_error_mps": 60.00099182128906,
+        "unconstrained_global_peak_aligned_frame_fraction": 0.8809787640978157,
+        "target_local_peak_power_ratio_to_global": {
+          "minimum": 2.0313997595167166e-07,
+          "median": 1.0,
+          "q05": 0.15335771441459656,
+          "minimum_required_ratio": 0.1,
+          "minimum_required_relative_db": -10.0,
+          "sufficient_frame_count": 63334,
+          "sufficient_frame_fraction": 0.9613685696504197
+        }
+      },
+      "raw_frame_mapping_audit": {
+        "legacy_mat_list_ordinal_is_raw_dat_frame_index": false,
+        "selected_frame_count": 65879,
+        "legacy_ordinal_raw_dat_mismatch_frame_count": 46,
+        "legacy_ordinal_raw_dat_mismatch_track_ids": [
+          1010
+        ],
+        "raw_dat_minus_legacy_ordinal_minimum": 0,
+        "raw_dat_minus_legacy_ordinal_maximum": 8,
+        "mat_acquisition_to_raw_dat_exact": true
+      }
+    },
+    "val": {
+      "split": "val",
+      "parent_count": 223,
+      "event_count": 4288,
+      "valid_event_count": 4233,
+      "invalid_event_count": 55,
+      "selected_stft_frame_count": 15323,
+      "modulation_period_estimable_frame_count": 4226,
+      "modulation_period_estimable_frame_fraction": 0.2757945572015924,
+      "features": [
+        {
+          "feature": "peak_band_energy_time_cv_clipped_0_2_over_2",
+          "minimum": 0.0005848259897902608,
+          "q05": 0.03590792044997215,
+          "median": 0.14903570711612701,
+          "q95": 0.319511741399765,
+          "maximum": 0.6758428812026978,
+          "standard_deviation": 0.08780378848314285,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0,
+          "unique_count_float32": 4188
+        },
+        {
+          "feature": "minus_10db_velocity_spread_ratio",
+          "minimum": 0.046875,
+          "q05": 0.046875,
+          "median": 0.0625,
+          "q95": 0.21406249701976776,
+          "maximum": 1.0,
+          "standard_deviation": 0.14087414741516113,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.014410583510512638,
+          "unique_count_float32": 95
+        },
+        {
+          "feature": "modulation_period_seconds_clipped_0_1s_over_0_1s",
+          "minimum": 0.0,
+          "q05": 0.0,
+          "median": 0.02112000063061714,
+          "q95": 0.11423999816179276,
+          "maximum": 0.21216000616550446,
+          "standard_deviation": 0.0351438969373703,
+          "zero_fraction": 0.42452161587526577,
+          "one_fraction": 0.0,
+          "unique_count_float32": 120
+        }
+      ],
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 113,
+          "valid_event_count": 2132,
+          "selected_stft_frame_count": 8168,
+          "modulation_period_estimable_frame_count": 2207,
+          "modulation_period_estimable_frame_fraction": 0.2702007835455436,
+          "mean": [
+            0.13230509574440533,
+            0.09391123358348968,
+            0.03471268273367569
+          ],
+          "median": [
+            0.11982658505439758,
+            0.0625,
+            0.02112000063061714
+          ],
+          "q25": [
+            0.07819577306509018,
+            0.046875,
+            0.0
+          ],
+          "q75": [
+            0.1715778410434723,
+            0.109375,
+            0.06143999844789505
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 8168,
+              "unique_count": 5,
+              "minimum": 142.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 3382
+                },
+                {
+                  "value": "226",
+                  "count": 3040
+                },
+                {
+                  "value": "570",
+                  "count": 1464
+                },
+                {
+                  "value": "142",
+                  "count": 170
+                },
+                {
+                  "value": "900",
+                  "count": 112
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 8168,
+              "unique_count": 6,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 2943
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 2015
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 1591
+                },
+                {
+                  "value": "2e-05",
+                  "count": 1449
+                },
+                {
+                  "value": "2.8e-05",
+                  "count": 85
+                },
+                {
+                  "value": "3.1e-05",
+                  "count": 85
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 8168,
+              "unique_count": 3,
+              "minimum": 15600000000.0,
+              "maximum": 16300000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 4477
+                },
+                {
+                  "value": "15900000000",
+                  "count": 3606
+                },
+                {
+                  "value": "16300000000",
+                  "count": 85
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 8168,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 3068
+                },
+                {
+                  "value": "0",
+                  "count": 2926
+                },
+                {
+                  "value": "2",
+                  "count": 1551
+                },
+                {
+                  "value": "3",
+                  "count": 623
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "BirdTarget": {
+          "parent_count": 56,
+          "valid_event_count": 1051,
+          "selected_stft_frame_count": 3501,
+          "modulation_period_estimable_frame_count": 854,
+          "modulation_period_estimable_frame_fraction": 0.24393030562696372,
+          "mean": [
+            0.19071837721018564,
+            0.1578556137012369,
+            0.0268857850623162
+          ],
+          "median": [
+            0.1827557235956192,
+            0.0859375,
+            0.015359999611973763
+          ],
+          "q25": [
+            0.12293703109025955,
+            0.0625,
+            0.0
+          ],
+          "q75": [
+            0.25273847579956055,
+            0.109375,
+            0.047520000487565994
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 3501,
+              "unique_count": 4,
+              "minimum": 226.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 1590
+                },
+                {
+                  "value": "226",
+                  "count": 914
+                },
+                {
+                  "value": "570",
+                  "count": 824
+                },
+                {
+                  "value": "900",
+                  "count": 173
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 3501,
+              "unique_count": 4,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 1606
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 981
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 460
+                },
+                {
+                  "value": "2e-05",
+                  "count": 454
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 3501,
+              "unique_count": 2,
+              "minimum": 15600000000.0,
+              "maximum": 15900000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 2060
+                },
+                {
+                  "value": "15900000000",
+                  "count": 1441
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 3501,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 1084
+                },
+                {
+                  "value": "0",
+                  "count": 1075
+                },
+                {
+                  "value": "2",
+                  "count": 985
+                },
+                {
+                  "value": "3",
+                  "count": 357
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "BalloonTarget": {
+          "parent_count": 54,
+          "valid_event_count": 1050,
+          "selected_stft_frame_count": 3654,
+          "modulation_period_estimable_frame_count": 1165,
+          "modulation_period_estimable_frame_fraction": 0.31882868089764643,
+          "mean": [
+            0.18696621975728445,
+            0.06648065476190476,
+            0.025737447600279535
+          ],
+          "median": [
+            0.18354439735412598,
+            0.046875,
+            0.030719999223947525
+          ],
+          "q25": [
+            0.1284075528383255,
+            0.046875,
+            0.0
+          ],
+          "q75": [
+            0.23682337999343872,
+            0.0625,
+            0.04608000069856644
+          ],
+          "sampling_metadata": {
+            "frame_prt_num": {
+              "count": 3654,
+              "unique_count": 4,
+              "minimum": 226.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "570",
+                  "count": 1536
+                },
+                {
+                  "value": "360",
+                  "count": 1281
+                },
+                {
+                  "value": "226",
+                  "count": 658
+                },
+                {
+                  "value": "900",
+                  "count": 179
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_prt_seconds": {
+              "count": 3654,
+              "unique_count": 4,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 1769
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 1227
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 341
+                },
+                {
+                  "value": "2e-05",
+                  "count": 317
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_frequency_hz": {
+              "count": 3654,
+              "unique_count": 2,
+              "minimum": 15600000000.0,
+              "maximum": 15900000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 2086
+                },
+                {
+                  "value": "15900000000",
+                  "count": 1568
+                }
+              ],
+              "top_values_truncated": false
+            },
+            "frame_cpi_count": {
+              "count": 3654,
+              "unique_count": 4,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "top_values": [
+                {
+                  "value": "1",
+                  "count": 1530
+                },
+                {
+                  "value": "0",
+                  "count": 1510
+                },
+                {
+                  "value": "2",
+                  "count": 576
+                },
+                {
+                  "value": "3",
+                  "count": 38
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        }
+      },
+      "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+        "peak_band_energy_time_cv_clipped_0_2_over_2": -0.5573630928993225,
+        "minus_10db_velocity_spread_ratio": -0.375,
+        "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.1034482941031456
+      },
+      "maximum_absolute_drone_bird_robust_effect": 0.5573630928993225,
+      "summary_reconstructed_from_frame_evidence_within_float32_tolerance": true,
+      "summary_reconstruction_maximum_absolute_error": 1.4901161193847656e-08,
+      "summary_reconstruction_absolute_tolerance": 1e-07,
+      "sampling_mode_shortcut_audit": {
+        "metadata_is_model_input": false,
+        "cpi_count_is_association_gate_input": false,
+        "association_by_field": {
+          "frame_prt_num": {
+            "cramers_v_with_three_dbb_labels": 0.20448787555439552,
+            "distribution": {
+              "count": 15323,
+              "unique_count": 5,
+              "minimum": 142.0,
+              "maximum": 900.0,
+              "top_values": [
+                {
+                  "value": "360",
+                  "count": 6253
+                },
+                {
+                  "value": "226",
+                  "count": 4612
+                },
+                {
+                  "value": "570",
+                  "count": 3824
+                },
+                {
+                  "value": "900",
+                  "count": 464
+                },
+                {
+                  "value": "142",
+                  "count": 170
+                }
+              ],
+              "top_values_truncated": false
+            }
+          },
+          "frame_prt_seconds": {
+            "cramers_v_with_three_dbb_labels": 0.14832506442244328,
+            "distribution": {
+              "count": 15323,
+              "unique_count": 6,
+              "minimum": 1.9999999999999998e-05,
+              "maximum": 5.1e-05,
+              "top_values": [
+                {
+                  "value": "4.8e-05",
+                  "count": 6318
+                },
+                {
+                  "value": "5.1e-05",
+                  "count": 4223
+                },
+                {
+                  "value": "2.4e-05",
+                  "count": 2392
+                },
+                {
+                  "value": "2e-05",
+                  "count": 2220
+                },
+                {
+                  "value": "2.8e-05",
+                  "count": 85
+                },
+                {
+                  "value": "3.1e-05",
+                  "count": 85
+                }
+              ],
+              "top_values_truncated": false
+            }
+          },
+          "frame_frequency_hz": {
+            "cramers_v_with_three_dbb_labels": 0.05335260013381341,
+            "distribution": {
+              "count": 15323,
+              "unique_count": 3,
+              "minimum": 15600000000.0,
+              "maximum": 16300000000.0,
+              "top_values": [
+                {
+                  "value": "15600000000",
+                  "count": 8623
+                },
+                {
+                  "value": "15900000000",
+                  "count": 6615
+                },
+                {
+                  "value": "16300000000",
+                  "count": 85
+                }
+              ],
+              "top_values_truncated": false
+            }
+          }
+        },
+        "maximum_sampling_field_cramers_v": 0.20448787555439552,
+        "combined_mode_count": 10,
+        "shared_drone_bird_modes_with_minimum_support": [
+          {
+            "sampling_mode": "prt_num=226|prt_seconds=2.4e-05|frequency_hz=15900000000",
+            "selected_frame_count": 2392,
+            "drone_valid_event_count": 743,
+            "bird_valid_event_count": 214,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.12428999692201614,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.05555557459592819
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.12428999692201614
+          },
+          {
+            "sampling_mode": "prt_num=226|prt_seconds=2e-05|frequency_hz=15600000000",
+            "selected_frame_count": 2220,
+            "drone_valid_event_count": 636,
+            "bird_valid_event_count": 209,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.11928994208574295,
+              "minus_10db_velocity_spread_ratio": 0.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.030303040519356728
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.11928994208574295
+          },
+          {
+            "sampling_mode": "prt_num=360|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 3745,
+            "drone_valid_event_count": 1088,
+            "bird_valid_event_count": 536,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.67397540807724,
+              "minus_10db_velocity_spread_ratio": -0.25,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.6274509429931641
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.67397540807724
+          },
+          {
+            "sampling_mode": "prt_num=360|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 2508,
+            "drone_valid_event_count": 1087,
+            "bird_valid_event_count": 536,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.6729773879051208,
+              "minus_10db_velocity_spread_ratio": -0.25,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.6274509429931641
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.6729773879051208
+          },
+          {
+            "sampling_mode": "prt_num=570|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 2291,
+            "drone_valid_event_count": 489,
+            "bird_valid_event_count": 284,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.6706659197807312,
+              "minus_10db_velocity_spread_ratio": -1.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.5542169809341431
+            },
+            "maximum_absolute_drone_bird_robust_effect": 1.0
+          },
+          {
+            "sampling_mode": "prt_num=570|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 1533,
+            "drone_valid_event_count": 489,
+            "bird_valid_event_count": 284,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.6748715043067932,
+              "minus_10db_velocity_spread_ratio": -1.0,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.5542169809341431
+            },
+            "maximum_absolute_drone_bird_robust_effect": 1.0
+          },
+          {
+            "sampling_mode": "prt_num=900|prt_seconds=4.8e-05|frequency_hz=15600000000",
+            "selected_frame_count": 282,
+            "drone_valid_event_count": 40,
+            "bird_valid_event_count": 59,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.43961358070373535,
+              "minus_10db_velocity_spread_ratio": -0.6842105388641357,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.7977941036224365
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.7977941036224365
+          },
+          {
+            "sampling_mode": "prt_num=900|prt_seconds=5.1e-05|frequency_hz=15900000000",
+            "selected_frame_count": 182,
+            "drone_valid_event_count": 40,
+            "bird_valid_event_count": 59,
+            "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+              "peak_band_energy_time_cv_clipped_0_2_over_2": -0.43961358070373535,
+              "minus_10db_velocity_spread_ratio": -0.6842105388641357,
+              "modulation_period_seconds_clipped_0_1s_over_0_1s": 0.7977941036224365
+            },
+            "maximum_absolute_drone_bird_robust_effect": 0.7977941036224365
+          }
+        ],
+        "minimum_events_per_drone_bird_class_for_shared_mode": 8,
+        "maximum_absolute_drone_bird_robust_effect_within_shared_mode": 1.0,
+        "frame_cpi_count_distribution": {
+          "count": 15323,
+          "unique_count": 4,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "top_values": [
+            {
+              "value": "1",
+              "count": 5682
+            },
+            {
+              "value": "0",
+              "count": 5511
+            },
+            {
+              "value": "2",
+              "count": 3112
+            },
+            {
+              "value": "3",
+              "count": 1018
+            }
+          ],
+          "top_values_truncated": false
+        }
+      },
+      "target_peak_alignment_audit": {
+        "peak_semantics": "strongest integrated STFT peak inside the local-MTD target +/-8 m/s neighborhood",
+        "peak_band_half_width_mps": 8.0,
+        "aligned_frame_count": 15321,
+        "selected_frame_count": 15323,
+        "aligned_frame_fraction": 0.999869477256412,
+        "median_absolute_error_mps": 0.8514080047607422,
+        "q95_absolute_error_mps": 6.487842082977295,
+        "maximum_absolute_error_mps": 27.66876983642578,
+        "unconstrained_global_peak_aligned_frame_fraction": 0.8801148600143575,
+        "target_local_peak_power_ratio_to_global": {
+          "minimum": 1.65628577519783e-07,
+          "median": 1.0,
+          "q05": 0.16875094175338745,
+          "minimum_required_ratio": 0.1,
+          "minimum_required_relative_db": -10.0,
+          "sufficient_frame_count": 14780,
+          "sufficient_frame_fraction": 0.9645630751158389
+        }
+      },
+      "raw_frame_mapping_audit": {
+        "legacy_mat_list_ordinal_is_raw_dat_frame_index": false,
+        "selected_frame_count": 15323,
+        "legacy_ordinal_raw_dat_mismatch_frame_count": 0,
+        "legacy_ordinal_raw_dat_mismatch_track_ids": [],
+        "raw_dat_minus_legacy_ordinal_minimum": 0,
+        "raw_dat_minus_legacy_ordinal_maximum": 0,
+        "mat_acquisition_to_raw_dat_exact": true
+      }
+    }
+  },
+  "interpretation": "Train-only distribution passes non-degeneracy, sampling-shortcut and within-mode effect screening; this does not prove model gain.",
+  "validation_used_for_readiness_gate": false,
+  "test": "未执行",
+  "formal_training_at_report_generation": "未执行",
+  "formal_training": "未执行",
+  "full_cascade": "未执行",
+  "OOF": "未执行",
+  "stable": "未执行",
+  "P95": "未执行"
+}

@@ -1262,3 +1262,48 @@
 是否达到训练状态：达到三任务独立正式训练准备状态；尚未达到性能通过、完整级联、严格开放集拒识或部署状态。正式20 epoch与独立validation必须由用户确认后手动执行。
 
 阻塞条件：当前无代码或数据契约阻塞影响三任务独立训练。性能结论仍被正式训练未执行和CU validation低support（Clutter=9、Unknown=15）阻塞；完整级联、OOF拒识、test、stable、P95和部署继续禁止执行或宣称。
+
+## Stage 059 - V17 DBB微多普勒摘要单因素配对
+
+目标：验证当前事件原始复数I/Q中的帧内微多普勒时间结构能否补充已被现有MTD/RD平均弱化的信息，并改善DBB specialist中的Drone/Bird判别。Control为V16 DBB基础输入加既有四维`rd_physical`，Treatment仅再加入三维微多普勒摘要；不改变Gate、CU、拒识、stable、液态容量、loss、split或checkpoint选择协议。
+
+前置依赖：V16 capture/content grouped index、provenance、全train normalization和DBB label/split保持冻结；原始CQ08解析已由12文件审计及Track 333专项审计验证，V17代表帧再次与现有MATLAB目标距离行交叉核验。
+
+状态：target-anchored v3全量prepare、两臂20 epoch正式训练与paired validation均已完成；冻结结论为`completed_but_gate_failed`。Treatment own-best仅使Bird Recall增加1.79个百分点，同时Bird Precision下降4.66个百分点、Bird F1下降1.44个百分点、Macro-F1下降0.37个百分点，并把Drone→Bird由3增至6。该方向在V17失败收口，不进入多seed、完整级联、OOF、test、正式拒识、stable或P95。
+
+最小子任务：
+
+- [x] 冻结三维Treatment输入：峰频带能量时间CV（截断0–2后除2）、`-10 dB`物理速度谱展宽占64速度bin比例、自相关调制周期（截断0–0.1秒后除0.1；不可估计为0）。
+- [x] 冻结当前事件因果范围：每个TR事件只消费V16 index映射的当前raw frame；禁止读取先前/未来事件、parent统计、标签、路径、sample ID或模型输出。每事件最多12帧，摘要按帧中位数聚合。
+- [x] 使用MATLAB审计口径按Fortran列序解析`[31,PRTnum]`复数I/Q；以Taylor MTD和目标record多普勒邻域复现既有局部目标距离行，再对该距离行执行Hann 50%重叠、FFT=128的STFT。
+- [x] 修复raw帧映射语义：确认V16字段`rd_raw_frame_indices_json`实际继承自`enumerate(rd_mat_files)`，属于MAT列表零基序号，不能直接索引完整`.dat`帧列表。V17现按`parent_sample_id+rd_tensor_frame_indices_json`回连SHA-256绑定的canonical frame index，从`rd_mat_path`文件名解析一基采集帧号，再减一得到真实raw-DAT帧号，并逐帧核验track、track point、tensor path和raw target record。
+- [x] 建立完整STFT证据缓存：每帧`64×16 float16`，速度轴`[-85,85] m/s`；完整张量、raw frame index、逐帧原始摘要、目标距离行及采样元数据只用于证据审计，不进入本轮模型。
+- [x] 将STFT证据缓存升级为v2并分别保存`legacy_mat_list_ordinals_zero_based`、`canonical_tensor_frame_indices_zero_based`、`mat_acquisition_frame_numbers_one_based`和`raw_dat_frame_indices_zero_based`；旧MAT ordinal永不再作为raw-DAT索引。
+- [x] 修复全局STFT峰夺取目标频带：在已由局部MTD无标签定位的目标Doppler±8 m/s内选择最强积分STFT峰，CV与调制周期围绕该目标局部峰计算，`-10 dB`展宽改为围绕目标局部峰的连续谱瓣；全局STFT峰仅保留为证据诊断，不进入模型。为防止目标锚定后的几何覆盖检查按定义通过，另冻结独立能量门槛：至少90% train帧的目标局部峰/全局峰功率比≥0.10（即目标峰不低于全局峰−10 dB）；validation只报告。summary/STFT、paired protocol、checkpoint、readiness分别升级到v3/v3/v3/v4，并使用独立`target-anchored-v3`缓存、配置、artifact和报告路径，旧v2 blocked产物只读保留。
+- [x] 建立版本化Control/Treatment共享缓存、manifest、data contract和配置生成器；只处理DBB train/val，test raw/RD payload访问固定为0；不同既有文件拒绝覆盖，Windows ACL继承后立即回读校验。
+- [x] 扩展Dataset、Fusion、checkpoint和在线同源接口。两臂共同使用四维`rd_physical`；Treatment新增三列。微多普勒valid必须与RD-physical valid逐值相同，valid mask仅门控、不作为分类特征。
+- [x] 建立配对初始化：共享40个参数/缓冲条目逐位相同，Control/Treatment Fusion输入维度`83/86`，Treatment新增3列严格置零，初始logits逐位相同，新增列梯度非零。
+- [x] 冻结训练协议：seed/DataLoader seed=42，20 epoch，关闭early stopping，保存每epoch checkpoint，保持V16 parent-final主损失加0.10 prefix辅助，parent顺序逐epochhash一致。
+- [x] 冻结train-only readiness：三特征非退化、调制周期可估帧≥5%、至少一项Drone/Bird robust effect绝对值≥0.10；同时审计PRTnum/PRT秒/载频与标签的Cramér's V≤0.50，要求至少一个共享采样模式内的Drone/Bird effect仍≥0.10，并要求至少90%逐帧STFT积分峰的±8 m/s频带覆盖局部MTD目标多普勒。validation仅报告，不参与是否启动训练。
+- [x] 将readiness v4作为训练入口硬依赖：同时绑定Control/Treatment配置路径与SHA-256、数据contract hashes、canonical frame-index SHA-256和所有train-only checks；直接调用`train.tasks`也不能绕过prepare，训练摘要记录readiness SHA-256。冻结V16下train必须检出Track 1010共46个legacy/raw偏移帧且val为0，否则阻止训练。
+- [x] 冻结paired验收：Treatment三类逐类Precision/Recall/F1均≥0.95；parent Macro-F1及Drone/Bird两类中较弱的P/R/F1 floor严格改善；Drone→Bird和Bird→Drone均不增加且双向错误至少减少1个parent；Balloon正确parent最多损失1个；至少两个不同same-epoch归因护栏改善（若三锚点实际只有一个不同epoch，则该唯一护栏必须改善）。
+- [x] 修正旧可行性探针结论：`Drone CV=0.52 vs Bird CV=0.13`来自错误Python I/Q reshape，已失效，不能作为收益证据。MATLAB口径三条代表事件归一化CV为Drone Track 1=`0.127563`、Bird Track 333=`0.181750`、Balloon Track 3010=`0.060699`，仅作Smoke而非分布结论。
+- [x] focused Smoke通过：Drone/Bird/Balloon各3帧共9帧目标距离行与MATLAB逐值一致；Control/Treatment初始logits一致；新增列梯度最大值=`0.666845`；offline/online首事件logits误差=0；两臂checkpoint round-trip通过。
+- [x] target-anchored v3 focused Smoke通过：代表帧Python局部MTD Doppler与MATLAB `detected_doppler_mps`最大误差≤`0.01083 m/s`；合成强零速杂波反例中全局峰误差=`20.8982 m/s`，目标局部峰误差=`0.6891 m/s`且保持在±8 m/s内；缓存字段、readiness绑定和配对初始化通过。
+- [x] Track 1010缺MAT反例Smoke通过：`.dat`共54帧、MAT仅保留采集帧9–54；canonical tensor 0/legacy ordinal 0对应MAT采集帧9和真实raw-DAT index 8。旧index 0落到track point 1且与MAT I/Q最大绝对差=`277.504744`，新index 8落到track point 3且MAT I/Q误差=`0`。46/46保留MAT帧的I/Q误差均为0且track point全部匹配；真实`_build_split`内存Smoke完整处理18事件（16有效、2缺RD），四套索引序列精确为legacy/tensor=`0–45`、MAT=`9–54`、raw-DAT=`8–53`。全canonical frame index共106026行，只有Track 1010的46行发生偏移，统一为`+8`。
+- [x] V16 product-local回归、全`src-v3` compileall、静态隔离、PowerShell AST和`git diff --check`通过；未运行全量V17数据处理或正式训练。
+- [x] 新建`src-v3/scripts/v17_micro_doppler_paired_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量；任一步失败停止，已完成arm可只读复核；`status=failed`且存在完整`last_model.pt`时可恢复，epoch20后只重建最终评估/摘要且不重复optimizer step，其他非空状态fail-closed。
+- [x] 用户手动运行target-anchored v3 `prepare`：train/val缓存、data contract、manifest和配置构建完成；train-only readiness v4全部检查通过，validation不参与放行且test payload访问为0。
+- [x] 用户手动运行Control/Treatment正式20 epoch训练及paired validation：两臂parent顺序和初始logits护栏通过；paired状态为`completed_but_gate_failed`，三类0.95门槛、own-best Macro-F1、Drone→Bird和双向错误门槛未通过。
+- [x] 完成parent-final错误簇归因：10条轨迹改变预测，5条由对变错、4条由错变对、1条错误类改变；Bird正确数仅`50→51`，Drone→Bird为`3→6`，总正确数`209→208`。
+- [x] 完成same-epoch/checkpoint归因：epoch 15和20同epoch下Treatment Bird Recall均不高于Control；own-best Recall上升受独立best epoch混杂，epoch 18/19仅作诊断且不事后追认best。
+- [x] 完成采样模式/物理语义归因：全局Bird高CV/宽谱方向在PRTnum=142模式中反转，Track 4237/4238为该模式下极端Drone并从首个eligible prefix持续被判Bird；优先瓶颈为mode-invariant特征尺度与周期可估语义，不是简单液态容量或末期状态漂移。
+- [ ] 多seed确认、完整级联、OOF、test、正式拒识、stable、P95和部署：均未执行；仅当seed42局部paired门槛通过后再讨论多seed。
+
+实验假设：若现有MTD/RD聚合确实丢失对Drone旋翼与Bird扑翼有用的帧内幅度调制结构，则Treatment应在同初始化、同parent顺序、同RD-physical输入下减少Drone↔Bird错误；若train-only特征只反映采样模式、不可估计率过高，或Treatment只改善train loss/单个epoch而未通过不同same-epoch护栏，则拒绝该方向。
+
+版本策略：完整STFT证据、三维输入、cache/manifest/data contract、Fusion维度和checkpoint contract均发生实质变化，使用新版本V17。V16 index/split/provenance/normalization内容只读复用并绑定原SHA-256；不覆盖V16 checkpoint或配置。
+
+是否达到训练状态：正式局部配对已训练并完成validation，但性能门槛失败；V17不再处于“待训练”，而是“实验完成、不得晋级”状态。
+
+阻塞条件：Treatment三类逐类P/R/F1未达到0.95，own-best Macro-F1下降、Drone→Bird和双向错误增加，same-epoch归因门槛失败；因此阻止V17多seed、完整五类、开放集、CU、stable和部署实验。若未来重开，必须使用新版本并先冻结mode-invariant物理摘要、feature-specific可估语义和checkpoint层级规则，不能在本V17结果上回看validation调参。

@@ -25,7 +25,7 @@ import re
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -48,6 +48,14 @@ from .features import (
 )
 from .losses import parent_final_task_ce_with_prefix_auxiliary
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
+from .micro_doppler import (
+    MICRO_DOPPLER_MASK_MODE,
+    MICRO_DOPPLER_NAMES,
+    MICRO_DOPPLER_SCHEMA,
+    MICRO_DOPPLER_VALUE_DIM,
+    extract_current_event_micro_doppler,
+    micro_doppler_contract,
+)
 from .rd_physical import (
     RD_PHYSICAL_MASK_MODE,
     RD_PHYSICAL_NAMES,
@@ -92,6 +100,10 @@ HIERARCHICAL_CU_OUTPUT_NAMES = (
 STRICT_OPEN_SET_SCHEMA_VERSION = "RADAR-LN3-V14"
 ANGULAR_KNOWNNESS_SCHEMA_VERSION = "RADAR-LN3-V15"
 PRODUCT_LOCAL_SCHEMA_VERSION = "RADAR-LN3-V16"
+MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V17"
+MICRO_DOPPLER_PAIRED_PROTOCOL = (
+    "v17-dbb-rd-physical4-control-versus-plus-target-anchored-micro-doppler3-treatment-v3"
+)
 PRODUCT_LOCAL_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 PRODUCT_LOCAL_CHECKPOINT_SELECTION = "parent_min_precision_recall"
 STRICT_OPEN_SET_LOSS_MODE = "parent_final_known_only_open_set_nll_with_prefix_auxiliary"
@@ -122,7 +134,11 @@ DBB_ANGULAR_MARGIN = 0.20
 DBB_ANGULAR_PAIRED_PROTOCOL = "v15-linear-control-v15-angular-prototype-treatment-v1"
 DT_REASON_DYNAMICS_MODE = "v3_reason_aware_dynamics_only"
 FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
-    {RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION, DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION}
+    {
+        RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
+        DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
+        MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+    }
 )
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
 _TASK_SCHEMA_PATTERN = re.compile(r"^RADAR-LN3-V(?P<version>\d+)$")
@@ -144,7 +160,10 @@ def is_strict_open_set_schema(schema_version: str) -> bool:
 
 
 def is_product_local_schema(schema_version: str) -> bool:
-    return str(schema_version) == PRODUCT_LOCAL_SCHEMA_VERSION
+    return str(schema_version) in {
+        PRODUCT_LOCAL_SCHEMA_VERSION,
+        MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+    }
 
 
 def requires_task_config_identity(schema_version: str) -> bool:
@@ -260,6 +279,20 @@ class TaskDataConfig:
     validation_rd_physical_cache_path: str | None
     expected_train_rd_physical_cache_sha256: str | None
     expected_validation_rd_physical_cache_sha256: str | None
+    micro_doppler_schema: str | None
+    micro_doppler_mask_mode: str | None
+    micro_doppler_cache_manifest_path: str | None
+    expected_micro_doppler_cache_manifest_sha256: str | None
+    train_micro_doppler_cache_path: str | None
+    validation_micro_doppler_cache_path: str | None
+    expected_train_micro_doppler_cache_sha256: str | None
+    expected_validation_micro_doppler_cache_sha256: str | None
+    train_micro_doppler_stft_cache_path: str | None
+    validation_micro_doppler_stft_cache_path: str | None
+    expected_train_micro_doppler_stft_cache_sha256: str | None
+    expected_validation_micro_doppler_stft_cache_sha256: str | None
+    micro_doppler_frame_provenance_path: str | None
+    expected_micro_doppler_frame_provenance_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -285,6 +318,7 @@ class TaskModelConfig:
     rd_frame_aggregation: str
     tr_motion_dim: int
     rd_physical_dim: int
+    micro_doppler_dim: int
     dbb_auxiliary_num_classes: int
     dt_reason_mode: str
     dbb_readout_mode: str
@@ -364,6 +398,26 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
             "dbb_knownness_score_name",
         ):
             model_identity.pop(field_name)
+    data_identity = asdict(config.data)
+    if config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        model_identity.pop("micro_doppler_dim")
+        for field_name in (
+            "micro_doppler_schema",
+            "micro_doppler_mask_mode",
+            "micro_doppler_cache_manifest_path",
+            "expected_micro_doppler_cache_manifest_sha256",
+            "train_micro_doppler_cache_path",
+            "validation_micro_doppler_cache_path",
+            "expected_train_micro_doppler_cache_sha256",
+            "expected_validation_micro_doppler_cache_sha256",
+            "train_micro_doppler_stft_cache_path",
+            "validation_micro_doppler_stft_cache_path",
+            "expected_train_micro_doppler_stft_cache_sha256",
+            "expected_validation_micro_doppler_stft_cache_sha256",
+            "micro_doppler_frame_provenance_path",
+            "expected_micro_doppler_frame_provenance_sha256",
+        ):
+            data_identity.pop(field_name)
     train_identity = asdict(config.train)
     if not is_product_local_schema(config.schema_version):
         train_identity.pop("task_min_precision_recall_target")
@@ -376,7 +430,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
             "label_to_id": dict(config.task.label_to_id),
             "allowed_base_labels": sorted(config.task.allowed_base_labels),
         },
-        "data": asdict(config.data),
+        "data": data_identity,
         "model": model_identity,
         "train": train_identity,
     }
@@ -491,6 +545,79 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             if data_payload.get("expected_validation_rd_physical_cache_sha256") is None
             else str(data_payload["expected_validation_rd_physical_cache_sha256"])
         ),
+        micro_doppler_schema=(
+            None
+            if data_payload.get("micro_doppler_schema") is None
+            else str(data_payload["micro_doppler_schema"])
+        ),
+        micro_doppler_mask_mode=(
+            None
+            if data_payload.get("micro_doppler_mask_mode") is None
+            else str(data_payload["micro_doppler_mask_mode"])
+        ),
+        micro_doppler_cache_manifest_path=(
+            None
+            if data_payload.get("micro_doppler_cache_manifest_path") is None
+            else str(data_payload["micro_doppler_cache_manifest_path"])
+        ),
+        expected_micro_doppler_cache_manifest_sha256=(
+            None
+            if data_payload.get("expected_micro_doppler_cache_manifest_sha256") is None
+            else str(data_payload["expected_micro_doppler_cache_manifest_sha256"])
+        ),
+        train_micro_doppler_cache_path=(
+            None
+            if data_payload.get("train_micro_doppler_cache_path") is None
+            else str(data_payload["train_micro_doppler_cache_path"])
+        ),
+        validation_micro_doppler_cache_path=(
+            None
+            if data_payload.get("validation_micro_doppler_cache_path") is None
+            else str(data_payload["validation_micro_doppler_cache_path"])
+        ),
+        expected_train_micro_doppler_cache_sha256=(
+            None
+            if data_payload.get("expected_train_micro_doppler_cache_sha256") is None
+            else str(data_payload["expected_train_micro_doppler_cache_sha256"])
+        ),
+        expected_validation_micro_doppler_cache_sha256=(
+            None
+            if data_payload.get("expected_validation_micro_doppler_cache_sha256") is None
+            else str(data_payload["expected_validation_micro_doppler_cache_sha256"])
+        ),
+        train_micro_doppler_stft_cache_path=(
+            None
+            if data_payload.get("train_micro_doppler_stft_cache_path") is None
+            else str(data_payload["train_micro_doppler_stft_cache_path"])
+        ),
+        validation_micro_doppler_stft_cache_path=(
+            None
+            if data_payload.get("validation_micro_doppler_stft_cache_path") is None
+            else str(data_payload["validation_micro_doppler_stft_cache_path"])
+        ),
+        expected_train_micro_doppler_stft_cache_sha256=(
+            None
+            if data_payload.get("expected_train_micro_doppler_stft_cache_sha256") is None
+            else str(data_payload["expected_train_micro_doppler_stft_cache_sha256"])
+        ),
+        expected_validation_micro_doppler_stft_cache_sha256=(
+            None
+            if data_payload.get("expected_validation_micro_doppler_stft_cache_sha256") is None
+            else str(data_payload["expected_validation_micro_doppler_stft_cache_sha256"])
+        ),
+        micro_doppler_frame_provenance_path=(
+            None
+            if data_payload.get("micro_doppler_frame_provenance_path") is None
+            else str(data_payload["micro_doppler_frame_provenance_path"])
+        ),
+        expected_micro_doppler_frame_provenance_sha256=(
+            None
+            if data_payload.get("expected_micro_doppler_frame_provenance_sha256")
+            is None
+            else str(
+                data_payload["expected_micro_doppler_frame_provenance_sha256"]
+            )
+        ),
     )
     if data.rd_amplitude_scale <= 0.0:
         raise ValueError("task data rd_amplitude_scale must be positive")
@@ -521,6 +648,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         rd_frame_aggregation=str(model_payload.get("rd_frame_aggregation", "masked_mean")),
         tr_motion_dim=int(model_payload.get("tr_motion_dim", 0)),
         rd_physical_dim=int(model_payload.get("rd_physical_dim", 0)),
+        micro_doppler_dim=int(model_payload.get("micro_doppler_dim", 0)),
         dbb_auxiliary_num_classes=int(model_payload.get("dbb_auxiliary_num_classes", 0)),
         dt_reason_mode=str(model_payload.get("dt_reason_mode", "legacy_dt_valid_only")),
         dbb_readout_mode=str(model_payload.get("dbb_readout_mode", DBB_READOUT_LINEAR)),
@@ -601,6 +729,22 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         data.expected_train_rd_physical_cache_sha256,
         data.expected_validation_rd_physical_cache_sha256,
     )
+    micro_doppler_fields = (
+        data.micro_doppler_schema,
+        data.micro_doppler_mask_mode,
+        data.micro_doppler_cache_manifest_path,
+        data.expected_micro_doppler_cache_manifest_sha256,
+        data.train_micro_doppler_cache_path,
+        data.validation_micro_doppler_cache_path,
+        data.expected_train_micro_doppler_cache_sha256,
+        data.expected_validation_micro_doppler_cache_sha256,
+        data.train_micro_doppler_stft_cache_path,
+        data.validation_micro_doppler_stft_cache_path,
+        data.expected_train_micro_doppler_stft_cache_sha256,
+        data.expected_validation_micro_doppler_stft_cache_sha256,
+        data.micro_doppler_frame_provenance_path,
+        data.expected_micro_doppler_frame_provenance_sha256,
+    )
     if schema_number < _task_schema_number(RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION):
         if model.rd_physical_dim != 0 or any(value is not None for value in physical_fields):
             raise ValueError("task schemas before RADAR-LN3-V11 must not enable RD physical paired inputs")
@@ -620,8 +764,30 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
                 raise ValueError("V11 Treatment requires manifest, train/val cache paths and hashes")
         elif any(value is not None for value in physical_fields):
             raise ValueError("V11 Control must not configure or load an RD physical cache")
+    elif schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        if spec.name != "dbb_specialist" or motion_fields_present:
+            raise ValueError("RADAR-LN3-V17 is restricted to the DBB specialist without TR derived inputs")
+        if model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
+            raise ValueError("RADAR-LN3-V17 Control and Treatment both require the frozen four RD physical values")
+        if (data.rd_physical_schema, data.rd_physical_mask_mode) != (
+            RD_PHYSICAL_SCHEMA,
+            RD_PHYSICAL_MASK_MODE,
+        ) or any(value is None for value in physical_fields[2:]):
+            raise ValueError("RADAR-LN3-V17 requires the frozen RD physical cache contract in both arms")
+        if model.micro_doppler_dim not in {0, MICRO_DOPPLER_VALUE_DIM}:
+            raise ValueError("RADAR-LN3-V17 micro_doppler_dim must be 0 for Control or 3 for Treatment")
+        if (data.micro_doppler_schema, data.micro_doppler_mask_mode) != (
+            MICRO_DOPPLER_SCHEMA,
+            MICRO_DOPPLER_MASK_MODE,
+        ) or any(value is None for value in micro_doppler_fields[2:]):
+            raise ValueError("RADAR-LN3-V17 requires versioned summary and STFT cache paths/hashes")
     elif model.rd_physical_dim != 0 or any(value is not None for value in physical_fields):
         raise ValueError("task schemas after RADAR-LN3-V11 must not silently retain the V11 RD physical treatment")
+    if (
+        schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        and (model.micro_doppler_dim != 0 or any(value is not None for value in micro_doppler_fields))
+    ):
+        raise ValueError("micro-Doppler inputs and cache fields are reserved for RADAR-LN3-V17")
     if schema_number < _task_schema_number(DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION):
         if model.dbb_auxiliary_num_classes != 0:
             raise ValueError("task schemas before RADAR-LN3-V12 must not enable the DBB auxiliary head")
@@ -844,6 +1010,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         ):
             raise ValueError("DBB angular readout fields are reserved for RADAR-LN3-V15")
     elif is_product_local_schema(schema_version):
+        is_v17_micro = schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
         if train.loss_mode != PRODUCT_LOCAL_LOSS_MODE:
             raise ValueError(f"{schema_version} task training must use {PRODUCT_LOCAL_LOSS_MODE}")
         if train.checkpoint_selection_metric != PRODUCT_LOCAL_CHECKPOINT_SELECTION:
@@ -864,34 +1031,50 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(f"{schema_version} prefix auxiliary supervision must start at event 3 or later")
         if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
             raise ValueError(f"{schema_version} model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
-        if data.contract_schema_version != schema_version or data.index_schema_version != schema_version:
-            raise ValueError(f"{schema_version} must consume its own index and data contract")
-        if model.dbb_auxiliary_num_classes != 0 or model.rd_physical_dim != 0 or motion_fields_present:
-            raise ValueError(f"{schema_version} local baseline must not retain V9-V12 experimental inputs or heads")
+        expected_index_schema = (
+            PRODUCT_LOCAL_SCHEMA_VERSION if is_v17_micro else schema_version
+        )
+        if (
+            data.contract_schema_version != schema_version
+            or data.index_schema_version != expected_index_schema
+        ):
+            raise ValueError(
+                f"{schema_version} must consume its approved index/data contract versions"
+            )
+        if model.dbb_auxiliary_num_classes != 0 or motion_fields_present:
+            raise ValueError(f"{schema_version} local task must not retain auxiliary or TR-motion branches")
+        if not is_v17_micro and (model.rd_physical_dim != 0 or model.micro_doppler_dim != 0):
+            raise ValueError("RADAR-LN3-V16 local baseline must not retain experimental physical inputs")
+        if is_v17_micro and spec.name != "dbb_specialist":
+            raise ValueError("RADAR-LN3-V17 is a DBB-specialist-only paired experiment")
         if train.epochs != 20 or train.early_stopping_patience != 0:
             raise ValueError(f"{schema_version} requires 20 fixed epochs with early stopping disabled")
         if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
             raise ValueError(f"{schema_version} requires epoch checkpoints and parent-order hashes")
         if train.dataloader_seed != train.seed:
             raise ValueError(f"{schema_version} model seed and DataLoader seed must match")
-        if any(
+        forbidden_product_fields = (
+            train.joint_artifact_dir,
+            train.joint_last_checkpoint_path,
+            train.joint_best_checkpoint_path,
+            train.joint_checkpoint_schema,
+            train.gate_min_precision_recall_target,
+            train.dbb_min_precision_recall_target,
+            train.cu_min_precision_recall_target,
+            train.drone_bird_min_precision_recall_target,
+        )
+        if any(value is not None for value in forbidden_product_fields):
+            raise ValueError(f"{schema_version} local task is not joint product training")
+        if not is_v17_micro and any(
             value is not None
             for value in (
                 train.paired_protocol,
                 train.paired_arm,
                 train.paired_seed,
                 train.paired_counterpart_config_path,
-                train.joint_artifact_dir,
-                train.joint_last_checkpoint_path,
-                train.joint_best_checkpoint_path,
-                train.joint_checkpoint_schema,
-                train.gate_min_precision_recall_target,
-                train.dbb_min_precision_recall_target,
-                train.cu_min_precision_recall_target,
-                train.drone_bird_min_precision_recall_target,
             )
         ):
-            raise ValueError(f"{schema_version} is three independent local runs, not paired or joint training")
+            raise ValueError("RADAR-LN3-V16 is three independent local runs, not paired training")
         if (
             model.dbb_readout_mode != DBB_READOUT_LINEAR
             or model.dbb_embedding_dim != 0
@@ -952,6 +1135,25 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError("V12 paired training requires an explicit counterpart config path")
         if train.cuda_deterministic_algorithms:
             raise ValueError("V12 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
+    elif schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        expected_arm = "treatment" if model.micro_doppler_dim else "control"
+        if (
+            train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
+            or train.paired_arm != expected_arm
+        ):
+            raise ValueError("V17 paired protocol/arm does not match the configured micro-Doppler input")
+        if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
+            raise ValueError("V17 paired seed, model seed and DataLoader seed must be identical")
+        if train.seed != 42:
+            raise ValueError("V17 fast paired screening is frozen to seed 42")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError("V17 paired training requires exactly 20 epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError("V17 paired training requires epoch checkpoints and parent-order hashes")
+        if train.paired_counterpart_config_path is None:
+            raise ValueError("V17 paired training requires an explicit counterpart config path")
+        if train.cuda_deterministic_algorithms:
+            raise ValueError("V17 fixes initialization/sampling only and must not claim strict CUDA determinism")
     elif (
         train.dbb_auxiliary_loss_weight != 0.0
         or train.dbb_auxiliary_class_weights
@@ -1082,6 +1284,150 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
                 "hashes": actual_physical_hashes,
                 "test_excluded": True,
             }
+    micro_doppler_evidence: dict[str, Any] | None = None
+    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        if feature_contract.get("rd_physical") != rd_physical_contract():
+            raise ValueError("V17 data contract RD physical fields do not match the frozen extractor")
+        if feature_contract.get("micro_doppler") != micro_doppler_contract():
+            raise ValueError("V17 data contract micro-Doppler fields do not match the frozen extractor")
+        scope = dict(contract.get("v17_scope") or {})
+        if (
+            scope.get("task") != "dbb_specialist"
+            or scope.get("labels") != list(DBB_AUXILIARY_CLASS_NAMES)
+            or scope.get("splits_processed") != ["train", "val"]
+            or scope.get("complete_stft_tensor_is_model_input") is not False
+            or int(scope.get("test_raw_payload_access_count", -1)) != 0
+            or int(scope.get("test_rd_payload_access_count", -1)) != 0
+        ):
+            raise ValueError("V17 data contract scope allows a non-DBB, test or STFT-model-input deviation")
+        manifest_path = resolve_project_path(
+            project_root, config.data.micro_doppler_cache_manifest_path or ""
+        )
+        if resolve_project_path(
+            project_root, config.data.rd_physical_cache_manifest_path or ""
+        ).resolve() != manifest_path.resolve():
+            raise ValueError("V17 RD physical and micro-Doppler evidence must share one manifest")
+        paths = {
+            "manifest": manifest_path,
+            "train_physical": resolve_project_path(
+                project_root, config.data.train_rd_physical_cache_path or ""
+            ),
+            "validation_physical": resolve_project_path(
+                project_root, config.data.validation_rd_physical_cache_path or ""
+            ),
+            "train_summary": resolve_project_path(
+                project_root, config.data.train_micro_doppler_cache_path or ""
+            ),
+            "validation_summary": resolve_project_path(
+                project_root, config.data.validation_micro_doppler_cache_path or ""
+            ),
+            "train_stft": resolve_project_path(
+                project_root, config.data.train_micro_doppler_stft_cache_path or ""
+            ),
+            "validation_stft": resolve_project_path(
+                project_root, config.data.validation_micro_doppler_stft_cache_path or ""
+            ),
+            "frame_provenance": resolve_project_path(
+                project_root,
+                config.data.micro_doppler_frame_provenance_path or "",
+            ),
+        }
+        expected_v17_hashes = {
+            "manifest": config.data.expected_micro_doppler_cache_manifest_sha256,
+            "train_physical": config.data.expected_train_rd_physical_cache_sha256,
+            "validation_physical": config.data.expected_validation_rd_physical_cache_sha256,
+            "train_summary": config.data.expected_train_micro_doppler_cache_sha256,
+            "validation_summary": config.data.expected_validation_micro_doppler_cache_sha256,
+            "train_stft": config.data.expected_train_micro_doppler_stft_cache_sha256,
+            "validation_stft": config.data.expected_validation_micro_doppler_stft_cache_sha256,
+            "frame_provenance": config.data.expected_micro_doppler_frame_provenance_sha256,
+        }
+        actual_v17_hashes = {name: sha256_file(path) for name, path in paths.items()}
+        if expected_v17_hashes != actual_v17_hashes:
+            raise ValueError(
+                "V17 physical/summary/STFT cache hash mismatch: "
+                f"expected={expected_v17_hashes}, actual={actual_v17_hashes}"
+            )
+        if (
+            config.data.expected_rd_physical_cache_manifest_sha256
+            != config.data.expected_micro_doppler_cache_manifest_sha256
+        ):
+            raise ValueError("V17 config binds different hashes for the shared evidence manifest")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (
+            manifest.get("schema_version") != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            or manifest.get("manifest_type")
+            != "cq08_dbb_current_event_target_anchored_micro_doppler_paired_cache_v3"
+            or manifest.get("paired_protocol") != MICRO_DOPPLER_PAIRED_PROTOCOL
+            or manifest.get("rd_physical_contract") != rd_physical_contract()
+            or manifest.get("micro_doppler_contract") != micro_doppler_contract()
+            or manifest.get("test_excluded") is not True
+            or int(manifest.get("test_raw_payload_access_count", -1)) != 0
+            or int(manifest.get("test_rd_payload_access_count", -1)) != 0
+            or manifest.get("data_contract_sha256") != actual_hashes["contract_sha256"]
+            or manifest.get("source_canonical_frame_index_sha256")
+            != actual_v17_hashes["frame_provenance"]
+            or manifest.get("legacy_mat_list_ordinal_is_raw_dat_frame_index") is not False
+        ):
+            raise ValueError("V17 cache manifest violates paired extractor, contract or test sealing")
+        manifest_files = dict(manifest.get("cache_files") or {})
+        expected_stft_fields = {
+            "sample_ids",
+            "valid",
+            "event_offsets",
+            "stft_tensors",
+            "raw_dat_frame_indices_zero_based",
+            "legacy_mat_list_ordinals_zero_based",
+            "canonical_tensor_frame_indices_zero_based",
+            "mat_acquisition_frame_numbers_one_based",
+            "frame_raw_summaries",
+            "frame_period_estimable",
+            "target_range_indices",
+            "target_doppler_indices",
+            "target_doppler_mps",
+            "target_local_stft_peak_velocity_mps",
+            "global_stft_peak_velocity_mps",
+            "target_local_peak_power_ratio_to_global",
+            "native_time_bin_counts",
+            "frame_prt_num",
+            "frame_prt_seconds",
+            "frame_frequency_hz",
+            "frame_cpi_count",
+        }
+        if set(
+            dict(manifest.get("cache_alignment_fields") or {}).get("stft") or []
+        ) != expected_stft_fields:
+            raise ValueError("V17 manifest lacks the repaired raw-frame mapping fields")
+        for split, prefix in (("train", "train"), ("val", "validation")):
+            split_files = dict(manifest_files.get(split) or {})
+            for kind, suffix in (
+                ("physical", "physical"),
+                ("summary", "summary"),
+                ("stft", "stft"),
+            ):
+                expected_hash = actual_v17_hashes[f"{prefix}_{suffix}"]
+                if dict(split_files.get(kind) or {}).get("sha256") != expected_hash:
+                    raise ValueError(f"V17 manifest {split}/{kind} hash does not match the configured cache")
+        physical_evidence = {
+            "paths": {
+                name: str(path)
+                for name, path in paths.items()
+                if name in {"manifest", "train_physical", "validation_physical"}
+            },
+            "hashes": {
+                name: value
+                for name, value in actual_v17_hashes.items()
+                if name in {"manifest", "train_physical", "validation_physical"}
+            },
+            "test_excluded": True,
+        }
+        micro_doppler_evidence = {
+            "paths": {name: str(path) for name, path in paths.items()},
+            "hashes": actual_v17_hashes,
+            "complete_stft_tensor_is_model_input": False,
+            "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
+            "test_excluded": True,
+        }
     stats = json.loads(stats_path.read_text(encoding="utf-8"))
     amplitude = dict(stats.get("amplitude", {}))
     center = float(amplitude.get("center"))
@@ -1321,6 +1667,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         "hashes": actual_hashes,
         "contract": contract,
         "rd_physical": physical_evidence,
+        "micro_doppler": micro_doppler_evidence,
     }
 
 
@@ -1414,7 +1761,20 @@ def build_task_dataset(
             rd_physical_cache_path = config.data.validation_rd_physical_cache_path
         else:
             raise PermissionError(
-                "V11 RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
+                "RD physical Dataset is restricted to versioned train/val caches; test remains sealed"
+            )
+    micro_doppler_cache_path: str | None = None
+    if (
+        config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        or config.model.micro_doppler_dim
+    ):
+        if split_name == config.data.train_split_name:
+            micro_doppler_cache_path = config.data.train_micro_doppler_cache_path
+        elif split_name == config.data.validation_split_name:
+            micro_doppler_cache_path = config.data.validation_micro_doppler_cache_path
+        else:
+            raise PermissionError(
+                "V17 micro-Doppler Dataset is restricted to versioned train/val caches; test remains sealed"
             )
     strict_open_set = is_strict_open_set_schema(config.schema_version)
     task_filtered_base = strict_open_set or is_product_local_schema(config.schema_version)
@@ -1431,6 +1791,7 @@ def build_task_dataset(
         expected_schema_version=config.data.index_schema_version,
         tr_motion_schema=config.data.tr_motion_schema if config.model.tr_motion_dim > 0 else None,
         rd_physical_cache_path=rd_physical_cache_path,
+        micro_doppler_cache_path=micro_doppler_cache_path,
         allowed_labels=config.task.allowed_base_labels if task_filtered_base else None,
         forbidden_labels={UNKNOWN_BASE_LABEL} if strict_open_set else None,
     )
@@ -1578,6 +1939,7 @@ class LiquidTaskClassifier(nn.Module):
         self.tr_motion_schema = config.data.tr_motion_schema
         self.tr_motion_mask_mode = config.data.tr_motion_mask_mode
         self.rd_physical_dim = model.rd_physical_dim
+        self.micro_doppler_dim = model.micro_doppler_dim
         self.dbb_auxiliary_num_classes = model.dbb_auxiliary_num_classes
         self.dt_reason_mode = model.dt_reason_mode
         self.dbb_readout_mode = model.dbb_readout_mode
@@ -1587,6 +1949,8 @@ class LiquidTaskClassifier(nn.Module):
         self.dbb_knownness_score_name = model.dbb_knownness_score_name
         self.rd_physical_schema = config.data.rd_physical_schema
         self.rd_physical_mask_mode = config.data.rd_physical_mask_mode
+        self.micro_doppler_schema = config.data.micro_doppler_schema
+        self.micro_doppler_mask_mode = config.data.micro_doppler_mask_mode
         self.tr_motion_contract = (
             resolve_causal_tr_feature_contract(self.tr_motion_schema)
             if self.tr_motion_dim
@@ -1627,14 +1991,22 @@ class LiquidTaskClassifier(nn.Module):
             + model.rd_quality_dim
             + fusion_dt_valid_dim
             + self.rd_physical_dim
+            + self.micro_doppler_dim
         )
         self.fusion_input_dim = fusion_dim
         fusion_linear: nn.Module
-        if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+        if config.schema_version in {
+            RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
+            MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        }:
             fusion_linear = PairedFusionLinear(
                 fusion_dim,
                 model.liquid_hidden_dim,
-                base_input_dim=fusion_dim - self.rd_physical_dim,
+                base_input_dim=(
+                    fusion_dim - self.rd_physical_dim
+                    if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION
+                    else fusion_dim - self.micro_doppler_dim
+                ),
             )
         else:
             fusion_linear = nn.Linear(fusion_dim, model.liquid_hidden_dim)
@@ -1704,7 +2076,9 @@ class LiquidTaskClassifier(nn.Module):
         """
 
         if self.rd_physical_dim != RD_PHYSICAL_VALUE_DIM:
-            raise ValueError("online RD physical extraction is available only for the V11 Treatment")
+            raise ValueError(
+                "online RD physical extraction requires a configured four-value RD physical input"
+            )
         amplitude = np.asarray(amplitude_db)
         if amplitude.ndim != 3:
             raise ValueError("online RD physical amplitude must have shape [frames,21,384]")
@@ -1731,6 +2105,32 @@ class LiquidTaskClassifier(nn.Module):
             "rd_physical_valid": torch.tensor([event.valid], dtype=torch.bool, device=parameter.device),
         }
 
+    def prepare_online_micro_doppler(
+        self,
+        frames: Sequence[Any],
+        raw_frame_indices: Iterable[int],
+        *,
+        track_point_index: int,
+    ) -> dict[str, torch.Tensor]:
+        """Run the frozen V17 current-event raw-I/Q extractor online."""
+
+        if self.micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM:
+            raise ValueError("online micro-Doppler extraction is available only for V17 Treatment")
+        event = extract_current_event_micro_doppler(
+            frames,
+            raw_frame_indices,
+            track_point_index=track_point_index,
+        )
+        parameter = self.fusion[0].weight
+        return {
+            "micro_doppler_features": torch.as_tensor(
+                event.values.copy(), dtype=parameter.dtype, device=parameter.device
+            ).unsqueeze(0),
+            "micro_doppler_valid": torch.tensor(
+                [event.valid], dtype=torch.bool, device=parameter.device
+            ),
+        }
+
     def forward(
         self,
         *,
@@ -1747,6 +2147,8 @@ class LiquidTaskClassifier(nn.Module):
         tr_motion_valid_mask: torch.Tensor | None = None,
         rd_physical_features: torch.Tensor | None = None,
         rd_physical_valid: torch.Tensor | None = None,
+        micro_doppler_features: torch.Tensor | None = None,
+        micro_doppler_valid: torch.Tensor | None = None,
         return_dbb_auxiliary_logits: bool = False,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 3 or tr_missing_mask.shape[:2] != tr_features.shape[:2]:
@@ -1796,21 +2198,61 @@ class LiquidTaskClassifier(nn.Module):
         if self.rd_physical_dim:
             expected_physical_shape = (*tr_features.shape[:2], self.rd_physical_dim)
             if rd_physical_features is None or rd_physical_valid is None:
-                raise ValueError("V11 Treatment requires RD physical values and valid mask")
+                raise ValueError("configured task requires RD physical values and valid mask")
             if rd_physical_features.shape != expected_physical_shape or rd_physical_valid.shape != tr_features.shape[:2]:
-                raise ValueError("V11 RD physical value/valid shape does not match the sequence")
+                raise ValueError("RD physical value/valid shape does not match the sequence")
             if rd_physical_valid.dtype != torch.bool or not torch.isfinite(rd_physical_features).all():
-                raise ValueError("V11 RD physical values must be finite and valid must be boolean")
+                raise ValueError("RD physical values must be finite and valid must be boolean")
             if bool((rd_physical_features < 0.0).any()) or bool((rd_physical_features > 1.0).any()):
-                raise ValueError("V11 RD physical values must be bounded to [0,1]")
+                raise ValueError("RD physical values must be bounded to [0,1]")
             if bool((rd_physical_features.masked_select(~rd_physical_valid.unsqueeze(-1)) != 0).any()):
-                raise ValueError("invalid V11 RD physical values must be exactly zero")
+                raise ValueError("invalid RD physical values must be exactly zero")
             if bool(rd_physical_valid.masked_select(tr_padding_mask).any()):
-                raise ValueError("padded V11 events must not contain valid RD physical values")
+                raise ValueError("padded events must not contain valid RD physical values")
             gated_physical = rd_physical_features * rd_physical_valid.to(dtype=tr_features.dtype).unsqueeze(-1)
             fusion_inputs.append(gated_physical)
         elif rd_physical_features is not None or rd_physical_valid is not None:
-            raise ValueError("V11 Control and historical tasks must not receive RD physical tensors")
+            raise ValueError("tasks without RD physical inputs must not receive RD physical tensors")
+        if self.micro_doppler_dim:
+            expected_micro_shape = (*tr_features.shape[:2], self.micro_doppler_dim)
+            if micro_doppler_features is None or micro_doppler_valid is None:
+                raise ValueError("V17 Treatment requires micro-Doppler values and valid mask")
+            if (
+                micro_doppler_features.shape != expected_micro_shape
+                or micro_doppler_valid.shape != tr_features.shape[:2]
+            ):
+                raise ValueError("V17 micro-Doppler value/valid shape does not match the sequence")
+            if micro_doppler_valid.dtype != torch.bool or not torch.isfinite(
+                micro_doppler_features
+            ).all():
+                raise ValueError("V17 micro-Doppler values must be finite and valid must be boolean")
+            if bool((micro_doppler_features < 0.0).any()) or bool(
+                (micro_doppler_features > 1.0).any()
+            ):
+                raise ValueError("V17 micro-Doppler values must be bounded to [0,1]")
+            if bool(
+                (
+                    micro_doppler_features.masked_select(
+                        ~micro_doppler_valid.unsqueeze(-1)
+                    )
+                    != 0
+                ).any()
+            ):
+                raise ValueError("invalid V17 micro-Doppler values must be exactly zero")
+            if bool(micro_doppler_valid.masked_select(tr_padding_mask).any()):
+                raise ValueError("padded V17 events must not contain valid micro-Doppler values")
+            if rd_physical_valid is None or not torch.equal(
+                micro_doppler_valid, rd_physical_valid
+            ):
+                raise ValueError(
+                    "V17 RD physical and micro-Doppler valid masks must be exactly identical"
+                )
+            fusion_inputs.append(
+                micro_doppler_features
+                * micro_doppler_valid.to(dtype=tr_features.dtype).unsqueeze(-1)
+            )
+        elif micro_doppler_features is not None or micro_doppler_valid is not None:
+            raise ValueError("V17 Control and historical tasks must not receive micro-Doppler tensors")
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_events = self.fusion(torch.cat(fusion_inputs, dim=-1))
@@ -1872,6 +2314,8 @@ class LiquidTaskClassifier(nn.Module):
         tr_motion_valid_mask: torch.Tensor | None = None,
         rd_physical_features: torch.Tensor | None = None,
         rd_physical_valid: torch.Tensor | None = None,
+        micro_doppler_features: torch.Tensor | None = None,
+        micro_doppler_valid: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
             raise ValueError("online task TR tensors must have shape [batch, features]")
@@ -1919,20 +2363,57 @@ class LiquidTaskClassifier(nn.Module):
         fusion_inputs.extend([rd_embedding, rd_quality])
         if self.rd_physical_dim:
             if rd_physical_features is None or rd_physical_valid is None:
-                raise ValueError("online V11 Treatment requires RD physical values and valid mask")
+                raise ValueError("online configured task requires RD physical values and valid mask")
             if rd_physical_features.shape != (tr_features.shape[0], self.rd_physical_dim):
-                raise ValueError("online V11 RD physical values have an invalid shape")
+                raise ValueError("online RD physical values have an invalid shape")
             if rd_physical_valid.shape != (tr_features.shape[0],) or rd_physical_valid.dtype != torch.bool:
-                raise ValueError("online V11 RD physical valid must be boolean with shape [batch]")
+                raise ValueError("online RD physical valid must be boolean with shape [batch]")
             if not torch.isfinite(rd_physical_features).all():
-                raise ValueError("online V11 RD physical values must be finite")
+                raise ValueError("online RD physical values must be finite")
             if bool((rd_physical_features < 0.0).any()) or bool((rd_physical_features > 1.0).any()):
-                raise ValueError("online V11 RD physical values must be bounded to [0,1]")
+                raise ValueError("online RD physical values must be bounded to [0,1]")
             if bool((rd_physical_features.masked_select(~rd_physical_valid.unsqueeze(-1)) != 0).any()):
-                raise ValueError("invalid online V11 RD physical values must be exactly zero")
+                raise ValueError("invalid online RD physical values must be exactly zero")
             fusion_inputs.append(rd_physical_features * rd_physical_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         elif rd_physical_features is not None or rd_physical_valid is not None:
-            raise ValueError("online V11 Control and historical tasks must not receive RD physical tensors")
+            raise ValueError("online tasks without RD physical inputs must not receive RD physical tensors")
+        if self.micro_doppler_dim:
+            if micro_doppler_features is None or micro_doppler_valid is None:
+                raise ValueError("online V17 Treatment requires micro-Doppler values and valid mask")
+            if micro_doppler_features.shape != (tr_features.shape[0], self.micro_doppler_dim):
+                raise ValueError("online V17 micro-Doppler values have an invalid shape")
+            if (
+                micro_doppler_valid.shape != (tr_features.shape[0],)
+                or micro_doppler_valid.dtype != torch.bool
+            ):
+                raise ValueError("online V17 micro-Doppler valid must be boolean with shape [batch]")
+            if not torch.isfinite(micro_doppler_features).all():
+                raise ValueError("online V17 micro-Doppler values must be finite")
+            if bool((micro_doppler_features < 0.0).any()) or bool(
+                (micro_doppler_features > 1.0).any()
+            ):
+                raise ValueError("online V17 micro-Doppler values must be bounded to [0,1]")
+            if bool(
+                (
+                    micro_doppler_features.masked_select(
+                        ~micro_doppler_valid.unsqueeze(-1)
+                    )
+                    != 0
+                ).any()
+            ):
+                raise ValueError("invalid online V17 micro-Doppler values must be exactly zero")
+            if rd_physical_valid is None or not torch.equal(
+                micro_doppler_valid, rd_physical_valid
+            ):
+                raise ValueError(
+                    "online V17 RD physical and micro-Doppler valid masks must be exactly identical"
+                )
+            fusion_inputs.append(
+                micro_doppler_features
+                * micro_doppler_valid.to(dtype=tr_features.dtype).unsqueeze(-1)
+            )
+        elif micro_doppler_features is not None or micro_doppler_valid is not None:
+            raise ValueError("online V17 Control and historical tasks must not receive micro-Doppler tensors")
         if self.dt_valid_feature_mode == "fusion_and_dynamics":
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_event = self.fusion(torch.cat(fusion_inputs, dim=-1))
@@ -2327,12 +2808,167 @@ def build_v12_paired_models(
     }
 
 
+def build_v17_paired_models(
+    control_config: LiquidTaskConfig,
+    treatment_config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    """Build the DBB physical4 versus physical4+micro3 single-factor pair."""
+
+    if (
+        control_config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        or treatment_config.schema_version != MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        or control_config.task.name != "dbb_specialist"
+        or treatment_config.task.name != "dbb_specialist"
+        or control_config.train.paired_arm != "control"
+        or treatment_config.train.paired_arm != "treatment"
+        or control_config.train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
+        or treatment_config.train.paired_protocol != MICRO_DOPPLER_PAIRED_PROTOCOL
+    ):
+        raise ValueError("paired model builder requires V17 DBB Control and Treatment configs")
+    if control_config.train.seed != treatment_config.train.seed:
+        raise ValueError("V17 paired configs must use the same seed")
+    if (
+        control_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM
+        or treatment_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM
+        or control_config.model.micro_doppler_dim != 0
+        or treatment_config.model.micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM
+    ):
+        raise ValueError("V17 pair must compare physical4 against physical4 plus micro-Doppler3")
+    if (
+        replace(control_config.model, micro_doppler_dim=MICRO_DOPPLER_VALUE_DIM)
+        != treatment_config.model
+    ):
+        raise ValueError("V17 paired model configs differ beyond micro_doppler_dim")
+    if control_config.data != treatment_config.data:
+        raise ValueError("V17 paired data configs, including shared evidence caches, must be identical")
+    excluded_train = {
+        "checkpoint_path",
+        "last_checkpoint_path",
+        "formal_artifact_dir",
+        "epoch_checkpoint_dir",
+        "paired_arm",
+        "paired_counterpart_config_path",
+    }
+    control_train = {
+        key: value
+        for key, value in control_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    treatment_train = {
+        key: value
+        for key, value in treatment_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    if control_train != treatment_train:
+        raise ValueError("V17 paired training configs differ beyond arm-specific paths")
+    seed_everything(control_config.train.seed)
+    control = LiquidTaskClassifier(control_config)
+    seed_everything(treatment_config.train.seed)
+    treatment = LiquidTaskClassifier(treatment_config)
+    control_parameters = dict(control.named_parameters())
+    treatment_parameters = dict(treatment.named_parameters())
+    control_buffers = dict(control.named_buffers())
+    treatment_buffers = dict(treatment.named_buffers())
+    shared_names: list[str] = []
+    with torch.no_grad():
+        for name, control_value in control_parameters.items():
+            treatment_value = treatment_parameters.get(name)
+            if treatment_value is None:
+                raise ValueError(f"V17 Treatment lacks shared parameter: {name}")
+            if name == "fusion.0.weight":
+                if (
+                    treatment_value.shape[0] != control_value.shape[0]
+                    or treatment_value.shape[1]
+                    != control_value.shape[1] + MICRO_DOPPLER_VALUE_DIM
+                ):
+                    raise ValueError("V17 Treatment Fusion width is not Control width plus three")
+                treatment_value[:, : control_value.shape[1]].copy_(control_value)
+                treatment_value[:, control_value.shape[1] :].zero_()
+            elif treatment_value.shape != control_value.shape:
+                raise ValueError(
+                    f"V17 paired model has a non-shared parameter shape outside Fusion columns: {name}"
+                )
+            else:
+                treatment_value.copy_(control_value)
+            shared_names.append(name)
+        for name, control_value in control_buffers.items():
+            treatment_value = treatment_buffers.get(name)
+            if treatment_value is None or treatment_value.shape != control_value.shape:
+                raise ValueError(f"V17 Treatment lacks compatible shared buffer: {name}")
+            treatment_value.copy_(control_value)
+            shared_names.append(name)
+    for name, control_value in control.state_dict().items():
+        treatment_value = treatment.state_dict()[name]
+        comparable = (
+            treatment_value[:, : control_value.shape[1]]
+            if name == "fusion.0.weight"
+            else treatment_value
+        )
+        if not torch.equal(control_value, comparable):
+            raise AssertionError(f"V17 shared initialization differs at {name}")
+    new_columns = treatment.state_dict()["fusion.0.weight"][:, control.fusion_input_dim :]
+    if not torch.equal(new_columns, torch.zeros_like(new_columns)):
+        raise AssertionError("V17 new micro-Doppler Fusion columns are not exactly zero")
+    return control, treatment, {
+        "paired_protocol": MICRO_DOPPLER_PAIRED_PROTOCOL,
+        "seed": control_config.train.seed,
+        "shared_state_entry_count": len(shared_names),
+        "shared_parameters_and_buffers_exactly_equal": True,
+        "control_fusion_input_dim": control.fusion_input_dim,
+        "treatment_fusion_input_dim": treatment.fusion_input_dim,
+        "shared_rd_physical_columns": RD_PHYSICAL_VALUE_DIM,
+        "treatment_new_fusion_columns": MICRO_DOPPLER_VALUE_DIM,
+        "treatment_new_fusion_columns_exactly_zero": True,
+    }
+
+
+def build_v17_paired_model_for_config(
+    project_root: Path,
+    config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    counterpart_path = resolve_project_path(
+        project_root, config.train.paired_counterpart_config_path or ""
+    )
+    counterpart = load_task_config(counterpart_path)
+    if counterpart.train.paired_counterpart_config_path is None:
+        raise ValueError("V17 counterpart does not reference this config")
+    reverse_path = resolve_project_path(
+        project_root, counterpart.train.paired_counterpart_config_path
+    )
+    expected_current_path = resolve_project_path(
+        project_root,
+        f"config/RADAR-LN3/{config.config_name}-config.json",
+    )
+    if reverse_path.resolve() != expected_current_path.resolve():
+        raise ValueError("V17 counterpart reference is not reciprocal")
+    configs = {config.train.paired_arm: config, counterpart.train.paired_arm: counterpart}
+    if set(configs) != {"control", "treatment"}:
+        raise ValueError("V17 config pair does not contain exactly Control and Treatment")
+    control, treatment, evidence = build_v17_paired_models(
+        configs["control"], configs["treatment"]
+    )
+    evidence.update(
+        {
+            "paired_arm": config.train.paired_arm,
+            "counterpart_config_path": str(counterpart_path),
+            "counterpart_config_name": counterpart.config_name,
+        }
+    )
+    return (
+        (control, treatment, evidence)
+        if config.train.paired_arm == "control"
+        else (treatment, control, evidence)
+    )
+
+
 def build_paired_model_for_config(
     project_root: Path,
     config: LiquidTaskConfig,
 ) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier | None, dict[str, Any]]:
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         return build_v11_paired_model_for_config(project_root, config)
+    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        return build_v17_paired_model_for_config(project_root, config)
     if config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
         return LiquidTaskClassifier(config), None, {
             "paired_protocol": None,
@@ -2549,6 +3185,26 @@ def save_task_checkpoint(
                 "paired_seed": config.train.paired_seed,
             }
         )
+    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        model_contract.update(
+            {
+                "rd_physical_dim": config.model.rd_physical_dim,
+                "rd_physical_schema": config.data.rd_physical_schema,
+                "rd_physical_names": list(RD_PHYSICAL_NAMES),
+                "rd_physical_mask_mode": config.data.rd_physical_mask_mode,
+                "micro_doppler_dim": config.model.micro_doppler_dim,
+                "micro_doppler_schema": config.data.micro_doppler_schema,
+                "micro_doppler_names": (
+                    list(MICRO_DOPPLER_NAMES) if config.model.micro_doppler_dim else []
+                ),
+                "micro_doppler_mask_mode": config.data.micro_doppler_mask_mode,
+                "complete_stft_tensor_is_model_input": False,
+                "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
+                "paired_protocol": config.train.paired_protocol,
+                "paired_arm": config.train.paired_arm,
+                "paired_seed": config.train.paired_seed,
+            }
+        )
     if config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
         model_contract.update(
             {
@@ -2585,6 +3241,19 @@ def save_task_checkpoint(
                 "rd_physical_manifest_sha256": config.data.expected_rd_physical_cache_manifest_sha256,
                 "train_rd_physical_cache_sha256": config.data.expected_train_rd_physical_cache_sha256,
                 "validation_rd_physical_cache_sha256": config.data.expected_validation_rd_physical_cache_sha256,
+            }
+        )
+    if config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        payload["data_contract"].update(
+            {
+                "evidence_manifest_sha256": config.data.expected_micro_doppler_cache_manifest_sha256,
+                "train_rd_physical_cache_sha256": config.data.expected_train_rd_physical_cache_sha256,
+                "validation_rd_physical_cache_sha256": config.data.expected_validation_rd_physical_cache_sha256,
+                "train_micro_doppler_cache_sha256": config.data.expected_train_micro_doppler_cache_sha256,
+                "validation_micro_doppler_cache_sha256": config.data.expected_validation_micro_doppler_cache_sha256,
+                "train_micro_doppler_stft_cache_sha256": config.data.expected_train_micro_doppler_stft_cache_sha256,
+                "validation_micro_doppler_stft_cache_sha256": config.data.expected_validation_micro_doppler_stft_cache_sha256,
+                "micro_doppler_frame_provenance_sha256": config.data.expected_micro_doppler_frame_provenance_sha256,
             }
         )
     if optimizer is not None:
@@ -2635,6 +3304,19 @@ def load_task_checkpoint(
                 "rd_physical_manifest_sha256": model.config.data.expected_rd_physical_cache_manifest_sha256,
                 "train_rd_physical_cache_sha256": model.config.data.expected_train_rd_physical_cache_sha256,
                 "validation_rd_physical_cache_sha256": model.config.data.expected_validation_rd_physical_cache_sha256,
+            }
+        )
+    if model.config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        expected_data_contract.update(
+            {
+                "evidence_manifest_sha256": model.config.data.expected_micro_doppler_cache_manifest_sha256,
+                "train_rd_physical_cache_sha256": model.config.data.expected_train_rd_physical_cache_sha256,
+                "validation_rd_physical_cache_sha256": model.config.data.expected_validation_rd_physical_cache_sha256,
+                "train_micro_doppler_cache_sha256": model.config.data.expected_train_micro_doppler_cache_sha256,
+                "validation_micro_doppler_cache_sha256": model.config.data.expected_validation_micro_doppler_cache_sha256,
+                "train_micro_doppler_stft_cache_sha256": model.config.data.expected_train_micro_doppler_stft_cache_sha256,
+                "validation_micro_doppler_stft_cache_sha256": model.config.data.expected_validation_micro_doppler_stft_cache_sha256,
+                "micro_doppler_frame_provenance_sha256": model.config.data.expected_micro_doppler_frame_provenance_sha256,
             }
         )
     if payload.get("data_contract") != expected_data_contract:
@@ -2740,6 +3422,26 @@ def load_task_checkpoint(
                 "paired_seed": model.config.train.paired_seed,
             }
         )
+    if model.config.schema_version == MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        expected_contract.update(
+            {
+                "rd_physical_dim": model.rd_physical_dim,
+                "rd_physical_schema": model.rd_physical_schema,
+                "rd_physical_names": list(RD_PHYSICAL_NAMES),
+                "rd_physical_mask_mode": model.rd_physical_mask_mode,
+                "micro_doppler_dim": model.micro_doppler_dim,
+                "micro_doppler_schema": model.micro_doppler_schema,
+                "micro_doppler_names": (
+                    list(MICRO_DOPPLER_NAMES) if model.micro_doppler_dim else []
+                ),
+                "micro_doppler_mask_mode": model.micro_doppler_mask_mode,
+                "complete_stft_tensor_is_model_input": False,
+                "legacy_mat_list_ordinal_is_raw_dat_frame_index": False,
+                "paired_protocol": model.config.train.paired_protocol,
+                "paired_arm": model.config.train.paired_arm,
+                "paired_seed": model.config.train.paired_seed,
+            }
+        )
     if model.config.schema_version == DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
         expected_contract.update(
             {
@@ -2760,7 +3462,7 @@ def load_task_checkpoint(
         if "optimizer_state" not in payload:
             raise ValueError("task checkpoint does not contain optimizer state")
         optimizer.load_state_dict(payload["optimizer_state"])
-    if model.config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
+    if model.config.schema_version in FORMAL_PAIRED_SCHEMA_VERSIONS:
         required_resume_fields = {
             "python_random_state",
             "numpy_random_state",
@@ -2965,6 +3667,16 @@ def evaluate_task(
                 tr_motion_valid_mask=tensor_batch.get("tr_motion_valid_mask"),
                 rd_physical_features=tensor_batch.get("rd_physical_features"),
                 rd_physical_valid=tensor_batch.get("rd_physical_valid"),
+                micro_doppler_features=(
+                    tensor_batch.get("micro_doppler_features")
+                    if model.micro_doppler_dim
+                    else None
+                ),
+                micro_doppler_valid=(
+                    tensor_batch.get("micro_doppler_valid")
+                    if model.micro_doppler_dim
+                    else None
+                ),
                 rd_frames=tensor_batch["rd_frames"],
                 rd_frame_mask=tensor_batch["rd_frame_mask"],
                 rd_quality=tensor_batch["rd_quality"],

@@ -21,6 +21,7 @@ from .features import (
     parse_feature_json,
     resolve_causal_tr_feature_contract,
 )
+from .micro_doppler import MICRO_DOPPLER_VALUE_DIM, load_micro_doppler_cache
 from .rd_physical import RD_PHYSICAL_VALUE_DIM, load_rd_physical_cache
 
 
@@ -46,7 +47,9 @@ DT_REASON_NAMES = (
     "positive_delta_at_second_precision",
 )
 DT_REASON_TO_ID = {name: index for index, name in enumerate(DT_REASON_NAMES)}
-REASON_AWARE_INDEX_SCHEMA_VERSIONS = frozenset({"RADAR-LN3-V3", "RADAR-LN3-V16"})
+REASON_AWARE_INDEX_SCHEMA_VERSIONS = frozenset(
+    {"RADAR-LN3-V3", "RADAR-LN3-V16"}
+)
 
 
 def encode_dt_reason(value: Any, *, dt_valid: bool) -> int:
@@ -173,6 +176,8 @@ class PointSequence:
     rd_quality: torch.Tensor
     rd_physical_features: torch.Tensor
     rd_physical_valid: torch.Tensor
+    micro_doppler_features: torch.Tensor
+    micro_doppler_valid: torch.Tensor
     label: torch.Tensor
     event_count: int
     source_name: str
@@ -238,6 +243,7 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         enable_tr_motion: bool = False,
         tr_motion_schema: str | None = None,
         rd_physical_cache_path: str | Path | None = None,
+        micro_doppler_cache_path: str | Path | None = None,
         allowed_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
         forbidden_labels: frozenset[str] | set[str] | tuple[str, ...] | None = None,
         allowed_parent_ids: frozenset[str] | set[str] | tuple[str, ...] | None = None,
@@ -386,6 +392,23 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             self._rd_physical_values = mapping
             self._rd_physical_valid = dict(metadata.pop("valid_by_sample_id"))
             self.rd_physical_cache_metadata = metadata
+        self.micro_doppler_cache_path: Path | None = None
+        self._micro_doppler_values: dict[str, np.ndarray] | None = None
+        self._micro_doppler_valid: dict[str, bool] | None = None
+        self.micro_doppler_cache_metadata: dict[str, Any] | None = None
+        if micro_doppler_cache_path is not None:
+            cache_path = Path(str(micro_doppler_cache_path).replace("\\", "/"))
+            self.micro_doppler_cache_path = (
+                cache_path if cache_path.is_absolute() else self.project_root / cache_path
+            )
+            expected_ids = self.frame["sample_id"].astype(str).tolist()
+            mapping, metadata = load_micro_doppler_cache(
+                self.micro_doppler_cache_path,
+                expected_sample_ids=expected_ids,
+            )
+            self._micro_doppler_values = mapping
+            self._micro_doppler_valid = dict(metadata.pop("valid_by_sample_id"))
+            self.micro_doppler_cache_metadata = metadata
 
     def __len__(self) -> int:
         return len(self.parent_ids)
@@ -431,6 +454,8 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         quality_values: list[np.ndarray] = []
         rd_physical_values: list[torch.Tensor] = []
         rd_physical_valid_values: list[bool] = []
+        micro_doppler_values: list[torch.Tensor] = []
+        micro_doppler_valid_values: list[bool] = []
         labels = set()
         if self.tr_motion_schema == TR_MOTION_SCHEMA:
             motion_state: CausalTRMotionState | CausalTRObservationIncrementState | None = CausalTRMotionState()
@@ -491,6 +516,19 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
                     raise ValueError(f"RD physical cache lacks Dataset event: {sample_id}") from exc
                 rd_physical_values.append(torch.from_numpy(np.asarray(physical_value, dtype=np.float32)))
                 rd_physical_valid_values.append(bool(physical_valid))
+            if self._micro_doppler_values is None or self._micro_doppler_valid is None:
+                micro_doppler_values.append(torch.zeros((0,), dtype=torch.float32))
+                micro_doppler_valid_values.append(False)
+            else:
+                try:
+                    micro_value = self._micro_doppler_values[sample_id]
+                    micro_valid = self._micro_doppler_valid[sample_id]
+                except KeyError as exc:
+                    raise ValueError(f"micro-Doppler cache lacks Dataset event: {sample_id}") from exc
+                micro_doppler_values.append(
+                    torch.from_numpy(np.asarray(micro_value, dtype=np.float32))
+                )
+                micro_doppler_valid_values.append(bool(micro_valid))
             labels.add(str(row["label_name"]))
         if len(labels) != 1:
             raise ValueError(f"parent sequence has inconsistent labels: {parent_id}")
@@ -515,6 +553,8 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
             rd_quality=torch.from_numpy(np.stack(quality_values, axis=0)).float(),
             rd_physical_features=torch.stack(rd_physical_values, dim=0).float(),
             rd_physical_valid=torch.tensor(rd_physical_valid_values, dtype=torch.bool),
+            micro_doppler_features=torch.stack(micro_doppler_values, dim=0).float(),
+            micro_doppler_valid=torch.tensor(micro_doppler_valid_values, dtype=torch.bool),
             label=torch.tensor(label_id, dtype=torch.long),
             event_count=len(group),
             source_name=str(group.iloc[0]["source_name"]),
@@ -530,6 +570,7 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
     missing_dim = int(items[0].tr_missing_mask.shape[-1])
     motion_dim = int(items[0].tr_motion_features.shape[-1])
     rd_physical_dim = int(items[0].rd_physical_features.shape[-1])
+    micro_doppler_dim = int(items[0].micro_doppler_features.shape[-1])
     max_frames = int(items[0].rd_frames.shape[1])
     rd_shape = tuple(items[0].rd_frames.shape[2:])
     batch_size = len(items)
@@ -545,6 +586,8 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
     rd_quality = torch.zeros((batch_size, max_length, len(RD_QUALITY_NAMES)), dtype=torch.float32)
     rd_physical = torch.zeros((batch_size, max_length, rd_physical_dim), dtype=torch.float32)
     rd_physical_valid = torch.zeros((batch_size, max_length), dtype=torch.bool)
+    micro_doppler = torch.zeros((batch_size, max_length, micro_doppler_dim), dtype=torch.float32)
+    micro_doppler_valid = torch.zeros((batch_size, max_length), dtype=torch.bool)
     padding_mask = torch.ones((batch_size, max_length), dtype=torch.bool)
     labels = torch.empty((batch_size,), dtype=torch.long)
     for batch_index, item in enumerate(items):
@@ -556,6 +599,8 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
             or item.tr_motion_valid_mask.shape != item.tr_motion_features.shape
             or item.rd_physical_features.shape[-1] != rd_physical_dim
             or item.rd_physical_valid.shape != (length,)
+            or item.micro_doppler_features.shape[-1] != micro_doppler_dim
+            or item.micro_doppler_valid.shape != (length,)
             or item.tr_dt_reason.shape != (length,)
             or tuple(item.rd_frames.shape[2:]) != rd_shape
         ):
@@ -572,6 +617,8 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
         rd_quality[batch_index, :length] = item.rd_quality
         rd_physical[batch_index, :length] = item.rd_physical_features
         rd_physical_valid[batch_index, :length] = item.rd_physical_valid
+        micro_doppler[batch_index, :length] = item.micro_doppler_features
+        micro_doppler_valid[batch_index, :length] = item.micro_doppler_valid
         padding_mask[batch_index, :length] = False
         labels[batch_index] = item.label
     result = {
@@ -598,6 +645,13 @@ def collate_point_sequences(items: list[PointSequence]) -> dict[str, Any]:
             raise ValueError(f"RD physical feature dimension must be {RD_PHYSICAL_VALUE_DIM}")
         result["rd_physical_features"] = rd_physical
         result["rd_physical_valid"] = rd_physical_valid
+    if micro_doppler_dim:
+        if micro_doppler_dim != MICRO_DOPPLER_VALUE_DIM:
+            raise ValueError(
+                f"micro-Doppler feature dimension must be {MICRO_DOPPLER_VALUE_DIM}"
+            )
+        result["micro_doppler_features"] = micro_doppler
+        result["micro_doppler_valid"] = micro_doppler_valid
     return result
 
 
