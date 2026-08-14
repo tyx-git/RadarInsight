@@ -2249,3 +2249,14 @@
 - Action：只允许执行`stable8` v3流水线。新readiness要求8/8项全部非退化、全局AUC≥0.55、绝对effect≥0.10、8模式零反转且至少两个模式绝对effect≥0.10；不再使用“至少4项”宽松门槛。旧blocked report和manifest必须SHA绑定且唯一失败项匹配，随后只读重聚合，不访问raw/RD；任何不一致都fail-closed。
 - 验证状态：focused v3通过；实际train-only复算8/8全局有效且8/8模式一致，train/val `18266/4288`事件从旧23维evidence重聚合后与旧summary同名列逐值相等，raw/RD访问0，Fusion `83/91`、新增8列零初始化、梯度最大值`0.930194`、offline/online误差0。正式stable8 prepare、训练、paired validation、OOF、test、拒识、stable和P95未执行。
 - 关联版本：V18 `stable8`修订协议v3；V18 pruned21 blocked产物只读保留为特征选择来源。
+
+## Finding F205
+
+- Severity：High（V18 stable8信息有效，但共享Fusion联合训练产生决策耦合错误）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-paired-validation.json`、`src-v3/processed/report/RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-error-attribution.json`、`src-v3/report/micro_doppler_v18_error_attribution.py`
+- 问题或结论：V18 Treatment own-best Macro-F1和Drone/Bird弱项分别提升`0.021549/0.020936`，证明stable8含有真实DBB信息；但Bird Precision仅`0.913793`、Drone→Bird增加1、双向总错未下降，且same-epoch最大正式锚点Macro-F1只提升`0.018576`，未通过冻结采纳合同。8个指定错误中仅2083和3960可解释为当前stable8下的类别重叠/异常流型，其余6个的特征时序明显支持真实类。
+- Evidence：1908/2103的stable8逐事件最近中心分别有`22/23`和`23/24`指向Drone，正确近邻均为`14/15 Drone`，模型却全程高置信Bird；2589为`15/16 Bird`，3027为`14/17 Balloon`，531/731均为所有事件Bird。531在Control正确Bird概率`0.861274`，Treatment加入stable8后反向变为Drone概率`0.522541`；这不能由特征不可分、缺失或单一PRT模式解释。
+- Impact：继续增加特征、直接放宽2个百分点门槛或在validation调Bird阈值都会掩盖真正瓶颈。当前共享Fusion允许微多普勒改变TR/RD液态主干参数和三类边界，使正确的物理证据被错误耦合；V18不得进入多seed、级联、开放集或test结论。
+- Action：保留stable8提取器与完整23维证据，下一版本只做决策耦合单因素修复：V18 Control best主干冻结，stable8经train-only归一化和因果累计均值进入零初始化、有界三类零和late-residual；只训练残差权重，Control初始/最终主干hash必须不变。采纳门槛继续使用三类P/R/F1≥0.95、Macro-F1和弱项严格`>0.02`、双向错误下降及same-epoch/固定基线归因护栏。
+- 验证状态：V18 stable8 prepare、seed42两臂20 epoch、paired validation和8-parent归因已执行；归因模块编译与静态隔离通过。完整级联、OOF、test、正式拒识、stable、P95和部署未执行。
+- 关联版本：V18 frozen result；V19 late-residual候选方向。

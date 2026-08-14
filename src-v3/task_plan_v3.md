@@ -1345,12 +1345,13 @@
 - [x] `stable8` actual train-only复算通过：8/8项均满足全局AUC≥0.55和绝对effect≥0.10，8/8项在全部8个校准模式零反转且至少两个模式绝对effect≥0.10；其中7项在8个模式均有强同向效应，正8–30项有5个强同向模式、其余3个弱同向模式。Fusion维度`83/91`，新增8列零初始化、梯度最大值=`0.930194`、offline/online误差0。
 - [x] 新建`src-v3/scripts/v18_broadband_micro_doppler_paired_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量，任一步失败停止，PowerShell AST解析通过。
 - [x] 修复prepare恢复语义：中断后已有文件仅在全数组/全文逐值一致时复用，任何差异或损坏都fail-closed；任一正式V18 artifact非空后禁止重建数据/配置，避免训练产物与重建缓存混用。
-- [ ] 用户手动运行`stable8 prepare`；它仅从SHA绑定的旧frame evidence重聚合并生成独立summary/manifest/config/readiness，不重复解析raw。只有8/8项非退化、全局有效且模式一致时才能训练，任何一项失败都停止且不降低门槛。
-- [ ] 用户手动运行Control/Treatment各20 epoch正式训练并执行paired validation；根据冻结`+0.02`门槛决定采纳或拒绝，不以单独Bird Recall上升覆盖Precision、双向错误或Macro-F1失败。
+- [x] 用户手动运行`stable8 prepare`；它从SHA绑定的旧frame evidence重聚合并生成独立summary/manifest/config/readiness，没有重复解析raw。train 8/8项非退化、全局有效且模式一致，validation仅5/8模式一致但仍保持8/8全局判别力，按冻结协议只作报告、不反调选择。
+- [x] 用户手动完成Control/Treatment各20 epoch正式训练并执行paired validation。Treatment own-best parent Macro-F1=`0.953929`，相对Control提升`0.021549`；Drone/Bird弱项提升`0.020936`，但Bird Precision仅`0.913793`、Drone→Bird由3增至4、双向总错仍为7，且same-epoch 16 Macro-F1增益仅`0.018576`，最终状态为`completed_but_gate_failed`，禁止晋级。
+- [x] 完成8个指定错误parent归因：4个Drone→Bird、3个Bird→Drone、1个Balloon→Bird全部stable8有效率100%。2083的8/8特征和14/23事件支持Bird，3960的23/25事件更接近Balloon且近邻混合，两者接受为当前stable8下的重叠/异常流型；其余6个在parent均值、逐事件中心和正确近邻上均明显支持真实类，判定为主干/Fusion/液态决策耦合错误，不得以“物理不可分”接受。
 - [ ] 多seed、完整级联、OOF、test、正式拒识、stable、P95和部署：均未执行；只有seed42局部paired门槛通过后才讨论多seed。
 
 实验假设：若V17失败主要由于主体回波/窄带截断/旧STFT时间分辨率和period缺失语义掩盖了旋翼宽带侧带，则V18 Treatment应同时提高Drone/Bird弱项floor与Macro-F1，并减少双向错误；若只移动Bird边界、只在own-best改善、或未达到2个百分点，则拒绝本8维`stable8`特征集。该实验只回答DBB specialist局部问题，不代表五类级联或开放集拒识收益。
 
 版本策略：V18 `stable8` v3使用独立summary、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17、V18最初39维focused证据及`pruned21` blocked产物只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅8维模式稳定摘要进入Fusion。
 
-当前执行边界：代码与focused Smoke已完成；全量数据处理和正式训练按用户要求未执行。test、完整级联、OOF、正式拒识、stable、P95和部署必须继续记录为“未执行”。
+当前执行边界：V18 stable8 prepare、seed42局部Control/Treatment正式训练、paired validation及8-parent归因已完成，V18冻结结论为“有真实信息增益但未通过采纳合同”。test、完整级联、OOF、正式拒识、stable、P95和部署必须继续记录为“未执行”。

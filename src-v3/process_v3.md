@@ -2137,4 +2137,10 @@ prepare支持安全恢复：若上次中断后留下部分V18输出，重新执�
 
 `stable8`实际train-only重算已经由focused Smoke完成：8项全局AUC约`0.685–0.927`、绝对robust effect约`0.581–1.180`，全部8个模式零反转；正8–30项有5个模式绝对effect≥0.10，其余7项至少8个或冻结要求数量的强同向模式。旧`pruned21` manifest SHA-256=`aa1b21bdb50430604fb9d05af6ccee6f47101b6bc443a046849c454fb1aae955`，blocked readiness SHA-256=`a35b3a54ec88ab6c30f9042cebbfd86605a51455d2e6e5de6e3dabf1e4267406`；新prepare将校验两者并重聚合train/val `18266/4288`事件。本次重聚合raw文件、raw帧和RD tensor访问均为0；报告另保留来源`pruned21`证据最初构建时train/val各`953/223`个raw文件与RD tensor的历史访问计数，二者不会混写。正式stable8 prepare、训练和paired validation仍未执行。
 
-全量prepare、正式Control/Treatment训练、paired validation、完整级联、OOF、test、正式拒识、stable、P95和部署均未执行。标签、V16 split/normalization、V17 checkpoint/artifact均未修改。
+用户随后完成`stable8 prepare`和两臂各20 epoch正式训练。prepare的16项train-only检查全部通过，train 8/8特征全局有效且跨8模式零反转；validation仍为8/8全局有效，但正8–30、正30–60和包络RMS仅有5/8特征保持逐模式方向一致，严格作为report-only证据。Control/Treatment初始CPU logits逐值相同、20 epoch parent顺序SHA一致、各自best epoch为15/16。
+
+paired validation结果为`completed_but_gate_failed`。Control→Treatment own-best parent Accuracy=`0.937220→0.955157`、Macro-F1=`0.932380→0.953929`，分别提升`0.017937/0.021549`；Drone/Bird弱项提升`0.020936`。Treatment逐类P/R/F1为Drone=`0.964286/0.955752/0.960000`、Bird=`0.913793/0.946429/0.929825`、Balloon=`0.981132/0.962963/0.971963`。Bird Precision未达0.95，Drone→Bird由3增至4，Bird→Drone由4降至3，双向总错仍为7。same-epoch 16虽同时取得Macro-F1 `+0.018576`、弱项`+0.038793`和双向错误减少4，但未严格超过冻结`+0.02` Macro-F1门槛，禁止事后降低门槛或追认采纳。
+
+对Treatment best的4个Drone→Bird、3个Bird→Drone和1个Balloon→Bird进行了train尺度、validation正确近邻、逐事件特征中心和Control/Treatment概率归因。8条轨迹stable8有效事件率均为100%，且跨PRT 226/360/570与混合模式，不存在共同缺失或单一采样模式故障。Track 2083的8/8 parent特征更接近Bird、事件中心为Bird/Balloon=`14/9`；Track 3960的事件中心为Balloon/Bird/Drone=`23/1/1`且正确近邻混合，两者接受为当前stable8下的物理重叠或标签内异常流型。其余6条均不满足“特征相似不可分”：1908/2103分别22/23、23/24事件指向Drone，2589为15/16指向Bird，3027为14/17指向Balloon，531与731全部事件指向Bird；其中531由Control正确Bird `0.861274`被Treatment翻为Drone `0.522541`，是最直接的决策耦合反例。
+
+V18最终冻结为：提取器与stable8包含有效信息，但将8维直接拼入共享Fusion并联合更新全部参数会错误放大部分边界。后续版本只允许改变决策耦合，不新增物理特征、不调validation阈值：冻结V18 Control主干，以train-only归一化后的stable8因果累计均值产生零初始化、有界、三类零和late residual，训练仅更新残差权重。完整级联、OOF、test、正式拒识、stable、P95和部署仍未执行；标签、V16 split/normalization及历史artifact均未修改。
