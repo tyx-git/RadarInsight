@@ -1355,3 +1355,35 @@
 版本策略：V18 `stable8` v3使用独立summary、manifest、data contract、配置、artifact、readiness、checkpoint和报告路径；V17、V18最初39维focused证据及`pruned21` blocked产物只读保留。完整Doppler-time张量模型仍是另一项模型合同，本轮仅8维模式稳定摘要进入Fusion。
 
 当前执行边界：V18 stable8 prepare、seed42局部Control/Treatment正式训练、paired validation及8-parent归因已完成，V18冻结结论为“有真实信息增益但未通过采纳合同”。test、完整级联、OOF、正式拒识、stable、P95和部署必须继续记录为“未执行”。
+
+## Stage 061 - V19 stable8后置残差决策耦合单因素修复
+
+目标：在不新增微多普勒特征、不重新训练液态主干、不回看validation调阈值的前提下，验证V18失败是否主要来自stable8直接进入共享Fusion并联合更新全模型所产生的决策耦合。V19固定V18 Control best作为唯一基线，以train-only尺度和因果累计stable8驱动一个零初始化、有界、三类零和的后置logit残差，只训练24个权重。
+
+前置依赖：Stage 060已冻结V18 stable8提取器、Control best checkpoint、20 epoch parent顺序和失败门槛；8-parent归因确认6条错误的物理特征时序支持真实类，允许将下一实验变量严格限定为决策耦合方式。V16 grouped split、V18缓存、标签、四维RD物理分支、loss与checkpoint排序保持不变。
+
+状态：V19专用模块、prepare构建器、训练器、独立评估器、focused Smoke和PowerShell串行流水线均已完成；全量prepare、正式20 epoch训练和validation评估等待用户手动执行。test、完整级联、OOF、正式拒识、stable、P95和部署均未执行。
+
+最小子任务：
+
+- [x] 冻结单因素架构：V18 Control best主干和checkpoint文件只读；stable8不进入Fusion/CfC，只通过无bias的`8→3`线性层生成后置logit残差，共24个可训练参数。
+- [x] 冻结残差约束：权重全零初始化，初始化combined logits与V18 Control逐值相同；逐事件先减三类均值，再按共同缩放限制每类绝对修正不超过3.0，保持三类零和且最大类间修正不超过6.0。
+- [x] 冻结因果输入：尺度仅由953个V16 grouped train DBB parent的有效事件均值拟合median/IQR；每个prefix只聚合截至当前事件的有效stable8，缺失事件保持既有累计均值，首次有效证据前严格为0，不输入valid count或采样模式标识。
+- [x] 实现`radar_ln3/micro_doppler_residual.py`，包含因果累计、24参数残差、版本化cache Dataset、parent-final+0.10 prefix辅助目标、独立评估和checkpoint hash/provenance合同。
+- [x] 实现`build/micro_doppler_residual_v19.py`：只读加载V18 stable8 Treatment数据视图和V18 Control best，在`torch.inference_mode`下缓存train/val冻结baseline logits与因果stable8；主干state hash前后必须一致，validation只做缓存/基线重现完整性检查，不参与readiness选择，test payload访问固定为0。
+- [x] 实现`train/micro_doppler_residual_v19.py`：沿用seed/DataLoader seed=42、batch=2、AdamW learning rate=`1e-4`、20 epoch、关闭early stopping、class weights、final主损失+0.10 prefix辅助和V18 checkpoint排序；每个epoch parent顺序SHA必须与V18 Control对应epoch完全一致，支持epoch边界resume。
+- [x] 实现`report/micro_doppler_residual_v19.py`：独立复核20个epoch checkpoint和best checkpoint，固定比较V18 Control best，不重新训练Control；输出三类P/R/F1、Macro-F1、Drone/Bird弱项、双向错误、逐parent改变和8×3残差权重，不执行阈值搜索。
+- [x] 新建`src-v3/scripts/v19_micro_doppler_residual_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量，任一步失败停止；已完成artifact时只读复核，失败/中断且存在last checkpoint时从最近完整epoch恢复。
+- [x] focused Smoke通过：未来事件扰动不改变既有prefix，初始化logits逐值相等，参数数=24，残差绝对/类间上界=`3/6`，checkpoint/cache round-trip通过；真实三类parent残差梯度最大值=`0.167272`，V18 Control主干state SHA前后均为`5d61933484a0f01dac629a5b8168b92b6733be304897a3dfac72e76e54780b7e`，20/20 parent顺序hash与V18 Control一致。
+- [x] synthetic端到端Smoke在临时目录完成20 epoch、20个epoch checkpoint、best复载和独立报告，训练/报告均完成且test保持“未执行”；该结果只验证流水线合同，不是性能证据。
+- [ ] 用户手动运行V19 `prepare`，生成train-only normalization、train/val冻结logit+因果stable8缓存、contract、config和readiness；任一源hash、baseline指标、主干hash或初始logit检查失败即停止。
+- [ ] 用户手动运行V19正式20 epoch训练和冻结validation评估；只有三类P/R/F1均≥0.95、Macro-F1与Drone/Bird弱项均严格提升`>0.02`、Drone→Bird/Bird→Drone均不增加且双向总错误至少下降1时才进入多seed讨论。
+- [ ] 多seed、完整级联、OOF、test、正式拒识、stable、P95和部署：均未执行；seed42局部门槛通过前禁止启动。
+
+验证命令：已在`src-v3`执行`F:\Project\RadarInsight\.venv\Scripts\python.exe -m smoke.micro_doppler_residual_v19_contract_test --project-root F:\Project\RadarInsight`、相关文件`compileall`、`smoke.static_isolation_check`、PowerShell AST解析和入口`--help`检查；均通过。全量prepare和正式训练未由代理执行。
+
+实验假设：若V18 stable8本身包含有效信息而失败主要由共享Fusion/液态主干联合更新造成，则冻结Control并仅学习低容量后置残差应减少Drone↔Bird错误，同时避免531/731一类“物理证据支持Bird却被Treatment翻转”的错误；若24参数残差仍只移动单侧边界、未超过2个百分点或增加反向错误，则接受stable8在当前摘要空间的收益上限，不继续通过增大残差容量或validation阈值搜索追分。
+
+版本策略：V19新增normalization、冻结logit/因果特征cache、contract、config、checkpoint和报告schema，但只读复用V16 split与V18 stable8证据/Control checkpoint；不覆盖V18文件，不修改通用`LiquidTaskClassifier`，避免将研究性late residual误接入完整级联。
+
+当前执行边界：代码与focused Smoke已完成；全量数据处理、正式训练和validation性能评估由用户手动执行。test、完整级联、OOF、正式拒识、stable、P95和部署继续为“未执行”。

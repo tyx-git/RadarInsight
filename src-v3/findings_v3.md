@@ -2260,3 +2260,14 @@
 - Action：保留stable8提取器与完整23维证据，下一版本只做决策耦合单因素修复：V18 Control best主干冻结，stable8经train-only归一化和因果累计均值进入零初始化、有界三类零和late-residual；只训练残差权重，Control初始/最终主干hash必须不变。采纳门槛继续使用三类P/R/F1≥0.95、Macro-F1和弱项严格`>0.02`、双向错误下降及same-epoch/固定基线归因护栏。
 - 验证状态：V18 stable8 prepare、seed42两臂20 epoch、paired validation和8-parent归因已执行；归因模块编译与静态隔离通过。完整级联、OOF、test、正式拒识、stable、P95和部署未执行。
 - 关联版本：V18 frozen result；V19 late-residual候选方向。
+
+## Finding F206
+
+- Severity：High（V19必须证明stable8收益来自受控后置修正，而非再次重训主干或validation调参）
+- 文件位置：`src-v3/radar_ln3/micro_doppler_residual.py`、`src-v3/build/micro_doppler_residual_v19.py`、`src-v3/train/micro_doppler_residual_v19.py`、`src-v3/report/micro_doppler_residual_v19.py`、`src-v3/smoke/micro_doppler_residual_v19_contract_test.py`、`src-v3/scripts/v19_micro_doppler_residual_pipeline.ps1`
+- 问题或结论：V18已证明stable8含有可用DBB信息，但共享Fusion联合训练会把部分正确物理证据耦合成错误边界。V19因此不再把stable8输入液态主干，而以冻结V18 Control logits加24参数后置残差进行最小干预；该结构在初始化时与Control完全相同，任何性能变化都只能来自stable8到三类logit修正的受限映射。
+- Evidence：focused真实probe使用Drone/Bird/Balloon各1个train parent，残差权重梯度最大绝对值=`0.167272`且非零；一次AdamW step前后冻结Control state SHA均为`5d61933484a0f01dac629a5b8168b92b6733be304897a3dfac72e76e54780b7e`，主干无gradient。20/20 parent顺序hash与V18 Control正式训练完全一致；合成未来事件扰动不改变先前prefix，残差绝对/类间上界为约`3/6`，临时端到端20 epoch、20 checkpoint、best复载和独立report均通过。
+- Impact：V19能将“特征无效”和“耦合错误”分开检验，并显著降低正式训练计算量；但冻结logit cache是局部研究合同，不代表线上主干已接入该残差，也不能用于完整五类级联、拒识或stable性能宣称。
+- Action：由用户手动执行V19 prepare、train和evaluate。只有三类P/R/F1≥0.95、Macro-F1与Drone/Bird弱项严格`>0.02`、双向错误下降时才讨论多seed；若失败，不增加残差层数/容量、不回看validation调阈值，接受当前stable8摘要的局部收益上限并转向新的预注册变量。
+- 验证状态：代码编译、静态隔离、PowerShell AST、synthetic端到端和真实三parent focused Smoke已通过；全量prepare、正式训练、validation性能、完整级联、OOF、test、正式拒识、stable、P95和部署未执行。
+- 关联版本：V19 frozen-Control stable8 late-residual候选；V18 Control best与stable8证据只读复用。

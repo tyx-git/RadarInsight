@@ -2144,3 +2144,15 @@ paired validation结果为`completed_but_gate_failed`。Control→Treatment own-
 对Treatment best的4个Drone→Bird、3个Bird→Drone和1个Balloon→Bird进行了train尺度、validation正确近邻、逐事件特征中心和Control/Treatment概率归因。8条轨迹stable8有效事件率均为100%，且跨PRT 226/360/570与混合模式，不存在共同缺失或单一采样模式故障。Track 2083的8/8 parent特征更接近Bird、事件中心为Bird/Balloon=`14/9`；Track 3960的事件中心为Balloon/Bird/Drone=`23/1/1`且正确近邻混合，两者接受为当前stable8下的物理重叠或标签内异常流型。其余6条均不满足“特征相似不可分”：1908/2103分别22/23、23/24事件指向Drone，2589为15/16指向Bird，3027为14/17指向Balloon，531与731全部事件指向Bird；其中531由Control正确Bird `0.861274`被Treatment翻为Drone `0.522541`，是最直接的决策耦合反例。
 
 V18最终冻结为：提取器与stable8包含有效信息，但将8维直接拼入共享Fusion并联合更新全部参数会错误放大部分边界。后续版本只允许改变决策耦合，不新增物理特征、不调validation阈值：冻结V18 Control主干，以train-only归一化后的stable8因果累计均值产生零初始化、有界、三类零和late residual，训练仅更新残差权重。完整级联、OOF、test、正式拒识、stable、P95和部署仍未执行；标签、V16 split/normalization及历史artifact均未修改。
+
+## V19 stable8后置残差决策耦合实验
+
+V19将V18归因结论落实为严格单因素实验。基础分类logits固定来自V18 Control best epoch 15；prepare阶段只在`torch.inference_mode`下对V16 grouped train/val DBB parent运行该冻结主干并生成版本化cache，正式训练不再加载、复制或更新主干参数。baseline checkpoint文件SHA、模型state SHA、V18 training summary、V18 paired report、V18数据contract及stable8 cache均写入V19 provenance；任一变化都会阻断训练。
+
+stable8尺度只由953个train DBB parent拟合。每个parent先对其有效当前事件stable8取均值，使长轨迹不主导median/IQR；推理输入再逐事件使用train尺度归一化，并计算截至当前prefix的有效观测累计均值。当前事件缺失时保持先前累计证据，首次有效证据前为零，padding为零；valid count、PRT、载频、路径和标签均不进入残差模型。validation参与cache对齐和冻结Control指标重现，但`validation_used_for_readiness_gate=false`，不参与尺度、特征选择、阈值或启动裁决。
+
+残差模型只有一个无bias线性层，权重shape为`3×8`。全零初始化保证combined logits与V18 Control逐值相等；每个事件的原始三类修正减去其均值后，再以共同系数缩放到绝对值不超过3.0，因此保留三类零和且任意两类最大相对修正不超过6.0。该共同缩放不会改变三类修正方向，也不会像逐类独立`tanh`那样破坏零和。训练仅更新24个权重，使用V18相同seed、parent顺序、AdamW `1e-4`、class weights、20 epoch、final主损失和0.10 prefix辅助；20个epoch的parent顺序SHA逐个与V18 Control历史值比对。
+
+focused Smoke覆盖合成因果反例、无证据/缺失保持、零初始化、残差上界、零和、梯度、checkpoint/cache round-trip和完整临时端到端20 epoch。真实三类parent probe得到残差权重最大绝对梯度`0.167272`；一次optimizer step前后V18 Control state SHA均为`5d61933484a0f01dac629a5b8168b92b6733be304897a3dfac72e76e54780b7e`，所有主干参数gradient均为空；20/20 shuffled parent顺序hash与正式V18 Control一致。该Smoke只证明合同和可训练性，不提供V19性能结论。
+
+正式采纳门槛保持V18冻结标准：Treatment三类各自Precision/Recall/F1均至少0.95，parent Macro-F1和Drone/Bird弱项相对固定V18 Control均严格提升超过0.02，Drone→Bird与Bird→Drone均不得增加，双向总错误至少减少1。V19不设validation阈值、不重新训练Control、不执行完整级联；prepare、正式训练、validation结果、OOF、test、正式拒识、stable、P95和部署当前均未执行。
