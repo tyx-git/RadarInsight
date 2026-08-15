@@ -117,6 +117,16 @@ BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL = (
     "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-"
     "micro-doppler8-stable-treatment-v3"
 )
+LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V20"
+V20_SKIP_PAIRED_PROTOCOL = (
+    "v20-dbb-bounded-observation-control-versus-zero-delta-skip-treatment-v1"
+)
+V20_DENSITY_PAIRED_PROTOCOL = (
+    "v20r-dbb-bounded-observation-control-versus-density-weighted-treatment-v1"
+)
+V20_PAIRED_PROTOCOLS = frozenset(
+    {V20_SKIP_PAIRED_PROTOCOL, V20_DENSITY_PAIRED_PROTOCOL}
+)
 PRODUCT_LOCAL_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 PRODUCT_LOCAL_CHECKPOINT_SELECTION = "parent_min_precision_recall"
 BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION = (
@@ -155,6 +165,7 @@ FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
         DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     }
 )
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
@@ -181,7 +192,12 @@ def is_product_local_schema(schema_version: str) -> bool:
         PRODUCT_LOCAL_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     }
+
+
+def is_liquid_dynamics_paired_schema(schema_version: str) -> bool:
+    return str(schema_version) == LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION
 
 
 def is_micro_doppler_paired_schema(schema_version: str) -> bool:
@@ -704,8 +720,15 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         raise ValueError("task model must use the current TR/RD input dimensions 14/11/7")
     if (model.rd_height, model.rd_width) != (21, 384):
         raise ValueError("task model must use the current RD shape 21x384")
-    if model.dt_valid_dim != 1 or model.liquid_invalid_dt_update_mode not in {"floor", "bounded_observation"}:
-        raise ValueError("task model must explicitly consume dt_valid with a supported liquid update mode")
+    if model.dt_valid_dim != 1 or model.liquid_invalid_dt_update_mode not in {
+        "floor",
+        "bounded_observation",
+        "skip",
+        "density_weighted",
+    }:
+        raise ValueError(
+            "task model must explicitly consume dt_valid with a supported liquid update mode"
+        )
     if model.dt_valid_feature_mode not in DT_VALID_FEATURE_MODES:
         raise ValueError(
             "task model dt_valid_feature_mode must be fusion_and_dynamics or dynamics_only"
@@ -1070,6 +1093,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError("DBB angular readout fields are reserved for RADAR-LN3-V15")
     elif is_product_local_schema(schema_version):
         is_v17_micro = is_micro_doppler_paired_schema(schema_version)
+        is_v20_dynamics = is_liquid_dynamics_paired_schema(schema_version)
         if train.loss_mode != PRODUCT_LOCAL_LOSS_MODE:
             raise ValueError(f"{schema_version} task training must use {PRODUCT_LOCAL_LOSS_MODE}")
         expected_selection = (
@@ -1096,10 +1120,13 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         if model.dt_reason_mode != DT_REASON_DYNAMICS_MODE:
             raise ValueError(f"{schema_version} model must use dt_reason_mode={DT_REASON_DYNAMICS_MODE}")
         expected_index_schema = (
-            PRODUCT_LOCAL_SCHEMA_VERSION if is_v17_micro else schema_version
+            PRODUCT_LOCAL_SCHEMA_VERSION
+            if (is_v17_micro or is_v20_dynamics)
+            else schema_version
         )
         if (
-            data.contract_schema_version != schema_version
+            data.contract_schema_version
+            != (PRODUCT_LOCAL_SCHEMA_VERSION if is_v20_dynamics else schema_version)
             or data.index_schema_version != expected_index_schema
         ):
             raise ValueError(
@@ -1109,7 +1136,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(f"{schema_version} local task must not retain auxiliary or TR-motion branches")
         if not is_v17_micro and (model.rd_physical_dim != 0 or model.micro_doppler_dim != 0):
             raise ValueError("RADAR-LN3-V16 local baseline must not retain experimental physical inputs")
-        if is_v17_micro and spec.name != "dbb_specialist":
+        if (is_v17_micro or is_v20_dynamics) and spec.name != "dbb_specialist":
             raise ValueError(
                 f"{schema_version} is a DBB-specialist-only paired experiment"
             )
@@ -1131,7 +1158,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         )
         if any(value is not None for value in forbidden_product_fields):
             raise ValueError(f"{schema_version} local task is not joint product training")
-        if not is_v17_micro and any(
+        if not (is_v17_micro or is_v20_dynamics) and any(
             value is not None
             for value in (
                 train.paired_protocol,
@@ -1241,6 +1268,47 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(
                 f"{schema_version} fixes initialization/sampling only and must not claim strict CUDA determinism"
             )
+    elif is_liquid_dynamics_paired_schema(schema_version):
+        if train.paired_protocol not in V20_PAIRED_PROTOCOLS:
+            raise ValueError(
+                "V20 paired protocol must be V20 skip or V20r density-weighted"
+            )
+        if train.paired_arm not in {"control", "treatment"}:
+            raise ValueError("V20 paired arm must be control or treatment")
+        expected_mode = (
+            "bounded_observation"
+            if train.paired_arm == "control"
+            else (
+                "skip"
+                if train.paired_protocol == V20_SKIP_PAIRED_PROTOCOL
+                else "density_weighted"
+            )
+        )
+        if model.liquid_invalid_dt_update_mode != expected_mode:
+            raise ValueError(
+                f"V20 {train.paired_arm} requires liquid_invalid_dt_update_mode="
+                f"{expected_mode}"
+            )
+        if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
+            raise ValueError("V20 paired seed, model seed and DataLoader seed must be identical")
+        allowed_v20_seeds = (
+            {42}
+            if train.paired_protocol == V20_SKIP_PAIRED_PROTOCOL
+            else {42, 43, 44}
+        )
+        if train.seed not in allowed_v20_seeds:
+            raise ValueError(
+                "V20 skip screening is frozen to seed 42; V20r density "
+                "confirmation is frozen to seeds 42/43/44"
+            )
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError("V20 paired training requires exactly 20 epochs with early stopping disabled")
+        if train.epoch_checkpoint_dir is None or not train.record_parent_order_hash or not train.save_every_epoch:
+            raise ValueError("V20 paired training requires epoch checkpoints and parent-order hashes")
+        if train.paired_counterpart_config_path is None:
+            raise ValueError("V20 paired training requires an explicit counterpart config path")
+        if train.cuda_deterministic_algorithms:
+            raise ValueError("V20 fixes initialization/sampling only and does not claim strict CUDA determinism")
     elif (
         train.dbb_auxiliary_loss_weight != 0.0
         or train.dbb_auxiliary_class_weights
@@ -2305,6 +2373,7 @@ class LiquidTaskClassifier(nn.Module):
         tr_padding_mask: torch.Tensor,
         tr_dt_valid: torch.Tensor,
         tr_dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
         tr_motion_features: torch.Tensor | None = None,
         tr_motion_valid_mask: torch.Tensor | None = None,
         rd_physical_features: torch.Tensor | None = None,
@@ -2424,6 +2493,7 @@ class LiquidTaskClassifier(nn.Module):
             tr_padding_mask,
             dt_valid=tr_dt_valid,
             dt_reason=tr_dt_reason,
+            zero_ordinal=zero_ordinal,
         )
         sequence_logits, dbb_knownness_scores, dbb_embeddings = self._classification_readout(
             liquid_state.sequence
@@ -2468,6 +2538,7 @@ class LiquidTaskClassifier(nn.Module):
         tr_dt_seconds: torch.Tensor,
         tr_dt_valid: torch.Tensor,
         tr_dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
         rd_frames: torch.Tensor,
         rd_frame_mask: torch.Tensor,
         rd_quality: torch.Tensor,
@@ -2585,6 +2656,7 @@ class LiquidTaskClassifier(nn.Module):
             liquid_state,
             tr_dt_valid,
             tr_dt_reason,
+            zero_ordinal,
         )
         logits, dbb_knownness_scores, dbb_embeddings = self._classification_readout(
             self.liquid.readout(state)
@@ -3144,6 +3216,119 @@ def build_v17_paired_model_for_config(
     )
 
 
+def build_v20_paired_models(
+    control_config: LiquidTaskConfig,
+    treatment_config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    """Build a same-architecture pair differing only in zero-delta dynamics."""
+
+    if (
+        control_config.schema_version != LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION
+        or treatment_config.schema_version != LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION
+        or control_config.task.name != "dbb_specialist"
+        or treatment_config.task.name != "dbb_specialist"
+        or control_config.train.paired_arm != "control"
+        or treatment_config.train.paired_arm != "treatment"
+        or control_config.train.paired_protocol != treatment_config.train.paired_protocol
+        or control_config.train.paired_protocol not in V20_PAIRED_PROTOCOLS
+        or control_config.model.liquid_invalid_dt_update_mode != "bounded_observation"
+        or treatment_config.model.liquid_invalid_dt_update_mode
+        != (
+            "skip"
+            if control_config.train.paired_protocol == V20_SKIP_PAIRED_PROTOCOL
+            else "density_weighted"
+        )
+    ):
+        raise ValueError("V20 paired model builder requires a valid Control/Treatment dynamics pair")
+    if control_config.train.seed != treatment_config.train.seed:
+        raise ValueError("V20 paired configs must use the same seed")
+    if control_config.data != treatment_config.data:
+        raise ValueError("V20 paired configs must reuse one frozen data contract")
+    if replace(
+        control_config.model,
+        liquid_invalid_dt_update_mode=treatment_config.model.liquid_invalid_dt_update_mode,
+    ) != treatment_config.model:
+        raise ValueError("V20 paired model configs differ beyond invalid_dt_update_mode")
+    excluded_train = {
+        "checkpoint_path",
+        "checkpoint_schema",
+        "last_checkpoint_path",
+        "formal_artifact_dir",
+        "epoch_checkpoint_dir",
+        "paired_arm",
+        "paired_counterpart_config_path",
+    }
+    control_train = {
+        key: value
+        for key, value in control_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    treatment_train = {
+        key: value
+        for key, value in treatment_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    if control_train != treatment_train:
+        raise ValueError("V20 paired training configs differ beyond arm-specific paths")
+    seed_everything(control_config.train.seed)
+    control = LiquidTaskClassifier(control_config)
+    seed_everything(treatment_config.train.seed)
+    treatment = LiquidTaskClassifier(treatment_config)
+    treatment.load_state_dict(control.state_dict(), strict=True)
+    if not all(
+        torch.equal(control_value, treatment.state_dict()[name])
+        for name, control_value in control.state_dict().items()
+    ):
+        raise AssertionError("V20 Control/Treatment initialization is not exactly equal")
+    return control, treatment, {
+        "paired_protocol": control_config.train.paired_protocol,
+        "seed": control_config.train.seed,
+        "shared_state_entry_count": len(control.state_dict()),
+        "shared_parameters_and_buffers_exactly_equal": True,
+        "treatment_new_fusion_columns_exactly_zero": True,
+        "dynamics_control_mode": control_config.model.liquid_invalid_dt_update_mode,
+        "dynamics_treatment_mode": treatment_config.model.liquid_invalid_dt_update_mode,
+    }
+
+
+def build_v20_paired_model_for_config(
+    project_root: Path,
+    config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    counterpart_path = resolve_project_path(
+        project_root, config.train.paired_counterpart_config_path or ""
+    )
+    counterpart = load_task_config(counterpart_path)
+    if counterpart.train.paired_counterpart_config_path is None:
+        raise ValueError("V20 counterpart does not reference this config")
+    reverse_path = resolve_project_path(
+        project_root, counterpart.train.paired_counterpart_config_path
+    )
+    expected_current_path = resolve_project_path(
+        project_root, f"config/RADAR-LN3/{config.config_name}-config.json"
+    )
+    if reverse_path.resolve() != expected_current_path.resolve():
+        raise ValueError("V20 counterpart reference is not reciprocal")
+    configs = {config.train.paired_arm: config, counterpart.train.paired_arm: counterpart}
+    if set(configs) != {"control", "treatment"}:
+        raise ValueError("V20 config pair does not contain exactly Control and Treatment")
+    control, treatment, evidence = build_v20_paired_models(
+        configs["control"], configs["treatment"]
+    )
+    evidence.update(
+        {
+            "paired_arm": config.train.paired_arm,
+            "counterpart_config_path": str(counterpart_path),
+            "counterpart_config_name": counterpart.config_name,
+        }
+    )
+    return (
+        (control, treatment, evidence)
+        if config.train.paired_arm == "control"
+        else (treatment, control, evidence)
+    )
+
+
 def build_paired_model_for_config(
     project_root: Path,
     config: LiquidTaskConfig,
@@ -3152,6 +3337,8 @@ def build_paired_model_for_config(
         return build_v11_paired_model_for_config(project_root, config)
     if is_micro_doppler_paired_schema(config.schema_version):
         return build_v17_paired_model_for_config(project_root, config)
+    if is_liquid_dynamics_paired_schema(config.schema_version):
+        return build_v20_paired_model_for_config(project_root, config)
     if config.schema_version != DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION:
         return LiquidTaskClassifier(config), None, {
             "paired_protocol": None,
@@ -3345,6 +3532,20 @@ def save_task_checkpoint(
                 "full_cascade_evaluation": "not_executed",
             }
         )
+        if is_liquid_dynamics_paired_schema(config.schema_version):
+            model_contract.update(
+                {
+                    "paired_protocol": config.train.paired_protocol,
+                    "paired_arm": config.train.paired_arm,
+                    "paired_seed": config.train.paired_seed,
+                    "invalid_dt_update_mode": config.model.liquid_invalid_dt_update_mode,
+                    "zero_delta_state_semantics": (
+                        "alpha_zero_event_information_removed_but_recurrent_output_norm_may_transform_state"
+                        if config.model.liquid_invalid_dt_update_mode == "skip"
+                        else "bounded_observation_gain_with_reason_aware_zero_delta"
+                    ),
+                }
+            )
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
         model_contract.update({
@@ -3588,6 +3789,20 @@ def load_task_checkpoint(
                 "full_cascade_evaluation": "not_executed",
             }
         )
+        if is_liquid_dynamics_paired_schema(model.config.schema_version):
+            expected_contract.update(
+                {
+                    "paired_protocol": model.config.train.paired_protocol,
+                    "paired_arm": model.config.train.paired_arm,
+                    "paired_seed": model.config.train.paired_seed,
+                    "invalid_dt_update_mode": model.config.model.liquid_invalid_dt_update_mode,
+                    "zero_delta_state_semantics": (
+                        "alpha_zero_event_information_removed_but_recurrent_output_norm_may_transform_state"
+                        if model.config.model.liquid_invalid_dt_update_mode == "skip"
+                        else "bounded_observation_gain_with_reason_aware_zero_delta"
+                    ),
+                }
+            )
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)
         expected_contract.update({
@@ -4001,6 +4216,10 @@ __all__ = [
     "BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION",
     "BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL",
     "BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION",
+    "LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION",
+    "V20_SKIP_PAIRED_PROTOCOL",
+    "V20_DENSITY_PAIRED_PROTOCOL",
+    "V20_PAIRED_PROTOCOLS",
     "FORMAL_PAIRED_SCHEMA_VERSIONS",
     "HIERARCHICAL_CASCADE_SCHEMA_VERSION",
     "HIERARCHICAL_SCHEMA_VERSIONS",
@@ -4027,12 +4246,15 @@ __all__ = [
     "build_v11_paired_model_for_config",
     "build_v11_paired_models",
     "build_v12_paired_models",
+    "build_v20_paired_models",
+    "build_v20_paired_model_for_config",
     "build_paired_model_for_config",
     "capture_training_state",
     "compose_soft_cascade",
     "compose_strict_open_set_evidence",
     "evaluate_task",
     "is_product_local_schema",
+    "is_liquid_dynamics_paired_schema",
     "is_micro_doppler_paired_schema",
     "micro_doppler_contract_for_config",
     "micro_doppler_names_for_config",

@@ -155,8 +155,16 @@ def load_config(path: str | Path) -> V3Config:
         raise ValueError("RADAR-LN3 model contract requires TR value dim 14, missing dim 11 and RD quality dim 7")
     if model.dt_valid_dim not in {0, 1}:
         raise ValueError("model.dt_valid_dim must be 0 or 1")
-    if model.liquid_invalid_dt_update_mode not in {"floor", "bounded_observation"}:
-        raise ValueError("model.liquid_invalid_dt_update_mode must be floor or bounded_observation")
+    if model.liquid_invalid_dt_update_mode not in {
+        "floor",
+        "bounded_observation",
+        "skip",
+        "density_weighted",
+    }:
+        raise ValueError(
+            "model.liquid_invalid_dt_update_mode must be floor, bounded_observation, "
+            "skip, or density_weighted"
+        )
     if not 0.0 < model.liquid_invalid_dt_observation_gain <= 1.0:
         raise ValueError("model.liquid_invalid_dt_observation_gain must be in (0, 1]")
     if not 0.0 < model.liquid_tau_min_seconds <= model.liquid_tau_max_seconds:

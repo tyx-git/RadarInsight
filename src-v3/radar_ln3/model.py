@@ -88,9 +88,9 @@ class CfCLiquidCausalEncoder(nn.Module):
     Each event uses the caller-provided TR wall-clock dt. The update is an
     exponential interpolation toward a learned nonlinear candidate, so no
     future event or sequence-wide attention is used. Invalid or zero dt uses
-    the configured floor mode, or a bounded observation gain in the V4
-    controlled experiment; the explicit validity mask remains available to
-    the model and callers in both modes.
+    the configured floor mode, bounded observation gain, skip diagnostic, or
+    density-weighted gain; the explicit validity mask remains available to
+    the model and callers in all modes.
     """
 
     def __init__(
@@ -115,8 +115,16 @@ class CfCLiquidCausalEncoder(nn.Module):
         self.zero_dt_event_floor_seconds = float(max(1.0e-8, zero_dt_event_floor_seconds))
         self.dt_max_seconds = float(max(self.zero_dt_event_floor_seconds, dt_max_seconds))
         self.invalid_dt_update_mode = str(invalid_dt_update_mode)
-        if self.invalid_dt_update_mode not in {"floor", "bounded_observation"}:
-            raise ValueError("invalid_dt_update_mode must be floor or bounded_observation")
+        if self.invalid_dt_update_mode not in {
+            "floor",
+            "bounded_observation",
+            "skip",
+            "density_weighted",
+        }:
+            raise ValueError(
+                "invalid_dt_update_mode must be floor, bounded_observation, "
+                "skip, or density_weighted"
+            )
         self.invalid_dt_observation_gain = float(invalid_dt_observation_gain)
         if not 0.0 < self.invalid_dt_observation_gain <= 1.0:
             raise ValueError("invalid_dt_observation_gain must be in (0, 1]")
@@ -141,6 +149,7 @@ class CfCLiquidCausalEncoder(nn.Module):
         state: torch.Tensor,
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2 or state.ndim != 2 or event.shape[0] != state.shape[0]:
             raise ValueError("liquid event/state shapes are incompatible")
@@ -150,6 +159,14 @@ class CfCLiquidCausalEncoder(nn.Module):
             dt_valid = torch.ones_like(dt_seconds, dtype=torch.bool)
         if dt_valid.ndim != 1 or dt_valid.shape[0] != event.shape[0]:
             raise ValueError("liquid dt_valid must have shape [batch]")
+        if zero_ordinal is not None:
+            if zero_ordinal.shape != dt_seconds.shape or zero_ordinal.dtype not in (
+                torch.int64,
+                torch.long,
+            ):
+                raise ValueError("liquid zero_ordinal must be long with shape [batch]")
+            if bool((zero_ordinal < 1).any()):
+                raise ValueError("liquid zero_ordinal must be positive")
         raw_dt = dt_seconds
         if dt_reason is not None:
             if dt_reason.shape != dt_seconds.shape or dt_reason.dtype not in (torch.int64, torch.long):
@@ -183,19 +200,40 @@ class CfCLiquidCausalEncoder(nn.Module):
         candidate = gate * candidate + (1.0 - gate) * state
         tau = self._tau().to(dtype=event.dtype, device=event.device).unsqueeze(0)
         alpha = 1.0 - torch.exp(-safe_dt.unsqueeze(-1) / tau)
-        if self.invalid_dt_update_mode == "bounded_observation":
+        if self.invalid_dt_update_mode in {
+            "bounded_observation",
+            "skip",
+            "density_weighted",
+        }:
             observation_gain = torch.full_like(alpha, self.invalid_dt_observation_gain)
             alpha = torch.where((~dt_valid).unsqueeze(-1), observation_gain, alpha)
         if dt_reason is not None:
             # The first event initializes evidence without pretending elapsed
-            # time; same-second later observations use the bounded observation
-            # rule. Positive intervals preserve the continuous-time update.
+            # time; positive intervals preserve the continuous-time update.
+            # V20 skip sets same-second gain to zero. V20 density_weighted
+            # uses the causal same-second ordinal supplied by forward/online.
             first_gain = torch.ones_like(alpha)
-            zero_gain = torch.full_like(alpha, self.invalid_dt_observation_gain)
+            if self.invalid_dt_update_mode == "skip":
+                zero_gain = torch.zeros_like(alpha)
+            elif self.invalid_dt_update_mode == "density_weighted":
+                ordinal = (
+                    torch.ones_like(dt_seconds, dtype=torch.long)
+                    if zero_ordinal is None
+                    else zero_ordinal
+                )
+                zero_gain = torch.clamp(
+                    self.invalid_dt_observation_gain
+                    * ordinal.to(dtype=alpha.dtype),
+                    max=3.0 * self.invalid_dt_observation_gain,
+                ).unsqueeze(-1).expand_as(alpha)
+            else:
+                zero_gain = torch.full_like(alpha, self.invalid_dt_observation_gain)
             alpha = torch.where((dt_reason == DT_REASON_FIRST_EVENT).unsqueeze(-1), first_gain, alpha)
             alpha = torch.where((dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1), zero_gain, alpha)
         next_state = (1.0 - alpha) * state + alpha * candidate
         if self.state_normalization_mode == "recurrent":
+            # In V20 skip mode alpha=0 removes event information, while this
+            # deterministic affine normalization may still transform state.
             next_state = self.output_norm(next_state)
         return next_state, clamped_mask, zero_mask
 
@@ -212,6 +250,7 @@ class CfCLiquidCausalEncoder(nn.Module):
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
         initial_state: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> LiquidForwardState:
         if events.ndim != 3:
             raise ValueError("liquid events must have shape [batch, sequence, features]")
@@ -254,6 +293,19 @@ class CfCLiquidCausalEncoder(nn.Module):
             if initial_state.shape != (batch_size, self.hidden_dim):
                 raise ValueError("invalid liquid initial_state shape")
             state = initial_state
+        if zero_ordinal is not None:
+            if zero_ordinal.shape != events.shape[:2] or zero_ordinal.dtype not in (
+                torch.int64,
+                torch.long,
+            ):
+                raise ValueError(
+                    "offline liquid zero_ordinal must be long with shape [batch, sequence]"
+                )
+            if bool((zero_ordinal.masked_select(padding_mask) != 0).any()):
+                raise ValueError("padded offline zero_ordinal values must be zero")
+        derived_zero_ordinal = torch.zeros(
+            (batch_size,), dtype=torch.long, device=events.device
+        )
         outputs: list[torch.Tensor] = []
         clamped: list[torch.Tensor] = []
         zero_dt: list[torch.Tensor] = []
@@ -275,12 +327,42 @@ class CfCLiquidCausalEncoder(nn.Module):
                     dt_reason[:, event_index],
                     torch.full_like(dt_reason[:, event_index], DT_REASON_FIRST_EVENT),
                 )
+            step_ordinal = None
+            if dt_reason is not None:
+                reason_at_event = step_reason
+                reset_ordinal = (reason_at_event == DT_REASON_FIRST_EVENT) | (
+                    reason_at_event == DT_REASON_POSITIVE_DELTA
+                )
+                same_second = reason_at_event == DT_REASON_ZERO_DELTA
+                derived_zero_ordinal = torch.where(
+                    active & reset_ordinal,
+                    torch.ones_like(derived_zero_ordinal),
+                    derived_zero_ordinal,
+                )
+                derived_zero_ordinal = torch.where(
+                    active & same_second,
+                    derived_zero_ordinal + 1,
+                    derived_zero_ordinal,
+                )
+                step_ordinal = derived_zero_ordinal
+                if zero_ordinal is not None:
+                    supplied = zero_ordinal[:, event_index]
+                    if bool(
+                        (
+                            supplied.masked_select(active)
+                            != step_ordinal.masked_select(active)
+                        ).any()
+                    ):
+                        raise ValueError(
+                            "offline zero_ordinal does not match the causal dt_reason sequence"
+                        )
             candidate_state, dt_clamped, dt_zero = self._step(
                 events[:, event_index],
                 step_dt,
                 state,
                 step_valid,
                 step_reason,
+                step_ordinal,
             )
             state = torch.where(active.unsqueeze(-1), candidate_state, state)
             outputs.append(self.readout(state))
@@ -315,6 +397,7 @@ class CfCLiquidCausalEncoder(nn.Module):
         state: torch.Tensor | None = None,
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2:
             raise ValueError("online liquid event must have shape [batch, features]")
@@ -327,7 +410,7 @@ class CfCLiquidCausalEncoder(nn.Module):
                 raise ValueError("an existing online liquid state cannot consume another first-event reason")
         if state is None:
             state = event.new_zeros((event.shape[0], self.hidden_dim))
-        return self._step(event, dt_seconds, state, dt_valid, dt_reason)
+        return self._step(event, dt_seconds, state, dt_valid, dt_reason, zero_ordinal)
 
 
 class RadarLiquidClassifier(nn.Module):
@@ -407,6 +490,8 @@ class RadarLiquidClassifier(nn.Module):
         rd_quality: torch.Tensor,
         tr_padding_mask: torch.Tensor,
         tr_dt_valid: torch.Tensor | None = None,
+        tr_dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 3 or tr_missing_mask.shape[:2] != tr_features.shape[:2]:
             raise ValueError("TR tensors must have shape [batch, sequence, features]")
@@ -420,13 +505,22 @@ class RadarLiquidClassifier(nn.Module):
             tr_dt_valid = torch.ones_like(tr_dt_seconds, dtype=torch.bool)
         if tr_dt_valid.shape != tr_features.shape[:2]:
             raise ValueError("TR dt_valid shape does not match model")
+        if tr_dt_reason is not None and tr_dt_reason.shape != tr_features.shape[:2]:
+            raise ValueError("TR dt_reason shape does not match model")
         tr_embedding = self.tr_encoder(torch.cat([tr_features, tr_missing_mask], dim=-1))
         rd_embedding = self.rd_encoder(rd_frames, rd_frame_mask)
         fusion_inputs = [tr_embedding, rd_embedding, rd_quality]
         if self.dt_valid_dim:
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_events = self.fusion(torch.cat(fusion_inputs, dim=-1))
-        liquid_state = self.liquid(point_events, tr_dt_seconds, tr_padding_mask, dt_valid=tr_dt_valid)
+        liquid_state = self.liquid(
+            point_events,
+            tr_dt_seconds,
+            tr_padding_mask,
+            dt_valid=tr_dt_valid,
+            dt_reason=tr_dt_reason,
+            zero_ordinal=zero_ordinal,
+        )
         logits_sequence = self.classifier(liquid_state.sequence)
         valid = ~tr_padding_mask
         last_indices = valid.long().sum(dim=1).clamp_min(1) - 1
@@ -453,6 +547,8 @@ class RadarLiquidClassifier(nn.Module):
         rd_quality: torch.Tensor,
         liquid_state: torch.Tensor | None = None,
         tr_dt_valid: torch.Tensor | None = None,
+        tr_dt_reason: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Consume exactly one causal TR point and return the next state."""
 
@@ -464,6 +560,8 @@ class RadarLiquidClassifier(nn.Module):
             tr_dt_valid = torch.ones_like(tr_dt_seconds, dtype=torch.bool)
         if tr_dt_valid.ndim != 1 or tr_dt_valid.shape[0] != tr_features.shape[0]:
             raise ValueError("online dt_valid must have shape [batch]")
+        if tr_dt_reason is not None and tr_dt_reason.shape != tr_dt_seconds.shape:
+            raise ValueError("online tr_dt_reason shape does not match model")
         if rd_frames.ndim != 5 or rd_frames.shape[2:] != (2, 21, 384):
             raise ValueError("online RD frames must have shape [batch, K, 2, 21, 384]")
         if rd_frame_mask.shape != rd_frames.shape[:2]:
@@ -476,7 +574,14 @@ class RadarLiquidClassifier(nn.Module):
         if self.dt_valid_dim:
             fusion_inputs.append(tr_dt_valid.to(dtype=tr_features.dtype).unsqueeze(-1))
         point_event = self.fusion(torch.cat(fusion_inputs, dim=-1))
-        state, dt_clamped, dt_zero = self.liquid.step(point_event, tr_dt_seconds, liquid_state, tr_dt_valid)
+        state, dt_clamped, dt_zero = self.liquid.step(
+            point_event,
+            tr_dt_seconds,
+            liquid_state,
+            tr_dt_valid,
+            tr_dt_reason,
+            zero_ordinal,
+        )
         logits = self.classifier(self.liquid.readout(state))
         return {
             "window_logits": logits,

@@ -35,6 +35,7 @@ from .task_models import (
     UNKNOWN_BASE_LABEL,
     LiquidTaskClassifier,
     LiquidTaskConfig,
+    LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     PRODUCT_LOCAL_SCHEMA_VERSION,
     compose_soft_cascade,
     compose_strict_open_set_evidence,
@@ -42,6 +43,11 @@ from .task_models import (
     load_task_checkpoint,
     resolve_project_path,
     verify_task_data_contract,
+)
+from .data import (
+    DT_REASON_FIRST_EVENT,
+    DT_REASON_POSITIVE_DELTA,
+    DT_REASON_ZERO_DELTA,
 )
 
 
@@ -378,14 +384,36 @@ class OnlineLiquidSoftCascade:
         self.first_event_count = 0
         self.positive_delta_count = 0
         self.genuine_gap_count = 0
+        self.zero_delta_ordinal = 0
 
     @torch.inference_mode()
     def step(self, **point: torch.Tensor) -> CascadeOnlineStepResult:
         if point.get("tr_features") is None or point["tr_features"].shape[0] != 1:
             raise ValueError("OnlineLiquidSoftCascade requires batch size 1 per target")
-        gate = self.model.gate.forward_online_point(**point, liquid_state=self.gate_state)
-        dbb = self.model.dbb_specialist.forward_online_point(**point, liquid_state=self.dbb_state)
-        cu = self.model.cu_specialist.forward_online_point(**point, liquid_state=self.cu_state)
+        zero_ordinal = None
+        if self.model.gate.config.schema_version == LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION:
+            reason = point.get("tr_dt_reason")
+            if reason is None:
+                raise ValueError("V20 online cascade requires tr_dt_reason")
+            reason_id = int(reason.reshape(-1)[0].item())
+            if reason_id in {DT_REASON_FIRST_EVENT, DT_REASON_POSITIVE_DELTA}:
+                self.zero_delta_ordinal = 1
+            elif reason_id == DT_REASON_ZERO_DELTA:
+                self.zero_delta_ordinal += 1
+            else:
+                raise ValueError(f"unsupported V20 online dt reason: {reason_id}")
+            zero_ordinal = torch.tensor(
+                [self.zero_delta_ordinal], dtype=torch.long, device=point["tr_features"].device
+            )
+        gate = self.model.gate.forward_online_point(
+            **point, liquid_state=self.gate_state, zero_ordinal=zero_ordinal
+        )
+        dbb = self.model.dbb_specialist.forward_online_point(
+            **point, liquid_state=self.dbb_state, zero_ordinal=zero_ordinal
+        )
+        cu = self.model.cu_specialist.forward_online_point(
+            **point, liquid_state=self.cu_state, zero_ordinal=zero_ordinal
+        )
         self.gate_state = gate["liquid_state"]
         self.dbb_state = dbb["liquid_state"]
         self.cu_state = cu["liquid_state"]

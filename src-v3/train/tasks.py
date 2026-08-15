@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 import torch
 
+from radar_ln3.data import DT_REASON_ZERO_DELTA
 from radar_ln3.logging_utils import (
     close_training_logger,
     configure_training_logger,
@@ -30,6 +31,9 @@ from radar_ln3.task_models import (
     MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION,
+    LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
+    V20_DENSITY_PAIRED_PROTOCOL,
+    V20_SKIP_PAIRED_PROTOCOL,
     build_paired_model_for_config,
     capture_training_state,
     build_task_dataloader,
@@ -44,6 +48,7 @@ from radar_ln3.task_models import (
     load_task_checkpoint,
     is_product_local_schema,
     is_micro_doppler_paired_schema,
+    is_liquid_dynamics_paired_schema,
     restore_training_state,
     summarize_task_performance_guardrails,
 )
@@ -62,6 +67,31 @@ V18_READINESS_SCHEMA = (
     "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
     "training-readiness-v3-stable8"
 )
+V20_READINESS_REPORT = Path(
+    "src-v3/processed/report/RADAR-LN3-V20-zero-delta-skip-training-readiness.json"
+)
+V20_READINESS_SCHEMA = "RADAR-LN3-V20-zero-delta-skip-training-readiness-v1"
+V20_DENSITY_READINESS_REPORT = Path(
+    "src-v3/processed/report/RADAR-LN3-V20-density-weighted-training-readiness.json"
+)
+V20_DENSITY_READINESS_SCHEMA = (
+    "RADAR-LN3-V20-density-weighted-training-readiness-v1"
+)
+V20_DENSITY_MULTISEED_READINESS_REPORT = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V20-density-weighted-multiseed-training-readiness.json"
+)
+V20_DENSITY_MULTISEED_READINESS_SCHEMA = (
+    "RADAR-LN3-V20-density-weighted-multiseed-training-readiness-v1"
+)
+V20_DENSITY_MULTISEED_NEW_SEEDS = frozenset({43, 44})
+V20_READINESS_CONTRACTS = {
+    V20_SKIP_PAIRED_PROTOCOL: (V20_READINESS_REPORT, V20_READINESS_SCHEMA),
+    V20_DENSITY_PAIRED_PROTOCOL: (
+        V20_DENSITY_READINESS_REPORT,
+        V20_DENSITY_READINESS_SCHEMA,
+    ),
+}
 
 
 def _strip_records(result: dict[str, Any]) -> dict[str, Any]:
@@ -122,6 +152,77 @@ def verify_v17_training_readiness(
         "path": str(report_path),
         "sha256": digest,
         "schema_version": expected_schema,
+        "status": "passed",
+        "validation_used_for_readiness_gate": False,
+        "test": "未执行",
+    }
+
+
+def verify_v20_training_readiness(
+    project_root: Path,
+    config_path: Path,
+    contract_hashes: dict[str, Any],
+    *,
+    paired_protocol: str,
+    paired_seed: int,
+) -> dict[str, Any]:
+    if (
+        paired_protocol == V20_DENSITY_PAIRED_PROTOCOL
+        and int(paired_seed) in V20_DENSITY_MULTISEED_NEW_SEEDS
+    ):
+        relative_report = V20_DENSITY_MULTISEED_READINESS_REPORT
+        expected_schema = V20_DENSITY_MULTISEED_READINESS_SCHEMA
+    else:
+        try:
+            relative_report, expected_schema = V20_READINESS_CONTRACTS[
+                str(paired_protocol)
+            ]
+        except KeyError as error:
+            raise ValueError(
+                "V20 training readiness requires a recognized paired protocol"
+            ) from error
+    report_path = (project_root / relative_report).resolve()
+    if not report_path.is_file():
+        raise PermissionError(
+            "V20 formal training requires the train-only readiness report; run the V20 "
+            f"prepare stage first: {report_path}"
+        )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    expected_config = config_path.resolve()
+    paired_configs = dict(report.get("paired_configs") or {})
+    matching_configs = [
+        dict(value)
+        for value in paired_configs.values()
+        if Path(str(dict(value).get("path", ""))).resolve() == expected_config
+    ]
+    checks = dict(report.get("checks") or {})
+    config_hash = hashlib.sha256(expected_config.read_bytes()).hexdigest()
+    if (
+        report.get("status") != "passed"
+        or report.get("schema_version") != expected_schema
+        or report.get("paired_protocol") != paired_protocol
+        or (
+            expected_schema == V20_DENSITY_MULTISEED_READINESS_SCHEMA
+            and int(paired_seed) not in set(report.get("new_training_seeds") or [])
+        )
+        or len(matching_configs) != 1
+        or matching_configs[0].get("sha256") != config_hash
+        or report.get("contract_hashes") != contract_hashes
+        or not checks
+        or not all(value is True for value in checks.values())
+        or report.get("validation_used_for_readiness_gate") is not False
+        or report.get("test") != "未执行"
+        or report.get("formal_training_at_report_generation") != "未执行"
+    ):
+        raise PermissionError(
+            "V20 formal training readiness is missing, stale, failed or outside the frozen "
+            f"train-only/test-sealed contract: {report_path}"
+        )
+    return {
+        "path": str(report_path),
+        "sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        "schema_version": expected_schema,
+        "paired_protocol": paired_protocol,
         "status": "passed",
         "validation_used_for_readiness_gate": False,
         "test": "未执行",
@@ -338,9 +439,13 @@ def train_task(
     contract = verify_task_data_contract(project_root, config)
     v17_readiness: dict[str, Any] | None = None
     readiness_field_name = (
-        "v18_training_readiness"
-        if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
-        else "v17_training_readiness"
+        "v20_training_readiness"
+        if is_liquid_dynamics_paired_schema(config.schema_version)
+        else (
+            "v18_training_readiness"
+            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            else "v17_training_readiness"
+        )
     )
     readiness_hash_field_name = readiness_field_name + "_sha256"
     if is_micro_doppler_paired_schema(config.schema_version):
@@ -349,6 +454,14 @@ def train_task(
             config_path,
             dict(contract["hashes"]),
             schema_version=config.schema_version,
+        )
+    elif is_liquid_dynamics_paired_schema(config.schema_version):
+        v17_readiness = verify_v20_training_readiness(
+            project_root,
+            config_path,
+            dict(contract["hashes"]),
+            paired_protocol=config.train.paired_protocol,
+            paired_seed=config.train.seed,
         )
     artifact_dir = project_root / config.train.formal_artifact_dir
     if config.schema_version not in FORMAL_PAIRED_SCHEMA_VERSIONS and resume_checkpoint is not None:
@@ -454,6 +567,12 @@ def train_task(
                         f"receives real current-event micro-Doppler{config.model.micro_doppler_dim} "
                         "through exactly-zero Fusion columns"
                     )
+                elif is_liquid_dynamics_paired_schema(config.schema_version):
+                    treatment_initial = treatment_model(**shared_inputs)["sequence_logits"]
+                    initial_probe = (
+                        "identical V20 parameters/input; logits must match before the first "
+                        "zero-delta Treatment exposure and may differ from that event onward"
+                    )
                 else:
                     treatment_output = treatment_model(**shared_inputs, return_dbb_auxiliary_logits=True)
                     treatment_initial = treatment_output["sequence_logits"]
@@ -466,8 +585,37 @@ def train_task(
                         raise AssertionError("V12 paired auxiliary logits are not exactly equal before training")
                     paired_initialization["initial_auxiliary_logits_exactly_equal"] = True
                     initial_probe = "identical V12 model/input; only the configured training loss weight differs"
-            maximum_difference = float((control_initial - treatment_initial).abs().max().item())
-            if not torch.equal(control_initial, treatment_initial):
+            difference = (control_initial - treatment_initial).abs()
+            maximum_difference = float(difference.max().item())
+            full_logits_equal = bool(torch.equal(control_initial, treatment_initial))
+            pre_exposure_logits_equal = full_logits_equal
+            pre_exposure_maximum_difference = maximum_difference
+            treatment_exposed_event_count = 0
+            if is_liquid_dynamics_paired_schema(config.schema_version):
+                reasons = initial_tensors.get("tr_dt_reason")
+                if reasons is None:
+                    raise RuntimeError("V20 paired initialization requires dt reasons")
+                exposure_seen = torch.cumsum(
+                    (reasons == DT_REASON_ZERO_DELTA).to(dtype=torch.int64), dim=1
+                ).gt(0)
+                pre_exposure = active & (~exposure_seen)
+                treatment_exposed_event_count = int((active & exposure_seen).sum().item())
+                if not bool(pre_exposure.any()):
+                    raise AssertionError("V20 initialization probe has no pre-exposure event")
+                pre_exposure_logits_equal = bool(
+                    torch.equal(
+                        control_initial[pre_exposure], treatment_initial[pre_exposure]
+                    )
+                )
+                pre_exposure_maximum_difference = float(
+                    difference[pre_exposure].max().item()
+                )
+                if not pre_exposure_logits_equal:
+                    raise AssertionError(
+                        "V20 paired logits differ before the first zero-delta Treatment "
+                        f"exposure: maximum_absolute_difference={pre_exposure_maximum_difference}"
+                    )
+            elif not full_logits_equal:
                 raise AssertionError(
                     "paired CPU reference logits are not exactly equal before training: "
                     f"maximum_absolute_difference={maximum_difference}"
@@ -475,8 +623,15 @@ def train_task(
             logits_bytes = control_initial.detach().cpu().contiguous().numpy().tobytes(order="C")
             paired_initialization.update(
                 {
-                    "initial_cpu_reference_logits_exactly_equal": True,
+                    "initial_cpu_reference_logits_exactly_equal": full_logits_equal,
                     "initial_logits_maximum_absolute_difference": maximum_difference,
+                    "initial_pre_treatment_exposure_logits_exactly_equal": (
+                        pre_exposure_logits_equal
+                    ),
+                    "initial_pre_treatment_exposure_maximum_absolute_difference": (
+                        pre_exposure_maximum_difference
+                    ),
+                    "initial_treatment_exposed_event_count": treatment_exposed_event_count,
                     "initial_logits_sha256": hashlib.sha256(logits_bytes).hexdigest(),
                     "initial_logit_probe": initial_probe,
                     "initial_logit_parent_sample_ids": list(initial_batch["parent_sample_ids"]),
@@ -511,7 +666,10 @@ def train_task(
                 optimizer=optimizer,
             )
             if (
-                is_micro_doppler_paired_schema(config.schema_version)
+                (
+                    is_micro_doppler_paired_schema(config.schema_version)
+                    or is_liquid_dynamics_paired_schema(config.schema_version)
+                )
                 and (
                     v17_readiness is None
                     or dict(resume_payload.get("metrics") or {}).get(
@@ -587,6 +745,20 @@ def train_task(
                 config.model.micro_doppler_dim,
                 paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
                 paired_initialization.get("treatment_new_fusion_columns_exactly_zero"),
+            )
+        elif is_liquid_dynamics_paired_schema(config.schema_version):
+            logger.info(
+                "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | "
+                "control_mode=bounded_observation | treatment_mode=%s | shared_exact=%s | "
+                "cuda_bitwise_determinism=false",
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.seed,
+                loader_seed,
+                "skip"
+                if config.train.paired_protocol == V20_SKIP_PAIRED_PROTOCOL
+                else "density_weighted",
+                paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
             )
         logger.info(
             "contract | index_sha256=%s | contract_sha256=%s | stats_sha256=%s | classes=%s | loss=%s",
