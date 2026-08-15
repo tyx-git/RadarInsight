@@ -2271,3 +2271,25 @@
 - Action：由用户手动执行V19 prepare、train和evaluate。只有三类P/R/F1≥0.95、Macro-F1与Drone/Bird弱项严格`>0.02`、双向错误下降时才讨论多seed；若失败，不增加残差层数/容量、不回看validation调阈值，接受当前stable8摘要的局部收益上限并转向新的预注册变量。
 - 验证状态：代码编译、静态隔离、PowerShell AST、synthetic端到端和真实三parent focused Smoke已通过；全量prepare、正式训练、validation性能、完整级联、OOF、test、正式拒识、stable、P95和部署未执行。
 - 关联版本：V19 frozen-Control stable8 late-residual候选；V18 Control best与stable8证据只读复用。
+
+## Finding F207
+
+- Severity：Medium（V20实验代码与合同已通过准备阶段，正式性能尚未产生）
+- 文件位置：`src-v3/radar_ln3/model.py`、`src-v3/radar_ln3/task_models.py`、`src-v3/radar_ln3/streaming.py`、`src-v3/report/liquid_dynamics_v20_readiness.py`、`src-v3/scripts/v20_zero_delta_skip_pipeline.ps1`
+- 问题或结论：V20 skip已完成正式训练并失败收口。Control使用现行`bounded_observation`固定gain=`0.25`；Treatment只对`zero_delta_at_second_precision`使用`alpha=0`。first event和positive delta不变；由于分类头只读取liquid state，当前事件虽被Fusion计算但在alpha=0时不进入state/logits，因此真实语义是“丢弃同秒当前观测”，不是“观测可见但不累积”，也不是状态张量恒等不变。
+- Evidence：V20配置逐字节复用V16数据字段和contract哈希；train/val DBB parent=`953/223`；zero-delta事件统计排除first event，train/val event级标签Cramér's V=`0.1264218055/0.0916738183`，仅写入readiness诊断块，不参与训练门禁；test payload access=`0`。focused Smoke确认skip对同一状态的不同zero-delta事件内容不敏感、density ordinal按`first/positive→1、zero→k+1`递增且offline/online最大误差=`0`、配对初始logits逐值一致。
+- Impact：own-best总体Accuracy不变、Macro-F1仅`+0.004047`，但Bird Precision/F1下降且Drone↔Bird错误由7增至11；聚合指标掩盖了安全方向恶化。该结果不能证明固定0.25可弃，也不能外推到五类开放集、Gate/CU路由或stable动作。
+- Action：V20 skip不采纳，保留bounded Control；V20r作为独立正向实验启动，不把skip当作严格对称反向证据。不得使用test、OOF、正式拒识、stable或P95调参/宣称收益。
+- 验证状态：V20 prepare、两臂正式20 epoch、paired validation均完成；状态`completed_but_gate_failed`。V20r prepare完成但正式Treatment训练未执行；完整级联、OOF、test、正式拒识、stable、P95和部署未执行。
+- 关联版本：V20-skip / V20r-density；V16数据contract只读复用。
+
+## Finding F208
+
+- Severity：High（V20r密度干预存在真实可训练路径，同时具有类别相关暴露风险）
+- 文件位置：`src-v3/report/liquid_dynamics_v20_readiness.py`、`src-v3/smoke/liquid_dynamics_v20_contract_test.py`、`src-v3/scripts/v20r_density_weighted_pipeline.ps1`
+- 问题或结论：V20r对zero-delta事件按同秒因果序使用k2=`0.50`、k≥3=`0.75`，并复用V20 skip Control而不重复训练。大多数受干预事件已经进入k≥3饱和区，因此这是强正向干预，不是围绕0.25的小扰动；其收益必须同时满足Bird/Drone方向安全门槛。
+- Evidence：train事件`k1/k2/k≥3=11733/1677/4856`，受干预zero事件共6533，其中约74.3%位于k≥3。Bird/Drone/Balloon parent均衡暴露率=`0.441576/0.357492/0.243624`，density ordinal标签Cramér's V=`0.091077`。Smoke确认k增益1/2/3倍与0.75 cap、padding/online一致；真实Track 1010暴露前logits逐值相同、暴露后不同，loss和梯度finite且非零。
+- Impact：density确实能改变液态状态并反向传播，但Bird在train中接受Treatment的比例最高，可能将同秒观测密度变成类别相关捷径；若只提升Bird Recall并降低Precision，或高k parent主导收益，不得采纳。
+- Action：只训练V20r Treatment并与SHA冻结的V20 Control比较；报告own-best、same-epoch、三类P/R/F1、Drone↔Bird方向错误和按density exposure归因。严格保留`>0.02`与方向安全门槛，不因V20 skip失败放宽。
+- 验证状态：配置、readiness、focused Smoke、Python compile、PowerShell AST和静态隔离通过；正式20 epoch Treatment和paired validation待用户执行。test、OOF、级联、拒识、stable、P95和部署未执行。
+- 关联版本：V20r-density，复用V20-skip Control与V16数据contract。

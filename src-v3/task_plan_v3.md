@@ -1387,3 +1387,89 @@
 版本策略：V19新增normalization、冻结logit/因果特征cache、contract、config、checkpoint和报告schema，但只读复用V16 split与V18 stable8证据/Control checkpoint；不覆盖V18文件，不修改通用`LiquidTaskClassifier`，避免将研究性late residual误接入完整级联。
 
 当前执行边界：代码与focused Smoke已完成；全量数据处理、正式训练和validation性能评估由用户手动执行。test、完整级联、OOF、正式拒识、stable、P95和部署继续为“未执行”。
+
+## Stage 062 - V20 zero-delta dynamics skip诊断
+
+目标：在冻结V16 index、capture/content split、normalization、DBB specialist结构、loss、seed和20 epoch协议的前提下，只改变液态模块对`zero_delta_at_second_precision`事件的更新语义，先验证固定`0.25`增益是否被模型实际利用；本阶段只验证DBB specialist，不扩展Gate、CU、完整级联或严格开放集动作。
+
+前置依赖：V19作为决策层研究方向保留；V16 DBB局部任务和V3 reason-aware dt契约已冻结；V20不新增字段、不重建index、不读取test payload。
+
+最小子任务：
+
+- [x] 在`CfCLiquidCausalEncoder`增加`skip`与`density_weighted`枚举；V20 skip对同秒事件使用`alpha=0`，first/positive语义保持不变；V20r按同秒因果序使用`min(0.25×k,0.75)`。
+- [x] offline forward按每个batch序列独立维护zero ordinal；padding不推进计数，并校验显式ordinal与reason序列一致。
+- [x] online `OnlineTargetClassifier`及`OnlineLiquidSoftCascade`持有同秒序计数，确保offline/online共享同一`_step`语义；skip模式只允许确定性recurrent normalization继续作用，不宣称状态恒等不变。
+- [x] 生成V20 skip Control/Treatment配置；除`liquid_invalid_dt_update_mode`及版本化paired/artifact字段外，逐字节复用V16 DBB配置和数据contract。
+- [x] 建立train-only readiness：报告zero-delta比例、按标签Cramér's V、train/val support、配置配对、冻结contract和test payload访问；关联统计仅作诊断，不进入采样、标签、阈值或训练门禁。
+- [x] 建立V20 focused Smoke：skip事件内容不敏感、density ordinal因果性、offline/online逐值一致、Control/Treatment初始logits逐值一致、test保持封存。
+- [x] 建立`src-v3/scripts/v20_zero_delta_skip_pipeline.ps1`，支持`prepare/train/evaluate/all`，不使用环境变量；已完成artifact不覆盖，异常或中断且存在`last_model.pt`时按epoch边界恢复，任一步失败即停止。
+- [x] 修正训练入口按paired protocol选择skip/density readiness，避免未来V20r错误读取V20 skip报告；补充V20常量和paired builder导出。
+- [x] 运行Python编译、PowerShell AST、`smoke.static_isolation_check`、V20 focused Smoke及V20 `prepare`；结果通过，V16 contract hashes保持不变，train/val DBB parent为`953/223`。
+- [x] 用户手动完成V20 skip Control/Treatment各20 epoch并执行冻结development validation paired report；状态为`completed_but_gate_failed`。own-best Accuracy不变、Macro-F1仅`+0.004047`，Bird Precision/F1分别`-0.015664/-0.007901`、Recall不变，Drone↔Bird错误由7增至11；same-epoch方向混合，不采纳skip。
+- [x] 复核skip实际语义：当前分类头只读取liquid state，`alpha=0`使同秒当前事件虽被Fusion计算但不进入state/logits，因此本轮是“丢弃同秒当前观测”的强消融，不能声称已经隔离“观测可见但不累积”。保留`bounded_observation=0.25`。
+- [x] 根据Bird安全异常和用户确认启动V20r density-weighted；V20r作为独立正向实验，不把V20 skip当作严格对称反向证据。
+
+实验协议：Control固定`bounded_observation`、gain=`0.25`；V20 Treatment为`skip`、zero-delta `alpha=0`。V20局部正式训练和validation已完成并失败收口；完整级联、OOF、test、拒识、stable、P95和部署均未执行。
+
+## Stage 063 - V20r同秒观测密度加权正向实验
+
+目标：验证同一秒内连续观测数量能否作为持续可见证据。Treatment仅将zero-delta更新增益改为`min(0.25×k,0.75)`，其中first/positive重置`k=1`、后续zero依次为`k=2,3,...`；V16数据、DBB结构、loss、seed、20 epoch和checkpoint选择全部冻结。
+
+前置依赖：Stage 062已完成V20 skip并保留bounded Control；V20r复用已完成的V20 skip Control，不重复训练相同基线。V20r只训练一个density Treatment，并以20/20 parent-order SHA、初始Control logits SHA和配置/模型训练核心完全一致证明可比性。
+
+最小子任务：
+
+- [x] 增加density ordinal train-only审计：按parent与`causal_event_index`推导k，验证first/positive重置、zero递增、padding不参与；报告`k1/k2/k≥3`按标签计数、parent均衡暴露率、平均实际增益和标签Cramér's V，不把这些统计输入模型或采样器。
+- [x] 绑定共享V20 Control：skip Control config、training summary、best checkpoint、20个epoch checkpoint和原readiness均做SHA/状态/测试封存校验；V20r density Control artifact必须保持空，不允许重复训练。
+- [x] 修正动态Treatment初始化校验：参数/缓冲必须逐值相同；首个zero-delta暴露前logits必须逐值相同，暴露后允许因实验变量产生差异。旧“全sequence初始logits必须相同”只在探针恰无zero事件时成立，不再作为错误门槛。
+- [x] 扩展focused Smoke：验证k1与Control精确相同、k2增量为2倍、k3为3倍、k≥3饱和；带padding offline/online逐值一致；真实train parent `cq08|track|1010`在暴露前logits相同、暴露后不同，loss/梯度finite且非零。
+- [x] 生成独立V20r Control-reference/Treatment配置、density readiness及`src-v3/scripts/v20r_density_weighted_pipeline.ps1`；脚本只训练Treatment，支持`prepare/train/evaluate/all`、fail-fast和`last_model.pt`恢复。
+- [x] V20r prepare通过：train事件`k1/k2/k≥3=11733/1677/4856`，density ordinal标签Cramér's V=`0.091077`；Bird train parent均衡暴露率`0.441576`，Drone=`0.357492`，Balloon=`0.243624`。这些差异只作归因，validation不参与启动门槛，test payload访问为0。
+- [x] 用户手动完成V20r density Treatment 20 epoch及冻结development validation评估；脚本复用V20 Control。own-best parent Accuracy=`0.946188`、Macro-F1=`0.943280`，相对Control分别提升`0.022422/0.026416`；Drone/Bird弱项提升`0.019424`，Drone→Bird由5降至4但Bird→Drone由2增至3，双向总错仍为7。正式状态为`completed_but_gate_failed`，该结果只授权多seed复现，不覆盖原单seed采纳失败。
+- [ ] 完整级联、OOF、test、正式拒识、stable、P95和部署均未执行；局部2个百分点与方向安全门槛通过前禁止晋级。
+
+决策规则：只有Treatment三类P/R/F1均≥0.95、Macro-F1和Drone/Bird弱项均严格提升`>0.02`、Drone→Bird/Bird→Drone均不增加且双向错误至少减少1，才采纳density-weighted。若只提高Bird Recall但降低Precision、只改善聚合Macro-F1或效果集中于高k类别，则判定密度成为类别相关捷径并拒绝。
+
+## Stage 064 - V20r三seed优化稳定性确认
+
+目标：区分seed42中`+0.026416` parent Macro-F1信号是可跨初始化/采样顺序复现的density效应，还是单一优化轨迹与validation checkpoint峰值。固定seed集合为`42/43/44`；seed42 Control/Treatment只读复用，新增训练只包含seed43/44的V16-core bounded Control与同seed density Treatment。本Stage仍只回答DBB局部优化稳定性，不执行完整五类、开放集拒识或test。
+
+前置依赖：Stage 063的共享Control设计已排除同一seed内的初始化和parent顺序不配对，但未排除跨seed优化方差；因此多seed是复现检查而不是对单seed冻结安全门槛的事后放宽。三个seed重复使用同一223个validation parent，只是优化replicate，不是独立数据样本，禁止对`n=3`伪造常规显著性检验。
+
+最小子任务：
+
+- [x] 冻结seed与执行顺序：`42/43/44`沿用项目V11/V12三seed惯例；seed42复用已完成V20 skip Control与V20r Treatment，先串行训练seed43/44 Control，再串行训练seed43/44 Treatment，任一步失败停止。
+- [x] 生成seed43/44四份独立配置；每个seed的Control/Treatment共享V16 index、split、normalization、任务、结构、loss、20 epoch和checkpoint规则，只允许`liquid_invalid_dt_update_mode`及arm/artifact身份不同。seed、paired seed与DataLoader seed严格相同。
+- [x] 新建train-only multiseed readiness；绑定V16数据SHA、seed42报告/summary SHA、四份新配置SHA和新seed初始state SHA。seed43/44各自成对初始state逐值相同，两个seed初始state必须不同；test payload访问为0。
+- [x] 扩展V20训练配置校验：skip仍只允许seed42；density确认仅额外允许seed43/44。seed43/44训练必须绑定新的immutable readiness，不能改写seed42已进入checkpoint的readiness。
+- [x] 新建`src-v3/scripts/v16_dbb_multiseed_control_pipeline.ps1`，仅训练seed43/44 bounded Controls；支持`prepare/train/verify/all`、已完成artifact只读复核和epoch边界恢复，不使用环境变量。
+- [x] 新建`src-v3/scripts/v20r_density_weighted_multiseed_pipeline.ps1`，要求三个Control先完整，再仅训练seed43/44 density Treatments并聚合42/43/44；支持`prepare/train/evaluate/all`和epoch边界恢复。
+- [x] 冻结双层结论：主信号确认要求至少2/3 seed且三seed中位数的`Treatment-Control parent Macro-F1 >0.02`；完整采纳仍要求至少2/3 seed及中位数同时通过原三类0.95、DB弱项`>0.02`和双向方向错误全部门槛。主信号通过但安全门槛失败只能保留研究方向，不能进入主线。
+- [x] focused Smoke通过：seed43/44配置/contract/readiness绑定正确，各seed pair初始state精确相同，两个seed初始化不同；真实Track 1010在density暴露前logits精确相同、暴露后不同。Python编译、PowerShell AST与static isolation通过。
+- [ ] 用户手动运行V16-core multiseed Control脚本，完成seed43/44各20 epoch并只读验证三个Control。
+- [ ] 用户手动运行V20r multiseed Treatment脚本，完成seed43/44各20 epoch并生成三seed聚合报告。
+- [ ] 根据三seed报告裁决`primary_signal_confirmed`与`full_adoption_confirmed`；test、OOF、完整级联、正式拒识、stable、P95和部署继续为“未执行”。
+
+版本策略：本Stage不改V16数据或V20r动力学公式，属于V20r确认协议扩展；新增seed43/44配置、artifact、immutable readiness、多seed报告schema和两份脚本，不覆盖seed42产物。若三seed完整采纳通过，后续是否创建集成Gate/CU的新全局版本必须另立Stage并由用户确认。
+
+## Stage 065 - V20r三seed权重×推理动态2×2交叉诊断
+
+目标：在不重新训练、不改checkpoint、不访问test的前提下，将每个seed的Control/Treatment best权重分别置于`bounded_observation`与`density_weighted`推理模式，区分直接动态更新收益、训练权重收益及二者交互，裁决V20r是否仍值得作为DBB主线增益。
+
+状态：三seed共6次交叉validation forward已完成；独立报告、源码编译和内置契约检查通过。诊断确认存在权重×模式协同，但V20r没有形成跨seed稳定的完整采纳收益，继续保持研究候选而不替换V16主线。
+
+最小子任务：
+
+- [x] 新建`report/liquid_dynamics_v20_cross_mode.py`；原生两个单元从SHA绑定的best sample detail复核，仅重新执行Control权重+density及Treatment权重+bounded两个交叉单元，每seed共2次forward。
+- [x] 三seed原生sample detail逐值重现既有parent-final指标，交叉评估前后checkpoint tensor SHA保持不变；三个seed共享同一V16 index/contract/normalization和223个validation parent。
+- [x] 验证无同秒事件的111个parent：相同权重切换bounded/density后预测与置信度最大差均为0，证明交叉实现没有通过配置或批处理污染非暴露样本。
+- [x] Control权重直接切换density在3/3 seed均降低Macro-F1，差值为`-0.009844/-0.006085/-0.004400`，中位数`-0.006085`；不能把density作为无需重训的推理替换。
+- [x] Treatment权重从bounded切回训练匹配的density在3/3 seed均非负，Macro-F1差值为`+0.018334/+0.001457/+0.011967`，中位数`+0.011967`；高同秒暴露组中位增益为`+0.023807`。
+- [x] 权重×模式差分中的差分在3/3 seed均为正，Macro-F1=`+0.028178/+0.007542/+0.016367`，中位数`+0.016367`；高暴露组中位交互为`+0.031625`，说明Treatment确实学习到与density规则协同的参数，而不是报告或传入链路假增益。
+- [x] 原生V20r总效应仍为`+0.026416/-0.019906/+0.022364`，只满足冻结的2/3主信号确认；三seed完整安全门槛0/3，Bird及Balloon类floor不足，不能晋级OOF、完整级联或部署。
+- [x] 冻结历史比较口径：正式baseline仍为V16 seed42 DBB，Accuracy=`0.923767`、Macro-F1=`0.916864`；V16-core seed43 Control是当前单checkpoint最高Macro-F1=`0.954290`、Accuracy=`0.955157`，但它只是不同seed的baseline replicate；当前实际Treatment最高为V18 stable8，Accuracy=`0.955157`、Macro-F1=`0.953929`，因Bird Precision=`0.913793`及方向门槛失败而未采纳。
+- [ ] test、OOF、完整级联、正式拒识、stable、P95和部署均未执行；若用户选择继续V20r，只能另立阶段解决跨seed权重稳定性和类别floor，不能将本2×2交互证据写成最终五类收益。
+
+实验结论：density具有真实但条件化的动态价值——未经density训练的Control权重直接启用它会稳定下降，经过density训练的权重则在高暴露parent上从匹配推理规则获得正增益。当前瓶颈已经从“动态公式是否有信息”转为“density训练能否稳定学到不损害全局类别边界的权重”；seed43反向和0/3完整门槛表明该问题尚未解决。
+
+版本策略：本Stage只新增独立validation诊断入口和报告，不改V16/V20r配置、checkpoint、数据、线上模式或采纳门槛。报告继续标记test/OOF/级联/拒识/stable/P95为“未执行”，`deployment_eligible=false`。

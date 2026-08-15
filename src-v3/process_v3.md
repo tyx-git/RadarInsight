@@ -2156,3 +2156,23 @@ stable8尺度只由953个train DBB parent拟合。每个parent先对其有效当
 focused Smoke覆盖合成因果反例、无证据/缺失保持、零初始化、残差上界、零和、梯度、checkpoint/cache round-trip和完整临时端到端20 epoch。真实三类parent probe得到残差权重最大绝对梯度`0.167272`；一次optimizer step前后V18 Control state SHA均为`5d61933484a0f01dac629a5b8168b92b6733be304897a3dfac72e76e54780b7e`，所有主干参数gradient均为空；20/20 shuffled parent顺序hash与正式V18 Control一致。该Smoke只证明合同和可训练性，不提供V19性能结论。
 
 正式采纳门槛保持V18冻结标准：Treatment三类各自Precision/Recall/F1均至少0.95，parent Macro-F1和Drone/Bird弱项相对固定V18 Control均严格提升超过0.02，Drone→Bird与Bird→Drone均不得增加，双向总错误至少减少1。V19不设validation阈值、不重新训练Control、不执行完整级联；prepare、正式训练、validation结果、OOF、test、正式拒识、stable、P95和部署当前均未执行。
+
+## 2026-08-15 Stage 062 - V20 zero-delta skip诊断准备完成
+
+根据V19之后的单因素实验纪律，新增V20 skip诊断并预留V20r density-weighted修订。两者均复用V16 capture/content grouped index、split、normalization、TR/RD输入和DBB specialist训练协议，只改变`liquid_invalid_dt_update_mode`；不重建数据、不新增字段、不访问test。Control为`bounded_observation`、固定gain=`0.25`；V20 Treatment为`skip`，同秒事件不吸收当前事件信息，但仍允许recurrent LayerNorm的确定性仿射变换；V20r Treatment未来按同秒因果序`k`使用`min(0.25×k,0.75)`。
+
+已完成代码链路：`model.py`支持skip/density、offline按reason维护ordinal、`task_models.py`和`cascade.py`传递ordinal，`streaming.py`在线持有ordinal；配置解析、V20 paired model builder、train-only readiness和paired report均已建立。训练入口已修正为依据paired protocol选择对应readiness报告，V20常量/构建器也已加入公开导出。
+
+已完成验证：V20 skip配置和readiness生成成功；train/val DBB parent为`953/223`，V16 contract hashes未改变；zero-delta正式统计排除first event，train/val event-level标签Cramér's V分别为`0.1264218055/0.0916738183`，仅作为报告诊断；test payload access=`0`，validation不参与readiness gate。Python compile、PowerShell AST、src-v3隔离检查、V20 focused Smoke和脚本`prepare`均通过；Smoke确认skip事件内容不影响候选状态、density离线/在线最大误差为0、配对初始logits逐值一致。
+
+当前边界：代理未执行20 epoch正式训练。用户下一步运行V20 skip脚本的`train`或`all`阶段；训练完成后只做development validation paired report。V20r、Gate/CU、完整级联、OOF、test、正式拒识、stable、P95和部署继续记录为“未执行”。
+
+## 2026-08-15 Stage 062结果与Stage 063 V20r启动
+
+用户已完成V20 skip两臂20 epoch和paired validation。Control/Treatment best epoch为15/7；own-best parent Accuracy均为`0.923767`，Macro-F1为`0.916864→0.920911`，仅增加`0.004047`。Bird Precision由`0.892857`降至`0.877193`，Recall保持`0.892857`，F1降至`0.884956`；Drone→Bird由5增至6、Bird→Drone由2增至5，双向错误由7增至11。20个same-epoch结果方向混合，V20状态为`completed_but_gate_failed`，保留bounded Control且不采纳skip。
+
+代码复核同时明确skip并未实现文字上的“当前观测可见但不累积”：Fusion事件只通过liquid state到分类头，`alpha=0`后当前zero事件不进入state或logits。因此V20只能解释为丢弃同秒当前观测的强消融，不能作为V20r的严格对称反向证据。V20r按用户确认作为独立正向实验启动。
+
+V20r不重复训练Control，直接SHA绑定并复用已完成V20 skip Control。新增density readiness按parent因果推导ordinal：train `k1/k2/k≥3=11733/1677/4856`，其中Treatment对k2使用0.50、k≥3使用0.75；标签Cramér's V=`0.091077`。Bird/Drone/Balloon train parent均衡暴露率分别为`0.441576/0.357492/0.243624`，因此后续必须重点审计Bird边界和高k类别相关性，不允许仅凭总体Macro-F1放行。
+
+V20r focused Smoke和prepare均已通过。合成增益验证k1/k2/k3为Control增量的1/2/3倍且k≥3饱和；padding不推进ordinal，offline/online误差0；真实Track 1010在首个density暴露前Control/Treatment logits相同、暴露后不同，训练loss和梯度finite且非零。配置/readiness复用V16 contract，validation只报告、test payload访问0。正式density Treatment训练等待用户手动执行；OOF、test、级联、正式拒识、stable、P95和部署未执行。
