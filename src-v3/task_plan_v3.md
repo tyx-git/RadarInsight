@@ -1496,3 +1496,50 @@
 - [ ] test、OOF、完整级联、正式拒识、stable、P95和部署继续为“未执行”；V18r只作为当前DBB单checkpoint最高绝对指标与后续低容量后置残差实验的冻结候选主干。
 
 版本策略：V18r只新增模型/配置/checkpoint/readiness/report协议版本，数据contract仍为V18 stable8且index schema仍为V16。任何后续把V18r接入Gate/CU或线上动作的工作必须另立Stage并重新验证完整三层契约。
+
+## Stage 067 - V19r冻结V18r后置残差诊断（已收口）
+
+目标：以V18r seed42 best epoch 15作为完全冻结的DBB主干，采纳V19的低容量后置残差机制，验证train-only stable8因果摘要能否直接修正V18r剩余的Drone/Bird/Balloon边界。V19r不复用V19已训练残差权重，24个无bias残差参数从全零开始；零初始化组合logits必须逐值等于V18r baseline。
+
+前置依赖：V18r正式20 epoch训练和paired validation已完成，parent Accuracy=`0.959641`、Macro-F1=`0.956767`，但2pp与三类0.95完整门槛失败；V19 train-only normalization及因果stable8 cache已完成并通过源数据对齐。V19r只回答DBB局部决策层增益，不执行Gate、CU、完整级联、OOF、test、正式拒识、stable或P95。
+
+最小子任务：
+
+- [x] 冻结V18r Treatment config、paired report、training summary、best checkpoint SHA和best epoch=`15`；缓存生成前后主干参数/缓冲state SHA必须不变。
+- [x] 复用V19的train-only parent-balanced stable8 median/IQR normalization及因果摘要字段，但不复用V19 baseline logits、residual checkpoint或任何已训练权重。
+- [x] 新建V19r train/validation cache：逐parent校验V18r Dataset与V19 cache的parent、label、length、padding、valid mask、valid count及causal stable8，对全部事件重新生成冻结V18r baseline logits。
+- [x] 新建独立V19r cache/config/contract/checkpoint/readiness/report schema，防止与V19或V18r产物混用；模型仍仅含`3×8=24`个无bias、零和、有界残差权重。
+- [x] 新建`src-v3/scripts/v19r_micro_doppler_residual_pipeline.ps1`，支持`prepare/train/evaluate/all`、fail-fast、UTF-8 JSON读取和epoch边界恢复；首个checkpoint前中断可归档后从零残差重启，已有epoch checkpoint但缺`last_model.pt`时阻塞人工裁决。
+- [x] 冻结评估门槛：三类P/R/F1均≥0.95、Macro-F1与Drone/Bird弱项均严格提升`>0.02`、Drone→Bird/Bird→Drone均不增加、双向错误至少减少1，且Balloon弱项不得低于V18r baseline。
+- [x] 用户手动完成20 epoch与冻结development validation；该运行共`9540` step、耗时约`93.56s`，但`trainable_parameter_count=24`，仅训练后置残差，不属于全量主干训练。
+- [x] best epoch=`12`，Accuracy=`0.964126`、Macro-F1=`0.961113`；相对V18r分别提升`0.004484/0.004346`，Drone→Bird由3降至2、Bird→Drone保持0、Balloon指标不变。结果证明低容量残差有小幅正向边界修正，但未达到2pp与三类0.95门槛，状态为`completed_but_gate_failed`。
+- [ ] test、OOF、完整级联、正式拒识、stable、P95和部署继续为“未执行”；单seed局部通过也只能进入多seed确认，不直接替换三层产品主线。
+
+实验假设：V18r已把stable8和density动态耦合进主干，但剩余误差可能来自共享Fusion/液态状态对局部边界的约束；若零初始化24参数后置残差能在不损害Balloon和方向安全的前提下严格提升超过2个百分点，则说明stable8仍含未被主干充分利用的判别信息。若仅微幅提升、只搬移Drone/Bird单侧边界或继续降低Balloon Precision，则接受当前摘要空间接近上限，不增加残差容量或进行validation阈值搜索。
+
+版本策略：本Stage产物保留为`V19r frozen diagnostic`，复用V16 split、V18 stable8数据合同与V19 train-only normalization；V18r主干只读，V19 residual权重不迁移。由于用户要求“全量从头训练”，该Stage不再代表正式V19r Treatment，后续由Stage 068替代。
+
+## Stage 068 - V19r全量主干与后置残差联合训练修订
+
+目标：纠正Stage 067仅训练24参数的范围偏差。新Treatment从V18r完全相同的初始state重新开始，完整训练TR/RD Fusion、三路CfC液态状态、分类头以及新增24参数stable8后置残差；Control仍为已完成的V18r best，仅作只读比较，不重复消耗训练资源。
+
+前置依赖：Stage 067已证明后置残差单独可修正1个Drone→Bird，但增益仅`+0.4346pp Macro-F1`；V18r的从头初始化state、20个parent顺序、V16 split、V18 stable8 cache和V19 train-only normalization均已冻结。新Treatment不得从V18r best微调，也不得加载Stage 067残差权重。
+
+最小子任务：
+
+- [x] 新建`V19rJointLateResidualModel`：完整V18r `LiquidTaskClassifier`作为可训练backbone，stable8因果摘要经零初始化、无bias、零和、有界`3×8`残差修正最终logits。
+- [x] Treatment通过`build_v18r_stable8_density_models()`重建V18r训练前初始state；初始backbone SHA必须与V18r记录一致，残差为0时组合logits逐值等于初始backbone。
+- [x] 全量参数合同要求`backbone_trainable_parameter_count>24`、`residual_trainable_parameter_count=24`、total严格等于二者之和，且所有backbone参数`requires_grad=true`。
+- [x] 训练直接读取V18r完整train/validation Dataset，不使用Stage 067冻结baseline-logit cache；每个batch联合反传backbone与residual，并分别记录两支梯度绝对最大值。
+- [x] 新建独立joint config、contract、readiness、checkpoint、summary和validation报告；checkpoint保存完整backbone、残差、optimizer与epoch边界随机状态，禁止与Stage 067小型checkpoint混用。
+- [x] 将`src-v3/scripts/v19r_micro_doppler_residual_pipeline.ps1`修订为joint流水线；新artifact路径与Stage 067完全隔离，支持`prepare/train/evaluate/all`、fail-fast和`last_model.pt`恢复。
+- [x] focused Smoke覆盖真实三类parent：初始logits相等、backbone与residual均有finite非零梯度、一次optimizer step同时改变两支、完整checkpoint round-trip和bounded evaluation。
+- [x] 用户手动完成新V19r joint全量20 epoch训练与冻结development validation评估；backbone/residual/total可训练参数分别为`28107/24/28131`，共`9540` step，20个epoch两支梯度均finite且非零，确认不是冻结主干或仅训练24参数。
+- [x] best epoch=`15`，parent Accuracy=`0.941704`、Macro-F1=`0.937071`；相对V18r分别下降`0.017937/0.019696`。Bird Recall由`0.982143`降至`0.910714`，Drone→Bird保持3、Bird→Drone由0增至3，双向错误由3增至6，Balloon弱项亦下降，冻结性能门槛全部未通过。
+- [x] 四个预测变化全部为V18r原本正确而V19r变错的Bird parent：`2589→Drone`、`444→Balloon`、`731→Drone`、`816→Drone`；关闭joint residual或把其权重移接到V18r best均不改变输出，负向来自残差梯度扰动backbone联合优化轨迹，而非残差最终硬决策。
+- [x] 正式裁决为`completed_but_gate_failed`：拒绝V19r full-joint进入多seed、OOF、完整级联或open-set结论；Stage 067仅保留为低容量正向诊断，不降低2pp采纳门槛。V18r继续作为当前最佳DBB全量训练模型，Accuracy=`0.959641`、Macro-F1=`0.956767`。
+- [ ] test、OOF、完整级联、正式拒识、stable、P95和部署仍为“未执行”；局部单seed通过只允许进入多seed确认。
+
+冻结裁决：沿用三类P/R/F1均≥0.95、Macro-F1与Drone/Bird弱项相对V18r严格提升`>0.02`、双向方向错误不增加且至少减少1、Balloon弱项不下降。Stage 067的`+0.004346`仅作为残差可用性先验，不降低Stage 068采纳门槛。
+
+版本策略：正式V19r指Stage 068 full-joint Treatment并作为负向实验封存；Stage 067保留为只读frozen diagnostic。数据index/split/normalization不变，新增的是模型组合、完整checkpoint与训练协议版本；V18r主线不被替换，test及产品级动作合同继续封存。
