@@ -1473,3 +1473,26 @@
 实验结论：density具有真实但条件化的动态价值——未经density训练的Control权重直接启用它会稳定下降，经过density训练的权重则在高暴露parent上从匹配推理规则获得正增益。当前瓶颈已经从“动态公式是否有信息”转为“density训练能否稳定学到不损害全局类别边界的权重”；seed43反向和0/3完整门槛表明该问题尚未解决。
 
 版本策略：本Stage只新增独立validation诊断入口和报告，不改V16/V20r配置、checkpoint、数据、线上模式或采纳门槛。报告继续标记test/OOF/级联/拒识/stable/P95为“未执行”，`deployment_eligible=false`。
+
+## Stage 066 - V18r stable8与density-weighted组合配对
+
+目标：验证V18 stable8微多普勒输入与V20r同秒密度动力学是否存在可采纳的正向协同。Control不是重新训练的V16 core，而是SHA冻结、已完成的V18 stable8 Treatment；新Treatment复现其初始state、stable8零初始化列、数据顺序、loss、20 epoch与checkpoint选择，只把`liquid_invalid_dt_update_mode`从`bounded_observation`改为`density_weighted`。
+
+前置依赖：V18 stable8 source summary、best/last及20个epoch checkpoint完整；V20r已证明density存在权重×模式交互，但在V16 core上跨seed安全门槛未通过。本阶段只回答DBB局部组合收益，不执行Gate、CU、完整级联、OOF、test、正式拒识、stable或P95。
+
+最小子任务：
+
+- [x] 将组合版本正式命名为`RADAR-LN3-V18r`，配置解析显式支持`r`修订后缀；不把该组合误命名为V16r。
+- [x] V18r两臂均使用RD physical4与micro-Doppler stable8；Control=`bounded_observation`且`allow_parameter_updates=false`，Treatment=`density_weighted`且只训练Treatment。
+- [x] 新建V18r paired builder：调用冻结V18 pair builder重建stable8 Treatment初始state，再逐值复制给V18r两臂；验证40个state条目相同、8个stable8 Fusion列精确为0、初始logits SHA复现`ce19b639...`。
+- [x] 复用V18 index、capture/content split、normalization、RD physical/stable8缓存与manifest SHA；不读取raw、不重建数据、不改变输入维度。
+- [x] 建立train-only readiness：SHA绑定V18 source summary=`64977b33...`、best checkpoint=`ba66a11b...`、原readiness及20个parent-order hash；validation不参与启动门槛，test payload访问为0。
+- [x] focused Smoke通过：真实`cq08|track|1010`在首个zero-delta暴露前两臂logits逐值相同，暴露后发生差异；Treatment loss/gradient finite且非零；Control-reference不可训练。
+- [x] 新建`src-v3/scripts/v18r_stable8_density_pipeline.ps1`，支持`prepare/train/evaluate/all`、fail-fast和`last_model.pt` epoch边界恢复；脚本只训练Treatment并强制Control artifact为空。
+- [x] 修复首个epoch尚未生成checkpoint时的中断恢复：若artifact仅含pre-checkpoint日志且无任何`.pt`，下一次运行先把该目录改名归档再从冻结V18初始化完整重训；若已有epoch checkpoint但缺`last_model.pt`则继续阻塞并要求人工裁决。
+- [x] 冻结评估协议：own-best三类P/R/F1均≥0.95、Macro-F1与Drone/Bird弱项均严格提升`>0.02`、Drone→Bird/Bird→Drone不增加、双向错误至少减少1，且冻结guard epoch中至少一个same-epoch比较通过同一2pp信息增益门槛。
+- [x] 用户手动完成V18r Treatment 20 epoch及development validation paired评估；best epoch=`15`，parent Accuracy=`0.959641`、Macro-F1=`0.956767`、Macro-Precision=`0.950505`、Macro-Recall=`0.964003`。
+- [x] 相对冻结V18 stable8，Accuracy提升`0.004484`、Macro-F1提升`0.002838`，Drone→Bird由4降至3、Bird→Drone由3降至0，双向错误合计由7降至3；但Drone/Bird/Balloon的P/R/F1弱项分别为`0.946903/0.932203/0.928571`，Macro-F1与弱项提升均未严格超过`0.02`，same-epoch通过数为0，因此状态为`completed_but_gate_failed`，不采纳为正式主线。
+- [ ] test、OOF、完整级联、正式拒识、stable、P95和部署继续为“未执行”；V18r只作为当前DBB单checkpoint最高绝对指标与后续低容量后置残差实验的冻结候选主干。
+
+版本策略：V18r只新增模型/配置/checkpoint/readiness/report协议版本，数据contract仍为V18 stable8且index schema仍为V16。任何后续把V18r接入Gate/CU或线上动作的工作必须另立Stage并重新验证完整三层契约。

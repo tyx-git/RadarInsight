@@ -43,3 +43,4 @@ src-v3/smoke/*
 !src-v3/smoke/micro_doppler_v18_contract_test.py
 !src-v3/smoke/liquid_dynamics_v20_contract_test.py
 !src-v3/smoke/liquid_dynamics_v20_multiseed_contract_test.py
+!src-v3/smoke/stable8_density_v18r_contract_test.py

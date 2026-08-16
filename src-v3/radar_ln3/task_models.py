@@ -117,6 +117,19 @@ BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL = (
     "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-"
     "micro-doppler8-stable-treatment-v3"
 )
+V18R_STABLE8_DENSITY_SCHEMA_VERSION = "RADAR-LN3-V18r"
+V18R_STABLE8_DENSITY_PAIRED_PROTOCOL = (
+    "v18r-dbb-stable8-bounded-observation-control-versus-"
+    "density-weighted-treatment-v1"
+)
+V18R_SOURCE_CONTROL_CONFIG_PATH = (
+    "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-"
+    "broadband-multiscale-micro-doppler8-stable-control-seed42-config.json"
+)
+V18R_SOURCE_TREATMENT_CONFIG_PATH = (
+    "config/RADAR-LN3/RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-"
+    "broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json"
+)
 LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION = "RADAR-LN3-V20"
 V20_SKIP_PAIRED_PROTOCOL = (
     "v20-dbb-bounded-observation-control-versus-zero-delta-skip-treatment-v1"
@@ -165,17 +178,27 @@ FORMAL_PAIRED_SCHEMA_VERSIONS = frozenset(
         DBB_AUXILIARY_PAIRED_GATE_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        V18R_STABLE8_DENSITY_SCHEMA_VERSION,
         LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     }
 )
 DT_VALID_FEATURE_MODES = frozenset({"fusion_and_dynamics", "dynamics_only"})
-_TASK_SCHEMA_PATTERN = re.compile(r"^RADAR-LN3-V(?P<version>\d+)$")
+_TASK_SCHEMA_PATTERN = re.compile(
+    r"^RADAR-LN3-V(?P<version>\d+)(?P<revision>r)?$"
+)
 
 
 def _task_schema_number(schema_version: str) -> int:
     match = _TASK_SCHEMA_PATTERN.fullmatch(str(schema_version))
     if match is None:
         raise ValueError(f"invalid RADAR-LN3 task schema version: {schema_version!r}")
+    if (
+        match.group("revision") is not None
+        and str(schema_version) != V18R_STABLE8_DENSITY_SCHEMA_VERSION
+    ):
+        raise ValueError(
+            f"unsupported RADAR-LN3 task schema revision: {schema_version!r}"
+        )
     return int(match.group("version"))
 
 
@@ -192,6 +215,7 @@ def is_product_local_schema(schema_version: str) -> bool:
         PRODUCT_LOCAL_SCHEMA_VERSION,
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        V18R_STABLE8_DENSITY_SCHEMA_VERSION,
         LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     }
 
@@ -200,15 +224,27 @@ def is_liquid_dynamics_paired_schema(schema_version: str) -> bool:
     return str(schema_version) == LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION
 
 
+def is_v18r_stable8_density_schema(schema_version: str) -> bool:
+    return str(schema_version) == V18R_STABLE8_DENSITY_SCHEMA_VERSION
+
+
 def is_micro_doppler_paired_schema(schema_version: str) -> bool:
     return str(schema_version) in {
         MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
         BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        V18R_STABLE8_DENSITY_SCHEMA_VERSION,
+    }
+
+
+def is_broadband_micro_doppler_schema(schema_version: str) -> bool:
+    return str(schema_version) in {
+        BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        V18R_STABLE8_DENSITY_SCHEMA_VERSION,
     }
 
 
 def micro_doppler_contract_for_config(config: "LiquidTaskConfig") -> dict[str, Any]:
-    if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_broadband_micro_doppler_schema(config.schema_version):
         return broadband_micro_doppler_contract()
     return micro_doppler_contract()
 
@@ -216,7 +252,7 @@ def micro_doppler_contract_for_config(config: "LiquidTaskConfig") -> dict[str, A
 def micro_doppler_names_for_config(config: "LiquidTaskConfig") -> tuple[str, ...]:
     if not config.model.micro_doppler_dim:
         return ()
-    if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+    if is_broadband_micro_doppler_schema(config.schema_version):
         return BROADBAND_MICRO_DOPPLER_NAMES
     return MICRO_DOPPLER_NAMES
 
@@ -842,20 +878,25 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             )
         expected_micro_dim = (
             BROADBAND_MICRO_DOPPLER_VALUE_DIM
-            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(schema_version)
             else MICRO_DOPPLER_VALUE_DIM
         )
         expected_micro_contract = (
             BROADBAND_MICRO_DOPPLER_SCHEMA,
             BROADBAND_MICRO_DOPPLER_MASK_MODE,
-        ) if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION else (
+        ) if is_broadband_micro_doppler_schema(schema_version) else (
             MICRO_DOPPLER_SCHEMA,
             MICRO_DOPPLER_MASK_MODE,
         )
-        if model.micro_doppler_dim not in {0, expected_micro_dim}:
+        allowed_micro_dims = (
+            {expected_micro_dim}
+            if is_v18r_stable8_density_schema(schema_version)
+            else {0, expected_micro_dim}
+        )
+        if model.micro_doppler_dim not in allowed_micro_dims:
             raise ValueError(
-                f"{schema_version} micro_doppler_dim must be 0 for Control or "
-                f"{expected_micro_dim} for Treatment"
+                f"{schema_version} micro_doppler_dim must be one of "
+                f"{sorted(allowed_micro_dims)}"
             )
         if (data.micro_doppler_schema, data.micro_doppler_mask_mode) != expected_micro_contract or any(
             value is None for value in micro_doppler_fields[2:]
@@ -1098,7 +1139,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError(f"{schema_version} task training must use {PRODUCT_LOCAL_LOSS_MODE}")
         expected_selection = (
             BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION
-            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(schema_version)
             else PRODUCT_LOCAL_CHECKPOINT_SELECTION
         )
         if train.checkpoint_selection_metric != expected_selection:
@@ -1124,9 +1165,13 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             if (is_v17_micro or is_v20_dynamics)
             else schema_version
         )
+        expected_contract_schema = (
+            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_v18r_stable8_density_schema(schema_version)
+            else (PRODUCT_LOCAL_SCHEMA_VERSION if is_v20_dynamics else schema_version)
+        )
         if (
-            data.contract_schema_version
-            != (PRODUCT_LOCAL_SCHEMA_VERSION if is_v20_dynamics else schema_version)
+            data.contract_schema_version != expected_contract_schema
             or data.index_schema_version != expected_index_schema
         ):
             raise ValueError(
@@ -1184,7 +1229,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
     if (
         schema_number >= _task_schema_number(WEAK_CLASS_SELECTION_SCHEMA_VERSION)
         and schema_version not in HIERARCHICAL_SCHEMA_VERSIONS
-        and schema_version != BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+        and not is_broadband_micro_doppler_schema(schema_version)
     ):
         if train.checkpoint_selection_metric != "parent_min_precision_recall":
             raise ValueError(
@@ -1232,11 +1277,53 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
             raise ValueError("V12 paired training requires an explicit counterpart config path")
         if train.cuda_deterministic_algorithms:
             raise ValueError("V12 protocol fixes initialization/sampling only and must not claim strict CUDA determinism")
+    elif is_v18r_stable8_density_schema(schema_version):
+        if (
+            train.paired_protocol != V18R_STABLE8_DENSITY_PAIRED_PROTOCOL
+            or train.paired_arm not in {"control", "treatment"}
+        ):
+            raise ValueError("V18r requires the frozen stable8 density paired protocol")
+        expected_mode = (
+            "bounded_observation"
+            if train.paired_arm == "control"
+            else "density_weighted"
+        )
+        if model.liquid_invalid_dt_update_mode != expected_mode:
+            raise ValueError(
+                f"V18r {train.paired_arm} requires "
+                f"liquid_invalid_dt_update_mode={expected_mode}"
+            )
+        if model.micro_doppler_dim != BROADBAND_MICRO_DOPPLER_VALUE_DIM:
+            raise ValueError("V18r both arms require the frozen stable8 input")
+        if train.paired_seed != train.seed or train.dataloader_seed != train.seed:
+            raise ValueError(
+                "V18r paired seed, model seed and DataLoader seed must be identical"
+            )
+        if train.seed != 42:
+            raise ValueError("V18r fast paired screening is frozen to seed 42")
+        if train.epochs != 20 or train.early_stopping_patience != 0:
+            raise ValueError(
+                "V18r paired training requires exactly 20 epochs with early stopping disabled"
+            )
+        if (
+            train.epoch_checkpoint_dir is None
+            or not train.record_parent_order_hash
+            or not train.save_every_epoch
+        ):
+            raise ValueError(
+                "V18r paired training requires epoch checkpoints and parent-order hashes"
+            )
+        if train.paired_counterpart_config_path is None:
+            raise ValueError("V18r paired training requires an explicit counterpart config")
+        if train.cuda_deterministic_algorithms:
+            raise ValueError(
+                "V18r fixes initialization/sampling only and does not claim strict CUDA determinism"
+            )
     elif is_micro_doppler_paired_schema(schema_version):
         expected_arm = "treatment" if model.micro_doppler_dim else "control"
         expected_protocol = (
             BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
-            if schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(schema_version)
             else MICRO_DOPPLER_PAIRED_PROTOCOL
         )
         if (
@@ -1448,13 +1535,13 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             raise ValueError("V17 data contract micro-Doppler fields do not match the frozen extractor")
         scope_field = (
             "v18_scope"
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else "v17_scope"
         )
         scope = dict(contract.get(scope_field) or {})
         complete_evidence_field = (
             "complete_evidence_profiles_are_model_input"
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else "complete_stft_tensor_is_model_input"
         )
         if (
@@ -1530,16 +1617,21 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         expected_manifest_type = (
             "cq08_dbb_current_event_broadband_multiscale_"
             "micro_doppler8_stable_paired_cache_v3"
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else "cq08_dbb_current_event_target_anchored_micro_doppler_paired_cache_v3"
         )
         expected_protocol = (
             BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else MICRO_DOPPLER_PAIRED_PROTOCOL
         )
+        expected_manifest_schema = (
+            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_v18r_stable8_density_schema(config.schema_version)
+            else config.schema_version
+        )
         if (
-            manifest.get("schema_version") != config.schema_version
+            manifest.get("schema_version") != expected_manifest_schema
             or manifest.get("manifest_type") != expected_manifest_type
             or manifest.get("paired_protocol") != expected_protocol
             or manifest.get("rd_physical_contract") != rd_physical_contract()
@@ -1579,7 +1671,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
             "frame_frequency_hz",
             "frame_cpi_count",
         }
-        if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        if is_broadband_micro_doppler_schema(config.schema_version):
             expected_stft_fields = {
                 "sample_ids",
                 "valid",
@@ -1634,8 +1726,7 @@ def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> d
         }
         complete_evidence_input_field = (
             "complete_evidence_profiles_are_model_input"
-            if config.schema_version
-            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else "complete_stft_tensor_is_model_input"
         )
         micro_doppler_evidence = {
@@ -2011,7 +2102,7 @@ def build_task_dataset(
         micro_doppler_cache_path=micro_doppler_cache_path,
         micro_doppler_value_dim=(
             BROADBAND_MICRO_DOPPLER_VALUE_DIM
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else MICRO_DOPPLER_VALUE_DIM
         ),
         allowed_labels=config.task.allowed_base_labels if task_filtered_base else None,
@@ -2221,6 +2312,7 @@ class LiquidTaskClassifier(nn.Module):
             RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION,
             MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
             BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+            V18R_STABLE8_DENSITY_SCHEMA_VERSION,
         }:
             fusion_linear = PairedFusionLinear(
                 fusion_dim,
@@ -2337,7 +2429,7 @@ class LiquidTaskClassifier(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """Run the frozen V17 current-event raw-I/Q extractor online."""
 
-        if self.config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION:
+        if is_broadband_micro_doppler_schema(self.config.schema_version):
             if self.micro_doppler_dim != BROADBAND_MICRO_DOPPLER_VALUE_DIM:
                 raise ValueError("online broadband micro-Doppler extraction requires V18 Treatment")
             event = extract_current_event_broadband_micro_doppler(
@@ -3061,7 +3153,11 @@ def build_v17_paired_models(
     )
 
     if (
-        not is_micro_doppler_paired_schema(schema_version)
+        schema_version
+        not in {
+            MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
+        }
         or treatment_config.schema_version != schema_version
         or control_config.task.name != "dbb_specialist"
         or treatment_config.task.name != "dbb_specialist"
@@ -3216,6 +3312,193 @@ def build_v17_paired_model_for_config(
     )
 
 
+def _state_dict_sha256(state: Mapping[str, torch.Tensor]) -> str:
+    digest = hashlib.sha256()
+    for name in sorted(state):
+        value = state[name].detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(value.dtype).encode("ascii"))
+        digest.update(np.asarray(value.shape, dtype=np.int64).tobytes(order="C"))
+        digest.update(value.numpy().tobytes(order="C"))
+    return digest.hexdigest()
+
+
+def build_v18r_stable8_density_models(
+    project_root: Path,
+    control_config: LiquidTaskConfig,
+    treatment_config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    """Reconstruct the frozen V18 stable8 initialization for a dynamics-only pair."""
+
+    if (
+        control_config.schema_version != V18R_STABLE8_DENSITY_SCHEMA_VERSION
+        or treatment_config.schema_version != V18R_STABLE8_DENSITY_SCHEMA_VERSION
+        or control_config.task.name != "dbb_specialist"
+        or treatment_config.task.name != "dbb_specialist"
+        or control_config.train.paired_arm != "control"
+        or treatment_config.train.paired_arm != "treatment"
+        or control_config.train.paired_protocol
+        != V18R_STABLE8_DENSITY_PAIRED_PROTOCOL
+        or treatment_config.train.paired_protocol
+        != V18R_STABLE8_DENSITY_PAIRED_PROTOCOL
+        or control_config.model.liquid_invalid_dt_update_mode
+        != "bounded_observation"
+        or treatment_config.model.liquid_invalid_dt_update_mode
+        != "density_weighted"
+    ):
+        raise ValueError("V18r builder requires the stable8 bounded/density pair")
+    if control_config.train.seed != treatment_config.train.seed:
+        raise ValueError("V18r paired configs must use the same seed")
+    if control_config.data != treatment_config.data:
+        raise ValueError("V18r paired configs must reuse one frozen V18 data contract")
+    if (
+        control_config.model.rd_physical_dim != RD_PHYSICAL_VALUE_DIM
+        or control_config.model.micro_doppler_dim
+        != BROADBAND_MICRO_DOPPLER_VALUE_DIM
+        or replace(
+            control_config.model,
+            liquid_invalid_dt_update_mode="density_weighted",
+        )
+        != treatment_config.model
+    ):
+        raise ValueError(
+            "V18r model configs must be identical stable8 models except for density dynamics"
+        )
+    excluded_train = {
+        "checkpoint_path",
+        "checkpoint_schema",
+        "last_checkpoint_path",
+        "formal_artifact_dir",
+        "epoch_checkpoint_dir",
+        "paired_protocol",
+        "paired_arm",
+        "paired_counterpart_config_path",
+        "allow_parameter_updates",
+    }
+    control_train = {
+        key: value
+        for key, value in control_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    treatment_train = {
+        key: value
+        for key, value in treatment_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    if control_train != treatment_train:
+        raise ValueError("V18r paired training configs differ beyond arm identity")
+    if control_config.train.allow_parameter_updates:
+        raise ValueError("V18r Control is a read-only reference and must not be trainable")
+    if not treatment_config.train.allow_parameter_updates:
+        raise ValueError("V18r Treatment must permit parameter updates")
+
+    source_control_path = resolve_project_path(
+        project_root, V18R_SOURCE_CONTROL_CONFIG_PATH
+    )
+    source_treatment_path = resolve_project_path(
+        project_root, V18R_SOURCE_TREATMENT_CONFIG_PATH
+    )
+    source_control_config = load_task_config(source_control_path)
+    source_treatment_config = load_task_config(source_treatment_path)
+    source_control, source_treatment, source_evidence = build_v17_paired_models(
+        source_control_config, source_treatment_config
+    )
+    if control_config.data != source_treatment_config.data:
+        raise ValueError("V18r data config differs from the frozen V18 stable8 Treatment")
+    if control_config.model != source_treatment_config.model:
+        raise ValueError("V18r Control model differs from the frozen V18 stable8 Treatment")
+    source_train = {
+        key: value
+        for key, value in source_treatment_config.train.__dict__.items()
+        if key not in excluded_train
+    }
+    if source_train != control_train:
+        raise ValueError("V18r training core differs from the frozen V18 stable8 Treatment")
+
+    seed_everything(control_config.train.seed)
+    control = LiquidTaskClassifier(control_config)
+    seed_everything(treatment_config.train.seed)
+    treatment = LiquidTaskClassifier(treatment_config)
+    source_state = source_treatment.state_dict()
+    control.load_state_dict(source_state, strict=True)
+    treatment.load_state_dict(source_state, strict=True)
+    control_state = control.state_dict()
+    treatment_state = treatment.state_dict()
+    unequal = [
+        name
+        for name, value in control_state.items()
+        if not torch.equal(value, treatment_state[name])
+    ]
+    if unequal:
+        raise AssertionError(f"V18r initialization differs at {unequal[:3]}")
+    source_base_dim = source_control.fusion_input_dim
+    stable8_columns = source_state["fusion.0.weight"][:, source_base_dim:]
+    if stable8_columns.shape[1] != BROADBAND_MICRO_DOPPLER_VALUE_DIM:
+        raise AssertionError("V18r source stable8 Fusion width is not eight")
+    if not torch.equal(stable8_columns, torch.zeros_like(stable8_columns)):
+        raise AssertionError("V18r source stable8 Fusion columns are not exactly zero")
+    source_state_sha256 = _state_dict_sha256(source_state)
+    if (
+        _state_dict_sha256(control_state) != source_state_sha256
+        or _state_dict_sha256(treatment_state) != source_state_sha256
+    ):
+        raise AssertionError("V18r state hash does not reproduce the V18 stable8 source")
+    return control, treatment, {
+        "paired_protocol": V18R_STABLE8_DENSITY_PAIRED_PROTOCOL,
+        "seed": control_config.train.seed,
+        "shared_state_entry_count": len(source_state),
+        "shared_parameters_and_buffers_exactly_equal": True,
+        "source_v18_control_config_path": str(source_control_path),
+        "source_v18_treatment_config_path": str(source_treatment_path),
+        "source_v18_paired_protocol": source_evidence["paired_protocol"],
+        "source_v18_initial_treatment_state_sha256": source_state_sha256,
+        "source_v18_control_fusion_input_dim": source_base_dim,
+        "stable8_fusion_columns": BROADBAND_MICRO_DOPPLER_VALUE_DIM,
+        "stable8_fusion_columns_exactly_zero": True,
+        "treatment_new_fusion_columns_exactly_zero": True,
+        "dynamics_control_mode": "bounded_observation",
+        "dynamics_treatment_mode": "density_weighted",
+    }
+
+
+def build_v18r_stable8_density_model_for_config(
+    project_root: Path,
+    config: LiquidTaskConfig,
+) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier, dict[str, Any]]:
+    counterpart_path = resolve_project_path(
+        project_root, config.train.paired_counterpart_config_path or ""
+    )
+    counterpart = load_task_config(counterpart_path)
+    if counterpart.train.paired_counterpart_config_path is None:
+        raise ValueError("V18r counterpart does not reference this config")
+    reverse_path = resolve_project_path(
+        project_root, counterpart.train.paired_counterpart_config_path
+    )
+    expected_current_path = resolve_project_path(
+        project_root, f"config/RADAR-LN3/{config.config_name}-config.json"
+    )
+    if reverse_path.resolve() != expected_current_path.resolve():
+        raise ValueError("V18r counterpart reference is not reciprocal")
+    configs = {config.train.paired_arm: config, counterpart.train.paired_arm: counterpart}
+    if set(configs) != {"control", "treatment"}:
+        raise ValueError("V18r config pair must contain Control and Treatment")
+    control, treatment, evidence = build_v18r_stable8_density_models(
+        project_root, configs["control"], configs["treatment"]
+    )
+    evidence.update(
+        {
+            "paired_arm": config.train.paired_arm,
+            "counterpart_config_path": str(counterpart_path),
+            "counterpart_config_name": counterpart.config_name,
+        }
+    )
+    return (
+        (control, treatment, evidence)
+        if config.train.paired_arm == "control"
+        else (treatment, control, evidence)
+    )
+
+
 def build_v20_paired_models(
     control_config: LiquidTaskConfig,
     treatment_config: LiquidTaskConfig,
@@ -3335,6 +3618,8 @@ def build_paired_model_for_config(
 ) -> tuple[LiquidTaskClassifier, LiquidTaskClassifier | None, dict[str, Any]]:
     if config.schema_version == RD_PHYSICAL_PAIRED_GATE_SCHEMA_VERSION:
         return build_v11_paired_model_for_config(project_root, config)
+    if is_v18r_stable8_density_schema(config.schema_version):
+        return build_v18r_stable8_density_model_for_config(project_root, config)
     if is_micro_doppler_paired_schema(config.schema_version):
         return build_v17_paired_model_for_config(project_root, config)
     if is_liquid_dynamics_paired_schema(config.schema_version):
@@ -3532,20 +3817,40 @@ def save_task_checkpoint(
                 "full_cascade_evaluation": "not_executed",
             }
         )
-        if is_liquid_dynamics_paired_schema(config.schema_version):
+        if (
+            is_liquid_dynamics_paired_schema(config.schema_version)
+            or is_v18r_stable8_density_schema(config.schema_version)
+        ):
+            update_mode = config.model.liquid_invalid_dt_update_mode
             model_contract.update(
                 {
                     "paired_protocol": config.train.paired_protocol,
                     "paired_arm": config.train.paired_arm,
                     "paired_seed": config.train.paired_seed,
-                    "invalid_dt_update_mode": config.model.liquid_invalid_dt_update_mode,
+                    "invalid_dt_update_mode": update_mode,
                     "zero_delta_state_semantics": (
                         "alpha_zero_event_information_removed_but_recurrent_output_norm_may_transform_state"
-                        if config.model.liquid_invalid_dt_update_mode == "skip"
-                        else "bounded_observation_gain_with_reason_aware_zero_delta"
+                        if update_mode == "skip"
+                        else (
+                            "causal_same_second_ordinal_gain_min_0_25k_0_75"
+                            if update_mode == "density_weighted"
+                            else "bounded_observation_gain_with_reason_aware_zero_delta"
+                        )
                     ),
                 }
             )
+            if is_v18r_stable8_density_schema(config.schema_version):
+                model_contract.update(
+                    {
+                        "source_feature_schema": (
+                            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+                        ),
+                        "source_feature_protocol": (
+                            BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
+                        ),
+                        "stable8_input_shared_by_both_arms": True,
+                    }
+                )
     if config.model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(config.data.tr_motion_schema)
         model_contract.update({
@@ -3572,8 +3877,7 @@ def save_task_checkpoint(
     if is_micro_doppler_paired_schema(config.schema_version):
         complete_evidence_input_field = (
             "complete_evidence_profiles_are_model_input"
-            if config.schema_version
-            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(config.schema_version)
             else "complete_stft_tensor_is_model_input"
         )
         model_contract.update(
@@ -3789,20 +4093,40 @@ def load_task_checkpoint(
                 "full_cascade_evaluation": "not_executed",
             }
         )
-        if is_liquid_dynamics_paired_schema(model.config.schema_version):
+        if (
+            is_liquid_dynamics_paired_schema(model.config.schema_version)
+            or is_v18r_stable8_density_schema(model.config.schema_version)
+        ):
+            update_mode = model.config.model.liquid_invalid_dt_update_mode
             expected_contract.update(
                 {
                     "paired_protocol": model.config.train.paired_protocol,
                     "paired_arm": model.config.train.paired_arm,
                     "paired_seed": model.config.train.paired_seed,
-                    "invalid_dt_update_mode": model.config.model.liquid_invalid_dt_update_mode,
+                    "invalid_dt_update_mode": update_mode,
                     "zero_delta_state_semantics": (
                         "alpha_zero_event_information_removed_but_recurrent_output_norm_may_transform_state"
-                        if model.config.model.liquid_invalid_dt_update_mode == "skip"
-                        else "bounded_observation_gain_with_reason_aware_zero_delta"
+                        if update_mode == "skip"
+                        else (
+                            "causal_same_second_ordinal_gain_min_0_25k_0_75"
+                            if update_mode == "density_weighted"
+                            else "bounded_observation_gain_with_reason_aware_zero_delta"
+                        )
                     ),
                 }
             )
+            if is_v18r_stable8_density_schema(model.config.schema_version):
+                expected_contract.update(
+                    {
+                        "source_feature_schema": (
+                            BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+                        ),
+                        "source_feature_protocol": (
+                            BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL
+                        ),
+                        "stable8_input_shared_by_both_arms": True,
+                    }
+                )
     if model.tr_motion_dim > 0:
         motion_contract = resolve_causal_tr_feature_contract(model.tr_motion_schema)
         expected_contract.update({
@@ -3829,8 +4153,7 @@ def load_task_checkpoint(
     if is_micro_doppler_paired_schema(model.config.schema_version):
         complete_evidence_input_field = (
             "complete_evidence_profiles_are_model_input"
-            if model.config.schema_version
-            == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+            if is_broadband_micro_doppler_schema(model.config.schema_version)
             else "complete_stft_tensor_is_model_input"
         )
         expected_contract.update(
@@ -4216,6 +4539,10 @@ __all__ = [
     "BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION",
     "BROADBAND_MICRO_DOPPLER_PAIRED_PROTOCOL",
     "BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION",
+    "V18R_STABLE8_DENSITY_SCHEMA_VERSION",
+    "V18R_STABLE8_DENSITY_PAIRED_PROTOCOL",
+    "V18R_SOURCE_CONTROL_CONFIG_PATH",
+    "V18R_SOURCE_TREATMENT_CONFIG_PATH",
     "LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION",
     "V20_SKIP_PAIRED_PROTOCOL",
     "V20_DENSITY_PAIRED_PROTOCOL",
@@ -4246,6 +4573,8 @@ __all__ = [
     "build_v11_paired_model_for_config",
     "build_v11_paired_models",
     "build_v12_paired_models",
+    "build_v18r_stable8_density_models",
+    "build_v18r_stable8_density_model_for_config",
     "build_v20_paired_models",
     "build_v20_paired_model_for_config",
     "build_paired_model_for_config",
@@ -4254,8 +4583,10 @@ __all__ = [
     "compose_strict_open_set_evidence",
     "evaluate_task",
     "is_product_local_schema",
+    "is_broadband_micro_doppler_schema",
     "is_liquid_dynamics_paired_schema",
     "is_micro_doppler_paired_schema",
+    "is_v18r_stable8_density_schema",
     "micro_doppler_contract_for_config",
     "micro_doppler_names_for_config",
     "is_strict_open_set_schema",

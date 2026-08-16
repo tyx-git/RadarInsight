@@ -31,6 +31,8 @@ from radar_ln3.task_models import (
     MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION,
     BROADBAND_MICRO_DOPPLER_CHECKPOINT_SELECTION,
+    V18R_STABLE8_DENSITY_PAIRED_PROTOCOL,
+    V18R_STABLE8_DENSITY_SCHEMA_VERSION,
     LIQUID_DYNAMICS_PAIRED_DBB_SCHEMA_VERSION,
     V20_DENSITY_PAIRED_PROTOCOL,
     V20_SKIP_PAIRED_PROTOCOL,
@@ -49,6 +51,7 @@ from radar_ln3.task_models import (
     is_product_local_schema,
     is_micro_doppler_paired_schema,
     is_liquid_dynamics_paired_schema,
+    is_v18r_stable8_density_schema,
     restore_training_state,
     summarize_task_performance_guardrails,
 )
@@ -66,6 +69,13 @@ V18_READINESS_REPORT = Path(
 V18_READINESS_SCHEMA = (
     "RADAR-LN3-V18-broadband-multiscale-micro-doppler-"
     "training-readiness-v3-stable8"
+)
+V18R_READINESS_REPORT = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V18r-stable8-density-weighted-training-readiness.json"
+)
+V18R_READINESS_SCHEMA = (
+    "RADAR-LN3-V18r-stable8-density-weighted-training-readiness-v1"
 )
 V20_READINESS_REPORT = Path(
     "src-v3/processed/report/RADAR-LN3-V20-zero-delta-skip-training-readiness.json"
@@ -223,6 +233,58 @@ def verify_v20_training_readiness(
         "sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
         "schema_version": expected_schema,
         "paired_protocol": paired_protocol,
+        "status": "passed",
+        "validation_used_for_readiness_gate": False,
+        "test": "未执行",
+    }
+
+
+def verify_v18r_training_readiness(
+    project_root: Path,
+    config_path: Path,
+    contract_hashes: dict[str, Any],
+) -> dict[str, Any]:
+    report_path = (project_root / V18R_READINESS_REPORT).resolve()
+    if not report_path.is_file():
+        raise PermissionError(
+            "V18r formal training requires the train-only readiness report; "
+            f"run the V18r prepare stage first: {report_path}"
+        )
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    expected_config = config_path.resolve()
+    paired_configs = dict(report.get("paired_configs") or {})
+    matching_configs = [
+        dict(value)
+        for value in paired_configs.values()
+        if Path(str(dict(value).get("path", ""))).resolve() == expected_config
+    ]
+    checks = dict(report.get("checks") or {})
+    config_hash = hashlib.sha256(expected_config.read_bytes()).hexdigest()
+    if (
+        report.get("status") != "passed"
+        or report.get("schema_version") != V18R_READINESS_SCHEMA
+        or report.get("paired_protocol")
+        != V18R_STABLE8_DENSITY_PAIRED_PROTOCOL
+        or len(matching_configs) != 1
+        or matching_configs[0].get("sha256") != config_hash
+        or report.get("contract_hashes") != contract_hashes
+        or not checks
+        or not all(value is True for value in checks.values())
+        or report.get("validation_used_for_readiness_gate") is not False
+        or report.get("test_payload_access_count") != 0
+        or report.get("test") != "未执行"
+        or report.get("formal_training_at_report_generation") != "未执行"
+        or report.get("deployment_eligible") is not False
+    ):
+        raise PermissionError(
+            "V18r readiness is missing, stale, failed or outside the frozen "
+            f"train-only/test-sealed contract: {report_path}"
+        )
+    return {
+        "path": str(report_path),
+        "sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        "schema_version": V18R_READINESS_SCHEMA,
+        "paired_protocol": V18R_STABLE8_DENSITY_PAIRED_PROTOCOL,
         "status": "passed",
         "validation_used_for_readiness_gate": False,
         "test": "未执行",
@@ -439,16 +501,27 @@ def train_task(
     contract = verify_task_data_contract(project_root, config)
     v17_readiness: dict[str, Any] | None = None
     readiness_field_name = (
-        "v20_training_readiness"
-        if is_liquid_dynamics_paired_schema(config.schema_version)
+        "v18r_training_readiness"
+        if is_v18r_stable8_density_schema(config.schema_version)
         else (
-            "v18_training_readiness"
-            if config.schema_version == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
-            else "v17_training_readiness"
+            "v20_training_readiness"
+            if is_liquid_dynamics_paired_schema(config.schema_version)
+            else (
+                "v18_training_readiness"
+                if config.schema_version
+                == BROADBAND_MICRO_DOPPLER_PAIRED_DBB_SCHEMA_VERSION
+                else "v17_training_readiness"
+            )
         )
     )
     readiness_hash_field_name = readiness_field_name + "_sha256"
-    if is_micro_doppler_paired_schema(config.schema_version):
+    if is_v18r_stable8_density_schema(config.schema_version):
+        v17_readiness = verify_v18r_training_readiness(
+            project_root,
+            config_path,
+            dict(contract["hashes"]),
+        )
+    elif is_micro_doppler_paired_schema(config.schema_version):
         v17_readiness = verify_v17_training_readiness(
             project_root,
             config_path,
@@ -534,6 +607,17 @@ def train_task(
                         "rd_physical_valid": initial_tensors["rd_physical_valid"],
                     }
                 )
+                if is_v18r_stable8_density_schema(config.schema_version):
+                    shared_inputs.update(
+                        {
+                            "micro_doppler_features": initial_tensors[
+                                "micro_doppler_features"
+                            ],
+                            "micro_doppler_valid": initial_tensors[
+                                "micro_doppler_valid"
+                            ],
+                        }
+                    )
             active = ~initial_tensors["tr_padding_mask"]
             if config.train.paired_arm == "control":
                 control_model, treatment_model = model, paired_counterpart
@@ -556,6 +640,14 @@ def train_task(
                         rd_physical_valid=active,
                     )["sequence_logits"]
                     initial_probe = "0.5 on every non-padding RD physical event; valid=true; padding zero/invalid"
+                elif is_v18r_stable8_density_schema(config.schema_version):
+                    treatment_initial = treatment_model(**shared_inputs)[
+                        "sequence_logits"
+                    ]
+                    initial_probe = (
+                        "identical reconstructed V18 stable8 parameters/input; logits "
+                        "must match before the first zero-delta density exposure"
+                    )
                 elif is_micro_doppler_paired_schema(config.schema_version):
                     treatment_initial = treatment_model(
                         **shared_inputs,
@@ -591,7 +683,10 @@ def train_task(
             pre_exposure_logits_equal = full_logits_equal
             pre_exposure_maximum_difference = maximum_difference
             treatment_exposed_event_count = 0
-            if is_liquid_dynamics_paired_schema(config.schema_version):
+            if (
+                is_liquid_dynamics_paired_schema(config.schema_version)
+                or is_v18r_stable8_density_schema(config.schema_version)
+            ):
                 reasons = initial_tensors.get("tr_dt_reason")
                 if reasons is None:
                     raise RuntimeError("V20 paired initialization requires dt reasons")
@@ -612,7 +707,8 @@ def train_task(
                 )
                 if not pre_exposure_logits_equal:
                     raise AssertionError(
-                        "V20 paired logits differ before the first zero-delta Treatment "
+                        f"{config.schema_version} paired logits differ before the first "
+                        "zero-delta Treatment "
                         f"exposure: maximum_absolute_difference={pre_exposure_maximum_difference}"
                     )
             elif not full_logits_equal:
@@ -669,6 +765,7 @@ def train_task(
                 (
                     is_micro_doppler_paired_schema(config.schema_version)
                     or is_liquid_dynamics_paired_schema(config.schema_version)
+                    or is_v18r_stable8_density_schema(config.schema_version)
                 )
                 and (
                     v17_readiness is None
@@ -731,6 +828,20 @@ def train_task(
                 loader_seed,
                 paired_initialization.get("shared_parameters_and_buffers_exactly_equal"),
                 config.train.dbb_auxiliary_loss_weight,
+            )
+        elif is_v18r_stable8_density_schema(config.schema_version):
+            logger.info(
+                "paired | protocol=%s | arm=%s | seed=%d | loader_seed=%d | "
+                "rd_physical_dim=4 | stable8_shared=true | control_mode=bounded_observation | "
+                "treatment_mode=density_weighted | source_v18_state=%s | "
+                "cuda_bitwise_determinism=false",
+                config.train.paired_protocol,
+                config.train.paired_arm,
+                config.train.seed,
+                loader_seed,
+                paired_initialization.get(
+                    "source_v18_initial_treatment_state_sha256"
+                ),
             )
         elif is_micro_doppler_paired_schema(config.schema_version):
             logger.info(
