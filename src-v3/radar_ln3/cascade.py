@@ -1,3 +1,11 @@
+"""Legacy V5-V16 cascade reproduction path.
+
+V21 no longer uses ``dbb_cu_gate -> dbb_specialist -> cu_specialist``.  New
+product work must use ``known_gate -> dbb_specialist -> semantic_decision_layer``
+from :mod:`radar_ln3.open_set_architecture`.  This module is retained so old
+artifacts and reports remain reproducible.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -51,7 +59,8 @@ from .data import (
 )
 
 
-EXPECTED_TASKS = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
+LEGACY_EXPECTED_TASKS = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
+EXPECTED_TASKS = LEGACY_EXPECTED_TASKS
 STRICT_OPEN_SET_EVIDENCE_NAMES = (*LABELS[:4], "UNRESOLVED_OPEN_SET_EVIDENCE")
 
 

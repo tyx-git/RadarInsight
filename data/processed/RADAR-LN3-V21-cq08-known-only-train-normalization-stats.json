@@ -1,0 +1,60 @@
+{
+  "schema_version": "RADAR-LN3-V21",
+  "stats_name": "cq08_v21_known_gate_known_only_train_normalization_v1",
+  "scope": "V16 capture/content-grouped train known labels only; Unknown, validation and test excluded",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_split": "train",
+  "parent_count": 986,
+  "selected_parent_ids_sha256": "475c95b0d9d3918eac9eaf4a3d84ba75caa8c8f404b04fb77e698105cdfb929b",
+  "selected_label_parent_counts": {
+    "BalloonTarget": 238,
+    "BirdTarget": 239,
+    "ClutterTarget": 33,
+    "DroneTarget": 476
+  },
+  "allowed_labels": [
+    "BalloonTarget",
+    "BirdTarget",
+    "ClutterTarget",
+    "DroneTarget"
+  ],
+  "forbidden_labels": [
+    "UnknownTarget"
+  ],
+  "excluded_parent_count": 69,
+  "excluded_parent_ids_sha256": "7c3b9f11d4cb37c550ad0634a7c57ed5bcc2da400f08ef7a00a9f21e0e8851ab",
+  "excluded_label_parent_counts": {
+    "UnknownTarget": 69
+  },
+  "rd_tensor_count": 986,
+  "selected_rd_tensor_paths_sha256": "10cc22eb61578380edd73dfba6275688cdbfa21e838dc31aec035a2aa5307459",
+  "excluded_rd_tensor_count": 69,
+  "excluded_rd_tensor_paths_sha256": "db8e1981d9f6d9ffb4b2e4b7dfafbfe1ce6709590a33f61402395454fdfdc26b",
+  "selected_excluded_rd_tensor_path_overlap_count": 0,
+  "rd_tensor_frame_count": 67819,
+  "amplitude_value_count": 546892416,
+  "amplitude": {
+    "mean": 55.58547293834256,
+    "std": 6.945658779831175,
+    "min": -19.375,
+    "max": 146.125,
+    "sample_q01": 38.3125,
+    "sample_q25": 52.3125,
+    "sample_median": 55.9375,
+    "sample_q75": 59.28125,
+    "sample_q99": 76.3125,
+    "center": 55.9375,
+    "scale": 6.945658779831175,
+    "scale_rule": "max(population_std, sampled_IQR/1.349, 1e-6)",
+    "sample_rule": "up to 4096 evenly strided amplitude values per unique train tensor"
+  },
+  "phase": {
+    "encoding": "phase divided by pi and clipped to [-1,1]",
+    "center": 0.0,
+    "scale": 3.141592653589793
+  },
+  "outputs": {
+    "normalization_stats_path": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "status": "selected_development_champion",
+  "schema_version": "RADAR-LN3-V21-known-gate-baseline-development-selection-v1",
+  "selected_seed": 43,
+  "selection_rank": {
+    "seed": 43,
+    "parent_min_class_precision_recall": 0.7,
+    "parent_macro_f1": 0.862803075103489,
+    "known_clutter_f1": 0.7368421052631577,
+    "known_target_recall": 0.9865470852017937,
+    "ranking_key": [
+      0.7,
+      0.862803075103489,
+      0.7368421052631577,
+      0.9865470852017937,
+      -43.0
+    ]
+  },
+  "validation_metrics": {
+    "scope": "seed43_parent_final_recomputed",
+    "support": 232,
+    "accuracy": 0.978448275862069,
+    "macro_precision": 0.8454954954954954,
+    "macro_recall": 0.8821624314897858,
+    "macro_f1": 0.862803075103489,
+    "balanced_accuracy": 0.8821624314897858,
+    "per_class": [
+      {
+        "class": "KNOWN_TARGET_EVIDENCE",
+        "precision": 0.990990990990991,
+        "recall": 0.9865470852017937,
+        "f1": 0.9887640449438202,
+        "support": 223,
+        "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+        "major_confusion_count": 3
+      },
+      {
+        "class": "KNOWN_CLUTTER_EVIDENCE",
+        "precision": 0.7,
+        "recall": 0.7777777777777778,
+        "f1": 0.7368421052631577,
+        "support": 9,
+        "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+        "major_confusion_count": 2
+      }
+    ],
+    "confusion_matrix_rows_true_columns_pred": [
+      [
+        220,
+        3
+      ],
+      [
+        2,
+        7
+      ]
+    ]
+  },
+  "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+  "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+  "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+  "checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+  "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+  "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+  "report_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V21-known-gate-baseline-multiseed-validation.json",
+  "report_sha256": "128fdfc2c9d4ac07c954df9fcb37bb18ed757a57356caa9f97bf8e4e8d477ea5",
+  "bootstrap_selection_frequency": {
+    "count": 2802,
+    "fraction": 0.5604
+  },
+  "clutter_validation_support": 9,
+  "selection_bias_warning": "The champion is selected on the same development validation set and is not an unbiased generalization estimate. Any V21a-d comparison must use a Baseline/Treatment pair with the same selected seed or, preferably, paired deltas across all three seeds.",
+  "unknown_is_model_class": false,
+  "test": "未执行",
+  "OOF": "未执行",
+  "deployment_eligible": false
+}

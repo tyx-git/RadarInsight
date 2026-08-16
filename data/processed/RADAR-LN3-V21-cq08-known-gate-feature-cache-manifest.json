@@ -1,0 +1,45 @@
+{
+  "schema_version": "RADAR-LN3-V21-known-gate-feature-cache-manifest-v1",
+  "feature_schema": "cq08-current-event-known-gate-evidence-v1",
+  "feature_names": [
+    "native_stft_adjacent_spectral_affinity_median",
+    "native_stft_adjacent_spectral_affinity_minimum",
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps",
+    "target_row_linear_energy_fraction_mean",
+    "mtd_minus_track_range_std_m_over_75m"
+  ],
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_provenance": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+  "source_provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+  "data_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "cache_files": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-known-gate-train-feature-cache.npz",
+      "sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "event_count": 18923
+    },
+    "val": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-known-gate-val-feature-cache.npz",
+      "sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "event_count": 4452
+    }
+  },
+  "sample_id_is_model_input": false,
+  "frame_index_is_model_input": false,
+  "valid_mask_is_model_input": false,
+  "test_excluded": true,
+  "test_payload_access_count": 0
+}

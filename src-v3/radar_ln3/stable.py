@@ -1,3 +1,10 @@
+"""Legacy stable-state implementations retained for historical artifacts.
+
+The V21 semantic decision layer and its Pending/Abstain rules are not yet
+calibrated or executed here; no V21 local KnownGate result may be reported as
+stable performance.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

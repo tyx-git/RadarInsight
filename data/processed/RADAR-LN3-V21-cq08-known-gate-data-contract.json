@@ -1,0 +1,508 @@
+{
+  "schema_version": "RADAR-LN3-V21-known-gate-data-contract-v1",
+  "contract_name": "cq08_v21_known_gate_strict_open_set_local_feature_experiments_v1",
+  "architecture_schema": "RADAR-LN3-V21-strict-open-set-architecture-v1",
+  "architecture_document": "docs/radar_ln3_v21_strict_open_set_architecture.md",
+  "architecture_document_sha256": "0c309049d91a76727be7fc0db5f997a830b32ca798c6aabe847d790b74bd1614",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_v16_contract": "data/processed/RADAR-LN3-V16-cq08-product-local-data-contract.json",
+  "source_v16_contract_sha256": "ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373",
+  "source_v16_provenance": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+  "source_v16_provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+  "source_canonical_frame_index": "data/processed/cq08_rd_physical_canonical_frame_index_v3_1.csv",
+  "source_canonical_frame_index_sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+  "strict_open_set_contract": {
+    "l1_task_name": "known_gate",
+    "l1_classes": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE"
+    ],
+    "known_training_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "unknown_label": "UnknownTarget",
+    "unknown_is_model_class": false,
+    "unknown_is_training_target": false,
+    "unknown_is_normalization_population": false,
+    "unknown_is_sampler_population": false,
+    "unknown_is_optimizer_population": false,
+    "unknown_is_checkpoint_ranking_population": false,
+    "unknown_is_threshold_fitting_population": false,
+    "unknown_training_exposure": 0,
+    "l2_task_name": "dbb_specialist",
+    "l3_name": "semantic_decision_layer",
+    "cu_specialist_exists_in_v21": false
+  },
+  "task_contract": {
+    "name": "known_gate",
+    "class_names": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE"
+    ],
+    "label_to_id": {
+      "DroneTarget": 0,
+      "BirdTarget": 0,
+      "BalloonTarget": 0,
+      "ClutterTarget": 1
+    },
+    "forbidden_training_labels": [
+      "UnknownTarget"
+    ],
+    "train_parent_count": 986,
+    "validation_parent_count": 232,
+    "train_known_target_parent_count": 953,
+    "train_clutter_parent_count": 33,
+    "validation_known_target_parent_count": 223,
+    "validation_clutter_parent_count": 9,
+    "local_argmax_is_product_action": false
+  },
+  "normalization_contract": {
+    "path": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json",
+    "sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "fit_split": "train",
+    "fit_population": "known_only",
+    "parent_count": 986,
+    "selected_label_parent_counts": {
+      "BalloonTarget": 238,
+      "BirdTarget": 239,
+      "ClutterTarget": 33,
+      "DroneTarget": 476
+    },
+    "forbidden_labels": [
+      "UnknownTarget"
+    ],
+    "excluded_label_parent_counts": {
+      "UnknownTarget": 69
+    },
+    "selected_excluded_rd_tensor_path_overlap_count": 0,
+    "validation_and_test_excluded": true
+  },
+  "feature_contract": {
+    "schema": "cq08-current-event-known-gate-evidence-v1",
+    "value_names": [
+      "native_stft_adjacent_spectral_affinity_median",
+      "native_stft_adjacent_spectral_affinity_minimum",
+      "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+      "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps",
+      "target_row_linear_energy_fraction_mean",
+      "mtd_minus_track_range_std_m_over_75m"
+    ],
+    "value_dim": 6,
+    "value_dtype": "float32",
+    "value_bounds": [
+      0.0,
+      1.0
+    ],
+    "valid_dtype": "bool_per_value",
+    "valid_mask_mode": "gating_only_per_value",
+    "variant_features": {
+      "baseline": [],
+      "v21a": [
+        "native_stft_adjacent_spectral_affinity_median",
+        "native_stft_adjacent_spectral_affinity_minimum"
+      ],
+      "v21b": [
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps"
+      ],
+      "v21c": [
+        "target_row_linear_energy_fraction_mean"
+      ],
+      "v21d": [
+        "mtd_minus_track_range_std_m_over_75m"
+      ]
+    },
+    "causal_scope": "current event only; no future event or parent-final statistic",
+    "label_policy": "feature extraction is label-free; labels are used only by train/evaluation grouping",
+    "identifier_policy": "sample/parent/path/frame identifiers are cache alignment only and never model inputs",
+    "features": {
+      "spectral_temporal_consistency": {
+        "names": [
+          "native_stft_adjacent_spectral_affinity_median",
+          "native_stft_adjacent_spectral_affinity_minimum"
+        ],
+        "source": "current CQ08 raw complex I/Q target row",
+        "formula": "native full-Doppler STFT adjacent-column Bhattacharyya affinity; event median and minimum"
+      },
+      "modal_consistency": {
+        "names": [
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps"
+        ],
+        "source": "current canonical RD zero-offset target row plus current TR radial speed",
+        "formula": "median/max abs(RD target-row peak velocity - TR radial speed), divided by 85 m/s and clipped",
+        "missing_policy": "TR radial speed missing -> both modal values zero and invalid; other canonical evidence remains independently usable"
+      },
+      "target_row_iso": {
+        "names": [
+          "target_row_linear_energy_fraction_mean"
+        ],
+        "source": "current canonical RD amplitude before model normalization",
+        "formula": "mean per-frame zero-offset target-row linear power / full 21x384 linear power"
+      },
+      "d_range_stability": {
+        "names": [
+          "mtd_minus_track_range_std_m_over_75m"
+        ],
+        "source": "current canonical frame debug_info detected range plus current TR filtered range",
+        "formula": "std(MTD detected range - TR range) across current-event frames, divided by 75 m and clipped",
+        "missing_policy": "TR range missing or fewer than two current-event frames -> value zero and invalid; spectral/modal/iso evidence remains independently usable"
+      }
+    }
+  },
+  "feature_caches": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-known-gate-train-feature-cache.npz",
+      "sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+      "parent_count": 986,
+      "parent_label_counts": {
+        "BalloonTarget": 238,
+        "BirdTarget": 239,
+        "ClutterTarget": 33,
+        "DroneTarget": 476
+      },
+      "raw_file_access_count": 986,
+      "raw_frame_count_in_accessed_files": 67827,
+      "canonical_rd_tensor_access_count": 986,
+      "tr_radial_speed_missing_rd_present_event_count": 0,
+      "tr_range_missing_rd_present_event_count": 1,
+      "test_payload_access_count": 0,
+      "event_count": 18923,
+      "valid_value_count_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 18770,
+        "native_stft_adjacent_spectral_affinity_minimum": 18770,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 18770,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 18770,
+        "target_row_linear_energy_fraction_mean": 18770,
+        "mtd_minus_track_range_std_m_over_75m": 18679
+      },
+      "valid_fraction_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 0.991914601278867,
+        "native_stft_adjacent_spectral_affinity_minimum": 0.991914601278867,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 0.991914601278867,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 0.991914601278867,
+        "target_row_linear_energy_fraction_mean": 0.991914601278867,
+        "mtd_minus_track_range_std_m_over_75m": 0.9871056386408075
+      },
+      "train_only_label_distributions": {
+        "DroneTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 9015,
+            "mean": 0.9767696261405945,
+            "median": 0.988555371761322,
+            "q25": 0.9701737761497498,
+            "q75": 0.9958022832870483
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 9015,
+            "mean": 0.8919733762741089,
+            "median": 0.9214674830436707,
+            "q25": 0.8314781188964844,
+            "q75": 0.9717452526092529
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 9015,
+            "mean": 0.03940488398075104,
+            "median": 0.0030790921300649643,
+            "q25": 0.0015951060922816396,
+            "q75": 0.06884626299142838
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 9015,
+            "mean": 0.05076420307159424,
+            "median": 0.005603134166449308,
+            "q25": 0.0018214674200862646,
+            "q75": 0.11096391081809998
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 9015,
+            "mean": 0.28675660490989685,
+            "median": 0.31571561098098755,
+            "q25": 0.11559651046991348,
+            "q75": 0.4498283863067627
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 8996,
+            "mean": 0.04137289524078369,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.0471404530107975
+          }
+        },
+        "BirdTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 4548,
+            "mean": 0.9254893064498901,
+            "median": 0.9367884397506714,
+            "q25": 0.8828548789024353,
+            "q75": 0.9770998954772949
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 4548,
+            "mean": 0.8249751329421997,
+            "median": 0.8110365867614746,
+            "q25": 0.747890293598175,
+            "q75": 0.9026974439620972
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 4548,
+            "mean": 0.03509064018726349,
+            "median": 0.012297566048800945,
+            "q25": 0.002463830169290304,
+            "q75": 0.06223449483513832
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 4548,
+            "mean": 0.05057718604803085,
+            "median": 0.030610965564846992,
+            "q25": 0.0037863384932279587,
+            "q75": 0.0833168476819992
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 4548,
+            "mean": 0.10155520588159561,
+            "median": 0.0762634426355362,
+            "q25": 0.053344011306762695,
+            "q75": 0.1256030946969986
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 4540,
+            "mean": 0.07244397699832916,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.10000000149011612
+          }
+        },
+        "BalloonTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 4550,
+            "mean": 0.9398295879364014,
+            "median": 0.9577746391296387,
+            "q25": 0.8986155986785889,
+            "q75": 0.9880843758583069
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 4550,
+            "mean": 0.8330449461936951,
+            "median": 0.8152005672454834,
+            "q25": 0.7539961338043213,
+            "q75": 0.9162779450416565
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 4550,
+            "mean": 0.004111418500542641,
+            "median": 0.0023382727522403,
+            "q25": 0.001145753893069923,
+            "q75": 0.0035373985301703215
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 4550,
+            "mean": 0.010455422103404999,
+            "median": 0.0033092929515987635,
+            "q25": 0.0016135766636580229,
+            "q75": 0.009501997381448746
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 4550,
+            "mean": 0.18628838658332825,
+            "median": 0.16049304604530334,
+            "q25": 0.09473925083875656,
+            "q75": 0.2523622214794159
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 4490,
+            "mean": 0.04011014848947525,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.0471404530107975
+          }
+        },
+        "ClutterTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 657,
+            "mean": 0.9325020909309387,
+            "median": 0.9448520541191101,
+            "q25": 0.8797909021377563,
+            "q75": 0.9991711378097534
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 657,
+            "mean": 0.8523309826850891,
+            "median": 0.8301749229431152,
+            "q25": 0.7458871006965637,
+            "q75": 0.9942317008972168
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 657,
+            "mean": 0.02349148690700531,
+            "median": 0.014880970120429993,
+            "q25": 0.002610966097563505,
+            "q75": 0.033942557871341705
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 657,
+            "mean": 0.0325612835586071,
+            "median": 0.02061096578836441,
+            "q25": 0.002610966097563505,
+            "q75": 0.04942650720477104
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 657,
+            "mean": 0.12488798797130585,
+            "median": 0.07036444544792175,
+            "q25": 0.05269065871834755,
+            "q75": 0.2033572494983673
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 653,
+            "mean": 0.08680517971515656,
+            "median": 0.05000000074505806,
+            "q25": 0.0,
+            "q75": 0.16393595933914185
+          }
+        }
+      }
+    },
+    "val": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-known-gate-val-feature-cache.npz",
+      "sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b",
+      "parent_count": 232,
+      "parent_label_counts": {
+        "BalloonTarget": 54,
+        "BirdTarget": 56,
+        "ClutterTarget": 9,
+        "DroneTarget": 113
+      },
+      "raw_file_access_count": 232,
+      "raw_frame_count_in_accessed_files": 15787,
+      "canonical_rd_tensor_access_count": 232,
+      "tr_radial_speed_missing_rd_present_event_count": 0,
+      "tr_range_missing_rd_present_event_count": 0,
+      "test_payload_access_count": 0,
+      "event_count": 4452,
+      "valid_value_count_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 4397,
+        "native_stft_adjacent_spectral_affinity_minimum": 4397,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 4397,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 4397,
+        "target_row_linear_energy_fraction_mean": 4397,
+        "mtd_minus_track_range_std_m_over_75m": 4383
+      },
+      "valid_fraction_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 0.9876460017969452,
+        "native_stft_adjacent_spectral_affinity_minimum": 0.9876460017969452,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 0.9876460017969452,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 0.9876460017969452,
+        "target_row_linear_energy_fraction_mean": 0.9876460017969452,
+        "mtd_minus_track_range_std_m_over_75m": 0.9845013477088949
+      }
+    }
+  },
+  "canonical_frame_mapping_audit": {
+    "row_count": 106026,
+    "legacy_mat_list_ordinal_differs_from_raw_dat_frame_count": 46,
+    "affected_track_ids": [
+      1010
+    ],
+    "legacy_field_used_as_raw_dat_index": false
+  },
+  "data_scope": {
+    "split_label_parent_counts": {
+      "train": {
+        "DroneTarget": 476,
+        "BirdTarget": 239,
+        "BalloonTarget": 238,
+        "ClutterTarget": 33,
+        "UnknownTarget": 69
+      },
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    },
+    "test_rows_read_for_support_only": true,
+    "test_raw_payload_access_count": 0,
+    "test_rd_payload_access_count": 0,
+    "test_used_for_normalization": false,
+    "test_used_for_checkpoint_selection": false
+  },
+  "training_contract": {
+    "variants": {
+      "baseline": {
+        "description": "Known-only V16-core KnownGate baseline without experimental evidence",
+        "feature_names": [],
+        "full_parameter_training": true
+      },
+      "v21a": {
+        "description": "Baseline plus native-STFT spectral-shape temporal consistency",
+        "feature_names": [
+          "native_stft_adjacent_spectral_affinity_median",
+          "native_stft_adjacent_spectral_affinity_minimum"
+        ],
+        "full_parameter_training": true
+      },
+      "v21b": {
+        "description": "Baseline plus target-row RD-peak versus TR-radial consistency",
+        "feature_names": [
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps"
+        ],
+        "full_parameter_training": true
+      },
+      "v21c": {
+        "description": "Baseline plus zero-offset target-row energy fraction iso",
+        "feature_names": [
+          "target_row_linear_energy_fraction_mean"
+        ],
+        "full_parameter_training": true
+      },
+      "v21d": {
+        "description": "Baseline plus current-event MTD-minus-TR range standard deviation",
+        "feature_names": [
+          "mtd_minus_track_range_std_m_over_75m"
+        ],
+        "full_parameter_training": true
+      }
+    },
+    "seed": 42,
+    "dataloader_seed": 42,
+    "epochs": 20,
+    "early_stopping": false,
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "checkpoint_selection": "parent_min_precision_recall",
+    "treatment_initialization": "copy every Baseline shared tensor and zero only new Fusion columns"
+  },
+  "evaluation_contract": {
+    "primary_scope": "development validation parent-final KnownGate local task",
+    "clutter_validation_support": 9,
+    "parent_stratified_bootstrap_required": true,
+    "bootstrap_confidence_level": 0.95,
+    "primary_positive_signal_macro_f1_delta_strictly_greater_than": 0.02,
+    "test": "未执行",
+    "OOF": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "full_cascade": "未执行"
+  },
+  "action_semantics": {
+    "unknown_probability_output": false,
+    "unknown_is_strict_open_set_action": true,
+    "pending_abstain_counts_as_unknown_success": false,
+    "threshold_source": "future train parent-grouped OOF only"
+  }
+}

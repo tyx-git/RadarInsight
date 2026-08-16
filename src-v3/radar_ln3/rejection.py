@@ -1,3 +1,10 @@
+"""Legacy rejection/calibration contracts through V15.
+
+V21 Unknown is a strict open-set action resolved by the semantic decision
+layer, never a learned CU class.  Historical calibration schemas remain here
+only for artifact reproduction.
+"""
+
 from __future__ import annotations
 
 import json
@@ -35,7 +42,8 @@ CALIBRATION_QUALITY_DEPLOYMENT_ELIGIBLE = "deployment_eligible"
 CALIBRATION_QUALITY_AUDIT_ONLY = "audit_only"
 CALIBRATION_PURPOSE_DEPLOYMENT = "deployment"
 CALIBRATION_PURPOSE_AUDIT = "audit"
-HIERARCHICAL_TASK_NAMES = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
+LEGACY_HIERARCHICAL_TASK_NAMES = ("dbb_cu_gate", "dbb_specialist", "cu_specialist")
+HIERARCHICAL_TASK_NAMES = LEGACY_HIERARCHICAL_TASK_NAMES
 GATE_DBB_PROBABILITY_SCORE = "gate_dbb_probability_and_margin"
 CU_CLUTTER_PROBABILITY_SCORE = "cu_clutter_probability_and_margin"
 DBB_KNOWN_PROBABILITY_SCORE = "dbb_top_probability_and_margin"

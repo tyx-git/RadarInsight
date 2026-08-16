@@ -2293,3 +2293,47 @@
 - Action：只训练V20r Treatment并与SHA冻结的V20 Control比较；报告own-best、same-epoch、三类P/R/F1、Drone↔Bird方向错误和按density exposure归因。严格保留`>0.02`与方向安全门槛，不因V20 skip失败放宽。
 - 验证状态：配置、readiness、focused Smoke、Python compile、PowerShell AST和静态隔离通过；正式20 epoch Treatment和paired validation待用户执行。test、OOF、级联、拒识、stable、P95和部署未执行。
 - 关联版本：V20r-density，复用V20-skip Control与V16数据contract。
+
+## Finding F209
+
+- Severity：High（产品层级和Unknown语义已迁移，旧DBB/CU解释不得继续沿用）
+- 文件位置：`docs/radar_ln3_v21_strict_open_set_architecture.md`、`src-v3/radar_ln3/open_set_architecture.py`、`src-v3/radar_ln3/known_gate.py`、`src-v3/radar_ln3/known_gate_features.py`、`src-v3/build/known_gate_v21.py`、`src-v3/train/known_gate_v21.py`、`src-v3/report/known_gate_v21.py`
+- 问题或结论：V21当前架构为`known_gate -> dbb_specialist -> semantic_decision_layer`。KnownGate仅学习已知目标与已知Clutter，DBB specialist仅学习Drone/Bird/Balloon，L3仅执行评分、质量、OOF阈值和互斥动作规则。UnknownTarget不再是普通闭集输出；`UNKNOWN_REJECTED`与`PENDING_ABSTAIN`具有不同语义和分母。历史`dbb_cu_gate/cu_specialist`只能复现旧artifact。
+- Evidence：V21映射只含Drone/Bird/Balloon→`KNOWN_TARGET_EVIDENCE`和Clutter→`KNOWN_CLUTTER_EVIDENCE`，Unknown被显式列入forbidden training labels；known-only normalization合同固定986个train parent并排除69个Unknown，validation局部任务固定223个目标与9个Clutter并排除15个Unknown。focused Smoke确认Unknown不在模型映射、新增Fusion列零初始化且可训练、Treatment与Baseline初始logits一致、全部参数参与训练、offline/online一致。动作解析覆盖目标+子类接受、Clutter接受、双Known不接受、子类不足、质量不足和路由冲突。
+- Impact：V21局部KnownGate高分不能直接解释为Unknown拒识、完整五类性能或部署收益；二类softmax/argmax只作特征实验诊断，真正的“双方均不可接受”必须等train parent-grouped OOF评分阈值和L3规则冻结后评估。Clutter validation只有9个parent，单点指标方差大，必须携带support和parent bootstrap。
+- Action：用户先串行完成V21 Baseline及V21a-d五个独立20 epoch全参数运行。各Treatment只改一组证据特征，Macro-F1相对Baseline严格提升`>0.02`且预期方向净改善时，才晋级multi-seed/OOF；不在本阶段组合特征、调Unknown阈值或运行test。后续L3校准artifact必须版本化绑定KnownGate、DBB checkpoint、评分器、质量规则和OOF来源。
+- 验证状态：架构文档、代码、训练/报告入口、focused Smoke、真实CQ08小样本probe、编译、静态隔离和PowerShell AST已通过；正式prepare、五个训练、冻结validation、OOF、Unknown拒识、完整级联、test、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21/V21a/V21b/V21c/V21d KnownGate局部单因素阶段；V18r继续作为DBB局部候选。
+
+## Finding F210
+
+- Severity：Medium（V21 prepare阻断，已修复且未改变样本或标签）
+- 文件位置：`src-v3/build/known_gate_v21.py`、`src-v3/radar_ln3/known_gate_features.py`、`src-v3/smoke/known_gate_v21_contract_test.py`
+- 问题或结论：V21构建器把所有TR radial/range字段无条件转换为float，导致合法缺失`range_m=null`的`cq08|track|234#point0012`阻断全量prepare。该字段只被V21d使用，不应使谱形、模态或iso证据失效。
+- Evidence：KnownGate train/val RD-present事件只读审计得到train完整18769、range缺失1、radial缺失0；validation完整4397、两字段缺失均0。受影响事件仍有有效radial speed和8帧RD。修复后真实parent探针输出六维valid=`[true,true,true,true,true,false]`，只有d_range值为0。
+- Impact：旧实现不是性能问题，而是缺失语义耦合错误；若通过删除样本或插值修复，会污染固定parent人口和物理证据。逐特征valid修复保持V21a/b/c输入与原始事件一致，并只降低V21d该单点的有效support。
+- Action：重新执行V21 `prepare`。构建器将复用内容一致的normalization，重新完成train/val cache并在readiness中记录train radial/range缺失=`0/1`、validation=`0/0`。若计数变化则阻断，不静默接收新缺失模式。
+- 验证状态：合成缺失range/radial回归、真实Track 234单parent构建、V21脚本Smoke、Python编译、PowerShell AST、静态隔离和diff检查已通过；正式全量prepare、五个20 epoch训练和validation评估未执行。
+- 关联版本：RADAR-LN3-V21 KnownGate特征合同修订，输入维度和实验变量不变。
+
+## Finding F211
+
+- Severity：High（V21 Baseline总体Accuracy掩盖Clutter低support边界，跨seed必须类别均衡选优）
+- 文件位置：`artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal/training-summary.json`、`src-v3/build/known_gate_v21_multiseed.py`、`src-v3/report/known_gate_v21_multiseed.py`、`src-v3/scripts/v21_known_gate_baseline_multiseed_pipeline.ps1`
+- 问题或结论：seed42 Baseline Accuracy达到`0.978448`，但Clutter Recall只有`6/9=0.666667`且Macro-F1为`0.847348`，不能把Accuracy最高的seed定义为最优KnownGate。三seed候选采用最弱类Precision/Recall优先的development排序，并以parent bootstrap量化Clutter n=9造成的不稳定性。
+- Evidence：seed42 Known Target support=223且P/R约0.99，Clutter support=9且P/R/F1=`0.75/0.666667/0.705882`，best selection weak floor=`0.666667`。新增seed43/44配置经逐字段审计只改变seed/DataLoader seed和artifact身份；Smoke确认27482个参数全部训练、同seed初始化可复现、不同seed初始化不同，排序先看weak floor再看Macro-F1，50次合成paired bootstrap和完整selection artifact探针通过。
+- Impact：选择validation最优seed会引入development selection bias，bootstrap胜出频率也不能将其变成无偏test估计；但它可用于确定后续局部实验的受控初始化。若选中43/44而Treatment仍使用seed42，所谓特征收益将混入初始化差异，单因素归因失效。
+- Action：用户只需补训seed43/44并运行冻结evaluate。选中模型仅标记为development champion；后续V21a-d必须与champion同seed配对，或三seed全部运行并比较逐seedTreatment−Baseline增量。不得据此执行Unknown阈值、test或部署放行。
+- 验证状态：multiseed prepare、配置/readiness、训练入口只读校验、Python编译、PowerShell AST、原V21回归Smoke、新multiseed Smoke、合成bootstrap/report和静态隔离已通过；seed43/44正式训练及正式选优未执行。
+- 关联版本：RADAR-LN3-V21 KnownGate Baseline multiseed development selection。
+
+## Finding F212
+
+- Severity：High（seed43按冻结规则胜出，但优势未与seed42稳定分离）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V21-known-gate-baseline-multiseed-validation.json`、`data/processed/RADAR-LN3-V21-known-gate-baseline-development-selection.json`、三个V21 Baseline正式artifact
+- 问题或结论：三seed排序为`43 > 42 > 44`，正式development champion为seed43。其Clutter Recall由seed42的`6/9`提高到`7/9`，但Known目标误拒由2增至3；Accuracy保持`0.978448`，Macro-F1提高到`0.862803`。由于Clutter只有9个parent，seed43只是点估计规则下更优，不是稳定显著优于seed42。
+- Evidence：seed43 Known Target P/R/F1=`0.990991/0.986547/0.988764`，Clutter=`0.70/0.777778/0.736842`，weak floor=`0.70`。5000次bootstrap胜出频率seed43/42/44=`56.04%/43.96%/0%`；seed43−seed42 Macro-F1、weak floor和Clutter F1的95%区间分别为`[-0.072465,0.129464]`、`[-0.194498,0.333333]`、`[-0.138158,0.25]`，均跨0。三seed共同错误包括Bird 3580和Clutter 2900/3761；seed43在修复Bird 2619与Clutter 3605的同时新增Balloon 3027与Bird 852错误。
+- Impact：选中seed43有利于按既定类别均衡规则继续实验，但不能声称随机种子解决了Clutter边界，也不能把selection后的0.8628当作无偏泛化性能。直接拿seed42 V21a-d与seed43 Baseline比较会把初始化差异混入特征效应。
+- Action：后续V21a-d至少生成seed43同seed配对Treatment；更严谨方案是四个Treatment都跑42/43/44并比较逐seedpaired delta。任何单因素正向信号仍需Macro-F1严格`>0.02`、预期类别净改善和bootstrap，并最终由train parent-grouped OOF确认。Clutter覆盖不足仍是KnownGate主要瓶颈。
+- 验证状态：三seed正式20 epoch、5000次bootstrap、development selection及其SHA绑定已执行并由流水线重复验证；OOF、Unknown拒识、完整级联、test、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21 KnownGate Baseline seed43 development champion。

@@ -1,0 +1,105 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V21-known-gate-baseline-multiseed-training-readiness-v1",
+  "checks": {
+    "seed42_formal_baseline_is_complete_and_bound": true,
+    "candidate_seed_set_is_exactly_42_43_44": true,
+    "seed43_seed44_differ_only_by_seed_and_artifact_identity": true,
+    "all_candidates_require_full_20_epoch_parameter_training": true,
+    "cross_seed_ranking_protocol_is_frozen_before_new_seed_training": true,
+    "clutter_support_nine_requires_parent_bootstrap": true,
+    "unknown_is_excluded_from_model_and_selection_population": true,
+    "test_payload_access_count_is_zero": true
+  },
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "new_seeds": [
+    43,
+    44
+  ],
+  "configs": {
+    "42": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "sha256": "eb6e3c2a0db6934f482101adedc9e5cc6ddee7b5491bf9477de6d6e5fe7c9e39"
+    },
+    "43": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+      "sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab"
+    },
+    "44": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-config.json",
+      "sha256": "a1bfd6064aeb8532b1ea536eb034df03a5d64420632f9d4f0a5ef21cbacc88ec"
+    }
+  },
+  "base_readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V21-known-gate-training-readiness.json",
+  "base_readiness_sha256": "6062422b5c68c9a70cd6fc88df5fbefe374b5b28e0394f2506358059dc5e1bd6",
+  "base_seed42": {
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\training-summary.json",
+    "summary_sha256": "b384362776e7c09506d734fe2027e4095bcf267eee68a697211a7b4ad6025c6a",
+    "sample_detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\sample_detail_information.json",
+    "sample_detail_sha256": "a6b8087125d19a49b1a17bad0896b9504ae233da784ed7e57a66bae8f09f86df",
+    "best_checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\best_model.pt",
+    "best_checkpoint_sha256": "fd6898a5676e31bb25770eb7358abe69e106b0c7092f721d5fff3fb3a684b22c",
+    "best_epoch": 7,
+    "best_checkpoint_selection": {
+      "metric": "parent_min_precision_recall",
+      "primary_metric": "parent_min_class_precision_recall",
+      "primary_value": 0.6666666666666666,
+      "tie_break_metric": "parent_macro_f1",
+      "tie_break_value": 0.8473483353072773,
+      "ranking_key": [
+        0.6666666666666666,
+        0.8473483353072773
+      ]
+    },
+    "performance_status": "failed"
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "feature_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+    "train_feature_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+    "validation_feature_cache_sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b"
+  },
+  "selection_protocol": {
+    "scope": "development validation parent-final KnownGate Baseline only",
+    "candidate_seeds": [
+      42,
+      43,
+      44
+    ],
+    "ranking_order": [
+      "maximize parent minimum over both classes precision and recall",
+      "maximize parent macro_f1",
+      "maximize KNOWN_CLUTTER_EVIDENCE f1",
+      "maximize KNOWN_TARGET_EVIDENCE recall",
+      "prefer lower numeric seed on an exact tie"
+    ],
+    "bootstrap": {
+      "unit": "parent",
+      "stratification": "original Drone/Bird/Balloon/Clutter label",
+      "replicates": 5000,
+      "confidence_level": 0.95,
+      "selection_frequency_reported": true
+    },
+    "selection_role": "development_champion_only",
+    "seed42_result_was_observed_before_this_protocol_was_frozen": true,
+    "protocol_frozen_before_seed43_or_seed44_training": true,
+    "selection_is_unbiased_test_estimate": false
+  },
+  "new_seed_training_at_report_generation": "未执行",
+  "validation_used_for_cross_seed_development_selection": true,
+  "validation_used_to_change_model_or_loss_hyperparameters": false,
+  "test_payload_access_count": 0,
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

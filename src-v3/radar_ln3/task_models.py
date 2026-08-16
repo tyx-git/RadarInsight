@@ -1,4 +1,10 @@
-"""Independent liquid-model task contracts for the DBB/CU experiments.
+"""Legacy V5-V20 liquid-model task contracts.
+
+The canonical V21 product architecture lives in ``open_set_architecture.py``
+and its L1 implementation lives in ``known_gate.py``.  The identifiers
+``dbb_cu_gate`` and ``cu_specialist`` below remain frozen only so historical
+configs/checkpoints can be reproduced; they must not be interpreted as V21
+layer names or current Unknown semantics.
 
 This module deliberately reuses only the isolated ``src-v3`` implementation.
 It does not load the five-class checkpoint, change the CQ08 index, or expose

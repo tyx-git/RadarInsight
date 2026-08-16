@@ -2176,3 +2176,58 @@ focused Smoke覆盖合成因果反例、无证据/缺失保持、零初始化、
 V20r不重复训练Control，直接SHA绑定并复用已完成V20 skip Control。新增density readiness按parent因果推导ordinal：train `k1/k2/k≥3=11733/1677/4856`，其中Treatment对k2使用0.50、k≥3使用0.75；标签Cramér's V=`0.091077`。Bird/Drone/Balloon train parent均衡暴露率分别为`0.441576/0.357492/0.243624`，因此后续必须重点审计Bird边界和高k类别相关性，不允许仅凭总体Macro-F1放行。
 
 V20r focused Smoke和prepare均已通过。合成增益验证k1/k2/k3为Control增量的1/2/3倍且k≥3饱和；padding不推进ordinal，offline/online误差0；真实Track 1010在首个density暴露前Control/Treatment logits相同、暴露后不同，训练loss和梯度finite且非零。配置/readiness复用V16 contract，validation只报告、test payload访问0。正式density Treatment训练等待用户手动执行；OOF、test、级联、正式拒识、stable、P95和部署未执行。
+
+## 2026-08-16 Stage 069 - V21 KnownGate严格Open-Set架构与单因素实验实现
+
+状态：架构迁移、代码实现、focused Smoke和静态检查已完成；耗时的正式normalization/cache构建、五个20 epoch训练和冻结validation评估尚未执行，交由用户通过单一PowerShell流水线串行运行。
+
+架构澄清：
+
+- 当前唯一产品语义改为`known_gate -> dbb_specialist -> semantic_decision_layer`。L1只学习`KNOWN_TARGET_EVIDENCE/KNOWN_CLUTTER_EVIDENCE`，L2只学习Drone/Bird/Balloon，L3不再训练CU类别，只保存评分器、质量规则、train parent-grouped OOF阈值、状态规则和版本绑定。
+- UnknownTarget从V21起不进入L1/L2类别映射、loss、采样、normalization、checkpoint选择或阈值拟合；它只作为严格open-set评估真值。`UNKNOWN_REJECTED`是产品动作，`PENDING_ABSTAIN`是证据/质量不足状态，二者分字段且Pending不得计作Unknown拒识成功。
+- 新增互斥动作解析：合格观测下，已知目标与DBB子类均接受才输出Drone/Bird/Balloon；已知Clutter接受输出Clutter；两种Known证据均不接受或DBB子类证据不足输出Unknown拒识；观测不足、质量低或分支冲突输出Pending/Abstain。
+- 历史`dbb_cu_gate`、`cu_specialist`、旧cascade/rejection/stable实现保留为旧artifact复现路径，并在模块头标记legacy；新代码、配置和报告只使用`known_gate`与`semantic_decision_layer`。新增`docs/radar_ln3_v21_strict_open_set_architecture.md`作为唯一当前架构规范，累积历史日志不做破坏性删除。
+
+V21局部实验实现：
+
+- 新增独立`KnownGateClassifier`和配置加载器，不复用旧task spec。Baseline冻结V16核心TR/RD/CfC结构；Known-only train normalization只允许Drone/Bird/Balloon/Clutter共986个train parent，显式排除69个Unknown parent。validation局部任务为223个已知目标与9个Clutter parent，15个Unknown parent不进入本轮局部分类评估。
+- V21a仅增加当前事件原始I/Q目标行完整Doppler STFT相邻谱形Bhattacharyya affinity的median/minimum；V21b仅增加canonical RD目标行峰值速度与TR radial speed绝对偏差median/max；V21c仅增加目标range row线性能量占全部21×384 RD能量的均值；V21d仅增加当前事件逐帧`MTD detected range - TR filtered range`标准差。
+- 四类Treatment共用六维label-free causal cache，但每个配置只选择本臂声明的1或2维。valid仅将无效值门控为0，不作为分类输入；sample/path/frame/PRT等标识只用于cache对齐和provenance，不进入模型。Track 1010继续使用canonical tensor index回连MAT采集帧号和raw-DAT真实帧号，未把历史MAT列表序号误当raw帧号。
+- 五个运行均固定seed/DataLoader seed=42、batch=2、20 epoch、无early stopping、每epoch checkpoint、parent顺序hash、parent-final主损失加0.1 prefix辅助。Treatment复制同seed Baseline全部共享初始参数，新增Fusion列精确置零；全部模型参数参与训练。流水线只允许epoch边界从`last_model.pt`恢复，不覆盖已完成正式artifact。
+- 冻结报告以parent-final KnownGate二分类为主，同时输出Drone/Bird/Balloon各自目标接受Recall、Clutter P/R/F1、混淆和support。Clutter validation仅9个parent，因此Baseline与每个Treatment均执行5000次、按原始四个base label分层的parent bootstrap，并对Treatment−Baseline做配对95%区间；Macro-F1增量必须严格大于0.02且预期方向净改善，才只允许晋级多seed或OOF确认。
+
+已执行验证：V21相关Python文件编译通过；KnownGate focused Smoke通过Unknown从映射中排除、共享初始化相等、新Fusion列为0且有非零梯度、五配置可加载、全部参数可训练、offline/online logits一致；真实CQ08 focused probe覆盖Drone/Bird/Balloon/Clutter和Track 1010；5000次bootstrap合成探针通过；`smoke.static_isolation_check`、PowerShell AST和`git diff --check`通过。
+
+未执行：正式V21 known-only normalization、全量train/validation特征cache、Baseline/V21a/V21b/V21c/V21d正式20 epoch训练、冻结development validation结果、multi-seed、parent-grouped OOF阈值、Unknown拒识评估、完整级联、test、stable、P95和部署。V21局部二分类argmax不是产品动作，也不得补写Unknown性能。
+
+## 2026-08-16 Stage 069补充 - V21 TR距离缺失的逐特征修复
+
+用户首次运行V21 `prepare`时在train parent `cq08|track|234`的`point0012`触发`float(None)`。全V16 KnownGate train/val RD-present事件审计确认仅此1个train Drone事件缺失`range_m`，其`radial_speed_mps`、原始I/Q和canonical RD均有效；train其余18769个RD-present事件及validation 4397个事件的radial/range均完整。删除该事件、沿用前后距离或令整个六维证据失效都会损失合法信息并改变单因素实验分母。
+
+修复后canonical提取器按依赖关系独立生成valid：TR radial speed缺失只屏蔽V21b两项；TR range缺失或帧数不足2只屏蔽V21d；V21c只依赖canonical RD能量，V21a只依赖当前raw I/Q，均不受影响。缺失证据严格置0，不插值、不复制邻点、不把valid拼入模型。构建统计新增RD-present事件的TR radial/range缺失计数，并冻结当前train=`0/1`、validation=`0/0`，来源变化时fail-closed。
+
+真实单parent只读探针已通过：`cq08|track|234#point0012`六维valid为`[true,true,true,true,true,false]`，谱形、模态和iso均保留，只有d_range为0/invalid。更新后的V21合同Smoke、Python编译、PowerShell流水线Smoke、静态隔离和diff检查通过。正式全量prepare及训练仍未执行，用户可直接重新运行原`-Stage prepare`命令；已生成的known-only normalization只会在内容完全一致时复用。
+
+## 2026-08-16 Stage 070 - V21 KnownGate Baseline三seed准备与选优协议
+
+用户完成seed42 Baseline正式20 epoch训练。best epoch为7，parent-final Accuracy=`0.978448`但Macro-F1仅`0.847348`；Known Target P/R/F1约`0.99/0.99/0.99`，Known Clutter P/R/F1=`0.75/0.666667/0.705882`，support=9。该结果说明总体Accuracy主要由223个Known Target支配，跨seed不能按Accuracy选优。
+
+新增三seed协议固定候选为42/43/44，seed42正式config/checkpoint/summary/detail及原V21 readiness均以SHA只读绑定。seed43/44从seed42配置生成，只改变模型/DataLoader seed、artifact路径和seed绑定checkpoint schema；batch、learning rate、20 epoch、class weights、loss、prefix辅助、模型维度、数据hash和checkpoint选择均逐字段相同。seed42不重复训练，seed43/44必须各自从随机初始化完整训练所有27482个参数20 epoch。
+
+跨seeddevelopment排序在新seed训练前冻结：第一优先为两类Precision/Recall最弱值，随后为Macro-F1、Known Clutter F1、Known Target Recall，精确同分时选择较小seed。报告执行5000次、按原始Drone/Bird/Balloon/Clutter标签分层的paired parent bootstrap，输出每seed区间、seed间差值和每个seed在bootstrap中的胜出频率。由于seed42结果已在协议冻结前观察，报告显式记录选择偏差，只将获胜模型标为`development_champion_only`。
+
+已实现并执行轻量prepare：生成seed43/44配置和`RADAR-LN3-V21-known-gate-baseline-multiseed-training-readiness.json`；readiness、配置round-trip、训练入口校验、不同seed可复现但互异的初始化、全参数可训练、排序优先级、精确同分规则、paired bootstrap及完整合成report/selection写入均通过Smoke。原V21 seed42 Smoke与静态隔离同步通过。
+
+未执行：seed43/44正式训练、三seed正式bootstrap/选优、OOF、Unknown拒识、完整级联、test、stable、P95和部署。若最终champion不是seed42，现有seed42 V21a-d配置不能直接与其比较，必须生成同seedTreatment或执行三seed配对增量。
+
+## 2026-08-16 Stage 070结果 - seed43获选但Clutter边界仍不稳定
+
+用户已完成seed43/44各20 epoch全参数训练，seed42/43/44均具备20个epoch checkpoint、best/last checkpoint、sample detail和completed summary；冻结multiseed evaluate已由代理重复执行并通过。development排序为`43 > 42 > 44`，selection artifact绑定的seed43 config/checkpoint/summary/report四项SHA均与当前文件逐值一致。
+
+三seedparent-final结果：seed42 best epoch 7，Accuracy/Macro-F1/weak floor=`0.978448/0.847348/0.666667`；seed43 best epoch 16，为`0.978448/0.862803/0.700000`；seed44 best epoch 18，为`0.974138/0.805804/0.555556`。seed43混淆矩阵为`[[220,3],[2,7]]`：Known Target P/R/F1=`0.990991/0.986547/0.988764`，Known Clutter P/R/F1=`0.70/0.777778/0.736842`。按原始标签看Drone接受Recall=1.0、Bird=0.964286、Balloon=0.981481、Clutter=0.777778；相对seed42，seed43多接受1个Clutter，但新增1个Balloon→Clutter，Bird错误总数保持2但具体parent发生变化。
+
+5000次分层paired parent bootstrap中seed43胜出`2802/5000=56.04%`，seed42胜出`2198/5000=43.96%`，seed44从未胜出。seed43−seed42的Macro-F1差中位数约`+0.013869`，95%区间`[-0.072465,+0.129464]`；weak floor差中位数约`+0.022475`，区间`[-0.194498,+0.333333]`；Clutter F1差中位数约`+0.027778`，区间`[-0.138158,+0.25]`。所有关键区间跨0，说明seed43按预注册点估计规则胜出，但其优势没有在Clutter n=9上稳定分离seed42。
+
+错误集合进一步显示三seed共有难例为Bird `3580`和Clutter `2900/3761`；seed43特有误拒Known目标为Balloon `3027`和Bird `852`，同时修复seed42的Bird `2619`和Clutter `3605`。这不是单纯“同5个错误换概率”，而是初始化改变了Known目标/Clutter边界上的具体取舍。三seed平均Clutter Recall=`0.666667`、sample std=`0.111111`，而Known Target Recall平均约`0.989537`、std约`0.002589`，当前方差几乎全部来自低support Clutter边界。
+
+冻结结论：seed43是唯一正式development champion，但不是可靠泛化最优，更没有达到90% Clutter普通质量门槛。现有V21a-d均为seed42 Treatment，不能与seed43 champion做单因素比较；下一步必须以seed43生成四份同seedTreatment并复制seed43对应随机初始化，或执行完整三seedTreatment−Baseline配对。OOF、Unknown拒识、完整级联、test、stable、P95和部署继续未执行。

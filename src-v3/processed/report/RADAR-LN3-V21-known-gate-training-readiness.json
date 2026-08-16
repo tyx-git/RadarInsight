@@ -1,0 +1,402 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V21-known-gate-training-readiness-v1",
+  "architecture_schema": "RADAR-LN3-V21-strict-open-set-architecture-v1",
+  "checks": {
+    "canonical_architecture_document_bound": true,
+    "task_identifier_is_known_gate": true,
+    "unknown_absent_from_model_classes_and_label_mapping": true,
+    "unknown_excluded_from_train_normalization": true,
+    "known_only_normalization_has_zero_selected_excluded_tensor_overlap": true,
+    "v16_capture_content_split_reused_without_payload_repartition": true,
+    "train_and_validation_feature_caches_align_all_known_events": true,
+    "feature_values_are_current_event_causal_and_label_free": true,
+    "feature_validity_is_gating_only": true,
+    "missing_tr_fields_invalidate_only_their_dependent_evidence": true,
+    "all_treatments_copy_baseline_shared_initialization": true,
+    "all_treatment_new_fusion_columns_are_exactly_zero": true,
+    "all_variants_require_full_20_epoch_parameter_training": true,
+    "validation_labels_not_used_as_readiness_gate": true,
+    "test_payload_access_count_is_zero": true
+  },
+  "source_hashes": {
+    "index": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract": "ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373",
+    "provenance": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+    "canonical_frame_index": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+    "architecture": "0c309049d91a76727be7fc0db5f997a830b32ca798c6aabe847d790b74bd1614"
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "feature_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+    "train_feature_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+    "validation_feature_cache_sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b"
+  },
+  "configs": {
+    "baseline": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "sha256": "eb6e3c2a0db6934f482101adedc9e5cc6ddee7b5491bf9477de6d6e5fe7c9e39",
+      "config_name": "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42"
+    },
+    "v21a": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21a-cq08-liquid-known-gate-spectral-temporal-consistency-seed42-config.json",
+      "sha256": "9a0c4737aaa7f50540de81b24ddc5788a42c1e33a95b7b8780c64408e7747cc8",
+      "config_name": "RADAR-LN3-V21a-cq08-liquid-known-gate-spectral-temporal-consistency-seed42"
+    },
+    "v21b": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21b-cq08-liquid-known-gate-modal-consistency-seed42-config.json",
+      "sha256": "315857cbce2638826a39496512746bda3f97f2802654af9aa314932d06871c94",
+      "config_name": "RADAR-LN3-V21b-cq08-liquid-known-gate-modal-consistency-seed42"
+    },
+    "v21c": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21c-cq08-liquid-known-gate-target-row-iso-seed42-config.json",
+      "sha256": "d52ee0b0a8569fe648a6547600b7ce6f5c47488e34ddfd5fdaa83d39cf487fc0",
+      "config_name": "RADAR-LN3-V21c-cq08-liquid-known-gate-target-row-iso-seed42"
+    },
+    "v21d": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21d-cq08-liquid-known-gate-d-range-stability-seed42-config.json",
+      "sha256": "2d287ac9a176e9fd9a2baa8e73acbe35213c4d900648374265222096fee62102",
+      "config_name": "RADAR-LN3-V21d-cq08-liquid-known-gate-d-range-stability-seed42"
+    }
+  },
+  "support": {
+    "train": {
+      "DroneTarget": 476,
+      "BirdTarget": 239,
+      "BalloonTarget": 238,
+      "ClutterTarget": 33,
+      "UnknownTarget": 69
+    },
+    "val": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "test": {
+      "DroneTarget": 109,
+      "BirdTarget": 53,
+      "BalloonTarget": 58,
+      "ClutterTarget": 8,
+      "UnknownTarget": 16
+    }
+  },
+  "normalization": {
+    "known_parent_count": 986,
+    "excluded_unknown_parent_count": 69,
+    "selected_label_parent_counts": {
+      "BalloonTarget": 238,
+      "BirdTarget": 239,
+      "ClutterTarget": 33,
+      "DroneTarget": 476
+    }
+  },
+  "feature_statistics": {
+    "train": {
+      "parent_count": 986,
+      "parent_label_counts": {
+        "BalloonTarget": 238,
+        "BirdTarget": 239,
+        "ClutterTarget": 33,
+        "DroneTarget": 476
+      },
+      "raw_file_access_count": 986,
+      "raw_frame_count_in_accessed_files": 67827,
+      "canonical_rd_tensor_access_count": 986,
+      "tr_radial_speed_missing_rd_present_event_count": 0,
+      "tr_range_missing_rd_present_event_count": 1,
+      "test_payload_access_count": 0,
+      "event_count": 18923,
+      "valid_value_count_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 18770,
+        "native_stft_adjacent_spectral_affinity_minimum": 18770,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 18770,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 18770,
+        "target_row_linear_energy_fraction_mean": 18770,
+        "mtd_minus_track_range_std_m_over_75m": 18679
+      },
+      "valid_fraction_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 0.991914601278867,
+        "native_stft_adjacent_spectral_affinity_minimum": 0.991914601278867,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 0.991914601278867,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 0.991914601278867,
+        "target_row_linear_energy_fraction_mean": 0.991914601278867,
+        "mtd_minus_track_range_std_m_over_75m": 0.9871056386408075
+      },
+      "train_only_label_distributions": {
+        "DroneTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 9015,
+            "mean": 0.9767696261405945,
+            "median": 0.988555371761322,
+            "q25": 0.9701737761497498,
+            "q75": 0.9958022832870483
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 9015,
+            "mean": 0.8919733762741089,
+            "median": 0.9214674830436707,
+            "q25": 0.8314781188964844,
+            "q75": 0.9717452526092529
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 9015,
+            "mean": 0.03940488398075104,
+            "median": 0.0030790921300649643,
+            "q25": 0.0015951060922816396,
+            "q75": 0.06884626299142838
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 9015,
+            "mean": 0.05076420307159424,
+            "median": 0.005603134166449308,
+            "q25": 0.0018214674200862646,
+            "q75": 0.11096391081809998
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 9015,
+            "mean": 0.28675660490989685,
+            "median": 0.31571561098098755,
+            "q25": 0.11559651046991348,
+            "q75": 0.4498283863067627
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 8996,
+            "mean": 0.04137289524078369,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.0471404530107975
+          }
+        },
+        "BirdTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 4548,
+            "mean": 0.9254893064498901,
+            "median": 0.9367884397506714,
+            "q25": 0.8828548789024353,
+            "q75": 0.9770998954772949
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 4548,
+            "mean": 0.8249751329421997,
+            "median": 0.8110365867614746,
+            "q25": 0.747890293598175,
+            "q75": 0.9026974439620972
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 4548,
+            "mean": 0.03509064018726349,
+            "median": 0.012297566048800945,
+            "q25": 0.002463830169290304,
+            "q75": 0.06223449483513832
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 4548,
+            "mean": 0.05057718604803085,
+            "median": 0.030610965564846992,
+            "q25": 0.0037863384932279587,
+            "q75": 0.0833168476819992
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 4548,
+            "mean": 0.10155520588159561,
+            "median": 0.0762634426355362,
+            "q25": 0.053344011306762695,
+            "q75": 0.1256030946969986
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 4540,
+            "mean": 0.07244397699832916,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.10000000149011612
+          }
+        },
+        "BalloonTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 4550,
+            "mean": 0.9398295879364014,
+            "median": 0.9577746391296387,
+            "q25": 0.8986155986785889,
+            "q75": 0.9880843758583069
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 4550,
+            "mean": 0.8330449461936951,
+            "median": 0.8152005672454834,
+            "q25": 0.7539961338043213,
+            "q75": 0.9162779450416565
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 4550,
+            "mean": 0.004111418500542641,
+            "median": 0.0023382727522403,
+            "q25": 0.001145753893069923,
+            "q75": 0.0035373985301703215
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 4550,
+            "mean": 0.010455422103404999,
+            "median": 0.0033092929515987635,
+            "q25": 0.0016135766636580229,
+            "q75": 0.009501997381448746
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 4550,
+            "mean": 0.18628838658332825,
+            "median": 0.16049304604530334,
+            "q25": 0.09473925083875656,
+            "q75": 0.2523622214794159
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 4490,
+            "mean": 0.04011014848947525,
+            "median": 0.0,
+            "q25": 0.0,
+            "q75": 0.0471404530107975
+          }
+        },
+        "ClutterTarget": {
+          "native_stft_adjacent_spectral_affinity_median": {
+            "event_support": 657,
+            "mean": 0.9325020909309387,
+            "median": 0.9448520541191101,
+            "q25": 0.8797909021377563,
+            "q75": 0.9991711378097534
+          },
+          "native_stft_adjacent_spectral_affinity_minimum": {
+            "event_support": 657,
+            "mean": 0.8523309826850891,
+            "median": 0.8301749229431152,
+            "q25": 0.7458871006965637,
+            "q75": 0.9942317008972168
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "event_support": 657,
+            "mean": 0.02349148690700531,
+            "median": 0.014880970120429993,
+            "q25": 0.002610966097563505,
+            "q75": 0.033942557871341705
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "event_support": 657,
+            "mean": 0.0325612835586071,
+            "median": 0.02061096578836441,
+            "q25": 0.002610966097563505,
+            "q75": 0.04942650720477104
+          },
+          "target_row_linear_energy_fraction_mean": {
+            "event_support": 657,
+            "mean": 0.12488798797130585,
+            "median": 0.07036444544792175,
+            "q25": 0.05269065871834755,
+            "q75": 0.2033572494983673
+          },
+          "mtd_minus_track_range_std_m_over_75m": {
+            "event_support": 653,
+            "mean": 0.08680517971515656,
+            "median": 0.05000000074505806,
+            "q25": 0.0,
+            "q75": 0.16393595933914185
+          }
+        }
+      }
+    },
+    "val": {
+      "parent_count": 232,
+      "parent_label_counts": {
+        "BalloonTarget": 54,
+        "BirdTarget": 56,
+        "ClutterTarget": 9,
+        "DroneTarget": 113
+      },
+      "raw_file_access_count": 232,
+      "raw_frame_count_in_accessed_files": 15787,
+      "canonical_rd_tensor_access_count": 232,
+      "tr_radial_speed_missing_rd_present_event_count": 0,
+      "tr_range_missing_rd_present_event_count": 0,
+      "test_payload_access_count": 0,
+      "event_count": 4452,
+      "valid_value_count_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 4397,
+        "native_stft_adjacent_spectral_affinity_minimum": 4397,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 4397,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 4397,
+        "target_row_linear_energy_fraction_mean": 4397,
+        "mtd_minus_track_range_std_m_over_75m": 4383
+      },
+      "valid_fraction_by_feature": {
+        "native_stft_adjacent_spectral_affinity_median": 0.9876460017969452,
+        "native_stft_adjacent_spectral_affinity_minimum": 0.9876460017969452,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": 0.9876460017969452,
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": 0.9876460017969452,
+        "target_row_linear_energy_fraction_mean": 0.9876460017969452,
+        "mtd_minus_track_range_std_m_over_75m": 0.9845013477088949
+      }
+    }
+  },
+  "paired_initialization": {
+    "v21a": {
+      "paired_baseline": true,
+      "baseline_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "baseline_config_name": "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42",
+      "seed": 42,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "baseline_fusion_input_dim": 79,
+      "treatment_fusion_input_dim": 81,
+      "new_fusion_columns": 2,
+      "new_fusion_columns_exactly_zero": true,
+      "full_parameter_training": true
+    },
+    "v21b": {
+      "paired_baseline": true,
+      "baseline_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "baseline_config_name": "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42",
+      "seed": 42,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "baseline_fusion_input_dim": 79,
+      "treatment_fusion_input_dim": 81,
+      "new_fusion_columns": 2,
+      "new_fusion_columns_exactly_zero": true,
+      "full_parameter_training": true
+    },
+    "v21c": {
+      "paired_baseline": true,
+      "baseline_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "baseline_config_name": "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42",
+      "seed": 42,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "baseline_fusion_input_dim": 79,
+      "treatment_fusion_input_dim": 80,
+      "new_fusion_columns": 1,
+      "new_fusion_columns_exactly_zero": true,
+      "full_parameter_training": true
+    },
+    "v21d": {
+      "paired_baseline": true,
+      "baseline_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "baseline_config_name": "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42",
+      "seed": 42,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "baseline_fusion_input_dim": 79,
+      "treatment_fusion_input_dim": 80,
+      "new_fusion_columns": 1,
+      "new_fusion_columns_exactly_zero": true,
+      "full_parameter_training": true
+    }
+  },
+  "validation_used_for_readiness_gate": false,
+  "validation_feature_values_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training_at_report_generation": "未执行",
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

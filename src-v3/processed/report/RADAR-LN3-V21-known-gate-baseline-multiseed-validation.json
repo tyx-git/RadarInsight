@@ -1,0 +1,697 @@
+{
+  "status": "completed",
+  "schema_version": "RADAR-LN3-V21-known-gate-baseline-multiseed-validation-v1",
+  "scope": "development validation parent-final KnownGate Baseline seeds 42/43/44",
+  "selection_protocol": {
+    "scope": "development validation parent-final KnownGate Baseline only",
+    "candidate_seeds": [
+      42,
+      43,
+      44
+    ],
+    "ranking_order": [
+      "maximize parent minimum over both classes precision and recall",
+      "maximize parent macro_f1",
+      "maximize KNOWN_CLUTTER_EVIDENCE f1",
+      "maximize KNOWN_TARGET_EVIDENCE recall",
+      "prefer lower numeric seed on an exact tie"
+    ],
+    "bootstrap": {
+      "unit": "parent",
+      "stratification": "original Drone/Bird/Balloon/Clutter label",
+      "replicates": 5000,
+      "confidence_level": 0.95,
+      "selection_frequency_reported": true
+    },
+    "selection_role": "development_champion_only",
+    "seed42_result_was_observed_before_this_protocol_was_frozen": true,
+    "protocol_frozen_before_seed43_or_seed44_training": true,
+    "selection_is_unbiased_test_estimate": false
+  },
+  "ranked_seeds": [
+    43,
+    42,
+    44
+  ],
+  "selected_seed": 43,
+  "selected_role": "development_champion_only",
+  "candidates": {
+    "42": {
+      "seed": 42,
+      "artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal",
+      "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-config.json",
+      "config_sha256": "eb6e3c2a0db6934f482101adedc9e5cc6ddee7b5491bf9477de6d6e5fe7c9e39",
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\training-summary.json",
+      "summary_sha256": "b384362776e7c09506d734fe2027e4095bcf267eee68a697211a7b4ad6025c6a",
+      "detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\sample_detail_information.json",
+      "detail_sha256": "a6b8087125d19a49b1a17bad0896b9504ae233da784ed7e57a66bae8f09f86df",
+      "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\best_model.pt",
+      "checkpoint_sha256": "fd6898a5676e31bb25770eb7358abe69e106b0c7092f721d5fff3fb3a684b22c",
+      "best_epoch": 7,
+      "performance_status": "failed",
+      "metrics": {
+        "scope": "seed42_parent_final_recomputed",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8683035714285714,
+        "macro_recall": 0.8288490284005978,
+        "macro_f1": 0.8473483353072773,
+        "balanced_accuracy": 0.8288490284005978,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9866071428571429,
+            "recall": 0.9910313901345291,
+            "f1": 0.9888143176733781,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 0.6666666666666666,
+            "f1": 0.7058823529411765,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 3
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      "selection": {
+        "seed": 42,
+        "parent_min_class_precision_recall": 0.6666666666666666,
+        "parent_macro_f1": 0.8473483353072773,
+        "known_clutter_f1": 0.7058823529411765,
+        "known_target_recall": 0.9910313901345291,
+        "ranking_key": [
+          0.6666666666666666,
+          0.8473483353072773,
+          0.7058823529411765,
+          0.9910313901345291,
+          -42.0
+        ]
+      }
+    },
+    "43": {
+      "seed": 43,
+      "artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal",
+      "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+      "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+      "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+      "detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\sample_detail_information.json",
+      "detail_sha256": "83b1976dd0c9511cc106786c40af2f8c576b8a2987b963e39a0ff1d7918eb819",
+      "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+      "checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+      "best_epoch": 16,
+      "performance_status": "failed",
+      "metrics": {
+        "scope": "seed43_parent_final_recomputed",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "selection": {
+        "seed": 43,
+        "parent_min_class_precision_recall": 0.7,
+        "parent_macro_f1": 0.862803075103489,
+        "known_clutter_f1": 0.7368421052631577,
+        "known_target_recall": 0.9865470852017937,
+        "ranking_key": [
+          0.7,
+          0.862803075103489,
+          0.7368421052631577,
+          0.9865470852017937,
+          -43.0
+        ]
+      }
+    },
+    "44": {
+      "seed": 44,
+      "artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal",
+      "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-config.json",
+      "config_sha256": "a1bfd6064aeb8532b1ea536eb034df03a5d64420632f9d4f0a5ef21cbacc88ec",
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal\\training-summary.json",
+      "summary_sha256": "aabae2b8e285be436f47afda8347679e4d0f0d4a0f348080fc0e2fe111cfc767",
+      "detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal\\sample_detail_information.json",
+      "detail_sha256": "4d0760d48e018c810e9ae7aed4f86f31afbce3babdf9239128c86cfeab71915d",
+      "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal\\best_model.pt",
+      "checkpoint_sha256": "716025e3b04c2dab6ab3c54ed908f9e34cfc904429f41d3e2c98aae84b6e2aec",
+      "best_epoch": 18,
+      "performance_status": "failed",
+      "metrics": {
+        "scope": "seed44_parent_final_recomputed",
+        "support": 232,
+        "accuracy": 0.9741379310344828,
+        "macro_precision": 0.8482539682539683,
+        "macro_recall": 0.7732934728450424,
+        "macro_f1": 0.8058035714285715,
+        "balanced_accuracy": 0.7732934728450424,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9822222222222222,
+            "recall": 0.9910313901345291,
+            "f1": 0.9866071428571429,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7142857142857143,
+            "recall": 0.5555555555555556,
+            "f1": 0.6250000000000001,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 4
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      "selection": {
+        "seed": 44,
+        "parent_min_class_precision_recall": 0.5555555555555556,
+        "parent_macro_f1": 0.8058035714285715,
+        "known_clutter_f1": 0.6250000000000001,
+        "known_target_recall": 0.9910313901345291,
+        "ranking_key": [
+          0.5555555555555556,
+          0.8058035714285715,
+          0.6250000000000001,
+          0.9910313901345291,
+          -44.0
+        ]
+      }
+    }
+  },
+  "aggregate_across_seeds": {
+    "accuracy": {
+      "mean": 0.9770114942528735,
+      "sample_std": 0.002488578746506997,
+      "minimum": 0.9741379310344828,
+      "maximum": 0.978448275862069
+    },
+    "macro_precision": {
+      "mean": 0.8540176783926784,
+      "sample_std": 0.012448588187603533,
+      "minimum": 0.8454954954954954,
+      "maximum": 0.8683035714285714
+    },
+    "macro_recall": {
+      "mean": 0.828101644245142,
+      "sample_std": 0.05443832727412355,
+      "minimum": 0.7732934728450424,
+      "maximum": 0.8821624314897858
+    },
+    "macro_f1": {
+      "mean": 0.8386516606131126,
+      "sample_std": 0.029478126939288824,
+      "minimum": 0.8058035714285715,
+      "maximum": 0.862803075103489
+    },
+    "parent_min_class_precision_recall": {
+      "mean": 0.6407407407407407,
+      "sample_std": 0.07563176983948935,
+      "minimum": 0.5555555555555556,
+      "maximum": 0.7
+    },
+    "known_target_precision": {
+      "mean": 0.9866067853567854,
+      "sample_std": 0.004384384395315772,
+      "minimum": 0.9822222222222222,
+      "maximum": 0.990990990990991
+    },
+    "known_target_recall": {
+      "mean": 0.9895366218236173,
+      "sample_std": 0.002589014660043172,
+      "minimum": 0.9865470852017937,
+      "maximum": 0.9910313901345291
+    },
+    "known_target_f1": {
+      "mean": 0.9880618351581137,
+      "sample_std": 0.0012600512309871282,
+      "minimum": 0.9866071428571429,
+      "maximum": 0.9888143176733781
+    },
+    "known_clutter_precision": {
+      "mean": 0.7214285714285714,
+      "sample_std": 0.025753937681885653,
+      "minimum": 0.7,
+      "maximum": 0.75
+    },
+    "known_clutter_recall": {
+      "mean": 0.6666666666666666,
+      "sample_std": 0.1111111111111111,
+      "minimum": 0.5555555555555556,
+      "maximum": 0.7777777777777778
+    },
+    "known_clutter_f1": {
+      "mean": 0.6892414860681114,
+      "sample_std": 0.05774818581686453,
+      "minimum": 0.6250000000000001,
+      "maximum": 0.7368421052631577
+    }
+  },
+  "bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 214244,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "per_seed": {
+      "42": {
+        "accuracy": {
+          "median": 0.978448275862069,
+          "lower_95": 0.9612068965517241,
+          "upper_95": 0.9913793103448276
+        },
+        "macro_precision": {
+          "median": 0.8683035714285714,
+          "lower_95": 0.7367256637168141,
+          "upper_95": 0.9955555555555555
+        },
+        "macro_recall": {
+          "median": 0.8288490284005978,
+          "lower_95": 0.6621823617339312,
+          "upper_95": 0.9444444444444444
+        },
+        "macro_f1": {
+          "median": 0.8473483353072773,
+          "lower_95": 0.7053968253968254,
+          "upper_95": 0.9477477477477477
+        },
+        "parent_min_class_precision_recall": {
+          "median": 0.6666666666666666,
+          "lower_95": 0.3333333333333333,
+          "upper_95": 0.8888888888888888
+        },
+        "known_target_precision": {
+          "median": 0.9866071428571429,
+          "lower_95": 0.973568281938326,
+          "upper_95": 0.9955357142857143
+        },
+        "known_target_recall": {
+          "median": 0.9910313901345291,
+          "lower_95": 0.9775784753363229,
+          "upper_95": 1.0
+        },
+        "known_target_f1": {
+          "median": 0.9888143176733781,
+          "lower_95": 0.9797752808988766,
+          "upper_95": 0.9955357142857144
+        },
+        "known_clutter_precision": {
+          "median": 0.75,
+          "lower_95": 0.5,
+          "upper_95": 1.0
+        },
+        "known_clutter_recall": {
+          "median": 0.6666666666666666,
+          "lower_95": 0.3333333333333333,
+          "upper_95": 0.8888888888888888
+        },
+        "known_clutter_f1": {
+          "median": 0.7058823529411765,
+          "lower_95": 0.42857142857142855,
+          "upper_95": 0.9
+        }
+      },
+      "43": {
+        "accuracy": {
+          "median": 0.978448275862069,
+          "lower_95": 0.9612068965517241,
+          "upper_95": 0.9956896551724138
+        },
+        "macro_precision": {
+          "median": 0.8461538461538461,
+          "lower_95": 0.7388392857142857,
+          "upper_95": 0.9955555555555555
+        },
+        "macro_recall": {
+          "median": 0.8821624314897858,
+          "lower_95": 0.7199800697558545,
+          "upper_95": 0.9955156950672646
+        },
+        "macro_f1": {
+          "median": 0.862803075103489,
+          "lower_95": 0.7410714285714286,
+          "upper_95": 0.9694696670614554
+        },
+        "parent_min_class_precision_recall": {
+          "median": 0.6666666666666666,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 0.8888888888888888
+        },
+        "known_target_precision": {
+          "median": 0.990990990990991,
+          "lower_95": 0.9779735682819384,
+          "upper_95": 1.0
+        },
+        "known_target_recall": {
+          "median": 0.9865470852017937,
+          "lower_95": 0.968609865470852,
+          "upper_95": 1.0
+        },
+        "known_target_f1": {
+          "median": 0.9887640449438202,
+          "lower_95": 0.979498861047836,
+          "upper_95": 0.9977528089887641
+        },
+        "known_clutter_precision": {
+          "median": 0.7,
+          "lower_95": 0.5,
+          "upper_95": 1.0
+        },
+        "known_clutter_recall": {
+          "median": 0.7777777777777778,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 1.0
+        },
+        "known_clutter_f1": {
+          "median": 0.7368421052631577,
+          "lower_95": 0.5,
+          "upper_95": 0.9411764705882353
+        }
+      },
+      "44": {
+        "accuracy": {
+          "median": 0.9741379310344828,
+          "lower_95": 0.9568965517241379,
+          "upper_95": 0.9913793103448276
+        },
+        "macro_precision": {
+          "median": 0.8482539682539683,
+          "lower_95": 0.6887387387387387,
+          "upper_95": 0.9933628318584071
+        },
+        "macro_recall": {
+          "median": 0.7732934728450424,
+          "lower_95": 0.6066268061783757,
+          "upper_95": 0.939960139511709
+        },
+        "macro_f1": {
+          "median": 0.8058035714285715,
+          "lower_95": 0.643868326795156,
+          "upper_95": 0.9352678571428572
+        },
+        "parent_min_class_precision_recall": {
+          "median": 0.5555555555555556,
+          "lower_95": 0.2222222222222222,
+          "upper_95": 0.8
+        },
+        "known_target_precision": {
+          "median": 0.9822222222222222,
+          "lower_95": 0.9692982456140351,
+          "upper_95": 0.9954954954954955
+        },
+        "known_target_recall": {
+          "median": 0.9910313901345291,
+          "lower_95": 0.9775784753363229,
+          "upper_95": 1.0
+        },
+        "known_target_f1": {
+          "median": 0.9866071428571429,
+          "lower_95": 0.9775784753363229,
+          "upper_95": 0.9955156950672646
+        },
+        "known_clutter_precision": {
+          "median": 0.7142857142857143,
+          "lower_95": 0.4,
+          "upper_95": 1.0
+        },
+        "known_clutter_recall": {
+          "median": 0.5555555555555556,
+          "lower_95": 0.2222222222222222,
+          "upper_95": 0.8888888888888888
+        },
+        "known_clutter_f1": {
+          "median": 0.6250000000000001,
+          "lower_95": 0.30769230769230765,
+          "upper_95": 0.8750000000000001
+        }
+      }
+    },
+    "pairwise_deltas": {
+      "seed43_minus_seed42": {
+        "accuracy": {
+          "median": 0.0,
+          "lower_95": -0.017241379310344754,
+          "upper_95": 0.01724137931034475
+        },
+        "macro_precision": {
+          "median": -0.02280807593307599,
+          "lower_95": -0.1667559559241769,
+          "upper_95": 0.12161480462850256
+        },
+        "macro_recall": {
+          "median": 0.05331340308918775,
+          "lower_95": -0.0067264573991032695,
+          "upper_95": 0.16666666666666674
+        },
+        "macro_f1": {
+          "median": 0.013868869670439099,
+          "lower_95": -0.07246478203936824,
+          "upper_95": 0.1294642857142857
+        },
+        "parent_min_class_precision_recall": {
+          "median": 0.02247474747474748,
+          "lower_95": -0.1944978632478632,
+          "upper_95": 0.33333333333333326
+        },
+        "known_target_precision": {
+          "median": 0.004383116883116878,
+          "lower_95": -0.0001818034906270194,
+          "upper_95": 0.013352818705957725
+        },
+        "known_target_recall": {
+          "median": -0.004484304932735439,
+          "lower_95": -0.017937219730941756,
+          "upper_95": 0.008968609865470878
+        },
+        "known_target_f1": {
+          "median": -4.0038436899481056e-05,
+          "lower_95": -0.009119839925190942,
+          "upper_95": 0.00894841368289164
+        },
+        "known_clutter_precision": {
+          "median": -0.050000000000000044,
+          "lower_95": -0.33333333333333337,
+          "upper_95": 0.23931623931623935
+        },
+        "known_clutter_recall": {
+          "median": 0.11111111111111105,
+          "lower_95": 0.0,
+          "upper_95": 0.33333333333333337
+        },
+        "known_clutter_f1": {
+          "median": 0.02777777777777779,
+          "lower_95": -0.13815789473684237,
+          "upper_95": 0.25
+        }
+      },
+      "seed44_minus_seed42": {
+        "accuracy": {
+          "median": -0.004310344827586188,
+          "lower_95": -0.012931034482758674,
+          "upper_95": 0.0
+        },
+        "macro_precision": {
+          "median": -0.01408765276021906,
+          "lower_95": -0.08762226362366088,
+          "upper_95": 0.0
+        },
+        "macro_recall": {
+          "median": -0.05555555555555558,
+          "lower_95": -0.16666666666666674,
+          "upper_95": 0.0
+        },
+        "macro_f1": {
+          "median": -0.03911513723257776,
+          "lower_95": -0.14752701566725956,
+          "upper_95": 0.0
+        },
+        "parent_min_class_precision_recall": {
+          "median": -0.11111111111111105,
+          "lower_95": -0.33333333333333337,
+          "upper_95": 0.0
+        },
+        "known_target_precision": {
+          "median": -0.004365781710914507,
+          "lower_95": -0.013273273273273323,
+          "upper_95": 0.0
+        },
+        "known_target_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_target_f1": {
+          "median": -0.0022068826522900764,
+          "lower_95": -0.00665128410914928,
+          "upper_95": 0.0
+        },
+        "known_clutter_precision": {
+          "median": -0.023809523809523725,
+          "lower_95": -0.16666666666666663,
+          "upper_95": 0.0
+        },
+        "known_clutter_recall": {
+          "median": -0.1111111111111111,
+          "lower_95": -0.33333333333333337,
+          "upper_95": 0.0
+        },
+        "known_clutter_f1": {
+          "median": -0.07602339181286544,
+          "lower_95": -0.28846153846153844,
+          "upper_95": 0.0
+        }
+      },
+      "seed44_minus_seed43": {
+        "accuracy": {
+          "median": -0.004310344827586188,
+          "lower_95": -0.02155172413793105,
+          "upper_95": 0.012931034482758674
+        },
+        "macro_precision": {
+          "median": 0.0,
+          "lower_95": -0.15843253968253979,
+          "upper_95": 0.16449494949494947
+        },
+        "macro_recall": {
+          "median": -0.10886895864474333,
+          "lower_95": -0.27329347284504235,
+          "upper_95": 0.004484304932735439
+        },
+        "macro_f1": {
+          "median": -0.05695557381305516,
+          "lower_95": -0.203638185592592,
+          "upper_95": 0.05320459085297369
+        },
+        "parent_min_class_precision_recall": {
+          "median": -0.11111111111111116,
+          "lower_95": -0.4444444444444445,
+          "upper_95": 0.13847222222222202
+        },
+        "known_target_precision": {
+          "median": -0.008769831778681403,
+          "lower_95": -0.02169274537695587,
+          "upper_95": 0.0001159802257974372
+        },
+        "known_target_recall": {
+          "median": 0.004484304932735439,
+          "lower_95": -0.008968609865470878,
+          "upper_95": 0.017937219730941756
+        },
+        "known_target_f1": {
+          "median": -0.0021766733176128428,
+          "lower_95": -0.011185573890809417,
+          "upper_95": 0.006924962700370107
+        },
+        "known_clutter_precision": {
+          "median": 0.0,
+          "lower_95": -0.30000000000000004,
+          "upper_95": 0.33333333333333337
+        },
+        "known_clutter_recall": {
+          "median": -0.2222222222222222,
+          "lower_95": -0.5555555555555556,
+          "upper_95": 0.0
+        },
+        "known_clutter_f1": {
+          "median": -0.11111111111111116,
+          "lower_95": -0.3970738734090127,
+          "upper_95": 0.09868421052631593
+        }
+      }
+    },
+    "selection_frequency": {
+      "42": {
+        "count": 2198,
+        "fraction": 0.4396
+      },
+      "43": {
+        "count": 2802,
+        "fraction": 0.5604
+      },
+      "44": {
+        "count": 0,
+        "fraction": 0.0
+      }
+    }
+  },
+  "selection_stability": {
+    "selected_seed_bootstrap_win_fraction": 0.5604,
+    "selected_seed_bootstrap_win_count": 2802,
+    "clutter_validation_support": 9,
+    "low_support_selection_warning": true
+  },
+  "selection_artifact_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-known-gate-baseline-development-selection.json",
+  "unknown_is_model_class": false,
+  "selection_is_unbiased_test_estimate": false,
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

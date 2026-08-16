@@ -44,3 +44,9 @@ src-v3/smoke/*
 !src-v3/smoke/liquid_dynamics_v20_contract_test.py
 !src-v3/smoke/liquid_dynamics_v20_multiseed_contract_test.py
 !src-v3/smoke/stable8_density_v18r_contract_test.py
+!src-v3/smoke/known_gate_v21_contract_test.py
+!src-v3/smoke/known_gate_v21_multiseed_contract_test.py
+!src-v3/README.md
+!docs/
+docs/*
+!docs/radar_ln3_v21_strict_open_set_architecture.md
