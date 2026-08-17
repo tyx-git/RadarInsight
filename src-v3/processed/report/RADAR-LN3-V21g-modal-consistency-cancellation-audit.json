@@ -1,0 +1,138 @@
+{
+  "status": "cancelled_before_training",
+  "schema_version": "RADAR-LN3-V21g-modal-consistency-cancellation-audit-v1",
+  "experiment": "V21g modal consistency on V21e KnownGate",
+  "decision": {
+    "training_required": false,
+    "cancelled": true,
+    "next_retained_experiment": "V21h target-row iso",
+    "primary_clutter_drone_auc_max": 0.5675770308123249,
+    "hard_bird_auc_max": 0.5673015873015873,
+    "balloon_error_support": 0,
+    "cancellation_reasons": [
+      "Clutter/Drone direction-free train-parent AUC remains below 0.60 for every modal reducer",
+      "V21e hard-Bird versus correct-Bird separation remains below 0.60 for every modal reducer",
+      "V21b standalone paired training produced zero parent prediction changes and no positive signal",
+      "V21e has zero Balloon parent errors, so the strong Clutter/Balloon univariate separation cannot be tested against the active error boundary",
+      "conditional error supports are only 6 Clutter errors and 14 hard Bird errors; they cannot justify a new fitted model"
+    ]
+  },
+  "scope": {
+    "source": "V21e train-parent-grouped OOF parent-final records",
+    "parent_support": 986,
+    "error_support": 21,
+    "clutter_error_support": 6,
+    "target_to_clutter_error_support": 15,
+    "hard_bird_support": 14,
+    "unknown_training_exposure": 0,
+    "validation_access_count": 0,
+    "test_payload_access_count": 0
+  },
+  "feature_names": [
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps"
+  ],
+  "direction_free_parent_auc": {
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+      "mean": {
+        "ClutterTarget_vs_DroneTarget": 0.5675770308123249,
+        "ClutterTarget_vs_BirdTarget": 0.5392417902878154,
+        "ClutterTarget_vs_BalloonTarget": 0.8969314998726764,
+        "V21e_hard_Bird_vs_correct_Bird": 0.5673015873015873,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.5185185185185185
+      },
+      "final": {
+        "ClutterTarget_vs_DroneTarget": 0.5487967914438503,
+        "ClutterTarget_vs_BirdTarget": 0.5339165715734753,
+        "ClutterTarget_vs_BalloonTarget": 0.7641329258976318,
+        "V21e_hard_Bird_vs_correct_Bird": 0.5426984126984127,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.6049382716049383
+      },
+      "max": {
+        "ClutterTarget_vs_DroneTarget": 0.5378787878787878,
+        "ClutterTarget_vs_BirdTarget": 0.5408266768099405,
+        "ClutterTarget_vs_BalloonTarget": 0.8227654698242933,
+        "V21e_hard_Bird_vs_correct_Bird": 0.560952380952381,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.6080246913580247
+      }
+    },
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+      "mean": {
+        "ClutterTarget_vs_DroneTarget": 0.5090081487140311,
+        "ClutterTarget_vs_BirdTarget": 0.596931659693166,
+        "ClutterTarget_vs_BalloonTarget": 0.8007384772090654,
+        "V21e_hard_Bird_vs_correct_Bird": 0.5301587301587302,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.5185185185185185
+      },
+      "final": {
+        "ClutterTarget_vs_DroneTarget": 0.5007002801120448,
+        "ClutterTarget_vs_BirdTarget": 0.5932547229618359,
+        "ClutterTarget_vs_BalloonTarget": 0.6851922587216704,
+        "V21e_hard_Bird_vs_correct_Bird": 0.5203174603174603,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.5740740740740741
+      },
+      "max": {
+        "ClutterTarget_vs_DroneTarget": 0.5090081487140311,
+        "ClutterTarget_vs_BirdTarget": 0.5282109800938253,
+        "ClutterTarget_vs_BalloonTarget": 0.788515406162465,
+        "V21e_hard_Bird_vs_correct_Bird": 0.5661904761904762,
+        "V21e_Clutter_error_vs_correct_Clutter": 0.5401234567901234
+      }
+    }
+  },
+  "conditional_error_diagnostic": {
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+      "mean": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.02342368178377531,
+        "correct_Clutter_mean": 0.023102717092863868
+      },
+      "final": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.011803255843309065,
+        "correct_Clutter_mean": 0.03249554856005556
+      },
+      "max": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.0927096710850795,
+        "correct_Clutter_mean": 0.07524119288212171
+      }
+    },
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+      "mean": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.030660507401153725,
+        "correct_Clutter_mean": 0.03240865102745637
+      },
+      "final": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.012359647235522667,
+        "correct_Clutter_mean": 0.03512255603359167
+      },
+      "max": {
+        "Clutter_error_support": 6,
+        "target_to_clutter_error_support": 15,
+        "hard_Bird_support": 14,
+        "Clutter_error_mean": 0.10061096648375194,
+        "correct_Clutter_mean": 0.11521756461028147
+      }
+    }
+  },
+  "prior_v21b_report_sha256": "4193364609953b4db05cce5a002f7a38b4b043e4e56c69a61619d1c366aa18f8",
+  "test": "未执行",
+  "OOF": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

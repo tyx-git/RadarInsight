@@ -1835,3 +1835,20 @@
 冻结决策：V21f是探索性联合验证，不改变V21e产品语义，不授权直接校准或上线。即使外折结果通过，也必须进入新的独立确认；Clutter support较小，报告必须同时给parent support和组件bootstrap。
 
 版本策略：复用V16 index/split、V21 known-only normalization与V21e OOF fold assignment；新增V21f七维feature cache、nested pair config/checkpoint/report schema，不修改V21e历史artifact。
+
+## Stage 080 - V21g模态一致性取消训练审计
+
+目标：在不消耗新的GPU训练前，验证RD峰与TR radial偏差median/max是否仍对V21e实际KnownGate错误边界提供足够增量证据。
+
+前置依赖：Stage 078 V21e五折train parent-grouped OOF已封存；V21b正式paired结果保持可追溯；Unknown、validation、test继续封存。
+
+最小子任务：
+
+- [x] 只读汇总V21e 986个parent、21个错误、6个Clutter错误、15个目标误路由、14个困难Bird和0个Balloon错误。
+- [x] 对modal median/max计算Clutter/Drone、Clutter/Bird、Clutter/Balloon及困难Bird/正确Bird的parent方向无关AUC，并输出条件错误组支持。
+- [x] 核验V21b正式paired报告为零parent硬预测变化且`positive_signal=false`。
+- [x] 生成V21g取消训练审计报告和决策文档；Unknown、validation、test payload访问均为0。
+- [x] 冻结`training_required=false`，不创建V21g checkpoint，不进入V21g OOF。
+- [ ] 若未来独立数据重新出现Balloon/Clutter边界错误，再以新版本重启模态一致性研究；不得把本次取消结论推广为全域物理无效。
+
+冻结结论：V21g在当前V21e错误覆盖上不值得完整训练；编号直接转入V21h iso实验。
