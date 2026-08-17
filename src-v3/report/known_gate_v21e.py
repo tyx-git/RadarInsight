@@ -262,8 +262,10 @@ def _bootstrap(
 def _base_label_outcomes(
     baseline: Sequence[Mapping[str, Any]],
     treatment: Sequence[Mapping[str, Any]],
+    *,
+    scope: str = "parent",
 ) -> dict[str, Any]:
-    before, after = _ordered_pair(baseline, treatment, scope="parent")
+    before, after = _ordered_pair(baseline, treatment, scope=scope)
     result: dict[str, Any] = {}
     for label in LABELS:
         indices = [index for index, row in enumerate(before) if row["label_name"] == label]

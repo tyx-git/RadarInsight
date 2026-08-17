@@ -345,6 +345,7 @@ def run(project_root: Path, output_path: Path | None = None) -> dict[str, Any]:
         prefix_outcomes = _base_label_outcomes(
             baseline["records_by_scope"]["eligible_prefix"],
             treatment["records_by_scope"]["eligible_prefix"],
+            scope="eligible_prefix",
         )
         combined = int(sum(parent_outcomes[label]["net_rescue"] for label in LABELS))
         bootstrap = _bootstrap(

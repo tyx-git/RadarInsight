@@ -1,6 +1,6 @@
 # RADAR-LN3 V21e 多seed配对确认协议
 
-状态：训练前冻结。该阶段只确认V21e因果航向圆周不一致度的seed43 parent-final正向信号能否跨优化随机性复现，不修改特征公式、数据、loss、epoch、checkpoint选择或KnownGate类别。
+状态：seed42/43/44正式配对训练与冻结development汇总已完成。该阶段只确认V21e因果航向圆周不一致度的seed43 parent-final正向信号能否跨优化随机性复现，不修改特征公式、数据、loss、epoch、checkpoint选择或KnownGate类别。
 
 ## 1. 固定实验臂
 
@@ -31,3 +31,11 @@ eligible-prefix另设独立在线安全诊断：至少2/3个seed且三seed中位
 ## 4. 统计边界
 
 三个seed是同一批232个development parent上的优化重复，不是三个独立数据样本，不计算三seedp值。Clutter每个seed仍只有9个parent；parent bootstrap只量化当前parent集合内的不确定性，不能覆盖环境、session、未标注物理子型或新采集分布。V21e来自查看既有development错误后的事后发现，即使多seed通过，仍需train parent-grouped OOF和新的独立holdout。
+
+## 5. 冻结结果
+
+- seed42/43/44的Treatment−Baseline parent Macro-F1分别为`+0.094854/+0.137197/+0.163666`，均严格超过`+0.02`；parent合计net rescue分别为`+3/+5/+5`，四标签方向安全3/3通过。
+- paired parent bootstrap Macro-F1差值95%下界为正的seed数为2/3，满足冻结确认条件。
+- eligible-prefix守卫为2/3通过；seed43的KnownTarget Recall差值为`-0.002763`，因此不能把parent-final确认解释成全部早期在线prefix均安全。
+- 冻结决策为`parent_final_confirmation_passed=true`、`advance_to_train_parent_grouped_oof=true`、`online_known_gate_adoption_allowed=false`。
+- test、正式拒识、完整级联、stable、P95和部署仍为“未执行”；下一步仅允许train parent-grouped OOF与新独立holdout确认。

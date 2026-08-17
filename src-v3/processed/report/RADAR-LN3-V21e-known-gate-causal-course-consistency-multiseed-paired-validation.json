@@ -1,0 +1,4625 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V21e-known-gate-causal-course-consistency-multiseed-paired-validation-v1",
+  "experiment": "V21e-causal-course-multiseed-confirmation",
+  "scope": "development validation KnownGate local task only",
+  "seed_set": [
+    42,
+    43,
+    44
+  ],
+  "seed_results": {
+    "42": {
+      "seed": 42,
+      "best_epochs": {
+        "baseline": 7,
+        "treatment": 20
+      },
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_logits_exactly_equal": true,
+      "baseline_metrics_by_scope": {
+        "parent": {
+          "scope": "seed42_baseline_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.978448275862069,
+          "macro_precision": 0.8683035714285714,
+          "macro_recall": 0.8288490284005978,
+          "macro_f1": 0.8473483353072773,
+          "balanced_accuracy": 0.8288490284005978,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9866071428571429,
+              "recall": 0.9910313901345291,
+              "f1": 0.9888143176733781,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 2
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.75,
+              "recall": 0.6666666666666666,
+              "f1": 0.7058823529411765,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 3
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              221,
+              2
+            ],
+            [
+              3,
+              6
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed42_baseline_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9752920035938903,
+          "macro_precision": 0.8863033506182688,
+          "macro_recall": 0.7203454905351292,
+          "macro_f1": 0.7787963980111008,
+          "balanced_accuracy": 0.7203454905351292,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9791284403669724,
+              "recall": 0.9955690298507462,
+              "f1": 0.9872802960222017,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 19
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7934782608695652,
+              "recall": 0.4451219512195122,
+              "f1": 0.5703125,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 91
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4269,
+              19
+            ],
+            [
+              91,
+              73
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed42_baseline_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9773695420660277,
+          "macro_precision": 0.8990101836238831,
+          "macro_recall": 0.7424531517558385,
+          "macro_f1": 0.8001085672318549,
+          "balanced_accuracy": 0.7424531517558385,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9809471965160588,
+              "recall": 0.995855208621166,
+              "f1": 0.9883449883449883,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 15
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8170731707317073,
+              "recall": 0.48905109489051096,
+              "f1": 0.6118721461187214,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 70
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3604,
+              15
+            ],
+            [
+              70,
+              67
+            ]
+          ]
+        }
+      },
+      "treatment_metrics_by_scope": {
+        "parent": {
+          "scope": "seed42_v21e_course_prefix_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.9913793103448276,
+          "macro_precision": 0.9422022919780767,
+          "macro_recall": 0.9422022919780767,
+          "macro_f1": 0.9422022919780767,
+          "balanced_accuracy": 0.9422022919780767,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9955156950672646,
+              "recall": 0.9955156950672646,
+              "f1": 0.9955156950672646,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8888888888888888,
+              "recall": 0.8888888888888888,
+              "f1": 0.8888888888888888,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              222,
+              1
+            ],
+            [
+              1,
+              8
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed42_v21e_course_prefix_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9853998203054807,
+          "macro_precision": 0.9550794073285422,
+          "macro_recall": 0.8282188523844194,
+          "macro_f1": 0.8805726470999722,
+          "balanced_accuracy": 0.8282188523844194,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9870818915801615,
+              "recall": 0.9979011194029851,
+              "f1": 0.9924620201785921,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 9
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9230769230769231,
+              "recall": 0.6585365853658537,
+              "f1": 0.7686832740213524,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 56
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4279,
+              9
+            ],
+            [
+              56,
+              108
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed42_v21e_course_prefix_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9864217252396166,
+          "macro_precision": 0.9723061459265371,
+          "macro_recall": 0.8279145144341603,
+          "macro_f1": 0.8861081234381605,
+          "balanced_accuracy": 0.8279145144341603,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9871654833424358,
+              "recall": 0.9988947222989776,
+              "f1": 0.9929954676555418,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 4
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9574468085106383,
+              "recall": 0.656934306569343,
+              "f1": 0.7792207792207793,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 47
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3615,
+              4
+            ],
+            [
+              47,
+              90
+            ]
+          ]
+        }
+      },
+      "scope_deltas": {
+        "parent": {
+          "accuracy": 0.012931034482758674,
+          "macro_precision": 0.0738987205495053,
+          "macro_recall": 0.11335326357747888,
+          "macro_f1": 0.09485395667079943,
+          "known_target_precision": 0.008908552210121656,
+          "known_target_recall": 0.004484304932735439,
+          "known_target_f1": 0.006701377393886432,
+          "known_clutter_precision": 0.13888888888888884,
+          "known_clutter_recall": 0.2222222222222222,
+          "known_clutter_f1": 0.18300653594771232,
+          "weak_class_precision_recall_f1_floor": 0.2222222222222222
+        },
+        "window": {
+          "accuracy": 0.010107816711590334,
+          "macro_precision": 0.06877605671027343,
+          "macro_recall": 0.1078733618492902,
+          "macro_f1": 0.1017762490888714,
+          "known_target_precision": 0.007953451213189022,
+          "known_target_recall": 0.0023320895522388474,
+          "known_target_f1": 0.005181724156390399,
+          "known_clutter_precision": 0.12959866220735794,
+          "known_clutter_recall": 0.2134146341463415,
+          "known_clutter_f1": 0.1983707740213524,
+          "weak_class_precision_recall_f1_floor": 0.2134146341463415
+        },
+        "eligible_prefix": {
+          "accuracy": 0.009052183173588912,
+          "macro_precision": 0.073295962302654,
+          "macro_recall": 0.08546136267832183,
+          "macro_f1": 0.08599955620630562,
+          "known_target_precision": 0.00621828682637704,
+          "known_target_recall": 0.003039513677811523,
+          "known_target_f1": 0.0046504793105535125,
+          "known_clutter_precision": 0.14037363777893108,
+          "known_clutter_recall": 0.16788321167883208,
+          "known_clutter_f1": 0.16734863310205783,
+          "weak_class_precision_recall_f1_floor": 0.16788321167883208
+        }
+      },
+      "parent_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 113,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 56,
+          "changed": 3,
+          "rescued": 2,
+          "harmed": 1,
+          "net_rescue": 1
+        },
+        "BalloonTarget": {
+          "support": 54,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "ClutterTarget": {
+          "support": 9,
+          "changed": 4,
+          "rescued": 3,
+          "harmed": 1,
+          "net_rescue": 2
+        }
+      },
+      "eligible_prefix_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 1825,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 905,
+          "changed": 19,
+          "rescued": 15,
+          "harmed": 4,
+          "net_rescue": 11
+        },
+        "BalloonTarget": {
+          "support": 889,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "ClutterTarget": {
+          "support": 137,
+          "changed": 29,
+          "rescued": 26,
+          "harmed": 3,
+          "net_rescue": 23
+        }
+      },
+      "combined_parent_net_rescue": 3,
+      "scope_prediction_changes": {
+        "parent": {
+          "support": 232,
+          "changed_prediction_count": 7,
+          "changed_prediction_fraction": 0.03017241379310345
+        },
+        "window": {
+          "support": 4452,
+          "changed_prediction_count": 71,
+          "changed_prediction_fraction": 0.015947888589398024
+        },
+        "eligible_prefix": {
+          "support": 3756,
+          "changed_prediction_count": 48,
+          "changed_prediction_fraction": 0.012779552715654952
+        }
+      },
+      "probability_attribution": {
+        "by_base_label": {
+          "DroneTarget": {
+            "support": 113,
+            "known_clutter_probability_delta_mean": -0.003604616531721044,
+            "known_clutter_probability_delta_median": -0.0035975471837446094,
+            "known_clutter_probability_delta_minimum": -0.017903645988553762,
+            "known_clutter_probability_delta_maximum": 0.01776301022619009
+          },
+          "BirdTarget": {
+            "support": 56,
+            "known_clutter_probability_delta_mean": -0.04905196197484786,
+            "known_clutter_probability_delta_median": -0.006872308120364323,
+            "known_clutter_probability_delta_minimum": -0.5406225174665451,
+            "known_clutter_probability_delta_maximum": 0.5232237428426743
+          },
+          "BalloonTarget": {
+            "support": 54,
+            "known_clutter_probability_delta_mean": -0.013200308782634911,
+            "known_clutter_probability_delta_median": -0.004036697850096971,
+            "known_clutter_probability_delta_minimum": -0.22933576256036758,
+            "known_clutter_probability_delta_maximum": 0.015583360567688942
+          },
+          "ClutterTarget": {
+            "support": 9,
+            "known_clutter_probability_delta_mean": 0.2667740529610051,
+            "known_clutter_probability_delta_median": 0.18927621841430664,
+            "known_clutter_probability_delta_minimum": -0.33253245055675507,
+            "known_clutter_probability_delta_maximum": 0.847230538725853
+          }
+        },
+        "overall": {
+          "baseline_nll": 0.07496156772401276,
+          "treatment_nll": 0.023809524604922656,
+          "nll_delta": -0.05115204311909011,
+          "baseline_brier": 0.021276799014858253,
+          "treatment_brier": 0.006790202880744411,
+          "brier_delta": -0.014486596134113842
+        }
+      },
+      "paired_parent_bootstrap": {
+        "method": "paired parent bootstrap stratified by original base label",
+        "replicates": 5000,
+        "seed": 21543,
+        "confidence_level": 0.95,
+        "stratum_support": {
+          "DroneTarget": 113,
+          "BirdTarget": 56,
+          "BalloonTarget": 54,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "accuracy": {
+            "median": 0.978448275862069,
+            "lower_95": 0.9612068965517241,
+            "upper_95": 0.9956896551724138
+          },
+          "macro_precision": {
+            "median": 0.8844045839561534,
+            "lower_95": 0.7367256637168141,
+            "upper_95": 0.9955555555555555
+          },
+          "macro_recall": {
+            "median": 0.8288490284005978,
+            "lower_95": 0.6621823617339312,
+            "upper_95": 0.9932735426008968
+          },
+          "macro_f1": {
+            "median": 0.8473483353072773,
+            "lower_95": 0.7053968253968254,
+            "upper_95": 0.9694696670614554
+          },
+          "known_target_precision": {
+            "median": 0.9866071428571429,
+            "lower_95": 0.973568281938326,
+            "upper_95": 1.0
+          },
+          "known_target_recall": {
+            "median": 0.9910313901345291,
+            "lower_95": 0.9775784753363229,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 0.9888143176733781,
+            "lower_95": 0.9797752808988766,
+            "upper_95": 0.9977528089887641
+          },
+          "known_clutter_precision": {
+            "median": 0.7777777777777778,
+            "lower_95": 0.5,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 0.6666666666666666,
+            "lower_95": 0.3333333333333333,
+            "upper_95": 1.0
+          },
+          "known_clutter_f1": {
+            "median": 0.7058823529411765,
+            "lower_95": 0.42857142857142855,
+            "upper_95": 0.9411764705882353
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.6666666666666666,
+            "lower_95": 0.3333333333333333,
+            "upper_95": 0.8888888888888888
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.9642857142857143,
+            "lower_95": 0.9107142857142857,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.6666666666666666,
+            "lower_95": 0.3333333333333333,
+            "upper_95": 1.0
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.9077380952380952,
+            "lower_95": 0.824404761904762,
+            "upper_95": 0.9866071428571428
+          }
+        },
+        "treatment": {
+          "accuracy": {
+            "median": 0.9913793103448276,
+            "lower_95": 0.978448275862069,
+            "upper_95": 1.0
+          },
+          "macro_precision": {
+            "median": 0.9461011459890383,
+            "lower_95": 0.8461538461538461,
+            "upper_95": 1.0
+          },
+          "macro_recall": {
+            "median": 0.9422022919780767,
+            "lower_95": 0.8310911808669657,
+            "upper_95": 1.0
+          },
+          "macro_f1": {
+            "median": 0.9422022919780767,
+            "lower_95": 0.8526984126984127,
+            "upper_95": 1.0
+          },
+          "known_target_precision": {
+            "median": 0.9955156950672646,
+            "lower_95": 0.9866666666666667,
+            "upper_95": 1.0
+          },
+          "known_target_recall": {
+            "median": 0.9955156950672646,
+            "lower_95": 0.9865470852017937,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 0.9955156950672646,
+            "lower_95": 0.9887640449438202,
+            "upper_95": 1.0
+          },
+          "known_clutter_precision": {
+            "median": 0.8944444444444444,
+            "lower_95": 0.7,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "known_clutter_f1": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.7142857142857143,
+            "upper_95": 1.0
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.9821428571428571,
+            "lower_95": 0.9464285714285714,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.9677579365079365,
+            "lower_95": 0.9122023809523809,
+            "upper_95": 1.0
+          }
+        },
+        "treatment_minus_baseline": {
+          "accuracy": {
+            "median": 0.012931034482758674,
+            "lower_95": -0.008620689655172487,
+            "upper_95": 0.034482758620689724
+          },
+          "macro_precision": {
+            "median": 0.0738987205495053,
+            "lower_95": -0.09780780780780773,
+            "upper_95": 0.2311908320876931
+          },
+          "macro_recall": {
+            "median": 0.11335326357747877,
+            "lower_95": -0.10662680617837572,
+            "upper_95": 0.33109118086696565
+          },
+          "macro_f1": {
+            "median": 0.09485395667079943,
+            "lower_95": -0.061060665877089026,
+            "upper_95": 0.25989964905114293
+          },
+          "known_target_precision": {
+            "median": 0.008928571428571397,
+            "lower_95": -0.008809189978721734,
+            "upper_95": 0.026200873362445365
+          },
+          "known_target_recall": {
+            "median": 0.004484304932735439,
+            "lower_95": -0.008968609865470878,
+            "upper_95": 0.017937219730941756
+          },
+          "known_target_f1": {
+            "median": 0.006701377393886432,
+            "lower_95": -0.004494382022471877,
+            "upper_95": 0.017887037176683496
+          },
+          "known_clutter_precision": {
+            "median": 0.14285714285714285,
+            "lower_95": -0.19999999999999996,
+            "upper_95": 0.4444444444444444
+          },
+          "known_clutter_recall": {
+            "median": 0.2222222222222222,
+            "lower_95": -0.2222222222222222,
+            "upper_95": 0.6666666666666666
+          },
+          "known_clutter_f1": {
+            "median": 0.18300653594771232,
+            "lower_95": -0.11764705882352933,
+            "upper_95": 0.5
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.2222222222222222,
+            "lower_95": -0.13333333333333341,
+            "upper_95": 0.5555555555555556
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 0.0,
+            "lower_95": 0.0,
+            "upper_95": 0.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.017857142857142905,
+            "lower_95": -0.0357142857142857,
+            "upper_95": 0.0714285714285714
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 0.0,
+            "lower_95": 0.0,
+            "upper_95": 0.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.2222222222222222,
+            "lower_95": -0.2222222222222222,
+            "upper_95": 0.6666666666666666
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.06001984126984128,
+            "lower_95": -0.04671378968253971,
+            "upper_95": 0.16220238095238093
+          }
+        }
+      },
+      "same_epoch_comparison": {
+        "role": "paired training trajectory; epochs are correlated, not independent replicates",
+        "rows": [
+          {
+            "epoch": 1,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 2,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 3,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 4,
+            "baseline_macro_f1": 0.7053968253968254,
+            "treatment_macro_f1": 0.8058035714285715,
+            "macro_f1_delta": 0.10040674603174615,
+            "weak_floor_delta": 0.22222222222222227,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.22222222222222227
+            },
+            "four_label_acceptance_recall_delta_sum": 0.22222222222222227,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 5,
+            "baseline_macro_f1": 0.7588715664439496,
+            "treatment_macro_f1": 0.8277654046028211,
+            "macro_f1_delta": 0.06889383815887151,
+            "weak_floor_delta": 0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142794,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.12896825396825395,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 6,
+            "baseline_macro_f1": 0.7614150555327026,
+            "treatment_macro_f1": 0.8266068759342302,
+            "macro_f1_delta": 0.0651918204015276,
+            "weak_floor_delta": 0.20512820512820507,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.05357142857142849,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.07208994708994698,
+            "baseline_parent_confusion_matrix": [
+              [
+                216,
+                7
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                3,
+                6
+              ]
+            ]
+          },
+          {
+            "epoch": 7,
+            "baseline_macro_f1": 0.8473483353072773,
+            "treatment_macro_f1": 0.8058035714285715,
+            "macro_f1_delta": -0.04154476387870576,
+            "weak_floor_delta": -0.11111111111111105,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": -0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": -0.11111111111111105,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 8,
+            "baseline_macro_f1": 0.8266068759342302,
+            "treatment_macro_f1": 0.8473483353072773,
+            "macro_f1_delta": 0.020741459373047055,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.017857142857142905,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                3,
+                6
+              ]
+            ]
+          },
+          {
+            "epoch": 9,
+            "baseline_macro_f1": 0.8079243051448847,
+            "treatment_macro_f1": 0.8954954954954955,
+            "macro_f1_delta": 0.08757119035061078,
+            "weak_floor_delta": 0.12727272727272732,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142794,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.240079365079365,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 10,
+            "baseline_macro_f1": 0.7410714285714286,
+            "treatment_macro_f1": 0.862803075103489,
+            "macro_f1_delta": 0.12173164653206037,
+            "weak_floor_delta": 0.25555555555555554,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.33333333333333337
+            },
+            "four_label_acceptance_recall_delta_sum": 0.33333333333333337,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 11,
+            "baseline_macro_f1": 0.8079243051448847,
+            "treatment_macro_f1": 0.8844045839561534,
+            "macro_f1_delta": 0.07648027881126873,
+            "weak_floor_delta": 0.1777777777777778,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.14682539682539686,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 12,
+            "baseline_macro_f1": 0.779047619047619,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.07365079365079374,
+            "weak_floor_delta": 0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.12896825396825407,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 13,
+            "baseline_macro_f1": 0.7252270035530991,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.2100408535897581,
+            "weak_floor_delta": 0.33333333333333337,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0714285714285714,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.33333333333333337
+            },
+            "four_label_acceptance_recall_delta_sum": 0.40476190476190477,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 14,
+            "baseline_macro_f1": 0.7688091679123069,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.1664586892305503,
+            "weak_floor_delta": 0.2222222222222222,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0714285714285714,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2936507936507936,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 15,
+            "baseline_macro_f1": 0.7674715261958998,
+            "treatment_macro_f1": 0.8954954954954955,
+            "macro_f1_delta": 0.1280239692995957,
+            "weak_floor_delta": 0.2897727272727273,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0892857142857143,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": 0.21891534391534384,
+            "baseline_parent_confusion_matrix": [
+              [
+                214,
+                9
+              ],
+              [
+                2,
+                7
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 16,
+            "baseline_macro_f1": 0.7862876694301881,
+            "treatment_macro_f1": 0.9477477477477477,
+            "macro_f1_delta": 0.1614600783175596,
+            "weak_floor_delta": 0.26262626262626265,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.4444444444444444
+            },
+            "four_label_acceptance_recall_delta_sum": 0.4623015873015873,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 17,
+            "baseline_macro_f1": 0.8266068759342302,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.108660981208627,
+            "weak_floor_delta": 0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0535714285714286,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.16468253968253976,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 18,
+            "baseline_macro_f1": 0.8277654046028211,
+            "treatment_macro_f1": 0.8966592427616926,
+            "macro_f1_delta": 0.06889383815887151,
+            "weak_floor_delta": 0.11111111111111105,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": 0.12896825396825395,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                3,
+                6
+              ]
+            ]
+          },
+          {
+            "epoch": 19,
+            "baseline_macro_f1": 0.7862876694301881,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.0664107432682246,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0535714285714286,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0535714285714286,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 20,
+            "baseline_macro_f1": 0.7252270035530991,
+            "treatment_macro_f1": 0.9422022919780767,
+            "macro_f1_delta": 0.2169752884249776,
+            "weak_floor_delta": 0.4444444444444444,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.4444444444444444
+            },
+            "four_label_acceptance_recall_delta_sum": 0.4986772486772486,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          }
+        ],
+        "treatment_macro_f1_higher_epoch_count": 16,
+        "macro_f1_delta_strictly_greater_than_0_02_epoch_count": 16,
+        "maximum_macro_f1_delta": 0.2169752884249776,
+        "maximum_macro_f1_delta_epoch": 20
+      },
+      "trained_course_fusion_column": {
+        "column_index": 79,
+        "element_count": 48,
+        "nonzero_element_count": 48,
+        "l1_norm": 4.474079466424882,
+        "l2_norm": 0.6790205336361036,
+        "maximum_absolute_weight": 0.14511290192604065
+      },
+      "gate": {
+        "primary_macro_signal_passed": true,
+        "parent_direction_safety_passed": true,
+        "paired_bootstrap_robust": false,
+        "eligible_prefix_guard_passed": true,
+        "full_parent_seed_gate_passed": false
+      },
+      "runs": {
+        "baseline": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\training-summary.json",
+          "summary_sha256": "b384362776e7c09506d734fe2027e4095bcf267eee68a697211a7b4ad6025c6a",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed42-formal\\best_model.pt",
+          "checkpoint_sha256": "fd6898a5676e31bb25770eb7358abe69e106b0c7092f721d5fff3fb3a684b22c"
+        },
+        "treatment": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed42-formal\\training-summary.json",
+          "summary_sha256": "997e928ff862a75346c3a3eb3b1cbea651f106d5856af83c01574fb339893b55",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed42-formal\\best_model.pt",
+          "checkpoint_sha256": "05fdd7605fb2b8e0931e85b22214ab5b320f93db43d4622ab884096da8df66c3"
+        }
+      }
+    },
+    "43": {
+      "seed": 43,
+      "best_epochs": {
+        "baseline": 16,
+        "treatment": 14
+      },
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_logits_exactly_equal": true,
+      "baseline_metrics_by_scope": {
+        "parent": {
+          "scope": "seed43_baseline_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.978448275862069,
+          "macro_precision": 0.8454954954954954,
+          "macro_recall": 0.8821624314897858,
+          "macro_f1": 0.862803075103489,
+          "balanced_accuracy": 0.8821624314897858,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.990990990990991,
+              "recall": 0.9865470852017937,
+              "f1": 0.9887640449438202,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              220,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed43_baseline_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9809074573225517,
+          "macro_precision": 0.8562397122637007,
+          "macro_recall": 0.8874624590462323,
+          "macro_f1": 0.8711289211397677,
+          "balanced_accuracy": 0.8874624590462323,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.991809033465949,
+              "recall": 0.988339552238806,
+              "f1": 0.9900712533582525,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 50
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7206703910614525,
+              "recall": 0.7865853658536586,
+              "f1": 0.7521865889212828,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 35
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4238,
+              50
+            ],
+            [
+              35,
+              129
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed43_baseline_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9813631522896699,
+          "macro_precision": 0.8583961461959686,
+          "macro_recall": 0.8884960357238662,
+          "macro_f1": 0.8727787573622061,
+          "balanced_accuracy": 0.8884960357238662,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9919600776268367,
+              "recall": 0.9886709035645206,
+              "f1": 0.9903127594796569,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 41
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7248322147651006,
+              "recall": 0.7883211678832117,
+              "f1": 0.7552447552447552,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 29
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3578,
+              41
+            ],
+            [
+              29,
+              108
+            ]
+          ]
+        }
+      },
+      "treatment_metrics_by_scope": {
+        "parent": {
+          "scope": "seed43_v21e_course_prefix_parent_recomputed",
+          "support": 232,
+          "accuracy": 1.0,
+          "macro_precision": 1.0,
+          "macro_recall": 1.0,
+          "macro_f1": 1.0,
+          "balanced_accuracy": 1.0,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 223,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 9,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              223,
+              0
+            ],
+            [
+              0,
+              9
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed43_v21e_course_prefix_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9797843665768194,
+          "macro_precision": 0.8377437133045309,
+          "macro_recall": 0.9162011967601019,
+          "macro_f1": 0.8724456012387434,
+          "balanced_accuracy": 0.9162011967601019,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9941148775894538,
+              "recall": 0.9848414179104478,
+              "f1": 0.9894564198687911,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 65
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6813725490196079,
+              "recall": 0.8475609756097561,
+              "f1": 0.7554347826086957,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 25
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4223,
+              65
+            ],
+            [
+              25,
+              139
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed43_v21e_course_prefix_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9808306709265175,
+          "macro_precision": 0.8443797832031674,
+          "macro_recall": 0.916311518889559,
+          "macro_f1": 0.8765844967579881,
+          "balanced_accuracy": 0.916311518889559,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9941487879632209,
+              "recall": 0.9859077093119646,
+              "f1": 0.9900110987791342,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 51
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6946107784431138,
+              "recall": 0.8467153284671532,
+              "f1": 0.7631578947368421,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 21
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3568,
+              51
+            ],
+            [
+              21,
+              116
+            ]
+          ]
+        }
+      },
+      "scope_deltas": {
+        "parent": {
+          "accuracy": 0.02155172413793105,
+          "macro_precision": 0.1545045045045046,
+          "macro_recall": 0.11783756851021421,
+          "macro_f1": 0.13719692489651103,
+          "known_target_precision": 0.009009009009009028,
+          "known_target_recall": 0.013452914798206317,
+          "known_target_f1": 0.011235955056179803,
+          "known_clutter_precision": 0.30000000000000004,
+          "known_clutter_recall": 0.2222222222222222,
+          "known_clutter_f1": 0.26315789473684226,
+          "weak_class_precision_recall_f1_floor": 0.30000000000000004
+        },
+        "window": {
+          "accuracy": -0.001123090745732247,
+          "macro_precision": -0.018495998959169757,
+          "macro_recall": 0.02873873771386959,
+          "macro_f1": 0.0013166800989756755,
+          "known_target_precision": 0.0023058441235048743,
+          "known_target_recall": -0.0034981343283582156,
+          "known_target_f1": -0.0006148334894614527,
+          "known_clutter_precision": -0.03929784204184461,
+          "known_clutter_recall": 0.060975609756097504,
+          "known_clutter_f1": 0.0032481936874129147,
+          "weak_class_precision_recall_f1_floor": -0.03929784204184461
+        },
+        "eligible_prefix": {
+          "accuracy": -0.0005324813631523151,
+          "macro_precision": -0.014016362992801179,
+          "macro_recall": 0.027815483165692823,
+          "macro_f1": 0.003805739395781993,
+          "known_target_precision": 0.0021887103363842364,
+          "known_target_recall": -0.0027631942525560005,
+          "known_target_f1": -0.0003016607005227323,
+          "known_clutter_precision": -0.030221436321986817,
+          "known_clutter_recall": 0.058394160583941535,
+          "known_clutter_f1": 0.00791313949208694,
+          "weak_class_precision_recall_f1_floor": -0.030221436321986817
+        }
+      },
+      "parent_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 113,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 56,
+          "changed": 2,
+          "rescued": 2,
+          "harmed": 0,
+          "net_rescue": 2
+        },
+        "BalloonTarget": {
+          "support": 54,
+          "changed": 1,
+          "rescued": 1,
+          "harmed": 0,
+          "net_rescue": 1
+        },
+        "ClutterTarget": {
+          "support": 9,
+          "changed": 2,
+          "rescued": 2,
+          "harmed": 0,
+          "net_rescue": 2
+        }
+      },
+      "eligible_prefix_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 1825,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 905,
+          "changed": 44,
+          "rescued": 20,
+          "harmed": 24,
+          "net_rescue": -4
+        },
+        "BalloonTarget": {
+          "support": 889,
+          "changed": 22,
+          "rescued": 8,
+          "harmed": 14,
+          "net_rescue": -6
+        },
+        "ClutterTarget": {
+          "support": 137,
+          "changed": 24,
+          "rescued": 16,
+          "harmed": 8,
+          "net_rescue": 8
+        }
+      },
+      "combined_parent_net_rescue": 5,
+      "scope_prediction_changes": {
+        "parent": {
+          "support": 232,
+          "changed_prediction_count": 5,
+          "changed_prediction_fraction": 0.021551724137931036
+        },
+        "window": {
+          "support": 4452,
+          "changed_prediction_count": 107,
+          "changed_prediction_fraction": 0.02403414195867026
+        },
+        "eligible_prefix": {
+          "support": 3756,
+          "changed_prediction_count": 90,
+          "changed_prediction_fraction": 0.023961661341853034
+        }
+      },
+      "probability_attribution": {
+        "by_base_label": {
+          "DroneTarget": {
+            "support": 113,
+            "known_clutter_probability_delta_mean": 0.0015525795103141428,
+            "known_clutter_probability_delta_median": -0.0005556896794587374,
+            "known_clutter_probability_delta_minimum": -0.006532438565045595,
+            "known_clutter_probability_delta_maximum": 0.08940258622169495
+          },
+          "BirdTarget": {
+            "support": 56,
+            "known_clutter_probability_delta_mean": -0.01808343175175001,
+            "known_clutter_probability_delta_median": -0.0007999237859621644,
+            "known_clutter_probability_delta_minimum": -0.5045984126627445,
+            "known_clutter_probability_delta_maximum": 0.12609149143099785
+          },
+          "BalloonTarget": {
+            "support": 54,
+            "known_clutter_probability_delta_mean": -0.0052920088810087355,
+            "known_clutter_probability_delta_median": -0.000995418697129935,
+            "known_clutter_probability_delta_minimum": -0.5935986936092377,
+            "known_clutter_probability_delta_maximum": 0.3814238980412483
+          },
+          "ClutterTarget": {
+            "support": 9,
+            "known_clutter_probability_delta_mean": 0.14665199402305815,
+            "known_clutter_probability_delta_median": 0.05569571256637573,
+            "known_clutter_probability_delta_minimum": -0.1043555736541748,
+            "known_clutter_probability_delta_maximum": 0.6338361874222755
+          }
+        },
+        "overall": {
+          "baseline_nll": 0.05388683397770587,
+          "treatment_nll": 0.029813168557939508,
+          "nll_delta": -0.02407366541976636,
+          "baseline_brier": 0.01589746927256448,
+          "treatment_brier": 0.006152585491070858,
+          "brier_delta": -0.009744883781493621
+        }
+      },
+      "paired_parent_bootstrap": {
+        "method": "paired parent bootstrap stratified by original base label",
+        "replicates": 5000,
+        "seed": 21543,
+        "confidence_level": 0.95,
+        "stratum_support": {
+          "DroneTarget": 113,
+          "BirdTarget": 56,
+          "BalloonTarget": 54,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "accuracy": {
+            "median": 0.978448275862069,
+            "lower_95": 0.9568965517241379,
+            "upper_95": 0.9956896551724138
+          },
+          "macro_precision": {
+            "median": 0.8461538461538461,
+            "lower_95": 0.7287250384024577,
+            "upper_95": 0.9955555555555555
+          },
+          "macro_recall": {
+            "median": 0.8844045839561534,
+            "lower_95": 0.7199800697558545,
+            "upper_95": 0.9955156950672646
+          },
+          "macro_f1": {
+            "median": 0.862803075103489,
+            "lower_95": 0.7410714285714286,
+            "upper_95": 0.9694696670614554
+          },
+          "known_target_precision": {
+            "median": 0.9910313901345291,
+            "lower_95": 0.9779735682819384,
+            "upper_95": 1.0
+          },
+          "known_target_recall": {
+            "median": 0.9865470852017937,
+            "lower_95": 0.968609865470852,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 0.9887640449438202,
+            "lower_95": 0.9775784753363229,
+            "upper_95": 0.9977528089887641
+          },
+          "known_clutter_precision": {
+            "median": 0.7,
+            "lower_95": 0.4666666666666667,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 0.7777777777777778,
+            "lower_95": 0.4444444444444444,
+            "upper_95": 1.0
+          },
+          "known_clutter_f1": {
+            "median": 0.7368421052631577,
+            "lower_95": 0.5,
+            "upper_95": 0.9411764705882353
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.6666666666666666,
+            "lower_95": 0.4444444444444444,
+            "upper_95": 0.8888888888888888
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.9642857142857143,
+            "lower_95": 0.9107142857142857,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 0.9814814814814815,
+            "lower_95": 0.9444444444444444,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.7777777777777778,
+            "lower_95": 0.4444444444444444,
+            "upper_95": 1.0
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.9351851851851851,
+            "lower_95": 0.8530092592592593,
+            "upper_95": 0.9910714285714286
+          }
+        },
+        "treatment": {
+          "accuracy": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "macro_precision": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "macro_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "macro_f1": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_target_precision": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_target_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_clutter_precision": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_clutter_f1": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          }
+        },
+        "treatment_minus_baseline": {
+          "accuracy": {
+            "median": 0.02155172413793105,
+            "lower_95": 0.004310344827586188,
+            "upper_95": 0.0431034482758621
+          },
+          "macro_precision": {
+            "median": 0.15384615384615385,
+            "lower_95": 0.004444444444444473,
+            "upper_95": 0.2712749615975423
+          },
+          "macro_recall": {
+            "median": 0.1155954160438466,
+            "lower_95": 0.004484304932735439,
+            "upper_95": 0.2800199302441455
+          },
+          "macro_f1": {
+            "median": 0.13719692489651103,
+            "lower_95": 0.03053033293854457,
+            "upper_95": 0.2589285714285714
+          },
+          "known_target_precision": {
+            "median": 0.008968609865470878,
+            "lower_95": 0.0,
+            "upper_95": 0.022026431718061623
+          },
+          "known_target_recall": {
+            "median": 0.013452914798206317,
+            "lower_95": 0.0,
+            "upper_95": 0.03139013452914796
+          },
+          "known_target_f1": {
+            "median": 0.011235955056179803,
+            "lower_95": 0.0022471910112359383,
+            "upper_95": 0.022421524663677084
+          },
+          "known_clutter_precision": {
+            "median": 0.30000000000000004,
+            "lower_95": 0.0,
+            "upper_95": 0.5333333333333333
+          },
+          "known_clutter_recall": {
+            "median": 0.2222222222222222,
+            "lower_95": 0.0,
+            "upper_95": 0.5555555555555556
+          },
+          "known_clutter_f1": {
+            "median": 0.26315789473684226,
+            "lower_95": 0.05882352941176472,
+            "upper_95": 0.5
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.33333333333333337,
+            "lower_95": 0.11111111111111116,
+            "upper_95": 0.5555555555555556
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 0.0,
+            "lower_95": 0.0,
+            "upper_95": 0.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.0357142857142857,
+            "lower_95": 0.0,
+            "upper_95": 0.0892857142857143
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 0.01851851851851849,
+            "lower_95": 0.0,
+            "upper_95": 0.05555555555555558
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.2222222222222222,
+            "lower_95": 0.0,
+            "upper_95": 0.5555555555555556
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.06481481481481488,
+            "lower_95": 0.008928571428571397,
+            "upper_95": 0.1469907407407407
+          }
+        }
+      },
+      "same_epoch_comparison": {
+        "role": "paired training trajectory; epochs are correlated, not independent replicates",
+        "rows": [
+          {
+            "epoch": 1,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 2,
+            "baseline_macro_f1": 0.8079243051448847,
+            "treatment_macro_f1": 0.8254326561324304,
+            "macro_f1_delta": 0.017508350987545773,
+            "weak_floor_delta": -0.016666666666666607,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": -0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.09325396825396826,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 3,
+            "baseline_macro_f1": 0.7230086986184547,
+            "treatment_macro_f1": 0.779047619047619,
+            "macro_f1_delta": 0.05603892042916425,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.1111111111111111,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                5,
+                4
+              ]
+            ]
+          },
+          {
+            "epoch": 4,
+            "baseline_macro_f1": 0.7433628318584071,
+            "treatment_macro_f1": 0.7433628318584071,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ]
+          },
+          {
+            "epoch": 5,
+            "baseline_macro_f1": 0.7433628318584071,
+            "treatment_macro_f1": 0.8021490704417533,
+            "macro_f1_delta": 0.058786238583346195,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.1111111111111111,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                5,
+                4
+              ]
+            ]
+          },
+          {
+            "epoch": 6,
+            "baseline_macro_f1": 0.6740919125025084,
+            "treatment_macro_f1": 0.6740919125025084,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                7,
+                2
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                7,
+                2
+              ]
+            ]
+          },
+          {
+            "epoch": 7,
+            "baseline_macro_f1": 0.6740919125025084,
+            "treatment_macro_f1": 0.5911894273127754,
+            "macro_f1_delta": -0.08290248518973309,
+            "weak_floor_delta": -0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": -0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": -0.1111111111111111,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                7,
+                2
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                8,
+                1
+              ]
+            ]
+          },
+          {
+            "epoch": 8,
+            "baseline_macro_f1": 0.8277654046028211,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.024933008095591624,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.017857142857142905,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 9,
+            "baseline_macro_f1": 0.8058035714285715,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.046894841269841225,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0357142857142857,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 10,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.5911894273127754,
+            "macro_f1_delta": 0.10107953720288526,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.1111111111111111,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                8,
+                1
+              ]
+            ]
+          },
+          {
+            "epoch": 11,
+            "baseline_macro_f1": 0.8753090400945931,
+            "treatment_macro_f1": 0.9176818450620935,
+            "macro_f1_delta": 0.0423728049675004,
+            "weak_floor_delta": 0.13333333333333341,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.036375661375661394,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                1,
+                8
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 12,
+            "baseline_macro_f1": 0.8473483353072773,
+            "treatment_macro_f1": 0.9422022919780767,
+            "macro_f1_delta": 0.09485395667079943,
+            "weak_floor_delta": 0.2222222222222222,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2407407407407407,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 13,
+            "baseline_macro_f1": 0.7433628318584071,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.10933558084000561,
+            "weak_floor_delta": 0.22222222222222227,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.22222222222222227
+            },
+            "four_label_acceptance_recall_delta_sum": 0.22222222222222227,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 14,
+            "baseline_macro_f1": 0.7962767825781525,
+            "treatment_macro_f1": 1.0,
+            "macro_f1_delta": 0.2037232174218475,
+            "weak_floor_delta": 0.5294117647058824,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.1071428571428571,
+              "BalloonTarget": 0.05555555555555558,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.27380952380952384,
+            "baseline_parent_confusion_matrix": [
+              [
+                214,
+                9
+              ],
+              [
+                1,
+                8
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 15,
+            "baseline_macro_f1": 0.7433628318584071,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.10933558084000561,
+            "weak_floor_delta": 0.22222222222222227,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.22222222222222227
+            },
+            "four_label_acceptance_recall_delta_sum": 0.22222222222222227,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 16,
+            "baseline_macro_f1": 0.862803075103489,
+            "treatment_macro_f1": 0.9251854240567559,
+            "macro_f1_delta": 0.062382348953266886,
+            "weak_floor_delta": 0.050000000000000044,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2222222222222222,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                2,
+                7
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 17,
+            "baseline_macro_f1": 0.8705357142857143,
+            "treatment_macro_f1": 0.9725606150206978,
+            "macro_f1_delta": 0.10202490073498349,
+            "weak_floor_delta": 0.2333333333333334,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.33333333333333337
+            },
+            "four_label_acceptance_recall_delta_sum": 0.33333333333333337,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 18,
+            "baseline_macro_f1": 0.8266068759342302,
+            "treatment_macro_f1": 0.9725606150206978,
+            "macro_f1_delta": 0.14595373908646758,
+            "weak_floor_delta": 0.2333333333333334,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142794,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.33333333333333337
+            },
+            "four_label_acceptance_recall_delta_sum": 0.36970899470899465,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 19,
+            "baseline_macro_f1": 0.8753090400945931,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.05995881704826411,
+            "weak_floor_delta": 0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0535714285714286,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": -0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": -0.03902116402116396,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                1,
+                8
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 20,
+            "baseline_macro_f1": 0.8432432432432433,
+            "treatment_macro_f1": 0.9477477477477477,
+            "macro_f1_delta": 0.10450450450450444,
+            "weak_floor_delta": 0.18181818181818188,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2585978835978836,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                2,
+                7
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          }
+        ],
+        "treatment_macro_f1_higher_epoch_count": 16,
+        "macro_f1_delta_strictly_greater_than_0_02_epoch_count": 15,
+        "maximum_macro_f1_delta": 0.2037232174218475,
+        "maximum_macro_f1_delta_epoch": 14
+      },
+      "trained_course_fusion_column": {
+        "column_index": 79,
+        "element_count": 48,
+        "nonzero_element_count": 48,
+        "l1_norm": 3.846907609142363,
+        "l2_norm": 0.6050200335953512,
+        "maximum_absolute_weight": 0.14062437415122986
+      },
+      "gate": {
+        "primary_macro_signal_passed": true,
+        "parent_direction_safety_passed": true,
+        "paired_bootstrap_robust": true,
+        "eligible_prefix_guard_passed": false,
+        "full_parent_seed_gate_passed": true
+      },
+      "runs": {
+        "baseline": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+          "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+          "checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87"
+        },
+        "treatment": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal\\training-summary.json",
+          "summary_sha256": "9b461b722f3ecd455b6b0ed32d5648dd3da7dbab82d808debf23360645fce84c",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal\\best_model.pt",
+          "checkpoint_sha256": "2b9992bb891bc05c5008a411b06da542c12fb64555bca60af735da75a4c71365"
+        }
+      }
+    },
+    "44": {
+      "seed": 44,
+      "best_epochs": {
+        "baseline": 18,
+        "treatment": 14
+      },
+      "parent_order_hashes_equal_all_20_epochs": true,
+      "initial_logits_exactly_equal": true,
+      "baseline_metrics_by_scope": {
+        "parent": {
+          "scope": "seed44_baseline_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.9741379310344828,
+          "macro_precision": 0.8482539682539683,
+          "macro_recall": 0.7732934728450424,
+          "macro_f1": 0.8058035714285715,
+          "balanced_accuracy": 0.7732934728450424,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9822222222222222,
+              "recall": 0.9910313901345291,
+              "f1": 0.9866071428571429,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 2
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7142857142857143,
+              "recall": 0.5555555555555556,
+              "f1": 0.6250000000000001,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 4
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              221,
+              2
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed44_baseline_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9728212039532794,
+          "macro_precision": 0.8777246753246754,
+          "macro_recall": 0.6809445531488897,
+          "macro_f1": 0.7419789317184784,
+          "balanced_accuracy": 0.6809445531488897,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9762285714285714,
+              "recall": 0.996035447761194,
+              "f1": 0.9860325522336373,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 17
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7792207792207793,
+              "recall": 0.36585365853658536,
+              "f1": 0.4979253112033194,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 104
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4271,
+              17
+            ],
+            [
+              104,
+              60
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed44_baseline_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9736421725239617,
+          "macro_precision": 0.8783175960188847,
+          "macro_recall": 0.6913582612448896,
+          "macro_f1": 0.7517622593770759,
+          "balanced_accuracy": 0.6913582612448896,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9772234273318872,
+              "recall": 0.995855208621166,
+              "f1": 0.9864513480224443,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 15
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7794117647058824,
+              "recall": 0.38686131386861317,
+              "f1": 0.5170731707317073,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 84
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3604,
+              15
+            ],
+            [
+              84,
+              53
+            ]
+          ]
+        }
+      },
+      "treatment_metrics_by_scope": {
+        "parent": {
+          "scope": "seed44_v21e_course_prefix_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.9956896551724138,
+          "macro_precision": 0.9977678571428572,
+          "macro_recall": 0.9444444444444444,
+          "macro_f1": 0.9694696670614554,
+          "balanced_accuracy": 0.9444444444444444,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9955357142857143,
+              "recall": 1.0,
+              "f1": 0.9977628635346756,
+              "support": 223,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.8888888888888888,
+              "f1": 0.9411764705882353,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              223,
+              0
+            ],
+            [
+              1,
+              8
+            ]
+          ]
+        },
+        "window": {
+          "scope": "seed44_v21e_course_prefix_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9853998203054807,
+          "macro_precision": 0.992533884677234,
+          "macro_recall": 0.8018292682926829,
+          "macro_f1": 0.8726647167562197,
+          "balanced_accuracy": 0.8018292682926829,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9850677693544682,
+              "recall": 1.0,
+              "f1": 0.9924777224858234,
+              "support": 4288,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.6036585365853658,
+              "f1": 0.752851711026616,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 65
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4288,
+              0
+            ],
+            [
+              65,
+              99
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "seed44_v21e_course_prefix_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9858892438764644,
+          "macro_precision": 0.9927832244008714,
+          "macro_recall": 0.8065693430656935,
+          "macro_f1": 0.8764558797153374,
+          "balanced_accuracy": 0.8065693430656935,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9855664488017429,
+              "recall": 1.0,
+              "f1": 0.9927307639555617,
+              "support": 3619,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.6131386861313869,
+              "f1": 0.7601809954751131,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 53
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3619,
+              0
+            ],
+            [
+              53,
+              84
+            ]
+          ]
+        }
+      },
+      "scope_deltas": {
+        "parent": {
+          "accuracy": 0.02155172413793105,
+          "macro_precision": 0.14951388888888895,
+          "macro_recall": 0.17115097159940207,
+          "macro_f1": 0.16366609563288392,
+          "known_target_precision": 0.013313492063492083,
+          "known_target_recall": 0.008968609865470878,
+          "known_target_f1": 0.011155720677532677,
+          "known_clutter_precision": 0.2857142857142857,
+          "known_clutter_recall": 0.33333333333333326,
+          "known_clutter_f1": 0.31617647058823517,
+          "weak_class_precision_recall_f1_floor": 0.33333333333333326
+        },
+        "window": {
+          "accuracy": 0.012578616352201255,
+          "macro_precision": 0.11480920935255867,
+          "macro_recall": 0.12088471514379318,
+          "macro_f1": 0.1306857850377413,
+          "known_target_precision": 0.008839197925896713,
+          "known_target_recall": 0.003964552238805985,
+          "known_target_f1": 0.006445170252186161,
+          "known_clutter_precision": 0.22077922077922074,
+          "known_clutter_recall": 0.23780487804878048,
+          "known_clutter_f1": 0.25492639982329657,
+          "weak_class_precision_recall_f1_floor": 0.23780487804878048
+        },
+        "eligible_prefix": {
+          "accuracy": 0.012247071352502692,
+          "macro_precision": 0.1144656283819867,
+          "macro_recall": 0.11521108182080386,
+          "macro_f1": 0.12469362033826159,
+          "known_target_precision": 0.008343021469855771,
+          "known_target_recall": 0.004144791378833945,
+          "known_target_f1": 0.006279415933117427,
+          "known_clutter_precision": 0.22058823529411764,
+          "known_clutter_recall": 0.22627737226277372,
+          "known_clutter_f1": 0.24310782474340575,
+          "weak_class_precision_recall_f1_floor": 0.22627737226277372
+        }
+      },
+      "parent_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 113,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 56,
+          "changed": 2,
+          "rescued": 2,
+          "harmed": 0,
+          "net_rescue": 2
+        },
+        "BalloonTarget": {
+          "support": 54,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "ClutterTarget": {
+          "support": 9,
+          "changed": 3,
+          "rescued": 3,
+          "harmed": 0,
+          "net_rescue": 3
+        }
+      },
+      "eligible_prefix_base_label_outcomes": {
+        "DroneTarget": {
+          "support": 1825,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "BirdTarget": {
+          "support": 905,
+          "changed": 15,
+          "rescued": 15,
+          "harmed": 0,
+          "net_rescue": 15
+        },
+        "BalloonTarget": {
+          "support": 889,
+          "changed": 0,
+          "rescued": 0,
+          "harmed": 0,
+          "net_rescue": 0
+        },
+        "ClutterTarget": {
+          "support": 137,
+          "changed": 41,
+          "rescued": 36,
+          "harmed": 5,
+          "net_rescue": 31
+        }
+      },
+      "combined_parent_net_rescue": 5,
+      "scope_prediction_changes": {
+        "parent": {
+          "support": 232,
+          "changed_prediction_count": 5,
+          "changed_prediction_fraction": 0.021551724137931036
+        },
+        "window": {
+          "support": 4452,
+          "changed_prediction_count": 66,
+          "changed_prediction_fraction": 0.014824797843665768
+        },
+        "eligible_prefix": {
+          "support": 3756,
+          "changed_prediction_count": 56,
+          "changed_prediction_fraction": 0.014909478168264111
+        }
+      },
+      "probability_attribution": {
+        "by_base_label": {
+          "DroneTarget": {
+            "support": 113,
+            "known_clutter_probability_delta_mean": 0.0003916377915621661,
+            "known_clutter_probability_delta_median": -0.00031666760332882404,
+            "known_clutter_probability_delta_minimum": -0.0028967512771487236,
+            "known_clutter_probability_delta_maximum": 0.034827385912649333
+          },
+          "BirdTarget": {
+            "support": 56,
+            "known_clutter_probability_delta_mean": -0.022593300205439197,
+            "known_clutter_probability_delta_median": -0.00024104159092530608,
+            "known_clutter_probability_delta_minimum": -0.5076842904090881,
+            "known_clutter_probability_delta_maximum": 0.0655067041516304
+          },
+          "BalloonTarget": {
+            "support": 54,
+            "known_clutter_probability_delta_mean": 0.0011433202415463274,
+            "known_clutter_probability_delta_median": -0.00021425672457553446,
+            "known_clutter_probability_delta_minimum": -0.00568279973231256,
+            "known_clutter_probability_delta_maximum": 0.0346630250569433
+          },
+          "ClutterTarget": {
+            "support": 9,
+            "known_clutter_probability_delta_mean": 0.27871588454581797,
+            "known_clutter_probability_delta_median": 0.16018807888031006,
+            "known_clutter_probability_delta_minimum": -0.05528336763381958,
+            "known_clutter_probability_delta_maximum": 0.8490629424341023
+          }
+        },
+        "overall": {
+          "baseline_nll": 0.09859146984550239,
+          "treatment_nll": 0.02150286956520185,
+          "nll_delta": -0.07708860028030054,
+          "baseline_brier": 0.02333788564051728,
+          "treatment_brier": 0.005298715049047557,
+          "brier_delta": -0.018039170591469724
+        }
+      },
+      "paired_parent_bootstrap": {
+        "method": "paired parent bootstrap stratified by original base label",
+        "replicates": 5000,
+        "seed": 21543,
+        "confidence_level": 0.95,
+        "stratum_support": {
+          "DroneTarget": 113,
+          "BirdTarget": 56,
+          "BalloonTarget": 54,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "accuracy": {
+            "median": 0.9741379310344828,
+            "lower_95": 0.9568965517241379,
+            "upper_95": 0.9913793103448276
+          },
+          "macro_precision": {
+            "median": 0.861842105263158,
+            "lower_95": 0.6992424242424242,
+            "upper_95": 0.9933628318584071
+          },
+          "macro_recall": {
+            "median": 0.7732934728450424,
+            "lower_95": 0.6066268061783757,
+            "upper_95": 0.939960139511709
+          },
+          "macro_f1": {
+            "median": 0.8058035714285715,
+            "lower_95": 0.643868326795156,
+            "upper_95": 0.9352678571428572
+          },
+          "known_target_precision": {
+            "median": 0.9822222222222222,
+            "lower_95": 0.9692982456140351,
+            "upper_95": 0.9954954954954955
+          },
+          "known_target_recall": {
+            "median": 0.9910313901345291,
+            "lower_95": 0.9775784753363229,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 0.9866071428571429,
+            "lower_95": 0.9775784753363229,
+            "upper_95": 0.9955156950672646
+          },
+          "known_clutter_precision": {
+            "median": 0.75,
+            "lower_95": 0.4166666666666667,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 0.5555555555555556,
+            "lower_95": 0.2222222222222222,
+            "upper_95": 0.8888888888888888
+          },
+          "known_clutter_f1": {
+            "median": 0.6250000000000001,
+            "lower_95": 0.30769230769230765,
+            "upper_95": 0.8750000000000001
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.5555555555555556,
+            "lower_95": 0.2222222222222222,
+            "upper_95": 0.8
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.9642857142857143,
+            "lower_95": 0.9107142857142857,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.5555555555555556,
+            "lower_95": 0.2222222222222222,
+            "upper_95": 0.8888888888888888
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.8799603174603174,
+            "lower_95": 0.7966269841269842,
+            "upper_95": 0.9632936507936508
+          }
+        },
+        "treatment": {
+          "accuracy": {
+            "median": 0.9956896551724138,
+            "lower_95": 0.9870689655172413,
+            "upper_95": 1.0
+          },
+          "macro_precision": {
+            "median": 0.9977678571428572,
+            "lower_95": 0.9933628318584071,
+            "upper_95": 1.0
+          },
+          "macro_recall": {
+            "median": 0.9444444444444444,
+            "lower_95": 0.8333333333333333,
+            "upper_95": 1.0
+          },
+          "macro_f1": {
+            "median": 0.9694696670614554,
+            "lower_95": 0.8966592427616926,
+            "upper_95": 1.0
+          },
+          "known_target_precision": {
+            "median": 0.9955357142857143,
+            "lower_95": 0.9867256637168141,
+            "upper_95": 1.0
+          },
+          "known_target_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_target_f1": {
+            "median": 0.9977628635346756,
+            "lower_95": 0.9933184855233852,
+            "upper_95": 1.0
+          },
+          "known_clutter_precision": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "known_clutter_recall": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "known_clutter_f1": {
+            "median": 0.9411764705882353,
+            "lower_95": 0.8,
+            "upper_95": 1.0
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 1.0,
+            "lower_95": 1.0,
+            "upper_95": 1.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.8888888888888888,
+            "lower_95": 0.6666666666666666,
+            "upper_95": 1.0
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.9722222222222222,
+            "lower_95": 0.9166666666666666,
+            "upper_95": 1.0
+          }
+        },
+        "treatment_minus_baseline": {
+          "accuracy": {
+            "median": 0.02155172413793105,
+            "lower_95": 0.004310344827586299,
+            "upper_95": 0.03879310344827591
+          },
+          "macro_precision": {
+            "median": 0.13592575187969924,
+            "lower_95": 0.004366128242780265,
+            "upper_95": 0.2990903679653673
+          },
+          "macro_recall": {
+            "median": 0.17115097159940207,
+            "lower_95": 0.006726457399103158,
+            "upper_95": 0.3378176382660687
+          },
+          "macro_f1": {
+            "median": 0.16154536191657076,
+            "lower_95": 0.038608614381164585,
+            "upper_95": 0.3116525579169126
+          },
+          "known_target_precision": {
+            "median": 0.013313492063492083,
+            "lower_95": 0.00012012012012019291,
+            "upper_95": 0.02631578947368418
+          },
+          "known_target_recall": {
+            "median": 0.008968609865470878,
+            "lower_95": 0.0,
+            "upper_95": 0.022421524663677084
+          },
+          "known_target_f1": {
+            "median": 0.011135857461024523,
+            "lower_95": 0.0022471684674110204,
+            "upper_95": 0.020184388198352665
+          },
+          "known_clutter_precision": {
+            "median": 0.25,
+            "lower_95": 0.0,
+            "upper_95": 0.5833333333333333
+          },
+          "known_clutter_recall": {
+            "median": 0.33333333333333337,
+            "lower_95": 0.0,
+            "upper_95": 0.6666666666666667
+          },
+          "known_clutter_f1": {
+            "median": 0.30959752321981426,
+            "lower_95": 0.07500000000000007,
+            "upper_95": 0.607843137254902
+          },
+          "weak_class_precision_recall_f1_floor": {
+            "median": 0.33333333333333337,
+            "lower_95": 0.11111111111111105,
+            "upper_95": 0.6666666666666667
+          },
+          "DroneTarget_acceptance_recall": {
+            "median": 0.0,
+            "lower_95": 0.0,
+            "upper_95": 0.0
+          },
+          "BirdTarget_acceptance_recall": {
+            "median": 0.0357142857142857,
+            "lower_95": 0.0,
+            "upper_95": 0.0892857142857143
+          },
+          "BalloonTarget_acceptance_recall": {
+            "median": 0.0,
+            "lower_95": 0.0,
+            "upper_95": 0.0
+          },
+          "ClutterTarget_acceptance_recall": {
+            "median": 0.33333333333333337,
+            "lower_95": 0.0,
+            "upper_95": 0.6666666666666667
+          },
+          "four_label_macro_acceptance_recall": {
+            "median": 0.09226190476190466,
+            "lower_95": 0.013392857142857206,
+            "upper_95": 0.17559523809523803
+          }
+        }
+      },
+      "same_epoch_comparison": {
+        "role": "paired training trajectory; epochs are correlated, not independent replicates",
+        "rows": [
+          {
+            "epoch": 1,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 2,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 3,
+            "baseline_macro_f1": 0.4901098901098901,
+            "treatment_macro_f1": 0.4901098901098901,
+            "macro_f1_delta": 0.0,
+            "weak_floor_delta": 0.0,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0,
+            "baseline_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                9,
+                0
+              ]
+            ]
+          },
+          {
+            "epoch": 4,
+            "baseline_macro_f1": 0.7230086986184547,
+            "treatment_macro_f1": 0.779047619047619,
+            "macro_f1_delta": 0.05603892042916425,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.1111111111111111,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                5,
+                4
+              ]
+            ]
+          },
+          {
+            "epoch": 5,
+            "baseline_macro_f1": 0.7862876694301881,
+            "treatment_macro_f1": 0.862803075103489,
+            "macro_f1_delta": 0.07651540567330084,
+            "weak_floor_delta": 0.14444444444444438,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2222222222222222,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 6,
+            "baseline_macro_f1": 0.7588715664439496,
+            "treatment_macro_f1": 0.8058035714285715,
+            "macro_f1_delta": 0.04693200498462191,
+            "weak_floor_delta": 0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": 0.11111111111111116,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                5,
+                4
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 7,
+            "baseline_macro_f1": 0.6578171091445428,
+            "treatment_macro_f1": 0.7433628318584071,
+            "macro_f1_delta": 0.08554572271386429,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.128968253968254,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                7,
+                2
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                6,
+                3
+              ]
+            ]
+          },
+          {
+            "epoch": 8,
+            "baseline_macro_f1": 0.7230086986184547,
+            "treatment_macro_f1": 0.8021490704417533,
+            "macro_f1_delta": 0.07914037182329858,
+            "weak_floor_delta": 0.1111111111111111,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.1111111111111111
+            },
+            "four_label_acceptance_recall_delta_sum": 0.128968253968254,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                5,
+                4
+              ]
+            ]
+          },
+          {
+            "epoch": 9,
+            "baseline_macro_f1": 0.7230086986184547,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.21225915852440247,
+            "weak_floor_delta": 0.4444444444444445,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.4444444444444445
+            },
+            "four_label_acceptance_recall_delta_sum": 0.4623015873015874,
+            "baseline_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                6,
+                3
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 10,
+            "baseline_macro_f1": 0.7909909909909909,
+            "treatment_macro_f1": 0.8568490333196217,
+            "macro_f1_delta": 0.0658580423286308,
+            "weak_floor_delta": 0.06993006993007,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": -0.017699115044247815,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2402373928922601,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 11,
+            "baseline_macro_f1": 0.7530455351862804,
+            "treatment_macro_f1": 0.9352678571428572,
+            "macro_f1_delta": 0.18222232195657684,
+            "weak_floor_delta": 0.2777777777777778,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0892857142857143,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.3115079365079365,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 12,
+            "baseline_macro_f1": 0.7530455351862804,
+            "treatment_macro_f1": 0.9045660222130809,
+            "macro_f1_delta": 0.15152048702680054,
+            "weak_floor_delta": 0.1923076923076923,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.017857142857142905,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.4444444444444444
+            },
+            "four_label_acceptance_recall_delta_sum": 0.4623015873015873,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                0,
+                9
+              ]
+            ]
+          },
+          {
+            "epoch": 13,
+            "baseline_macro_f1": 0.7530455351862804,
+            "treatment_macro_f1": 0.9084090011843664,
+            "macro_f1_delta": 0.15536346599808604,
+            "weak_floor_delta": 0.2777777777777778,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0714285714285714,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.2936507936507936,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                2,
+                7
+              ]
+            ]
+          },
+          {
+            "epoch": 14,
+            "baseline_macro_f1": 0.7909909909909909,
+            "treatment_macro_f1": 0.9694696670614554,
+            "macro_f1_delta": 0.17847867607046453,
+            "weak_floor_delta": 0.3434343434343434,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0892857142857143,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.2222222222222222
+            },
+            "four_label_acceptance_recall_delta_sum": 0.3115079365079365,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 15,
+            "baseline_macro_f1": 0.7862876694301881,
+            "treatment_macro_f1": 0.8954954954954955,
+            "macro_f1_delta": 0.10920782606530732,
+            "weak_floor_delta": 0.1717171717171717,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.33333333333333326
+            },
+            "four_label_acceptance_recall_delta_sum": 0.33333333333333326,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                1,
+                8
+              ]
+            ]
+          },
+          {
+            "epoch": 16,
+            "baseline_macro_f1": 0.7530455351862804,
+            "treatment_macro_f1": 0.8526984126984127,
+            "macro_f1_delta": 0.09965287751213237,
+            "weak_floor_delta": 0.05555555555555558,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0892857142857143,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.0
+            },
+            "four_label_acceptance_recall_delta_sum": 0.0892857142857143,
+            "baseline_parent_confusion_matrix": [
+              [
+                218,
+                5
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 17,
+            "baseline_macro_f1": 0.7483979098885931,
+            "treatment_macro_f1": 0.8277654046028211,
+            "macro_f1_delta": 0.07936749471422799,
+            "weak_floor_delta": 0.12698412698412703,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.125,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": -0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": 0.01388888888888895,
+            "baseline_parent_confusion_matrix": [
+              [
+                215,
+                8
+              ],
+              [
+                3,
+                6
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                4,
+                5
+              ]
+            ]
+          },
+          {
+            "epoch": 18,
+            "baseline_macro_f1": 0.8058035714285715,
+            "treatment_macro_f1": 0.8021490704417533,
+            "macro_f1_delta": -0.0036545009868181877,
+            "weak_floor_delta": -0.11111111111111116,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": -0.11111111111111116
+            },
+            "four_label_acceptance_recall_delta_sum": -0.07539682539682546,
+            "baseline_parent_confusion_matrix": [
+              [
+                221,
+                2
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                223,
+                0
+              ],
+              [
+                5,
+                4
+              ]
+            ]
+          },
+          {
+            "epoch": 19,
+            "baseline_macro_f1": 0.7688091679123069,
+            "treatment_macro_f1": 0.8705357142857143,
+            "macro_f1_delta": 0.10172654637340739,
+            "weak_floor_delta": 0.11111111111111105,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.01851851851851849,
+              "ClutterTarget": 0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": 0.16534391534391524,
+            "baseline_parent_confusion_matrix": [
+              [
+                219,
+                4
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                3,
+                6
+              ]
+            ]
+          },
+          {
+            "epoch": 20,
+            "baseline_macro_f1": 0.7862876694301881,
+            "treatment_macro_f1": 0.8705357142857143,
+            "macro_f1_delta": 0.08424804485552617,
+            "weak_floor_delta": 0.11111111111111105,
+            "base_label_acceptance_recall_deltas": {
+              "DroneTarget": 0.0,
+              "BirdTarget": 0.0357142857142857,
+              "BalloonTarget": 0.0,
+              "ClutterTarget": 0.11111111111111105
+            },
+            "four_label_acceptance_recall_delta_sum": 0.14682539682539675,
+            "baseline_parent_confusion_matrix": [
+              [
+                220,
+                3
+              ],
+              [
+                4,
+                5
+              ]
+            ],
+            "treatment_parent_confusion_matrix": [
+              [
+                222,
+                1
+              ],
+              [
+                3,
+                6
+              ]
+            ]
+          }
+        ],
+        "treatment_macro_f1_higher_epoch_count": 16,
+        "macro_f1_delta_strictly_greater_than_0_02_epoch_count": 16,
+        "maximum_macro_f1_delta": 0.21225915852440247,
+        "maximum_macro_f1_delta_epoch": 9
+      },
+      "trained_course_fusion_column": {
+        "column_index": 79,
+        "element_count": 48,
+        "nonzero_element_count": 48,
+        "l1_norm": 4.02098868181929,
+        "l2_norm": 0.6182492547452213,
+        "maximum_absolute_weight": 0.13025961816310883
+      },
+      "gate": {
+        "primary_macro_signal_passed": true,
+        "parent_direction_safety_passed": true,
+        "paired_bootstrap_robust": true,
+        "eligible_prefix_guard_passed": true,
+        "full_parent_seed_gate_passed": true
+      },
+      "runs": {
+        "baseline": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal\\training-summary.json",
+          "summary_sha256": "aabae2b8e285be436f47afda8347679e4d0f0d4a0f348080fc0e2fe111cfc767",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed44-formal\\best_model.pt",
+          "checkpoint_sha256": "716025e3b04c2dab6ab3c54ed908f9e34cfc904429f41d3e2c98aae84b6e2aec"
+        },
+        "treatment": {
+          "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed44-formal\\training-summary.json",
+          "summary_sha256": "f671a905c44a9f3d5e626b9269d2d92beacee92121691d380a3e0ce1e0fb3feb",
+          "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed44-formal\\best_model.pt",
+          "checkpoint_sha256": "a4b9e238a05e1c9f2769939c75f84bb8e438a45cf92095bf5e814b7d24a647ff"
+        }
+      }
+    }
+  },
+  "decision": {
+    "aggregate_treatment_minus_baseline_by_scope": {
+      "parent": {
+        "accuracy": {
+          "values_by_seed": {
+            "42": 0.012931034482758674,
+            "43": 0.02155172413793105,
+            "44": 0.02155172413793105
+          },
+          "mean": 0.01867816091954026,
+          "median": 0.02155172413793105,
+          "minimum": 0.012931034482758674,
+          "maximum": 0.02155172413793105
+        },
+        "macro_precision": {
+          "values_by_seed": {
+            "42": 0.0738987205495053,
+            "43": 0.1545045045045046,
+            "44": 0.14951388888888895
+          },
+          "mean": 0.1259723713142996,
+          "median": 0.14951388888888895,
+          "minimum": 0.0738987205495053,
+          "maximum": 0.1545045045045046
+        },
+        "macro_recall": {
+          "values_by_seed": {
+            "42": 0.11335326357747888,
+            "43": 0.11783756851021421,
+            "44": 0.17115097159940207
+          },
+          "mean": 0.13411393456236506,
+          "median": 0.11783756851021421,
+          "minimum": 0.11335326357747888,
+          "maximum": 0.17115097159940207
+        },
+        "macro_f1": {
+          "values_by_seed": {
+            "42": 0.09485395667079943,
+            "43": 0.13719692489651103,
+            "44": 0.16366609563288392
+          },
+          "mean": 0.13190565906673146,
+          "median": 0.13719692489651103,
+          "minimum": 0.09485395667079943,
+          "maximum": 0.16366609563288392
+        },
+        "known_target_precision": {
+          "values_by_seed": {
+            "42": 0.008908552210121656,
+            "43": 0.009009009009009028,
+            "44": 0.013313492063492083
+          },
+          "mean": 0.01041035109420759,
+          "median": 0.009009009009009028,
+          "minimum": 0.008908552210121656,
+          "maximum": 0.013313492063492083
+        },
+        "known_target_recall": {
+          "values_by_seed": {
+            "42": 0.004484304932735439,
+            "43": 0.013452914798206317,
+            "44": 0.008968609865470878
+          },
+          "mean": 0.008968609865470878,
+          "median": 0.008968609865470878,
+          "minimum": 0.004484304932735439,
+          "maximum": 0.013452914798206317
+        },
+        "known_target_f1": {
+          "values_by_seed": {
+            "42": 0.006701377393886432,
+            "43": 0.011235955056179803,
+            "44": 0.011155720677532677
+          },
+          "mean": 0.009697684375866303,
+          "median": 0.011155720677532677,
+          "minimum": 0.006701377393886432,
+          "maximum": 0.011235955056179803
+        },
+        "known_clutter_precision": {
+          "values_by_seed": {
+            "42": 0.13888888888888884,
+            "43": 0.30000000000000004,
+            "44": 0.2857142857142857
+          },
+          "mean": 0.24153439153439152,
+          "median": 0.2857142857142857,
+          "minimum": 0.13888888888888884,
+          "maximum": 0.30000000000000004
+        },
+        "known_clutter_recall": {
+          "values_by_seed": {
+            "42": 0.2222222222222222,
+            "43": 0.2222222222222222,
+            "44": 0.33333333333333326
+          },
+          "mean": 0.25925925925925924,
+          "median": 0.2222222222222222,
+          "minimum": 0.2222222222222222,
+          "maximum": 0.33333333333333326
+        },
+        "known_clutter_f1": {
+          "values_by_seed": {
+            "42": 0.18300653594771232,
+            "43": 0.26315789473684226,
+            "44": 0.31617647058823517
+          },
+          "mean": 0.2541136337575966,
+          "median": 0.26315789473684226,
+          "minimum": 0.18300653594771232,
+          "maximum": 0.31617647058823517
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "values_by_seed": {
+            "42": 0.2222222222222222,
+            "43": 0.30000000000000004,
+            "44": 0.33333333333333326
+          },
+          "mean": 0.28518518518518515,
+          "median": 0.30000000000000004,
+          "minimum": 0.2222222222222222,
+          "maximum": 0.33333333333333326
+        }
+      },
+      "window": {
+        "accuracy": {
+          "values_by_seed": {
+            "42": 0.010107816711590334,
+            "43": -0.001123090745732247,
+            "44": 0.012578616352201255
+          },
+          "mean": 0.007187780772686447,
+          "median": 0.010107816711590334,
+          "minimum": -0.001123090745732247,
+          "maximum": 0.012578616352201255
+        },
+        "macro_precision": {
+          "values_by_seed": {
+            "42": 0.06877605671027343,
+            "43": -0.018495998959169757,
+            "44": 0.11480920935255867
+          },
+          "mean": 0.05502975570122078,
+          "median": 0.06877605671027343,
+          "minimum": -0.018495998959169757,
+          "maximum": 0.11480920935255867
+        },
+        "macro_recall": {
+          "values_by_seed": {
+            "42": 0.1078733618492902,
+            "43": 0.02873873771386959,
+            "44": 0.12088471514379318
+          },
+          "mean": 0.08583227156898432,
+          "median": 0.1078733618492902,
+          "minimum": 0.02873873771386959,
+          "maximum": 0.12088471514379318
+        },
+        "macro_f1": {
+          "values_by_seed": {
+            "42": 0.1017762490888714,
+            "43": 0.0013166800989756755,
+            "44": 0.1306857850377413
+          },
+          "mean": 0.07792623807519612,
+          "median": 0.1017762490888714,
+          "minimum": 0.0013166800989756755,
+          "maximum": 0.1306857850377413
+        },
+        "known_target_precision": {
+          "values_by_seed": {
+            "42": 0.007953451213189022,
+            "43": 0.0023058441235048743,
+            "44": 0.008839197925896713
+          },
+          "mean": 0.006366164420863536,
+          "median": 0.007953451213189022,
+          "minimum": 0.0023058441235048743,
+          "maximum": 0.008839197925896713
+        },
+        "known_target_recall": {
+          "values_by_seed": {
+            "42": 0.0023320895522388474,
+            "43": -0.0034981343283582156,
+            "44": 0.003964552238805985
+          },
+          "mean": 0.000932835820895539,
+          "median": 0.0023320895522388474,
+          "minimum": -0.0034981343283582156,
+          "maximum": 0.003964552238805985
+        },
+        "known_target_f1": {
+          "values_by_seed": {
+            "42": 0.005181724156390399,
+            "43": -0.0006148334894614527,
+            "44": 0.006445170252186161
+          },
+          "mean": 0.0036706869730383693,
+          "median": 0.005181724156390399,
+          "minimum": -0.0006148334894614527,
+          "maximum": 0.006445170252186161
+        },
+        "known_clutter_precision": {
+          "values_by_seed": {
+            "42": 0.12959866220735794,
+            "43": -0.03929784204184461,
+            "44": 0.22077922077922074
+          },
+          "mean": 0.10369334698157802,
+          "median": 0.12959866220735794,
+          "minimum": -0.03929784204184461,
+          "maximum": 0.22077922077922074
+        },
+        "known_clutter_recall": {
+          "values_by_seed": {
+            "42": 0.2134146341463415,
+            "43": 0.060975609756097504,
+            "44": 0.23780487804878048
+          },
+          "mean": 0.17073170731707318,
+          "median": 0.2134146341463415,
+          "minimum": 0.060975609756097504,
+          "maximum": 0.23780487804878048
+        },
+        "known_clutter_f1": {
+          "values_by_seed": {
+            "42": 0.1983707740213524,
+            "43": 0.0032481936874129147,
+            "44": 0.25492639982329657
+          },
+          "mean": 0.15218178917735395,
+          "median": 0.1983707740213524,
+          "minimum": 0.0032481936874129147,
+          "maximum": 0.25492639982329657
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "values_by_seed": {
+            "42": 0.2134146341463415,
+            "43": -0.03929784204184461,
+            "44": 0.23780487804878048
+          },
+          "mean": 0.13730722338442578,
+          "median": 0.2134146341463415,
+          "minimum": -0.03929784204184461,
+          "maximum": 0.23780487804878048
+        }
+      },
+      "eligible_prefix": {
+        "accuracy": {
+          "values_by_seed": {
+            "42": 0.009052183173588912,
+            "43": -0.0005324813631523151,
+            "44": 0.012247071352502692
+          },
+          "mean": 0.006922257720979763,
+          "median": 0.009052183173588912,
+          "minimum": -0.0005324813631523151,
+          "maximum": 0.012247071352502692
+        },
+        "macro_precision": {
+          "values_by_seed": {
+            "42": 0.073295962302654,
+            "43": -0.014016362992801179,
+            "44": 0.1144656283819867
+          },
+          "mean": 0.057915075897279844,
+          "median": 0.073295962302654,
+          "minimum": -0.014016362992801179,
+          "maximum": 0.1144656283819867
+        },
+        "macro_recall": {
+          "values_by_seed": {
+            "42": 0.08546136267832183,
+            "43": 0.027815483165692823,
+            "44": 0.11521108182080386
+          },
+          "mean": 0.0761626425549395,
+          "median": 0.08546136267832183,
+          "minimum": 0.027815483165692823,
+          "maximum": 0.11521108182080386
+        },
+        "macro_f1": {
+          "values_by_seed": {
+            "42": 0.08599955620630562,
+            "43": 0.003805739395781993,
+            "44": 0.12469362033826159
+          },
+          "mean": 0.07149963864678306,
+          "median": 0.08599955620630562,
+          "minimum": 0.003805739395781993,
+          "maximum": 0.12469362033826159
+        },
+        "known_target_precision": {
+          "values_by_seed": {
+            "42": 0.00621828682637704,
+            "43": 0.0021887103363842364,
+            "44": 0.008343021469855771
+          },
+          "mean": 0.005583339544205683,
+          "median": 0.00621828682637704,
+          "minimum": 0.0021887103363842364,
+          "maximum": 0.008343021469855771
+        },
+        "known_target_recall": {
+          "values_by_seed": {
+            "42": 0.003039513677811523,
+            "43": -0.0027631942525560005,
+            "44": 0.004144791378833945
+          },
+          "mean": 0.001473703601363156,
+          "median": 0.003039513677811523,
+          "minimum": -0.0027631942525560005,
+          "maximum": 0.004144791378833945
+        },
+        "known_target_f1": {
+          "values_by_seed": {
+            "42": 0.0046504793105535125,
+            "43": -0.0003016607005227323,
+            "44": 0.006279415933117427
+          },
+          "mean": 0.0035427448477160692,
+          "median": 0.0046504793105535125,
+          "minimum": -0.0003016607005227323,
+          "maximum": 0.006279415933117427
+        },
+        "known_clutter_precision": {
+          "values_by_seed": {
+            "42": 0.14037363777893108,
+            "43": -0.030221436321986817,
+            "44": 0.22058823529411764
+          },
+          "mean": 0.11024681225035397,
+          "median": 0.14037363777893108,
+          "minimum": -0.030221436321986817,
+          "maximum": 0.22058823529411764
+        },
+        "known_clutter_recall": {
+          "values_by_seed": {
+            "42": 0.16788321167883208,
+            "43": 0.058394160583941535,
+            "44": 0.22627737226277372
+          },
+          "mean": 0.15085158150851577,
+          "median": 0.16788321167883208,
+          "minimum": 0.058394160583941535,
+          "maximum": 0.22627737226277372
+        },
+        "known_clutter_f1": {
+          "values_by_seed": {
+            "42": 0.16734863310205783,
+            "43": 0.00791313949208694,
+            "44": 0.24310782474340575
+          },
+          "mean": 0.13945653244585018,
+          "median": 0.16734863310205783,
+          "minimum": 0.00791313949208694,
+          "maximum": 0.24310782474340575
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "values_by_seed": {
+            "42": 0.16788321167883208,
+            "43": -0.030221436321986817,
+            "44": 0.22627737226277372
+          },
+          "mean": 0.12131304920653967,
+          "median": 0.16788321167883208,
+          "minimum": -0.030221436321986817,
+          "maximum": 0.22627737226277372
+        }
+      }
+    },
+    "aggregate_parent_base_label_net_rescue": {
+      "DroneTarget": {
+        "values_by_seed": {
+          "42": 0.0,
+          "43": 0.0,
+          "44": 0.0
+        },
+        "mean": 0.0,
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 0.0
+      },
+      "BirdTarget": {
+        "values_by_seed": {
+          "42": 1.0,
+          "43": 2.0,
+          "44": 2.0
+        },
+        "mean": 1.6666666666666667,
+        "median": 2.0,
+        "minimum": 1.0,
+        "maximum": 2.0
+      },
+      "BalloonTarget": {
+        "values_by_seed": {
+          "42": 0.0,
+          "43": 1.0,
+          "44": 0.0
+        },
+        "mean": 0.3333333333333333,
+        "median": 0.0,
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "ClutterTarget": {
+        "values_by_seed": {
+          "42": 2.0,
+          "43": 2.0,
+          "44": 3.0
+        },
+        "mean": 2.3333333333333335,
+        "median": 2.0,
+        "minimum": 2.0,
+        "maximum": 3.0
+      }
+    },
+    "aggregate_combined_parent_net_rescue": {
+      "values_by_seed": {
+        "42": 3.0,
+        "43": 5.0,
+        "44": 5.0
+      },
+      "mean": 4.333333333333333,
+      "median": 5.0,
+      "minimum": 3.0,
+      "maximum": 5.0
+    },
+    "primary_macro_signal_passing_seed_count": 3,
+    "paired_bootstrap_robust_seed_count": 2,
+    "parent_direction_safety_passing_seed_count": 3,
+    "eligible_prefix_guard_passing_seed_count": 2,
+    "required_passing_seed_count": 2,
+    "parent_final_replication_confirmed": true,
+    "direction_replication_confirmed": true,
+    "bootstrap_replication_confirmed": true,
+    "parent_final_confirmation_passed": true,
+    "online_eligible_prefix_guard_passed": true,
+    "advance_to_train_parent_grouped_oof": true,
+    "online_known_gate_adoption_allowed": false
+  },
+  "readiness": {
+    "path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V21e-known-gate-causal-course-consistency-multiseed-training-readiness.json",
+    "sha256": "007ea642e8a31457ab5ae0a9e3906786cf15e8370667cf82809a811b95a39528",
+    "schema_version": "RADAR-LN3-V21e-known-gate-causal-course-consistency-multiseed-training-readiness-v1"
+  },
+  "interpretation_contract": {
+    "seed_role": "seeds 42/43/44 are optimization replicates over the same 232 development parents, not independent data samples",
+    "clutter_support_per_seed": 9,
+    "no_three_seed_p_value": true,
+    "post_hoc_feature_discovery": true,
+    "same_development_validation_used_for_feature_discovery": true,
+    "parent_final_confirmation_does_not_replace_prefix_stable_or_open_set_validation": true,
+    "new_independent_holdout_required": true
+  },
+  "conclusion": "V21e replicates its frozen parent-final signal and may advance to train parent-grouped OOF; online use remains blocked until prefix/stable and new-holdout checks.",
+  "unknown_is_model_class": false,
+  "local_argmax_is_product_action": false,
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

@@ -17,7 +17,7 @@ from radar_ln3.known_gate import (
     load_known_gate_config,
     sha256_file,
 )
-from report.known_gate_v21e import LABELS
+from report.known_gate_v21e import LABELS, _base_label_outcomes
 from report.known_gate_v21e_multiseed import aggregate_decision
 from train.known_gate_v21 import _verify_contract, _verify_readiness
 
@@ -67,8 +67,38 @@ def _synthetic_seed_result(seed: int, *, prefix_safe: bool) -> dict[str, Any]:
     }
 
 
+def _assert_eligible_prefix_pairing() -> None:
+    baseline: list[dict[str, Any]] = []
+    treatment: list[dict[str, Any]] = []
+    for label_index, label in enumerate(LABELS):
+        true_id = 1 if label == "ClutterTarget" else 0
+        for event_index in (3, 4):
+            row = {
+                "parent_sample_id": f"prefix-pair-{label_index}",
+                "event_index": event_index,
+                "label_name": label,
+                "true_id": true_id,
+                "pred_id": true_id,
+            }
+            baseline.append(dict(row))
+            treatment.append(dict(row))
+    baseline[0]["pred_id"] = 1
+    outcomes = _base_label_outcomes(
+        baseline,
+        treatment,
+        scope="eligible_prefix",
+    )
+    if (
+        any(int(outcomes[label]["support"]) != 2 for label in LABELS)
+        or int(outcomes["DroneTarget"]["rescued"]) != 1
+        or int(outcomes["DroneTarget"]["net_rescue"]) != 1
+    ):
+        raise AssertionError("V21e eligible-prefix pairing regression failed")
+
+
 def run(project_root: Path) -> dict[str, Any]:
     root = project_root.resolve()
+    _assert_eligible_prefix_pairing()
     readiness_path = root / READINESS
     if not readiness_path.is_file():
         raise FileNotFoundError(

@@ -1777,9 +1777,12 @@
 - [x] 冻结parent-final确认：至少2/3 seed及三seed中位Macro-F1增量均严格`>0.02`，至少2/3 seed方向安全且bootstrap下界>0；通过只允许进入train parent-grouped OOF。
 - [x] 冻结独立eligible-prefix守卫：至少2/3 seed且三seed中位的Macro-F1、KnownTarget Recall、Clutter Recall均不下降；失败不抹除parent-final结论，但阻止在线KnownGate/stable采纳。
 - [x] 新增一键PowerShell流水线和focused smoke；脚本复用完整Control与seed43 Treatment，只串行训练seed42/44 Treatment，任一步失败即停止。
-- [ ] 用户执行全量seed42/44 Treatment训练及冻结多seeddevelopment汇总。
+- [x] 用户完成seed42/44 Treatment全参数20 epoch训练；三seed均保持同seed初始logits一致、20轮parent顺序一致，且未从已训练checkpoint微调。
+- [x] 修复冻结汇总器将`eligible_prefix`误用parent键去重的问题；该问题只影响报告聚合，不影响训练或预测。新增同一parent多event回归探针后，单seed/multiseed Smoke、Python编译与静态隔离均通过。
+- [x] 冻结多seeddevelopment汇总完成：parent Macro-F1增量seed42/43/44分别为`+0.094854/+0.137197/+0.163666`，parent合计net rescue分别为`+3/+5/+5`，三seed方向安全均通过。
+- [x] parent主门槛通过：3/3 seed超过`+0.02`主信号，2/3 seed paired bootstrap下界大于0；eligible-prefix守卫为2/3 seed通过，seed43 KnownTarget Recall轻微下降`-0.002763`，因此只允许晋级train parent-grouped OOF，禁止直接在线采纳。
 - [ ] train parent-grouped OOF、新独立holdout、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
 
-冻结结论：多seed阶段只回答优化随机性复现，不消除事后特征选择、Clutter n=9、development重复使用或环境覆盖不足。不得根据seed42/44中间结果调整特征support、挑seed、挑epoch或降低2pp门槛。
+冻结结论：V21e parent-final正向信号已跨seed42/43/44优化随机性复现，可进入train parent-grouped OOF；它尚未成为可在线使用的KnownGate改进。三seed仍共享同一232个development parent，Clutter每seed仅9个，且特征来自事后错误分析；本结果不消除look-elsewhere、development重复使用、环境覆盖不足或早期prefix风险。新独立holdout、正式拒识、完整级联、test、stable、P95和部署均未执行。
 
 版本策略：复用V21e原数据/特征合同与三套Baseline artifact；新增seed42/44 Treatment配置/checkpoint、多seedreadiness/report/protocol，不创建新数据版本。
