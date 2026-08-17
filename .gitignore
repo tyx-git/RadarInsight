@@ -52,6 +52,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v21d_contract_test.py
 !src-v3/smoke/clutter_coverage_semantics_audit_test.py
 !src-v3/smoke/known_gate_v21e_contract_test.py
+!src-v3/smoke/known_gate_v21e_multiseed_contract_test.py
 !src-v3/README.md
 !docs/
 docs/*
@@ -62,4 +63,5 @@ docs/*
 !docs/radar_ln3_v21d_causal_prefix_d_range_experiment.md
 !docs/radar_ln3_clutter_semantic_adjudication_protocol.md
 !docs/radar_ln3_v21e_causal_course_consistency_experiment.md
+!docs/radar_ln3_v21e_multiseed_confirmation.md
 v2r/

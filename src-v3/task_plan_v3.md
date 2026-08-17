@@ -1761,3 +1761,25 @@
 冻结结论：V21e通过seed43单seeddevelopment冻结门槛，是V21a-e中唯一允许进入多seed复核的候选。该结果仍受事后特征发现、同一development多方向探索、Clutter仅9个及早期prefix收益不足约束；多seed通过前不能采纳为产品KnownGate证据，也不得修改最小support、挑epoch或组合V21a-d负结果。
 
 版本策略：复用V16 index/split、V21 known-only normalization和KnownGate主干；新增独立V21e一列cache/manifest/contract/config/checkpoint/report，不改变历史V21a-d artifact。
+
+## Stage 077 - V21e因果航向一致性多seed配对确认
+
+目标：在不修改V21e公式、数据、训练目标或checkpoint规则的前提下，用seed42/43/44严格同seed配对判断seed43 parent-final正向信号是否跨优化随机性复现，并把parent-final确认与eligible-prefix在线安全分开裁决。
+
+前置依赖：Stage 070三套V21 Baseline均为完整20 epoch正式Control；Stage 076 seed43 V21e Treatment及其paired report保持SHA冻结。Unknown仍不进入KnownGate类别，test继续sealed。
+
+最小子任务：
+
+- [x] 冻结seed集合=`42/43/44`；复用三套已完成Baseline及seed43 Treatment，仅新增seed42/44 Treatment全参数20 epoch训练，不重训已完成Control，也不从任何已训练checkpoint微调。
+- [x] 新增多seedbuilder，生成seed42/44正式Treatment配置并绑定对应同seedBaseline config/summary/checkpoint、V21e原feature contract/cache、seed43正向报告和独立多seedreadiness。
+- [x] 扩展KnownGate训练门禁，只允许冻结seed43 V21e配置或readiness绑定的seed42/44多seed配置；其他seed、路径或旧合同继续fail-closed。
+- [x] 新增多seed汇总器：逐seed核验初始logits、20轮parent顺序、own-best、parent/window/eligible-prefix、四标签净救回、概率归因、same-epoch和5000次四标签分层paired bootstrap。
+- [x] 冻结parent-final确认：至少2/3 seed及三seed中位Macro-F1增量均严格`>0.02`，至少2/3 seed方向安全且bootstrap下界>0；通过只允许进入train parent-grouped OOF。
+- [x] 冻结独立eligible-prefix守卫：至少2/3 seed且三seed中位的Macro-F1、KnownTarget Recall、Clutter Recall均不下降；失败不抹除parent-final结论，但阻止在线KnownGate/stable采纳。
+- [x] 新增一键PowerShell流水线和focused smoke；脚本复用完整Control与seed43 Treatment，只串行训练seed42/44 Treatment，任一步失败即停止。
+- [ ] 用户执行全量seed42/44 Treatment训练及冻结多seeddevelopment汇总。
+- [ ] train parent-grouped OOF、新独立holdout、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结结论：多seed阶段只回答优化随机性复现，不消除事后特征选择、Clutter n=9、development重复使用或环境覆盖不足。不得根据seed42/44中间结果调整特征support、挑seed、挑epoch或降低2pp门槛。
+
+版本策略：复用V21e原数据/特征合同与三套Baseline artifact；新增seed42/44 Treatment配置/checkpoint、多seedreadiness/report/protocol，不创建新数据版本。

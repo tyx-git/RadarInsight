@@ -84,10 +84,15 @@ KNOWN_GATE_V21D_MANIFEST_SCHEMA = (
 KNOWN_GATE_V21E_READINESS_SCHEMA = (
     "RADAR-LN3-V21e-known-gate-causal-course-consistency-training-readiness-v1"
 )
+KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA = (
+    "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+    "multiseed-training-readiness-v1"
+)
 KNOWN_GATE_V21E_MANIFEST_SCHEMA = (
     "RADAR-LN3-V21e-known-gate-causal-course-consistency-feature-cache-manifest-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
+KNOWN_GATE_V21E_MULTISEED_SEEDS = KNOWN_GATE_BASELINE_MULTISEED_SEEDS
 
 
 def _require(mapping: Mapping[str, Any], key: str) -> Any:

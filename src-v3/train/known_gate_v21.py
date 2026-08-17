@@ -27,6 +27,8 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V21D_MANIFEST_SCHEMA,
     KNOWN_GATE_V21D_READINESS_SCHEMA,
     KNOWN_GATE_V21E_MANIFEST_SCHEMA,
+    KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA,
+    KNOWN_GATE_V21E_MULTISEED_SEEDS,
     KNOWN_GATE_V21E_READINESS_SCHEMA,
     UNKNOWN_LABEL,
     KnownGateClassifier,
@@ -109,6 +111,19 @@ V21E_FORMAL_CONFIG_RELATIVE = Path(
     "RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-"
     "seed43-config.json"
 )
+V21E_MULTISEED_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+    "multiseed-training-readiness.json"
+)
+
+
+def _v21e_multiseed_config_relative(seed: int) -> Path:
+    return Path(
+        "config/RADAR-LN3/"
+        "RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-"
+        f"seed{int(seed)}-config.json"
+    )
 
 
 def _resolve(root: Path, value: str | Path) -> Path:
@@ -621,8 +636,6 @@ def _verify_readiness(
         )
     if config.variant == V21D_PREFIX_VARIANT and config.train.seed != 43:
         raise PermissionError("V21d must pair with selected Baseline seed43")
-    if config.variant == V21E_COURSE_PREFIX_VARIANT and config.train.seed != 43:
-        raise PermissionError("V21e must pair with selected Baseline seed43")
     if (
         config.variant == V21B_VARIANT
         and config_path.resolve() != (root / V21B_FORMAL_CONFIG_RELATIVE).resolve()
@@ -646,13 +659,22 @@ def _verify_readiness(
         raise PermissionError(
             "use the frozen selected-seed43 Clutter/Bird causal-prefix d-range config"
         )
-    if (
-        config.variant == V21E_COURSE_PREFIX_VARIANT
-        and config_path.resolve() != (root / V21E_FORMAL_CONFIG_RELATIVE).resolve()
-    ):
-        raise PermissionError(
-            "use the frozen selected-seed43 causal-course consistency config"
+    if config.variant == V21E_COURSE_PREFIX_VARIANT:
+        seed = int(config.train.seed)
+        selected_seed43 = (
+            seed == 43
+            and config_path.resolve() == (root / V21E_FORMAL_CONFIG_RELATIVE).resolve()
         )
+        multiseed_confirmation = (
+            seed in {42, 44}
+            and config_path.resolve()
+            == (root / _v21e_multiseed_config_relative(seed)).resolve()
+        )
+        if not (selected_seed43 or multiseed_confirmation):
+            raise PermissionError(
+                "use the frozen seed43 V21e config or the sealed seed42/44 "
+                "multiseed confirmation config"
+            )
     if config.variant == V21A_INTERFRAME_VARIANT:
         return _verify_v21a_readiness(
             root,
@@ -682,6 +704,13 @@ def _verify_readiness(
             contract_evidence,
         )
     if config.variant == V21E_COURSE_PREFIX_VARIANT:
+        if config.train.seed in {42, 44}:
+            return _verify_v21e_multiseed_readiness(
+                root,
+                config_path,
+                config,
+                contract_evidence,
+            )
         return _verify_v21e_readiness(
             root,
             config_path,
@@ -1130,6 +1159,87 @@ def _verify_v21e_readiness(
         "schema_version": KNOWN_GATE_V21E_READINESS_SCHEMA,
         "status": "passed",
         "selected_baseline_seed": 43,
+        "post_hoc_feature_discovery": True,
+        "validation_used_for_readiness_gate": False,
+        "test": "未执行",
+    }
+
+
+def _verify_v21e_multiseed_readiness(
+    root: Path,
+    config_path: Path,
+    config: KnownGateConfig,
+    contract_evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    seed = int(config.train.seed)
+    if seed not in {42, 44}:
+        raise PermissionError("V21e multiseed training is restricted to seeds 42 and 44")
+    path = (root / V21E_MULTISEED_READINESS_RELATIVE).resolve()
+    if not path.is_file():
+        raise PermissionError(f"V21e multiseed training requires readiness: {path}")
+    report = json.loads(path.read_text(encoding="utf-8"))
+    checks = dict(report.get("checks") or {})
+    binding = dict(dict(report.get("treatment_configs") or {}).get(str(seed)) or {})
+    baseline = dict(dict(report.get("baseline_runs") or {}).get(str(seed)) or {})
+    expected_hashes = dict(report.get("contract_hashes") or {})
+    actual_required = {
+        "index_sha256": contract_evidence["hashes"]["index_sha256"],
+        "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+        "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+        "experiment_contract_sha256": contract_evidence["hashes"][
+            "feature_experiment_contract_sha256"
+        ],
+        "feature_manifest_sha256": contract_evidence["hashes"][
+            "feature_manifest_sha256"
+        ],
+        "train_feature_cache_sha256": contract_evidence["hashes"][
+            "train_feature_cache_sha256"
+        ],
+        "validation_feature_cache_sha256": contract_evidence["hashes"][
+            "validation_feature_cache_sha256"
+        ],
+    }
+    baseline_config_path = _resolve(root, config.train.paired_baseline_config_path or "")
+    baseline_summary_path = Path(str(baseline.get("summary_path", ""))).resolve()
+    baseline_checkpoint_path = Path(str(baseline.get("checkpoint_path", ""))).resolve()
+    if (
+        report.get("status") != "passed"
+        or report.get("schema_version")
+        != KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA
+        or tuple(report.get("seed_set") or ()) != KNOWN_GATE_V21E_MULTISEED_SEEDS
+        or tuple(report.get("new_training_seeds") or ()) != (42, 44)
+        or not checks
+        or not all(value is True for value in checks.values())
+        or Path(str(binding.get("path", ""))).resolve() != config_path.resolve()
+        or binding.get("sha256") != sha256_file(config_path)
+        or int(binding.get("seed", -1)) != seed
+        or int(baseline.get("seed", -1)) != seed
+        or Path(str(baseline.get("config_path", ""))).resolve()
+        != baseline_config_path
+        or not baseline_config_path.is_file()
+        or baseline.get("config_sha256") != sha256_file(baseline_config_path)
+        or not baseline_summary_path.is_file()
+        or baseline.get("summary_sha256") != sha256_file(baseline_summary_path)
+        or not baseline_checkpoint_path.is_file()
+        or baseline.get("checkpoint_sha256") != sha256_file(baseline_checkpoint_path)
+        or any(expected_hashes.get(key) != value for key, value in actual_required.items())
+        or report.get("post_hoc_feature_discovery") is not True
+        or report.get("validation_used_for_readiness_gate") is not False
+        or int(report.get("test_payload_access_count", -1)) != 0
+        or report.get("formal_training_at_report_generation") != "未执行"
+        or report.get("test") != "未执行"
+        or report.get("deployment_eligible") is not False
+    ):
+        raise PermissionError(
+            "V21e multiseed readiness is missing, stale, failed or not paired "
+            f"to Baseline seed{seed}"
+        )
+    return {
+        "path": str(path),
+        "sha256": sha256_file(path),
+        "schema_version": KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA,
+        "status": "passed",
+        "paired_baseline_seed": seed,
         "post_hoc_feature_discovery": True,
         "validation_used_for_readiness_gate": False,
         "test": "未执行",
