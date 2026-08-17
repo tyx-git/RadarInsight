@@ -1781,8 +1781,9 @@
 - [x] 修复冻结汇总器将`eligible_prefix`误用parent键去重的问题；该问题只影响报告聚合，不影响训练或预测。新增同一parent多event回归探针后，单seed/multiseed Smoke、Python编译与静态隔离均通过。
 - [x] 冻结多seeddevelopment汇总完成：parent Macro-F1增量seed42/43/44分别为`+0.094854/+0.137197/+0.163666`，parent合计net rescue分别为`+3/+5/+5`，三seed方向安全均通过。
 - [x] parent主门槛通过：3/3 seed超过`+0.02`主信号，2/3 seed paired bootstrap下界大于0；eligible-prefix守卫为2/3 seed通过，seed43 KnownTarget Recall轻微下降`-0.002763`，因此只允许晋级train parent-grouped OOF，禁止直接在线采纳。
+- [x] 按冻结`parent_min_precision_recall`排序保留seed43 best epoch 14 checkpoint作为当前最佳development parent-final参考：其ranking key=`[1.0,1.0]`、混淆矩阵=`[[223,0],[0,9]]`，严格优于seed42/44并且是唯一通过本地0.90每类护栏的seed；已用独立选择JSON绑定config/summary/checkpoint/model-state/report哈希。
 - [ ] train parent-grouped OOF、新独立holdout、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
 
-冻结结论：V21e parent-final正向信号已跨seed42/43/44优化随机性复现，可进入train parent-grouped OOF；它尚未成为可在线使用的KnownGate改进。三seed仍共享同一232个development parent，Clutter每seed仅9个，且特征来自事后错误分析；本结果不消除look-elsewhere、development重复使用、环境覆盖不足或早期prefix风险。新独立holdout、正式拒识、完整级联、test、stable、P95和部署均未执行。
+冻结结论：V21e parent-final正向信号已跨seed42/43/44优化随机性复现，可进入train parent-grouped OOF；seed43 best epoch 14作为当前最佳观测development参考checkpoint保留，但尚未成为可在线使用或已证明泛化最优的KnownGate模型。三seed仍共享同一232个development parent，Clutter每seed仅9个，且特征来自事后错误分析；本结果不消除look-elsewhere、development重复使用、环境覆盖不足或早期prefix风险。新独立holdout、正式拒识、完整级联、test、stable、P95和部署均未执行。
 
 版本策略：复用V21e原数据/特征合同与三套Baseline artifact；新增seed42/44 Treatment配置/checkpoint、多seedreadiness/report/protocol，不创建新数据版本。

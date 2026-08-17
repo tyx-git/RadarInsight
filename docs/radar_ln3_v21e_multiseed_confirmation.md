@@ -39,3 +39,11 @@ eligible-prefix另设独立在线安全诊断：至少2/3个seed且三seed中位
 - eligible-prefix守卫为2/3通过；seed43的KnownTarget Recall差值为`-0.002763`，因此不能把parent-final确认解释成全部早期在线prefix均安全。
 - 冻结决策为`parent_final_confirmation_passed=true`、`advance_to_train_parent_grouped_oof=true`、`online_known_gate_adoption_allowed=false`。
 - test、正式拒识、完整级联、stable、P95和部署仍为“未执行”；下一步仅允许train parent-grouped OOF与新独立holdout确认。
+
+## 6. 最佳观测seed保留决策
+
+- 按预先冻结的`parent_min_precision_recall`排序键，seed42/43/44分别为`[0.888889,0.942202]`、`[1.0,1.0]`、`[0.888889,0.969470]`，seed43为唯一严格最优。
+- seed43 Treatment best epoch为14，parent-final混淆矩阵为`[[223,0],[0,9]]`，Accuracy、Macro Precision/Recall/F1及DBB/Clutter Recall均为`1.0`；seed42和seed44分别仍有2个和1个parent错误。
+- seed43也是三seed中唯一通过本地每类Precision/Recall/F1不低于`0.90`护栏的run，因此保留其best checkpoint作为`best_observed_development_parent_final_reference`。
+- 该选择不改变多seed统计结论：它不是独立holdout、OOF、Unknown open-set、stable或部署最优证明。后续OOF必须按固定协议重新训练各fold，不能用seed43的development满分调阈值或替代OOF。
+- 版本化选择证据写入`src-v3/processed/report/RADAR-LN3-V21e-known-gate-best-observed-seed-selection.json`，绑定seed43 config、training summary、checkpoint、model state和多seed报告SHA-256。

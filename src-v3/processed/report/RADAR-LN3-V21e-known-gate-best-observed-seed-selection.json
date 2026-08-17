@@ -1,0 +1,94 @@
+{
+  "status": "recorded",
+  "schema_version": "RADAR-LN3-V21e-known-gate-best-observed-seed-selection-v1",
+  "experiment": "V21e-causal-course-multiseed-confirmation",
+  "selection_scope": "development validation KnownGate local parent-final only",
+  "selection_rule": {
+    "metric": "parent_min_precision_recall",
+    "ranking_key_order": [
+      "parent_min_class_precision_recall",
+      "parent_macro_f1"
+    ],
+    "higher_is_better": true,
+    "seed_chosen_after_frozen_multiseed_evaluation": true
+  },
+  "candidates": {
+    "42": {
+      "best_epoch": 20,
+      "ranking_key": [
+        0.8888888888888888,
+        0.9422022919780767
+      ],
+      "parent_support": 232,
+      "parent_accuracy": 0.9913793103448276,
+      "parent_macro_f1": 0.9422022919780767,
+      "known_target_recall": 0.9955156950672646,
+      "known_clutter_recall": 0.8888888888888888,
+      "parent_error_count": 2,
+      "performance_status": "failed"
+    },
+    "43": {
+      "best_epoch": 14,
+      "ranking_key": [
+        1.0,
+        1.0
+      ],
+      "parent_support": 232,
+      "parent_accuracy": 1.0,
+      "parent_macro_f1": 1.0,
+      "known_target_recall": 1.0,
+      "known_clutter_recall": 1.0,
+      "parent_error_count": 0,
+      "performance_status": "passed"
+    },
+    "44": {
+      "best_epoch": 14,
+      "ranking_key": [
+        0.8888888888888888,
+        0.9694696670614554
+      ],
+      "parent_support": 232,
+      "parent_accuracy": 0.9956896551724138,
+      "parent_macro_f1": 0.9694696670614554,
+      "known_target_recall": 1.0,
+      "known_clutter_recall": 0.8888888888888888,
+      "parent_error_count": 1,
+      "performance_status": "failed"
+    }
+  },
+  "selected_seed": 43,
+  "selected_checkpoint": {
+    "role": "best_observed_development_parent_final_reference",
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-config.json",
+    "config_sha256": "2B74D2C33343692F76FFBBC3EE6A679C46F1B6BA12B5B0CE532D9B9EF9622F80",
+    "training_summary_path": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/training-summary.json",
+    "training_summary_sha256": "9B461B722F3ECD455B6B0ED32D5648DD3DA7DBAB82D808DEBF23360645FCE84C",
+    "checkpoint_path": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/best_model.pt",
+    "checkpoint_sha256": "2B9992BB891BC05C5008A411B06DA542C12FB64555BCA60AF735DA75A4C71365",
+    "model_state_sha256": "b5bd0629ee942712f4d53aadeb936dfde346b677ea12c6aa17555b84fe6ea2e3"
+  },
+  "evidence": {
+    "multiseed_report_path": "src-v3/processed/report/RADAR-LN3-V21e-known-gate-causal-course-consistency-multiseed-paired-validation.json",
+    "multiseed_report_sha256": "F7F791C953EB599129C0E27DADB6CE4D9312D1F59CA67F0F9D81C9B2DEACB29F",
+    "unique_best_frozen_ranking_key": true,
+    "unique_best_parent_accuracy": true,
+    "unique_best_parent_macro_f1": true,
+    "only_seed_passing_local_per_class_0_90_guardrail": true,
+    "zero_parent_errors": true
+  },
+  "retention_decision": "retain_seed43_as_best_observed_V21e_development_checkpoint",
+  "limitations": {
+    "same_232_development_parents_across_seeds": true,
+    "known_clutter_parent_support": 9,
+    "post_hoc_feature_discovery": true,
+    "eligible_prefix_is_not_uniformly_safe_across_all_seeds": true,
+    "unknown_open_set_evaluation": "未执行",
+    "train_parent_grouped_OOF": "未执行",
+    "new_independent_holdout": "未执行",
+    "test": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "deployment_eligible": false
+  }
+}
