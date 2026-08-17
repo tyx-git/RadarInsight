@@ -1787,3 +1787,51 @@
 冻结结论：V21e parent-final正向信号已跨seed42/43/44优化随机性复现，可进入train parent-grouped OOF；seed43 best epoch 14作为当前最佳观测development参考checkpoint保留，但尚未成为可在线使用或已证明泛化最优的KnownGate模型。三seed仍共享同一232个development parent，Clutter每seed仅9个，且特征来自事后错误分析；本结果不消除look-elsewhere、development重复使用、环境覆盖不足或早期prefix风险。新独立holdout、正式拒识、完整级联、test、stable、P95和部署均未执行。
 
 版本策略：复用V21e原数据/特征合同与三套Baseline artifact；新增seed42/44 Treatment配置/checkpoint、多seedreadiness/report/protocol，不创建新数据版本。
+
+## Stage 078 - V21e KnownGate严格五折配对OOF
+
+目标：在不读取validation/test、不训练Unknown且不使用外折选epoch的前提下，验证V21e相对V21 Baseline的parent-final收益能否在train外折parent复现，并生成后续L3阈值校准所需的无同parent训练泄漏分数。
+
+前置依赖：Stage 077多seedparent-final确认通过；seed43 best epoch 14只作为最佳development参考封存，不进入OOF折初始化。V21e公式、prefix最小证据、loss、hidden维度及20 epoch预算保持冻结。
+
+最小子任务：
+
+- [x] 冻结5折、assignment seed=`21043`、训练seed=`43`；分组单位升级为V16 `provenance_component_id`，预测单位仍为parent。
+- [x] 只读preview确认986个known train parent、975个capture/content组件，组件最大2 parent且零跨折；五折Drone/Bird/Balloon/Clutter support分别为`95/48/48/6`、`95/48/48/6`、`95/48/48/7`、`96/47/47/7`、`95/48/47/7`。
+- [x] 新增fold-train专用RD normalization和二分类class weight合同；Unknown 69个、held-out fold、validation和test均不得进入统计。
+- [x] 新增parent子集Dataset与label-free V21e完整train cache安全子集读取；原完整训练路径继续要求cache与Dataset精确同集。
+- [x] 新增Control/Treatment折配置生成、固定20 epoch无外折选优训练、epoch边界恢复、最终一次外折parent/window/eligible-prefix预测及配对初始化/顺序哈希。
+- [x] 新增Treatment-first futility gate：五折Treatment pooled OOF每类P/R/F1最低值低于0.90时停止，不训练Control。
+- [x] 冻结paired门槛：parent Macro-F1增量严格`>0.02`、DBB/Clutter Recall不下降、四原始标签net rescue均非负、capture/content组件bootstrap Macro-F1差值95%下界大于0。
+- [x] 新增独立eligible-prefix守卫；失败不抹除parent-final结论，但阻止在线KnownGate/stable采纳。
+- [x] 新增唯一PowerShell流水线、assignment preview smoke、cache子集/同初态logits/特征梯度focused smoke；长时间prepare与正式五折训练交由用户执行。
+- [ ] 用户执行fold-train normalization、Treatment五折、必要时Control五折及冻结OOF汇总。
+- [ ] L3阈值拟合、Unknown open-set audit、新独立holdout、test、正式拒识、完整级联、stable、P95和部署仍为“未执行”。
+
+冻结结论：Stage 078只确认固定V21e训练协议的known train外折表现和相对特征收益。OOF折模型不是部署checkpoint；若通过，只允许进入下一阶段的known-only OOF阈值拟合，不能据此宣称Unknown拒识、test或线上收益。
+
+版本策略：不改变模型输入公式或正式checkpoint schema版本，继续使用V21e身份；新增独立OOF assignment/fold data contract/fold normalization/derived config/checkpoint/report schema。任何阈值和L3动作合同留到后续阶段单独版本化。
+
+## Stage 079 - V21f V21e+谱形时间一致性困难Bird联合OOF
+
+目标：验证V21a inter-frame谱形时间一致性是否能在V21e因果航迹一致性基础上提供困难Bird的增量KnownGate证据，并以严格嵌套配对五折OOF估计外折收益。
+
+前置依赖：Stage 078 V21e OOF Treatment及其固定五折分配、fold normalization、prediction hash保持冻结；V21e同一OOF错误归因仅作为探索性假设来源，不得视为独立确认集。UnknownTarget继续不进入KnownGate训练、归一化、预测或阈值拟合。
+
+最小子任务：
+
+- [x] 只读归因V21e OOF的14个困难Bird、225个正确Bird和33个Clutter；六维inter-frame谱形值在困难Bird上全部有效，并保存方向AUC与支持数。
+- [x] 新增V21f variant，输入严格为V21e一维causal course consistency加V21a六维inter-frame spectral consistency，共7维；cache按sample_id、values、valid逐事件对齐。
+- [x] 修复KnownGate feature-cache loader对`v21f_course_interframe`外部宽度缓存的合法识别；新增列仍不作为普通路径/标签字段。
+- [x] 构建V21f nested pair：递归复制对应V21e Treatment初态与已有course列，仅追加六列精确置零；全参数从头训练20 epoch，固定最后epoch外折预测。
+- [x] 新增V21f readiness、feature/OOF contract、配置、训练入口和paired report schema；V21e Treatment prediction作为冻结Control复用，不重训Control。
+- [x] 新增focused contract smoke：五折component隔离、cache精确拼接、V21e Treatment初态hash、初始logits、零列梯度、困难Bird支持、Unknown/test封存均通过。
+- [x] 新增一键串行PowerShell流水线：prepare、treatment、evaluate、all；任一契约、hash、训练摘要或预测检查失败即停止，长训练由用户执行。
+- [x] 新增V21f OOF协议文档并放行对应smoke/doc文件。
+- [ ] 用户执行5个V21f Treatment fold的完整20 epoch训练及冻结paired OOF汇总。
+- [ ] 依据冻结规则判断困难Bird net rescue、KnownTarget/Clutter安全、component bootstrap和绝对护栏；不以同一OOF后验收益宣称无偏泛化。
+- [ ] 新独立holdout、Unknown open-set审计、L3阈值拟合、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结决策：V21f是探索性联合验证，不改变V21e产品语义，不授权直接校准或上线。即使外折结果通过，也必须进入新的独立确认；Clutter support较小，报告必须同时给parent support和组件bootstrap。
+
+版本策略：复用V16 index/split、V21 known-only normalization与V21e OOF fold assignment；新增V21f七维feature cache、nested pair config/checkpoint/report schema，不修改V21e历史artifact。

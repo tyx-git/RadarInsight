@@ -10,9 +10,10 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -28,6 +29,7 @@ from .data import (
 from .known_gate_features import (
     BASELINE_VARIANT,
     COURSE_PREFIX_FEATURE_SCHEMA,
+    COURSE_INTERFRAME_FEATURE_NAMES,
     D_RANGE_PREFIX_FEATURE_SCHEMA,
     FEATURE_NAMES_BY_VARIANT,
     INTERFRAME_SPECTRAL_FEATURE_SCHEMA,
@@ -36,6 +38,7 @@ from .known_gate_features import (
     V21A_VARIANT,
     V21D_PREFIX_VARIANT,
     V21E_COURSE_PREFIX_VARIANT,
+    V21F_COURSE_INTERFRAME_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -212,11 +215,151 @@ class KnownGateConfig:
     train: KnownGateTrainConfig
 
 
+_V21E_OOF_CONFIG_PATTERN = re.compile(
+    r"RADAR-LN3-V21e-cq08-known-gate-oof-fold-(0[0-4])-"
+    r"(control|treatment)-seed43"
+)
+_V21F_OOF_CONFIG_PATTERN = re.compile(
+    r"RADAR-LN3-V21f-cq08-known-gate-oof-fold-(0[0-4])-"
+    r"treatment-seed43"
+)
+
+
+def _validate_v21e_oof_support_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize only the frozen V21e fold-support configuration namespace."""
+
+    match = _V21E_OOF_CONFIG_PATTERN.fullmatch(config_name)
+    if match is None:
+        return False
+    fold_token, arm = match.groups()
+    expected_variant = (
+        BASELINE_VARIANT if arm == "control" else V21E_COURSE_PREFIX_VARIANT
+    )
+    artifact = (
+        "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/"
+        f"fold-{fold_token}/{arm}"
+    )
+    expected_pair = (
+        None
+        if arm == "control"
+        else (
+            "config/RADAR-LN3/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "control-seed43-config.json"
+        )
+    )
+    if (
+        config_path.name != f"{config_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or variant != expected_variant
+        or data.contract_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "data-contract.json"
+        )
+        or data.normalization_stats_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "train-normalization-stats.json"
+        )
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/final_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            f"RADAR-LN3-V21e-known-gate-oof-fold-{fold_token}-{arm}-"
+            "checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.save_every_epoch
+    ):
+        raise ValueError(
+            "V21e OOF support config differs from its frozen fold/arm contract"
+        )
+    return True
+
+
+def _validate_v21f_oof_support_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize only V21f's frozen V21e-plus-spectral OOF Treatment configs."""
+
+    match = _V21F_OOF_CONFIG_PATTERN.fullmatch(config_name)
+    if match is None:
+        return False
+    fold_token = match.group(1)
+    artifact = (
+        "artifacts/RADAR-LN3-V21f-cq08-known-gate-course-interframe-paired-oof/"
+        f"fold-{fold_token}/treatment"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+        "treatment-seed43-config.json"
+    )
+    if (
+        config_path.name != f"{config_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or variant != V21F_COURSE_INTERFRAME_VARIANT
+        or tuple(COURSE_INTERFRAME_FEATURE_NAMES)
+        != FEATURE_NAMES_BY_VARIANT[V21F_COURSE_INTERFRAME_VARIANT]
+        or data.contract_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "data-contract.json"
+        )
+        or data.normalization_stats_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "train-normalization-stats.json"
+        )
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/final_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            f"RADAR-LN3-V21f-known-gate-oof-fold-{fold_token}-treatment-"
+            "checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.save_every_epoch
+    ):
+        raise ValueError(
+            "V21f OOF support config differs from its frozen fold Treatment contract"
+        )
+    return True
+
+
 def load_known_gate_config(path: str | Path) -> KnownGateConfig:
     config_path = Path(path).resolve()
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if payload.get("schema_version") != V21_SCHEMA_VERSION:
         raise ValueError("KnownGate config must use RADAR-LN3-V21")
+    config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
     if variant not in FEATURE_NAMES_BY_VARIANT:
         raise ValueError(f"unsupported V21 KnownGate variant: {variant!r}")
@@ -368,6 +511,21 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             else str(train_payload["paired_baseline_config_path"])
         ),
     )
+    is_v21e_oof_support = _validate_v21e_oof_support_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
+    is_v21f_oof_support = _validate_v21f_oof_support_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
+    is_oof_support = is_v21e_oof_support or is_v21f_oof_support
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -378,7 +536,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         or train.prefix_auxiliary_weight != 0.1
         or train.prefix_auxiliary_min_events != 3
         or not train.record_parent_order_hash
-        or not train.save_every_epoch
+        or (not is_oof_support and not train.save_every_epoch)
         or train.cuda_deterministic_algorithms
         or not train.full_parameter_training
     ):
@@ -387,10 +545,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("V21 learning rate and gradient clip must be positive")
     if abs(train.task_min_precision_recall_target - 0.90) > 1.0e-12:
         raise ValueError("V21 KnownGate local performance target must be 0.90")
-    if not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-"):
+    if (
+        not is_oof_support
+        and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
+    ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
     seed_token = f"seed{train.seed}"
-    if seed_token not in str(_require(payload, "config_name")):
+    if seed_token not in config_name:
         raise ValueError("V21 config_name must bind the training seed")
     for field_name, field_value in (
         ("checkpoint_path", train.checkpoint_path),
@@ -398,9 +559,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         ("formal_artifact_dir", train.formal_artifact_dir),
         ("epoch_checkpoint_dir", train.epoch_checkpoint_dir),
     ):
-        if seed_token not in field_value:
+        if not is_oof_support and seed_token not in field_value:
             raise ValueError(f"V21 {field_name} must bind the training seed")
-    if train.seed != 42 and seed_token not in train.checkpoint_schema:
+    if (
+        not is_oof_support
+        and train.seed != 42
+        and seed_token not in train.checkpoint_schema
+    ):
         raise ValueError("V21 additional-seed checkpoint schema must bind the seed")
 
     cache_fields = (
@@ -423,8 +588,30 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         ):
             raise ValueError("V21 Baseline must not load feature caches or reference itself as a pair")
     else:
-        if any(value is None for value in cache_fields) or train.paired_baseline_config_path is None:
+        required_cache_fields = (
+            data.feature_cache_manifest_path,
+            data.expected_feature_cache_manifest_sha256,
+            data.train_feature_cache_path,
+            data.expected_train_feature_cache_sha256,
+        )
+        validation_cache_fields = (
+            data.validation_feature_cache_path,
+            data.expected_validation_feature_cache_sha256,
+        )
+        if (
+            any(value is None for value in required_cache_fields)
+            or train.paired_baseline_config_path is None
+        ):
             raise ValueError("V21 Treatment requires feature caches and an explicit Baseline config")
+        if is_oof_support:
+            if (validation_cache_fields[0] is None) != (
+                validation_cache_fields[1] is None
+            ):
+                raise ValueError(
+                    "V21 OOF validation cache path/hash must be both present or both absent"
+                )
+        elif any(value is None for value in validation_cache_fields):
+            raise ValueError("V21 formal Treatment requires a validation feature cache")
         if any(value is None for value in experiment_contract_fields) and any(
             value is not None for value in experiment_contract_fields
         ):
@@ -434,7 +621,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
 
     return KnownGateConfig(
         schema_version=V21_SCHEMA_VERSION,
-        config_name=str(_require(payload, "config_name")),
+        config_name=config_name,
         variant=variant,
         task_name=task_name,
         class_names=(class_names[0], class_names[1]),
@@ -480,7 +667,13 @@ class KnownGateSequence:
 
 
 class KnownGateDataset(Dataset[KnownGateSequence]):
-    def __init__(self, base: CQ08PointSequenceDataset, config: KnownGateConfig) -> None:
+    def __init__(
+        self,
+        base: CQ08PointSequenceDataset,
+        config: KnownGateConfig,
+        *,
+        allow_feature_cache_superset: bool = False,
+    ) -> None:
         self.base = base
         self.config = config
         self.parent_ids = list(base.parent_ids)
@@ -504,6 +697,7 @@ class KnownGateDataset(Dataset[KnownGateSequence]):
                 _resolve(base.project_root, cache_path),
                 expected_sample_ids=base.frame["sample_id"].astype(str).tolist(),
                 variant=config.variant,
+                allow_superset=allow_feature_cache_superset,
             )
             self._evidence_values = values
             self._evidence_valid = valid
@@ -547,6 +741,8 @@ def build_known_gate_dataset(
     *,
     split_name: str,
     parent_limit: int | None = None,
+    parent_ids: Sequence[str] | None = None,
+    allow_feature_cache_superset: bool = False,
 ) -> KnownGateDataset:
     if split_name not in {config.data.train_split_name, config.data.validation_split_name}:
         raise PermissionError("V21 local KnownGate Dataset keeps test sealed")
@@ -564,14 +760,35 @@ def build_known_gate_dataset(
         allowed_labels=KNOWN_LABELS,
         forbidden_labels={UNKNOWN_LABEL},
     )
-    if parent_limit is not None:
+    if parent_limit is not None and parent_ids is not None:
+        raise ValueError("KnownGate Dataset cannot combine parent_limit with parent_ids")
+    if parent_ids is not None:
+        requested = {str(value) for value in parent_ids}
+        if not requested or len(requested) != len(parent_ids):
+            raise ValueError("KnownGate parent_ids must be non-empty and unique")
+        available = set(base.parent_ids)
+        missing = sorted(requested - available)
+        if missing:
+            raise ValueError(f"KnownGate requested parent_ids are unavailable: {missing[:3]}")
+        base.parent_ids = [value for value in base.parent_ids if value in requested]
+        base.frame = base.frame[
+            base.frame["parent_sample_id"].astype(str).isin(requested)
+        ].copy()
+        base._groups = {
+            key: value for key, value in base._groups.items() if key in requested
+        }
+    elif parent_limit is not None:
         if parent_limit <= 0:
             raise ValueError("V21 parent_limit must be positive")
         base.parent_ids = base.parent_ids[: int(parent_limit)]
         selected = set(base.parent_ids)
         base.frame = base.frame[base.frame["parent_sample_id"].astype(str).isin(selected)].copy()
         base._groups = {key: value for key, value in base._groups.items() if key in selected}
-    return KnownGateDataset(base, config)
+    return KnownGateDataset(
+        base,
+        config,
+        allow_feature_cache_superset=allow_feature_cache_superset,
+    )
 
 
 def collate_known_gate_sequences(items: list[KnownGateSequence]) -> dict[str, Any]:
@@ -853,8 +1070,16 @@ def build_known_gate_model_for_config(
         raise ValueError("V21 Treatment lacks paired_baseline_config_path")
     baseline_path = _resolve(project_root, config.train.paired_baseline_config_path)
     baseline_config = load_known_gate_config(baseline_path)
-    if baseline_config.variant != BASELINE_VARIANT:
-        raise ValueError("V21 Treatment paired reference is not the V21 Baseline")
+    if (
+        baseline_config.variant != BASELINE_VARIANT
+        and tuple(config.feature_names[: len(baseline_config.feature_names)])
+        != tuple(baseline_config.feature_names)
+    ):
+        raise ValueError(
+            "V21 Treatment paired reference features are not an exact prefix"
+        )
+    if config.model.evidence_dim <= baseline_config.model.evidence_dim:
+        raise ValueError("V21 Treatment must append at least one evidence column")
     if baseline_config.train.seed != config.train.seed or baseline_config.train.dataloader_seed != config.train.dataloader_seed:
         raise ValueError("V21 Baseline/Treatment seeds differ")
     comparable_data = {
@@ -874,9 +1099,9 @@ def build_known_gate_model_for_config(
     if comparable_data != baseline_data:
         raise ValueError("V21 Treatment base data contract differs from Baseline")
     base_model_fields = asdict(config.model)
-    base_model_fields["evidence_dim"] = 0
+    base_model_fields["evidence_dim"] = baseline_config.model.evidence_dim
     if base_model_fields != asdict(baseline_config.model):
-        raise ValueError("V21 Treatment model differs beyond evidence_dim")
+        raise ValueError("V21 Treatment model differs beyond appended evidence_dim")
     excluded_train = {
         "checkpoint_path",
         "last_checkpoint_path",
@@ -890,8 +1115,11 @@ def build_known_gate_model_for_config(
     if treatment_train != baseline_train:
         raise ValueError("V21 Treatment training core differs from Baseline")
 
-    seed_everything(config.train.seed)
-    baseline = KnownGateClassifier(baseline_config)
+    baseline, nested_reference, nested_pairing = build_known_gate_model_for_config(
+        project_root, baseline_config
+    )
+    nested_reference_present = nested_reference is not None
+    del nested_reference
     seed_everything(config.train.seed)
     treatment = KnownGateClassifier(config)
     baseline_parameters = dict(baseline.named_parameters())
@@ -906,7 +1134,9 @@ def build_known_gate_model_for_config(
             if name == "fusion.0.weight":
                 if treatment_value.shape != (
                     baseline_value.shape[0],
-                    baseline_value.shape[1] + config.model.evidence_dim,
+                    baseline_value.shape[1]
+                    + config.model.evidence_dim
+                    - baseline_config.model.evidence_dim,
                 ):
                     raise ValueError("V21 Treatment Fusion width is not Baseline plus evidence_dim")
                 treatment_value[:, : baseline_value.shape[1]].copy_(baseline_value)
@@ -932,11 +1162,17 @@ def build_known_gate_model_for_config(
         "paired_baseline": True,
         "baseline_config_path": str(baseline_path),
         "baseline_config_name": baseline_config.config_name,
+        "baseline_initialization": nested_pairing,
+        "nested_reference_present": nested_reference_present,
         "seed": config.train.seed,
         "shared_parameters_and_buffers_exactly_equal": True,
         "baseline_fusion_input_dim": baseline.fusion_input_dim,
         "treatment_fusion_input_dim": treatment.fusion_input_dim,
-        "new_fusion_columns": config.model.evidence_dim,
+        "baseline_evidence_dim": baseline_config.model.evidence_dim,
+        "treatment_evidence_dim": config.model.evidence_dim,
+        "new_fusion_columns": (
+            config.model.evidence_dim - baseline_config.model.evidence_dim
+        ),
         "new_fusion_columns_exactly_zero": True,
         "full_parameter_training": True,
     }

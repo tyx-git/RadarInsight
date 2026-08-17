@@ -36,6 +36,7 @@ V21C_VARIANT = "v21c"
 V21D_VARIANT = "v21d"
 V21D_PREFIX_VARIANT = "v21d_prefix"
 V21E_COURSE_PREFIX_VARIANT = "v21e_course_prefix"
+V21F_COURSE_INTERFRAME_VARIANT = "v21f_course_interframe"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -61,6 +62,10 @@ D_RANGE_PREFIX_FEATURE_NAMES = (
 COURSE_PREFIX_FEATURE_NAMES = (
     "causal_prefix_course_circular_incoherence",
 )
+COURSE_INTERFRAME_FEATURE_NAMES = (
+    *COURSE_PREFIX_FEATURE_NAMES,
+    *INTERFRAME_SPECTRAL_FEATURE_NAMES,
+)
 KNOWN_GATE_FEATURE_NAMES = (
     *SPECTRAL_FEATURE_NAMES,
     *MODAL_FEATURE_NAMES,
@@ -77,6 +82,7 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     V21D_VARIANT: D_RANGE_FEATURE_NAMES,
     V21D_PREFIX_VARIANT: D_RANGE_PREFIX_FEATURE_NAMES,
     V21E_COURSE_PREFIX_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V21F_COURSE_INTERFRAME_VARIANT: COURSE_INTERFRAME_FEATURE_NAMES,
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
@@ -86,6 +92,7 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V21A_INTERFRAME_VARIANT,
         V21D_PREFIX_VARIANT,
         V21E_COURSE_PREFIX_VARIANT,
+        V21F_COURSE_INTERFRAME_VARIANT,
     }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
@@ -426,6 +433,9 @@ def feature_contract() -> dict[str, Any]:
                 V21B_VARIANT,
                 V21C_VARIANT,
                 V21D_VARIANT,
+                V21D_PREFIX_VARIANT,
+                V21E_COURSE_PREFIX_VARIANT,
+                V21F_COURSE_INTERFRAME_VARIANT,
             )
         },
         "causal_scope": "current event only; no future event or parent-final statistic",
@@ -463,6 +473,7 @@ def load_known_gate_feature_cache(
     *,
     expected_sample_ids: Iterable[str],
     variant: str,
+    allow_superset: bool = False,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], dict[str, Any]]:
     variant_name = str(variant)
     try:
@@ -475,6 +486,7 @@ def load_known_gate_feature_cache(
         V21A_INTERFRAME_VARIANT,
         V21D_PREFIX_VARIANT,
         V21E_COURSE_PREFIX_VARIANT,
+        V21F_COURSE_INTERFRAME_VARIANT,
     }:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
@@ -506,7 +518,24 @@ def load_known_gate_feature_cache(
     if np.any(values[~valid] != 0.0):
         raise ValueError("invalid KnownGate cache values must be exactly zero")
     expected = [str(value) for value in expected_sample_ids]
-    if identifiers != expected:
+    if allow_superset:
+        if len(expected) != len(set(expected)):
+            raise ValueError("KnownGate expected subset contains duplicate sample_ids")
+        expected_set = set(expected)
+        selected_indices = [
+            index for index, sample_id in enumerate(identifiers) if sample_id in expected_set
+        ]
+        selected_identifiers = [identifiers[index] for index in selected_indices]
+        if selected_identifiers != expected:
+            missing = sorted(expected_set - set(identifiers))
+            raise ValueError(
+                "KnownGate cache does not preserve the requested Dataset subset ordering: "
+                f"missing={missing[:3]}"
+            )
+        values = values[selected_indices]
+        valid = valid[selected_indices]
+        identifiers = selected_identifiers
+    elif identifiers != expected:
         missing = sorted(set(expected) - set(identifiers))
         extra = sorted(set(identifiers) - set(expected))
         raise ValueError(
@@ -526,6 +555,8 @@ def load_known_gate_feature_cache(
         "variant": variant_name,
         "feature_names": list(feature_names),
         "event_count": len(identifiers),
+        "source_cache_event_count": len(sample_ids),
+        "subset_from_superset": bool(allow_superset),
         "valid_value_count": int(selected_valid.sum()),
         "invalid_value_count": int((~selected_valid).sum()),
     }
@@ -535,6 +566,7 @@ __all__ = [
     "BASELINE_VARIANT",
     "COURSE_PREFIX_FEATURE_NAMES",
     "COURSE_PREFIX_FEATURE_SCHEMA",
+    "COURSE_INTERFRAME_FEATURE_NAMES",
     "D_RANGE_FEATURE_NAMES",
     "D_RANGE_PREFIX_FEATURE_NAMES",
     "D_RANGE_PREFIX_FEATURE_SCHEMA",
@@ -561,6 +593,7 @@ __all__ = [
     "V21D_VARIANT",
     "V21D_PREFIX_VARIANT",
     "V21E_COURSE_PREFIX_VARIANT",
+    "V21F_COURSE_INTERFRAME_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_interframe_spectral_temporal_consistency",
