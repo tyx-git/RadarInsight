@@ -1,0 +1,65 @@
+{
+  "schema_version": "RADAR-LN3-V21e-known-gate-causal-course-consistency-feature-cache-manifest-v1",
+  "feature_schema": "cq08-causal-prefix-course-circular-incoherence-v1",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence"
+  ],
+  "experiment_contract": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-contract.json",
+  "experiment_contract_sha256": "37f6a8a9dc1b658fa7ff1c5a2ef1090fe0e79e3ab3eefebde69ab0404e911cc0",
+  "core_data_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "cache_files": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+      "sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "split": "train",
+      "event_count": 18923,
+      "parent_count": 986,
+      "valid_event_count": 15965,
+      "invalid_event_count": 2958,
+      "valid_event_fraction": 0.8436822913914285,
+      "first_event_excluded_count": 986,
+      "first_event_zero_but_excluded_count": 250,
+      "nonfirst_missing_course_count": 1,
+      "nonfirst_true_zero_course_included_count": 0,
+      "missing_event_carried_valid_prefix_count": 1,
+      "minimum_valid_nonfirst_courses": 3,
+      "test_payload_access_count": 0
+    },
+    "val": {
+      "path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz",
+      "sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "split": "val",
+      "event_count": 4452,
+      "parent_count": 232,
+      "valid_event_count": 3756,
+      "invalid_event_count": 696,
+      "valid_event_fraction": 0.8436657681940701,
+      "first_event_excluded_count": 232,
+      "first_event_zero_but_excluded_count": 64,
+      "nonfirst_missing_course_count": 0,
+      "nonfirst_true_zero_course_included_count": 0,
+      "missing_event_carried_valid_prefix_count": 0,
+      "minimum_valid_nonfirst_courses": 3,
+      "test_payload_access_count": 0
+    }
+  },
+  "sample_id_is_model_input": false,
+  "valid_mask_is_model_input": false,
+  "validation_label_values_used_for_readiness_gate": false,
+  "unknown_excluded": true,
+  "test_excluded": true,
+  "test_payload_access_count": 0
+}

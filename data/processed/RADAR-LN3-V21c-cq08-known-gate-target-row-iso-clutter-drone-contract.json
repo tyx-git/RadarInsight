@@ -1,0 +1,222 @@
+{
+  "schema_version": "RADAR-LN3-V21c-known-gate-target-row-iso-clutter-drone-experiment-contract-v1",
+  "experiment_name": "V21c target-row energy isolation for Clutter versus Drone",
+  "internal_variant": "v21c",
+  "feature_names": [
+    "target_row_linear_energy_fraction_mean"
+  ],
+  "formula": "mean per-frame zero-offset target-row linear power / full 21x384 linear power",
+  "source": "current canonical RD amplitude before model normalization",
+  "causal_scope": "current event only; no previous/future event or parent-final aggregation",
+  "target_row_semantics": "the zero-offset row of each canonical 21x384 RD frame; the row is not selected by a label, global energy argmax or validation result",
+  "power_semantics": "convert current canonical dB amplitudes to relative linear power after subtracting each frame maximum; take target-row power divided by full-frame power per frame and then the current-event mean",
+  "value_bounds": [
+    0.0,
+    1.0
+  ],
+  "missing_policy": "an event without canonical RD has value zero and invalid; TR radial/range missingness does not invalidate iso",
+  "invalid_policy": "zero value plus internal gating mask; validity is not concatenated",
+  "experiment_document": "F:\\Project\\RadarInsight\\docs\\radar_ln3_v21c_target_row_iso_experiment.md",
+  "experiment_document_sha256": "6fcef399670e99c4b1fb33156fd71f1b86c9fb0aef66c6971bf96484d18915bf",
+  "core_data_contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "core_feature_manifest": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-feature-cache-manifest.json",
+  "core_feature_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+  "train_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-train-feature-cache.npz",
+  "train_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+  "validation_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-val-feature-cache.npz",
+  "validation_cache_sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b",
+  "cache_rebuilt_for_v21c_seed43": false,
+  "raw_echo_payload_access_count": 0,
+  "validation_feature_payload_access_count_for_readiness": 0,
+  "test_payload_access_count": 0,
+  "train_only_feature_diagnostic": {
+    "role": "train-only physical attribution; it freezes the expected direction but does not become a readiness or performance gate",
+    "event_count": 18923,
+    "valid_event_count": 18770,
+    "valid_event_fraction": 0.991914601278867,
+    "parent_label_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "event": {
+          "support": 9015,
+          "mean": 0.2867566197364486,
+          "median": 0.31571561098098755,
+          "q25": 0.11559651046991348,
+          "q75": 0.4498284012079239,
+          "minimum": 6.192261207615957e-05,
+          "maximum": 0.5331645607948303
+        },
+        "parent_mean_over_valid_events": {
+          "support": 476,
+          "mean": 0.2813691859165015,
+          "median": 0.2777721472705404,
+          "q25": 0.12020332487632654,
+          "q75": 0.4492316827178001,
+          "minimum": 0.03134079999290407,
+          "maximum": 0.5219017511064356
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "event": {
+          "support": 4548,
+          "mean": 0.10155520692623626,
+          "median": 0.0762634426355362,
+          "q25": 0.053344013169407845,
+          "q75": 0.1256030946969986,
+          "minimum": 0.001074504922144115,
+          "maximum": 0.4816749095916748
+        },
+        "parent_mean_over_valid_events": {
+          "support": 239,
+          "mean": 0.10182953016614171,
+          "median": 0.08238319307565689,
+          "q25": 0.059731304412707686,
+          "q75": 0.12419546980862364,
+          "minimum": 0.009357294607907534,
+          "maximum": 0.33062310330569744
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "event": {
+          "support": 4550,
+          "mean": 0.18628838232544426,
+          "median": 0.16049304604530334,
+          "q25": 0.09473924897611141,
+          "q75": 0.2523622289299965,
+          "minimum": 0.02057189866900444,
+          "maximum": 0.5119317173957825
+        },
+        "parent_mean_over_valid_events": {
+          "support": 238,
+          "mean": 0.18384963048495093,
+          "median": 0.1634570654730002,
+          "q25": 0.1147851209934567,
+          "q75": 0.23058103428859458,
+          "minimum": 0.05456431449523994,
+          "maximum": 0.4218761667609215
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "event": {
+          "support": 657,
+          "mean": 0.12488799424781045,
+          "median": 0.07036444544792175,
+          "q25": 0.05269065871834755,
+          "q75": 0.2033572494983673,
+          "minimum": 0.0013467550743371248,
+          "maximum": 0.3996737003326416
+        },
+        "parent_mean_over_valid_events": {
+          "support": 33,
+          "mean": 0.1306816510810231,
+          "median": 0.07054381023930467,
+          "q25": 0.059730160236358645,
+          "q75": 0.2480852296575904,
+          "minimum": 0.03670375302123527,
+          "maximum": 0.35229640322573047
+        }
+      }
+    },
+    "parent_separation": {
+      "ClutterTarget_vs_DroneTarget": {
+        "clutter_higher_auc": 0.22288006111535524,
+        "other_higher_auc": 0.7771199388846448,
+        "direction_free_separation_auc": 0.7771199388846448,
+        "clutter_minus_other_mean": -0.15068753483547842
+      },
+      "ClutterTarget_vs_BirdTarget": {
+        "clutter_higher_auc": 0.5183212881957652,
+        "other_higher_auc": 0.4816787118042348,
+        "direction_free_separation_auc": 0.5183212881957652,
+        "clutter_minus_other_mean": 0.028852120914881374
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "clutter_higher_auc": 0.2928444104914693,
+        "other_higher_auc": 0.7071555895085306,
+        "direction_free_separation_auc": 0.7071555895085306,
+        "clutter_minus_other_mean": -0.05316797940392784
+      }
+    },
+    "interpretation_frozen_before_treatment_validation": {
+      "drone_parent_mean_is_higher_than_clutter": true,
+      "clutter_drone_direction_free_auc": 0.7771199388846448,
+      "clutter_bird_univariate_separation_is_weak": true,
+      "formula_changed_after_this_diagnostic": false
+    }
+  },
+  "historical_exploration_disclosure": {
+    "not_formal_evidence": true,
+    "historical_script": "tmp/v3_probe_archive/tmp_feature_mining.py",
+    "sampled_track_count": 93,
+    "sampled_split_counts": {
+      "train": 60,
+      "val": 13,
+      "test": 20
+    },
+    "test_track_count_observed_during_feature_conception": 20,
+    "reported_drone_clutter_values_are_not_formal_v21c_values": true,
+    "non_equivalence_reasons": [
+      "the historical probe sampled all V16 splits rather than train only",
+      "it used native 31-by-PRT absolute-amplitude sums instead of canonical 21-by-384 relative linear power",
+      "it selected a target row once from an energy argmax and reused it across events instead of using the canonical zero-offset row",
+      "it truncated each parent to at most ten assumed three-frame events and aggregated at parent scope"
+    ],
+    "holdout_consequence": "the current prepare does not access test payloads, but the original V16 test is not a pristine final holdout for the iso feature concept"
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "baseline_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "baseline_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "baseline_summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "baseline_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "baseline_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "baseline_checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "initialization": "same seed43 random Baseline initialization; copy all shared tensors and zero only the one new Fusion column; do not fine-tune the trained Baseline",
+    "epochs": 20,
+    "full_parameter_training": true,
+    "all_epoch_parent_orders_must_match": true
+  },
+  "evaluation": {
+    "primary": "development validation parent-final KnownGate macro_f1 delta",
+    "adoption_delta_strictly_greater_than": 0.02,
+    "research_question": "does current-event canonical target-row energy isolation improve the ClutterTarget versus DroneTarget KnownGate boundary?",
+    "primary_hypothesis_labels": [
+      "DroneTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": [
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "primary_pair_must_have_positive_net_rescue": true,
+    "each_primary_label_must_have_non_negative_net_rescue": true,
+    "each_safety_label_must_have_non_negative_net_rescue": true,
+    "clutter_validation_support": 9,
+    "drone_validation_support": 113,
+    "parent_stratified_bootstrap_replicates": 5000,
+    "test": "未执行",
+    "OOF": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "full_cascade": "未执行"
+  },
+  "old_seed42_candidate": {
+    "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21c-cq08-liquid-known-gate-target-row-iso-seed42-config.json",
+    "config_sha256": "d52ee0b0a8569fe648a6547600b7ce6f5c47488e34ddfd5fdaa83d39cf487fc0",
+    "formal_training_allowed": false,
+    "reason": "selected development Baseline is seed43; cross-seed attribution is invalid"
+  },
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

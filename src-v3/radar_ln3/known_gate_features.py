@@ -14,6 +14,15 @@ from .rd_physical import validate_velocity_axis
 
 
 KNOWN_GATE_FEATURE_SCHEMA = "cq08-current-event-known-gate-evidence-v1"
+INTERFRAME_SPECTRAL_FEATURE_SCHEMA = (
+    "cq08-current-event-interframe-spectral-consistency-v1"
+)
+D_RANGE_PREFIX_FEATURE_SCHEMA = (
+    "cq08-causal-prefix-mtd-minus-tr-range-stability-v1"
+)
+COURSE_PREFIX_FEATURE_SCHEMA = (
+    "cq08-causal-prefix-course-circular-incoherence-v1"
+)
 KNOWN_GATE_FEATURE_MASK_MODE = "gating_only_per_value"
 SPECTRAL_TEMPORAL_CONSISTENCY = "spectral_temporal_consistency"
 MODAL_CONSISTENCY = "modal_consistency"
@@ -21,13 +30,24 @@ TARGET_ROW_ISO = "target_row_iso"
 D_RANGE_STABILITY = "d_range_stability"
 BASELINE_VARIANT = "baseline"
 V21A_VARIANT = "v21a"
+V21A_INTERFRAME_VARIANT = "v21a_interframe"
 V21B_VARIANT = "v21b"
 V21C_VARIANT = "v21c"
 V21D_VARIANT = "v21d"
+V21D_PREFIX_VARIANT = "v21d_prefix"
+V21E_COURSE_PREFIX_VARIANT = "v21e_course_prefix"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
     "native_stft_adjacent_spectral_affinity_minimum",
+)
+INTERFRAME_SPECTRAL_FEATURE_NAMES = (
+    "current_event_adjacent_rd_velocity_profile_cosine_mean",
+    "current_event_adjacent_rd_velocity_profile_cosine_minimum",
+    "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
+    "current_event_adjacent_rd_peak_velocity_drift_max_fraction",
+    "current_event_zero_velocity_energy_fraction_std",
+    "current_event_zero_velocity_energy_fraction_minimum",
 )
 MODAL_FEATURE_NAMES = (
     "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
@@ -35,6 +55,12 @@ MODAL_FEATURE_NAMES = (
 )
 ISO_FEATURE_NAMES = ("target_row_linear_energy_fraction_mean",)
 D_RANGE_FEATURE_NAMES = ("mtd_minus_track_range_std_m_over_75m",)
+D_RANGE_PREFIX_FEATURE_NAMES = (
+    "causal_prefix_mtd_minus_tr_range_sample_std_m_over_75m",
+)
+COURSE_PREFIX_FEATURE_NAMES = (
+    "causal_prefix_course_circular_incoherence",
+)
 KNOWN_GATE_FEATURE_NAMES = (
     *SPECTRAL_FEATURE_NAMES,
     *MODAL_FEATURE_NAMES,
@@ -45,16 +71,67 @@ KNOWN_GATE_FEATURE_DIM = len(KNOWN_GATE_FEATURE_NAMES)
 FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     BASELINE_VARIANT: (),
     V21A_VARIANT: SPECTRAL_FEATURE_NAMES,
+    V21A_INTERFRAME_VARIANT: INTERFRAME_SPECTRAL_FEATURE_NAMES,
     V21B_VARIANT: MODAL_FEATURE_NAMES,
     V21C_VARIANT: ISO_FEATURE_NAMES,
     V21D_VARIANT: D_RANGE_FEATURE_NAMES,
+    V21D_PREFIX_VARIANT: D_RANGE_PREFIX_FEATURE_NAMES,
+    V21E_COURSE_PREFIX_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
     for variant, names in FEATURE_NAMES_BY_VARIANT.items()
+    if variant
+    not in {
+        V21A_INTERFRAME_VARIANT,
+        V21D_PREFIX_VARIANT,
+        V21E_COURSE_PREFIX_VARIANT,
+    }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
 D_RANGE_STD_CLIP_M = 75.0
+
+
+def extract_causal_course_circular_incoherence(
+    course_degrees: Sequence[float | None],
+    *,
+    minimum_valid_nonfirst_points: int = 3,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return a causal prefix circular-dispersion sequence for TR course.
+
+    CQ08's first reported course is unconditionally excluded because it is
+    frequently an initialization zero.  A later finite 0-degree course is a
+    valid physical direction.  At event ``t`` the statistic uses only valid
+    non-first courses from events ``1..t`` and is
+    ``1 - abs(mean(exp(1j * radians(course))))``.  A missing current course
+    does not erase an already-valid causal prefix.
+    """
+
+    minimum = int(minimum_valid_nonfirst_points)
+    if minimum < 1:
+        raise ValueError("course circular incoherence minimum support must be positive")
+    courses = tuple(course_degrees)
+    values = np.zeros((len(courses), 1), dtype=np.float32)
+    valid = np.zeros((len(courses), 1), dtype=np.bool_)
+    sine_sum = 0.0
+    cosine_sum = 0.0
+    count = 0
+    for event_index, raw_value in enumerate(courses):
+        if event_index > 0 and raw_value is not None:
+            value = float(raw_value)
+            if not math.isfinite(value):
+                raise ValueError("course circular incoherence received non-finite course")
+            radians = math.radians(value)
+            sine_sum += math.sin(radians)
+            cosine_sum += math.cos(radians)
+            count += 1
+        if count >= minimum:
+            resultant_length = math.hypot(sine_sum, cosine_sum) / float(count)
+            values[event_index, 0] = np.float32(
+                np.clip(1.0 - resultant_length, 0.0, 1.0)
+            )
+            valid[event_index, 0] = True
+    return values, valid
 
 
 @dataclass(frozen=True)
@@ -148,6 +225,79 @@ def extract_spectral_temporal_consistency(
         [np.median(affinities), np.min(affinities)], dtype=np.float32
     )
     return np.clip(values, 0.0, 1.0), np.ones((2,), dtype=np.bool_)
+
+
+def extract_interframe_spectral_temporal_consistency(
+    amplitude_db: np.ndarray,
+    velocity_mps: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Measure current-event spectral-shape consistency between adjacent RD frames.
+
+    The original train-only V21 feature probe defined spectral temporal
+    consistency on adjacent *RD frames*: each canonical frame is collapsed over
+    range into a full velocity profile, then adjacent profiles are compared by
+    cosine similarity. Peak-velocity drift and the variability of the near-zero
+    velocity energy fraction retain complementary shape-motion evidence from
+    the original train-only diagnostic. This differs materially from an
+    intra-frame STFT-window statistic.
+
+    The caller may prepend the immediately preceding valid frame to the current
+    event. That bridge makes one-frame events comparable without reading a
+    future frame. Missing-RD gaps must reset the bridge. Inputs with fewer than
+    two frames have no temporal comparison and are invalid rather than assigned
+    a fabricated consistency value.
+    """
+
+    amplitude = np.asarray(amplitude_db)
+    if amplitude.ndim != 3 or amplitude.shape[1:] != (21, 384):
+        raise ValueError(
+            "V21a inter-frame spectral consistency requires amplitude [frames,21,384]"
+        )
+    if not np.isfinite(amplitude).all():
+        raise ValueError("V21a inter-frame spectral consistency received non-finite amplitude")
+    if amplitude.shape[0] < 2:
+        return np.zeros((6,), dtype=np.float32), np.zeros((6,), dtype=np.bool_)
+
+    selected = amplitude.astype(np.float64, copy=False)
+    velocity = validate_velocity_axis(velocity_mps)
+    if velocity.shape != (384,):
+        raise ValueError("V21a inter-frame velocity axis must contain 384 bins")
+    frame_maximum = selected.max(axis=(1, 2), keepdims=True)
+    relative_power = np.power(10.0, (selected - frame_maximum) / 10.0)
+    profiles = relative_power.sum(axis=1, dtype=np.float64)
+    profile_norm = np.linalg.norm(profiles, axis=1)
+    if np.any(~np.isfinite(profile_norm)) or np.any(profile_norm <= np.finfo(np.float64).tiny):
+        raise ValueError("V21a inter-frame RD velocity profile has no finite positive norm")
+    adjacent = np.sum(profiles[:-1] * profiles[1:], axis=1, dtype=np.float64) / (
+        profile_norm[:-1] * profile_norm[1:]
+    )
+    adjacent = np.clip(adjacent, 0.0, 1.0)
+    peak_velocity = velocity[np.argmax(profiles, axis=1)]
+    velocity_span = float(velocity[-1] - velocity[0])
+    if not math.isfinite(velocity_span) or velocity_span <= 0.0:
+        raise ValueError("V21a inter-frame velocity span must be finite and positive")
+    peak_drift_fraction = np.clip(
+        np.abs(np.diff(peak_velocity)) / velocity_span, 0.0, 1.0
+    )
+    probability = profiles / np.maximum(
+        profiles.sum(axis=1, dtype=np.float64, keepdims=True),
+        np.finfo(np.float64).tiny,
+    )
+    zero_velocity = probability[:, np.abs(velocity) <= 2.0].sum(
+        axis=1, dtype=np.float64
+    )
+    values = np.asarray(
+        [
+            np.mean(adjacent),
+            np.min(adjacent),
+            np.mean(peak_drift_fraction),
+            np.max(peak_drift_fraction),
+            np.std(zero_velocity, ddof=0),
+            np.min(zero_velocity),
+        ],
+        dtype=np.float32,
+    )
+    return np.clip(values, 0.0, 1.0), np.ones((6,), dtype=np.bool_)
 
 
 def extract_canonical_known_gate_features(
@@ -269,7 +419,14 @@ def feature_contract() -> dict[str, Any]:
         "valid_dtype": "bool_per_value",
         "valid_mask_mode": KNOWN_GATE_FEATURE_MASK_MODE,
         "variant_features": {
-            variant: list(names) for variant, names in FEATURE_NAMES_BY_VARIANT.items()
+            variant: list(FEATURE_NAMES_BY_VARIANT[variant])
+            for variant in (
+                BASELINE_VARIANT,
+                V21A_VARIANT,
+                V21B_VARIANT,
+                V21C_VARIANT,
+                V21D_VARIANT,
+            )
         },
         "causal_scope": "current event only; no future event or parent-final statistic",
         "label_policy": "feature extraction is label-free; labels are used only by train/evaluation grouping",
@@ -307,12 +464,23 @@ def load_known_gate_feature_cache(
     expected_sample_ids: Iterable[str],
     variant: str,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], dict[str, Any]]:
+    variant_name = str(variant)
     try:
-        indices = FEATURE_INDICES_BY_VARIANT[str(variant)]
+        feature_names = FEATURE_NAMES_BY_VARIANT[variant_name]
     except KeyError as exc:
         raise ValueError(f"unsupported KnownGate feature variant: {variant!r}") from exc
-    if not indices:
+    if not feature_names:
         raise ValueError("baseline KnownGate does not load a feature cache")
+    if variant_name in {
+        V21A_INTERFRAME_VARIANT,
+        V21D_PREFIX_VARIANT,
+        V21E_COURSE_PREFIX_VARIANT,
+    }:
+        cache_width = len(feature_names)
+        indices = tuple(range(cache_width))
+    else:
+        cache_width = KNOWN_GATE_FEATURE_DIM
+        indices = FEATURE_INDICES_BY_VARIANT[variant_name]
     cache_path = Path(path)
     with np.load(cache_path, allow_pickle=False) as payload:
         if set(payload.files) != {"sample_ids", "values", "valid"}:
@@ -325,10 +493,14 @@ def load_known_gate_feature_cache(
     identifiers = [str(value) for value in sample_ids.tolist()]
     if len(identifiers) != len(set(identifiers)):
         raise ValueError("KnownGate cache contains duplicate sample_ids")
-    if values.shape != (len(identifiers), KNOWN_GATE_FEATURE_DIM) or values.dtype != np.float32:
-        raise ValueError("KnownGate cache values must be float32 with shape [N,6]")
+    if values.shape != (len(identifiers), cache_width) or values.dtype != np.float32:
+        raise ValueError(
+            f"KnownGate cache values must be float32 with shape [N,{cache_width}]"
+        )
     if valid.shape != values.shape or valid.dtype != np.bool_:
-        raise ValueError("KnownGate cache valid must be bool with shape [N,6]")
+        raise ValueError(
+            f"KnownGate cache valid must be bool with shape [N,{cache_width}]"
+        )
     if not np.isfinite(values).all() or np.any(values < 0.0) or np.any(values > 1.0):
         raise ValueError("KnownGate cache values must be finite and bounded to [0,1]")
     if np.any(values[~valid] != 0.0):
@@ -351,8 +523,8 @@ def load_known_gate_feature_cache(
     }
     return value_mapping, valid_mapping, {
         "path": str(cache_path),
-        "variant": str(variant),
-        "feature_names": list(FEATURE_NAMES_BY_VARIANT[str(variant)]),
+        "variant": variant_name,
+        "feature_names": list(feature_names),
         "event_count": len(identifiers),
         "valid_value_count": int(selected_valid.sum()),
         "invalid_value_count": int((~selected_valid).sum()),
@@ -361,10 +533,17 @@ def load_known_gate_feature_cache(
 
 __all__ = [
     "BASELINE_VARIANT",
+    "COURSE_PREFIX_FEATURE_NAMES",
+    "COURSE_PREFIX_FEATURE_SCHEMA",
     "D_RANGE_FEATURE_NAMES",
+    "D_RANGE_PREFIX_FEATURE_NAMES",
+    "D_RANGE_PREFIX_FEATURE_SCHEMA",
+    "D_RANGE_STD_CLIP_M",
     "D_RANGE_STABILITY",
     "FEATURE_INDICES_BY_VARIANT",
     "FEATURE_NAMES_BY_VARIANT",
+    "INTERFRAME_SPECTRAL_FEATURE_NAMES",
+    "INTERFRAME_SPECTRAL_FEATURE_SCHEMA",
     "ISO_FEATURE_NAMES",
     "KNOWN_GATE_FEATURE_DIM",
     "KNOWN_GATE_FEATURE_NAMES",
@@ -376,10 +555,15 @@ __all__ = [
     "SPECTRAL_TEMPORAL_CONSISTENCY",
     "TARGET_ROW_ISO",
     "V21A_VARIANT",
+    "V21A_INTERFRAME_VARIANT",
     "V21B_VARIANT",
     "V21C_VARIANT",
     "V21D_VARIANT",
+    "V21D_PREFIX_VARIANT",
+    "V21E_COURSE_PREFIX_VARIANT",
     "extract_canonical_known_gate_features",
+    "extract_causal_course_circular_incoherence",
+    "extract_interframe_spectral_temporal_consistency",
     "extract_known_gate_feature_event",
     "extract_spectral_temporal_consistency",
     "feature_contract",

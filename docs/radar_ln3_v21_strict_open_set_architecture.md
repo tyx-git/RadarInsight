@@ -42,17 +42,18 @@
 
 ## 3. V21局部实验边界
 
-V21、V21a、V21b、V21c、V21d只回答KnownGate能否更好地区分已知目标和已知Clutter。它们不拟合拒识阈值，不执行Unknown动作评估，不修改DBB specialist，也不运行完整级联。
+V21、V21a、V21b、V21c、V21d、V21e只回答KnownGate能否更好地区分已知目标和已知Clutter。它们不拟合拒识阈值，不执行Unknown动作评估，不修改DBB specialist，也不运行完整级联。
 
 - Baseline：V16因果TR/RD液态主干，训练人口改为Known-only，并重算Known-only train normalization。
 - V21a：只增加谱形时间一致性。
 - V21b：只增加RD峰与TR radial的模态一致性。
 - V21c：只增加目标range row能量占比iso。
-- V21d：只增加MTD检测距离与TR滤波距离差值的当前事件标准差。
+- V21d：正式修订只增加MTD检测距离与TR滤波距离差值的因果前缀样本标准差；历史当前事件公式仅保留追溯。
+- V21e：只增加非首点course的因果前缀圆周不一致度；该候选来自既有development错例的事后分析，必须披露look-elsewhere风险。
 
-各证据字段采用逐特征缺失语义，不允许插值或伪造物理量：TR radial speed缺失只使V21b两项无效；TR range缺失或当前事件少于两帧只使V21d无效；V21a、V21c及其他具备输入的证据继续保留。无效值固定为0，并由内部valid门控，valid本身不进入分类器。
+各证据字段采用逐特征缺失语义，不允许插值或伪造物理量：TR radial speed缺失只使V21b两项无效；V21d不足两个累计帧残差时无效；V21e无条件排除首事件course，少于三个有效非首点course时无效，后续真实0度course仍有效。V21a、V21c及其他具备输入的证据继续保留。无效值固定为0，并由内部valid门控，valid本身不进入分类器。
 
-五个运行均从随机初始化完整训练20 epoch。Treatment复制Baseline全部共享初始参数，新增Fusion列精确为零；数据顺序、loss、checkpoint规则和seed保持一致。
+五个Treatment配对均从随机初始化完整训练20 epoch。Treatment复制对应Baseline全部共享初始参数，新增Fusion列精确为零；数据顺序、loss、checkpoint规则和seed保持一致。
 
 ## 4. 评估与封存
 

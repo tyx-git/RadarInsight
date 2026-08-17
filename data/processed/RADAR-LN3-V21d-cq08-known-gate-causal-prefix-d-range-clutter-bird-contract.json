@@ -1,0 +1,392 @@
+{
+  "schema_version": "RADAR-LN3-V21d-known-gate-causal-prefix-d-range-clutter-bird-experiment-contract-v1",
+  "experiment_name": "V21d causal-prefix d-range stability for Clutter versus Bird",
+  "internal_variant": "v21d_prefix",
+  "feature_names": [
+    "causal_prefix_mtd_minus_tr_range_sample_std_m_over_75m"
+  ],
+  "source": "sealed canonical frame provenance target_range_reference_m, equivalent to MAT debug_info.detected_range_m, plus current V16 TR filtered range_m",
+  "formula": "sample std(ddof=1) of every observed frame-level (MTD detected_range_m - its current-event TR filtered range_m) in the causal prefix; divide by 75 m and clip to [0,1]",
+  "causal_scope": "current and prior events only; each event receives the statistic after adding all valid frames from that event; no future event or parent-final value is read",
+  "minimum_evidence": "two valid frame-level residual observations",
+  "missing_policy": "missing RD or TR range contributes no new residual; an already-valid prefix statistic is carried forward; before two valid residuals the value is zero and invalid",
+  "normalization": {
+    "clip_m": 75.0,
+    "ddof": 1
+  },
+  "old_v21d_proxy": {
+    "scope": "train current-event proxy retained only for mismatch attribution",
+    "formula": "std(MTD detected range - one constant current-event TR range) within each event; mathematically equal to current-event std(MTD detected range)",
+    "event_distributions_m": {
+      "DroneTarget": {
+        "support": 8996,
+        "mean": 3.1029668153203995,
+        "median": 0.0,
+        "q25": 0.0,
+        "q75": 3.5355339758098125,
+        "minimum": 0.0,
+        "maximum": 37.5
+      },
+      "BirdTarget": {
+        "support": 4540,
+        "mean": 5.4332980973285006,
+        "median": 0.0,
+        "q25": 0.0,
+        "q75": 7.500000111758709,
+        "minimum": 0.0,
+        "maximum": 37.5
+      },
+      "BalloonTarget": {
+        "support": 4490,
+        "mean": 3.0082611120689684,
+        "median": 0.0,
+        "q25": 0.0,
+        "q75": 3.5355339758098125,
+        "minimum": 0.0,
+        "maximum": 34.77606922388077
+      },
+      "ClutterTarget": {
+        "support": 653,
+        "mean": 6.510388789267763,
+        "median": 3.7500000558793545,
+        "q25": 0.0,
+        "q75": 12.295196950435638,
+        "minimum": 0.0,
+        "maximum": 33.957693725824356
+      }
+    },
+    "superseded_for_formal_training": true
+  },
+  "experiment_document": "F:\\Project\\RadarInsight\\docs\\radar_ln3_v21d_causal_prefix_d_range_experiment.md",
+  "experiment_document_sha256": "8f9e8e3505576279c64e03e5d930e534c8f79e821e6cd70e81914104c68ca276",
+  "historical_probe": {
+    "script": "F:\\Project\\RadarInsight\\tmp\\v3_probe_archive\\tmp_mat_feature_mining.m",
+    "script_sha256": "51424d2f59d90a55c810eb698e1f0f7049f133edccbd06d3e725f98bced4871b",
+    "not_formal_population_evidence": true,
+    "bird_track": 333,
+    "bird_split": "val",
+    "bird_first_nine_mat_frame_sample_std_m": 12.414397991498015,
+    "clutter_track": 1868,
+    "clutter_split": "test",
+    "clutter_first_nine_mat_frame_sample_std_m": 1.9254072238454454,
+    "manual_reproduction_unique_test_parent_count": 1,
+    "manual_reproduction_unique_test_mat_payload_count": 54,
+    "manual_reproduction_model_test_evaluation_executed": false,
+    "disclosure": "the quoted 12.4/1.9 values are two representative tracks, not class means; validation and test were observed during feature conception, and this audit re-read all 54 MAT frames of the already-exposed test track 1868 only to verify field semantics; no model test evaluation was run"
+  },
+  "core_data_contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "source_index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_canonical_frame_index": "F:\\Project\\RadarInsight\\data\\processed\\cq08_rd_physical_canonical_frame_index_v3_1.csv",
+  "source_canonical_frame_index_sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+  "raw_echo_payload_access_count": 0,
+  "mat_payload_access_count": 0,
+  "rd_tensor_payload_access_count": 0,
+  "validation_feature_payload_access_count_for_readiness": 0,
+  "test_payload_access_count": 0,
+  "test_payload_access_count_scope": "automated prepare only; historical/manual feature-conception audit exposure is reported separately and makes the original V16 test non-pristine",
+  "train_only_feature_diagnostic": {
+    "role": "train-only physical attribution; direction is disclosed but does not become a readiness or performance gate",
+    "parent_label_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "valid_causal_prefix_event": {
+          "support": 9072,
+          "mean": 5.9407319003725725,
+          "median": 2.4289080407470465,
+          "q25": 2.0843688980676234,
+          "q75": 8.640556689351797,
+          "minimum": 0.0,
+          "maximum": 75.0
+        },
+        "parent_prefix_mean_std_m": {
+          "support": 476,
+          "mean": 7.292828368613879,
+          "median": 2.4973537472920153,
+          "q25": 1.9585973503159222,
+          "q75": 8.539296879407212,
+          "minimum": 0.002200295955202519,
+          "maximum": 662.194755130039
+        },
+        "parent_final_std_m": {
+          "support": 476,
+          "mean": 14.124005227767464,
+          "median": 2.6263363364756662,
+          "q25": 2.187022699962378,
+          "q75": 10.880400346009793,
+          "minimum": 0.004582641201071876,
+          "maximum": 3565.2071894473925
+        },
+        "parent_model_input_prefix_mean_std_m": {
+          "support": 476,
+          "mean": 5.995886215810475,
+          "median": 2.4973537472920153,
+          "q25": 1.9585973503159222,
+          "q75": 8.539296879407212,
+          "minimum": 0.002200295955202519,
+          "maximum": 44.8502903956184
+        },
+        "parent_model_input_final_std_m": {
+          "support": 476,
+          "mean": 6.791637182709916,
+          "median": 2.6263363364756662,
+          "q25": 2.187022699962378,
+          "q75": 10.880400346009793,
+          "minimum": 0.004582641201071876,
+          "maximum": 75.0
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "valid_causal_prefix_event": {
+          "support": 4548,
+          "mean": 9.862613608009337,
+          "median": 5.709207616746426,
+          "q25": 2.325820445548743,
+          "q75": 16.503582894802094,
+          "minimum": 0.0,
+          "maximum": 41.30677878856659
+        },
+        "parent_prefix_mean_std_m": {
+          "support": 239,
+          "mean": 9.996086452342603,
+          "median": 6.6286893860711205,
+          "q25": 2.3518468119774596,
+          "q75": 16.74364281771085,
+          "minimum": 0.8883673445829463,
+          "maximum": 29.897396044992067
+        },
+        "parent_final_std_m": {
+          "support": 239,
+          "mean": 10.888977255073282,
+          "median": 8.142771315924046,
+          "q25": 2.396702378662239,
+          "q75": 17.892244707195953,
+          "minimum": 1.3862236014575948,
+          "maximum": 33.33423028248996
+        },
+        "parent_model_input_prefix_mean_std_m": {
+          "support": 239,
+          "mean": 9.996086452342603,
+          "median": 6.6286893860711205,
+          "q25": 2.3518468119774596,
+          "q75": 16.74364281771085,
+          "minimum": 0.8883673445829463,
+          "maximum": 29.897396044992067
+        },
+        "parent_model_input_final_std_m": {
+          "support": 239,
+          "mean": 10.888977255073282,
+          "median": 8.142771315924046,
+          "q25": 2.396702378662239,
+          "q75": 17.892244707195953,
+          "minimum": 1.3862236014575948,
+          "maximum": 33.33423028248996
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "valid_causal_prefix_event": {
+          "support": 4548,
+          "mean": 5.922609890210646,
+          "median": 3.6926588974893093,
+          "q25": 2.0227054017595947,
+          "q75": 8.973014121875167,
+          "minimum": 0.0,
+          "maximum": 33.085133135318756
+        },
+        "parent_prefix_mean_std_m": {
+          "support": 238,
+          "mean": 6.114614769245424,
+          "median": 4.45461883320496,
+          "q25": 2.043357590844332,
+          "q75": 9.271558675273445,
+          "minimum": 0.6389562074504745,
+          "maximum": 22.312669878002016
+        },
+        "parent_final_std_m": {
+          "support": 238,
+          "mean": 6.707584761663152,
+          "median": 5.305630660123844,
+          "q25": 2.2950288412743935,
+          "q75": 9.921035856519566,
+          "minimum": 1.1776587836363126,
+          "maximum": 21.52095553934721
+        },
+        "parent_model_input_prefix_mean_std_m": {
+          "support": 238,
+          "mean": 6.114614769245424,
+          "median": 4.45461883320496,
+          "q25": 2.043357590844332,
+          "q75": 9.271558675273445,
+          "minimum": 0.6389562074504745,
+          "maximum": 22.312669878002016
+        },
+        "parent_model_input_final_std_m": {
+          "support": 238,
+          "mean": 6.707584761663152,
+          "median": 5.305630660123844,
+          "q25": 2.2950288412743935,
+          "q75": 9.921035856519566,
+          "minimum": 1.1776587836363126,
+          "maximum": 21.52095553934721
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "valid_causal_prefix_event": {
+          "support": 657,
+          "mean": 12.519077383689838,
+          "median": 13.31576518714428,
+          "q25": 7.717736251652241,
+          "q75": 17.194535583257675,
+          "minimum": 0.0,
+          "maximum": 42.42640882730484
+        },
+        "parent_prefix_mean_std_m": {
+          "support": 33,
+          "mean": 12.51218265850401,
+          "median": 13.500451458909794,
+          "q25": 9.365483133861847,
+          "q75": 16.15020202527188,
+          "minimum": 3.0684645467677187,
+          "maximum": 20.296705218606697
+        },
+        "parent_final_std_m": {
+          "support": 33,
+          "mean": 14.007492501785379,
+          "median": 14.725628184592408,
+          "q25": 11.781931006374256,
+          "q75": 17.776295345431183,
+          "minimum": 2.716218070626245,
+          "maximum": 22.785742253508513
+        },
+        "parent_model_input_prefix_mean_std_m": {
+          "support": 33,
+          "mean": 12.51218265850401,
+          "median": 13.500451458909794,
+          "q25": 9.365483133861847,
+          "q75": 16.15020202527188,
+          "minimum": 3.0684645467677187,
+          "maximum": 20.296705218606697
+        },
+        "parent_model_input_final_std_m": {
+          "support": 33,
+          "mean": 14.007492501785379,
+          "median": 14.725628184592408,
+          "q25": 11.781931006374256,
+          "q75": 17.776295345431183,
+          "minimum": 2.716218070626245,
+          "maximum": 22.785742253508513
+        }
+      }
+    },
+    "parent_separation": {
+      "ClutterTarget_vs_DroneTarget": {
+        "prefix_mean_std_m": {
+          "clutter_higher_auc": 0.8193913929208047,
+          "other_higher_auc": 0.18060860707919535,
+          "direction_free_separation_auc": 0.8193913929208047,
+          "clutter_minus_other_mean_m": 5.219354289890131
+        },
+        "final_std_m": {
+          "clutter_higher_auc": 0.8167812579577286,
+          "other_higher_auc": 0.1832187420422714,
+          "direction_free_separation_auc": 0.8167812579577286,
+          "clutter_minus_other_mean_m": -0.11651272598208529
+        }
+      },
+      "ClutterTarget_vs_BirdTarget": {
+        "prefix_mean_std_m": {
+          "clutter_higher_auc": 0.6471408647140865,
+          "other_higher_auc": 0.3528591352859135,
+          "direction_free_separation_auc": 0.6471408647140865,
+          "clutter_minus_other_mean_m": 2.516096206161407
+        },
+        "final_std_m": {
+          "clutter_higher_auc": 0.6482819830100165,
+          "other_higher_auc": 0.3517180169899835,
+          "direction_free_separation_auc": 0.6482819830100165,
+          "clutter_minus_other_mean_m": 3.1185152467120965
+        }
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "prefix_mean_std_m": {
+          "clutter_higher_auc": 0.8262032085561497,
+          "other_higher_auc": 0.1737967914438503,
+          "direction_free_separation_auc": 0.8262032085561497,
+          "clutter_minus_other_mean_m": 6.397567889258585
+        },
+        "final_std_m": {
+          "clutter_higher_auc": 0.838044308632544,
+          "other_higher_auc": 0.16195569136745602,
+          "direction_free_separation_auc": 0.838044308632544,
+          "clutter_minus_other_mean_m": 7.299907740122227
+        }
+      }
+    },
+    "interpretation_frozen_before_treatment_validation": {
+      "historical_representative_bird_higher_direction_reproduced_on_train_final_means": false,
+      "train_model_input_final_bird_mean_m_after_75m_clip": 10.888977255073282,
+      "train_model_input_final_clutter_mean_m_after_75m_clip": 14.007492501785379,
+      "train_direction_is_opposite_to_historical_two_track_probe": true,
+      "clutter_bird_final_direction_free_auc": 0.6482819830100165,
+      "formula_changed_after_this_diagnostic": false
+    }
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "baseline_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "baseline_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "baseline_summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "baseline_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "baseline_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "baseline_checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "initialization": "same seed43 random Baseline initialization; copy every shared tensor and zero only the one new Fusion column; do not fine-tune the trained Baseline",
+    "epochs": 20,
+    "full_parameter_training": true,
+    "all_epoch_parent_orders_must_match": true
+  },
+  "evaluation": {
+    "primary": "development validation parent-final KnownGate macro_f1 delta",
+    "adoption_delta_strictly_greater_than": 0.02,
+    "research_question": "does causal-prefix MTD-minus-TR range sample standard deviation improve the ClutterTarget versus BirdTarget KnownGate boundary?",
+    "primary_hypothesis_labels": [
+      "BirdTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": [
+      "DroneTarget",
+      "BalloonTarget"
+    ],
+    "primary_pair_must_have_positive_net_rescue": true,
+    "each_primary_label_must_have_non_negative_net_rescue": true,
+    "each_safety_label_must_have_non_negative_net_rescue": true,
+    "clutter_validation_support": 9,
+    "bird_validation_support": 56,
+    "parent_stratified_bootstrap_replicates": 5000,
+    "test": "未执行",
+    "OOF": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "full_cascade": "未执行"
+  },
+  "old_seed42_candidate": {
+    "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21d-cq08-liquid-known-gate-d-range-stability-seed42-config.json",
+    "config_sha256": "2d287ac9a176e9fd9a2baa8e73acbe35213c4d900648374265222096fee62102",
+    "formal_training_allowed": false,
+    "reason": "it is cross-seed and uses the mathematically degenerate current-event proxy"
+  },
+  "validation_is_pristine_for_feature_conception": false,
+  "test_is_pristine_for_feature_conception": false,
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

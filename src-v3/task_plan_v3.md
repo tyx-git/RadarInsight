@@ -1560,16 +1560,19 @@
 - [x] 实现V21 known-only normalization与数据合同构建器：正式人口固定为Drone/Bird/Balloon/Clutter共986个train parent，显式排除69个Unknown train parent；validation固定为223个已知目标parent与9个Clutter parent。
 - [x] 用户执行正式`prepare`，生成并SHA绑定known-only normalization、train/validation六维统一特征cache、data contract、feature manifest、readiness和五份正式配置。
 - [x] 实现V21 Baseline和四份单因素Treatment配置生成器；五份配置冻结V16 index/split、Known-only normalization、seed=42、DataLoader顺序、20 epoch、无early stopping、parent-final主损失、prefix辅助权重和checkpoint规则。
-- [x] V21a仅增加谱形时间一致性：当前事件原始回波目标行完整Doppler STFT相邻时间谱形的Bhattacharyya affinity median/minimum，验证Clutter/Balloon与Clutter/Bird方向。
-- [x] V21b仅增加模态一致性：当前事件canonical RD目标行峰值速度与TR radial speed绝对偏差的median/max，验证Clutter/Drone及Clutter/Balloon方向。
+- [x] 历史seed42 V21a候选曾增加raw单帧内STFT affinity；Stage 071已确认其与原“帧间谱形一致性”物理语义错位并禁止正式训练，正式V21a由Stage 071的`v21a_interframe`替代。
+- [x] V21b仅增加模态一致性：当前事件canonical RD零偏移目标行峰值速度与TR radial speed绝对偏差的median/max；唯一主假设为Clutter/Drone，Bird/Balloon只作安全守卫。
 - [x] V21c仅增加目标行能量占比iso：当前事件目标range row线性能量占全部RD能量的平均比例，验证Clutter/Drone辅助方向。
-- [x] V21d仅增加`d_range`稳定性：当前事件各MTD检测距离与TR滤波距离差值的标准差，验证Clutter/Bird方向；特征单位、clip和valid规则已在V21 contract中冻结。
+- [x] V21d正式变量修订为因果前缀`d_range`稳定性：累计截至当前事件的逐帧MTD检测距离与对应事件TR滤波距离残差，并取样本标准差，验证Clutter/Bird方向；旧单事件公式已阻断。
 - [x] 修复真实train事件`cq08|track|234#point0012`的`range_m=null`构建失败：逐特征处理TR缺失，当前事件仅将V21d置零并标记invalid，V21a/V21b/V21c继续保留；未插值、未删除样本。
 - [x] 每个Treatment从Baseline相同随机state开始，复制全部共享参数并将新增Fusion列精确置零；训练入口强制全部主干参数训练20 epoch，拒绝冻结主干、只训后置层、`max_steps`和early stopping。
 - [x] 实现KnownGate评估：输出二分类parent-final指标、Drone/Bird/Balloon各自目标接受Recall、Clutter接受Precision/Recall/F1、混淆、support和5000次parent分层bootstrap 95%区间；Clutter validation support=9在每份比较中显式显示。
 - [x] 冻结单因素裁决：相对Baseline的parent Macro-F1提升严格超过0.02才记为主要正向信号；同时报告配对bootstrap差值、预期方向类别变化和反向伤害。低support结果只能晋级多seed/OOF确认，不能直接成为部署结论。
 - [x] 用户完成prepare及Baseline seed42/43/44全参数20 epoch训练，并生成冻结multiseed development validation与selection artifact。
-- [ ] V21a、V21b、V21c、V21d正式Treatment训练及相对seed43 Baseline的同seed配对评估尚未执行。
+- [x] V21a已完成seed43全参数20 epoch及冻结配对评估：own-best与Baseline均为epoch 16、Macro-F1=`0.862803`、Clutter Recall=`7/9`，232个parent硬预测逐个相同，正式裁决无正向信号。
+- [x] V21b已完成seed43全参数20 epoch训练及冻结配对评估，正式结果无硬指标增益，不进入multi-seed、OOF或组合特征。
+- [x] V21c已完成seed43全参数20 epoch及冻结配对评估：own-best与Baseline硬指标完全相同，概率评分轻微恶化，正式裁决无正向信号。
+- [x] V21d已完成seed43全参数20 epoch及冻结配对评估：own-best与Baseline在parent/window/eligible-prefix三种作用域的硬预测逐项相同，Macro-F1增量为0，正式裁决无正向信号；V21a-d四项均不进入multi-seed、OOF或组合特征。
 - [x] 训练摘要、评估报告和PowerShell后置断言均将test、parent-grouped OOF阈值拟合、正式拒识、stable、P95、完整级联和部署固定为“未执行”。
 
 版本策略：V21复用V16 index/split，但因训练人口、normalization、任务标识、输入特征与动作架构改变而使用独立contract/config/checkpoint/report schema。V21局部argmax只用于KnownGate特征实验，不等于L3最终动作，也不产生Unknown概率。
@@ -1595,3 +1598,166 @@
 - [x] Unknown训练暴露、OOF、test、完整级联、正式拒识、stable、P95和部署均保持“未执行”。
 
 版本策略：复用V21数据合同与Known-only normalization；新增的是Baseline multiseed config/checkpoint/readiness/report/selection协议，不改变Stage 069的特征定义。
+
+## Stage 071 - V21a帧间谱形时间一致性修订
+
+目标：在V21 KnownGate seed43 development champion冻结后，核查V21a是否忠实实现原始“帧间谱相似/漂移”诊断，并建立同seed、同初态、全参数20 epoch的正式单因素配对；不启动全量构建或训练。
+
+前置依赖：Stage 070已选中seed43；V16 index/split、V21 known-only normalization和KnownGate主干保持冻结；UnknownTarget继续禁止进入模型类别、优化、归一化和checkpoint选择。
+
+最小子任务：
+
+- [x] 发现旧V21a将原始“相邻RD帧谱形一致性”误实现为“单个raw帧内部相邻STFT窗Bhattacharyya affinity”，物理时间单位不同；旧seed42候选禁止正式训练。
+- [x] 发现旧V21a固定seed42，而development selection明确要求后续Treatment至少与seed43 champion同seed配对；新增独立内部标识`v21a_interframe`与seed43 artifact，禁止跨seed直接比较。
+- [x] 恢复原始概念组的六维证据：相邻速度谱cosine mean/min、峰速度漂移mean/max（按canonical速度跨度归一化）、±2 m/s零速能量占比std/min。
+- [x] 将parent级探索因果化：每个当前事件最多带入上一有效事件末帧作为桥接，变化归属当前事件；RD缺失事件重置桥接，不读取未来事件或parent-final统计。
+- [x] 新增独立V21a构建器、experiment contract、cache manifest、seed43配置、readiness、训练放行、paired report和PowerShell流水线；不修改已封存V21核心数据合同与Baseline checkpoint。
+- [x] prepare必须重建seed43随机Baseline并要求initial state SHA与正式summary逐值一致；Treatment复制全部共享初态、新增六列Fusion精确置零，不从Baseline best checkpoint微调。
+- [x] 评估冻结为own-best parent-final差值、20个same-epoch轨迹、四原始标签净救回和5000次parent分层paired bootstrap；Clutter support固定报告9，主要信号仍要求Macro-F1严格提升`>0.02`且Clutter/Bird/Balloon净改善。
+- [x] 逐字重建原始探索脚本的metadata抽样（每个标签独立重置`RandomState(3)`），确认108个track中train/val/test=`77/17/14`；当前prepare仍为test payload访问0，但V16 test对V21a特征构思已暴露，禁止作为无偏最终holdout。
+- [x] focused Smoke覆盖稳定/突变/单帧invalid、seed43同初态、零新增列、非零梯度、全参数训练、offline/online一致、专用cache、旧候选拒绝和历史Baseline checkpoint身份兼容。
+- [x] 原V21与multiseed Smoke回归通过；真实train四类各一parent共82事件只读探针通过，未访问raw/test payload。
+- [x] 用户执行正式V21a `prepare`、全量20 epoch训练和development paired evaluation；Treatment相对Baseline全部parent-final硬指标差值为0，5000次paired bootstrap差值亦严格为0，不进入multi-seed/OOF。
+- [ ] OOF、正式拒识、完整级联、stable、P95和部署仍为“未执行”；V16 test保持未执行且不得用于V21a无偏最终结论。
+
+冻结裁决：V21a本轮只回答帧间谱形一致性是否改善Known Target/Clutter局部边界。通过局部门槛后只允许进入多seed和train parent-grouped OOF，并需要新的独立holdout/数据版本确认；不得用原V16 test或KnownGate argmax宣称Unknown拒识性能。
+
+版本策略：复用V21 core contract、V16 split和known-only normalization；新增独立V21a interframe feature contract/cache/config/checkpoint/readiness/report schema。旧`v21a` seed42配置保留追溯但训练入口永久拒绝。
+
+## Stage 072 - V21b RD/TR模态一致性正式配对
+
+目标：在不改变V21缓存中的两维模态一致性公式与数值的前提下，将历史seed42候选迁移为与development champion一致的seed43全参数配对实验；不启动代理侧正式训练。
+
+前置依赖：Stage 070选中的V21 Baseline seed43及其config/summary/checkpoint/selection SHA保持冻结；UnknownTarget继续不进入模型类别、训练、归一化或checkpoint选择；V21a负结果不参与V21b公式选择。
+
+最小子任务：
+
+- [x] 核验V21b公式仍为当前事件canonical RD零偏移目标行逐帧峰值速度与当前TR有符号`radial_speed_mps`的绝对偏差median/max，除以85 m/s并截断；未改成速度绝对值、后验选符号或跨事件聚合。
+- [x] 复用V21核心train/validation六维缓存及SHA，只选择其中V21b两列；prepare不重新解析raw、不重建cache、不读取validation/test特征值做门禁。
+- [x] 完成train-only parent诊断：Clutter相对Drone两维均值更低，但direction-free AUC仅`0.567577/0.509008`；不同聚合下仍为弱分离。Bird/Balloon统计只作误伤风险披露，不扩展主假设。
+- [x] 逐字核查历史探索：93个抽样track的train/val/test=`68/10/15`，且旧峰表达式取“各距离行argmax索引的最大值”、每3帧抽1帧并跨事件聚合，不等价于正式零偏移目标行事件特征；历史AUC=`0.809/0.765`不得作为正式正向证据，原V16 test也不再是该特征的纯盲holdout。
+- [x] 新增seed43正式config、独立experiment contract/readiness、训练入口校验和旧seed42 fail-closed；Treatment复制全部共享随机初态，只将两列Fusion权重置零，并要求全参数20 epoch训练。
+- [x] focused Smoke通过：有符号速度公式、TR radial缺失门控、核心cache两列选择、seed43初始logits逐值相同、新列非零梯度、offline/online一致、旧seed42阻断及Baseline checkpoint身份兼容。
+- [x] 新增冻结paired report：own-best、20个same-epoch、四标签净救回和5000次parent分层bootstrap；采纳要求Macro-F1严格`>0.02`、Clutter+Drone合计净救回为正且二者各不为负、Bird/Balloon各不净受损、Known Target/Clutter Recall均不下降。
+- [x] 将旧seed43广义方向合同标记为superseded并在训练入口fail-closed；新正式config/contract/readiness/artifact均带`clutter-drone`身份，输入两维不变，防止旧验收语义复用。
+- [x] PowerShell `prepare`整链、Python compile、PowerShell AST、静态隔离、原V21/V21 multiseed/V21a回归Smoke及评估器零效应自检通过。
+- [x] 用户执行V21b正式全参数20 epoch训练与冻结development paired evaluation；两臂best epoch均为16，parent-final Macro-F1均为`0.862803`，232个parent、4452个window及3756个eligible prefix的硬指标均逐项相同，5000次paired bootstrap差值严格为0。
+- [ ] multi-seed、train parent-grouped OOF、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结裁决：V21b正式结果为无正向信号，不进入multi-seed、OOF或组合特征。新增两列权重已充分训练且改变概率，但own-best没有救回任何Clutter/Drone；epoch 14的`+0.043613`来自少误拒3个Bird而非主假设，epoch 15多救回1个Clutter同时新增1个Bird误拒，均不能替代冻结own-best裁决。该结论限定于当前canonical目标行峰/TR radial公式、seed43和V21 KnownGate，不外推为所有模态一致性定义永久无效。
+
+版本策略：继续复用V21 core contract、V16 split、known-only normalization与核心特征cache；新增seed43实验身份、readiness、checkpoint及报告schema。旧seed42 V21b配置只读保留，正式训练入口拒绝。
+
+## Stage 073 - V21c目标行能量占比正式配对
+
+目标：验证当前事件canonical RD零偏移目标行能量占比iso，是否在V21 KnownGate中改善`ClutterTarget/DroneTarget`边界。该特征定位为辅助证据，但不降低冻结的2个百分点采纳门槛；Bird与Balloon只作安全守卫。
+
+前置依赖：Stage 070选中的V21 Baseline seed43及其config/summary/checkpoint/selection SHA保持冻结；Stage 071/072的负结果不参与V21c公式或checkpoint选择；UnknownTarget继续不进入模型类别、训练、归一化或局部checkpoint选择。
+
+最小子任务：
+
+- [x] 核验正式iso公式：每个当前canonical RD帧按帧最大dB转换为相对线性功率，取零距离偏移目标行384个Doppler bin功率和除以完整`21×384`功率和，再对当前事件真实帧取均值；值域固定`[0,1]`。
+- [x] 冻结因果与缺失语义：只读取当前事件canonical RD；无RD时值为0且invalid，TR radial/range缺失不影响iso；valid只作内部门控，不拼入分类输入。
+- [x] 复用V21核心train/validation六维缓存及SHA，只选择第5列iso；prepare不解析raw、不重建RD/cache、不读取validation特征值做门禁，test payload访问为0。
+- [x] 完成正式train-only parent诊断：Drone/Clutter parent平均iso均值约`0.281369/0.130682`，Clutter-vs-Drone方向无关AUC=`0.777120`；Clutter-vs-Bird AUC=`0.518321`，因此唯一主假设冻结为Clutter/Drone，Bird/Balloon不得被解释为预期收益。
+- [x] 追溯早期`tmp_feature_mining.py`：93个抽样track跨train/val/test=`60/13/20`，使用原生`31×PRT`绝对幅度、首次能量峰选行并跨事件固定、最多10个事件；历史`Drone≈0.125/Clutter≈0.053`不等价于正式canonical iso，原V16 test也不再是该特征概念的纯盲holdout。
+- [x] 新增seed43正式config、独立experiment contract/readiness、训练入口校验和旧seed42 fail-closed；Treatment复制seed43 Baseline共享随机初态，只将一列Fusion权重精确置零，并要求全参数20 epoch训练。
+- [x] 新增冻结paired report：own-best、parent/window/eligible-prefix硬预测变化、四标签净救回、概率/NLL/Brier归因、20个same-epoch轨迹及5000次按四原始标签分层的parent bootstrap。
+- [x] 冻结采纳条件：Macro-F1严格提升`>0.02`，Clutter+Drone合计净救回为正且两类各不为负，Bird/Balloon各不净受损，Known Target Recall与Clutter Recall均不下降；通过也只允许进入multi-seed或train parent-grouped OOF。
+- [x] focused Smoke通过：冻结CQ08速度轴、集中目标行iso≈`1.0`、均匀距离扩散iso≈`1/21`、核心cache只选一列、seed43初始logits逐值相同、新列非零梯度、全参数可训练、offline/online一致、旧seed42阻断及Baseline checkpoint身份兼容。
+- [x] Python compile、PowerShell AST、脚本`-Stage prepare`整链、静态隔离、原V21/V21 multiseed/V21a/V21b回归Smoke及`git diff --check`通过。
+- [x] 用户完成V21c seed43正式全参数20 epoch训练，代理重跑冻结development paired evaluation；两臂best epoch均为16，Accuracy/Macro-F1均为`0.978448/0.862803`，混淆矩阵均为`[[220,3],[2,7]]`。
+- [x] parent/window/eligible-prefix共`232/4452/3756`个输出均无硬预测变化，四原始标签rescued/harmed均为0；5000次paired parent bootstrap的全部硬指标差值区间严格为`[0,0,0]`。
+- [x] 确认负结果不是特征未传入或未训练：新增Fusion列48/48权重finite且非零，L2范数=`0.203988`；全参数训练、共享初态、初始logits及20轮parent顺序合同全部通过。
+- [x] 完成概率与错误样本归因：总体NLL/Brier分别恶化`+0.000636/+0.000197`，Clutter/Drone子集也分别恶化`+0.000125/+0.0000135`；困难Clutter 2900/3761与误拒Bird 852/3580的parent平均iso处于重叠区间，不能形成稳定边界修正。
+- [x] 冻结裁决为`positive_signal=false`、`robust_positive_signal=false`、`advance=false`；V21c不进入multi-seed、train parent-grouped OOF或组合特征。
+- [x] V21d训练、冻结配对评估与错误归因已由Stage 074完成，正式裁决无动作增益；V21全系列的正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结裁决：V21c正式结果为无正向信号。epoch 15虽出现same-epoch Macro-F1增量`+0.058786`，但Treatment绝对Macro-F1仅`0.802149`，且epoch 16的冻结own-best增量为0、epoch 19/20反向下降；不得事后挑选epoch 15替代预注册own-best裁决。Clutter validation support固定为9，当前相同硬预测只证明本development集合未受益，不代表两模型总体等价。
+
+版本策略：复用V21 core contract、V16 split、known-only normalization和既有六维feature cache；新增独立V21c seed43 config/contract/readiness/checkpoint/report schema。旧seed42配置仅保留追溯，正式训练入口永久拒绝。
+
+## Stage 074 - V21d因果前缀d_range稳定性正式配对
+
+目标：验证逐帧`MTD detected_range_m - 该帧所属事件TR filtered range_m`的因果前缀样本标准差，是否改善V21 KnownGate的`ClutterTarget/BirdTarget`边界。历史代表轨迹只作特征来源说明，不作为类别总体方向或性能门禁。
+
+前置依赖：Stage 070选中的seed43 Baseline及其config/summary/checkpoint/selection SHA保持冻结；V21a/b/c负结果不参与V21d公式或checkpoint选择；UnknownTarget继续不进入模型类别、训练、归一化或局部checkpoint选择。
+
+最小子任务：
+
+- [x] 追溯历史`Bird 12.4 m / Clutter 1.9 m`：精确复现为MATLAB探针中Bird track 333与Clutter track 1868前9个MAT帧的`debug_info.detected_range_m-track_range_m`样本标准差=`12.414/1.925 m`，不是类别均值；两轨迹分别来自V16 val/test。
+- [x] 区分test暴露语义：自动prepare未读取test payload；但为复核历史字段，本轮人工读取了已暴露test parent 1868的54个MAT帧，未执行模型test评估。原V16 test不得再称为该特征的盲holdout。
+- [x] 发现原seed42 `v21d`草案在单事件内计算`std(MTD range - 同一个TR range)`，数学上退化为`std(MTD range)`，不能表达相对航迹滤波距离的跨事件不稳定性；旧配置在训练入口fail-closed。
+- [x] 新增正式内部标识`v21d_prefix`：截至当前事件累计全部已观察有效帧残差，使用样本标准差`ddof=1`，除以75 m并截断；不足2帧为0/invalid，缺失事件不添加残差但可沿用既有有效前缀，不读取未来。
+- [x] 新建独立train/validation一列缓存、feature manifest、experiment contract、seed43 config、readiness、checkpoint/report schema及PowerShell流水线；prepare只读取V16 index与封存canonical frame provenance，不解析raw/MAT/RD tensor，不读取test payload。
+- [x] 正式train-only诊断覆盖986个known parent：截断后final均值Bird=`10.888977 m`、Clutter=`14.007493 m`，方向与两轨迹历史先验相反；Clutter/Bird final方向无关AUC=`0.648282`，只能作为待训练的中等偏弱互补候选。
+- [x] 极值审计确认train仅Drone track 234的6个prefix达到75 m截断，最大原始前缀std=`3565.207 m`；逐MAT抽查证实`debug_info.track_range_m`与V16事件range逐值一致，异常来自源轨迹距离跳变，不删除、不插值。validation无截断，最大=`59.205 m`。
+- [x] Treatment从seed43随机Baseline初态复制全部共享参数，只将新增一列Fusion精确置零；全参数训练20 epoch，不加载Baseline best微调，逐epochparent顺序必须一致。
+- [x] 冻结评估输出own-best、parent/window/eligible-prefix变化、四标签净救回、概率NLL/Brier、20个same-epoch轨迹及5000次四标签分层paired bootstrap；Clutter support固定报告9。
+- [x] 冻结采纳条件：Macro-F1严格提升`>0.02`，Clutter+Bird合计净救回为正且两类各不为负，Drone/Balloon各不净受损，Known Target Recall与Clutter Recall均不下降；通过也只允许进入multi-seed或train parent-grouped OOF。
+- [x] `prepare`整链、focused合同Smoke、offline/online一致、零初始logits、非零新增列梯度、旧V21/V21b/V21c回归Smoke、全量Python编译、PowerShell AST与静态隔离均通过。
+- [x] 用户完成V21d seed43正式全参数20 epoch训练；20/20 epoch checkpoint、best/last/detail/summary齐全，27530个参数全部训练，共享初态、初始logits及20轮parent顺序与Baseline逐项配对。
+- [x] 代理重跑冻结development paired evaluation：两臂own-best均为epoch 16，parent Accuracy/Macro-F1均为`0.978448/0.862803`，混淆矩阵均为`[[220,3],[2,7]]`；parent/window/eligible-prefix共`232/4452/3756`个硬预测变化均为0。
+- [x] 完成5000次四标签分层paired parent bootstrap：全部硬指标Treatment−Baseline区间严格为`[0,0,0]`；Clutter support仅9，单臂Clutter Recall 95%区间约`[0.444444,1.0]`，不得将相同点估计解释为总体等价。
+- [x] 完成软概率与错误parent归因：新增Fusion列48/48权重非零、L2=`0.206340`；总体NLL/Brier改善`-0.004038/-0.000727`，Clutter/Bird子集改善`-0.011716/-0.002176`，但5个错误parent均未跨边界，且两个Clutter和两个Bird的概率移动方向不一致。
+- [x] 完成Treatment内后验输入置零消融：232个parent动作仍无变化，NLL由实际输入的`0.049848`回退到`0.052550`；d_range本身贡献部分软评分改善，但也同时抬高两个误拒Bird及Balloon 3027的错误Clutter概率，不能作为L3单调评分器。
+- [x] 冻结裁决为`positive_signal=false`、`robust_positive_signal=false`、`advance=false`；不得以epoch 9事后`+0.041545`或软评分改善替代own-best动作门槛，V21d不进入multi-seed、train parent-grouped OOF或组合特征。
+- [ ] multi-seed、train parent-grouped OOF、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结裁决：V21d正式结果为无动作增益，不采纳到KnownGate，也不继续消耗multi-seed/OOF资源。该特征在平均软概率上呈弱正向校准信号，但validation Clutter仅9个parent、Clutter/Bird final方向无关AUC约`0.657`，且真正错误边界的作用方向不稳定；当前证据不足以把它作为L1模型特征或L3评分器。原V16 val/test已参与特征构思，未来若用新公式重启该方向仍需新的独立holdout。
+
+版本策略：继续复用V16 index/split、V21 known-only normalization与KnownGate主干；V21d因前缀统计语义不同而使用独立一列cache/manifest/contract/config/checkpoint/report。旧`v21d`仅保留追溯，正式训练永久拒绝。
+
+## Stage 075 - Clutter合法覆盖、capture与标签语义审计
+
+目标：在不修改标签、split、训练人口或模型的前提下，完整登记CQ08合法Clutter parent/capture/provenance覆盖，生成train-only描述型审计分层与train/validation人工语义裁决入口，并明确新增合法采集缺口。
+
+前置依赖：V16 capture/content provenance及split保持冻结；V21严格open-set架构继续禁止UnknownTarget进入KnownGate类别、训练、归一化、采样和阈值拟合；test只允许读取既有manifest/provenance元数据。
+
+最小子任务：
+
+- [x] 全量核验CQ08 manifest 1550条、V16 provenance 1546个parent及源标签5集合：50个合法`ClutterTarget`全部进入V16，仓库内可补回的遗漏Clutter parent为0；V16外4条仅为Bird 634/785与Drone 1008/3338。
+- [x] 生成50-parent registry与50-capture-token registry，记录split=`33/9/8`、capture、provenance component、来源hash、可用性及train/validation描述统计；8个test parent只登记既有元数据，不解析TR物理JSON、不打开raw/MAT/RD tensor。
+- [x] 核验精确capture/content split purity仍为0交叉；同时登记5个跨标签capture/provenance component，明确共享capture token是来源事实而非错标证据。
+- [x] 追溯`capture_id`时间来源：MATLAB脚本使用点迹文件修改日期与第一行时分秒拼接，因此`20250616`只是共同派生token日期，不是权威采集日期；当前已验证独立采集日期数为0。
+- [x] 输出30/60/120/300/600秒派生时间邻近burst候选；60秒口径为30组，其中8个多parent且8个跨split、最大10个parent。burst不是已确认session或语义子流型，不自动改split。
+- [x] 只用33个train Clutter parent的9维描述统计拟合4个确定性审计簇，train支持=`25/4/1/3`；9个validation只做最近冻结train簇分配=`8/1/0/0`，test不分簇。审计簇不得进入模型、采样、权重、阈值或标签。
+- [x] 生成42条train/validation人工裁决模板与独立协议，字段覆盖acquisition group、environment、sensor mode、主/次Clutter机制、证据定位与标签冲突升级；所有语义初始为`UNADJUDICATED`，自动改标数=0，test不进入模板。
+- [x] 核验标签血缘仅能证明“源数字5→manifest ClutterTarget→MAT token Clutter”；源数字6在MAT脚本中名为`Other`。仓库无独立人工语义、环境或Clutter机制证据，禁止自动宣称静态地杂波/植被/多径等真子型，也禁止将`Other`本体等同严格open-set机制。
+- [x] 冻结新增采集规划下限而非功效结论：取得/新增至少3个权威独立采集日期、至少3个确认环境并盘点全部部署传感器模式；每个人工确认机制暂按至少10个独立train与5个独立development parent、跨至少2个日期规划，最终parent缺口需在人工裁决后计算。
+- [x] focused smoke两次临时构建字节一致，50 parent、50 capture、4 cluster profile、42 template、test零物理payload访问、Unknown零参与、自动改标0全部通过。
+- [ ] 采集日志人工追溯、42条train/validation语义裁决、新Clutter数据采集、基于确认session/environment的split重建均待执行；在此之前不得宣称物理子流型覆盖或独立环境泛化。
+- [ ] 训练、train parent-grouped OOF、正式拒识、完整级联、test模型评估、stable、P95和部署仍为“未执行”。
+
+冻结结论：代码层已经补齐所有现有合法Clutter parent/capture token的可追溯登记，但数据层无法从仓库内再找出第51个合法Clutter parent。当前阻塞从“是否漏索引”收敛为“权威采集日期/session/environment/mode元数据缺失、物理子流型未人工裁决、低support且validation未覆盖两个train描述簇”。合法扩充只能来自带权威provenance和场景记录的新采集，不能靠重复prefix/window、挪用validation/test、删除困难样本或模型驱动改标。
+
+版本策略：只新增V21审计schema、CSV registry、人工裁决协议与focused smoke；不更改V16 index/split、V21数据合同、normalization、KnownGate checkpoint或任何训练配置。若人工确认的session关系要求重切split，或新增采集改变train集合，必须创建新的数据index/contract和模型版本并重算normalization。
+
+## Stage 076 - V21e因果航迹一致性正式配对
+
+目标：验证非首点航向的显式因果前缀圆周不一致度，是否在V21 KnownGate中提供现有逐点course sin/cos与course变化量之外的残差信息，改善KnownTarget/Clutter边界。
+
+前置依赖：Stage 070选中的seed43 Baseline及其config/summary/checkpoint/selection SHA保持冻结；V21a-d负结果不参与V21e输入或初始化；UnknownTarget继续不进入模型类别、训练、归一化或checkpoint选择。
+
+最小子任务：
+
+- [x] 冻结唯一新特征`causal_prefix_course_circular_incoherence = 1-|mean(exp(i·course))|`，每个事件只读取当前与历史course，不读取未来或parent-final统计。
+- [x] 冻结首点与缺失语义：首事件course无条件排除；第二事件及以后真实0度course合法参与；少于3个有效非首点course时输出0/invalid，后续缺失不添加观测但可沿用已有效前缀。
+- [x] 使用严格公式复算train-only parent-final方向：Clutter相对KnownTarget组合的高值AUC=`0.982003`，相对Drone/Bird/Balloon分别=`0.970843/0.986941/0.999363`；这些统计不作为readiness门禁。
+- [x] 明确Baseline已输入逐点course sin/cos及因果course变化量；V21e检验的是显式长前缀圆周集中度的互补性，不得宣称首次使用航向。
+- [x] 披露V21e来自V21a-d固定错例与同一development validation的事后分析，存在look-elsewhere风险；该validation不再是无偏确认集，通过也必须进入multi-seed、train parent-grouped OOF和新独立holdout。
+- [x] 新增独立一列train/validation cache、feature manifest、experiment contract、seed43 config、readiness、checkpoint/report schema及PowerShell流水线；prepare只读V16 index JSON字段，不解析raw/MAT/RD tensor，不访问test payload。
+- [x] Treatment复制seed43随机Baseline全部共享初态，只将一列Fusion精确置零；正式训练要求全部参数从头训练20 epoch，不从Baseline best checkpoint微调，逐epochparent顺序必须一致。
+- [x] 冻结采纳条件：parent-final Macro-F1严格提升`>0.02`；Drone/Bird/Balloon/Clutter四标签合计net rescue为正且各自不为负；Known Target Recall与Clutter Recall均不下降；Clutter support固定报告9并执行5000次四标签分层paired bootstrap。
+- [x] 增加固定Treatment best权重的直接贡献诊断：只将V21e输入值置零，保持valid mask与所有权重不变，重新前向parent/window/eligible-prefix，区分直接特征贡献和全参数训练路径差异。
+- [x] Python编译、PowerShell AST、公式focused probe、静态隔离及V21/V21 multiseed/V21a-d回归Smoke通过。
+- [x] 用户完成prepare与seed43全参数20 epoch正式配对；Baseline/Treatment own-best分别为epoch 16/14，parent-final Macro-F1=`0.862803/1.000000`，Accuracy=`0.978448/1.000000`。
+- [x] Bird 852/3580、Balloon 3027、Clutter 2900/3761共5个固定错误全部救回，四原始标签parent净救回=`0/2/1/2`且无新增伤害；Known Target和Clutter Recall均不下降。
+- [x] 5000次四标签分层paired parent bootstrap的Macro-F1差值95%区间=`[0.030530,0.258929]`，通过冻结的条件性稳健信号门槛；Clutter support仍仅9，9/9全正确不能解释为总体Recall确定为100%。
+- [x] 固定Treatment权重只置零V21e输入后，Clutter Recall从`9/9`降至`2/9`、Macro-F1降至`0.674092`，新增Fusion列48/48非零；确认特征直接承载Clutter证据，但Bird/Balloon救回还包含全参数优化路径效应。
+- [x] 明确作用域差异：window/eligible-prefix Macro-F1只改善约`+0.001317/+0.003806`，Known Target Recall分别下降约`-0.003498/-0.002763`；当前不得宣称早期路由或stable收益。
+- [ ] multi-seed配对已获准晋级但尚未执行；train parent-grouped OOF、正式拒识、完整级联、test、stable、P95和部署仍为“未执行”。
+
+冻结结论：V21e通过seed43单seeddevelopment冻结门槛，是V21a-e中唯一允许进入多seed复核的候选。该结果仍受事后特征发现、同一development多方向探索、Clutter仅9个及早期prefix收益不足约束；多seed通过前不能采纳为产品KnownGate证据，也不得修改最小support、挑epoch或组合V21a-d负结果。
+
+版本策略：复用V16 index/split、V21 known-only normalization和KnownGate主干；新增独立V21e一列cache/manifest/contract/config/checkpoint/report，不改变历史V21a-d artifact。

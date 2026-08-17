@@ -1,0 +1,1226 @@
+{
+  "status": "completed",
+  "schema_version": "RADAR-LN3-V21c-known-gate-target-row-iso-clutter-drone-paired-validation-v1",
+  "scope": "development validation parent-final KnownGate local task only",
+  "feature_semantics": {
+    "feature_names": [
+      "target_row_linear_energy_fraction_mean"
+    ],
+    "unit": "current-event canonical zero-offset target-row relative linear power fraction",
+    "formula_changed_after_train_only_diagnostic": false,
+    "core_feature_cache_reused": true,
+    "experiment_contract_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21c-cq08-known-gate-target-row-iso-clutter-drone-contract.json",
+    "experiment_contract_sha256": "7b0415a72c8cdf250a3e5ba9948dc98900fc62ae81b646dd7a82d7f432d0b055"
+  },
+  "train_only_prior": {
+    "role": "train-only physical attribution; it freezes the expected direction but does not become a readiness or performance gate",
+    "event_count": 18923,
+    "valid_event_count": 18770,
+    "valid_event_fraction": 0.991914601278867,
+    "parent_label_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "event": {
+          "support": 9015,
+          "mean": 0.2867566197364486,
+          "median": 0.31571561098098755,
+          "q25": 0.11559651046991348,
+          "q75": 0.4498284012079239,
+          "minimum": 6.192261207615957e-05,
+          "maximum": 0.5331645607948303
+        },
+        "parent_mean_over_valid_events": {
+          "support": 476,
+          "mean": 0.2813691859165015,
+          "median": 0.2777721472705404,
+          "q25": 0.12020332487632654,
+          "q75": 0.4492316827178001,
+          "minimum": 0.03134079999290407,
+          "maximum": 0.5219017511064356
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "event": {
+          "support": 4548,
+          "mean": 0.10155520692623626,
+          "median": 0.0762634426355362,
+          "q25": 0.053344013169407845,
+          "q75": 0.1256030946969986,
+          "minimum": 0.001074504922144115,
+          "maximum": 0.4816749095916748
+        },
+        "parent_mean_over_valid_events": {
+          "support": 239,
+          "mean": 0.10182953016614171,
+          "median": 0.08238319307565689,
+          "q25": 0.059731304412707686,
+          "q75": 0.12419546980862364,
+          "minimum": 0.009357294607907534,
+          "maximum": 0.33062310330569744
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "event": {
+          "support": 4550,
+          "mean": 0.18628838232544426,
+          "median": 0.16049304604530334,
+          "q25": 0.09473924897611141,
+          "q75": 0.2523622289299965,
+          "minimum": 0.02057189866900444,
+          "maximum": 0.5119317173957825
+        },
+        "parent_mean_over_valid_events": {
+          "support": 238,
+          "mean": 0.18384963048495093,
+          "median": 0.1634570654730002,
+          "q25": 0.1147851209934567,
+          "q75": 0.23058103428859458,
+          "minimum": 0.05456431449523994,
+          "maximum": 0.4218761667609215
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "event": {
+          "support": 657,
+          "mean": 0.12488799424781045,
+          "median": 0.07036444544792175,
+          "q25": 0.05269065871834755,
+          "q75": 0.2033572494983673,
+          "minimum": 0.0013467550743371248,
+          "maximum": 0.3996737003326416
+        },
+        "parent_mean_over_valid_events": {
+          "support": 33,
+          "mean": 0.1306816510810231,
+          "median": 0.07054381023930467,
+          "q25": 0.059730160236358645,
+          "q75": 0.2480852296575904,
+          "minimum": 0.03670375302123527,
+          "maximum": 0.35229640322573047
+        }
+      }
+    },
+    "parent_separation": {
+      "ClutterTarget_vs_DroneTarget": {
+        "clutter_higher_auc": 0.22288006111535524,
+        "other_higher_auc": 0.7771199388846448,
+        "direction_free_separation_auc": 0.7771199388846448,
+        "clutter_minus_other_mean": -0.15068753483547842
+      },
+      "ClutterTarget_vs_BirdTarget": {
+        "clutter_higher_auc": 0.5183212881957652,
+        "other_higher_auc": 0.4816787118042348,
+        "direction_free_separation_auc": 0.5183212881957652,
+        "clutter_minus_other_mean": 0.028852120914881374
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "clutter_higher_auc": 0.2928444104914693,
+        "other_higher_auc": 0.7071555895085306,
+        "direction_free_separation_auc": 0.7071555895085306,
+        "clutter_minus_other_mean": -0.05316797940392784
+      }
+    },
+    "interpretation_frozen_before_treatment_validation": {
+      "drone_parent_mean_is_higher_than_clutter": true,
+      "clutter_drone_direction_free_auc": 0.7771199388846448,
+      "clutter_bird_univariate_separation_is_weak": true,
+      "formula_changed_after_this_diagnostic": false
+    }
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "selected_baseline": true,
+    "initial_shared_state_exact": true,
+    "new_fusion_columns_initially_zero": true,
+    "initial_logits_exactly_equal": true,
+    "all_20_epoch_parent_order_hashes_equal": true,
+    "full_parameter_training": true,
+    "baseline_checkpoint_is_not_a_finetune_source": true
+  },
+  "baseline": {
+    "metrics": {
+      "scope": "baseline_parent_final_recomputed",
+      "support": 232,
+      "accuracy": 0.978448275862069,
+      "macro_precision": 0.8454954954954954,
+      "macro_recall": 0.8821624314897858,
+      "macro_f1": 0.862803075103489,
+      "balanced_accuracy": 0.8821624314897858,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.990990990990991,
+          "recall": 0.9865470852017937,
+          "f1": 0.9887640449438202,
+          "support": 223,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 3
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.7,
+          "recall": 0.7777777777777778,
+          "f1": 0.7368421052631577,
+          "support": 9,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 2
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          220,
+          3
+        ],
+        [
+          2,
+          7
+        ]
+      ]
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87"
+  },
+  "treatment": {
+    "metrics": {
+      "scope": "v21c_parent_final_recomputed",
+      "support": 232,
+      "accuracy": 0.978448275862069,
+      "macro_precision": 0.8454954954954954,
+      "macro_recall": 0.8821624314897858,
+      "macro_f1": 0.862803075103489,
+      "balanced_accuracy": 0.8821624314897858,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.990990990990991,
+          "recall": 0.9865470852017937,
+          "f1": 0.9887640449438202,
+          "support": 223,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 3
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.7,
+          "recall": 0.7777777777777778,
+          "f1": 0.7368421052631577,
+          "support": 9,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 2
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          220,
+          3
+        ],
+        [
+          2,
+          7
+        ]
+      ]
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21c-cq08-liquid-known-gate-target-row-iso-clutter-drone-seed43-formal\\training-summary.json",
+    "summary_sha256": "b04ee7b08d7f1866ce4c63b3db1f01e585f409cbada4c6a4ea710f3d38ae70cf",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21c-cq08-liquid-known-gate-target-row-iso-clutter-drone-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "afb48dbe63a6fdb9dd9622488a3c0fe1a3a1b0fb5d22637061b4ed0fca4c5f16"
+  },
+  "treatment_minus_baseline": {
+    "accuracy": 0.0,
+    "macro_precision": 0.0,
+    "macro_recall": 0.0,
+    "macro_f1": 0.0,
+    "known_target_precision": 0.0,
+    "known_target_recall": 0.0,
+    "known_target_f1": 0.0,
+    "known_clutter_precision": 0.0,
+    "known_clutter_recall": 0.0,
+    "known_clutter_f1": 0.0,
+    "weak_class_precision_recall_f1_floor": 0.0
+  },
+  "base_label_paired_outcomes": {
+    "DroneTarget": {
+      "support": 113,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "BirdTarget": {
+      "support": 56,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "BalloonTarget": {
+      "support": 54,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "ClutterTarget": {
+      "support": 9,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    }
+  },
+  "scope_prediction_changes": {
+    "parent": {
+      "support": 232,
+      "changed_prediction_count": 0,
+      "changed_prediction_fraction": 0.0
+    },
+    "window": {
+      "support": 4452,
+      "changed_prediction_count": 0,
+      "changed_prediction_fraction": 0.0
+    },
+    "eligible_prefix": {
+      "support": 3756,
+      "changed_prediction_count": 0,
+      "changed_prediction_fraction": 0.0
+    }
+  },
+  "probability_attribution": {
+    "by_base_label": {
+      "DroneTarget": {
+        "support": 113,
+        "known_clutter_probability_delta_mean": 0.00022741293934363442,
+        "known_clutter_probability_delta_median": 5.881290417164564e-05,
+        "known_clutter_probability_delta_minimum": -0.0005696285516023636,
+        "known_clutter_probability_delta_maximum": 0.01525162160396576
+      },
+      "BirdTarget": {
+        "support": 56,
+        "known_clutter_probability_delta_mean": 0.001070346065846804,
+        "known_clutter_probability_delta_median": 2.2473803255707026e-05,
+        "known_clutter_probability_delta_minimum": -0.012848317623138428,
+        "known_clutter_probability_delta_maximum": 0.02068866789340973
+      },
+      "BalloonTarget": {
+        "support": 54,
+        "known_clutter_probability_delta_mean": 0.00018643829497267251,
+        "known_clutter_probability_delta_median": 3.817956894636154e-05,
+        "known_clutter_probability_delta_minimum": -0.0029136165976524353,
+        "known_clutter_probability_delta_maximum": 0.011040687561035156
+      },
+      "ClutterTarget": {
+        "support": 9,
+        "known_clutter_probability_delta_mean": 0.0018548816442489624,
+        "known_clutter_probability_delta_median": 0.002313852310180664,
+        "known_clutter_probability_delta_minimum": -0.006953567266464233,
+        "known_clutter_probability_delta_maximum": 0.00858604907989502
+      }
+    },
+    "overall": {
+      "baseline_nll": 0.05388683397770587,
+      "treatment_nll": 0.0545232363704164,
+      "nll_delta": 0.000636402392710532,
+      "baseline_brier": 0.01589746927256448,
+      "treatment_brier": 0.01609418035215243,
+      "brier_delta": 0.00019671107958794953
+    },
+    "clutter_drone_primary_subset": {
+      "support": 122,
+      "baseline_nll": 0.04621203600999513,
+      "treatment_nll": 0.04633684065048662,
+      "nll_delta": 0.00012480464049149237,
+      "baseline_brier": 0.013583180476409561,
+      "treatment_brier": 0.013596716801305388,
+      "brier_delta": 1.3536324895827012e-05
+    },
+    "post_hoc_probability_diagnostic_only": true
+  },
+  "trained_iso_fusion_column": {
+    "column_index": 79,
+    "element_count": 48,
+    "nonzero_element_count": 48,
+    "l1_norm": 1.105869130580686,
+    "l2_norm": 0.20398778567344736,
+    "maximum_absolute_weight": 0.07691317796707153
+  },
+  "primary_hypothesis": {
+    "research_question": "does canonical target-row energy isolation improve the ClutterTarget versus DroneTarget KnownGate boundary?",
+    "labels": [
+      "DroneTarget",
+      "ClutterTarget"
+    ],
+    "combined_net_rescue": 0
+  },
+  "safety_labels": [
+    "BirdTarget",
+    "BalloonTarget"
+  ],
+  "bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 21343,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "baseline": {
+      "accuracy": {
+        "median": 0.978448275862069,
+        "lower_95": 0.9612068965517241,
+        "upper_95": 0.9956896551724138
+      },
+      "macro_precision": {
+        "median": 0.8482539682539683,
+        "lower_95": 0.7368421052631579,
+        "upper_95": 0.9955555555555555
+      },
+      "macro_recall": {
+        "median": 0.8844045839561534,
+        "lower_95": 0.7199800697558545,
+        "upper_95": 0.9955156950672646
+      },
+      "macro_f1": {
+        "median": 0.862803075103489,
+        "lower_95": 0.7410714285714286,
+        "upper_95": 0.9694696670614554
+      },
+      "known_target_precision": {
+        "median": 0.9910313901345291,
+        "lower_95": 0.9779735682819384,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 0.9865470852017937,
+        "lower_95": 0.968609865470852,
+        "upper_95": 1.0
+      },
+      "known_target_f1": {
+        "median": 0.9887640449438202,
+        "lower_95": 0.979498861047836,
+        "upper_95": 0.9977528089887641
+      },
+      "known_clutter_precision": {
+        "median": 0.7142857142857143,
+        "lower_95": 0.5,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 0.7368421052631577,
+        "lower_95": 0.5,
+        "upper_95": 0.9411764705882353
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 0.8888888888888888
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.9642857142857143,
+        "lower_95": 0.9107142857142857,
+        "upper_95": 1.0
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 0.9814814814814815,
+        "lower_95": 0.9444444444444444,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "clutter_drone_balanced_acceptance_recall": {
+        "median": 0.8888888888888888,
+        "lower_95": 0.7222222222222222,
+        "upper_95": 1.0
+      }
+    },
+    "treatment": {
+      "accuracy": {
+        "median": 0.978448275862069,
+        "lower_95": 0.9612068965517241,
+        "upper_95": 0.9956896551724138
+      },
+      "macro_precision": {
+        "median": 0.8482539682539683,
+        "lower_95": 0.7368421052631579,
+        "upper_95": 0.9955555555555555
+      },
+      "macro_recall": {
+        "median": 0.8844045839561534,
+        "lower_95": 0.7199800697558545,
+        "upper_95": 0.9955156950672646
+      },
+      "macro_f1": {
+        "median": 0.862803075103489,
+        "lower_95": 0.7410714285714286,
+        "upper_95": 0.9694696670614554
+      },
+      "known_target_precision": {
+        "median": 0.9910313901345291,
+        "lower_95": 0.9779735682819384,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 0.9865470852017937,
+        "lower_95": 0.968609865470852,
+        "upper_95": 1.0
+      },
+      "known_target_f1": {
+        "median": 0.9887640449438202,
+        "lower_95": 0.979498861047836,
+        "upper_95": 0.9977528089887641
+      },
+      "known_clutter_precision": {
+        "median": 0.7142857142857143,
+        "lower_95": 0.5,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 0.7368421052631577,
+        "lower_95": 0.5,
+        "upper_95": 0.9411764705882353
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 0.8888888888888888
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.9642857142857143,
+        "lower_95": 0.9107142857142857,
+        "upper_95": 1.0
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 0.9814814814814815,
+        "lower_95": 0.9444444444444444,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "clutter_drone_balanced_acceptance_recall": {
+        "median": 0.8888888888888888,
+        "lower_95": 0.7222222222222222,
+        "upper_95": 1.0
+      }
+    },
+    "treatment_minus_baseline": {
+      "accuracy": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_target_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_target_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_target_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "clutter_drone_balanced_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      }
+    }
+  },
+  "same_epoch_comparison": {
+    "role": "paired training-trajectory attribution; epochs are correlated and not independent replicates",
+    "rows": [
+      {
+        "epoch": 1,
+        "baseline_macro_f1": 0.4901098901098901,
+        "treatment_macro_f1": 0.4901098901098901,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      {
+        "epoch": 2,
+        "baseline_macro_f1": 0.8079243051448847,
+        "treatment_macro_f1": 0.7909909909909909,
+        "macro_f1_delta": -0.016933314153893764,
+        "weak_floor_delta": -0.054545454545454564,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            218,
+            5
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      {
+        "epoch": 3,
+        "baseline_macro_f1": 0.7230086986184547,
+        "treatment_macro_f1": 0.7230086986184547,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "epoch": 4,
+        "baseline_macro_f1": 0.7433628318584071,
+        "treatment_macro_f1": 0.7433628318584071,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "epoch": 5,
+        "baseline_macro_f1": 0.7433628318584071,
+        "treatment_macro_f1": 0.7433628318584071,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "epoch": 6,
+        "baseline_macro_f1": 0.6740919125025084,
+        "treatment_macro_f1": 0.6740919125025084,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            7,
+            2
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "epoch": 7,
+        "baseline_macro_f1": 0.6740919125025084,
+        "treatment_macro_f1": 0.6740919125025084,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            7,
+            2
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            7,
+            2
+          ]
+        ]
+      },
+      {
+        "epoch": 8,
+        "baseline_macro_f1": 0.8277654046028211,
+        "treatment_macro_f1": 0.8277654046028211,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      {
+        "epoch": 9,
+        "baseline_macro_f1": 0.8058035714285715,
+        "treatment_macro_f1": 0.8058035714285715,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            221,
+            2
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            221,
+            2
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      {
+        "epoch": 10,
+        "baseline_macro_f1": 0.4901098901098901,
+        "treatment_macro_f1": 0.4901098901098901,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      {
+        "epoch": 11,
+        "baseline_macro_f1": 0.8753090400945931,
+        "treatment_macro_f1": 0.8753090400945931,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            1,
+            8
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      {
+        "epoch": 12,
+        "baseline_macro_f1": 0.8473483353072773,
+        "treatment_macro_f1": 0.8473483353072773,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            221,
+            2
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            221,
+            2
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      {
+        "epoch": 13,
+        "baseline_macro_f1": 0.7433628318584071,
+        "treatment_macro_f1": 0.7433628318584071,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ]
+      },
+      {
+        "epoch": 14,
+        "baseline_macro_f1": 0.7962767825781525,
+        "treatment_macro_f1": 0.7962767825781525,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            214,
+            9
+          ],
+          [
+            1,
+            8
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            214,
+            9
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      {
+        "epoch": 15,
+        "baseline_macro_f1": 0.7433628318584071,
+        "treatment_macro_f1": 0.8021490704417533,
+        "macro_f1_delta": 0.058786238583346195,
+        "weak_floor_delta": 0.1111111111111111,
+        "clutter_drone_acceptance_recall_delta_sum": 0.1111111111111111,
+        "baseline_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            6,
+            3
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            223,
+            0
+          ],
+          [
+            5,
+            4
+          ]
+        ]
+      },
+      {
+        "epoch": 16,
+        "baseline_macro_f1": 0.862803075103489,
+        "treatment_macro_f1": 0.862803075103489,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      {
+        "epoch": 17,
+        "baseline_macro_f1": 0.8705357142857143,
+        "treatment_macro_f1": 0.8705357142857143,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            222,
+            1
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      {
+        "epoch": 18,
+        "baseline_macro_f1": 0.8266068759342302,
+        "treatment_macro_f1": 0.8266068759342302,
+        "macro_f1_delta": 0.0,
+        "weak_floor_delta": 0.0,
+        "clutter_drone_acceptance_recall_delta_sum": 0.0,
+        "baseline_parent_confusion_matrix": [
+          [
+            220,
+            3
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            220,
+            3
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      {
+        "epoch": 19,
+        "baseline_macro_f1": 0.8753090400945931,
+        "treatment_macro_f1": 0.8432432432432433,
+        "macro_f1_delta": -0.032065796851349804,
+        "weak_floor_delta": -0.030303030303030276,
+        "clutter_drone_acceptance_recall_delta_sum": -0.11111111111111105,
+        "baseline_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            1,
+            8
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      {
+        "epoch": 20,
+        "baseline_macro_f1": 0.8432432432432433,
+        "treatment_macro_f1": 0.8079243051448847,
+        "macro_f1_delta": -0.03531893809835862,
+        "weak_floor_delta": -0.036363636363636376,
+        "clutter_drone_acceptance_recall_delta_sum": -0.11111111111111116,
+        "baseline_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            2,
+            7
+          ]
+        ],
+        "treatment_parent_confusion_matrix": [
+          [
+            219,
+            4
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      }
+    ],
+    "treatment_macro_f1_higher_epoch_count": 1,
+    "macro_f1_delta_strictly_greater_than_0_02_epoch_count": 1,
+    "maximum_macro_f1_delta": 0.058786238583346195,
+    "maximum_macro_f1_delta_epoch": 15
+  },
+  "frozen_decision": {
+    "primary_macro_f1_delta_strictly_greater_than_0_02": false,
+    "clutter_drone_combined_net_rescue_positive": false,
+    "each_clutter_drone_label_net_rescue_non_negative": true,
+    "each_bird_balloon_safety_label_net_rescue_non_negative": true,
+    "known_target_recall_not_lower": true,
+    "known_clutter_recall_not_lower": true,
+    "direction_safety_passed": true,
+    "paired_bootstrap_macro_f1_lower_95_greater_than_0": false,
+    "paired_bootstrap_clutter_drone_balanced_recall_lower_95_greater_than_0": false,
+    "positive_signal": false,
+    "robust_positive_signal": false,
+    "advance_only_to_multiseed_or_train_parent_grouped_oof": false,
+    "deployment_claim_allowed": false
+  },
+  "clutter_support_warning": {
+    "validation_parent_support": 9,
+    "parent_stratified_bootstrap_executed": true,
+    "single_point_metric_is_not_sufficient_for_release": true
+  },
+  "holdout_policy": {
+    "current_prepare_test_payload_access_count": 0,
+    "test_used_for_formula_or_model_selection": false,
+    "required_future_confirmation": "multi-seed and train parent-grouped OOF before any threshold work",
+    "original_v16_test_is_pristine_for_this_feature_concept": false,
+    "reason": "the historical iso feature-conception probe sampled 20 V16 test tracks"
+  },
+  "unknown_is_model_class": false,
+  "local_argmax_is_product_action": false,
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

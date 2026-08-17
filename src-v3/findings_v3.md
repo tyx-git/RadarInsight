@@ -2337,3 +2337,135 @@
 - Action：后续V21a-d至少生成seed43同seed配对Treatment；更严谨方案是四个Treatment都跑42/43/44并比较逐seedpaired delta。任何单因素正向信号仍需Macro-F1严格`>0.02`、预期类别净改善和bootstrap，并最终由train parent-grouped OOF确认。Clutter覆盖不足仍是KnownGate主要瓶颈。
 - 验证状态：三seed正式20 epoch、5000次bootstrap、development selection及其SHA绑定已执行并由流水线重复验证；OOF、Unknown拒识、完整级联、test、stable、P95和部署未执行。
 - 关联版本：RADAR-LN3-V21 KnownGate Baseline seed43 development champion。
+
+## Finding F213
+
+- Severity：Critical（旧V21a实现的物理量与原始诊断不一致，且配对种子错误）
+- 文件位置：`src-v3/radar_ln3/known_gate_features.py`、`src-v3/build/known_gate_v21a.py`、`src-v3/train/known_gate_v21.py`、`docs/radar_ln3_v21a_interframe_spectral_experiment.md`
+- 问题或结论：原始探索将谱形时间一致性定义为canonical RD相邻帧的速度谱余弦、峰速度漂移和零速能量变化；旧V21a却提取raw单帧内部相邻STFT窗affinity，并固定配对seed42。它既不是同一物理特征，也不能与seed43 champion做单因素归因。
+- Evidence：原脚本`tmp/v3_probe_archive/tmp_spectral_consistency.py`明确写“帧间谱相似/漂移”并输出6项；旧实现只输出2项intra-frame affinity。旧minimum还与事件帧数Spearman约`-0.120`，同帧数后Clutter−Bird差明显收缩。修正版六维合成probe在相同谱帧输出cosine=`1/1`、drift=`0/0`，突变帧输出cosine约`4.2e-7`、drift mean/max=`0.392/0.522`；原V21、multiseed及新V21a Smoke均通过。
+- Impact：直接训练旧配置可能把采样窗/帧数差异误当谱形稳定性，并把seed差异混入特征收益。旧结果即使变好也不能回答用户提出的V21a假设。
+- Action：旧`v21a`训练入口fail-closed；正式实验改为`v21a_interframe`，以seed43同初态全参数20 epoch运行，六维证据按当前事件因果归属并在RD缺失处reset。报告own-best、same-epoch、类别净救回和5000次parent bootstrap。
+- 验证状态：代码、Focused Smoke、旧V21回归、真实四parent只读probe、编译和PowerShell AST已通过；正式prepare、训练和validation未执行。
+- 关联版本：RADAR-LN3-V21a inter-frame spectral consistency修订。
+
+## Finding F214
+
+- Severity：High（V16 test对V21a特征构思已暴露，不能再作为无偏最终holdout）
+- 文件位置：`tmp/v3_probe_archive/tmp_spectral_consistency.py`、`src-v3/build/known_gate_v21a.py`、`docs/radar_ln3_v21a_interframe_spectral_experiment.md`
+- 问题或结论：最初用于提出V21a方向的探索脚本从全V16 index按标签抽track，没有限定train，并在每类调用中独立重置`RandomState(3)`。逐字只读重建后，108个探索track中train/val/test为`77/17/14`。
+- Evidence：暴露包含Clutter/Drone/Bird/Balloon test track=`6/1/3/4`。当前修正版prepare只读取train/val canonical payload，test payload访问仍为0；问题是历史特征构思已经观察过test来源，而不是当前训练泄漏。
+- Impact：未来即使V21a在原V16 test表现良好，也不是严格盲测泛化估计，不能据此放行KnownGate或Unknown拒识。
+- Action：V21a只做development配对和train parent-grouped OOF；多seed后仍需新的独立holdout或新数据版本。readiness/report强制披露该边界，禁止删除或淡化。
+- 验证状态：metadata重建已执行；原V16 test模型评估、正式拒识、级联、stable和P95均未执行。
+- 关联版本：RADAR-LN3-V21a holdout contamination disclosure。
+
+## Finding F215
+
+- Severity：High（V21a正式配对没有产生任何parent-final分类收益）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V21a-known-gate-interframe-spectral-paired-validation.json`、V21 seed43 Baseline与V21a正式artifact
+- 问题或结论：V21a帧间谱形一致性已完成seed43同初态、同parent顺序、全参数20 epoch正式配对，但own-best结果与Baseline严格相同，不能晋级multi-seed或train parent-grouped OOF。
+- Evidence：两臂best epoch均为16，parent-final混淆矩阵均为`[[220,3],[2,7]]`，Macro-F1均为`0.862803`，Clutter Precision/Recall/F1均为`0.70/0.777778/0.736842`。232个validation parent硬预测逐个相同，Bird错误为3580/852、Balloon错误为3027、Clutter错误为2900/3761；5000次paired parent bootstrap的全部硬指标差值区间均为`[0,0]`。20个same-epoch中Treatment仅epoch 14优于Control，最大Macro-F1增量`0.013684`，未超过2pp，另有5个epoch更差。
+- Impact：新增六维输入确实获得非零权重并改变概率，但未改变任何own-best parent动作；其信息大部分可能已被现有RD编码器/液态时序吸收，且两条困难Clutter虽概率略向正确方向移动仍未跨边界。不能用train-only AUC或单个epoch的Clutter Recall=100%替代冻结own-best结论。
+- Action：V21a正式裁决为无正向信号，不组合进KnownGate、不执行多seed/OOF、不调阈值。继续按预注册顺序独立验证V21b/c/d；若未来研究谱一致性，必须作为新变量重新预注册，不能回看当前validation选子特征。
+- 验证状态：prepare、20 epoch正式训练、development paired report、5000次bootstrap已执行；test、OOF、完整级联、正式拒识、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21a inter-frame spectral consistency正式负结果。
+
+## Finding F216
+
+- Severity：High（V21b正式配对无动作增益，且历史高AUC探针与正式特征不等价）
+- 文件位置：`src-v3/build/known_gate_v21b.py`、`src-v3/report/known_gate_v21b.py`、`src-v3/smoke/known_gate_v21b_contract_test.py`、`src-v3/scripts/v21b_modal_consistency_pipeline.ps1`、`docs/radar_ln3_v21b_modal_consistency_experiment.md`
+- 问题或结论：V21b正式变量保持为当前事件canonical RD零偏移目标行逐帧能量峰速度与当前TR有符号径向速度绝对偏差的median/max，唯一主假设是Clutter/Drone。历史探索AUC并非该正式公式的可靠先验：脚本跨split抽样、稀疏抽帧，并错误地取各距离行argmax Doppler索引的最大值。旧seed42和旧seed43广义方向候选均已阻断。
+- Evidence：历史脚本抽样93个track，train/val/test=`68/10/15`，实际产出92个parent；其Clutter/Drone direction-free AUC=`0.809/0.765`。正式train-only cache的Drone/Bird/Balloon/Clutter parent support=`476/239/238/33`，Clutter−Drone均值差=`-0.017145/-0.019844`，但direction-free AUC仅`0.567577/0.509008`；事件级、parent median/final/max审计最高也仅约`0.5881`。prepare仍直接SHA复用V21核心cache，当前路径raw/test访问0。
+- Impact：正式Treatment与Baseline均在epoch 16选优，parent-final混淆均为`[[220,3],[2,7]]`，Macro-F1均为`0.862803`；Drone/Bird/Balloon/Clutter四类232个parent全部`changed=rescued=harmed=0`。逐事件对齐进一步确认4452个window与3756个eligible prefix也无一改变硬预测，不只是汇总混淆碰巧相同；5000次paired bootstrap全部硬指标差值区间为`[0,0]`。因此当前公式未改善Clutter/Drone动作边界。历史15个test track参与特征构思，原V16 test也不再是该特征的纯盲holdout。
+- Action：V21b不进入multi-seed、train parent-grouped OOF或组合特征。不能用epoch 14的Macro-F1临时增量`+0.043613`宣称主假设成立：该差异来自少误拒3个Bird，Clutter/Drone不变；epoch 15虽多救回1个Clutter，却新增1个Bird误拒。若未来重做，必须使用新的物理量/公式与独立实验身份，不得回看当前validation选择聚合或符号。
+- 验证状态：正式全参数20 epoch、冻结development paired report、四标签净救回、20个same-epoch和5000次bootstrap已执行。新增两列96/96权重均非零，own-best新列L2=`0.500995`，证明负结果不是传入或训练失效。事后软评分诊断中Clutter/Drone NLL差约`-0.00190`、Brier差约`-0.000592`，但paired bootstrap 95%区间分别为`[-0.00452,+0.00121]`和`[-0.00149,+0.000452]`，均跨0；总体NLL/Brier反而恶化。该诊断不改变冻结裁决；test、OOF、完整级联、正式拒识、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21b seed43 RD/TR modal consistency Clutter/Drone正式候选v2。
+
+## Finding F217
+
+- Severity：High（V21c具有train-only方向信号，但历史数值与正式特征不等价）
+- 文件位置：`src-v3/build/known_gate_v21c.py`、`src-v3/report/known_gate_v21c.py`、`src-v3/smoke/known_gate_v21c_contract_test.py`、`src-v3/scripts/v21c_target_row_iso_pipeline.ps1`、`docs/radar_ln3_v21c_target_row_iso_experiment.md`
+- 问题或结论：正式V21c定义为当前事件canonical RD零偏移目标行相对线性功率占完整`21×384`功率的逐帧比例均值。该量在冻结train parent上确有Clutter/Drone方向信号，但早期`Drone≈0.125/Clutter≈0.053`来自另一提取口径，不能作为正式数值或性能证据。
+- Evidence：正式train-only Drone/Clutter parent平均iso均值=`0.281369/0.130682`，中位=`0.277772/0.070544`，Clutter-vs-Drone direction-free AUC=`0.777120`；Clutter-vs-Bird仅`0.518321`，Balloon-vs-Clutter约`0.707156`。focused物理探针得到集中目标行iso=`0.9999998`、21行均匀能量iso=`0.04761905`。早期脚本93个track跨train/val/test=`60/13/20`，使用原生`31×PRT`绝对幅度、首次能量峰选行后跨事件固定和最多10个事件，明显不等价于正式canonical事件特征。
+- Impact：V21c值得完成正式单因素训练，且唯一主假设应为Clutter/Drone；但train-only AUC不能证明对已训练主干有互补增益。原V16 test已有20个track参与特征构思，未来不能作为该概念的纯盲最终holdout。Bird与Balloon可能因边界移动受损，必须作为安全守卫。
+- Action：固定seed43同初态全参数20 epoch；只新增一列Fusion并从0开始，要求逐epochparent顺序与Baseline一致。采纳必须满足own-best Macro-F1严格`>+0.02`、Clutter+Drone合计净救回为正且各不受损、Bird/Balloon不受损、Known Target与Clutter Recall不下降，并报告5000次paired parent bootstrap。概率微动、中间epoch或“辅助特征”定位不得降低门槛。
+- 验证状态：专属prepare、config/contract/readiness、Python compile、PowerShell AST、focused Smoke、静态隔离及V21/V21 multiseed/V21a/V21b回归Smoke已通过；正式20 epoch训练和冻结development paired evaluation未执行。multi-seed、OOF、正式拒识、完整级联、test、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21c seed43 target-row iso Clutter/Drone正式候选v1。
+
+## Finding F218
+
+- Severity：High（V21c正式配对没有提供可采纳的互补收益）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V21c-known-gate-target-row-iso-clutter-drone-paired-validation.json`、V21 seed43 Baseline与V21c正式artifact
+- 问题或结论：V21c已完成同seed、同初态、同parent顺序的全参数20 epoch配对训练。目标行iso被正确传入并获得非零权重，但冻结own-best没有改变任何parent、window或eligible prefix硬预测，且概率评分轻微恶化；因此train-only单变量AUC没有转化为现有KnownGate主干之外的残差信息。
+- Evidence：两臂best epoch均为16，parent Accuracy/Macro-F1均为`0.978448/0.862803`，Known Target P/R/F1均为`0.990991/0.986547/0.988764`，Clutter P/R/F1均为`0.70/0.777778/0.736842`，support=9，混淆矩阵均为`[[220,3],[2,7]]`。新增Fusion列48/48权重非零、L2=`0.203988`；parent/window/eligible-prefix的改变数分别为`0/0/0`，5000次paired bootstrap全部硬指标差值为`[0,0,0]`。总体NLL/Brier变化为`+0.000636/+0.000197`，Clutter/Drone子集为`+0.000125/+0.0000135`。
+- Impact：5个own-best错误仍为Bird 852/3580、Balloon 3027和Clutter 2900/3761。困难Clutter 2900/3761的parent平均iso为`0.072712/0.057788`，误拒Bird 852/3580为`0.062829/0.057842`，在真正错误边界上高度重叠；Balloon 3027虽iso=`0.241074`更像已知目标，Treatment却把其Clutter概率再提高约`0.011041`。这说明全局AUC主要描述总体分布，而不是这些残余难例的可修正性；现有RD主干吸收同源浓度信息也是合理但尚未被独立消融证明的解释。
+- Action：V21c冻结为负结果，不进入multi-seed、train parent-grouped OOF、组合特征或阈值调优；继续执行预注册的V21d单因素。不得用epoch 15的事后`+0.058786`替代own-best，因为其绝对Macro-F1仅`0.802149`，且后续epoch出现反向变化。
+- 验证状态：正式全参数20 epoch、冻结development paired evaluation、5000次bootstrap、概率归因及错误parent核对已执行；报告SHA-256=`e9ca50adf0427b82930d75eca873b3db8e181227371fabc7955c90a41b966348`。Clutter validation support仅9；multi-seed、OOF、正式拒识、完整级联、test、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21c seed43 target-row iso Clutter/Drone正式负结果。
+
+## Finding F219
+
+- Severity：Critical（旧V21d公式不能表达历史d_range语义，且历史12.4/1.9不是类别统计）
+- 文件位置：`src-v3/radar_ln3/known_gate_features.py`、`src-v3/build/known_gate_v21d.py`、`tmp/v3_probe_archive/tmp_mat_feature_mining.m`、`docs/radar_ln3_v21d_causal_prefix_d_range_experiment.md`
+- 问题或结论：旧V21d在每个事件内计算`std(MTD detected range - 一个常数TR range)`，其标准差严格等于事件内MTD range标准差，丢失“相对航迹滤波距离跨事件不稳定”的物理量；记录中的Bird 12.4 m与Clutter 1.9 m则来自两个代表轨迹前9帧，而非类别总体。
+- Evidence：逐字复现MATLAB脚本得到Bird track 333=`12.414398 m`、Clutter track 1868=`1.925407 m`；二者分别属于V16 val/test。旧核心第6列train事件均值Bird/Clutter约`5.433/6.510 m`，方向已经相反。正式`v21d_prefix`按每帧`detected_range_m-该帧事件TR range_m`累计样本std后，train-final截断后均值Bird/Clutter=`10.888977/14.007493 m`，Clutter/Bird方向无关AUC=`0.648282`，仍不支持“Bird总体更高”。
+- Impact：若直接训练旧seed42配置，会同时混入跨seed差异、错误公式和由两个val/test代表轨迹产生的先验偏差。即使模型提升，也无法归因到用户提出的d_range机制；原V16 val/test也不再是该特征概念的纯盲holdout。
+- Action：旧`v21d`训练入口fail-closed；正式实验使用独立`v21d_prefix`、seed43同初态全参数20 epoch和独立cache。主假设仍冻结为Clutter/Bird，但不预设高值属于哪类；采用必须满足Macro-F1严格`>+0.02`、两主标签净救回与Drone/Balloon安全守卫。
+- 验证状态：正式prepare、train-only诊断、合同Smoke、旧V21/V21b/V21c回归Smoke、编译、PowerShell AST和静态隔离通过；正式训练/paired evaluation未执行。自动prepare test payload访问0，但人工字段复核读取了已暴露test parent 1868的54个MAT帧；模型test评估、OOF、拒识、级联、stable与P95未执行。
+- 关联版本：RADAR-LN3-V21d causal-prefix d-range Clutter/Bird正式候选v1。
+
+## Finding F220
+
+- Severity：High（d_range源数据存在单parent极端跳变，已截断但不可删除）
+- 文件位置：`data/processed/RADAR-LN3-V21d-cq08-known-gate-train-causal-prefix-d-range-cache.npz`、V16 track 234 index与对应MAT debug字段
+- 问题或结论：train Drone track 234的TR/debug track range在后段从约2750 m跳到566/996/553/1272/10330 m，而MTD detected range平滑落在870至720 m，导致累计残差std最大约3565 m。该异常是源MAT与V16事件共同携带的真实字段，不是V21d映射错位。
+- Evidence：逐MAT读取0001/0017/0023/0029/0037/0043帧确认`debug_info.track_range_m`分别与V16事件range完全相同；正式train cache只有该parent共6个prefix超过75 m并被截断为1，validation截断数0、最大原始std约59.205 m。
+- Impact：不截断会让单一Drone parent主导数值尺度；静默删除或插值又会改变困难样本与数据合同。75 m截断把影响限制在6/18825个有效train prefix，但该parent仍可能提供类别捷径，正式评估需检查其是否影响Drone安全方向。
+- Action：保留track 234并在readiness中单列`clipped_parent_ids`、原始最大值和截断事件数；训练后按Drone/Clutter/Bird净救回与概率变化审计，不根据validation结果修改clip或删除样本。
+- 验证状态：源MAT字段抽查、cache极值审计及train/val截断计数已执行；V21d正式20 epoch训练与冻结配对评估已完成，Drone validation 113个parent全部仍被Known Target接受，未观察到该异常parent导致的validation Drone安全回归。test、OOF、完整级联、正式拒识、stable与P95未执行。
+- 关联版本：RADAR-LN3-V21d causal-prefix d-range异常值审计。
+
+## Finding F221
+
+- Severity：High（V21d软评分略有改善，但未产生任何冻结动作收益）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V21d-known-gate-causal-prefix-d-range-clutter-bird-paired-validation.json`、V21 seed43 Baseline与V21d正式artifact、`data/processed/RADAR-LN3-V21d-cq08-known-gate-val-causal-prefix-d-range-cache.npz`
+- 问题或结论：V21d因果前缀d_range已完成seed43同初态、同parent顺序、全参数20 epoch正式配对。新增证据确实进入模型并改善平均NLL/Brier，但own-best对parent、全部window和eligible prefix均没有改变任何硬预测，不满足预注册的2个百分点与净救回门槛，不能晋级multi-seed、OOF或组合特征。
+- Evidence：20/20 epoch checkpoint齐全，Treatment共27530个参数全部训练；共享参数/缓冲初态完全相同，新增Fusion列初始为0，初始logits相同，20个epoch的parent顺序哈希逐轮与Baseline一致。两臂best epoch均为16，parent Accuracy/Macro-F1均为`0.978448/0.862803`，Known Target P/R/F1均为`0.990991/0.986547/0.988764`，Clutter P/R/F1均为`0.70/0.777778/0.736842`，support=9，混淆矩阵均为`[[220,3],[2,7]]`。parent/window/eligible-prefix支持为`232/4452/3756`且改变数全为0；四标签rescued/harmed全为0，5000次分层paired bootstrap全部硬指标差值为`[0,0,0]`。新增列48/48权重非零，L1/L2=`1.279879/0.206340`，排除了未接线或未训练。
+- Impact：软评分诊断总体NLL/Brier变化为`-0.004038/-0.000727`，Clutter/Bird子集为`-0.011716/-0.002176`，但这是事后校准信号而不是产品动作收益。5个错误parent仍为Clutter 2900/3761、Bird 852/3580和Balloon 3027；其final d_range约为`16.612/18.668/5.545/13.323/3.411 m`。Treatment相对Baseline时Clutter 3761的正确Clutter概率提高`+0.079573`，Clutter 2900却下降`-0.052853`；两只Bird的错误Clutter概率又提高`+0.030641/+0.009512`。同一Treatment内将d_range输入后验置零，232个parent动作仍不变，NLL由`0.049848`回退到`0.052550`，说明输入本身贡献部分软评分改善；但直接输入效应也同时抬高Clutter 2900/3761和误拒Bird 852/3580、Balloon 3027的Clutter概率，无法作为单调L3评分规则。该一维量在真正错误边界上方向不稳定，validation Clutter/Bird方向无关AUC也仅约`0.657`。
+- Action：冻结V21d为无动作增益，不并入KnownGate，不因软评分改善而单独调validation阈值，也不事后选择epoch 9的`+0.041545`临时增量。V21a-d四项seed43单因素均未改变own-best硬预测，下一步应回到Clutter合法覆盖、标签/来源子流型与L3 train parent-grouped OOF评分设计，而不是组合四个负结果。若未来重新研究距离不稳定性，需提出新物理量、预注册方向并使用新的独立holdout。
+- 验证状态：冻结evaluate已重复执行且报告SHA-256=`324dbd6c009cb2a665adc8d1752b7a35780fa03f64945a85458df23546db6f99`；Clutter support仅9，单臂Clutter Recall bootstrap 95%区间约`[0.444444,1.0]`，相同硬预测只说明当前development集合无增益，不证明总体模型等价。test、multi-seed、OOF、完整级联、正式拒识、stable、P95和部署均未执行。
+- 关联版本：RADAR-LN3-V21d seed43 causal-prefix d-range Clutter/Bird正式负结果。
+
+## Finding F222
+
+- Severity：Critical（Clutter低support是源数据覆盖约束，不是漏索引）
+- 文件位置：`data/manifests/cq08_unified_manifest.json`、`data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json`、`data/processed/RADAR-LN3-V21-cq08-clutter-parent-registry.csv`、`src-v3/processed/report/RADAR-LN3-V21-clutter-coverage-semantics-audit.json`
+- 问题或结论：CQ08中源数字标签5只有50个合法parent，且50个全部已进入V16；split固定为train/val/test=`33/9/8`。仓库内不存在遗漏的合法Clutter parent，无法靠重扫manifest或复制prefix补support。
+- Evidence：manifest共1550条、Clutter=`50`，V16共1546个parent且Clutter仍=`50`；两集合track id逐项相同。V16外4条是Bird 634/785与Drone 1008/3338，Clutter为0。50个Clutter都有独立capture token和独立Clutter-containing provenance component；其中5个component/capture token同时含Drone或Balloon，但这只证明来源分组共享，不能自动判错标。精确capture/raw/RD/normalized track/point/model-input hash跨split交集仍为0。
+- Impact：V21 validation Clutter只有9个parent，四个特征单因素都无法改变冻结硬动作；继续仅调特征、loss或threshold不能增加独立Clutter机制覆盖。任何把overlapping prefix/window计作新support或把validation/test移入train的做法都会夸大样本量并污染评估。
+- Action：保留50-parent和50-capture registry作为唯一现有合法登记；合法扩充只能是带权威采集时间、环境、传感器模式、物理机制与内容provenance的新CQ08兼容采集。若新增数据或确认session关系改变split，创建新index/contract并重算train normalization。
+- 验证状态：focused smoke两次临时输出字节一致；parent/capture=`50/50`、split=`33/9/8`、自动标签变化=0。test 8个parent只从既有metadata登记，TR物理JSON、raw、MAT、RD tensor访问均为0；模型test评估、训练、OOF、拒识、级联、stable与P95未执行。
+- 关联版本：RADAR-LN3-V21 Clutter coverage/semantics audit v1。
+
+## Finding F223
+
+- Severity：Critical（capture时间和Clutter物理语义尚无权威真值）
+- 文件位置：`OriData/23/CQ-08/batch_process_all.m`、`src/process/cq08_manifest.py`、`data/processed/RADAR-LN3-V21-cq08-clutter-capture-registry.csv`、`data/processed/RADAR-LN3-V21-cq08-clutter-audit-cluster-profiles.csv`、`docs/radar_ln3_clutter_semantic_adjudication_protocol.md`
+- 问题或结论：当前可证明的Clutter语义只有“原文件数字5→manifest ClutterTarget→MAT文件token Clutter”。仓库没有场景、环境、操作者备注或Clutter机制字段；`capture_id`日期又由点迹文件修改日期生成，不是权威采集日期。源数字6在脚本中名为`Other`，也不能据此证明其天然就是严格open-set Unknown。
+- Evidence：`batch_process_all.m`先从点迹文件`dir(...).datenum`取得日期，再拼接第一行`HH:MM:SS`形成MAT文件名前缀；50个Clutter token共享`20250616`，但已验证独立采集日期实际为0。派生60秒候选burst共30组，8组多parent且8组跨split、最大10个parent；这些只能提示采集日志复核。train-only四个描述簇支持=`25/4/1/3`，validation最近簇=`8/1/0/0`，两个train描述层在validation无最近成员且三个层support<5；聚类强烈不均衡，不能命名为物理子型。
+- Impact：将50个token称为50个独立环境、把共同日期称为真实采集日、把时间burst称为session，或把audit cluster命名为植被/多径等子型，都会把工程派生字段升级成不存在的真值。validation未覆盖两个train描述层也使Clutter泛化估计更脆弱。
+- Action：使用42条train/validation人工裁决模板追溯权威采集日志、环境、模式和TR/RD证据；test继续sealed。规划上先确认或补充至少3个权威独立日期、3个环境并盘点全部部署模式；每个确认机制暂按至少10 train + 5 development、跨2日期收集，最终缺口在人工裁决后计算。审计簇不得进入训练/采样/阈值，标签冲突只能升级为独立授权与版本化复核。
+- 验证状态：标签5/6映射、50条文件名血缘、derived capture token来源、burst登记、train-only簇与test零payload访问均已确定性复核；独立人工语义真值仍未执行。11/11方法学风险已扫描，整体置信度为CAUTION而非语义VERIFIED。
+- 关联版本：RADAR-LN3-V21 Clutter semantic adjudication protocol v1。
+
+## Finding F224
+
+- Severity：High（V21e产生首个超过冻结门槛的KnownGate单因素信号，但仍需多seed与OOF确认）
+- 文件位置：`src-v3/processed/report/RADAR-LN3-V21e-known-gate-causal-course-consistency-paired-validation.json`、`src-v3/radar_ln3/known_gate_features.py`、`src-v3/report/known_gate_v21e.py`
+- 问题或结论：非首点course的因果前缀圆周不一致度在seed43同初态、同parent顺序、全参数20 epoch配对中，将parent-final KnownGate的5个固定错误全部救回且无新增parent错误，是V21a-e中首个跨过`>2pp`冻结门槛的单因素候选。
+- Evidence：Baseline/Treatment own-best分别为epoch 16/14，parent-final Accuracy=`0.978448/1.0`、Macro-F1=`0.862803/1.0`，增量=`+0.137197`；Bird 852/3580、Balloon 3027、Clutter 2900/3761全部纠正，四标签net rescue=`0/2/1/2`。5000次四标签分层paired parent bootstrap的Macro-F1差值95%区间=`[0.030530,0.258929]`。新增Fusion列48/48权重非零；固定Treatment权重只置零该输入后Clutter Recall由`9/9`降至`2/9`、Macro-F1降至`0.674092`，确认直接输入贡献。
+- Impact：parent-final强收益没有等量延伸到在线早期语义。window/eligible-prefix Macro-F1仅变化约`+0.001317/+0.003806`，Known Target Recall约下降`-0.003498/-0.002763`；eligible prefix按原始标签净变化为Drone 0、Bird -4、Balloon -6、Clutter +8。Clutter 3761直到event 15才转为正确，故stable与早期路由仍未被验证。Clutter仅9个，Treatment全正确使非参数bootstrap单臂区间退化为`[1,1]`，不代表未来总体无误差。
+- Action：V21e晋级seed42/43/44严格配对复核，再决定是否进入train parent-grouped OOF；每个seed必须有独立同seed Baseline、共享初态、零新增列、同20轮parent顺序和own-best冻结选择。多seed报告必须同时检查parent-final、prefix方向错误、Clutter support及跨seedpaired delta，不得用三个epoch或三个seed事后选优。原development用于特征发现，后续仍需要新独立holdout。
+- 验证状态：seed43 prepare、20 epoch训练、development paired report、直接输入置零诊断和5000次bootstrap已执行；multi-seed、OOF、正式拒识、完整级联、test、stable、P95和部署未执行。
+- 关联版本：RADAR-LN3-V21e causal course consistency seed43 positive candidate v1。

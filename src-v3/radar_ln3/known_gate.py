@@ -27,8 +27,15 @@ from .data import (
 )
 from .known_gate_features import (
     BASELINE_VARIANT,
+    COURSE_PREFIX_FEATURE_SCHEMA,
+    D_RANGE_PREFIX_FEATURE_SCHEMA,
     FEATURE_NAMES_BY_VARIANT,
+    INTERFRAME_SPECTRAL_FEATURE_SCHEMA,
     KNOWN_GATE_FEATURE_SCHEMA,
+    V21A_INTERFRAME_VARIANT,
+    V21A_VARIANT,
+    V21D_PREFIX_VARIANT,
+    V21E_COURSE_PREFIX_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -52,9 +59,33 @@ KNOWN_GATE_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 KNOWN_GATE_SELECTION_METRIC = "parent_min_precision_recall"
 KNOWN_GATE_CONTRACT_SCHEMA = "RADAR-LN3-V21-known-gate-data-contract-v1"
 KNOWN_GATE_MANIFEST_SCHEMA = "RADAR-LN3-V21-known-gate-feature-cache-manifest-v1"
+KNOWN_GATE_V21A_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V21a-known-gate-interframe-spectral-feature-cache-manifest-v1"
+)
 KNOWN_GATE_READINESS_SCHEMA = "RADAR-LN3-V21-known-gate-training-readiness-v1"
 KNOWN_GATE_BASELINE_MULTISEED_READINESS_SCHEMA = (
     "RADAR-LN3-V21-known-gate-baseline-multiseed-training-readiness-v1"
+)
+KNOWN_GATE_V21A_READINESS_SCHEMA = (
+    "RADAR-LN3-V21a-known-gate-interframe-spectral-training-readiness-v1"
+)
+KNOWN_GATE_V21B_READINESS_SCHEMA = (
+    "RADAR-LN3-V21b-known-gate-modal-consistency-clutter-drone-training-readiness-v2"
+)
+KNOWN_GATE_V21C_READINESS_SCHEMA = (
+    "RADAR-LN3-V21c-known-gate-target-row-iso-clutter-drone-training-readiness-v1"
+)
+KNOWN_GATE_V21D_READINESS_SCHEMA = (
+    "RADAR-LN3-V21d-known-gate-causal-prefix-d-range-clutter-bird-training-readiness-v1"
+)
+KNOWN_GATE_V21D_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V21d-known-gate-causal-prefix-d-range-feature-cache-manifest-v1"
+)
+KNOWN_GATE_V21E_READINESS_SCHEMA = (
+    "RADAR-LN3-V21e-known-gate-causal-course-consistency-training-readiness-v1"
+)
+KNOWN_GATE_V21E_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V21e-known-gate-causal-course-consistency-feature-cache-manifest-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
 
@@ -107,6 +138,8 @@ class KnownGateDataConfig:
     validation_feature_cache_path: str | None
     expected_train_feature_cache_sha256: str | None
     expected_validation_feature_cache_sha256: str | None
+    feature_experiment_contract_path: str | None
+    expected_feature_experiment_contract_sha256: str | None
 
 
 @dataclass(frozen=True)
@@ -240,6 +273,16 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             if data_payload.get("expected_validation_feature_cache_sha256") is None
             else str(data_payload["expected_validation_feature_cache_sha256"])
         ),
+        feature_experiment_contract_path=(
+            None
+            if data_payload.get("feature_experiment_contract_path") is None
+            else str(data_payload["feature_experiment_contract_path"])
+        ),
+        expected_feature_experiment_contract_sha256=(
+            None
+            if data_payload.get("expected_feature_experiment_contract_sha256") is None
+            else str(data_payload["expected_feature_experiment_contract_sha256"])
+        ),
     )
     if (
         data.train_split_name,
@@ -363,12 +406,26 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data.expected_train_feature_cache_sha256,
         data.expected_validation_feature_cache_sha256,
     )
+    experiment_contract_fields = (
+        data.feature_experiment_contract_path,
+        data.expected_feature_experiment_contract_sha256,
+    )
     if variant == BASELINE_VARIANT:
-        if any(value is not None for value in cache_fields) or train.paired_baseline_config_path is not None:
+        if (
+            any(value is not None for value in cache_fields)
+            or any(value is not None for value in experiment_contract_fields)
+            or train.paired_baseline_config_path is not None
+        ):
             raise ValueError("V21 Baseline must not load feature caches or reference itself as a pair")
     else:
         if any(value is None for value in cache_fields) or train.paired_baseline_config_path is None:
             raise ValueError("V21 Treatment requires feature caches and an explicit Baseline config")
+        if any(value is None for value in experiment_contract_fields) and any(
+            value is not None for value in experiment_contract_fields
+        ):
+            raise ValueError(
+                "V21 Treatment feature experiment contract path/hash must be both present or both absent"
+            )
 
     return KnownGateConfig(
         schema_version=V21_SCHEMA_VERSION,
@@ -386,6 +443,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
 
 
 def known_gate_config_identity_sha256(config: KnownGateConfig) -> str:
+    data_payload = asdict(config.data)
+    if (
+        config.data.feature_experiment_contract_path is None
+        and config.data.expected_feature_experiment_contract_sha256 is None
+    ):
+        data_payload.pop("feature_experiment_contract_path")
+        data_payload.pop("expected_feature_experiment_contract_sha256")
     payload = {
         "schema_version": config.schema_version,
         "config_name": config.config_name,
@@ -395,7 +459,7 @@ def known_gate_config_identity_sha256(config: KnownGateConfig) -> str:
         "label_to_id": dict(config.label_to_id),
         "forbidden_training_labels": list(config.forbidden_training_labels),
         "feature_names": list(config.feature_names),
-        "data": asdict(config.data),
+        "data": data_payload,
         "model": asdict(config.model),
         "train": asdict(config.train),
     }
@@ -791,12 +855,16 @@ def build_known_gate_model_for_config(
     comparable_data = {
         key: value
         for key, value in asdict(config.data).items()
-        if not key.startswith("feature_") and "feature_cache" not in key
+        if not key.startswith("feature_")
+        and "feature_cache" not in key
+        and "feature_experiment_contract" not in key
     }
     baseline_data = {
         key: value
         for key, value in asdict(baseline_config.data).items()
-        if not key.startswith("feature_") and "feature_cache" not in key
+        if not key.startswith("feature_")
+        and "feature_cache" not in key
+        and "feature_experiment_contract" not in key
     }
     if comparable_data != baseline_data:
         raise ValueError("V21 Treatment base data contract differs from Baseline")
@@ -1053,6 +1121,14 @@ __all__ = [
     "KNOWN_GATE_CONTRACT_SCHEMA",
     "KNOWN_GATE_BASELINE_MULTISEED_READINESS_SCHEMA",
     "KNOWN_GATE_BASELINE_MULTISEED_SEEDS",
+    "KNOWN_GATE_V21A_READINESS_SCHEMA",
+    "KNOWN_GATE_V21A_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V21B_READINESS_SCHEMA",
+    "KNOWN_GATE_V21C_READINESS_SCHEMA",
+    "KNOWN_GATE_V21D_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V21D_READINESS_SCHEMA",
+    "KNOWN_GATE_V21E_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V21E_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
     "KNOWN_GATE_LOSS_MODE",
     "KNOWN_GATE_MANIFEST_SCHEMA",

@@ -1,0 +1,68 @@
+{
+  "schema_version": "RADAR-LN3-V21d-known-gate-causal-prefix-d-range-feature-cache-manifest-v1",
+  "feature_schema": "cq08-causal-prefix-mtd-minus-tr-range-stability-v1",
+  "feature_names": [
+    "causal_prefix_mtd_minus_tr_range_sample_std_m_over_75m"
+  ],
+  "experiment_contract": "data/processed/RADAR-LN3-V21d-cq08-known-gate-causal-prefix-d-range-clutter-bird-contract.json",
+  "experiment_contract_sha256": "4ac3db2dea0afdb71812b44c0a91e084584f8630692362650d3c239c295dc8c2",
+  "core_data_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "source_canonical_frame_index": "data/processed/cq08_rd_physical_canonical_frame_index_v3_1.csv",
+  "source_canonical_frame_index_sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+  "cache_files": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V21d-cq08-known-gate-train-causal-prefix-d-range-cache.npz",
+      "sha256": "1ca76351b547bc22008354628f91b3c5a8c841e177b29ea4698568170fadb159",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "split": "train",
+      "event_count": 18923,
+      "parent_count": 986,
+      "valid_event_count": 18825,
+      "invalid_event_count": 98,
+      "valid_event_fraction": 0.9948211171590129,
+      "residual_frame_count": 67811,
+      "skipped_missing_tr_range_frame_count": 8,
+      "stale_but_valid_prefix_event_count": 62,
+      "clipped_event_count": 6,
+      "clipped_parent_ids": [
+        "cq08|track|234"
+      ],
+      "maximum_raw_prefix_std_m": 3565.2071894473925,
+      "test_payload_access_count": 0
+    },
+    "val": {
+      "path": "data/processed/RADAR-LN3-V21d-cq08-known-gate-val-causal-prefix-d-range-cache.npz",
+      "sha256": "057f231c2522af354d6470ba600b83a9fa30c44ea1090bfb6db19db904742ccd",
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ],
+      "split": "val",
+      "event_count": 4452,
+      "parent_count": 232,
+      "valid_event_count": 4415,
+      "invalid_event_count": 37,
+      "valid_event_fraction": 0.9916891284815813,
+      "residual_frame_count": 15787,
+      "skipped_missing_tr_range_frame_count": 0,
+      "stale_but_valid_prefix_event_count": 18,
+      "clipped_event_count": 0,
+      "clipped_parent_ids": [],
+      "maximum_raw_prefix_std_m": 59.205246232064276,
+      "test_payload_access_count": 0
+    }
+  },
+  "sample_id_is_model_input": false,
+  "frame_index_is_model_input": false,
+  "valid_mask_is_model_input": false,
+  "test_excluded": true,
+  "test_payload_access_count": 0
+}

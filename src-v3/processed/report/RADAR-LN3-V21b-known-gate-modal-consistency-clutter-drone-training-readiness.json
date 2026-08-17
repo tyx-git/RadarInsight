@@ -1,0 +1,224 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V21b-known-gate-modal-consistency-clutter-drone-training-readiness-v2",
+  "checks": {
+    "selected_development_baseline_is_seed43_and_sha_bound": true,
+    "current_code_reconstructs_formal_seed43_initial_state_sha": true,
+    "modal_formula_matches_the_frozen_v21_core_contract": true,
+    "signed_rd_peak_and_signed_tr_radial_are_compared_without_post_hoc_sign_choice": true,
+    "zero_offset_target_row_and_current_event_frames_are_the_only_rd_scope": true,
+    "median_and_max_are_normalized_by_the_frozen_85mps_clip": true,
+    "tr_radial_missingness_invalidates_only_the_two_modal_values": true,
+    "core_cache_is_sha_reused_without_raw_rebuild": true,
+    "train_cache_sample_order_is_exact": true,
+    "train_only_physical_diagnostic_is_recorded_without_becoming_a_performance_gate": true,
+    "validation_feature_values_are_not_a_readiness_gate": true,
+    "unknown_is_excluded_from_cache_and_training_population": true,
+    "test_payload_access_count_is_zero": true,
+    "treatment_copies_shared_initialization_and_zeroes_only_two_new_columns": true,
+    "full_parameter_20_epoch_same_seed_pair_is_required": true,
+    "old_seed42_candidate_is_explicitly_non_comparable": true,
+    "superseded_seed43_candidate_is_explicitly_blocked": true,
+    "clutter_drone_are_the_only_primary_hypothesis_labels": true,
+    "bird_balloon_are_safety_labels_only": true,
+    "historical_probe_test_exposure_and_formula_mismatch_are_disclosed": true
+  },
+  "config": {
+    "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21b-cq08-liquid-known-gate-modal-consistency-clutter-drone-seed43-config.json",
+    "sha256": "830c59d81bfb4f6ccfe21c79c591f96bc7612548efe18860bb2c2812de764fee"
+  },
+  "selected_baseline": {
+    "seed": 43,
+    "selection_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-known-gate-baseline-development-selection.json",
+    "selection_sha256": "abb9bb0f6d0277eec88f70765062c3f2d1e688a17d8c04e5a6a9079411b83c20",
+    "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128"
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "experiment_contract_sha256": "6c0e39896a75052514b6537f467cd3b9d9243ed10ada27339493626c8f1de777",
+    "feature_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+    "train_feature_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+    "validation_feature_cache_sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b"
+  },
+  "train_only_feature_diagnostic": {
+    "role": "train-only physical attribution; weak univariate separation is recorded without becoming a readiness or performance gate",
+    "event_count": 18923,
+    "valid_event_count": 18770,
+    "valid_event_fraction": 0.991914601278867,
+    "parent_label_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 476,
+            "mean": 0.04030628257472604,
+            "median": 0.004653572247965107,
+            "q25": 0.001787129508253808,
+            "q75": 0.07486968748382336,
+            "minimum": 0.00019890456984891596,
+            "maximum": 0.17435771162095276
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 476,
+            "mean": 0.05193449367853549,
+            "median": 0.01540829472835564,
+            "q25": 0.0025011505209840833,
+            "q75": 0.10005441582076909,
+            "minimum": 0.00019890456984891596,
+            "maximum": 0.1974316269159317
+          }
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 239,
+            "mean": 0.03473578317744402,
+            "median": 0.022113986344387136,
+            "q25": 0.005143043156850206,
+            "q75": 0.05777612782296036,
+            "minimum": 0.000672045341857216,
+            "maximum": 0.13548660585108926
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 239,
+            "mean": 0.050582082352209415,
+            "median": 0.040804758965969086,
+            "q25": 0.015073246864194517,
+            "q75": 0.07579652265154033,
+            "minimum": 0.0009792178136515705,
+            "maximum": 0.2982800805941224
+          }
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 238,
+            "mean": 0.004233273621789437,
+            "median": 0.002470148772380187,
+            "q25": 0.0019428395046270453,
+            "q75": 0.004946264113053022,
+            "minimum": 0.0004944707125105197,
+            "maximum": 0.03222442798141856
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 238,
+            "mean": 0.010759556846676127,
+            "median": 0.006731222895009873,
+            "q25": 0.0031643642933340743,
+            "q75": 0.014618217789249632,
+            "minimum": 0.0012117423763771987,
+            "maximum": 0.12189809751386443
+          }
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 33,
+            "mean": 0.023161074309393227,
+            "median": 0.024566244408726397,
+            "q25": 0.009010068971547299,
+            "q75": 0.0353401536569594,
+            "minimum": 0.002610966097563505,
+            "maximum": 0.04568984787911177
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 33,
+            "mean": 0.032090806731764975,
+            "median": 0.03801935190629018,
+            "q25": 0.0148370169221876,
+            "q75": 0.04425880607838432,
+            "minimum": 0.002610966097563505,
+            "maximum": 0.09512122021988034
+          }
+        }
+      }
+    },
+    "parent_separation": {
+      "ClutterTarget_vs_DroneTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.5675770308123249,
+          "clutter_lower_auc": 0.4324229691876751,
+          "direction_free_separation_auc": 0.5675770308123249,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.4324229691876751,
+          "clutter_minus_other_mean": -0.017145208265332817
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.5090081487140311,
+          "clutter_lower_auc": 0.4909918512859689,
+          "direction_free_separation_auc": 0.5090081487140311,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.4909918512859689,
+          "clutter_minus_other_mean": -0.019843686946770515
+        }
+      },
+      "ClutterTarget_vs_BirdTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.4607582097121846,
+          "clutter_lower_auc": 0.5392417902878154,
+          "direction_free_separation_auc": 0.5392417902878154,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.5392417902878154,
+          "clutter_minus_other_mean": -0.01157470886805079
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.403068340306834,
+          "clutter_lower_auc": 0.596931659693166,
+          "direction_free_separation_auc": 0.596931659693166,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.596931659693166,
+          "clutter_minus_other_mean": -0.01849127562044444
+        }
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.8969314998726764,
+          "clutter_lower_auc": 0.1030685001273236,
+          "direction_free_separation_auc": 0.8969314998726764,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.1030685001273236,
+          "clutter_minus_other_mean": 0.018927800687603788
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.8007384772090654,
+          "clutter_lower_auc": 0.19926152279093456,
+          "direction_free_separation_auc": 0.8007384772090654,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.19926152279093456,
+          "clutter_minus_other_mean": 0.021331249885088846
+        }
+      }
+    },
+    "interpretation_frozen_before_treatment_validation": {
+      "clutter_drone_mean_direction_matches_hypothesis": true,
+      "clutter_drone_parent_auc_is_weak": true,
+      "clutter_balloon_direction_is_opposite_to_the_initial_lower_deviation_story": true,
+      "formula_changed_after_this_diagnostic": false
+    }
+  },
+  "validation_used_for_readiness_gate": false,
+  "validation_feature_values_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training_at_report_generation": "未执行",
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

@@ -1,0 +1,502 @@
+{
+  "status": "completed_with_collection_and_semantic_adjudication_blockers",
+  "schema_version": "RADAR-LN3-V21-clutter-coverage-semantics-audit-v1",
+  "material_passport": {
+    "origin_skill": "academic-research-suite/experiment-agent",
+    "origin_mode": "validate",
+    "origin_date": "2026-08-17",
+    "verification_status": "VERIFIED",
+    "verification_scope": "deterministic local inventory, lineage, split, registry and access-boundary reproduction only",
+    "semantic_ground_truth_status": "UNVERIFIED_PENDING_HUMAN_ADJUDICATION",
+    "version_label": "clutter_coverage_semantics_audit_v1"
+  },
+  "scope": "CQ08 source-label-5 Clutter inventory, capture/provenance coverage, train-only descriptive audit clusters and label-semantic adjudication readiness",
+  "source_integrity": {
+    "manifest": {
+      "path": "data/manifests/cq08_unified_manifest.json",
+      "sha256": "b1fd35af2eb1761b3c4e39f8161d0ef38c9d066d24cd03a136ea1d0785733316"
+    },
+    "index": {
+      "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+      "sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c"
+    },
+    "split": {
+      "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-split.json",
+      "sha256": "ffec88bcc8d8f0727fbf186734a5740eaf2a64ff391914f6088b00908824b7a4"
+    },
+    "provenance": {
+      "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+      "sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9"
+    },
+    "matlab_label_script": {
+      "path": "OriData/23/CQ-08/batch_process_all.m",
+      "sha256": "c1ef28cb938e8a62f32b3c4c768b9a9372f18e05bbdb3006f855fca4a16bbb99"
+    },
+    "adjudication_protocol": {
+      "path": "docs/radar_ln3_clutter_semantic_adjudication_protocol.md",
+      "sha256": "9d5792e65f825deaec3a2b390487de21279a827872fc72a3ec652dd80c7a99ac"
+    }
+  },
+  "legal_parent_definition": {
+    "source": "cq08_unified_manifest",
+    "criteria": [
+      "source numeric label_id is 5",
+      "manifest label_name is ClutterTarget",
+      "track, point, original echo and MAT availability flags are true",
+      "manifest is_usable is true",
+      "parent is represented in the V16 capture/content provenance component index"
+    ],
+    "overlapping_prefixes_or_windows_count_as_new_parents": false
+  },
+  "inventory": {
+    "cq08_manifest_parent_count": 1550,
+    "cq08_manifest_clutter_parent_count": 50,
+    "v16_parent_count": 1546,
+    "v16_clutter_parent_count": 50,
+    "source_clutter_parent_outside_v16_count": 0,
+    "source_clutter_parent_outside_v16": [],
+    "new_legal_clutter_parent_recovered_count": 0,
+    "manifest_parent_outside_v16": [
+      {
+        "track_id": 634,
+        "label_name": "BirdTarget",
+        "is_usable": true,
+        "unusable_reason": ""
+      },
+      {
+        "track_id": 785,
+        "label_name": "BirdTarget",
+        "is_usable": true,
+        "unusable_reason": ""
+      },
+      {
+        "track_id": 1008,
+        "label_name": "DroneTarget",
+        "is_usable": false,
+        "unusable_reason": "missing_rd_mat"
+      },
+      {
+        "track_id": 3338,
+        "label_name": "DroneTarget",
+        "is_usable": true,
+        "unusable_reason": ""
+      }
+    ],
+    "conclusion": "All 50 legal source-label-5 Clutter parents are already represented in V16; there is no omitted in-repository Clutter parent to recover."
+  },
+  "coverage": {
+    "parent_counts_by_split": {
+      "train": 33,
+      "val": 9,
+      "test": 8
+    },
+    "unique_capture_counts_by_split": {
+      "train": 33,
+      "val": 9,
+      "test": 8
+    },
+    "unique_capture_count": 50,
+    "capture_registry_row_count": 50,
+    "cross_label_capture_count": 5,
+    "cross_label_capture_ids": [
+      "20250616120357",
+      "20250616151254",
+      "20250616151517",
+      "20250616152252",
+      "20250616153041"
+    ],
+    "cross_label_capture_interpretation": "A shared derived capture token is a provenance grouping fact, not proof that either source label is wrong; these rows require acquisition-log adjudication.",
+    "unique_capture_token_dates": [
+      "20250616"
+    ],
+    "unique_capture_token_date_count": 1,
+    "unique_clutter_provenance_component_count": 50,
+    "multi_parent_provenance_component_count": 5,
+    "cross_label_provenance_component_count": 5,
+    "exact_capture_content_split_purity": {
+      "parent_cross_split_count": 0,
+      "key_cross_split_group_counts": {
+        "capture_id": 0,
+        "raw_sha256": 0,
+        "rd_sha256": 0,
+        "normalized_track_sha256": 0,
+        "normalized_point_sha256": 0,
+        "model_input_semantics_sha256": 0
+      },
+      "all_checked_keys_zero": true
+    },
+    "capture_independence_interpretation": "50 distinct capture_ids and 50 distinct Clutter-containing V16 components do not establish 50 independent environments. Their common date token was generated from point-file modification dates, so it is not an authoritative acquisition date.",
+    "capture_id_time_provenance": {
+      "date_part": "point-track file modification date used by batch_process_all.m",
+      "time_part": "first point row HH:MM:SS used by batch_process_all.m",
+      "authoritative_acquisition_timestamp": false,
+      "date_lineage_verified_from_source": true,
+      "time_lineage_verified_from_source": true
+    }
+  },
+  "candidate_acquisition_bursts": {
+    "method": "single-link consecutive derived capture-token grouping at frozen 30/60/120/300/600-second gaps",
+    "semantic_or_session_ground_truth": false,
+    "authoritative_time_source": false,
+    "thresholds": {
+      "30": {
+        "candidate_burst_count": 45,
+        "multi_parent_burst_count": 5,
+        "cross_split_candidate_burst_count": 3,
+        "maximum_parent_count": 2,
+        "interpretation": "time-adjacency candidate only; not a confirmed session or semantic subtype"
+      },
+      "60": {
+        "candidate_burst_count": 30,
+        "multi_parent_burst_count": 8,
+        "cross_split_candidate_burst_count": 8,
+        "maximum_parent_count": 10,
+        "interpretation": "time-adjacency candidate only; not a confirmed session or semantic subtype"
+      },
+      "120": {
+        "candidate_burst_count": 19,
+        "multi_parent_burst_count": 8,
+        "cross_split_candidate_burst_count": 7,
+        "maximum_parent_count": 12,
+        "interpretation": "time-adjacency candidate only; not a confirmed session or semantic subtype"
+      },
+      "300": {
+        "candidate_burst_count": 14,
+        "multi_parent_burst_count": 7,
+        "cross_split_candidate_burst_count": 7,
+        "maximum_parent_count": 19,
+        "interpretation": "time-adjacency candidate only; not a confirmed session or semantic subtype"
+      },
+      "600": {
+        "candidate_burst_count": 9,
+        "multi_parent_burst_count": 5,
+        "cross_split_candidate_burst_count": 4,
+        "maximum_parent_count": 34,
+        "interpretation": "time-adjacency candidate only; not a confirmed session or semantic subtype"
+      }
+    },
+    "split_risk": "Several time-adjacent candidate bursts cross V16 splits. Exact capture/hash isolation still passes, but near-time environment independence requires acquisition-log adjudication."
+  },
+  "descriptive_subflow_audit": {
+    "status": "descriptive_only_unadjudicated",
+    "fit_population": "V16 train ClutterTarget parents only",
+    "fit_parent_count": 33,
+    "validation_assignment": "nearest frozen train centroid; no refit or tuning",
+    "validation_parent_count": 9,
+    "test_assignment": "sealed_unassigned",
+    "test_parent_count_used": 0,
+    "cluster_count": 4,
+    "cluster_count_policy": "frozen descriptive partition for coverage review; not selected by label or validation performance",
+    "feature_names": [
+      "log1p_event_count",
+      "log1p_duration_seconds",
+      "rd_present_fraction",
+      "log1p_rd_frames_per_event",
+      "zero_dt_fraction_nonfirst",
+      "log1p_range_median",
+      "log1p_range_span",
+      "abs_radial_speed_median",
+      "radial_speed_iqr"
+    ],
+    "scaling": "train median and train IQR; train std fallback for zero-IQR dimensions",
+    "initialization": "deterministic farthest-point",
+    "semantic_claim": false,
+    "model_input": false,
+    "training_weight_or_sampler_input": false,
+    "profiles": [
+      {
+        "schema_version": "RADAR-LN3-V21-clutter-coverage-semantics-audit-v1",
+        "audit_cluster_id": "audit_cluster_01",
+        "fit_population": "train_ClutterTarget_parent_only",
+        "semantic_status": "descriptive_cluster_not_semantic_subtype",
+        "train_parent_count": 25,
+        "validation_nearest_cluster_parent_count": 8,
+        "train_parent_sample_ids_json": "[\"cq08|track|1953\",\"cq08|track|2250\",\"cq08|track|2251\",\"cq08|track|2901\",\"cq08|track|3159\",\"cq08|track|3160\",\"cq08|track|3183\",\"cq08|track|3586\",\"cq08|track|3599\",\"cq08|track|3606\",\"cq08|track|3626\",\"cq08|track|3717\",\"cq08|track|3718\",\"cq08|track|3720\",\"cq08|track|3760\",\"cq08|track|3779\",\"cq08|track|3788\",\"cq08|track|3790\",\"cq08|track|3807\",\"cq08|track|3817\",\"cq08|track|3931\",\"cq08|track|3955\",\"cq08|track|3990\",\"cq08|track|4026\",\"cq08|track|4051\"]",
+        "validation_parent_sample_ids_json": "[\"cq08|track|2900\",\"cq08|track|2903\",\"cq08|track|3171\",\"cq08|track|3583\",\"cq08|track|3589\",\"cq08|track|3605\",\"cq08|track|3761\",\"cq08|track|3789\"]",
+        "train_median_event_count": 21.0,
+        "train_median_duration_seconds": 56.0,
+        "train_median_rd_present_fraction": 1.0,
+        "train_median_rd_frames_per_event": 3.0833333333333335,
+        "train_median_zero_dt_fraction_nonfirst": 0.0,
+        "train_median_range_median_m": 1781.2665685,
+        "train_median_range_span_m": 94.6765170000001,
+        "train_median_abs_radial_speed_median_mps": 3.13,
+        "train_median_radial_speed_iqr_mps": 5.8725
+      },
+      {
+        "schema_version": "RADAR-LN3-V21-clutter-coverage-semantics-audit-v1",
+        "audit_cluster_id": "audit_cluster_02",
+        "fit_population": "train_ClutterTarget_parent_only",
+        "semantic_status": "descriptive_cluster_not_semantic_subtype",
+        "train_parent_count": 4,
+        "validation_nearest_cluster_parent_count": 1,
+        "train_parent_sample_ids_json": "[\"cq08|track|3608\",\"cq08|track|3609\",\"cq08|track|3610\",\"cq08|track|3611\"]",
+        "validation_parent_sample_ids_json": "[\"cq08|track|3172\"]",
+        "train_median_event_count": 16.5,
+        "train_median_duration_seconds": 35.5,
+        "train_median_rd_present_fraction": 1.0,
+        "train_median_rd_frames_per_event": 2.0,
+        "train_median_zero_dt_fraction_nonfirst": 0.0,
+        "train_median_range_median_m": 2174.33139975,
+        "train_median_range_span_m": 6.5757310000001326,
+        "train_median_abs_radial_speed_median_mps": 0.0,
+        "train_median_radial_speed_iqr_mps": 0.0
+      },
+      {
+        "schema_version": "RADAR-LN3-V21-clutter-coverage-semantics-audit-v1",
+        "audit_cluster_id": "audit_cluster_03",
+        "fit_population": "train_ClutterTarget_parent_only",
+        "semantic_status": "descriptive_cluster_not_semantic_subtype",
+        "train_parent_count": 1,
+        "validation_nearest_cluster_parent_count": 0,
+        "train_parent_sample_ids_json": "[\"cq08|track|3719\"]",
+        "validation_parent_sample_ids_json": "[]",
+        "train_median_event_count": 17.0,
+        "train_median_duration_seconds": 63.0,
+        "train_median_rd_present_fraction": 1.0,
+        "train_median_rd_frames_per_event": 3.6470588235294117,
+        "train_median_zero_dt_fraction_nonfirst": 0.0,
+        "train_median_range_median_m": 1245.003971,
+        "train_median_range_span_m": 0.04168699999991077,
+        "train_median_abs_radial_speed_median_mps": 0.0,
+        "train_median_radial_speed_iqr_mps": 0.0
+      },
+      {
+        "schema_version": "RADAR-LN3-V21-clutter-coverage-semantics-audit-v1",
+        "audit_cluster_id": "audit_cluster_04",
+        "fit_population": "train_ClutterTarget_parent_only",
+        "semantic_status": "descriptive_cluster_not_semantic_subtype",
+        "train_parent_count": 3,
+        "validation_nearest_cluster_parent_count": 0,
+        "train_parent_sample_ids_json": "[\"cq08|track|4163\",\"cq08|track|4165\",\"cq08|track|4167\"]",
+        "validation_parent_sample_ids_json": "[]",
+        "train_median_event_count": 21.0,
+        "train_median_duration_seconds": 41.0,
+        "train_median_rd_present_fraction": 1.0,
+        "train_median_rd_frames_per_event": 2.0952380952380953,
+        "train_median_zero_dt_fraction_nonfirst": 0.0,
+        "train_median_range_median_m": 600.513341,
+        "train_median_range_span_m": 40.68894399999999,
+        "train_median_abs_radial_speed_median_mps": 3.07,
+        "train_median_radial_speed_iqr_mps": 3.75
+      }
+    ],
+    "train_parent_counts_by_audit_cluster": {
+      "audit_cluster_01": 25,
+      "audit_cluster_02": 4,
+      "audit_cluster_03": 1,
+      "audit_cluster_04": 3
+    },
+    "validation_nearest_train_cluster_counts": {
+      "audit_cluster_01": 8,
+      "audit_cluster_02": 1,
+      "audit_cluster_03": 0,
+      "audit_cluster_04": 0
+    },
+    "validation_observed_train_cluster_count": 2,
+    "train_audit_clusters_without_validation_nearest_member": [
+      "audit_cluster_03",
+      "audit_cluster_04"
+    ],
+    "train_audit_clusters_below_five_parents": [
+      "audit_cluster_02",
+      "audit_cluster_03",
+      "audit_cluster_04"
+    ],
+    "coverage_conclusion": "The descriptive partition is strongly imbalanced and validation has no nearest member for two train strata; this is a coverage warning, not a subtype discovery.",
+    "interpretation": "audit_cluster_id is an unlabeled coverage stratum only. It must not be renamed as a physical Clutter subtype, used to change labels, or consumed by model training."
+  },
+  "label_semantics": {
+    "verified_lineage": [
+      "CQ08 source filenames encode numeric label 5",
+      "the unified manifest maps source label 5 to ClutterTarget",
+      "batch_process_all.m maps case 5 to the MAT filename token Clutter",
+      "all 50 source-label-5 manifest records preserve that filename/token lineage"
+    ],
+    "source_label_5_to_matlab_clutter_token_verified": true,
+    "source_label_6_to_matlab_other_token_verified": true,
+    "independent_human_semantic_ground_truth_available": false,
+    "scene_or_environment_annotation_available": false,
+    "clutter_mechanism_annotation_available": false,
+    "allowed_current_claim": "ClutterTarget means CQ08 source numeric label 5 with the inherited Clutter token.",
+    "forbidden_unverified_claims": [
+      "source label 5 is known to be stationary ground clutter",
+      "source label 5 is known to be vegetation, weather, multipath or sidelobe clutter",
+      "an audit cluster is a true physical subtype",
+      "source label 6/Other is intrinsically a validated open-set rejection population"
+    ],
+    "unknown_policy": {
+      "source_lineage": "CQ08 numeric label 6 was named Other by batch_process_all.m",
+      "v21_product_semantics": "Unknown is strict open-set outcome/evaluation truth, not a KnownGate class",
+      "used_in_this_clutter_cluster_fit": false,
+      "used_in_this_semantic_template": false,
+      "physical_payload_access_count": 0
+    }
+  },
+  "semantic_adjudication": {
+    "protocol": "docs/radar_ln3_clutter_semantic_adjudication_protocol.md",
+    "template": "data/processed/RADAR-LN3-V21-cq08-clutter-semantic-adjudication-template.csv",
+    "capture_registry": "data/processed/RADAR-LN3-V21-cq08-clutter-capture-registry.csv",
+    "template_parent_count": 42,
+    "template_parent_counts_by_split": {
+      "train": 33,
+      "val": 9,
+      "test": 0
+    },
+    "test_rows_excluded": true,
+    "all_subtypes_initially_unadjudicated": true,
+    "automatic_label_changes": 0,
+    "label_change_requires_separate_authorization_and_version": true
+  },
+  "collection_gap": {
+    "current_verified_independent_acquisition_dates": 0,
+    "observed_capture_token_date_count": 1,
+    "capture_token_date_is_authoritative": false,
+    "current_verified_environment_groups": 0,
+    "current_verified_sensor_mode_groups": 0,
+    "current_human_adjudicated_clutter_mechanisms": 0,
+    "provisional_planning_floor_not_power_analysis": {
+      "independent_acquisition_dates": {
+        "target_minimum": 3,
+        "current_verified": 0,
+        "minimum_additional_or_source_log_confirmation_required": 3
+      },
+      "environment_groups": {
+        "target_minimum": 3,
+        "current_verified": 0,
+        "minimum_additional_or_annotation_required": 3
+      },
+      "sensor_modes": "inventory every deployment mode; numeric gap is not computable from current metadata",
+      "per_human_confirmed_mechanism": "provisionally seek at least 10 independent train parents and 5 independent development parents across at least two dates before mechanism-level claims"
+    },
+    "parent_count_gap": "not computable until environment/mode inventory and human subtype adjudication are complete",
+    "legal_way_to_increase_support": "new CQ08-compatible acquisition with provenance and annotation",
+    "forbidden_shortcuts": [
+      "duplicating parents or overlapping prefixes/windows",
+      "moving validation/test parents into training",
+      "relabeling difficult known targets as Clutter",
+      "using model errors or audit clusters as automatic labels"
+    ]
+  },
+  "access_and_leakage": {
+    "clutter_index_event_rows": 971,
+    "test_index_rows_skipped_before_physical_parse": 150,
+    "test_mat_file_open_count": 0,
+    "test_parent_count_registered_without_physical_parse": 8,
+    "test_raw_file_open_count": 0,
+    "test_rd_tensor_open_count": 0,
+    "test_tr_feature_json_parse_count": 0,
+    "train_physical_index_rows_parsed": 657,
+    "val_physical_index_rows_parsed": 164,
+    "test_parent_registry_source": "existing manifest and V16 provenance metadata",
+    "test_physical_descriptors_emitted": false,
+    "test_cluster_assignment_performed": false,
+    "validation_used_to_fit_clusters": false,
+    "validation_used_for_threshold_or_model_selection": false
+  },
+  "methodological_risk_scan": {
+    "overall_confidence": "CAUTION",
+    "fallacy_coverage": "11/11",
+    "items": [
+      {
+        "name": "Simpson's paradox",
+        "status": "CAUTION",
+        "detail": "Aggregate Clutter coverage must not replace split, burst, capture or audit-stratum views."
+      },
+      {
+        "name": "Ecological fallacy",
+        "status": "CAUTION",
+        "detail": "Capture/burst/audit-cluster membership cannot establish an individual parent physical mechanism."
+      },
+      {
+        "name": "Berkson's paradox",
+        "status": "NOTE",
+        "detail": "The registry is conditioned on usable V16 parents, but no source-label-5 Clutter parent is excluded."
+      },
+      {
+        "name": "Collider bias",
+        "status": "NOTE",
+        "detail": "No adjusted association or causal model is fitted in this audit."
+      },
+      {
+        "name": "Base rate neglect",
+        "status": "CAUTION",
+        "detail": "Clutter support is explicitly only 33/9/8 parents; capture and prefix counts cannot replace parent support."
+      },
+      {
+        "name": "Regression to the mean",
+        "status": "NOTE",
+        "detail": "No pre/post or extreme-outcome-selected performance comparison is made."
+      },
+      {
+        "name": "Survivorship bias",
+        "status": "NOTE",
+        "detail": "All 50 manifest source-label-5 Clutter parents are retained; none is dropped for difficulty or quality."
+      },
+      {
+        "name": "Look-elsewhere effect",
+        "status": "CAUTION",
+        "detail": "Five derived-time burst thresholds are exploratory registries and carry no inferential or semantic claim."
+      },
+      {
+        "name": "Garden of forking paths",
+        "status": "CAUTION",
+        "detail": "Four descriptive clusters and all burst thresholds are frozen in code and forbidden from model/performance selection."
+      },
+      {
+        "name": "Correlation is not causation",
+        "status": "CAUTION",
+        "detail": "TR/RD descriptor similarity does not identify the cause of a Clutter return."
+      },
+      {
+        "name": "Reverse causality",
+        "status": "NOTE",
+        "detail": "No directional causal claim is made from labels or descriptors."
+      }
+    ]
+  },
+  "checks": {
+    "all_50_source_clutter_parents_are_in_v16": true,
+    "clutter_parent_capture_count_is_50": true,
+    "capture_registry_has_exactly_50_unique_rows": true,
+    "clutter_split_counts_are_33_9_8": true,
+    "exact_capture_content_split_keys_are_pure": true,
+    "derived_capture_token_lineage_is_source_verified": true,
+    "train_only_cluster_fit_has_33_parents": true,
+    "validation_nearest_cluster_assignment_has_9_parents": true,
+    "test_is_sealed_and_unassigned": true,
+    "semantic_template_excludes_test": true,
+    "unknown_is_absent_from_clutter_cluster_and_template": true,
+    "automatic_label_change_count_is_zero": true
+  },
+  "outputs": {
+    "parent_registry": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-clutter-parent-registry.csv",
+      "sha256": "38a7f34ea67d5a8449f168c1ae9934da656bcf5c85d3e2103f4d3c2d5900916f"
+    },
+    "capture_registry": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-clutter-capture-registry.csv",
+      "sha256": "e0b4309a0d440ee94f27c69d805fe3086bd2013669905cb4f76b27394c0ec85d"
+    },
+    "burst_registry": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-clutter-acquisition-burst-registry.csv",
+      "sha256": "5843c2d30a4d716769fbf77062e45567cc1b4a705276c24a0681ac5b3583911d"
+    },
+    "audit_cluster_profiles": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-clutter-audit-cluster-profiles.csv",
+      "sha256": "a11ea0cd2ca1d4873bb8852527f7be094fd53734ac29e84d8543523458a9b359"
+    },
+    "semantic_adjudication_template": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-clutter-semantic-adjudication-template.csv",
+      "sha256": "1a783ae645c5c9756a89bc2711dbab059d8d9120b61020a8ced4840031c21824"
+    }
+  },
+  "training": "未执行",
+  "OOF": "未执行",
+  "test_model_evaluation": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

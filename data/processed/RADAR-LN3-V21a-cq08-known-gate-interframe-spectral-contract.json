@@ -1,0 +1,1313 @@
+{
+  "schema_version": "RADAR-LN3-V21a-known-gate-interframe-spectral-experiment-contract-v1",
+  "experiment_name": "V21a inter-frame spectral-shape temporal consistency",
+  "internal_variant": "v21a_interframe",
+  "feature_schema": "cq08-current-event-interframe-spectral-consistency-v1",
+  "feature_names": [
+    "current_event_adjacent_rd_velocity_profile_cosine_mean",
+    "current_event_adjacent_rd_velocity_profile_cosine_minimum",
+    "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
+    "current_event_adjacent_rd_peak_velocity_drift_max_fraction",
+    "current_event_zero_velocity_energy_fraction_std",
+    "current_event_zero_velocity_energy_fraction_minimum"
+  ],
+  "formula": "prepend the immediately preceding valid event's final canonical RD frame to the current event (reset on an RD-missing event), convert dB amplitude to relative linear power and sum 21 range rows into a 384-bin velocity profile; assign adjacent-frame cosine mean/minimum, adjacent peak-velocity drift mean/maximum divided by the canonical velocity span, and near-zero (+/-2 m/s) energy-fraction std/minimum to the current causal event",
+  "causal_scope": "current event plus at most the immediately preceding valid event's final RD frame; no future event or parent-final aggregation",
+  "minimum_support": "at least two comparison frames from current frames plus the optional causal bridge",
+  "invalid_policy": "zero values plus internal gating mask; invalid mask is not concatenated",
+  "supersedes_candidate": {
+    "variant": "v21a",
+    "reason": "the seed42 candidate measured intra-frame adjacent STFT-window affinity and did not implement the original inter-frame spectral-consistency diagnostic",
+    "formal_training_allowed": false
+  },
+  "source_hashes": {
+    "index": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "provenance": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+    "core_contract": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "baseline_config": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "baseline_summary": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "baseline_checkpoint": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "selection": "abb9bb0f6d0277eec88f70765062c3f2d1e688a17d8c04e5a6a9079411b83c20",
+    "experiment_document": "e9f4d4cf4eb2153f9b850e6d611896bd3223506445cadb98641dd33d28947b1f"
+  },
+  "historical_feature_conception_exposure": {
+    "source": "reconstruction of the original exploratory sample() function, which resets RandomState(3) independently for each label",
+    "metadata_only_reconstruction": true,
+    "payload_read_during_current_prepare": false,
+    "sampled_track_count": 108,
+    "split_track_counts": {
+      "test": 14,
+      "train": 77,
+      "val": 17
+    },
+    "label_split_track_counts": {
+      "BalloonTarget": {
+        "test": 4,
+        "train": 18,
+        "val": 3
+      },
+      "BirdTarget": {
+        "test": 3,
+        "train": 21,
+        "val": 1
+      },
+      "ClutterTarget": {
+        "test": 6,
+        "train": 20,
+        "val": 7
+      },
+      "DroneTarget": {
+        "test": 1,
+        "train": 18,
+        "val": 6
+      }
+    },
+    "sampled_test_track_ids": [
+      804,
+      940,
+      2048,
+      2572,
+      2979,
+      3006,
+      3604,
+      3757,
+      3816,
+      3851,
+      3956,
+      4166,
+      4170,
+      4185
+    ],
+    "consequence": "the original V16 test split is feature-conception-exposed for V21a and cannot serve as an unbiased final holdout for this feature family"
+  },
+  "cache_hashes": {
+    "train": "47c61327b201f97809df45689e92de0766e9a6081e7bb0d54d23c75064c0e2d3",
+    "val": "593bac97344d0faa9ffffdb845f051c78ff15469d3a8553530254fb7ee3ba1a0"
+  },
+  "split_statistics": {
+    "train": {
+      "parent_count": 986,
+      "parent_label_counts": {
+        "BalloonTarget": 238,
+        "BirdTarget": 239,
+        "ClutterTarget": 33,
+        "DroneTarget": 476
+      },
+      "canonical_rd_tensor_access_count": 986,
+      "raw_echo_access_count": 0,
+      "test_payload_access_count": 0,
+      "event_count": 18923,
+      "valid_event_count": 18764,
+      "invalid_event_count": 159,
+      "valid_event_fraction": 0.9915975268192148,
+      "feature_names": [
+        "current_event_adjacent_rd_velocity_profile_cosine_mean",
+        "current_event_adjacent_rd_velocity_profile_cosine_minimum",
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
+        "current_event_adjacent_rd_peak_velocity_drift_max_fraction",
+        "current_event_zero_velocity_energy_fraction_std",
+        "current_event_zero_velocity_energy_fraction_minimum"
+      ],
+      "comparison_pair_count": {
+        "support": 18764,
+        "mean": 3.5616073331912173,
+        "median": 3.0,
+        "q25": 3.0,
+        "q75": 4.0
+      },
+      "train_only_event_label_diagnostics": {
+        "DroneTarget": {
+          "event_support": 9013,
+          "event_valid_fraction": 0.9909840571742716,
+          "rd_frame_count": {
+            "support": 9013,
+            "mean": 3.808498835016088,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 9013,
+            "mean": 3.7556862309996673,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 9013,
+              "mean": 0.9113609165111948,
+              "median": 0.9648662209510803,
+              "q25": 0.875704288482666,
+              "q75": 0.9932221174240112
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 9013,
+              "mean": 0.8157830551543158,
+              "median": 0.936668336391449,
+              "q25": 0.7517318725585938,
+              "q75": 0.9891114830970764
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 9013,
+              "mean": 0.00505582771852771,
+              "median": 0.0008703231578692794,
+              "q25": 0.0,
+              "q75": 0.001958224456757307
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 9013,
+              "mean": 0.011139117701237027,
+              "median": 0.002610966097563505,
+              "q25": 0.0,
+              "q75": 0.002610966796055436
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 9013,
+              "mean": 0.0664166088759146,
+              "median": 0.01845335215330124,
+              "q25": 0.00573791703209281,
+              "q75": 0.09647683799266815
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 9013,
+              "mean": 0.3533212783573523,
+              "median": 0.11398179084062576,
+              "q25": 0.008310591802001,
+              "q75": 0.7942672371864319
+            }
+          }
+        },
+        "BirdTarget": {
+          "event_support": 4547,
+          "event_valid_fraction": 0.9841991341991342,
+          "rd_frame_count": {
+            "support": 4547,
+            "mean": 3.26017154167583,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 4547,
+            "mean": 3.207609412799648,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 4547,
+              "mean": 0.8948086603414181,
+              "median": 0.9297939538955688,
+              "q25": 0.8418074250221252,
+              "q75": 0.9896713197231293
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 4547,
+              "mean": 0.8148592966478642,
+              "median": 0.8938063383102417,
+              "q25": 0.7270967662334442,
+              "q75": 0.9832640290260315
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 4547,
+              "mean": 0.006035196766508602,
+              "median": 0.0017406439874321222,
+              "q25": 0.0008703219937160611,
+              "q75": 0.006092254538089037
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 4547,
+              "mean": 0.011178288177179703,
+              "median": 0.002610966097563505,
+              "q25": 0.002610966097563505,
+              "q75": 0.013054830022156239
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 4547,
+              "mean": 0.070205011543734,
+              "median": 0.043054208159446716,
+              "q25": 0.018148764967918396,
+              "q75": 0.09611791744828224
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 4547,
+              "mean": 0.35790121385393237,
+              "median": 0.2526068091392517,
+              "q25": 0.09400913864374161,
+              "q75": 0.6030579805374146
+            }
+          }
+        },
+        "BalloonTarget": {
+          "event_support": 4547,
+          "event_valid_fraction": 0.999121072291804,
+          "rd_frame_count": {
+            "support": 4547,
+            "mean": 3.6778095447547834,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 4547,
+            "mean": 3.6261271167802946,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 4547,
+              "mean": 0.826313504921766,
+              "median": 0.8438437581062317,
+              "q25": 0.7381170690059662,
+              "q75": 0.9311442375183105
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 4547,
+              "mean": 0.6674650478423992,
+              "median": 0.7193744778633118,
+              "q25": 0.47826187312602997,
+              "q75": 0.8889608681201935
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 4547,
+              "mean": 0.004257512936849761,
+              "median": 0.0017406439874321222,
+              "q25": 0.0,
+              "q75": 0.006527415011078119
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 4547,
+              "mean": 0.008582825960439048,
+              "median": 0.002610966796055436,
+              "q25": 0.0,
+              "q75": 0.015665795654058456
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 4547,
+              "mean": 0.07127938259506672,
+              "median": 0.029632143676280975,
+              "q25": 0.009487932547926903,
+              "q75": 0.11316803842782974
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 4547,
+              "mean": 0.15797811503988987,
+              "median": 0.054650500416755676,
+              "q25": 0.03291427902877331,
+              "q75": 0.1582016944885254
+            }
+          }
+        },
+        "ClutterTarget": {
+          "event_support": 657,
+          "event_valid_fraction": 1.0,
+          "rd_frame_count": {
+            "support": 657,
+            "mean": 2.9528158295281584,
+            "median": 2.0,
+            "q25": 2.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 657,
+            "mean": 2.902587519025875,
+            "median": 2.0,
+            "q25": 2.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 657,
+              "mean": 0.9354120732896041,
+              "median": 0.9799844622612,
+              "q25": 0.9027207493782043,
+              "q75": 0.9942640662193298
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 657,
+              "mean": 0.8864268867165712,
+              "median": 0.9675554037094116,
+              "q25": 0.8335704207420349,
+              "q75": 0.9936259984970093
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 657,
+              "mean": 0.0034126028352271047,
+              "median": 0.0013054830487817526,
+              "q25": 0.0006527415243908763,
+              "q75": 0.002610966097563505
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 657,
+              "mean": 0.0057345875701902485,
+              "median": 0.002610966097563505,
+              "q25": 0.002610966097563505,
+              "q75": 0.002610966097563505
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 657,
+              "mean": 0.0828984197052132,
+              "median": 0.04947950318455696,
+              "q25": 0.012019646354019642,
+              "q75": 0.14325681328773499
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 657,
+              "mean": 0.5085111973719328,
+              "median": 0.4228041172027588,
+              "q25": 0.20643489062786102,
+              "q75": 0.9411570429801941
+            }
+          }
+        }
+      },
+      "train_only_parent_label_diagnostics": {
+        "DroneTarget": {
+          "parent_support": 476,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 476,
+              "mean": 0.9104045183718705,
+              "median": 0.9380457103252411,
+              "q25": 0.8718362748622894,
+              "q75": 0.9732078462839127
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 476,
+              "mean": 0.8135685393539798,
+              "median": 0.881852000951767,
+              "q25": 0.7286940366029739,
+              "q75": 0.9490173012018204
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 476,
+              "mean": 0.005195039625306447,
+              "median": 0.0012744777486659586,
+              "q25": 0.0004842155976803042,
+              "q75": 0.006744708982296288
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 476,
+              "mean": 0.011477958691209685,
+              "median": 0.002312326105311513,
+              "q25": 0.0009716941131046042,
+              "q75": 0.017161299008876085
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 476,
+              "mean": 0.06794481413172213,
+              "median": 0.04106793366372585,
+              "q25": 0.009671415435150266,
+              "q75": 0.11728576757013798
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 476,
+              "mean": 0.361090230184437,
+              "median": 0.25483420491218567,
+              "q25": 0.011695018038153648,
+              "q75": 0.6924994438886642
+            }
+          }
+        },
+        "BirdTarget": {
+          "parent_support": 239,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 239,
+              "mean": 0.8948434573835907,
+              "median": 0.9099369645118713,
+              "q25": 0.837244987487793,
+              "q75": 0.965846985578537
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 239,
+              "mean": 0.813831299231641,
+              "median": 0.8537676930427551,
+              "q25": 0.7045270502567291,
+              "q75": 0.9374400079250336
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 239,
+              "mean": 0.006112267661432513,
+              "median": 0.0035509129520505667,
+              "q25": 0.0013413801789283752,
+              "q75": 0.009317522402852774
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 239,
+              "mean": 0.011416578550299894,
+              "median": 0.006092254538089037,
+              "q25": 0.0022628374863415956,
+              "q75": 0.01745104417204857
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 239,
+              "mean": 0.0700110705300511,
+              "median": 0.05484284088015556,
+              "q25": 0.029986100271344185,
+              "q75": 0.09440794587135315
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 239,
+              "mean": 0.35741820287692,
+              "median": 0.29431965947151184,
+              "q25": 0.11999252066016197,
+              "q75": 0.5365868210792542
+            }
+          }
+        },
+        "BalloonTarget": {
+          "parent_support": 238,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 238,
+              "mean": 0.8249454235329348,
+              "median": 0.8208591639995575,
+              "q25": 0.7654211074113846,
+              "q75": 0.8938819319009781
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 238,
+              "mean": 0.6656956530543936,
+              "median": 0.6833954155445099,
+              "q25": 0.5388888865709305,
+              "q75": 0.8050126284360886
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 238,
+              "mean": 0.0043526836485979084,
+              "median": 0.003382210968993604,
+              "q25": 0.0015475413820240647,
+              "q75": 0.005863794824108481
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 238,
+              "mean": 0.008718860795195097,
+              "median": 0.006989355897530913,
+              "q25": 0.0032252466771751642,
+              "q75": 0.01279373373836279
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 238,
+              "mean": 0.07064975692573622,
+              "median": 0.04497472383081913,
+              "q25": 0.014558671740815043,
+              "q75": 0.12406021729111671
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 238,
+              "mean": 0.1610993527955994,
+              "median": 0.06421007961034775,
+              "q25": 0.03620034456253052,
+              "q75": 0.20993264392018318
+            }
+          }
+        },
+        "ClutterTarget": {
+          "parent_support": 33,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 33,
+              "mean": 0.9398545243523337,
+              "median": 0.9678981304168701,
+              "q25": 0.9178447723388672,
+              "q75": 0.9882168769836426
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 33,
+              "mean": 0.8931864572293831,
+              "median": 0.9458861947059631,
+              "q25": 0.8056097626686096,
+              "q75": 0.9835538864135742
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 33,
+              "mean": 0.0030339605450122194,
+              "median": 0.0014919807435944676,
+              "q25": 0.001339837908744812,
+              "q75": 0.0024463615845888853
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 33,
+              "mean": 0.005198522566140376,
+              "median": 0.002729646395891905,
+              "q25": 0.0021136391442269087,
+              "q75": 0.004873803351074457
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 33,
+              "mean": 0.08159325678240169,
+              "median": 0.09574247896671295,
+              "q25": 0.01318368874490261,
+              "q75": 0.1266176998615265
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 33,
+              "mean": 0.5352675053432132,
+              "median": 0.4171708822250366,
+              "q25": 0.29348528385162354,
+              "q75": 0.9467354416847229
+            }
+          }
+        }
+      },
+      "train_only_parent_separation": {
+        "ClutterTarget_vs_BirdTarget": {
+          "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+            "clutter_higher_auc": 0.6561430201597566,
+            "direction_free_separation_auc": 0.6561430201597566,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6561430201597566,
+            "clutter_minus_other_mean": 0.04501106696874302
+          },
+          "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+            "clutter_higher_auc": 0.6499302649930265,
+            "direction_free_separation_auc": 0.6499302649930265,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6499302649930265,
+            "clutter_minus_other_mean": 0.07935515799774207
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+            "clutter_higher_auc": 0.3720679599340687,
+            "direction_free_separation_auc": 0.6279320400659313,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6279320400659313,
+            "clutter_minus_other_mean": -0.0030783071164202937
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+            "clutter_higher_auc": 0.34601242551033345,
+            "direction_free_separation_auc": 0.6539875744896666,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6539875744896666,
+            "clutter_minus_other_mean": -0.006218055984159519
+          },
+          "current_event_zero_velocity_energy_fraction_std": {
+            "clutter_higher_auc": 0.5346773171040954,
+            "direction_free_separation_auc": 0.5346773171040954,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.4653226828959046,
+            "clutter_minus_other_mean": 0.011582186252350593
+          },
+          "current_event_zero_velocity_energy_fraction_minimum": {
+            "clutter_higher_auc": 0.6676809940408267,
+            "direction_free_separation_auc": 0.6676809940408267,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6676809940408267,
+            "clutter_minus_other_mean": 0.1778493024662932
+          }
+        },
+        "ClutterTarget_vs_BalloonTarget": {
+          "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+            "clutter_higher_auc": 0.8733129615482557,
+            "direction_free_separation_auc": 0.8733129615482557,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8733129615482557,
+            "clutter_minus_other_mean": 0.11490910081939898
+          },
+          "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+            "clutter_higher_auc": 0.8763687293099057,
+            "direction_free_separation_auc": 0.8763687293099057,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8763687293099057,
+            "clutter_minus_other_mean": 0.22749080417498946
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+            "clutter_higher_auc": 0.3576521517697988,
+            "direction_free_separation_auc": 0.6423478482302012,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6423478482302012,
+            "clutter_minus_other_mean": -0.001318723103585689
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+            "clutter_higher_auc": 0.33295136236312706,
+            "direction_free_separation_auc": 0.6670486376368729,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6670486376368729,
+            "clutter_minus_other_mean": -0.003520338229054722
+          },
+          "current_event_zero_velocity_energy_fraction_std": {
+            "clutter_higher_auc": 0.5588235294117647,
+            "direction_free_separation_auc": 0.5588235294117647,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.4411764705882353,
+            "clutter_minus_other_mean": 0.01094349985666547
+          },
+          "current_event_zero_velocity_energy_fraction_minimum": {
+            "clutter_higher_auc": 0.8579067990832697,
+            "direction_free_separation_auc": 0.8579067990832697,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8579067990832697,
+            "clutter_minus_other_mean": 0.3741681525476138
+          }
+        }
+      },
+      "train_only_event_frame_count_confounding": {
+        "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+          "spearman_with_current_event_rd_frame_count": -0.23403781983725344,
+          "spearman_with_actual_adjacent_comparison_pair_count": -0.23527923835166165
+        },
+        "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+          "spearman_with_current_event_rd_frame_count": -0.331786767247878,
+          "spearman_with_actual_adjacent_comparison_pair_count": -0.33574486208156784
+        },
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+          "spearman_with_current_event_rd_frame_count": 0.3003741196098703,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.2997745765277623
+        },
+        "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+          "spearman_with_current_event_rd_frame_count": 0.3544038545421017,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.35649675360291605
+        },
+        "current_event_zero_velocity_energy_fraction_std": {
+          "spearman_with_current_event_rd_frame_count": 0.37984660014445926,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.37647647867679
+        },
+        "current_event_zero_velocity_energy_fraction_minimum": {
+          "spearman_with_current_event_rd_frame_count": 0.0495444397763324,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.04703597005891315
+        }
+      }
+    },
+    "val": {
+      "parent_count": 232,
+      "parent_label_counts": {
+        "BalloonTarget": 54,
+        "BirdTarget": 56,
+        "ClutterTarget": 9,
+        "DroneTarget": 113
+      },
+      "canonical_rd_tensor_access_count": 232,
+      "raw_echo_access_count": 0,
+      "test_payload_access_count": 0,
+      "event_count": 4452,
+      "valid_event_count": 4396,
+      "invalid_event_count": 56,
+      "valid_event_fraction": 0.9874213836477987,
+      "feature_names": [
+        "current_event_adjacent_rd_velocity_profile_cosine_mean",
+        "current_event_adjacent_rd_velocity_profile_cosine_minimum",
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
+        "current_event_adjacent_rd_peak_velocity_drift_max_fraction",
+        "current_event_zero_velocity_energy_fraction_std",
+        "current_event_zero_velocity_energy_fraction_minimum"
+      ],
+      "comparison_pair_count": {
+        "support": 4396,
+        "mean": 3.538216560509554,
+        "median": 3.0,
+        "q25": 3.0,
+        "q75": 4.0
+      }
+    }
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "baseline_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "baseline_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "baseline_summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "baseline_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "baseline_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "baseline_checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "initialization": "same seed43 random baseline initialization; copy all shared tensors and zero only the new Fusion columns; do not fine-tune the trained Baseline checkpoint",
+    "epochs": 20,
+    "full_parameter_training": true
+  },
+  "train_only_feature_diagnostic": {
+    "role": "train-only physical readiness and attribution; no validation value or learned decision threshold is consumed",
+    "expected_direction_separation_gate": {
+      "ClutterTarget_vs_BirdTarget": {
+        "threshold": 0.65,
+        "best_feature": "current_event_zero_velocity_energy_fraction_minimum",
+        "best_expected_direction_auc": 0.6676809940408267,
+        "passed": true
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "threshold": 0.65,
+        "best_feature": "current_event_adjacent_rd_velocity_profile_cosine_minimum",
+        "best_expected_direction_auc": 0.8763687293099057,
+        "passed": true
+      }
+    },
+    "statistics": {
+      "train_only_event_label_diagnostics": {
+        "DroneTarget": {
+          "event_support": 9013,
+          "event_valid_fraction": 0.9909840571742716,
+          "rd_frame_count": {
+            "support": 9013,
+            "mean": 3.808498835016088,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 9013,
+            "mean": 3.7556862309996673,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 9013,
+              "mean": 0.9113609165111948,
+              "median": 0.9648662209510803,
+              "q25": 0.875704288482666,
+              "q75": 0.9932221174240112
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 9013,
+              "mean": 0.8157830551543158,
+              "median": 0.936668336391449,
+              "q25": 0.7517318725585938,
+              "q75": 0.9891114830970764
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 9013,
+              "mean": 0.00505582771852771,
+              "median": 0.0008703231578692794,
+              "q25": 0.0,
+              "q75": 0.001958224456757307
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 9013,
+              "mean": 0.011139117701237027,
+              "median": 0.002610966097563505,
+              "q25": 0.0,
+              "q75": 0.002610966796055436
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 9013,
+              "mean": 0.0664166088759146,
+              "median": 0.01845335215330124,
+              "q25": 0.00573791703209281,
+              "q75": 0.09647683799266815
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 9013,
+              "mean": 0.3533212783573523,
+              "median": 0.11398179084062576,
+              "q25": 0.008310591802001,
+              "q75": 0.7942672371864319
+            }
+          }
+        },
+        "BirdTarget": {
+          "event_support": 4547,
+          "event_valid_fraction": 0.9841991341991342,
+          "rd_frame_count": {
+            "support": 4547,
+            "mean": 3.26017154167583,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 4547,
+            "mean": 3.207609412799648,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 4547,
+              "mean": 0.8948086603414181,
+              "median": 0.9297939538955688,
+              "q25": 0.8418074250221252,
+              "q75": 0.9896713197231293
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 4547,
+              "mean": 0.8148592966478642,
+              "median": 0.8938063383102417,
+              "q25": 0.7270967662334442,
+              "q75": 0.9832640290260315
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 4547,
+              "mean": 0.006035196766508602,
+              "median": 0.0017406439874321222,
+              "q25": 0.0008703219937160611,
+              "q75": 0.006092254538089037
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 4547,
+              "mean": 0.011178288177179703,
+              "median": 0.002610966097563505,
+              "q25": 0.002610966097563505,
+              "q75": 0.013054830022156239
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 4547,
+              "mean": 0.070205011543734,
+              "median": 0.043054208159446716,
+              "q25": 0.018148764967918396,
+              "q75": 0.09611791744828224
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 4547,
+              "mean": 0.35790121385393237,
+              "median": 0.2526068091392517,
+              "q25": 0.09400913864374161,
+              "q75": 0.6030579805374146
+            }
+          }
+        },
+        "BalloonTarget": {
+          "event_support": 4547,
+          "event_valid_fraction": 0.999121072291804,
+          "rd_frame_count": {
+            "support": 4547,
+            "mean": 3.6778095447547834,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 4547,
+            "mean": 3.6261271167802946,
+            "median": 3.0,
+            "q25": 3.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 4547,
+              "mean": 0.826313504921766,
+              "median": 0.8438437581062317,
+              "q25": 0.7381170690059662,
+              "q75": 0.9311442375183105
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 4547,
+              "mean": 0.6674650478423992,
+              "median": 0.7193744778633118,
+              "q25": 0.47826187312602997,
+              "q75": 0.8889608681201935
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 4547,
+              "mean": 0.004257512936849761,
+              "median": 0.0017406439874321222,
+              "q25": 0.0,
+              "q75": 0.006527415011078119
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 4547,
+              "mean": 0.008582825960439048,
+              "median": 0.002610966796055436,
+              "q25": 0.0,
+              "q75": 0.015665795654058456
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 4547,
+              "mean": 0.07127938259506672,
+              "median": 0.029632143676280975,
+              "q25": 0.009487932547926903,
+              "q75": 0.11316803842782974
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 4547,
+              "mean": 0.15797811503988987,
+              "median": 0.054650500416755676,
+              "q25": 0.03291427902877331,
+              "q75": 0.1582016944885254
+            }
+          }
+        },
+        "ClutterTarget": {
+          "event_support": 657,
+          "event_valid_fraction": 1.0,
+          "rd_frame_count": {
+            "support": 657,
+            "mean": 2.9528158295281584,
+            "median": 2.0,
+            "q25": 2.0,
+            "q75": 4.0
+          },
+          "comparison_pair_count": {
+            "support": 657,
+            "mean": 2.902587519025875,
+            "median": 2.0,
+            "q25": 2.0,
+            "q75": 4.0
+          },
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 657,
+              "mean": 0.9354120732896041,
+              "median": 0.9799844622612,
+              "q25": 0.9027207493782043,
+              "q75": 0.9942640662193298
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 657,
+              "mean": 0.8864268867165712,
+              "median": 0.9675554037094116,
+              "q25": 0.8335704207420349,
+              "q75": 0.9936259984970093
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 657,
+              "mean": 0.0034126028352271047,
+              "median": 0.0013054830487817526,
+              "q25": 0.0006527415243908763,
+              "q75": 0.002610966097563505
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 657,
+              "mean": 0.0057345875701902485,
+              "median": 0.002610966097563505,
+              "q25": 0.002610966097563505,
+              "q75": 0.002610966097563505
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 657,
+              "mean": 0.0828984197052132,
+              "median": 0.04947950318455696,
+              "q25": 0.012019646354019642,
+              "q75": 0.14325681328773499
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 657,
+              "mean": 0.5085111973719328,
+              "median": 0.4228041172027588,
+              "q25": 0.20643489062786102,
+              "q75": 0.9411570429801941
+            }
+          }
+        }
+      },
+      "train_only_parent_label_diagnostics": {
+        "DroneTarget": {
+          "parent_support": 476,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 476,
+              "mean": 0.9104045183718705,
+              "median": 0.9380457103252411,
+              "q25": 0.8718362748622894,
+              "q75": 0.9732078462839127
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 476,
+              "mean": 0.8135685393539798,
+              "median": 0.881852000951767,
+              "q25": 0.7286940366029739,
+              "q75": 0.9490173012018204
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 476,
+              "mean": 0.005195039625306447,
+              "median": 0.0012744777486659586,
+              "q25": 0.0004842155976803042,
+              "q75": 0.006744708982296288
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 476,
+              "mean": 0.011477958691209685,
+              "median": 0.002312326105311513,
+              "q25": 0.0009716941131046042,
+              "q75": 0.017161299008876085
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 476,
+              "mean": 0.06794481413172213,
+              "median": 0.04106793366372585,
+              "q25": 0.009671415435150266,
+              "q75": 0.11728576757013798
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 476,
+              "mean": 0.361090230184437,
+              "median": 0.25483420491218567,
+              "q25": 0.011695018038153648,
+              "q75": 0.6924994438886642
+            }
+          }
+        },
+        "BirdTarget": {
+          "parent_support": 239,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 239,
+              "mean": 0.8948434573835907,
+              "median": 0.9099369645118713,
+              "q25": 0.837244987487793,
+              "q75": 0.965846985578537
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 239,
+              "mean": 0.813831299231641,
+              "median": 0.8537676930427551,
+              "q25": 0.7045270502567291,
+              "q75": 0.9374400079250336
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 239,
+              "mean": 0.006112267661432513,
+              "median": 0.0035509129520505667,
+              "q25": 0.0013413801789283752,
+              "q75": 0.009317522402852774
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 239,
+              "mean": 0.011416578550299894,
+              "median": 0.006092254538089037,
+              "q25": 0.0022628374863415956,
+              "q75": 0.01745104417204857
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 239,
+              "mean": 0.0700110705300511,
+              "median": 0.05484284088015556,
+              "q25": 0.029986100271344185,
+              "q75": 0.09440794587135315
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 239,
+              "mean": 0.35741820287692,
+              "median": 0.29431965947151184,
+              "q25": 0.11999252066016197,
+              "q75": 0.5365868210792542
+            }
+          }
+        },
+        "BalloonTarget": {
+          "parent_support": 238,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 238,
+              "mean": 0.8249454235329348,
+              "median": 0.8208591639995575,
+              "q25": 0.7654211074113846,
+              "q75": 0.8938819319009781
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 238,
+              "mean": 0.6656956530543936,
+              "median": 0.6833954155445099,
+              "q25": 0.5388888865709305,
+              "q75": 0.8050126284360886
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 238,
+              "mean": 0.0043526836485979084,
+              "median": 0.003382210968993604,
+              "q25": 0.0015475413820240647,
+              "q75": 0.005863794824108481
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 238,
+              "mean": 0.008718860795195097,
+              "median": 0.006989355897530913,
+              "q25": 0.0032252466771751642,
+              "q75": 0.01279373373836279
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 238,
+              "mean": 0.07064975692573622,
+              "median": 0.04497472383081913,
+              "q25": 0.014558671740815043,
+              "q75": 0.12406021729111671
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 238,
+              "mean": 0.1610993527955994,
+              "median": 0.06421007961034775,
+              "q25": 0.03620034456253052,
+              "q75": 0.20993264392018318
+            }
+          }
+        },
+        "ClutterTarget": {
+          "parent_support": 33,
+          "features": {
+            "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+              "support": 33,
+              "mean": 0.9398545243523337,
+              "median": 0.9678981304168701,
+              "q25": 0.9178447723388672,
+              "q75": 0.9882168769836426
+            },
+            "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+              "support": 33,
+              "mean": 0.8931864572293831,
+              "median": 0.9458861947059631,
+              "q25": 0.8056097626686096,
+              "q75": 0.9835538864135742
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+              "support": 33,
+              "mean": 0.0030339605450122194,
+              "median": 0.0014919807435944676,
+              "q25": 0.001339837908744812,
+              "q75": 0.0024463615845888853
+            },
+            "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+              "support": 33,
+              "mean": 0.005198522566140376,
+              "median": 0.002729646395891905,
+              "q25": 0.0021136391442269087,
+              "q75": 0.004873803351074457
+            },
+            "current_event_zero_velocity_energy_fraction_std": {
+              "support": 33,
+              "mean": 0.08159325678240169,
+              "median": 0.09574247896671295,
+              "q25": 0.01318368874490261,
+              "q75": 0.1266176998615265
+            },
+            "current_event_zero_velocity_energy_fraction_minimum": {
+              "support": 33,
+              "mean": 0.5352675053432132,
+              "median": 0.4171708822250366,
+              "q25": 0.29348528385162354,
+              "q75": 0.9467354416847229
+            }
+          }
+        }
+      },
+      "train_only_parent_separation": {
+        "ClutterTarget_vs_BirdTarget": {
+          "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+            "clutter_higher_auc": 0.6561430201597566,
+            "direction_free_separation_auc": 0.6561430201597566,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6561430201597566,
+            "clutter_minus_other_mean": 0.04501106696874302
+          },
+          "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+            "clutter_higher_auc": 0.6499302649930265,
+            "direction_free_separation_auc": 0.6499302649930265,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6499302649930265,
+            "clutter_minus_other_mean": 0.07935515799774207
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+            "clutter_higher_auc": 0.3720679599340687,
+            "direction_free_separation_auc": 0.6279320400659313,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6279320400659313,
+            "clutter_minus_other_mean": -0.0030783071164202937
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+            "clutter_higher_auc": 0.34601242551033345,
+            "direction_free_separation_auc": 0.6539875744896666,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6539875744896666,
+            "clutter_minus_other_mean": -0.006218055984159519
+          },
+          "current_event_zero_velocity_energy_fraction_std": {
+            "clutter_higher_auc": 0.5346773171040954,
+            "direction_free_separation_auc": 0.5346773171040954,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.4653226828959046,
+            "clutter_minus_other_mean": 0.011582186252350593
+          },
+          "current_event_zero_velocity_energy_fraction_minimum": {
+            "clutter_higher_auc": 0.6676809940408267,
+            "direction_free_separation_auc": 0.6676809940408267,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.6676809940408267,
+            "clutter_minus_other_mean": 0.1778493024662932
+          }
+        },
+        "ClutterTarget_vs_BalloonTarget": {
+          "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+            "clutter_higher_auc": 0.8733129615482557,
+            "direction_free_separation_auc": 0.8733129615482557,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8733129615482557,
+            "clutter_minus_other_mean": 0.11490910081939898
+          },
+          "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+            "clutter_higher_auc": 0.8763687293099057,
+            "direction_free_separation_auc": 0.8763687293099057,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8763687293099057,
+            "clutter_minus_other_mean": 0.22749080417498946
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+            "clutter_higher_auc": 0.3576521517697988,
+            "direction_free_separation_auc": 0.6423478482302012,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6423478482302012,
+            "clutter_minus_other_mean": -0.001318723103585689
+          },
+          "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+            "clutter_higher_auc": 0.33295136236312706,
+            "direction_free_separation_auc": 0.6670486376368729,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.6670486376368729,
+            "clutter_minus_other_mean": -0.003520338229054722
+          },
+          "current_event_zero_velocity_energy_fraction_std": {
+            "clutter_higher_auc": 0.5588235294117647,
+            "direction_free_separation_auc": 0.5588235294117647,
+            "expected_clutter_direction": "lower",
+            "expected_direction_auc": 0.4411764705882353,
+            "clutter_minus_other_mean": 0.01094349985666547
+          },
+          "current_event_zero_velocity_energy_fraction_minimum": {
+            "clutter_higher_auc": 0.8579067990832697,
+            "direction_free_separation_auc": 0.8579067990832697,
+            "expected_clutter_direction": "higher",
+            "expected_direction_auc": 0.8579067990832697,
+            "clutter_minus_other_mean": 0.3741681525476138
+          }
+        }
+      },
+      "train_only_event_frame_count_confounding": {
+        "current_event_adjacent_rd_velocity_profile_cosine_mean": {
+          "spearman_with_current_event_rd_frame_count": -0.23403781983725344,
+          "spearman_with_actual_adjacent_comparison_pair_count": -0.23527923835166165
+        },
+        "current_event_adjacent_rd_velocity_profile_cosine_minimum": {
+          "spearman_with_current_event_rd_frame_count": -0.331786767247878,
+          "spearman_with_actual_adjacent_comparison_pair_count": -0.33574486208156784
+        },
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction": {
+          "spearman_with_current_event_rd_frame_count": 0.3003741196098703,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.2997745765277623
+        },
+        "current_event_adjacent_rd_peak_velocity_drift_max_fraction": {
+          "spearman_with_current_event_rd_frame_count": 0.3544038545421017,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.35649675360291605
+        },
+        "current_event_zero_velocity_energy_fraction_std": {
+          "spearman_with_current_event_rd_frame_count": 0.37984660014445926,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.37647647867679
+        },
+        "current_event_zero_velocity_energy_fraction_minimum": {
+          "spearman_with_current_event_rd_frame_count": 0.0495444397763324,
+          "spearman_with_actual_adjacent_comparison_pair_count": 0.04703597005891315
+        }
+      }
+    }
+  },
+  "evaluation": {
+    "primary": "development validation parent-final KnownGate macro_f1 delta",
+    "adoption_delta_strictly_greater_than": 0.02,
+    "expected_labels": [
+      "ClutterTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "clutter_validation_support": 9,
+    "parent_stratified_bootstrap_replicates": 5000,
+    "test": "未执行",
+    "OOF": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "full_cascade": "未执行"
+  }
+}

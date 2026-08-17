@@ -1,0 +1,240 @@
+{
+  "schema_version": "RADAR-LN3-V21b-known-gate-modal-consistency-experiment-contract-v1",
+  "experiment_name": "V21b RD/TR radial modal consistency",
+  "internal_variant": "v21b",
+  "feature_names": [
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps",
+    "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps"
+  ],
+  "formula": "median/max abs(RD target-row peak velocity - TR radial speed), divided by 85 m/s and clipped",
+  "source": "current canonical RD zero-offset target row plus current TR radial speed",
+  "causal_scope": "current event only; no previous/future event or parent-final aggregation",
+  "signed_axis_semantics": "use abs(signed canonical RD peak velocity - signed current TR radial speed); do not replace with magnitude-only or post-hoc sign selection",
+  "aggregation": "find the peak velocity in the zero-offset target range row independently for each real current-event canonical RD frame; summarize absolute deviation by event median and maximum",
+  "normalization": "divide by the frozen 85 m/s clip and clamp to [0,1]",
+  "missing_policy": "TR radial speed missing -> both modal values zero and invalid; other canonical evidence remains independently usable",
+  "invalid_policy": "zero values plus internal gating mask; validity is not concatenated",
+  "experiment_document": "F:\\Project\\RadarInsight\\docs\\radar_ln3_v21b_modal_consistency_experiment.md",
+  "experiment_document_sha256": "35aed00eecdfce53d5e42047eb960d235bed03ee771b0a222abbaab219d4fc9d",
+  "core_data_contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "core_feature_manifest": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-feature-cache-manifest.json",
+  "core_feature_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+  "train_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-train-feature-cache.npz",
+  "train_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+  "validation_cache": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V21-cq08-known-gate-val-feature-cache.npz",
+  "validation_cache_sha256": "d536d22a69e8045a75b9a4e39c6a376c1f08a2d50da9519dd455b6c21bcef41b",
+  "cache_rebuilt_for_v21b_seed43": false,
+  "raw_echo_payload_access_count": 0,
+  "validation_feature_payload_access_count_for_readiness": 0,
+  "test_payload_access_count": 0,
+  "train_only_feature_diagnostic": {
+    "role": "train-only physical attribution; weak univariate separation is recorded without becoming a readiness or performance gate",
+    "event_count": 18923,
+    "valid_event_count": 18770,
+    "valid_event_fraction": 0.991914601278867,
+    "parent_label_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 476,
+            "mean": 0.04030628257472604,
+            "median": 0.004653572247965107,
+            "q25": 0.001787129508253808,
+            "q75": 0.07486968748382336,
+            "minimum": 0.00019890456984891596,
+            "maximum": 0.17435771162095276
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 476,
+            "mean": 0.05193449367853549,
+            "median": 0.01540829472835564,
+            "q25": 0.0025011505209840833,
+            "q75": 0.10005441582076909,
+            "minimum": 0.00019890456984891596,
+            "maximum": 0.1974316269159317
+          }
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 239,
+            "mean": 0.03473578317744402,
+            "median": 0.022113986344387136,
+            "q25": 0.005143043156850206,
+            "q75": 0.05777612782296036,
+            "minimum": 0.000672045341857216,
+            "maximum": 0.13548660585108926
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 239,
+            "mean": 0.050582082352209415,
+            "median": 0.040804758965969086,
+            "q25": 0.015073246864194517,
+            "q75": 0.07579652265154033,
+            "minimum": 0.0009792178136515705,
+            "maximum": 0.2982800805941224
+          }
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 238,
+            "mean": 0.004233273621789437,
+            "median": 0.002470148772380187,
+            "q25": 0.0019428395046270453,
+            "q75": 0.004946264113053022,
+            "minimum": 0.0004944707125105197,
+            "maximum": 0.03222442798141856
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 238,
+            "mean": 0.010759556846676127,
+            "median": 0.006731222895009873,
+            "q25": 0.0031643642933340743,
+            "q75": 0.014618217789249632,
+            "minimum": 0.0012117423763771987,
+            "maximum": 0.12189809751386443
+          }
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "features": {
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+            "support": 33,
+            "mean": 0.023161074309393227,
+            "median": 0.024566244408726397,
+            "q25": 0.009010068971547299,
+            "q75": 0.0353401536569594,
+            "minimum": 0.002610966097563505,
+            "maximum": 0.04568984787911177
+          },
+          "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+            "support": 33,
+            "mean": 0.032090806731764975,
+            "median": 0.03801935190629018,
+            "q25": 0.0148370169221876,
+            "q75": 0.04425880607838432,
+            "minimum": 0.002610966097563505,
+            "maximum": 0.09512122021988034
+          }
+        }
+      }
+    },
+    "parent_separation": {
+      "ClutterTarget_vs_DroneTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.5675770308123249,
+          "clutter_lower_auc": 0.4324229691876751,
+          "direction_free_separation_auc": 0.5675770308123249,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.4324229691876751,
+          "clutter_minus_other_mean": -0.017145208265332817
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.5090081487140311,
+          "clutter_lower_auc": 0.4909918512859689,
+          "direction_free_separation_auc": 0.5090081487140311,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.4909918512859689,
+          "clutter_minus_other_mean": -0.019843686946770515
+        }
+      },
+      "ClutterTarget_vs_BirdTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.4607582097121846,
+          "clutter_lower_auc": 0.5392417902878154,
+          "direction_free_separation_auc": 0.5392417902878154,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.5392417902878154,
+          "clutter_minus_other_mean": -0.01157470886805079
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.403068340306834,
+          "clutter_lower_auc": 0.596931659693166,
+          "direction_free_separation_auc": 0.596931659693166,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.596931659693166,
+          "clutter_minus_other_mean": -0.01849127562044444
+        }
+      },
+      "ClutterTarget_vs_BalloonTarget": {
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_median_over_85mps": {
+          "clutter_higher_auc": 0.8969314998726764,
+          "clutter_lower_auc": 0.1030685001273236,
+          "direction_free_separation_auc": 0.8969314998726764,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.1030685001273236,
+          "clutter_minus_other_mean": 0.018927800687603788
+        },
+        "target_row_rd_peak_vs_tr_radial_abs_deviation_max_over_85mps": {
+          "clutter_higher_auc": 0.8007384772090654,
+          "clutter_lower_auc": 0.19926152279093456,
+          "direction_free_separation_auc": 0.8007384772090654,
+          "predeclared_expected_clutter_direction": "lower",
+          "expected_direction_auc": 0.19926152279093456,
+          "clutter_minus_other_mean": 0.021331249885088846
+        }
+      }
+    },
+    "interpretation_frozen_before_treatment_validation": {
+      "clutter_drone_mean_direction_matches_hypothesis": true,
+      "clutter_drone_parent_auc_is_weak": true,
+      "clutter_balloon_direction_is_opposite_to_the_initial_lower_deviation_story": true,
+      "formula_changed_after_this_diagnostic": false
+    }
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "baseline_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "baseline_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "baseline_summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\training-summary.json",
+    "baseline_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "baseline_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal\\best_model.pt",
+    "baseline_checkpoint_sha256": "e66af0aa3e498576d7db6bea2df1b8fae3773b5d4398647f9c303768a6694a87",
+    "baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "initialization": "same seed43 random Baseline initialization; copy all shared tensors and zero only the two new Fusion columns; do not fine-tune the trained Baseline",
+    "epochs": 20,
+    "full_parameter_training": true,
+    "all_epoch_parent_orders_must_match": true
+  },
+  "evaluation": {
+    "primary": "development validation parent-final KnownGate macro_f1 delta",
+    "adoption_delta_strictly_greater_than": 0.02,
+    "expected_labels": [
+      "DroneTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": [
+      "BirdTarget"
+    ],
+    "clutter_validation_support": 9,
+    "parent_stratified_bootstrap_replicates": 5000,
+    "test": "未执行",
+    "OOF": "未执行",
+    "formal_rejection": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "full_cascade": "未执行"
+  },
+  "old_seed42_candidate": {
+    "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V21b-cq08-liquid-known-gate-modal-consistency-seed42-config.json",
+    "config_sha256": "315857cbce2638826a39496512746bda3f97f2802654af9aa314932d06871c94",
+    "formal_training_allowed": false,
+    "reason": "selected development Baseline is seed43; cross-seed attribution is invalid"
+  },
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}
