@@ -1,0 +1,35 @@
+{
+  "schema_version": "RADAR-LN3-V21h-known-gate-course-iso-feature-manifest-v1",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence",
+    "target_row_linear_energy_fraction_mean"
+  ],
+  "source_caches": {
+    "course": {
+      "path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+      "sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425"
+    },
+    "appended": {
+      "path": "data/processed/RADAR-LN3-V21-cq08-known-gate-train-feature-cache.npz",
+      "sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d"
+    }
+  },
+  "cache_files": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V21h-cq08-known-gate-course-iso-cache.npz",
+      "sha256": "a140bd252d724bcab429d0056c3e505659462a282b20a2a24496c352e42e4f32",
+      "event_count": 18923,
+      "fields": [
+        "sample_ids",
+        "values",
+        "valid"
+      ]
+    }
+  },
+  "experiment_contract": "data/processed/RADAR-LN3-V21h-cq08-known-gate-course-iso-experiment-contract.json",
+  "experiment_contract_sha256": "02361fa00a0e61778f92ca1aa6ae3776be01dd346871e03b36062874b873a63b",
+  "sample_id_is_model_input": false,
+  "valid_mask_is_model_input": false,
+  "test_excluded": true,
+  "test_payload_access_count": 0
+}

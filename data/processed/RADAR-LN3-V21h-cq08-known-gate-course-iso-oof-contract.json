@@ -1,0 +1,215 @@
+{
+  "schema_version": "RADAR-LN3-V21h-known-gate-course-iso-oof-contract-v1",
+  "experiment": "V21h nested paired five-fold OOF",
+  "source_assignment_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json",
+  "source_assignment_sha256": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7",
+  "source_assignment_semantic_sha256": "c1cb3abe21a9835e1d7d107788f956f8cfd2362e6aa552bd9b898bb3ca8fd922",
+  "fold_count": 5,
+  "known_parent_count": 986,
+  "provenance_component_count": 975,
+  "grouping": "capture_content_provenance_component",
+  "prediction_protocol": "out_of_fold_fixed_final_epoch",
+  "control_reused_from": "V21e OOF Treatment",
+  "new_training_arm": "treatment",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence",
+    "target_row_linear_energy_fraction_mean"
+  ],
+  "folds": [
+    {
+      "fold_id": 0,
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "train_parent_ids_sha256": "64f2f1dd797f55ec46d5294ea23a50c224bdb4beeb3329a410b1a2eb414b488f",
+      "held_out_parent_ids_sha256": "b6dcebc99700f3f8011518998b6e8de7e1548446ef81962af5518d33fb0b8fdd",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 27
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-00-train-normalization-stats.json",
+      "normalization_stats_sha256": "94600a9e6c0a66419964be4f6aefb2d32408ddf8feaf3aa09e3f1627c544ac4c",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-00-data-contract.json",
+      "data_contract_sha256": "92cf0185c043d25bcc9d7bf2157f66eea6b27cc5b7b394537c6c21bd2f1922ba",
+      "class_weights": [
+        0.5177165354330708,
+        14.61111111111111
+      ],
+      "control": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-00-treatment-seed43-config.json",
+        "config_sha256": "5b82ae931569ff808302607cee22c19fae4143d30e16dcdbf9f95e8a93935f9d",
+        "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-00/treatment/held-out-predictions.json",
+        "prediction_sha256": "ed08f1d25f1d8cef0a5a7978002cfee1622e891d9fa7477dda8ad6546ed68d52"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21h-cq08-known-gate-course-iso-oof-fold-00-treatment-seed43-config.json",
+        "config_sha256": "a492592c04a63ceb089ddd690b653d3780644b1f9b93bd2b5f0e8ce912d59d81",
+        "config_identity_sha256": "e3acd1f2e65819b4ea62e41ce12df1075b9b13132874c8a6803f1c4bc78d122e"
+      }
+    },
+    {
+      "fold_id": 1,
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "train_parent_ids_sha256": "58caa6ced3882cdcd857658c995e471e17d777bc6802c27cd9c4c697e9638e77",
+      "held_out_parent_ids_sha256": "f94905c0b2c3f58aa415e66c58a2d6254cc840665878f20d6b10a01686295d97",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 27
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-01-train-normalization-stats.json",
+      "normalization_stats_sha256": "903ec88e190de87a9b6fcba7019aee159df875bf8198ccede0b688f02d3b5f82",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-01-data-contract.json",
+      "data_contract_sha256": "c4d97ba6b3a54b5b7d2fd9455359e61389589826a00445b312825176bdda6511",
+      "class_weights": [
+        0.5177165354330708,
+        14.61111111111111
+      ],
+      "control": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-01-treatment-seed43-config.json",
+        "config_sha256": "b7456955dd42cfbd8622caba4cdbc3dae83dcbc48fb92da8cf3fbabfe9c7d941",
+        "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-01/treatment/held-out-predictions.json",
+        "prediction_sha256": "ce4d6464efcdb5ca0e0fa00026ff04232f62069946d8a663b9676d227b3cf7c7"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21h-cq08-known-gate-course-iso-oof-fold-01-treatment-seed43-config.json",
+        "config_sha256": "e63334f0ac833b80422673a9cdb8fd1430f5b22be6956298beaa5f282c097490",
+        "config_identity_sha256": "d2642f70e6ec9bc3eb089b6165057e6faebc69da76d12d85d17feb406b8bb7c5"
+      }
+    },
+    {
+      "fold_id": 2,
+      "train_parent_count": 788,
+      "held_out_parent_count": 198,
+      "train_parent_ids_sha256": "e4014b129f1a0b281364a7379234aaf78bb4f07e16710ef719bd2362925b2a0a",
+      "held_out_parent_ids_sha256": "277d2302f5dfec09d9312fbe260ccc77a263588f69fad1a082247b33eef91c7d",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-train-normalization-stats.json",
+      "normalization_stats_sha256": "ab9f54056210d278c217e11a03e7f60cfc0a1821fba9096ad0ee9078b00a1523",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-data-contract.json",
+      "data_contract_sha256": "e547a5f962b0e75c6ba657cff1ac2c87bb8daa32efc4360bff314e17e15bcf03",
+      "class_weights": [
+        0.5170603674540682,
+        15.153846153846153
+      ],
+      "control": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-treatment-seed43-config.json",
+        "config_sha256": "57d9d58c63f502eb8fb5c564d78d2e1f37b7ac81500599dc9b21ad02723adcad",
+        "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-02/treatment/held-out-predictions.json",
+        "prediction_sha256": "4c75be662ca6cb40988b27bdae26d49718b867848777f070896dd69ba8f83a61"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21h-cq08-known-gate-course-iso-oof-fold-02-treatment-seed43-config.json",
+        "config_sha256": "2d278b20a0c167381bf733b2b8667a45f585de482bbc570675b6949f7925eefd",
+        "config_identity_sha256": "b370007f5f302d4b99ef7fc27adcb12f25c854561e16038dd3562d2e6a77428c"
+      }
+    },
+    {
+      "fold_id": 3,
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "train_parent_ids_sha256": "0ed5eb99ee0fe00198e57d2f8d4c0d4d12a77bc15c41208ed3ff2298b0f2f734",
+      "held_out_parent_ids_sha256": "05276547254830f4ac944a0748f18f3c2c90bb007f5e5c4282677b27f7ddca8d",
+      "train_label_parent_counts": {
+        "DroneTarget": 380,
+        "BirdTarget": 192,
+        "BalloonTarget": 191,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 96,
+        "BirdTarget": 47,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-03-train-normalization-stats.json",
+      "normalization_stats_sha256": "fbfd6701f9df2bf6ea04b8536d35801e8db63b6e18206d2b0da32be011148e2b",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-03-data-contract.json",
+      "data_contract_sha256": "f671c354fb2a3fabc5b8d3e7c51acdb24a15cf5e654a9c0bf28fc3ee0197a206",
+      "class_weights": [
+        0.5170380078636959,
+        15.173076923076923
+      ],
+      "control": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-03-treatment-seed43-config.json",
+        "config_sha256": "28801f19675a2ebf09d1f07dc71a5edefe163939e678e7f83bcb1309e17df536",
+        "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-03/treatment/held-out-predictions.json",
+        "prediction_sha256": "cc5ced29a355d256e1c505674658ed8577f09030f9a421e90b2630ba3c47e1d4"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21h-cq08-known-gate-course-iso-oof-fold-03-treatment-seed43-config.json",
+        "config_sha256": "d36a73c0f5c6116ef833667ebbe480f2954fb45eb44772aa012a54b23c0e31a6",
+        "config_identity_sha256": "855d6ffe371f75c2ccd282ee682c75b436c175168c7bd75df11ad566d3dc82f2"
+      }
+    },
+    {
+      "fold_id": 4,
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "train_parent_ids_sha256": "fd579d2bb935bf705fb491ccee24ed0df6c16b46b6b71933e24f11fe3cf4280a",
+      "held_out_parent_ids_sha256": "3501992ffe24c6154d49977525efc5c6f90126dc6ada2be4cf9623707d50f65a",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 191,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-train-normalization-stats.json",
+      "normalization_stats_sha256": "ae7245165f1135d5c725af2be80c24b975858ae6d966bd9131b82c6ee3bc3485",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-data-contract.json",
+      "data_contract_sha256": "65bd7290ba8f92c8fb05b8d6f16fae325e41f3d1a3e763a059ea92a73384886b",
+      "class_weights": [
+        0.5170380078636959,
+        15.173076923076923
+      ],
+      "control": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-treatment-seed43-config.json",
+        "config_sha256": "6adf82b7fe07c40ece97868ae892848af909436ba4400eb4d1c4c392418bf825",
+        "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-04/treatment/held-out-predictions.json",
+        "prediction_sha256": "923e283d4a81e1ab3177c9286e686f1404798e015b6fdab2b6a74728802358f9"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V21h-cq08-known-gate-course-iso-oof-fold-04-treatment-seed43-config.json",
+        "config_sha256": "0d0308159d1d16c69f939aae78f8f3493286674a54ec6850abf2b61133ece6ed",
+        "config_identity_sha256": "5237f8dbd9e718813987befdb7af92e114519c9716dd79fc0447b66e26a9180b"
+      }
+    }
+  ],
+  "unknown_training_exposure": 0,
+  "validation_parent_count": 0,
+  "test_parent_count": 0,
+  "threshold_fitting": "未执行",
+  "deployment_eligible": false
+}

@@ -1,0 +1,140 @@
+{
+  "schema_version": "RADAR-LN3-V21h-known-gate-course-iso-experiment-contract-v1",
+  "experiment": "V21h V21e course plus iso",
+  "role": "exploratory nested paired known-train OOF; not independent confirmation",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence",
+    "target_row_linear_energy_fraction_mean"
+  ],
+  "control_features": [
+    "causal_prefix_course_circular_incoherence"
+  ],
+  "new_treatment_features": [
+    "target_row_linear_energy_fraction_mean"
+  ],
+  "single_factor": "append frozen iso evidence to V21e",
+  "primary_labels": [
+    "DroneTarget",
+    "ClutterTarget"
+  ],
+  "safety_labels": [
+    "BirdTarget",
+    "BalloonTarget"
+  ],
+  "pairing": {
+    "control": "frozen V21e OOF Treatment predictions",
+    "treatment": "V21h full-parameter 20-epoch fold models",
+    "shared_initialization": "recursively reconstruct V21e Treatment initialization, copy its course column, and zero only the appended feature columns",
+    "same_fold_train_parent_order": true,
+    "fixed_final_epoch": 20,
+    "held_out_checkpoint_selection": false
+  },
+  "source_hashes": {
+    "index": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "assignment": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7",
+    "v21e_feature_contract": "37f6a8a9dc1b658fa7ff1c5a2ef1090fe0e79e3ab3eefebde69ab0404e911cc0",
+    "v21e_feature_manifest": "737d14c15b49c972d7e1d26d28fbcb877c04643ef9906f46c216e76462d84662",
+    "v21e_course_cache": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "v21e_treatment_report": "04454cbd0237d64f5858184a16d37c2d8999a34b0d4ae07206a6683507f59104",
+    "source_cache": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+    "source_contract": "7b0415a72c8cdf250a3e5ba9948dc98900fc62ae81b646dd7a82d7f432d0b055",
+    "source_manifest": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131",
+    "v21e_config_00": "5b82ae931569ff808302607cee22c19fae4143d30e16dcdbf9f95e8a93935f9d",
+    "v21e_prediction_00": "ed08f1d25f1d8cef0a5a7978002cfee1622e891d9fa7477dda8ad6546ed68d52",
+    "v21e_config_01": "b7456955dd42cfbd8622caba4cdbc3dae83dcbc48fb92da8cf3fbabfe9c7d941",
+    "v21e_prediction_01": "ce4d6464efcdb5ca0e0fa00026ff04232f62069946d8a663b9676d227b3cf7c7",
+    "v21e_config_02": "57d9d58c63f502eb8fb5c564d78d2e1f37b7ac81500599dc9b21ad02723adcad",
+    "v21e_prediction_02": "4c75be662ca6cb40988b27bdae26d49718b867848777f070896dd69ba8f83a61",
+    "v21e_config_03": "28801f19675a2ebf09d1f07dc71a5edefe163939e678e7f83bcb1309e17df536",
+    "v21e_prediction_03": "cc5ced29a355d256e1c505674658ed8577f09030f9a421e90b2630ba3c47e1d4",
+    "v21e_config_04": "6adf82b7fe07c40ece97868ae892848af909436ba4400eb4d1c4c392418bf825",
+    "v21e_prediction_04": "923e283d4a81e1ab3177c9286e686f1404798e015b6fdab2b6a74728802358f9"
+  },
+  "source_feature_hashes": {
+    "course_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "source_cache_sha256": "9852592396c37678eff94d05245753a0d690d23171f31a2a4d84ab68eea6028d",
+    "source_contract_sha256": "7b0415a72c8cdf250a3e5ba9948dc98900fc62ae81b646dd7a82d7f432d0b055",
+    "source_manifest_sha256": "869e3de3c0397c6baef62916208f640696c7e0deda5ddb0750575fbf074c3131"
+  },
+  "train_only_prior": {
+    "role": "train-only descriptive prior; not a readiness or checkpoint gate",
+    "parent_support": {
+      "DroneTarget": 476,
+      "BirdTarget": 239,
+      "BalloonTarget": 238,
+      "ClutterTarget": 33
+    },
+    "feature_distributions": {
+      "DroneTarget": {
+        "parent_support": 476,
+        "features": {
+          "target_row_linear_energy_fraction_mean": {
+            "support": 476,
+            "mean": 0.2813691859165015,
+            "median": 0.2777721472705404,
+            "q25": 0.12020332487632654,
+            "q75": 0.4492316827178001
+          }
+        }
+      },
+      "BirdTarget": {
+        "parent_support": 239,
+        "features": {
+          "target_row_linear_energy_fraction_mean": {
+            "support": 239,
+            "mean": 0.10182953016614171,
+            "median": 0.08238319307565689,
+            "q25": 0.059731304412707686,
+            "q75": 0.12419546980862364
+          }
+        }
+      },
+      "BalloonTarget": {
+        "parent_support": 238,
+        "features": {
+          "target_row_linear_energy_fraction_mean": {
+            "support": 238,
+            "mean": 0.18384963048495093,
+            "median": 0.1634570654730002,
+            "q25": 0.1147851209934567,
+            "q75": 0.23058103428859458
+          }
+        }
+      },
+      "ClutterTarget": {
+        "parent_support": 33,
+        "features": {
+          "target_row_linear_energy_fraction_mean": {
+            "support": 33,
+            "mean": 0.1306816510810231,
+            "median": 0.07054381023930467,
+            "q25": 0.059730160236358645,
+            "q75": 0.2480852296575904
+          }
+        }
+      }
+    },
+    "primary_pair_separation": {
+      "target_row_linear_energy_fraction_mean": {
+        "ClutterTarget_vs_DroneTarget": {
+          "clutter_higher_auc": 0.22288006111535524,
+          "direction_free_auc": 0.7771199388846448
+        }
+      }
+    }
+  },
+  "combined_cache": {
+    "path": "data/processed/RADAR-LN3-V21h-cq08-known-gate-course-iso-cache.npz",
+    "sha256": "a140bd252d724bcab429d0056c3e505659462a282b20a2a24496c352e42e4f32",
+    "event_count": 18923,
+    "value_dim": 2
+  },
+  "unknown_training_exposure": 0,
+  "validation_access_count": 0,
+  "test_payload_access_count": 0,
+  "threshold_fitting": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}
