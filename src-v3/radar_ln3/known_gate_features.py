@@ -37,6 +37,8 @@ V21D_VARIANT = "v21d"
 V21D_PREFIX_VARIANT = "v21d_prefix"
 V21E_COURSE_PREFIX_VARIANT = "v21e_course_prefix"
 V21F_COURSE_INTERFRAME_VARIANT = "v21f_course_interframe"
+V21H_COURSE_ISO_VARIANT = "v21h_course_iso"
+V21I_COURSE_D_RANGE_VARIANT = "v21i_course_d_range"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -66,6 +68,14 @@ COURSE_INTERFRAME_FEATURE_NAMES = (
     *COURSE_PREFIX_FEATURE_NAMES,
     *INTERFRAME_SPECTRAL_FEATURE_NAMES,
 )
+COURSE_ISO_FEATURE_NAMES = (
+    *COURSE_PREFIX_FEATURE_NAMES,
+    *ISO_FEATURE_NAMES,
+)
+COURSE_D_RANGE_FEATURE_NAMES = (
+    *COURSE_PREFIX_FEATURE_NAMES,
+    *D_RANGE_PREFIX_FEATURE_NAMES,
+)
 KNOWN_GATE_FEATURE_NAMES = (
     *SPECTRAL_FEATURE_NAMES,
     *MODAL_FEATURE_NAMES,
@@ -83,6 +93,8 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     V21D_PREFIX_VARIANT: D_RANGE_PREFIX_FEATURE_NAMES,
     V21E_COURSE_PREFIX_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V21F_COURSE_INTERFRAME_VARIANT: COURSE_INTERFRAME_FEATURE_NAMES,
+    V21H_COURSE_ISO_VARIANT: COURSE_ISO_FEATURE_NAMES,
+    V21I_COURSE_D_RANGE_VARIANT: COURSE_D_RANGE_FEATURE_NAMES,
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
@@ -93,6 +105,8 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V21D_PREFIX_VARIANT,
         V21E_COURSE_PREFIX_VARIANT,
         V21F_COURSE_INTERFRAME_VARIANT,
+        V21H_COURSE_ISO_VARIANT,
+        V21I_COURSE_D_RANGE_VARIANT,
     }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
@@ -436,6 +450,8 @@ def feature_contract() -> dict[str, Any]:
                 V21D_PREFIX_VARIANT,
                 V21E_COURSE_PREFIX_VARIANT,
                 V21F_COURSE_INTERFRAME_VARIANT,
+                V21H_COURSE_ISO_VARIANT,
+                V21I_COURSE_D_RANGE_VARIANT,
             )
         },
         "causal_scope": "current event only; no future event or parent-final statistic",
@@ -487,6 +503,8 @@ def load_known_gate_feature_cache(
         V21D_PREFIX_VARIANT,
         V21E_COURSE_PREFIX_VARIANT,
         V21F_COURSE_INTERFRAME_VARIANT,
+        V21H_COURSE_ISO_VARIANT,
+        V21I_COURSE_D_RANGE_VARIANT,
     }:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
@@ -567,6 +585,8 @@ __all__ = [
     "COURSE_PREFIX_FEATURE_NAMES",
     "COURSE_PREFIX_FEATURE_SCHEMA",
     "COURSE_INTERFRAME_FEATURE_NAMES",
+    "COURSE_ISO_FEATURE_NAMES",
+    "COURSE_D_RANGE_FEATURE_NAMES",
     "D_RANGE_FEATURE_NAMES",
     "D_RANGE_PREFIX_FEATURE_NAMES",
     "D_RANGE_PREFIX_FEATURE_SCHEMA",
@@ -594,6 +614,8 @@ __all__ = [
     "V21D_PREFIX_VARIANT",
     "V21E_COURSE_PREFIX_VARIANT",
     "V21F_COURSE_INTERFRAME_VARIANT",
+    "V21H_COURSE_ISO_VARIANT",
+    "V21I_COURSE_D_RANGE_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_interframe_spectral_temporal_consistency",

@@ -30,6 +30,8 @@ from .known_gate_features import (
     BASELINE_VARIANT,
     COURSE_PREFIX_FEATURE_SCHEMA,
     COURSE_INTERFRAME_FEATURE_NAMES,
+    COURSE_ISO_FEATURE_NAMES,
+    COURSE_D_RANGE_FEATURE_NAMES,
     D_RANGE_PREFIX_FEATURE_SCHEMA,
     FEATURE_NAMES_BY_VARIANT,
     INTERFRAME_SPECTRAL_FEATURE_SCHEMA,
@@ -39,6 +41,8 @@ from .known_gate_features import (
     V21D_PREFIX_VARIANT,
     V21E_COURSE_PREFIX_VARIANT,
     V21F_COURSE_INTERFRAME_VARIANT,
+    V21H_COURSE_ISO_VARIANT,
+    V21I_COURSE_D_RANGE_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -223,6 +227,10 @@ _V21F_OOF_CONFIG_PATTERN = re.compile(
     r"RADAR-LN3-V21f-cq08-known-gate-oof-fold-(0[0-4])-"
     r"treatment-seed43"
 )
+_V21HI_OOF_CONFIG_PATTERN = re.compile(
+    r"RADAR-LN3-V21([hi])-cq08-known-gate-course-(iso|d-range)-"
+    r"oof-fold-(0[0-4])-treatment-seed43"
+)
 
 
 def _validate_v21e_oof_support_config(
@@ -350,6 +358,75 @@ def _validate_v21f_oof_support_config(
     ):
         raise ValueError(
             "V21f OOF support config differs from its frozen fold Treatment contract"
+        )
+    return True
+
+
+def _validate_v21hi_oof_support_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize only the frozen V21h/V21i V21e-append OOF configs."""
+
+    match = _V21HI_OOF_CONFIG_PATTERN.fullmatch(config_name)
+    if match is None:
+        return False
+    code, slug, fold_token = match.groups()
+    expected_variant = {
+        "h": V21H_COURSE_ISO_VARIANT,
+        "i": V21I_COURSE_D_RANGE_VARIANT,
+    }[code]
+    expected_features = {
+        "h": COURSE_ISO_FEATURE_NAMES,
+        "i": COURSE_D_RANGE_FEATURE_NAMES,
+    }[code]
+    artifact = (
+        f"artifacts/RADAR-LN3-V21{code}-cq08-known-gate-course-{slug}-"
+        f"paired-oof/fold-{fold_token}/treatment"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+        "treatment-seed43-config.json"
+    )
+    if (
+        config_path.name != f"{config_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or variant != expected_variant
+        or tuple(expected_features) != FEATURE_NAMES_BY_VARIANT[expected_variant]
+        or data.contract_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "data-contract.json"
+        )
+        or data.normalization_stats_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "train-normalization-stats.json"
+        )
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/final_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            f"RADAR-LN3-V21{code}-known-gate-course-{slug}-oof-fold-"
+            f"{fold_token}-treatment-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.save_every_epoch
+    ):
+        raise ValueError(
+            "V21h/V21i OOF support config differs from its frozen fold contract"
         )
     return True
 
@@ -525,7 +602,16 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
-    is_oof_support = is_v21e_oof_support or is_v21f_oof_support
+    is_v21hi_oof_support = _validate_v21hi_oof_support_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
+    is_oof_support = (
+        is_v21e_oof_support or is_v21f_oof_support or is_v21hi_oof_support
+    )
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS

@@ -1852,3 +1852,37 @@
 - [ ] 若未来独立数据重新出现Balloon/Clutter边界错误，再以新版本重启模态一致性研究；不得把本次取消结论推广为全域物理无效。
 
 冻结结论：V21g在当前V21e错误覆盖上不值得完整训练；编号直接转入V21h iso实验。
+
+## Stage 081 - V21h目标行能量占比iso嵌套OOF
+
+目标：在V21e因果航迹一致性基础上，单因素追加canonical目标行能量占比iso，验证其是否仍能提供Clutter/Drone边界增量。
+
+前置依赖：Stage 078 V21e五折Treatment OOF、Stage 080 V21g取消审计和V21c iso公式/缓存保持冻结；V21c的零动作变化只作为复现实验动机，不作为V21h收益结论。
+
+最小子任务：
+
+- [x] 生成V21h二维输入契约：V21e course一致性+iso；只复用train-only核心cache，逐sample_id/valid对齐。
+- [x] 生成nested pair配置、独立experiment/feature/OOF contract、readiness和五折Treatment训练入口；Control直接复用V21e OOF Treatment。
+- [x] 通过初态hash、初始logits、零列梯度、component隔离、Unknown/test封存focused smoke。
+- [x] 通过Python编译、PowerShell AST、静态隔离和`prepare`整链检查；长训练交由用户执行。
+- [ ] 用户执行五个Treatment fold完整20 epoch并生成paired OOF报告。
+- [ ] 依据主要Clutter/Drone净救回、KnownTarget/Clutter安全、parent bootstrap、Clutter support和绝对护栏裁决；未通过不得进入阈值或部署。
+
+冻结结论：V21h是单因素探索性实验，不与V21i联合，不读取test，不训练Unknown。
+
+## Stage 082 - V21i因果d_range稳定性嵌套OOF
+
+目标：在V21e基础上单因素追加V21d causal-prefix d_range稳定性，验证Clutter/Bird边界是否存在可复现增量。
+
+前置依赖：Stage 078 V21e OOF、V21d prefix公式及Stage 080取消决策保持冻结；V21d原development零动作变化不替代V21i外折证据。
+
+最小子任务：
+
+- [x] 生成V21i二维输入契约：V21e course一致性+d_range prefix；复用独立V21d train cache，不重建数据、不读取test。
+- [x] 生成nested pair配置、独立experiment/feature/OOF contract、readiness和五折Treatment训练入口；Control直接复用V21e OOF Treatment。
+- [x] 通过初态hash、初始logits、零列梯度、component隔离、Unknown/test封存focused smoke。
+- [x] 通过Python编译、PowerShell AST、静态隔离和`prepare`整链检查；长训练交由用户执行。
+- [ ] 用户执行五个Treatment fold完整20 epoch并生成paired OOF报告。
+- [ ] 依据Clutter/Bird净救回、KnownTarget/Clutter安全、parent bootstrap、Clutter support和绝对护栏裁决；未通过不得进入阈值或部署。
+
+冻结结论：V21i是单因素探索性实验，不与V21h联合，不读取test，不训练Unknown。

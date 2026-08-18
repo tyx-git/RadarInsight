@@ -55,6 +55,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v21e_multiseed_contract_test.py
 !src-v3/smoke/known_gate_v21e_oof_contract_test.py
 !src-v3/smoke/known_gate_v21f_oof_contract_test.py
+!src-v3/smoke/known_gate_v21hi_oof_contract_test.py
 !src-v3/README.md
 !docs/
 docs/*
@@ -69,4 +70,6 @@ docs/*
 !docs/radar_ln3_v21e_multiseed_confirmation.md
 !docs/radar_ln3_v21f_oof_protocol.md
 !docs/radar_ln3_v21g_modal_consistency_decision.md
+!docs/radar_ln3_v21h_iso_oof_protocol.md
+!docs/radar_ln3_v21i_d_range_oof_protocol.md
 v2r/
