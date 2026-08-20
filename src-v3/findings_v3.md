@@ -2565,3 +2565,11 @@
 - Evidence：V21e known train中，Drone/Bird/Balloon合计有153/18266个缺失RD事件，涉及25/953个目标parent；Clutter的33个parent、657个事件均有RD，缺失事件为0；所有类别都没有整条parent全事件缺RD支持。把五折冻结模型的每个事件改为合法missing质量向量`[0,0,0,1,0,0,0]`并移除RD内容后，986个parent全部输出KnownTarget，Clutter P/R/F1全部为0。
 - Impact：`rd_present/rd_missing`及其相关质量字段可形成目标/Clutter覆盖捷径；全missing臂是明确的分布外反事实，不能被报告成无RD重训练模型性能。若产品质量不足时仍直接消费KnownGate argmax，可能系统性偏向KnownTarget；当前尚未运行完整Pending/Abstain和L3语义决策链。
 - Action：下一优先项不是继续追加RD residual，而是冻结一个单因素质量鲁棒性方案：补齐或合成标签均衡的合法RD缺失训练支持，或由L3在质量不足时强制`PENDING_ABSTAIN`。方案必须预注册且分别验证正常RD性能、缺失RD安全、Bird/Drone误拒、Clutter安全和offline/online一致性。
+
+## Finding F237
+
+- Severity：High
+- Status：已确认架构命名/实现边界；V23性能待五折训练
+- Evidence：`src-v3/radar_ln3/model.py:187-291`的历史`CfCLiquidCausalEncoder`仅定义`input_projection/state_projection/gate_projection/candidate_projection/tau_unconstrained/output_norm`，以`alpha=1-exp(-dt/tau)`及线性插值更新state；项目V3代码未导入`ncps`、`torch_cfc`或LTC实现，审计时`.venv`中三者均不存在。V23新增`src-v3/radar_ln3/official_cfc.py`，runtime硬校验官方`ncps==1.0.1`、Git commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`、类模块`ncps.torch.cfc`，并在真实CQ08 fold-0 batch Smoke确认官方CfC参数14,064、梯度有限非零；历史48维自定义单元参数为14,112。
+- Impact：V16-V22的相对实验结论只适用于项目自定义、CfC-inspired连续时间门控主干，不能宣称已经证明标准CfC/LTC收益。V23a/V23b可分别检验官方CfC相对V21e历史loss和V22固定parent分母loss的架构效应，但二者都不是完整KnownGate产品、Unknown拒识或跨source泛化结论。
+- Action：历史文档与后续报告统一称`CfC-inspired custom encoder`或“自定义连续时间门控编码器”；仅V23 Treatment称官方`ncps.torch.CfC`。保持V23a对V21e、V23b对V22分开五折比较，固定V16 index、course输入、fold、loss、seed、parent order和epoch；不使用初始logit相等作为不同架构的伪配对条件，而是记录source hash、官方runtime绑定和每epoch parent order hash。只有同时通过parent、eligible-prefix、方向安全和component bootstrap门槛才可提出后续架构候选；test、正式拒识、L3、完整级联、stable和P95继续未执行。

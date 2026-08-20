@@ -1,0 +1,55 @@
+{
+  "schema_version": "RADAR-LN3-V23A",
+  "config_name": "RADAR-LN3-V23A-cq08-known-gate-official-cfc-oof-fold-04-treatment-seed43",
+  "arm": "v23a",
+  "fold_id": 4,
+  "source": {
+    "role": "frozen V21e OOF treatment control",
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-treatment-seed43-config.json",
+    "config_sha256": "6adf82b7fe07c40ece97868ae892848af909436ba4400eb4d1c4c392418bf825",
+    "config_identity_sha256": "b0558f3e677e4c41cea8db0a9fa9762525227aeb0c5ba6d0a748148b891f7448",
+    "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-04/treatment/held-out-predictions.json",
+    "prediction_sha256": "923e283d4a81e1ab3177c9286e686f1404798e015b6fdab2b6a74728802358f9"
+  },
+  "official_cfc": {
+    "distribution": "ncps",
+    "distribution_version": "1.0.1",
+    "direct_url": "https://github.com/mlech26l/ncps.git",
+    "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+    "class_path": "ncps.torch.CfC",
+    "class_module": "ncps.torch.cfc",
+    "mode": "default",
+    "activation": "lecun_tanh",
+    "hidden_dim": 48,
+    "backbone_units": 48,
+    "backbone_layers": 1,
+    "backbone_dropout": 0.0,
+    "mixed_memory": false,
+    "return_sequences": true,
+    "batch_first": true,
+    "per_parent_forward_for_upstream_batch_timespan_compatibility": true,
+    "state_equation_owner": "official ncps.torch.CfC; Radar-LN3 does not reimplement CfCCell"
+  },
+  "train": {
+    "batch_size": 2,
+    "learning_rate": 0.0001,
+    "seed": 43,
+    "dataloader_seed": 43,
+    "device": "cuda",
+    "epochs": 20,
+    "gradient_clip_norm": 100.0,
+    "class_weights": [
+      0.5170380078636959,
+      15.173076923076923
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "class_weight_normalization": "batch_weight_sum",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_path": "artifacts/RADAR-LN3-V23A-cq08-known-gate-official-cfc-v21e-loss-oof/fold-04/treatment/final_model.pt",
+    "last_checkpoint_path": "artifacts/RADAR-LN3-V23A-cq08-known-gate-official-cfc-v21e-loss-oof/fold-04/treatment/last_model.pt",
+    "formal_artifact_dir": "artifacts/RADAR-LN3-V23A-cq08-known-gate-official-cfc-v21e-loss-oof/fold-04/treatment",
+    "epoch_checkpoint_dir": "artifacts/RADAR-LN3-V23A-cq08-known-gate-official-cfc-v21e-loss-oof/fold-04/treatment/epochs",
+    "checkpoint_schema": "RADAR-LN3-V23A-known-gate-official-cfc-oof-fold-04-treatment-checkpoint-v1"
+  }
+}

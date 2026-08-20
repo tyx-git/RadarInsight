@@ -1,0 +1,362 @@
+{
+  "schema_version": "RADAR-LN3-V23B-known-gate-official-cfc-oof-contract-v1",
+  "experiment": "V23B KnownGate official ncps CfC architecture-only OOF",
+  "arm": "v23b",
+  "control": {
+    "name": "v22",
+    "report_path": "src-v3/processed/report/RADAR-LN3-V22-known-gate-fixed-parent-balanced-paired-oof.json",
+    "report_sha256": "b5d365940527a1bff66933032fe00eead1d5bfaa5d79d89dcd736c8be422215c",
+    "report_status": "hypothesis_not_supported"
+  },
+  "treatment": {
+    "encoder": "official ncps.torch.CfC",
+    "state_equation_owner": "official ncps CfCCell",
+    "architectural_variable": "replace project-local CfC-inspired encoder with parameter-matched official CfC",
+    "not_a_reimplementation": true
+  },
+  "official_runtime": {
+    "distribution": "ncps",
+    "distribution_version": "1.0.1",
+    "direct_url": "https://github.com/mlech26l/ncps.git",
+    "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+    "class_path": "ncps.torch.CfC",
+    "class_module": "ncps.torch.cfc"
+  },
+  "parameter_matching": {
+    "historical_custom_cfc_inspired_encoder_parameter_count": 14112,
+    "official_ncps_cfc_parameter_count": 14064,
+    "official_minus_historical_parameter_count": -48,
+    "absolute_parameter_difference": 48,
+    "parameter_matching_decision": "official 48x1 backbone is closest among the pre-registered candidates"
+  },
+  "single_factor": {
+    "changed_component": "causal sequence encoder only",
+    "frozen": [
+      "V16 index and V21e capture/content provenance folds",
+      "fold-train normalization",
+      "TR/RD front ends and point fusion",
+      "V21e causal-course evidence",
+      "known-only labels and Unknown exclusion",
+      "batch size, seed, parent order, optimizer, epochs, gradient clipping",
+      "source loss aggregation and loss coefficients",
+      "fixed-final-epoch held-out prediction protocol"
+    ],
+    "official_cfc_dt_difference_is_intrinsic_to_encoder": "raw zero timespans are given to official CfC; the historical floor/bounded-observation update rule is not retained inside the replacement encoder"
+  },
+  "source_fold_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-contract.json",
+  "source_fold_contract_sha256": "fa12369173643dab232885247a5e8ae1aaa0bf8fb4a799776a9d4695babbc4d5",
+  "source_assignment_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json",
+  "source_assignment_sha256": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7",
+  "fold_count": 5,
+  "known_parent_count": 986,
+  "provenance_component_count": 975,
+  "grouping": "capture_content_provenance_component",
+  "prediction_protocol": "out_of_fold_fixed_final_epoch",
+  "loss_class_weight_normalization": "fixed_parent_count",
+  "folds": [
+    {
+      "fold_id": 0,
+      "train_parent_ids_sha256": "64f2f1dd797f55ec46d5294ea23a50c224bdb4beeb3329a410b1a2eb414b488f",
+      "held_out_parent_ids_sha256": "b6dcebc99700f3f8011518998b6e8de7e1548446ef81962af5518d33fb0b8fdd",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 27
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-00-train-normalization-stats.json",
+      "normalization_stats_sha256": "94600a9e6c0a66419964be4f6aefb2d32408ddf8feaf3aa09e3f1627c544ac4c",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-00-data-contract.json",
+      "data_contract_sha256": "92cf0185c043d25bcc9d7bf2157f66eea6b27cc5b7b394537c6c21bd2f1922ba",
+      "source": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-00-treatment-seed43-config.json",
+        "config_sha256": "8626ff32f25fde1a3d34a5f679fcda855e49dc754d6cb6535b8b8929594041e4",
+        "config_identity_sha256": "fca44b2e8d6480b1e9007053ed65dcd0267b531057bed783d3304202a7c6b106",
+        "prediction_path": "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/fold-00/treatment/held-out-predictions.json",
+        "prediction_sha256": "cc26944e7a2bc4611267050564e4a6e97de6f8e5d615154ba15ccb1cea87a0fc",
+        "prediction_schema": "RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-prediction-v1",
+        "loss_aggregation_provenance": "prediction_payload",
+        "resolved_class_weight_normalization": "fixed_parent_count",
+        "history_parent_order_sha256": [
+          "533a1621bf90c183f6e74bff41b0cbd3bec1d7f2099f626ad04d29fe617e5c30",
+          "104340ac29340864e8f34e1eb30ebe75f492718f8452c335d40364c87c252df2",
+          "71b3051a4c29255a5aa1be96a42cc01ddada5235b5239c8e85be9d70f974e9d6",
+          "a6f5aecca2f9c2c1bbfb5d910e67cfbdbcebcfd7e4de8e80e5ab7ed25ef870ee",
+          "498c3807d319490ac867679f1dea9c830d912b2078c4c0334cb977e224e91111",
+          "21cddc1a8818fbd28c79a137c669a21fcdb04d84aded75be2b19f71b52ee19c1",
+          "544b83cbb7dc9a18572915709dc24646c3775054abc623db943e1ea572201bcf",
+          "0e0c01cc30138c6e7c0477726a7fd71a980189a009c9d59834fc8cfbbf3642eb",
+          "31891000afe661774a1554417f9c5650da16f7c4ae9f1c5811e8dd45e6421757",
+          "f24419c5f835b62bed22fa9492d106ddb923f95a318ef3e7630f27f5021d710a",
+          "eca0e3094c94c2efe3cfc68d218e2d727c7b162f6b1e1f3fd2a5aaadc453f8fa",
+          "aa0df79c4fb2b04f76bc8538831fb5b3833519a22ad51d74f0aa15e58a47a078",
+          "3067b53617f77e20750578a0946f3fc9c84bf46843124ea78ede6339291b6ddb",
+          "996cf22f9be81e36ba8afc3dce16c02ec2286b83477dd64a512e2a088b71421c",
+          "ae4897d5b79b7f6a51db0b9a729093300a15368f58ba7130d8a71c47daa1d639",
+          "b4f6a1db28f4b19deab3790e77702e5b7f744a55b983f99807da82f00ab9edf4",
+          "5b7379276c73e824d6196fedd352f655e98685e1e07e746793e9606513a096c4",
+          "2d159d603e724cffeedcaa00f8d6e973d362d9eed9ba7ec13f117b9b5821f060",
+          "9d18d0fe5aec2cab445940bdded614639a7dbc72d53036e6952c6506e25c52a0",
+          "ab900d81e37acf238c389c7edc8260e4f8b78c8dac8812a7063782c80f732436"
+        ],
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+        "final_model_state_sha256": "72103d3b76f751072fd4133c5e4575c537274b6f100d7fd4e05f8125c711d0a0"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23B-cq08-known-gate-official-cfc-oof-fold-00-treatment-seed43-config.json",
+        "config_sha256": "51ee3053d6b952efd44b6a49a148d1236ae8d73ed0c9cef591767bd15a485f85"
+      }
+    },
+    {
+      "fold_id": 1,
+      "train_parent_ids_sha256": "58caa6ced3882cdcd857658c995e471e17d777bc6802c27cd9c4c697e9638e77",
+      "held_out_parent_ids_sha256": "f94905c0b2c3f58aa415e66c58a2d6254cc840665878f20d6b10a01686295d97",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 27
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-01-train-normalization-stats.json",
+      "normalization_stats_sha256": "903ec88e190de87a9b6fcba7019aee159df875bf8198ccede0b688f02d3b5f82",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-01-data-contract.json",
+      "data_contract_sha256": "c4d97ba6b3a54b5b7d2fd9455359e61389589826a00445b312825176bdda6511",
+      "source": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-01-treatment-seed43-config.json",
+        "config_sha256": "d2832801b8d43cb932a241425c04bf12477849c64c5d29f14b4aca399b4a7677",
+        "config_identity_sha256": "e32c2abda5ea8dd8440226c9496d846b6ce4ca8ca3a4ab132ab63f36dae87133",
+        "prediction_path": "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/fold-01/treatment/held-out-predictions.json",
+        "prediction_sha256": "bf05ce1ec338fcdbd62706e13aeb04e09ad198dcf27a472900ccb6ce61989b02",
+        "prediction_schema": "RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-prediction-v1",
+        "loss_aggregation_provenance": "prediction_payload",
+        "resolved_class_weight_normalization": "fixed_parent_count",
+        "history_parent_order_sha256": [
+          "55580a4b6256c73250f1f772341e5772bfddf4df8087f1a334abcea30a78f1c8",
+          "ecbb5b7fb90670ae17fb5475de332417f2bd488d5ff43eae22f517d267a73e29",
+          "65870ffa1ec84dcb0376ade8c47fe6157ae0463a6764a9a2cec03bc9348b962a",
+          "66d8c4e19d9bd83fd02886085e4c711277519c37ccc8e3b17a8cbe390a8b9e7d",
+          "a0cbd39b3a688bc4f3063b2fca5a7e222f438c5c84cba103ee69c2c5bffd09ff",
+          "2236bd7db5de606bb2a536b62f7b8313b22a3c39df0b60b761779413e5e803ca",
+          "e5aeaa96a9848326db43f469253ff8a056702f7ff52a5c82dd77911b4561312a",
+          "297c03f9498462fabcb8d01394360c3f1dace14ff128789c670bc26ef9b2e8c9",
+          "d15402d3aabbd259d8fe2bff22b6287e561bd809b75fd8b81665b517408f6fbf",
+          "8034d198a59d1bd77286cb6138183e9ce85c81645e12cea9d4b2f843e45a1d8f",
+          "c0628666d73c9197b9b8394400b1816be9bb0e916fc8abb51c702431cbc1541e",
+          "73170d56f4392db6f9af50ce458cc70a3365ecca460209a104f66b67a5a9ec03",
+          "220bba0dd476a2523ef223ceae3b0676841525bdd340f559a1611486e790a3a1",
+          "1cd966f0131a07e22a7893d7ab13416467a064ca195e412d78012e07f52d9e59",
+          "27ee8c31ad4fedd2031e7836b58e4cb6bd1f62d099e72a9fa41a47b8b509496c",
+          "432be50aec237132c87591877a4e73617b517b95bf845b1ebad998629314fd52",
+          "36fa416bc78eff4b55215ade91bcf049b1a90210cf909939ebdf9a58f20d60a7",
+          "85cdcfd2839b2d0cf85183ea4c7bc47cd21be73ea53906e6f3b8823b14e4a10c",
+          "8d536cf1c053a7f52805190a8494f4665973d453f91ab9b25ce95ddcea19682e",
+          "4c9e1154318f2b1856854c584e361849a9b7f0556c89411065e16c608a550146"
+        ],
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+        "final_model_state_sha256": "0a11274bbce7632387e2314a718c7212a6f51b30d5ee605fbdf958bac876a53f"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23B-cq08-known-gate-official-cfc-oof-fold-01-treatment-seed43-config.json",
+        "config_sha256": "7d92656f313e2d601be30a596ec6e756f85619bd7761846cfa82db06d30f33ea"
+      }
+    },
+    {
+      "fold_id": 2,
+      "train_parent_ids_sha256": "e4014b129f1a0b281364a7379234aaf78bb4f07e16710ef719bd2362925b2a0a",
+      "held_out_parent_ids_sha256": "277d2302f5dfec09d9312fbe260ccc77a263588f69fad1a082247b33eef91c7d",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 190,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-train-normalization-stats.json",
+      "normalization_stats_sha256": "ab9f54056210d278c217e11a03e7f60cfc0a1821fba9096ad0ee9078b00a1523",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-data-contract.json",
+      "data_contract_sha256": "e547a5f962b0e75c6ba657cff1ac2c87bb8daa32efc4360bff314e17e15bcf03",
+      "source": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-02-treatment-seed43-config.json",
+        "config_sha256": "8e4f0caa513af3508901a614f4a35e811ce189d55a5cfdfbcddafc7831132a6a",
+        "config_identity_sha256": "11472cd1acebc32df7ecdb0e1e68818d437ac99e633558fb304eca4fc4437ab4",
+        "prediction_path": "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/fold-02/treatment/held-out-predictions.json",
+        "prediction_sha256": "46a62f983d194f2f75c60e5044f23789a364222d90d8aa985964d5559972063b",
+        "prediction_schema": "RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-prediction-v1",
+        "loss_aggregation_provenance": "prediction_payload",
+        "resolved_class_weight_normalization": "fixed_parent_count",
+        "history_parent_order_sha256": [
+          "c57ce6bc331e840c0e2c2632328fcd809009cf407d288f9160a8bccfa538452f",
+          "b42092f4b7a2c115bfad856e3020b97a72f8045a6db09a13798d83fed292034b",
+          "2f5c983fc10203e2a7f86bc6cf32931b601c370eca9a71fa44b3719e8c4e1db4",
+          "959b63594e2b564f889acd2d6d67face01934b978050c8ec365560b4c70c04b8",
+          "fbef03b7b38d08cba4d5d9af5420a7beaac29cfff0fa979ae12be1178327fcc3",
+          "66fddd5c6a5c519fad1fb36d4273ed3c91ffcce0e72c1be11e9e52846a8bc856",
+          "e5d762e56fd8e2dc9f23a9a81525d21127f7c77a3ab1f1846c7bb9b6021b7c0e",
+          "1e4beb7d47e865fe30960426f9ad683f3b574222008dd328e8d16c2fdd23ccbb",
+          "3187182aeda436d02505fa5298c9617bc423597a3c4bcb04fa78ed4e8562700b",
+          "b8f69550251988af9147fa640a359a38e673daeb1d4886a338f225334a7d6b6e",
+          "03f1ff53dc94563acb1fe0dd4b2fbbdb17838fb587ce199e3d4748919d0d3591",
+          "d4add7e860268e87c7f60e4ff83595312999b4a33876accfe9df7c5421a8b3f3",
+          "9cef7dd97ebbd6e5ff9bee9ce94753326988af5e11d7b51819c7bf8e4578d8d8",
+          "17379a6532bf4a1730d6262253f563dd2f7b8234cde073a78446a0085a22954b",
+          "f225d75037d026b08a0c19f1f8d7daf88683d02b3ceb68429026a5dbb68aeb5f",
+          "5942f4718e7ac30d65af79cad91603a3a9b5da2d90b3aa1db6c9ef26c5bc0216",
+          "40afeb6d324d46ca530197b883820d1fb1ccc79728bf4312ed123c29e507fbe8",
+          "b2ef3f856370c5267ad38f792f36d991c01032526eea16885b5116f69caf0e59",
+          "66a9fbc15954145681cc07dce6d5c9e1f53e090a36b58f1a1ee7e494ebb70cda",
+          "d5408160f12d23915b69665f95a98b85b7a96a8d28ce0b282c4c972c75494c30"
+        ],
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+        "final_model_state_sha256": "bb957d69f52e56482ae1414db86d85c7a377e81dafbd7788b918ab725ee9c2d2"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23B-cq08-known-gate-official-cfc-oof-fold-02-treatment-seed43-config.json",
+        "config_sha256": "fedf5c7677ab7ddebdc0ea72b17cc08fbf2096605625b5d6742ae407139ee0fb"
+      }
+    },
+    {
+      "fold_id": 3,
+      "train_parent_ids_sha256": "0ed5eb99ee0fe00198e57d2f8d4c0d4d12a77bc15c41208ed3ff2298b0f2f734",
+      "held_out_parent_ids_sha256": "05276547254830f4ac944a0748f18f3c2c90bb007f5e5c4282677b27f7ddca8d",
+      "train_label_parent_counts": {
+        "DroneTarget": 380,
+        "BirdTarget": 192,
+        "BalloonTarget": 191,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 96,
+        "BirdTarget": 47,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-03-train-normalization-stats.json",
+      "normalization_stats_sha256": "fbfd6701f9df2bf6ea04b8536d35801e8db63b6e18206d2b0da32be011148e2b",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-03-data-contract.json",
+      "data_contract_sha256": "f671c354fb2a3fabc5b8d3e7c51acdb24a15cf5e654a9c0bf28fc3ee0197a206",
+      "source": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-03-treatment-seed43-config.json",
+        "config_sha256": "2f86e8f10061554954785a855bae28c0da1bef78cb25f049152b47acf9972112",
+        "config_identity_sha256": "91301bcd01ffeea39b4ccb8dd4a32312a3f66c7f2ee0cb9b9ca221ca9dd9e3c1",
+        "prediction_path": "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/fold-03/treatment/held-out-predictions.json",
+        "prediction_sha256": "557e3879d1f50edb6cc33c5faf00c2ed9901d8b4e4b5f4e55dee77e55b4f4546",
+        "prediction_schema": "RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-prediction-v1",
+        "loss_aggregation_provenance": "prediction_payload",
+        "resolved_class_weight_normalization": "fixed_parent_count",
+        "history_parent_order_sha256": [
+          "d34dca1d520cfab5287976ed1e08c2f5aac37fac1acc96ff400f81402c7039ee",
+          "a06f92164a0fc2208df1ec76c39aa779528b95b2a5c9725712278675692cfdaf",
+          "1a668dfe58974f6054a2883ef57e9bdd18ffd8dd07db2eb649d09ccc7faa85af",
+          "79808f1c3db4afb562d4a8e29e0ed5dcdbcd99bbd6e233e850b4bbf38a261804",
+          "97d476d082ee857fdbfa20424946d522799b46254f6eaa95760a142f61451774",
+          "385405a9c18815ab0daa569cc5eb107bf15bd1525a485c6bfa393568f3e189da",
+          "c4389f3fbef295b6ea4571b3ae6ba552fe3cffb237dd77f0192dee77a9e35bd6",
+          "ef9b1ba0d0cb58e99648acc42dc40090972db200a5568c2a9dcfb7a43410d0d7",
+          "6b6f75a387055a3358054f4739ce207416ca9b60374fa37f1da82998664d97a2",
+          "0b9a53f59f436303d05159a6fde26befbc7e83ed3f4d9c83d4a611acc4752fcd",
+          "b2b79c0e63a1a84f9b1d1a1c9b8d0dd0ed45c9125d777114c6ed1670957870f7",
+          "e845ed5f7ecbb61ab4f2203c19976b7b9bcbed51d2ea557dd984b41dc8d0f5b3",
+          "509e204332b23b237cefd9c66e188759581a2569ac12e9845ab8530181cc742f",
+          "36a393feaff702fb8932a47c283a25385f552e88d7aa337d7aed93c8080a5ff2",
+          "9762abf0138fde058df7931068cb2e260117559b5649e173fa9808dc132edf8f",
+          "51a56337e30f6fb4b8830a5d3c11d492e15ca4e3f404f575a6375784110dc8b4",
+          "e23f232f642356d1d3e6afc0e0954e38cc110c580afef630947b438e529cdf82",
+          "20f8b9d184cc77a704d529b6386ba227725d83a85d0cd8d033b2b50329c88b95",
+          "5dafb6ef74b28c29f6ea271afc364b8961eb6d9e6fd7961099936180dd9c5505",
+          "f6f1510b23e856c1c066f5044e4ccdf29acc627d6a79a8943b2925a81743905c"
+        ],
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+        "final_model_state_sha256": "0083838162a45d925d940be1b9c6ceab5b756e57ead1f9785e71291e86161717"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23B-cq08-known-gate-official-cfc-oof-fold-03-treatment-seed43-config.json",
+        "config_sha256": "ca3285dfedcea51d1d85aa102c4d2f9f64f2c9d3716417eee9e41f83afdcea23"
+      }
+    },
+    {
+      "fold_id": 4,
+      "train_parent_ids_sha256": "fd579d2bb935bf705fb491ccee24ed0df6c16b46b6b71933e24f11fe3cf4280a",
+      "held_out_parent_ids_sha256": "3501992ffe24c6154d49977525efc5c6f90126dc6ada2be4cf9623707d50f65a",
+      "train_label_parent_counts": {
+        "DroneTarget": 381,
+        "BirdTarget": 191,
+        "BalloonTarget": 191,
+        "ClutterTarget": 26
+      },
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-train-normalization-stats.json",
+      "normalization_stats_sha256": "ae7245165f1135d5c725af2be80c24b975858ae6d966bd9131b82c6ee3bc3485",
+      "data_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-data-contract.json",
+      "data_contract_sha256": "65bd7290ba8f92c8fb05b8d6f16fae325e41f3d1a3e763a059ea92a73384886b",
+      "source": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-04-treatment-seed43-config.json",
+        "config_sha256": "7a412d19861b37961df7b700cd8fb621c9511446fde68e144fd690874939d15f",
+        "config_identity_sha256": "327fc4ed515f184c090f9cee94e4b6516e891fd330bb961a8f5f20dc2fed0096",
+        "prediction_path": "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/fold-04/treatment/held-out-predictions.json",
+        "prediction_sha256": "2a27374747e7b73ab5b62e39374c535ee4291e71b5f5f10fbe54ae95932d2b5e",
+        "prediction_schema": "RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-prediction-v1",
+        "loss_aggregation_provenance": "prediction_payload",
+        "resolved_class_weight_normalization": "fixed_parent_count",
+        "history_parent_order_sha256": [
+          "adf687dc5535cf6c662e4b95baa484510876e9b2ca4c3579ba22a16b1a02f1cc",
+          "13a9ab6711ae4ad38f76d9009b575fee1645938be64fbebb0c9b796c50a59336",
+          "d5d5167e1a8864078a20b0964c56d1c302b122ed80a12087aafbbb308386407e",
+          "aba2192d6d5b60fde81ea1fe1d6772494b32c7aa89faaf14a2747a2d0f8be294",
+          "0c3d44f678c64e2968439cc971ba1562cb82286ce36ab28226f7d609fba10e7e",
+          "8bda219d038f667d5909aefd7d74c732bb4fa01a2910d0fb6719ec6ebf577298",
+          "1aee762abf989cf85b0f9503e9bb1482607cf049aae913931e63d7fb6dee5c2d",
+          "28875b3475627c5140deb5c828bf3b43322df67ce0625caa0857fe7d7583cd1f",
+          "3ae5b10efd9fc1e0e9c779608e58c04b8d3d27d38d91e41474e3f5fe61d756fb",
+          "5e49e742e95c626ee9ddb025ec93cdc1e246dec7b3a79b5e0c1185dffbb63a01",
+          "2510d26f9e0b6a1a72b8c6daa0095a55ba3037800dafa7a37ad631803411126c",
+          "7e1c3838050df679b5c420eb60bd276e78b20ae4e707b440d81463f41369a322",
+          "1d2099fe9329f84f70d0b6d7e6af2d5e20713691dbcb3925ef482bbbad6ef00a",
+          "51907cc7281027fa98b4c6d832e7603822ed11c881b193064a92c45969db4570",
+          "098d8299b9e9b0b5ac6174de0908fdc54eaca23e3bc7ba4125b0f51694f5c158",
+          "dffa15ffdf14145c4ec9a50764d03351097074c79d1a528c2431039bec506c94",
+          "538c75e44adfced31c65d5885a835f77d09a1c62965915a774a7f087ecf1ffc1",
+          "0bfb34a8f8803d3e6fd97a6df4603b36ee163dbcf18ede030a166befd18b1f5d",
+          "b324583a02e7f1dd54236455c1f29857375dc557f313724dccf00ad9c19f972b",
+          "9d397cdc9beebd3add53d52ea19b38436b55c7825cc7155988cdeae38ff07bca"
+        ],
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+        "final_model_state_sha256": "844f8e3696e782daef5aac96e749ea70ec7fc735bda829707661f612f68d5d77"
+      },
+      "treatment": {
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23B-cq08-known-gate-official-cfc-oof-fold-04-treatment-seed43-config.json",
+        "config_sha256": "b99ed671ae4a17c61361036de27ab7bcecd5b92011a8e3cbfe285548bba3a963"
+      }
+    }
+  ],
+  "unknown_training_exposure": 0,
+  "validation_parent_count": 0,
+  "test_parent_count": 0,
+  "threshold_fitting": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

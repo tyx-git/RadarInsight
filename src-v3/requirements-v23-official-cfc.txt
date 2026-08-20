@@ -1,0 +1,4 @@
+# V23 pins the official Neural Circuit Policies CfC implementation.
+# The project mirror used by this workspace does not publish ncps, so install
+# with --no-build-isolation from the official repository at this exact commit.
+ncps @ git+https://github.com/mlech26l/ncps.git@695ec22d7d1831f2ced67346ef7d2f08c525bd47

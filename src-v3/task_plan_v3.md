@@ -2102,3 +2102,39 @@
 是否需要Smoke：已执行并通过。
 是否需要正式训练：否；本Stage训练step为0。
 阻塞条件：Clutter缺失RD支持为0、全事件缺RD parent支持为0，阻止把missing臂作为泛化性能；完整L1/L2/L3、Pending/Abstain、正式拒识、stable、P95和test仍未执行。
+
+## Stage 093 - V23官方标准CfC KnownGate架构替换五折OOF
+
+目标：将项目自定义、CfC-inspired的`CfCLiquidCausalEncoder`与官方 Neural Circuit Policies `ncps.torch.CfC`进行参数量近似匹配的架构替换比较；不得把“官方包”误写为历史V21/V22模型已经使用的实现。
+
+前置依赖：Stage 089 V22已完成且冻结为`hypothesis_not_supported`；Stage 092确认现有RD内容路径保留；官方`ncps`已安装到项目`.venv`，版本/commit可审计。
+
+最小子任务：
+
+- [x] 完成液态主干代码审计：历史`CfCLiquidCausalEncoder`为项目手写的指数插值门控状态单元，不是官方CfC/LTC；`ncps`、`torch_cfc`和`liquidnet`此前均未被项目依赖或调用。
+- [x] 安装并锁定官方`ncps==1.0.1`，源码为`https://github.com/mlech26l/ncps.git` commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`；V23只通过`ncps.torch.CfC`调用官方`CfCCell`，不重写其状态方程。
+- [x] 冻结参数量近似匹配：历史48维自定义时序模块为14,112参数；官方`CfC(48,48,mode=default,backbone_units=48,backbone_layers=1,dropout=0,mixed_memory=false)`为14,064参数，差48参数；禁止使用默认128宽backbone或额外容量搜索。
+- [x] 实现官方CfC因果适配层：first/same-second传真实零timespan，positive delta传实测正dt并仅保留既有120秒上限；不将历史`floor/bounded_observation`人工增益注入官方CfC。为兼容上游`ncps==1.0.1`的batch timespan广播限制，按parent调用未修改的官方`CfC.forward()`，padding不进入recurrent state。
+- [x] 建立V23a：冻结V21e五折OOF Treatment为Control，保持`batch_weight_sum`、V21e course特征、V16 index、五折component assignment、fold-train normalization、seed43、batch、20 epoch、parent顺序和fixed-final-epoch held-out协议，只替换时序encoder为官方CfC。
+- [x] 建立V23b：冻结V22五折OOF Treatment为Control，保持`fixed_parent_count` loss及其余相同训练/数据协议，只替换时序encoder为官方CfC；V22不被改写为官方模型，否则会失去V23b单因素解释。
+- [x] 生成每臂5份独立sidecar config、独立artifact/checkpoint/prediction/report schema、官方runtime binding、source config/prediction哈希链、build/train/report入口和串行PowerShell脚本。
+- [x] 通过V23a/V23b真实fold-0 train batch Smoke：官方类模块/版本/commit、14,064参数、有限非零官方CfC梯度、course输入、Unknown/validation/test封存、padding logits精确零均通过；offline/online最大logit误差分别为`3.5763e-7`和`4.1723e-7`，在显式float32 `atol=rtol=1e-6`内。
+- [x] 通过Python编译、PowerShell AST和`smoke.static_isolation_check`；未启动V23任何fold训练。
+- [ ] 用户手动执行V23a五折20 epoch Treatment及固定epoch 20 OOF汇总；不得用held-out fold选checkpoint。
+- [ ] 用户手动执行V23b五折20 epoch Treatment及固定epoch 20 OOF汇总；不得用held-out fold选checkpoint。
+- [ ] 仅在每臂parent Macro-F1严格`>+0.02`、KnownTarget与Clutter Recall不降、Drone/Bird/Balloon净救回不负、eligible-prefix安全且component bootstrap Macro-F1差值95%下界`>0`时，才记为架构候选；无论结果如何，本Stage不进入L3、正式拒识、完整级联、stable、P95或test。
+
+验证命令：
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_oof_pipeline.ps1 -Stage prepare -Arm both -ProjectRoot F:\Project\RadarInsight`
+
+正式训练命令由用户执行：
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_oof_pipeline.ps1 -Stage all -Arm v23a -ProjectRoot F:\Project\RadarInsight`
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_oof_pipeline.ps1 -Stage all -Arm v23b -ProjectRoot F:\Project\RadarInsight`
+
+是否需要数据重建：否；复用V16 index、V21e course cache、V21e五折assignment与fold-train normalization。
+是否需要Smoke：已执行并通过；不等价于五折性能。
+是否需要正式训练：是；每臂五折、每折20 epoch，由用户手动执行。
+阻塞条件：官方runtime版本/commit漂移、任一source hash变化、parent order不匹配、Unknown/validation/test被访问、任何fold非有限梯度或online/offline超出浮点容差、或正式OOF安全门失败。

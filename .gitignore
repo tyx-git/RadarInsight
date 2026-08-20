@@ -59,6 +59,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v22_oof_contract_test.py
 !src-v3/smoke/known_gate_v22b_oof_contract_test.py
 !src-v3/smoke/known_gate_v21e_rd_modality_ablation_test.py
+!src-v3/smoke/known_gate_v23_official_cfc_contract_test.py
 !src-v3/README.md
 !docs/
 docs/*
@@ -78,4 +79,5 @@ docs/*
 !docs/radar_ln3_v22_fixed_parent_balanced_oof_protocol.md
 !docs/radar_ln3_v22b_rd_temporal_late_readout_protocol.md
 !docs/radar_ln3_v21e_rd_modality_read_only_ablation.md
+!docs/radar_ln3_v23_official_cfc_oof_protocol.md
 v2r/

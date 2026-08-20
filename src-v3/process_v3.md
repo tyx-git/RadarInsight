@@ -2425,3 +2425,13 @@ RD内容归因臂把`rd_frame_mask`置零，使masked-mean embedding精确为零
 合法missing臂同时移除RD内容并给所有非padding事件写入`[0,0,0,1,0,0,0]`，最终全部parent预测KnownTarget，Clutter Recall为0。数据支持审计解释了该极端输出：目标类有153个缺失RD事件、25个parent含缺失；Clutter 657个事件全部有RD，且数据中没有整条parent全事件缺RD。故该臂是产品合同合法但训练支持之外的反事实，只能暴露RD质量类别捷径，不能估计重训练无RD模型性能。
 
 冻结决策：保留当前masked-mean RD内容路径，继续否决V22a/V22b首尾embedding residual；后续先处理RD缺失质量支持与Pending/Abstain语义，再决定是否实验全帧二阶离散度。KnownGate局部argmax仍不是最终`CLUTTER_ACCEPTED`或`UNKNOWN_REJECTED`动作，完整L1/L2/L3、正式拒识、test、stable和P95继续未执行。
+
+## 2026-08-21 Stage 093 - V23官方CfC架构替换准备
+
+代码审计确认，历史`src-v3/radar_ln3/model.py::CfCLiquidCausalEncoder`不是标准CfC/LTC：它以项目自定义的`candidate/gate`线性层、每维静态`tau`和`(1-alpha)*state+alpha*candidate`更新构成；虽具备显式dt、因果状态和离线/在线共用`_step`，但没有官方CfC的`ff1/ff2/time_a/time_b`结构、LTC ODE求解或NCP wiring。V3运行环境此前没有`ncps`、`torch_cfc`或`liquidnet`。
+
+本Stage将官方`ncps==1.0.1`从`https://github.com/mlech26l/ncps.git` commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`安装至项目`.venv`，并创建`radar_ln3.official_cfc.OfficialCfCCausalEncoder`。适配层不重写CfC方程，实际状态单元是`ncps.torch.CfC`/`ncps.torch.cfc.CfCCell`。它仅处理Radar-LN3的右侧padding、dt reason审计和online state接口。上游该版本在batch>1且per-event timespan为向量时存在广播限制，因此离线adapter逐parent调用未修改的官方`CfC.forward()`；只传入真实有效长度，padding永不进入official recurrence。first/same-second保留zero timespan，positive delta保留实测dt并仅截断到历史120秒上限；这与历史`bounded_observation`增益不同，是替换官方encoder的内在语义差异，而不是隐藏的第二个输入因素。
+
+参数量采用预先固定的近似匹配而非默认容量：历史48维自定义单元14,112参数，官方`CfC(48,48,default,lecun_tanh,backbone=48x1,no dropout,no mixed memory)`14,064参数，差48。V23a相对冻结V21e OOF Treatment保留历史`batch_weight_sum`；V23b相对冻结V22 OOF Treatment保留`fixed_parent_count`。两条线均复用V16 index、V21e course特征、986 known parent/975 provenance component五折assignment、fold-train normalization、batch=2、seed43、每epoch parent顺序、AdamW、20 epoch与epoch20唯一held-out预测。V22保持其历史自定义encoder Control身份，不能被改写成官方CfC，否则V23b不再能区分loss与架构。
+
+准备级检查均通过：Python编译、PowerShell AST与静态隔离均通过。V23a/V23b分别在真实fold-0 train batch上完成一次forward/backward；官方`ncps.torch.CfC`版本/commit、14,064参数、非零有限梯度、course evidence、Unknown/validation/test封存和padding logits严格零均通过。完整前端offline/online最大logit误差为V23a=`3.5762786865234375e-7`、V23b=`4.172325134277344e-7`；差异来自batch与单点CNN/GEMM浮点归约次序，低于明确`atol=rtol=1e-6`，不能被写成位级不一致。尚未执行任何V23 fold训练、OOF聚合、阈值、Unknown、L3、完整级联、stable、P95或test。
