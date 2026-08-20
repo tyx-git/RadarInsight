@@ -30,6 +30,10 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA,
     KNOWN_GATE_V21E_MULTISEED_SEEDS,
     KNOWN_GATE_V21E_READINESS_SCHEMA,
+    KNOWN_GATE_V22A_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V22A_MANIFEST_SCHEMA,
+    KNOWN_GATE_V22A_READINESS_SCHEMA,
+    V22A_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -54,6 +58,7 @@ from radar_ln3.known_gate_features import (
     V21D_PREFIX_VARIANT,
     V21D_VARIANT,
     V21E_COURSE_PREFIX_VARIANT,
+    V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -115,6 +120,10 @@ V21E_MULTISEED_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
     "multiseed-training-readiness.json"
+)
+V22A_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V22a-known-gate-rd-temporal-residual-training-readiness.json"
 )
 
 
@@ -441,6 +450,132 @@ def _verify_contract(
                 raise ValueError(
                     "V21e causal-course manifest/experiment contract is stale"
                 )
+        elif config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+            experiment_path = _resolve(
+                root, config.data.feature_experiment_contract_path or ""
+            )
+            experiment_expected = config.data.expected_feature_experiment_contract_sha256
+            experiment = (
+                json.loads(experiment_path.read_text(encoding="utf-8"))
+                if experiment_path.is_file()
+                else {}
+            )
+            experiment_data = dict(experiment.get("data_contract") or {})
+            experiment_cache = dict(experiment.get("feature_cache_reuse") or {})
+            experiment_treatment = dict(experiment.get("treatment") or {})
+            experiment_training = dict(experiment.get("training") or {})
+            manifest_caches = dict(manifest.get("cache_files") or {})
+            manifest_train = dict(manifest_caches.get("train") or {})
+            manifest_validation = dict(manifest_caches.get("val") or {})
+            source_manifest_path = _resolve(
+                root, str(manifest.get("source_manifest", ""))
+            )
+            source_manifest_expected = str(
+                manifest.get("source_manifest_sha256", "")
+            )
+            source_manifest = (
+                json.loads(source_manifest_path.read_text(encoding="utf-8"))
+                if source_manifest_path.is_file()
+                else {}
+            )
+            source_caches = dict(source_manifest.get("cache_files") or {})
+            source_train = dict(source_caches.get("train") or {})
+            source_validation = dict(source_caches.get("val") or {})
+            source_experiment_path = _resolve(
+                root, str(experiment_cache.get("contract", ""))
+            )
+            source_experiment_expected = str(
+                experiment_cache.get("contract_sha256", "")
+            )
+            if (
+                not experiment_path.is_file()
+                or sha256_file(experiment_path) != experiment_expected
+                or manifest.get("schema_version") != KNOWN_GATE_V22A_MANIFEST_SCHEMA
+                or manifest.get("feature_schema") != COURSE_PREFIX_FEATURE_SCHEMA
+                or manifest.get("feature_names") != list(config.feature_names)
+                or _resolve(root, str(manifest.get("experiment_contract", "")))
+                != experiment_path
+                or manifest.get("experiment_contract_sha256") != experiment_expected
+                or not source_manifest_path.is_file()
+                or sha256_file(source_manifest_path) != source_manifest_expected
+                or source_manifest.get("schema_version")
+                != KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                or _resolve(root, str(source_manifest.get("core_data_contract", "")))
+                != paths["contract"]
+                or source_manifest.get("core_data_contract_sha256")
+                != expected["contract"]
+                or not source_experiment_path.is_file()
+                or sha256_file(source_experiment_path) != source_experiment_expected
+                or _resolve(
+                    root, str(source_manifest.get("experiment_contract", ""))
+                )
+                != source_experiment_path
+                or source_manifest.get("experiment_contract_sha256")
+                != source_experiment_expected
+                or _resolve(root, str(source_train.get("path", "")))
+                != cache_paths["train"]
+                or source_train.get("sha256") != cache_expected["train"]
+                or _resolve(root, str(source_validation.get("path", "")))
+                != cache_paths["validation"]
+                or source_validation.get("sha256") != cache_expected["validation"]
+                or manifest.get("test_excluded") is not True
+                or int(manifest.get("test_payload_access_count", -1)) != 0
+                or manifest.get("valid_mask_is_model_input") is not False
+                or manifest.get("sample_id_is_model_input") is not False
+                or manifest.get("internal_rd_residual_is_not_cache_field") is not True
+                or manifest.get("unknown_excluded") is not True
+                or _resolve(root, str(manifest_train.get("path", ""))) != cache_paths["train"]
+                or manifest_train.get("sha256") != cache_expected["train"]
+                or _resolve(root, str(manifest_validation.get("path", ""))) != cache_paths["validation"]
+                or manifest_validation.get("sha256") != cache_expected["validation"]
+                or experiment.get("schema_version") != KNOWN_GATE_V22A_EXPERIMENT_SCHEMA
+                or experiment.get("internal_variant")
+                != V22A_RD_TEMPORAL_RESIDUAL_VARIANT
+                or experiment.get("unknown_training_exposure") != 0
+                or experiment.get("validation_used_for_readiness_gate") is not False
+                or experiment.get("test_payload_access_count") != 0
+                or experiment.get("test") != "未执行"
+                or experiment.get("deployment_eligible") is not False
+                or _resolve(root, str(experiment_data.get("index_reused", "")))
+                != paths["index"]
+                or _resolve(root, str(experiment_data.get("core_contract_reused", "")))
+                != paths["contract"]
+                or _resolve(root, str(experiment_data.get("normalization_reused", "")))
+                != paths["stats"]
+                or experiment_data.get("rd_tensor_rebuilt") is not False
+                or experiment_data.get("new_input_fields") != 0
+                or experiment_data.get("test_payload_access_count") != 0
+                or _resolve(root, str(experiment_cache.get("manifest", "")))
+                != source_manifest_path
+                or experiment_cache.get("manifest_sha256")
+                != source_manifest_expected
+                or _resolve(root, str(experiment_cache.get("train_cache", "")))
+                != cache_paths["train"]
+                or experiment_cache.get("train_cache_sha256")
+                != cache_expected["train"]
+                or _resolve(root, str(experiment_cache.get("validation_cache", "")))
+                != cache_paths["validation"]
+                or experiment_cache.get("validation_cache_sha256")
+                != cache_expected["validation"]
+                or experiment_treatment.get("new_branch")
+                != "last_active_rd_frame_embedding - first_active_rd_frame_embedding"
+                or int(experiment_treatment.get("rd_temporal_residual_dim", -1))
+                != config.model.rd_temporal_residual_dim
+                or experiment_treatment.get("fusion_columns_zero_initialized") is not True
+                or experiment_treatment.get("missing_or_single_frame_residual")
+                != "exact_zero"
+                or int(experiment_training.get("epochs", -1)) != config.train.epochs
+                or int(experiment_training.get("seed", -1)) != config.train.seed
+                or int(experiment_training.get("dataloader_seed", -1))
+                != config.train.dataloader_seed
+                or experiment_training.get("loss_mode") != config.train.loss_mode
+                or experiment_training.get("class_weight_normalization")
+                != config.train.class_weight_normalization
+                or experiment_training.get("checkpoint_selection")
+                != config.train.checkpoint_selection_metric
+                or experiment_training.get("full_parameter_training") is not True
+            ):
+                raise ValueError("V22a RD temporal residual manifest/experiment contract is stale")
         elif config.variant == V21B_VARIANT:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
@@ -565,6 +700,7 @@ def _verify_contract(
                     V21C_VARIANT,
                     V21D_PREFIX_VARIANT,
                     V21E_COURSE_PREFIX_VARIANT,
+                    V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -594,6 +730,7 @@ def _verify_contract(
                             V21C_VARIANT,
                             V21D_PREFIX_VARIANT,
                             V21E_COURSE_PREFIX_VARIANT,
+                            V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -614,6 +751,86 @@ def _verify_readiness(
     config: KnownGateConfig,
     contract_evidence: Mapping[str, Any],
 ) -> dict[str, Any]:
+    if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+        path = (root / V22A_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V22a formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        control_binding = dict(report.get("control") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        reused_hashes = dict(report.get("reused_cache_hashes") or {})
+        control_config_path = Path(
+            str(control_binding.get("config_path", ""))
+        ).resolve()
+        control_summary_path = Path(
+            str(control_binding.get("summary_path", ""))
+        ).resolve()
+        control_checkpoint_path = Path(
+            str(control_binding.get("checkpoint_path", ""))
+        ).resolve()
+        control_summary = (
+            json.loads(control_summary_path.read_text(encoding="utf-8"))
+            if control_summary_path.is_file()
+            else {}
+        )
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V22A_READINESS_SCHEMA
+            or not checks
+            or not all(value is True for value in checks.values())
+            or Path(str(binding.get("path", ""))).resolve() != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or control_config_path
+            != _resolve(root, config.train.paired_baseline_config_path or "")
+            or not control_config_path.is_file()
+            or control_binding.get("config_sha256")
+            != sha256_file(control_config_path)
+            or not control_summary_path.is_file()
+            or control_binding.get("summary_sha256")
+            != sha256_file(control_summary_path)
+            or control_summary.get("status") != "completed"
+            or control_summary.get("variant") != V21E_COURSE_PREFIX_VARIANT
+            or int(control_summary.get("seed", -1)) != config.train.seed
+            or not control_checkpoint_path.is_file()
+            or control_binding.get("checkpoint_sha256")
+            != sha256_file(control_checkpoint_path)
+            or Path(str(report.get("contract_path", ""))).resolve()
+            != Path(str(cache_evidence.get("experiment_contract_path", ""))).resolve()
+            or report.get("contract_sha256")
+            != cache_evidence.get("experiment_contract_sha256")
+            or Path(str(report.get("feature_manifest_path", ""))).resolve()
+            != Path(str(cache_paths.get("manifest", ""))).resolve()
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or reused_hashes.get("train") != cache_hashes.get("train")
+            or reused_hashes.get("validation") != cache_hashes.get("validation")
+            or int(report.get("rd_temporal_residual_dim", -1))
+            != config.model.rd_temporal_residual_dim
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or report.get("test_payload_access_count") != 0
+            or report.get("formal_training") != "未执行"
+            or report.get("test") != "未执行"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError("V22a readiness is missing, stale, failed or outside the sealed contract")
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V22A_READINESS_SCHEMA,
+            "status": "passed",
+            "control_summary_path": str(control_summary_path),
+            "control_initial_model_state_sha256": str(
+                control_summary.get("initial_model_state_sha256", "")
+            ),
+            "test": "未执行",
+        }
     if config.variant == V21A_VARIANT:
         raise PermissionError(
             "the seed42 V21a intra-frame STFT candidate is superseded; use the "
@@ -1493,6 +1710,22 @@ def train_known_gate(
         model, baseline_reference, paired_initialization = build_known_gate_model_for_config(root, config)
         initial_state_sha256 = _state_dict_sha256(model.state_dict())
         if baseline_reference is not None:
+            if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+                reproduced_control_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if reproduced_control_state != readiness.get(
+                    "control_initial_model_state_sha256"
+                ):
+                    raise AssertionError(
+                        "V22a current Control initialization differs from the frozen V21e run"
+                    )
+                paired_initialization[
+                    "frozen_v21e_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "frozen_v21e_initial_model_state_sha256"
+                ] = reproduced_control_state
             probe_loader = build_known_gate_dataloader(
                 train_dataset,
                 batch_size=min(config.train.batch_size, len(train_dataset)),
@@ -1502,10 +1735,20 @@ def train_known_gate(
             model.eval()
             baseline_reference.eval()
             with torch.inference_mode():
-                treatment_logits = model(**_model_inputs(probe))["sequence_logits"]
+                treatment_output = model(**_model_inputs(probe))
+                treatment_logits = treatment_output["sequence_logits"]
                 baseline_inputs = _model_inputs(probe)
-                baseline_inputs["known_gate_features"] = None
-                baseline_inputs["known_gate_feature_valid"] = None
+                baseline_evidence_dim = baseline_reference.config.model.evidence_dim
+                if baseline_evidence_dim:
+                    baseline_inputs["known_gate_features"] = baseline_inputs[
+                        "known_gate_features"
+                    ][..., :baseline_evidence_dim]
+                    baseline_inputs["known_gate_feature_valid"] = baseline_inputs[
+                        "known_gate_feature_valid"
+                    ][..., :baseline_evidence_dim]
+                else:
+                    baseline_inputs["known_gate_features"] = None
+                    baseline_inputs["known_gate_feature_valid"] = None
                 baseline_logits = baseline_reference(**baseline_inputs)["sequence_logits"]
             if not torch.equal(treatment_logits, baseline_logits):
                 raise AssertionError("V21 Treatment initial logits differ from the paired Baseline")
@@ -1513,7 +1756,67 @@ def train_known_gate(
             paired_initialization["initial_logits_sha256"] = hashlib.sha256(
                 treatment_logits.detach().cpu().contiguous().numpy().tobytes(order="C")
             ).hexdigest()
-            del baseline_reference, probe_loader, probe, treatment_logits, baseline_logits
+            if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+                residual = treatment_output["rd_temporal_residual"]
+                active = ~probe["tr_padding_mask"]
+                frame_counts = probe["rd_frame_mask"].sum(dim=2)
+                multiple = active & (frame_counts >= 2)
+                if not bool(multiple.any()):
+                    raise AssertionError(
+                        "V22a real training probe contains no multi-frame RD event"
+                    )
+                residual_l2 = torch.linalg.vector_norm(residual, dim=-1)
+                nonzero_multiple = multiple & (residual_l2 > 0.0)
+                if not bool(nonzero_multiple.any()):
+                    raise AssertionError(
+                        "V22a real training probe produces no non-zero RD residual"
+                    )
+                model.zero_grad(set_to_none=True)
+                gradient_output = model(**_model_inputs(probe))
+                gradient_objective = torch.nn.functional.cross_entropy(
+                    gradient_output["window_logits"], probe["labels"]
+                )
+                gradient_objective.backward()
+                residual_start = model.base_fusion_input_dim
+                residual_end = residual_start + model.rd_temporal_residual_dim
+                residual_gradient = model.fusion[0].weight.grad[
+                    :, residual_start:residual_end
+                ]
+                if (
+                    residual_gradient is None
+                    or not torch.isfinite(residual_gradient).all()
+                    or float(residual_gradient.abs().max().item()) <= 0.0
+                ):
+                    raise AssertionError(
+                        "V22a real training probe gives no gradient to residual columns"
+                    )
+                paired_initialization.update(
+                    {
+                        "real_training_probe_parent_count": len(
+                            probe["parent_sample_ids"]
+                        ),
+                        "real_training_probe_active_event_count": int(
+                            active.sum().item()
+                        ),
+                        "real_training_probe_multiframe_event_count": int(
+                            multiple.sum().item()
+                        ),
+                        "real_training_probe_nonzero_residual_event_count": int(
+                            nonzero_multiple.sum().item()
+                        ),
+                        "real_training_probe_residual_l2_max": float(
+                            residual_l2.masked_select(multiple).max().item()
+                        ),
+                        "real_training_probe_residual_gradient_abs_max": float(
+                            residual_gradient.abs().max().item()
+                        ),
+                        "real_training_probe_residual_columns_receive_gradient": True,
+                    }
+                )
+                model.zero_grad(set_to_none=True)
+                del gradient_output, gradient_objective, residual_gradient
+            del baseline_reference, probe_loader, probe
+            del treatment_output, treatment_logits, baseline_logits
         trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
         if not trainable or any(not parameter.requires_grad for parameter in model.parameters()):
             raise ValueError("V21 must train every model parameter")
@@ -1711,6 +2014,64 @@ def train_known_gate(
         )
         performance = _performance(best_validation, config.train.task_min_precision_recall_target)
         final_state_sha256 = _state_dict_sha256(model.state_dict())
+        rd_temporal_residual_training_audit: dict[str, Any] | None = None
+        if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+            residual_start = model.base_fusion_input_dim
+            residual_end = residual_start + model.rd_temporal_residual_dim
+            residual_weights = model.fusion[0].weight.detach()[
+                :, residual_start:residual_end
+            ]
+            window_rows = list(best_validation["records"]["window"])
+            multiframe_rows = [
+                row for row in window_rows if int(row["rd_frame_count"]) >= 2
+            ]
+            single_or_missing_rows = [
+                row for row in window_rows if int(row["rd_frame_count"]) < 2
+            ]
+            nonzero_multiframe = sum(
+                bool(row["rd_temporal_residual_nonzero"])
+                for row in multiframe_rows
+            )
+            invalid_nonzero = sum(
+                bool(row["rd_temporal_residual_nonzero"])
+                for row in single_or_missing_rows
+            )
+            if (
+                float(residual_weights.abs().max().item()) <= 0.0
+                or not multiframe_rows
+                or nonzero_multiframe <= 0
+                or invalid_nonzero != 0
+            ):
+                raise AssertionError(
+                    "V22a best checkpoint did not prove valid use of the RD residual"
+                )
+            rd_temporal_residual_training_audit = {
+                "residual_dimension": model.rd_temporal_residual_dim,
+                "fusion_columns_zero_initialized": paired_initialization.get(
+                    "new_fusion_columns_exactly_zero"
+                )
+                is True,
+                "best_checkpoint_fusion_weight_abs_max": float(
+                    residual_weights.abs().max().item()
+                ),
+                "best_checkpoint_fusion_weight_l2": float(
+                    torch.linalg.vector_norm(residual_weights).item()
+                ),
+                "best_checkpoint_nonzero_fusion_weight_count": int(
+                    torch.count_nonzero(residual_weights).item()
+                ),
+                "validation_multiframe_event_count": len(multiframe_rows),
+                "validation_multiframe_nonzero_residual_event_count": int(
+                    nonzero_multiframe
+                ),
+                "validation_single_or_missing_event_count": len(
+                    single_or_missing_rows
+                ),
+                "validation_single_or_missing_nonzero_residual_event_count": int(
+                    invalid_nonzero
+                ),
+                "feature_used_by_best_checkpoint": True,
+            }
         result = {
             "status": "completed",
             **performance,
@@ -1739,6 +2100,15 @@ def train_known_gate(
             "best_model_state_sha256": final_state_sha256,
             "model_state_changed_from_initialization": initial_state_sha256 != final_state_sha256,
             "paired_initialization": paired_initialization,
+            **(
+                {}
+                if rd_temporal_residual_training_audit is None
+                else {
+                    "rd_temporal_residual_training_audit": (
+                        rd_temporal_residual_training_audit
+                    )
+                }
+            ),
             "training_readiness": readiness,
             "data_contract": contract,
             "dataloader_contract": {

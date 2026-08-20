@@ -1,0 +1,2711 @@
+{
+  "status": "completed",
+  "schema_version": "RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-error-attribution-v1",
+  "generated_at": "2026-08-14T23:50:24+08:00",
+  "scope": "V18 Treatment best epoch validation only; requested 4 Drone->Bird, 3 Bird->Drone and 1 Balloon->Bird parents",
+  "method": {
+    "model_probabilities": "offline causal sequence inference from frozen Control/Treatment best checkpoints",
+    "feature_unit": "mean stable8 current-event summaries over valid events within each parent",
+    "feature_scaling": "train-parent-only median and IQR; validation never fits a threshold or scale",
+    "distance": "RMS Euclidean distance in train-robust-scaled stable8 space",
+    "neighbors": "correctly classified Treatment validation parents only",
+    "class_support_radius": "95th percentile train-parent distance to train class center",
+    "advisory_not_label_review": true
+  },
+  "feature_names": [
+    "median_residual_positive_8_30mps_energy_fraction",
+    "median_residual_negative_30_60mps_energy_fraction",
+    "median_residual_positive_30_60mps_energy_fraction",
+    "median_residual_rms_offset_mps_over_90",
+    "median_residual_top4_resolution_cell_concentration",
+    "median_residual_sideband_snr_db_over_30",
+    "median_pulse_envelope_rms_clipped_0_2_over_2",
+    "median_pulse_envelope_modulation_snr_db_over_30"
+  ],
+  "target_counts": {
+    "BalloonTarget->BirdTarget": 1,
+    "BirdTarget->DroneTarget": 3,
+    "DroneTarget->BirdTarget": 4
+  },
+  "advisory_counts": {
+    "model_coupling_error_despite_true_class_feature_support": 6,
+    "stable8_features_support_predicted_class_or_label_is_atypical": 1,
+    "true_and_predicted_classes_overlap_in_stable8_space": 1
+  },
+  "train_class_radius": {
+    "DroneTarget": {
+      "median": 0.6296730808340472,
+      "q90": 2.17406197699714,
+      "q95": 2.9059948771896282
+    },
+    "BirdTarget": {
+      "median": 0.5769690135550907,
+      "q90": 1.5239387300046177,
+      "q95": 2.810870968736178
+    },
+    "BalloonTarget": {
+      "median": 0.4379418926954709,
+      "q90": 1.162228514161253,
+      "q95": 1.4691285324171044
+    }
+  },
+  "records": [
+    {
+      "parent_sample_id": "cq08|track|1908",
+      "track_id": "1908",
+      "true_class": "DroneTarget",
+      "treatment_predicted_class": "BirdTarget",
+      "control_predicted_class": "BirdTarget",
+      "event_count": 23,
+      "valid_event_count": 23,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 23,
+        "final_probabilities": {
+          "DroneTarget": 0.0017311087576672435,
+          "BirdTarget": 0.9956667423248291,
+          "BalloonTarget": 0.002602160442620516
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9956667423248291,
+        "final_margin_over_runner_up": 0.9930645818822086,
+        "eligible_prediction_counts": {
+          "BirdTarget": 21
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 18,
+            "DroneTarget": 0.0015115935821086168,
+            "BirdTarget": 0.9957958459854126,
+            "BalloonTarget": 0.002692525740712881
+          },
+          {
+            "event_index": 19,
+            "DroneTarget": 0.0015549099771305919,
+            "BirdTarget": 0.9957998394966125,
+            "BalloonTarget": 0.002645263448357582
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.0015970856184139848,
+            "BirdTarget": 0.9957626461982727,
+            "BalloonTarget": 0.0026402927469462156
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.00168366520665586,
+            "BirdTarget": 0.995728075504303,
+            "BalloonTarget": 0.002588187111541629
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.0017311087576672435,
+            "BirdTarget": 0.9956667423248291,
+            "BalloonTarget": 0.002602160442620516
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 23,
+        "final_probabilities": {
+          "DroneTarget": 0.002658321987837553,
+          "BirdTarget": 0.9861552119255066,
+          "BalloonTarget": 0.011186410672962666
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9861552119255066,
+        "final_margin_over_runner_up": 0.9749688012525439,
+        "eligible_prediction_counts": {
+          "BirdTarget": 21
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 18,
+            "DroneTarget": 0.0026335332076996565,
+            "BirdTarget": 0.9864200949668884,
+            "BalloonTarget": 0.010946366004645824
+          },
+          {
+            "event_index": 19,
+            "DroneTarget": 0.0026193601079285145,
+            "BirdTarget": 0.9863995313644409,
+            "BalloonTarget": 0.01098110806196928
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.0026100333780050278,
+            "BirdTarget": 0.9863272905349731,
+            "BalloonTarget": 0.011062650941312313
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.0026556795928627253,
+            "BirdTarget": 0.9862935543060303,
+            "BalloonTarget": 0.011050826869904995
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.002658321987837553,
+            "BirdTarget": 0.9861552119255066,
+            "BalloonTarget": 0.011186410672962666
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": -0.0009272132301703095,
+        "BirdTarget": 0.00951153039932251,
+        "BalloonTarget": -0.00858425023034215
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0020647499958336675,
+        "median_residual_negative_30_60mps_energy_fraction": 0.0011788091118353843,
+        "median_residual_positive_30_60mps_energy_fraction": 0.0010012632720526713,
+        "median_residual_rms_offset_mps_over_90": 0.40757586904194043,
+        "median_residual_top4_resolution_cell_concentration": 0.5099551211232725,
+        "median_residual_sideband_snr_db_over_30": 0.06018123338403909,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.12009259799252385,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.39929058856290317
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0016765313627834556,
+        "median_residual_negative_30_60mps_energy_fraction": 0.00120792437251397,
+        "median_residual_positive_30_60mps_energy_fraction": 0.0007529351974180353,
+        "median_residual_rms_offset_mps_over_90": 0.0744532400862718,
+        "median_residual_top4_resolution_cell_concentration": 0.08479692699013504,
+        "median_residual_sideband_snr_db_over_30": 0.026038209268868982,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.03744521847955607,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.12116239143108089
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 0.20493431425462488,
+        "BirdTarget": 0.9282354183109122,
+        "BalloonTarget": 0.8143318056031152
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "DroneTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.1618806648528217,
+          "parent_sample_id": "cq08|track|148",
+          "track_id": "148"
+        },
+        "BirdTarget": {
+          "distance": 0.3507890442448997,
+          "parent_sample_id": "cq08|track|528",
+          "track_id": "528"
+        },
+        "BalloonTarget": {
+          "distance": 0.6101265183715664,
+          "parent_sample_id": "cq08|track|3023",
+          "track_id": "3023"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BirdTarget": 1,
+        "DroneTarget": 14
+      },
+      "nearest_15_true_class_fraction": 0.9333333333333333,
+      "nearest_15_predicted_class_fraction": 0.06666666666666667,
+      "nearest_15_majority_class": "DroneTarget",
+      "per_feature_closer_center_counts": {
+        "DroneTarget": 8
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 1,
+        "DroneTarget": 22
+      },
+      "valid_event_feature_only_true_class_fraction": 0.9565217391304348,
+      "valid_event_feature_only_predicted_class_fraction": 0.0,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.0020647499958336675,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.23739495798319327,
+            "BirdTarget": 0.12133891213389121,
+            "BalloonTarget": 0.27310924369747897
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.09961257830539405,
+          "absolute_robust_distance_to_predicted_center": 0.8169969674970412
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.0011788091118353843,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.15126050420168066,
+            "BirdTarget": 0.09623430962343096,
+            "BalloonTarget": 0.14285714285714285
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.16510785897396507,
+          "absolute_robust_distance_to_predicted_center": 1.0059823697102843
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.0010012632720526713,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.3592436974789916,
+            "BirdTarget": 0.08786610878661087,
+            "BalloonTarget": 0.11764705882352941
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.042493924601300054,
+          "absolute_robust_distance_to_predicted_center": 0.9553281898904262
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.40757586904194043,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.5105042016806722,
+            "BirdTarget": 0.029288702928870293,
+            "BalloonTarget": 0.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.01442572589546498,
+          "absolute_robust_distance_to_predicted_center": 0.9387355514510188
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.5099551211232725,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.6365546218487395,
+            "BirdTarget": 0.9581589958158996,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.20859194159310945,
+          "absolute_robust_distance_to_predicted_center": 1.1064030373414626
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.06018123338403909,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.35714285714285715,
+            "BirdTarget": 0.9916317991631799,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.46485972357478234,
+          "absolute_robust_distance_to_predicted_center": 0.5562690391085501
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.12009259799252385,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.5735294117647058,
+            "BirdTarget": 0.14225941422594143,
+            "BalloonTarget": 0.2773109243697479
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.10840564851749898,
+          "absolute_robust_distance_to_predicted_center": 0.853680730144853
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.39929058856290317,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.6533613445378151,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.15946953908114847,
+          "absolute_robust_distance_to_predicted_center": 1.0757663600895
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 67,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 67
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 67,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 67
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    },
+    {
+      "parent_sample_id": "cq08|track|2083",
+      "track_id": "2083",
+      "true_class": "DroneTarget",
+      "treatment_predicted_class": "BirdTarget",
+      "control_predicted_class": "BalloonTarget",
+      "event_count": 23,
+      "valid_event_count": 23,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 23,
+        "final_probabilities": {
+          "DroneTarget": 0.029768081381917,
+          "BirdTarget": 0.7923663258552551,
+          "BalloonTarget": 0.1778656393289566
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.7923663258552551,
+        "final_margin_over_runner_up": 0.6145006865262985,
+        "eligible_prediction_counts": {
+          "BalloonTarget": 10,
+          "BirdTarget": 11
+        },
+        "eligible_final_prediction_fraction": 0.5238095238095238,
+        "first_event_with_final_prediction": 12,
+        "prediction_transition_count": 1,
+        "last_five_probabilities": [
+          {
+            "event_index": 18,
+            "DroneTarget": 0.03442719206213951,
+            "BirdTarget": 0.6847764849662781,
+            "BalloonTarget": 0.28079625964164734
+          },
+          {
+            "event_index": 19,
+            "DroneTarget": 0.033082909882068634,
+            "BirdTarget": 0.7129262685775757,
+            "BalloonTarget": 0.2539908289909363
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.03214668855071068,
+            "BirdTarget": 0.74275803565979,
+            "BalloonTarget": 0.22509528696537018
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.03088982217013836,
+            "BirdTarget": 0.7678415775299072,
+            "BalloonTarget": 0.2012685388326645
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.029768081381917,
+            "BirdTarget": 0.7923663258552551,
+            "BalloonTarget": 0.1778656393289566
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 23,
+        "final_probabilities": {
+          "DroneTarget": 0.0023689186200499535,
+          "BirdTarget": 0.36920320987701416,
+          "BalloonTarget": 0.6284278631210327
+        },
+        "final_prediction": "BalloonTarget",
+        "final_confidence": 0.6284278631210327,
+        "final_margin_over_runner_up": 0.25922465324401855,
+        "eligible_prediction_counts": {
+          "BalloonTarget": 21
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 18,
+            "DroneTarget": 0.00243331934325397,
+            "BirdTarget": 0.2320990264415741,
+            "BalloonTarget": 0.7654677033424377
+          },
+          {
+            "event_index": 19,
+            "DroneTarget": 0.002395436866208911,
+            "BirdTarget": 0.26001274585723877,
+            "BalloonTarget": 0.7375918626785278
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.002383566228672862,
+            "BirdTarget": 0.2923814654350281,
+            "BalloonTarget": 0.7052350044250488
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.002363095758482814,
+            "BirdTarget": 0.32776355743408203,
+            "BalloonTarget": 0.6698733568191528
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.0023689186200499535,
+            "BirdTarget": 0.36920320987701416,
+            "BalloonTarget": 0.6284278631210327
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": 0.027399162761867046,
+        "BirdTarget": 0.42316311597824097,
+        "BalloonTarget": -0.4505622237920761
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.05139288768860633,
+        "median_residual_negative_30_60mps_energy_fraction": 0.030365574315352285,
+        "median_residual_positive_30_60mps_energy_fraction": 0.032921640728802784,
+        "median_residual_rms_offset_mps_over_90": 0.5679010321264681,
+        "median_residual_top4_resolution_cell_concentration": 0.26440176108609076,
+        "median_residual_sideband_snr_db_over_30": 0.038845870319915855,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.20468030546022498,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.14110938070908838
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.08436067369293442,
+        "median_residual_negative_30_60mps_energy_fraction": 0.02682903611038744,
+        "median_residual_positive_30_60mps_energy_fraction": 0.025776186929618083,
+        "median_residual_rms_offset_mps_over_90": 0.05855827819545396,
+        "median_residual_top4_resolution_cell_concentration": 0.12548458049440486,
+        "median_residual_sideband_snr_db_over_30": 0.01736541350096092,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.04710441450720927,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.0550628737226115
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 1.139798926480973,
+        "BirdTarget": 0.427228521911025,
+        "BalloonTarget": 0.666949971465231
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "BirdTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.1970548272938836,
+          "parent_sample_id": "cq08|track|1864",
+          "track_id": "1864"
+        },
+        "BirdTarget": {
+          "distance": 0.23818625520510403,
+          "parent_sample_id": "cq08|track|886",
+          "track_id": "886"
+        },
+        "BalloonTarget": {
+          "distance": 0.36188335891184537,
+          "parent_sample_id": "cq08|track|3696",
+          "track_id": "3696"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 4,
+        "BirdTarget": 9,
+        "DroneTarget": 2
+      },
+      "nearest_15_true_class_fraction": 0.13333333333333333,
+      "nearest_15_predicted_class_fraction": 0.6,
+      "nearest_15_majority_class": "BirdTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 8
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 9,
+        "BirdTarget": 14
+      },
+      "valid_event_feature_only_true_class_fraction": 0.0,
+      "valid_event_feature_only_predicted_class_fraction": 0.6086956521739131,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.05139288768860633,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8508403361344538,
+            "BirdTarget": 0.7740585774058577,
+            "BalloonTarget": 0.9453781512605042
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.7340955438776426,
+          "absolute_robust_distance_to_predicted_center": 1.0167111546859955
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.030365574315352285,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9600840336134454,
+            "BirdTarget": 0.6108786610878661,
+            "BalloonTarget": 0.6848739495798319
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.2020710872315818,
+          "absolute_robust_distance_to_predicted_center": 0.3611965764952626
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.032921640728802784,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9705882352941176,
+            "BirdTarget": 0.6317991631799164,
+            "BalloonTarget": 0.7226890756302521
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.4204580937305396,
+          "absolute_robust_distance_to_predicted_center": 0.5076238284414133
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.5679010321264681,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9411764705882353,
+            "BirdTarget": 0.24267782426778242,
+            "BalloonTarget": 0.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.8208747384278993,
+          "absolute_robust_distance_to_predicted_center": 0.13228653891858455
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.26440176108609076,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.046218487394957986,
+            "BirdTarget": 0.48535564853556484,
+            "BalloonTarget": 0.7352941176470589
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.9067308591303451,
+          "absolute_robust_distance_to_predicted_center": 0.008919763381991852
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.038845870319915855,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.16176470588235295,
+            "BirdTarget": 0.9079497907949791,
+            "BalloonTarget": 0.9915966386554622
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.9276205119980964,
+          "absolute_robust_distance_to_predicted_center": 0.0935082506852361
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.20468030546022498,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.976890756302521,
+            "BirdTarget": 0.497907949790795,
+            "BalloonTarget": 0.7100840336134454
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.9570989181562095,
+          "absolute_robust_distance_to_predicted_center": 0.004987460506142516
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.14110938070908838,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.06512605042016807,
+            "BirdTarget": 0.694560669456067,
+            "BalloonTarget": 0.9327731092436975
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.8067558192257984,
+          "absolute_robust_distance_to_predicted_center": 0.1095410017825532
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 41,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 41
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 41,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 41
+      },
+      "advisory_feature_attribution": "stable8_features_support_predicted_class_or_label_is_atypical"
+    },
+    {
+      "parent_sample_id": "cq08|track|2103",
+      "track_id": "2103",
+      "true_class": "DroneTarget",
+      "treatment_predicted_class": "BirdTarget",
+      "control_predicted_class": "BirdTarget",
+      "event_count": 24,
+      "valid_event_count": 24,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 24,
+        "final_probabilities": {
+          "DroneTarget": 0.0034979579504579306,
+          "BirdTarget": 0.9661977291107178,
+          "BalloonTarget": 0.03030427359044552
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9661977291107178,
+        "final_margin_over_runner_up": 0.9358934555202723,
+        "eligible_prediction_counts": {
+          "BirdTarget": 22
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 19,
+            "DroneTarget": 0.003705651732161641,
+            "BirdTarget": 0.9514905214309692,
+            "BalloonTarget": 0.04480376094579697
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.0036289538256824017,
+            "BirdTarget": 0.9558613896369934,
+            "BalloonTarget": 0.040509700775146484
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.003544662846252322,
+            "BirdTarget": 0.9587194323539734,
+            "BalloonTarget": 0.03773592785000801
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.0034906163346022367,
+            "BirdTarget": 0.9620214700698853,
+            "BalloonTarget": 0.03448790684342384
+          },
+          {
+            "event_index": 23,
+            "DroneTarget": 0.0034979579504579306,
+            "BirdTarget": 0.9661977291107178,
+            "BalloonTarget": 0.03030427359044552
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 24,
+        "final_probabilities": {
+          "DroneTarget": 0.015083027072250843,
+          "BirdTarget": 0.8351879119873047,
+          "BalloonTarget": 0.14972910284996033
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.8351879119873047,
+        "final_margin_over_runner_up": 0.6854588091373444,
+        "eligible_prediction_counts": {
+          "BirdTarget": 22
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 19,
+            "DroneTarget": 0.01435848232358694,
+            "BirdTarget": 0.8114184141159058,
+            "BalloonTarget": 0.1742231398820877
+          },
+          {
+            "event_index": 20,
+            "DroneTarget": 0.014440124854445457,
+            "BirdTarget": 0.817590057849884,
+            "BalloonTarget": 0.16796983778476715
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.01452795509248972,
+            "BirdTarget": 0.8206432461738586,
+            "BalloonTarget": 0.164828822016716
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.01462185475975275,
+            "BirdTarget": 0.8267850875854492,
+            "BalloonTarget": 0.15859299898147583
+          },
+          {
+            "event_index": 23,
+            "DroneTarget": 0.015083027072250843,
+            "BirdTarget": 0.8351879119873047,
+            "BalloonTarget": 0.14972910284996033
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": -0.011585069121792912,
+        "BirdTarget": 0.13100981712341309,
+        "BalloonTarget": -0.11942482925951481
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0012450235517462716,
+        "median_residual_negative_30_60mps_energy_fraction": 0.0007615088112894833,
+        "median_residual_positive_30_60mps_energy_fraction": 0.0009408598901548734,
+        "median_residual_rms_offset_mps_over_90": 0.4040605773528417,
+        "median_residual_top4_resolution_cell_concentration": 0.5592627587417761,
+        "median_residual_sideband_snr_db_over_30": 0.05578078244191905,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.10333056468516588,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.35078517471750575
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0015883408400688584,
+        "median_residual_negative_30_60mps_energy_fraction": 0.0007772915277653624,
+        "median_residual_positive_30_60mps_energy_fraction": 0.0017657682030320294,
+        "median_residual_rms_offset_mps_over_90": 0.11814875719301111,
+        "median_residual_top4_resolution_cell_concentration": 0.15269095731091842,
+        "median_residual_sideband_snr_db_over_30": 0.061836492965994125,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.035050274191324476,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.12015283478011564
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 0.26414490557525017,
+        "BirdTarget": 0.9636311283356158,
+        "BalloonTarget": 0.8433966370454252
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "DroneTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.16772840042565626,
+          "parent_sample_id": "cq08|track|148",
+          "track_id": "148"
+        },
+        "BirdTarget": {
+          "distance": 0.3436012308311779,
+          "parent_sample_id": "cq08|track|528",
+          "track_id": "528"
+        },
+        "BalloonTarget": {
+          "distance": 0.606365441047803,
+          "parent_sample_id": "cq08|track|3109",
+          "track_id": "3109"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BirdTarget": 1,
+        "DroneTarget": 14
+      },
+      "nearest_15_true_class_fraction": 0.9333333333333333,
+      "nearest_15_predicted_class_fraction": 0.06666666666666667,
+      "nearest_15_majority_class": "DroneTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 1,
+        "DroneTarget": 7
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 1,
+        "DroneTarget": 23
+      },
+      "valid_event_feature_only_true_class_fraction": 0.9583333333333334,
+      "valid_event_feature_only_predicted_class_fraction": 0.0,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.0012450235517462716,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.12184873949579832,
+            "BirdTarget": 0.09205020920502092,
+            "BalloonTarget": 0.18907563025210083
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.13008482211587769,
+          "absolute_robust_distance_to_predicted_center": 0.8474692113075248
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.0007615088112894833,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.10294117647058823,
+            "BirdTarget": 0.07112970711297072,
+            "BalloonTarget": 0.09243697478991597
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.1846552182367468,
+          "absolute_robust_distance_to_predicted_center": 1.025529728973066
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.0009408598901548734,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.33613445378151263,
+            "BirdTarget": 0.08786610878661087,
+            "BalloonTarget": 0.1092436974789916
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.04526228940466698,
+          "absolute_robust_distance_to_predicted_center": 0.9580965546937932
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.4040605773528417,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.49789915966386555,
+            "BirdTarget": 0.029288702928870293,
+            "BalloonTarget": 0.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.003256486034938666,
+          "absolute_robust_distance_to_predicted_center": 0.9564177633814225
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.5592627587417761,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.7668067226890757,
+            "BirdTarget": 0.9790794979079498,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.43255113513621346,
+          "absolute_robust_distance_to_predicted_center": 1.3303622308845666
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.05578078244191905,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.3277310924369748,
+            "BirdTarget": 0.9832635983263598,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.5603048369892265,
+          "absolute_robust_distance_to_predicted_center": 0.460823925694106
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.10333056468516588,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.4432773109243697,
+            "BirdTarget": 0.1087866108786611,
+            "BalloonTarget": 0.21008403361344538
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.05977274618419659,
+          "absolute_robust_distance_to_predicted_center": 1.0218591248465487
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.35078517471750575,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.4852941176470588,
+            "BirdTarget": 0.99581589958159,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.022058625815859045,
+          "absolute_robust_distance_to_predicted_center": 0.8942381951924926
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 72,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 72
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 72,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 72
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    },
+    {
+      "parent_sample_id": "cq08|track|2589",
+      "track_id": "2589",
+      "true_class": "BirdTarget",
+      "treatment_predicted_class": "DroneTarget",
+      "control_predicted_class": "DroneTarget",
+      "event_count": 16,
+      "valid_event_count": 16,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 16,
+        "final_probabilities": {
+          "DroneTarget": 0.725895881652832,
+          "BirdTarget": 0.27153387665748596,
+          "BalloonTarget": 0.002570255659520626
+        },
+        "final_prediction": "DroneTarget",
+        "final_confidence": 0.725895881652832,
+        "final_margin_over_runner_up": 0.45436200499534607,
+        "eligible_prediction_counts": {
+          "DroneTarget": 14
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 11,
+            "DroneTarget": 0.7199669480323792,
+            "BirdTarget": 0.27699047327041626,
+            "BalloonTarget": 0.003042560303583741
+          },
+          {
+            "event_index": 12,
+            "DroneTarget": 0.7208909392356873,
+            "BirdTarget": 0.276262104511261,
+            "BalloonTarget": 0.0028469143435359
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.7268400192260742,
+            "BirdTarget": 0.2705293595790863,
+            "BalloonTarget": 0.002630653092637658
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.7303471565246582,
+            "BirdTarget": 0.2670937776565552,
+            "BalloonTarget": 0.0025591012090444565
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.725895881652832,
+            "BirdTarget": 0.27153387665748596,
+            "BalloonTarget": 0.002570255659520626
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 16,
+        "final_probabilities": {
+          "DroneTarget": 0.8959003686904907,
+          "BirdTarget": 0.10245021432638168,
+          "BalloonTarget": 0.0016493670409545302
+        },
+        "final_prediction": "DroneTarget",
+        "final_confidence": 0.8959003686904907,
+        "final_margin_over_runner_up": 0.793450154364109,
+        "eligible_prediction_counts": {
+          "DroneTarget": 14
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 11,
+            "DroneTarget": 0.875552237033844,
+            "BirdTarget": 0.122132308781147,
+            "BalloonTarget": 0.00231546419672668
+          },
+          {
+            "event_index": 12,
+            "DroneTarget": 0.8794196248054504,
+            "BirdTarget": 0.11848682165145874,
+            "BalloonTarget": 0.0020935209468007088
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.8870974183082581,
+            "BirdTarget": 0.11104358732700348,
+            "BalloonTarget": 0.0018589864484965801
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.8934708833694458,
+            "BirdTarget": 0.10480495542287827,
+            "BalloonTarget": 0.0017241549212485552
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.8959003686904907,
+            "BirdTarget": 0.10245021432638168,
+            "BalloonTarget": 0.0016493670409545302
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": -0.1700044870376587,
+        "BirdTarget": 0.16908366233110428,
+        "BalloonTarget": 0.0009208886185660958
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.03848271077731624,
+        "median_residual_negative_30_60mps_energy_fraction": 0.052166831388603896,
+        "median_residual_positive_30_60mps_energy_fraction": 0.053594094002619386,
+        "median_residual_rms_offset_mps_over_90": 0.5857279039919376,
+        "median_residual_top4_resolution_cell_concentration": 0.27021549362689257,
+        "median_residual_sideband_snr_db_over_30": 0.03492554998956621,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.22767074406147003,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.0831176876090467
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.02645527897949977,
+        "median_residual_negative_30_60mps_energy_fraction": 0.027859559456203938,
+        "median_residual_positive_30_60mps_energy_fraction": 0.02729158204716104,
+        "median_residual_rms_offset_mps_over_90": 0.03173318353702509,
+        "median_residual_top4_resolution_cell_concentration": 0.03702182329753373,
+        "median_residual_sideband_snr_db_over_30": 0.004473966352863761,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.024707754735186483,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.02349890134689212
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 1.4667747257077492,
+        "BirdTarget": 0.7400285620470359,
+        "BalloonTarget": 0.9612878950708582
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "BirdTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.4413168093181461,
+          "parent_sample_id": "cq08|track|4211",
+          "track_id": "4211"
+        },
+        "BirdTarget": {
+          "distance": 0.24997985955333996,
+          "parent_sample_id": "cq08|track|390",
+          "track_id": "390"
+        },
+        "BalloonTarget": {
+          "distance": 0.14881453959417237,
+          "parent_sample_id": "cq08|track|3738",
+          "track_id": "3738"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 6,
+        "BirdTarget": 8,
+        "DroneTarget": 1
+      },
+      "nearest_15_true_class_fraction": 0.5333333333333333,
+      "nearest_15_predicted_class_fraction": 0.06666666666666667,
+      "nearest_15_majority_class": "BirdTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 8
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 1,
+        "BirdTarget": 15
+      },
+      "valid_event_feature_only_true_class_fraction": 0.9375,
+      "valid_event_feature_only_predicted_class_fraction": 0.0,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.03848271077731624,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8277310924369747,
+            "BirdTarget": 0.6694560669456067,
+            "BalloonTarget": 0.8613445378151261
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.5367924436149089,
+          "absolute_robust_distance_to_predicted_center": 1.254176832806556
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.052166831388603896,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9873949579831933,
+            "BirdTarget": 0.7907949790794979,
+            "BalloonTarget": 0.8697478991596639
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.3824203902179573,
+          "absolute_robust_distance_to_predicted_center": 2.2232949009542766
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.053594094002619386,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9915966386554622,
+            "BirdTarget": 0.799163179916318,
+            "BalloonTarget": 0.8739495798319328
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.4550689920137279,
+          "absolute_robust_distance_to_predicted_center": 2.3679032573028542
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.5857279039919376,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9684873949579832,
+            "BirdTarget": 0.39330543933054396,
+            "BalloonTarget": 0.012605042016806723
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.04261587876855902,
+          "absolute_robust_distance_to_predicted_center": 0.9105453985779248
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.27021549362689257,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.052521008403361345,
+            "BirdTarget": 0.5271966527196653,
+            "BalloonTarget": 0.7815126050420168
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.017486670067268728,
+          "absolute_robust_distance_to_predicted_center": 0.8803244256810845
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.03492554998956621,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.09663865546218488,
+            "BirdTarget": 0.602510460251046,
+            "BalloonTarget": 0.5672268907563025
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.0084770974073623,
+          "absolute_robust_distance_to_predicted_center": 1.01265166527597
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.22767074406147003,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9915966386554622,
+            "BirdTarget": 0.7112970711297071,
+            "BalloonTarget": 0.8277310924369747
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.22568235064069664,
+          "absolute_robust_distance_to_predicted_center": 1.1877687293030488
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.0831176876090467,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.014705882352941176,
+            "BirdTarget": 0.3179916317991632,
+            "BalloonTarget": 0.4327731092436975
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.10748890876051329,
+          "absolute_robust_distance_to_predicted_center": 1.0237857297688648
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 2,
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": 25,
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": 25
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 2,
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": 25,
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": 25
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    },
+    {
+      "parent_sample_id": "cq08|track|3027",
+      "track_id": "3027",
+      "true_class": "BalloonTarget",
+      "treatment_predicted_class": "BirdTarget",
+      "control_predicted_class": "BirdTarget",
+      "event_count": 17,
+      "valid_event_count": 17,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 17,
+        "final_probabilities": {
+          "DroneTarget": 0.0014438199577853084,
+          "BirdTarget": 0.9948263764381409,
+          "BalloonTarget": 0.0037298304960131645
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9948263764381409,
+        "final_margin_over_runner_up": 0.9910965459421277,
+        "eligible_prediction_counts": {
+          "BirdTarget": 15
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 12,
+            "DroneTarget": 0.002052132273092866,
+            "BirdTarget": 0.9926801919937134,
+            "BalloonTarget": 0.005267706699669361
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.0018273154273629189,
+            "BirdTarget": 0.9933772683143616,
+            "BalloonTarget": 0.00479537807404995
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.001690019154921174,
+            "BirdTarget": 0.993956446647644,
+            "BalloonTarget": 0.004353461321443319
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.0015709114959463477,
+            "BirdTarget": 0.9944562315940857,
+            "BalloonTarget": 0.003972871229052544
+          },
+          {
+            "event_index": 16,
+            "DroneTarget": 0.0014438199577853084,
+            "BirdTarget": 0.9948263764381409,
+            "BalloonTarget": 0.0037298304960131645
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 17,
+        "final_probabilities": {
+          "DroneTarget": 0.0010039327898994088,
+          "BirdTarget": 0.9752054214477539,
+          "BalloonTarget": 0.023790592327713966
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9752054214477539,
+        "final_margin_over_runner_up": 0.9514148291200399,
+        "eligible_prediction_counts": {
+          "BirdTarget": 15
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 12,
+            "DroneTarget": 0.00124391820281744,
+            "BirdTarget": 0.9754291772842407,
+            "BalloonTarget": 0.023326950147747993
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.0011633634567260742,
+            "BirdTarget": 0.975246250629425,
+            "BalloonTarget": 0.02359032817184925
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.001101424335502088,
+            "BirdTarget": 0.9757726192474365,
+            "BalloonTarget": 0.023125914856791496
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.0010452937567606568,
+            "BirdTarget": 0.9760457873344421,
+            "BalloonTarget": 0.022908898070454597
+          },
+          {
+            "event_index": 16,
+            "DroneTarget": 0.0010039327898994088,
+            "BirdTarget": 0.9752054214477539,
+            "BalloonTarget": 0.023790592327713966
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": 0.00043988716788589954,
+        "BirdTarget": 0.019620954990386963,
+        "BalloonTarget": -0.020060761831700802
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.008460216493832003,
+        "median_residual_negative_30_60mps_energy_fraction": 0.013512671370442738,
+        "median_residual_positive_30_60mps_energy_fraction": 0.013339187903672127,
+        "median_residual_rms_offset_mps_over_90": 0.606481622247135,
+        "median_residual_top4_resolution_cell_concentration": 0.2472026023794623,
+        "median_residual_sideband_snr_db_over_30": 0.035514826941139555,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.14006013751906507,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.10899585332064067
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0106433420332243,
+        "median_residual_negative_30_60mps_energy_fraction": 0.017926201456259998,
+        "median_residual_positive_30_60mps_energy_fraction": 0.015522586279065116,
+        "median_residual_rms_offset_mps_over_90": 0.020696129356115932,
+        "median_residual_top4_resolution_cell_concentration": 0.035265967121561534,
+        "median_residual_sideband_snr_db_over_30": 0.002980386114460462,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.06900033182398237,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.0459069644505821
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 0.7430645270473186,
+        "BirdTarget": 0.3724456405685684,
+        "BalloonTarget": 0.1410377357414434
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "BalloonTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.10682070559177528,
+          "parent_sample_id": "cq08|track|1258",
+          "track_id": "1258"
+        },
+        "BirdTarget": {
+          "distance": 0.19210938654629714,
+          "parent_sample_id": "cq08|track|2569",
+          "track_id": "2569"
+        },
+        "BalloonTarget": {
+          "distance": 0.053518510409750815,
+          "parent_sample_id": "cq08|track|3634",
+          "track_id": "3634"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 10,
+        "BirdTarget": 1,
+        "DroneTarget": 4
+      },
+      "nearest_15_true_class_fraction": 0.6666666666666666,
+      "nearest_15_predicted_class_fraction": 0.06666666666666667,
+      "nearest_15_majority_class": "BalloonTarget",
+      "per_feature_closer_center_counts": {
+        "BalloonTarget": 7,
+        "BirdTarget": 1
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 14,
+        "BirdTarget": 3
+      },
+      "valid_event_feature_only_true_class_fraction": 0.8235294117647058,
+      "valid_event_feature_only_predicted_class_fraction": 0.17647058823529413,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.008460216493832003,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.6617647058823529,
+            "BirdTarget": 0.2594142259414226,
+            "BalloonTarget": 0.4495798319327731
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.10380573186490492,
+          "absolute_robust_distance_to_predicted_center": 0.5792539791934852
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.013512671370442738,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8403361344537815,
+            "BirdTarget": 0.3305439330543933,
+            "BalloonTarget": 0.4789915966386555
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.09316897623033188,
+          "absolute_robust_distance_to_predicted_center": 0.4282343154882533
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.013339187903672127,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8865546218487395,
+            "BirdTarget": 0.3179916317991632,
+            "BalloonTarget": 0.47478991596638653
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.07644386380788959,
+          "absolute_robust_distance_to_predicted_center": 0.3898652104406999
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.606481622247135,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9894957983193278,
+            "BirdTarget": 0.8828451882845189,
+            "BalloonTarget": 0.7016806722689075
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.01500480377247343,
+          "absolute_robust_distance_to_predicted_center": 0.061777064118741565
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.2472026023794623,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.0273109243697479,
+            "BirdTarget": 0.30962343096234307,
+            "BalloonTarget": 0.4579831932773109
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.025193256874665892,
+          "absolute_robust_distance_to_predicted_center": 0.08703970381310389
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.035514826941139555,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.10504201680672269,
+            "BirdTarget": 0.7112970711297071,
+            "BalloonTarget": 0.8277310924369747
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.015381130122607407,
+          "absolute_robust_distance_to_predicted_center": 0.02125842509746016
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.14006013751906507,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.7415966386554622,
+            "BirdTarget": 0.18410041841004185,
+            "BalloonTarget": 0.33613445378151263
+          },
+          "closer_center_between_true_and_predicted": "BalloonTarget",
+          "absolute_robust_distance_to_true_center": 0.3533896557055548,
+          "absolute_robust_distance_to_predicted_center": 0.6533405517106377
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.10899585332064067,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.03571428571428571,
+            "BirdTarget": 0.48535564853556484,
+            "BalloonTarget": 0.865546218487395
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.0886155661221405,
+          "absolute_robust_distance_to_predicted_center": 0.010641658936006021
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 2,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 2,
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": 18,
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": 18,
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 11,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 11
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 2,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 2,
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": 18,
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": 18,
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 11,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 11
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    },
+    {
+      "parent_sample_id": "cq08|track|3960",
+      "track_id": "3960",
+      "true_class": "DroneTarget",
+      "treatment_predicted_class": "BirdTarget",
+      "control_predicted_class": "BalloonTarget",
+      "event_count": 25,
+      "valid_event_count": 25,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 25,
+        "final_probabilities": {
+          "DroneTarget": 0.007275208365172148,
+          "BirdTarget": 0.9668475389480591,
+          "BalloonTarget": 0.025877228006720543
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.9668475389480591,
+        "final_margin_over_runner_up": 0.9409703109413385,
+        "eligible_prediction_counts": {
+          "BirdTarget": 23
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 20,
+            "DroneTarget": 0.01163091603666544,
+            "BirdTarget": 0.9549577832221985,
+            "BalloonTarget": 0.03341129794716835
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.010457813739776611,
+            "BirdTarget": 0.9579895734786987,
+            "BalloonTarget": 0.031552571803331375
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.009343110956251621,
+            "BirdTarget": 0.9601315855979919,
+            "BalloonTarget": 0.030525363981723785
+          },
+          {
+            "event_index": 23,
+            "DroneTarget": 0.007998025044798851,
+            "BirdTarget": 0.9645886421203613,
+            "BalloonTarget": 0.02741333097219467
+          },
+          {
+            "event_index": 24,
+            "DroneTarget": 0.007275208365172148,
+            "BirdTarget": 0.9668475389480591,
+            "BalloonTarget": 0.025877228006720543
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 25,
+        "final_probabilities": {
+          "DroneTarget": 0.053673457354307175,
+          "BirdTarget": 0.053483057767152786,
+          "BalloonTarget": 0.8928434252738953
+        },
+        "final_prediction": "BalloonTarget",
+        "final_confidence": 0.8928434252738953,
+        "final_margin_over_runner_up": 0.8391699679195881,
+        "eligible_prediction_counts": {
+          "BalloonTarget": 23
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 20,
+            "DroneTarget": 0.07134664803743362,
+            "BirdTarget": 0.06771194189786911,
+            "BalloonTarget": 0.860941469669342
+          },
+          {
+            "event_index": 21,
+            "DroneTarget": 0.06715717166662216,
+            "BirdTarget": 0.0635230615735054,
+            "BalloonTarget": 0.86931973695755
+          },
+          {
+            "event_index": 22,
+            "DroneTarget": 0.06085248664021492,
+            "BirdTarget": 0.05967907980084419,
+            "BalloonTarget": 0.8794685006141663
+          },
+          {
+            "event_index": 23,
+            "DroneTarget": 0.05702578276395798,
+            "BirdTarget": 0.05620160698890686,
+            "BalloonTarget": 0.8867725729942322
+          },
+          {
+            "event_index": 24,
+            "DroneTarget": 0.053673457354307175,
+            "BirdTarget": 0.053483057767152786,
+            "BalloonTarget": 0.8928434252738953
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": -0.04639824898913503,
+        "BirdTarget": 0.9133644811809063,
+        "BalloonTarget": -0.8669661972671747
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.0034922718023881315,
+        "median_residual_negative_30_60mps_energy_fraction": 0.005833662416553125,
+        "median_residual_positive_30_60mps_energy_fraction": 0.005840440390165895,
+        "median_residual_rms_offset_mps_over_90": 0.5786671030521393,
+        "median_residual_top4_resolution_cell_concentration": 0.3864737558364868,
+        "median_residual_sideband_snr_db_over_30": 0.03178359813988209,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.1525547981262207,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.13894326210021973
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.002514477997287293,
+        "median_residual_negative_30_60mps_energy_fraction": 0.005865831295919097,
+        "median_residual_positive_30_60mps_energy_fraction": 0.007233300438377832,
+        "median_residual_rms_offset_mps_over_90": 0.03976408050424582,
+        "median_residual_top4_resolution_cell_concentration": 0.03587740774947417,
+        "median_residual_sideband_snr_db_over_30": 0.004779062342443135,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.047011294397079594,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.03910376221035079
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 0.606986833048998,
+        "BirdTarget": 0.5406998335211869,
+        "BalloonTarget": 0.3438582503668058
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "BalloonTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.15214931021446323,
+          "parent_sample_id": "cq08|track|160",
+          "track_id": "160"
+        },
+        "BirdTarget": {
+          "distance": 0.10321810813745742,
+          "parent_sample_id": "cq08|track|497",
+          "track_id": "497"
+        },
+        "BalloonTarget": {
+          "distance": 0.09414096682861788,
+          "parent_sample_id": "cq08|track|3016",
+          "track_id": "3016"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 3,
+        "BirdTarget": 8,
+        "DroneTarget": 4
+      },
+      "nearest_15_true_class_fraction": 0.26666666666666666,
+      "nearest_15_predicted_class_fraction": 0.5333333333333333,
+      "nearest_15_majority_class": "BirdTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 3,
+        "DroneTarget": 5
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BalloonTarget": 23,
+        "BirdTarget": 1,
+        "DroneTarget": 1
+      },
+      "valid_event_feature_only_true_class_fraction": 0.04,
+      "valid_event_feature_only_predicted_class_fraction": 0.04,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.0034922718023881315,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.3949579831932773,
+            "BirdTarget": 0.14644351464435146,
+            "BalloonTarget": 0.31092436974789917
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.046546347677031,
+          "absolute_robust_distance_to_predicted_center": 0.7639307368686781
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.005833662416553125,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.5567226890756303,
+            "BirdTarget": 0.20920502092050208,
+            "BalloonTarget": 0.3319327731092437
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.05293677158065935,
+          "absolute_robust_distance_to_predicted_center": 0.7879377391556599
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.005840440390165895,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.7689075630252101,
+            "BirdTarget": 0.2175732217573222,
+            "BalloonTarget": 0.3403361344537815
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.1792917964980573,
+          "absolute_robust_distance_to_predicted_center": 0.7335424687910689
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.5786671030521393,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9558823529411765,
+            "BirdTarget": 0.3305439330543933,
+            "BalloonTarget": 0.008403361344537815
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.8750289778487201,
+          "absolute_robust_distance_to_predicted_center": 0.07813229949776371
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.3864737558364868,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.25210084033613445,
+            "BirdTarget": 0.8410041841004184,
+            "BalloonTarget": 0.9957983193277311
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.35227019504375,
+          "absolute_robust_distance_to_predicted_center": 0.5455409007046033
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.03178359813988209,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.06302521008403361,
+            "BirdTarget": 0.2594142259414226,
+            "BalloonTarget": 0.08823529411764706
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.080800124281707,
+          "absolute_robust_distance_to_predicted_center": 0.05967136159837445
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.1525547981262207,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8172268907563025,
+            "BirdTarget": 0.20920502092050208,
+            "BalloonTarget": 0.3865546218487395
+          },
+          "closer_center_between_true_and_predicted": "DroneTarget",
+          "absolute_robust_distance_to_true_center": 0.43410842018385715,
+          "absolute_robust_distance_to_predicted_center": 0.5279779584784949
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.13894326210021973,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.06302521008403361,
+            "BirdTarget": 0.6861924686192469,
+            "BalloonTarget": 0.9285714285714286
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.814862368677587,
+          "absolute_robust_distance_to_predicted_center": 0.10143445233076463
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 74,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 74
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": 74,
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": 74
+      },
+      "advisory_feature_attribution": "true_and_predicted_classes_overlap_in_stable8_space"
+    },
+    {
+      "parent_sample_id": "cq08|track|531",
+      "track_id": "531",
+      "true_class": "BirdTarget",
+      "treatment_predicted_class": "DroneTarget",
+      "control_predicted_class": "BirdTarget",
+      "event_count": 17,
+      "valid_event_count": 17,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 17,
+        "final_probabilities": {
+          "DroneTarget": 0.5225406289100647,
+          "BirdTarget": 0.47684967517852783,
+          "BalloonTarget": 0.0006096860743127763
+        },
+        "final_prediction": "DroneTarget",
+        "final_confidence": 0.5225406289100647,
+        "final_margin_over_runner_up": 0.045690953731536865,
+        "eligible_prediction_counts": {
+          "BirdTarget": 3,
+          "DroneTarget": 12
+        },
+        "eligible_final_prediction_fraction": 0.8,
+        "first_event_with_final_prediction": 5,
+        "prediction_transition_count": 1,
+        "last_five_probabilities": [
+          {
+            "event_index": 12,
+            "DroneTarget": 0.5676758885383606,
+            "BirdTarget": 0.43168193101882935,
+            "BalloonTarget": 0.0006421966245397925
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.5528425574302673,
+            "BirdTarget": 0.4465268850326538,
+            "BalloonTarget": 0.0006305569550022483
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.5568356513977051,
+            "BirdTarget": 0.4425269663333893,
+            "BalloonTarget": 0.0006373254000209272
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.5249199867248535,
+            "BirdTarget": 0.47448787093162537,
+            "BalloonTarget": 0.000592126976698637
+          },
+          {
+            "event_index": 16,
+            "DroneTarget": 0.5225406289100647,
+            "BirdTarget": 0.47684967517852783,
+            "BalloonTarget": 0.0006096860743127763
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 17,
+        "final_probabilities": {
+          "DroneTarget": 0.1378183811903,
+          "BirdTarget": 0.8612744212150574,
+          "BalloonTarget": 0.000907164707314223
+        },
+        "final_prediction": "BirdTarget",
+        "final_confidence": 0.8612744212150574,
+        "final_margin_over_runner_up": 0.7234560400247574,
+        "eligible_prediction_counts": {
+          "BirdTarget": 15
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 12,
+            "DroneTarget": 0.19258083403110504,
+            "BirdTarget": 0.8063578605651855,
+            "BalloonTarget": 0.0010613054037094116
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.17662547528743744,
+            "BirdTarget": 0.8223433494567871,
+            "BalloonTarget": 0.0010311746736988425
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.17400561273097992,
+            "BirdTarget": 0.8249679207801819,
+            "BalloonTarget": 0.001026448793709278
+          },
+          {
+            "event_index": 15,
+            "DroneTarget": 0.14333505928516388,
+            "BirdTarget": 0.8557568788528442,
+            "BalloonTarget": 0.0009081167518161237
+          },
+          {
+            "event_index": 16,
+            "DroneTarget": 0.1378183811903,
+            "BirdTarget": 0.8612744212150574,
+            "BalloonTarget": 0.000907164707314223
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": 0.3847222477197647,
+        "BirdTarget": -0.38442474603652954,
+        "BalloonTarget": -0.0002974786330014467
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.05502249552484821,
+        "median_residual_negative_30_60mps_energy_fraction": 0.07596400007605553,
+        "median_residual_positive_30_60mps_energy_fraction": 0.07144674987477415,
+        "median_residual_rms_offset_mps_over_90": 0.5800533119369956,
+        "median_residual_top4_resolution_cell_concentration": 0.2545204039882211,
+        "median_residual_sideband_snr_db_over_30": 0.03255906043683782,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.25080977380275726,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.08956331146114013
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.02213109469336078,
+        "median_residual_negative_30_60mps_energy_fraction": 0.024973548907753232,
+        "median_residual_positive_30_60mps_energy_fraction": 0.02342663876157672,
+        "median_residual_rms_offset_mps_over_90": 0.04164914912140856,
+        "median_residual_top4_resolution_cell_concentration": 0.09532625622087992,
+        "median_residual_sideband_snr_db_over_30": 0.006640558994722774,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.00712443428384161,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.03457956751342452
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 1.9563345630799327,
+        "BirdTarget": 1.2726020050560212,
+        "BalloonTarget": 1.4979423675200585
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": true,
+      "inside_predicted_class_train_q95_radius": true,
+      "feature_only_nearest_train_center_class": "BirdTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 0.7417639189193616,
+          "parent_sample_id": "cq08|track|4211",
+          "track_id": "4211"
+        },
+        "BirdTarget": {
+          "distance": 0.12792159442196038,
+          "parent_sample_id": "cq08|track|780",
+          "track_id": "780"
+        },
+        "BalloonTarget": {
+          "distance": 0.2684929768071298,
+          "parent_sample_id": "cq08|track|4012",
+          "track_id": "4012"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 5,
+        "BirdTarget": 9,
+        "DroneTarget": 1
+      },
+      "nearest_15_true_class_fraction": 0.6,
+      "nearest_15_predicted_class_fraction": 0.06666666666666667,
+      "nearest_15_majority_class": "BirdTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 8
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BirdTarget": 17
+      },
+      "valid_event_feature_only_true_class_fraction": 1.0,
+      "valid_event_feature_only_predicted_class_fraction": 0.0,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.05502249552484821,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8529411764705882,
+            "BirdTarget": 0.7907949790794979,
+            "BalloonTarget": 0.9537815126050421
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 1.1516370140628251,
+          "absolute_robust_distance_to_predicted_center": 1.869021403254472
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.07596400007605553,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9936974789915967,
+            "BirdTarget": 0.9163179916317992,
+            "BalloonTarget": 0.9537815126050421
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 2.4971375499279147,
+          "absolute_robust_distance_to_predicted_center": 3.3380120606642336
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.07144674987477415,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9957983193277311,
+            "BirdTarget": 0.8870292887029289,
+            "BalloonTarget": 0.9453781512605042
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 2.2732792082350137,
+          "absolute_robust_distance_to_predicted_center": 3.18611347352414
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.5800533119369956,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.957983193277311,
+            "BirdTarget": 0.34309623430962344,
+            "BalloonTarget": 0.008403361344537815
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.07115955258237988,
+          "absolute_robust_distance_to_predicted_center": 0.8820017247641039
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.2545204039882211,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.031512605042016806,
+            "BirdTarget": 0.34309623430962344,
+            "BalloonTarget": 0.5210084033613446
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.05380166958631244,
+          "absolute_robust_distance_to_predicted_center": 0.9516127653346658
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.03255906043683782,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.07352941176470588,
+            "BirdTarget": 0.28451882845188287,
+            "BalloonTarget": 0.1092436974789916
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.0428517020100536,
+          "absolute_robust_distance_to_predicted_center": 1.0639804646933861
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.25080977380275726,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9978991596638656,
+            "BirdTarget": 0.9121338912133892,
+            "BalloonTarget": 0.9663865546218487
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.4578430202616217,
+          "absolute_robust_distance_to_predicted_center": 1.4199293989239736
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.08956331146114013,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.018907563025210083,
+            "BirdTarget": 0.35564853556485354,
+            "BalloonTarget": 0.6092436974789915
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.0833666061817481,
+          "absolute_robust_distance_to_predicted_center": 0.9996634271900997
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 32,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 17
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 32,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 17
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    },
+    {
+      "parent_sample_id": "cq08|track|731",
+      "track_id": "731",
+      "true_class": "BirdTarget",
+      "treatment_predicted_class": "DroneTarget",
+      "control_predicted_class": "DroneTarget",
+      "event_count": 15,
+      "valid_event_count": 15,
+      "valid_event_fraction": 1.0,
+      "treatment_trajectory": {
+        "length": 15,
+        "final_probabilities": {
+          "DroneTarget": 0.9560387134552002,
+          "BirdTarget": 0.04344660043716431,
+          "BalloonTarget": 0.0005146411131136119
+        },
+        "final_prediction": "DroneTarget",
+        "final_confidence": 0.9560387134552002,
+        "final_margin_over_runner_up": 0.9125921130180359,
+        "eligible_prediction_counts": {
+          "DroneTarget": 13
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 10,
+            "DroneTarget": 0.9398214817047119,
+            "BirdTarget": 0.059463635087013245,
+            "BalloonTarget": 0.0007148911827243865
+          },
+          {
+            "event_index": 11,
+            "DroneTarget": 0.942872166633606,
+            "BirdTarget": 0.05647363141179085,
+            "BalloonTarget": 0.0006542694172821939
+          },
+          {
+            "event_index": 12,
+            "DroneTarget": 0.9484044313430786,
+            "BirdTarget": 0.050993841141462326,
+            "BalloonTarget": 0.0006017101113684475
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.9520073533058167,
+            "BirdTarget": 0.04743168130517006,
+            "BalloonTarget": 0.0005609201616607606
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.9560387134552002,
+            "BirdTarget": 0.04344660043716431,
+            "BalloonTarget": 0.0005146411131136119
+          }
+        ]
+      },
+      "control_trajectory": {
+        "length": 15,
+        "final_probabilities": {
+          "DroneTarget": 0.9248044490814209,
+          "BirdTarget": 0.07405596971511841,
+          "BalloonTarget": 0.001139567350037396
+        },
+        "final_prediction": "DroneTarget",
+        "final_confidence": 0.9248044490814209,
+        "final_margin_over_runner_up": 0.8507484793663025,
+        "eligible_prediction_counts": {
+          "DroneTarget": 13
+        },
+        "eligible_final_prediction_fraction": 1.0,
+        "first_event_with_final_prediction": 0,
+        "prediction_transition_count": 0,
+        "last_five_probabilities": [
+          {
+            "event_index": 10,
+            "DroneTarget": 0.9085733890533447,
+            "BirdTarget": 0.08987097442150116,
+            "BalloonTarget": 0.0015556254656985402
+          },
+          {
+            "event_index": 11,
+            "DroneTarget": 0.9092808961868286,
+            "BirdTarget": 0.08925975859165192,
+            "BalloonTarget": 0.0014592820079997182
+          },
+          {
+            "event_index": 12,
+            "DroneTarget": 0.9150915741920471,
+            "BirdTarget": 0.08354371041059494,
+            "BalloonTarget": 0.0013647136511281133
+          },
+          {
+            "event_index": 13,
+            "DroneTarget": 0.9190306067466736,
+            "BirdTarget": 0.07970192283391953,
+            "BalloonTarget": 0.001267438754439354
+          },
+          {
+            "event_index": 14,
+            "DroneTarget": 0.9248044490814209,
+            "BirdTarget": 0.07405596971511841,
+            "BalloonTarget": 0.001139567350037396
+          }
+        ]
+      },
+      "treatment_minus_control_final_probabilities": {
+        "DroneTarget": 0.031234264373779297,
+        "BirdTarget": -0.0306093692779541,
+        "BalloonTarget": -0.000624926236923784
+      },
+      "stable8_parent_valid_event_mean": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.10045678069194158,
+        "median_residual_negative_30_60mps_energy_fraction": 0.1365854948759079,
+        "median_residual_positive_30_60mps_energy_fraction": 0.1453214372197787,
+        "median_residual_rms_offset_mps_over_90": 0.6057868123054504,
+        "median_residual_top4_resolution_cell_concentration": 0.2163978507121404,
+        "median_residual_sideband_snr_db_over_30": 0.03524009386698405,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.26062268813451134,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.0429194246729215
+      },
+      "stable8_parent_valid_event_std": {
+        "median_residual_positive_8_30mps_energy_fraction": 0.020637465466818702,
+        "median_residual_negative_30_60mps_energy_fraction": 0.028955976733597476,
+        "median_residual_positive_30_60mps_energy_fraction": 0.021850441469319658,
+        "median_residual_rms_offset_mps_over_90": 0.025623104701406135,
+        "median_residual_top4_resolution_cell_concentration": 0.011993914283256137,
+        "median_residual_sideband_snr_db_over_30": 0.0022257079446636905,
+        "median_pulse_envelope_rms_clipped_0_2_over_2": 0.004036861746158384,
+        "median_pulse_envelope_modulation_snr_db_over_30": 0.013690503402615833
+      },
+      "train_robust_center_distances": {
+        "DroneTarget": 3.5531082561209053,
+        "BirdTarget": 2.9369706265189937,
+        "BalloonTarget": 3.1548060564623177
+      },
+      "train_class_q95_center_radius": {
+        "DroneTarget": 2.9059948771896282,
+        "BirdTarget": 2.810870968736178,
+        "BalloonTarget": 1.4691285324171044
+      },
+      "inside_true_class_train_q95_radius": false,
+      "inside_predicted_class_train_q95_radius": false,
+      "feature_only_nearest_train_center_class": "BirdTarget",
+      "nearest_correct_validation_by_class": {
+        "DroneTarget": {
+          "distance": 2.2864205434419715,
+          "parent_sample_id": "cq08|track|4211",
+          "track_id": "4211"
+        },
+        "BirdTarget": {
+          "distance": 0.3022254787528236,
+          "parent_sample_id": "cq08|track|721",
+          "track_id": "721"
+        },
+        "BalloonTarget": {
+          "distance": 0.8439045534091889,
+          "parent_sample_id": "cq08|track|4106",
+          "track_id": "4106"
+        }
+      },
+      "nearest_15_correct_validation_label_counts": {
+        "BalloonTarget": 2,
+        "BirdTarget": 13
+      },
+      "nearest_15_true_class_fraction": 0.8666666666666667,
+      "nearest_15_predicted_class_fraction": 0.0,
+      "nearest_15_majority_class": "BirdTarget",
+      "per_feature_closer_center_counts": {
+        "BirdTarget": 8
+      },
+      "valid_event_feature_only_center_prediction_counts": {
+        "BirdTarget": 15
+      },
+      "valid_event_feature_only_true_class_fraction": 1.0,
+      "valid_event_feature_only_predicted_class_fraction": 0.0,
+      "per_feature_details": [
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "value": 0.10045678069194158,
+          "train_class_medians": {
+            "DroneTarget": 0.004744403818128348,
+            "BirdTarget": 0.024042587373405696,
+            "BalloonTarget": 0.011252669323584995
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.8970588235294118,
+            "BirdTarget": 0.9288702928870293,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 2.8405963308603464,
+          "absolute_robust_distance_to_predicted_center": 3.5579807200519937
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "value": 0.1365854948759079,
+          "train_class_medians": {
+            "DroneTarget": 0.004703559347715623,
+            "BirdTarget": 0.02265468928472776,
+            "BalloonTarget": 0.01550165828472624
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 0.9665271966527197,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 5.336795552448879,
+          "absolute_robust_distance_to_predicted_center": 6.177670063185198
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "value": 0.1453214372197787,
+          "train_class_medians": {
+            "DroneTarget": 0.0019284448172402335,
+            "BirdTarget": 0.021845717522266665,
+            "BalloonTarget": 0.015007128448832743
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 0.9748953974895398,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 5.659051293839022,
+          "absolute_robust_distance_to_predicted_center": 6.571885559128148
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "value": 0.6057868123054504,
+          "train_class_medians": {
+            "DroneTarget": 0.4047079792921094,
+            "BirdTarget": 0.5942001044750214,
+            "BalloonTarget": 0.6034986095898079
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.9894957983193278,
+            "BirdTarget": 0.8661087866108786,
+            "BalloonTarget": 0.6638655462184874
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.05828211185679483,
+          "absolute_robust_distance_to_predicted_center": 1.0114433892032786
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "value": 0.2163978507121404,
+          "train_class_medians": {
+            "DroneTarget": 0.4640307913223902,
+            "BirdTarget": 0.26636556732027156,
+            "BalloonTarget": 0.2527492377318834
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.018907563025210083,
+            "BirdTarget": 0.20920502092050208,
+            "BalloonTarget": 0.27310924369747897
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.22695732456969053,
+          "absolute_robust_distance_to_predicted_center": 1.124768420318044
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "value": 0.03524009386698405,
+          "train_class_medians": {
+            "DroneTarget": 0.08161336684147331,
+            "BirdTarget": 0.03453471750020981,
+            "BalloonTarget": 0.0348056873517192
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.09873949579831932,
+            "BirdTarget": 0.6610878661087866,
+            "BalloonTarget": 0.7226890756302521
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.015299506394269673,
+          "absolute_robust_distance_to_predicted_center": 1.0058292562890627
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "value": 0.26062268813451134,
+          "train_class_medians": {
+            "DroneTarget": 0.10928800508165015,
+            "BirdTarget": 0.2051773965358734,
+            "BalloonTarget": 0.17528183879596848
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 0.9916317991631799,
+            "BalloonTarget": 1.0
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.5562988668405227,
+          "absolute_robust_distance_to_predicted_center": 1.5183852455028748
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "value": 0.0429194246729215,
+          "train_class_medians": {
+            "DroneTarget": 0.3566793717676774,
+            "BirdTarget": 0.11183936838060618,
+            "BalloonTarget": 0.08531724283979697
+          },
+          "train_class_percentiles": {
+            "DroneTarget": 0.01050420168067227,
+            "BirdTarget": 0.09205020920502092,
+            "BalloonTarget": 0.0546218487394958
+          },
+          "closer_center_between_true_and_predicted": "BirdTarget",
+          "absolute_robust_distance_to_true_center": 0.25792813449520113,
+          "absolute_robust_distance_to_predicted_center": 1.1742249555035529
+        }
+      ],
+      "reliable_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 21,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 21
+      },
+      "all_frame_sampling_mode_counts": {
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": 21,
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": 21
+      },
+      "advisory_feature_attribution": "model_coupling_error_despite_true_class_feature_support"
+    }
+  ],
+  "provenance": {
+    "paired_report": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-paired-validation.json",
+    "paired_report_sha256": "668884f1a8952bae62fc22d576cb9a5ef141da5e0c444023b5855afb32b2360f",
+    "control_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-config.json",
+    "control_config_sha256": "5d317b9ebf45ac08a54fef0d7d203adbf91b52d62d27abca195f55858147de17",
+    "control_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-formal\\best_model.pt",
+    "control_checkpoint_sha256": "c04517741ce0041a269db567f722b67b91496a276987cacea5f734f3a71b9d59",
+    "control_checkpoint_epoch": 15,
+    "treatment_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json",
+    "treatment_config_sha256": "5e66e18194d89b01bf89b86339d176dca9e231da988f39986404d77c3dea775c",
+    "treatment_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\best_model.pt",
+    "treatment_checkpoint_sha256": "ba66a11bc321c5b138a9c3444583ea69ca1e856131c3e8e26643c1c503a6ad56",
+    "treatment_checkpoint_epoch": 16,
+    "contract_hashes": {
+      "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+      "contract_sha256": "741bf043c387cd23005e1b878d0b8e4d97697408ba695def8a99a170e7eb427d",
+      "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+    }
+  },
+  "interpretation_limits": [
+    "This is post-hoc validation attribution and cannot tune a new threshold or select a checkpoint.",
+    "Feature similarity cannot prove a label is wrong or that raw phenomenology is identical.",
+    "No test, OOF, full cascade, rejection, stable or P95 evaluation was executed."
+  ],
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行"
+}

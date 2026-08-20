@@ -1,0 +1,183 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V18r-stable8-density-weighted-training-readiness-v1",
+  "paired_protocol": "v18r-dbb-stable8-bounded-observation-control-versus-density-weighted-treatment-v1",
+  "paired_configs": {
+    "control": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18r-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler8-stable-density-control-reference-seed42-config.json",
+      "sha256": "b8402a9b1b71506b5526ea0fd3a1250a06bea7d29606d3bc833a750fcce7a3df"
+    },
+    "treatment": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18r-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler8-stable-density-treatment-seed42-config.json",
+      "sha256": "42dd4e76db2c842c24cf8514fbbc460ea26fc696dc98e4f032ab8ac9a1dc1e53"
+    }
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "741bf043c387cd23005e1b878d0b8e4d97697408ba695def8a99a170e7eb427d",
+    "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "checks": {
+    "paired_configs_use_v18r_protocol": true,
+    "both_arms_share_v18_stable8_data_contract": true,
+    "both_arms_use_rd_physical4_and_stable8": true,
+    "only_dynamics_mode_differs_in_model_contract": true,
+    "control_reference_is_not_trainable": true,
+    "treatment_is_trainable": true,
+    "control_reference_artifact_is_empty": true,
+    "treatment_artifact_is_empty_before_formal_training": true,
+    "frozen_v18_source_is_sha_bound_and_unsealed_metrics_are_not_a_gate": true,
+    "source_v18_initial_state_reconstructed_exactly": true,
+    "source_v18_initial_logits_reproduced": true,
+    "pre_density_exposure_logits_are_exact": true,
+    "train_parent_count_is_953": true,
+    "density_audit_uses_train_only_953_parents": true,
+    "validation_is_report_only_not_readiness_gate": true,
+    "test_payload_access_count_is_zero": true
+  },
+  "frozen_v18_control": {
+    "role": "read_only_frozen_control",
+    "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json",
+    "config_sha256": "5e66e18194d89b01bf89b86339d176dca9e231da988f39986404d77c3dea775c",
+    "source_pair_control_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-config.json",
+    "source_pair_control_config_sha256": "5d317b9ebf45ac08a54fef0d7d203adbf91b52d62d27abca195f55858147de17",
+    "summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\training-summary.json",
+    "summary_sha256": "64977b3386cb7f6065b783aa54d97bf11747808730fd8dad2f12dcdb95717c6c",
+    "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\best_model.pt",
+    "best_checkpoint_sha256": "ba66a11bc321c5b138a9c3444583ea69ca1e856131c3e8e26643c1c503a6ad56",
+    "best_epoch": 16,
+    "readiness": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-train-readiness.json",
+    "readiness_sha256": "89a1f25cb127bb107008a4b928139826d53fa37bbeb490bdd70ada7708dc39d7",
+    "initial_logits_sha256": "ce19b63987e2618d0a7b3a2c23b18fe01f74f554760df0c035c51e9634bac039",
+    "epoch_parent_order_hashes": [
+      "123c0bf56a5bc0664d8c89ec1b588a61a0e00dc7132d57142ae246a0e9866843",
+      "5abccf793c308588731588c98c219b23b9fc62cf8173fdafeacc78d8569edeb0",
+      "fcfa2d1ca87601cb8cda5575f32fc28e8ce0f5d1daa4f2485187a7b6444eb744",
+      "493f659e1c951f2c686b8b0444f9d710dffeeb9ade1248a4fa9eef28c2ae5cdd",
+      "6213fba2270d70fdf6101957c51eaede5e54b1cc0685f64789a9383a7d64ccdc",
+      "1afe053de2425a7ef7c762ed3f430241edf72ab440685f58b22100bf4c8a9a8e",
+      "01e1c5a568ab06abff3f70f4cd853ff28d649a7ab686586b1a9d4f0da167abf5",
+      "6c26889f586ba3b22bf2c8f7e07477c8b93f14c17b551095d8c379d642c3b5f0",
+      "b3ac5d615e8417adb4e3e181e8e8c8c6aeec5055d86361030ac47931794242f0",
+      "1b27e5d9ab635628ca4c02626ce654791505c8c5d43498cba03000e1f1263b8e",
+      "16edf3732ba727f3a6e1e460e549f7774074ac47491768ba125c815761f10d16",
+      "2c793c25d509bb20ca1f1cdb923328e418b67e7495de435c12b058374ff0b235",
+      "860615dfb23f86f3c099cd6380bf2cff445ced524ea2baec1983900eab4e8c7f",
+      "b6678fbf79ad6f273f23e6b6ce93507eaa3932d2536e148494890e608b9ded1c",
+      "c7c699fafa29e73a54e3ffd48c836db57170ce75bc4462767468ebc04378cee9",
+      "54a61eb10a3e6436abb7373f382eddb0e4cddb6b562eb1c6b2e9529d2437a364",
+      "f6d3c74b3ba6a306ed49fd8616a3da91cd243a7b09189d31408dfd0518a18607",
+      "ce93419f8f5149c078357c4aeb59da48742fc0f954ca4c9eb72dd6e829a9dcd9",
+      "43b2fd69fd90893f6bdb13a81e0024148ef487ed5d4aa4b25c65af564bf862e5",
+      "775b38c51846ccfcda80a8de139f52f66d5199315a5b9623daf924e4d4603409"
+    ],
+    "validation_metrics_used_for_v18r_readiness_gate": false,
+    "control_retrained": false
+  },
+  "initialization_probe": {
+    "train_parent_count": 953,
+    "first_batch_parent_ids": [
+      "cq08|track|1",
+      "cq08|track|101"
+    ],
+    "source_v18_initial_logits_sha256_reproduced": true,
+    "control_initial_logits_sha256": "ce19b63987e2618d0a7b3a2c23b18fe01f74f554760df0c035c51e9634bac039",
+    "pre_exposure_logits_exact": true,
+    "pre_exposure_maximum_absolute_difference": 0.0,
+    "initial_treatment_exposed_event_count": 0,
+    "full_initial_logits_exact_diagnostic": true,
+    "paired_initialization": {
+      "paired_protocol": "v18r-dbb-stable8-bounded-observation-control-versus-density-weighted-treatment-v1",
+      "seed": 42,
+      "shared_state_entry_count": 40,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "source_v18_control_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-config.json",
+      "source_v18_treatment_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json",
+      "source_v18_paired_protocol": "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler8-stable-treatment-v3",
+      "source_v18_initial_treatment_state_sha256": "5e3fd5b22ecec2db8f3df73380c07306f11380350b6b30edfecb6ed73e273264",
+      "source_v18_control_fusion_input_dim": 83,
+      "stable8_fusion_columns": 8,
+      "stable8_fusion_columns_exactly_zero": true,
+      "treatment_new_fusion_columns_exactly_zero": true,
+      "dynamics_control_mode": "bounded_observation",
+      "dynamics_treatment_mode": "density_weighted",
+      "paired_arm": "treatment",
+      "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18r-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler8-stable-density-control-reference-seed42-config.json",
+      "counterpart_config_name": "RADAR-LN3-V18r-cq08-liquid-dbb-specialist-rd-physical4-micro-doppler8-stable-density-control-reference-seed42"
+    }
+  },
+  "train_only_density_audit": {
+    "event_count": 18266,
+    "parent_count": 953,
+    "density_bucket_counts": {
+      "k1_control_unchanged": 11733,
+      "k2_alpha_0_50": 1677,
+      "k3plus_alpha_0_75": 4856
+    },
+    "density_bucket_label_cramers_v": 0.09107685821718002,
+    "by_label": {
+      "DroneTarget": {
+        "parent_count": 476,
+        "event_count": 9095,
+        "zero_delta_event_count": 3318,
+        "zero_delta_event_fraction": 0.36481583287520614,
+        "parent_balanced_zero_delta_fraction_mean": 0.3574922924082199,
+        "parent_balanced_zero_delta_fraction_median": 0.0,
+        "raw_zero_dt_event_fraction_including_first_event": 0.417152281473337,
+        "parent_balanced_raw_zero_dt_fraction_mean": 0.4121858358788549,
+        "density_k1_control_unchanged_event_count": 5777,
+        "density_k2_alpha_0_50_event_count": 802,
+        "density_k3plus_alpha_0_75_event_count": 2516,
+        "density_treatment_exposed_event_count": 3318,
+        "density_treatment_exposed_event_fraction": 0.36481583287520614,
+        "parent_balanced_density_exposure_fraction_mean": 0.3574922924082199,
+        "mean_density_gain_on_exposed_events": 0.6895720313441832
+      },
+      "BirdTarget": {
+        "parent_count": 239,
+        "event_count": 4620,
+        "zero_delta_event_count": 2009,
+        "zero_delta_event_fraction": 0.4348484848484849,
+        "parent_balanced_zero_delta_fraction_mean": 0.44157609345519755,
+        "parent_balanced_zero_delta_fraction_median": 0.6666666666666666,
+        "raw_zero_dt_event_fraction_including_first_event": 0.48658008658008656,
+        "parent_balanced_raw_zero_dt_fraction_mean": 0.49540180189978045,
+        "density_k1_control_unchanged_event_count": 2611,
+        "density_k2_alpha_0_50_event_count": 563,
+        "density_k3plus_alpha_0_75_event_count": 1446,
+        "density_treatment_exposed_event_count": 2009,
+        "density_treatment_exposed_event_fraction": 0.4348484848484849,
+        "parent_balanced_density_exposure_fraction_mean": 0.44157609345519755,
+        "mean_density_gain_on_exposed_events": 0.679940268790443
+      },
+      "BalloonTarget": {
+        "parent_count": 238,
+        "event_count": 4551,
+        "zero_delta_event_count": 1206,
+        "zero_delta_event_fraction": 0.26499670402109426,
+        "parent_balanced_zero_delta_fraction_mean": 0.24362369490232166,
+        "parent_balanced_zero_delta_fraction_median": 0.0,
+        "raw_zero_dt_event_fraction_including_first_event": 0.3172929026587563,
+        "parent_balanced_raw_zero_dt_fraction_mean": 0.2980447418215856,
+        "density_k1_control_unchanged_event_count": 3345,
+        "density_k2_alpha_0_50_event_count": 312,
+        "density_k3plus_alpha_0_75_event_count": 894,
+        "density_treatment_exposed_event_count": 1206,
+        "density_treatment_exposed_event_fraction": 0.26499670402109426,
+        "parent_balanced_density_exposure_fraction_mean": 0.24362369490232166,
+        "mean_density_gain_on_exposed_events": 0.6853233830845771
+      }
+    },
+    "statistics_are_report_only_not_model_inputs": true
+  },
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training_at_report_generation": "未执行",
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

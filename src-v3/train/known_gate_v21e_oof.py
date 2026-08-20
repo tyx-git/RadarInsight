@@ -174,6 +174,7 @@ def train_oof_fold(
     prediction_resolver: Callable[[str, int], Path] = prediction_relative,
     prediction_schema: str = PREDICTION_SCHEMA,
     experiment_name: str = "V21e OOF",
+    loss_class_weight_normalization: str | None = None,
 ) -> dict[str, Any]:
     root = project_root.resolve()
     if arm not in ARMS:
@@ -183,6 +184,15 @@ def train_oof_fold(
         arm=arm,
         fold_id=fold_id,
     )
+    normalization_mode = (
+        config.train.class_weight_normalization
+        if loss_class_weight_normalization is None
+        else str(loss_class_weight_normalization)
+    )
+    if normalization_mode != config.train.class_weight_normalization:
+        raise ValueError(
+            "OOF loss class-weight normalization differs from the bound config"
+        )
     artifact = root / artifact_resolver(arm, fold_id)
     prediction_path = root / prediction_resolver(arm, fold_id)
     if prediction_path.exists():
@@ -343,6 +353,7 @@ def train_oof_fold(
                     tensors["labels"],
                     tensors["tr_padding_mask"],
                     class_weights=class_weights,
+                    class_weight_normalization=normalization_mode,
                     prefix_auxiliary_weight=config.train.prefix_auxiliary_weight,
                     prefix_auxiliary_min_events=config.train.prefix_auxiliary_min_events,
                 )
@@ -397,6 +408,7 @@ def train_oof_fold(
                 "parent_order_unique_count": len(set(order)),
                 "held_out_forward_count": 0,
                 "held_out_checkpoint_selection": False,
+                "class_weight_normalization": normalization_mode,
                 "validation_access_count": 0,
                 "test_payload_access_count": 0,
                 "elapsed_seconds": time.perf_counter() - epoch_started,
@@ -511,6 +523,12 @@ def train_oof_fold(
             "grouping": "capture_content_provenance_component",
             "prediction_unit": "parent with causal-prefix audit records",
             "prediction_protocol": "out_of_fold_fixed_final_epoch",
+            "loss_aggregation": {
+                "class_weight_normalization": normalization_mode,
+                "class_weights": [float(value) for value in config.train.class_weights],
+                "parent_unit": True,
+                "prefixes_averaged_within_parent_before_class_weight": True,
+            },
             "epochs": FIXED_EPOCHS,
             "early_stopping": False,
             "held_out_checkpoint_selection": False,

@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V20-zero-delta-skip-training-readiness-v1",
+  "experiment": "V20-skip",
+  "paired_protocol": "v20-dbb-bounded-observation-control-versus-zero-delta-skip-treatment-v1",
+  "paired_configs": {
+    "control": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20-cq08-liquid-dbb-specialist-zero-delta-skip-control-seed42-config.json",
+      "sha256": "affda8e084144e34ce0adfdcd53659d048f94a4efc04f7bb3c0fde0ea7401ca2",
+      "mode": "bounded_observation"
+    },
+    "treatment": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20-cq08-liquid-dbb-specialist-zero-delta-skip-treatment-seed42-config.json",
+      "sha256": "8ddc7c7d4a82202b5610a1abd3ce78379737cc7998483bf9b40e70279b3342e0",
+      "mode": "skip"
+    }
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373",
+    "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+  "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "split_reports": {
+    "train": {
+      "split": "train",
+      "parent_count": 953,
+      "event_count": 18266,
+      "class_parent_counts": {
+        "DroneTarget": 476,
+        "BirdTarget": 239,
+        "BalloonTarget": 238
+      },
+      "class_event_counts": {
+        "DroneTarget": 9095,
+        "BirdTarget": 4620,
+        "BalloonTarget": 4551
+      },
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 476,
+          "event_count": 9095,
+          "zero_delta_event_count": 3318,
+          "zero_delta_event_fraction": 0.36481583287520614,
+          "parent_balanced_zero_delta_fraction_mean": 0.3574922924082199,
+          "parent_balanced_zero_delta_fraction_median": 0.0,
+          "raw_zero_dt_event_fraction_including_first_event": 0.417152281473337,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.4121858358788549
+        },
+        "BirdTarget": {
+          "parent_count": 239,
+          "event_count": 4620,
+          "zero_delta_event_count": 2009,
+          "zero_delta_event_fraction": 0.4348484848484849,
+          "parent_balanced_zero_delta_fraction_mean": 0.44157609345519755,
+          "parent_balanced_zero_delta_fraction_median": 0.6666666666666666,
+          "raw_zero_dt_event_fraction_including_first_event": 0.48658008658008656,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.49540180189978045
+        },
+        "BalloonTarget": {
+          "parent_count": 238,
+          "event_count": 4551,
+          "zero_delta_event_count": 1206,
+          "zero_delta_event_fraction": 0.26499670402109426,
+          "parent_balanced_zero_delta_fraction_mean": 0.24362369490232166,
+          "parent_balanced_zero_delta_fraction_median": 0.0,
+          "raw_zero_dt_event_fraction_including_first_event": 0.3172929026587563,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.2980447418215856
+        }
+      },
+      "zero_delta_definition": "tr_dt_reason == zero_delta_at_second_precision; first_event_no_predecessor excluded",
+      "raw_zero_dt_definition": "tr_dt_is_zero; includes first_event_no_predecessor",
+      "zero_delta_label_cramers_v_event_level": 0.12642180550867574,
+      "raw_zero_dt_label_cramers_v_event_level": 0.12284624258642267
+    },
+    "val": {
+      "split": "val",
+      "parent_count": 223,
+      "event_count": 4288,
+      "class_parent_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54
+      },
+      "class_event_counts": {
+        "DroneTarget": 2164,
+        "BirdTarget": 1073,
+        "BalloonTarget": 1051
+      },
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 113,
+          "event_count": 2164,
+          "zero_delta_event_count": 733,
+          "zero_delta_event_fraction": 0.338724584103512,
+          "parent_balanced_zero_delta_fraction_mean": 0.35561026335762574,
+          "parent_balanced_zero_delta_fraction_median": 0.0,
+          "raw_zero_dt_event_fraction_including_first_event": 0.3909426987060998,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.41051819137621154
+        },
+        "BirdTarget": {
+          "parent_count": 56,
+          "event_count": 1073,
+          "zero_delta_event_count": 474,
+          "zero_delta_event_fraction": 0.44175209692451073,
+          "parent_balanced_zero_delta_fraction_mean": 0.42920473441266116,
+          "parent_balanced_zero_delta_fraction_median": 0.6333333333333333,
+          "raw_zero_dt_event_fraction_including_first_event": 0.4939422180801491,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.48336383778599856
+        },
+        "BalloonTarget": {
+          "parent_count": 54,
+          "event_count": 1051,
+          "zero_delta_event_count": 427,
+          "zero_delta_event_fraction": 0.40627973358705993,
+          "parent_balanced_zero_delta_fraction_mean": 0.3806034016811413,
+          "parent_balanced_zero_delta_fraction_median": 0.2,
+          "raw_zero_dt_event_fraction_including_first_event": 0.4576593720266413,
+          "parent_balanced_raw_zero_dt_fraction_mean": 0.43387727849617064
+        }
+      },
+      "zero_delta_definition": "tr_dt_reason == zero_delta_at_second_precision; first_event_no_predecessor excluded",
+      "raw_zero_dt_definition": "tr_dt_is_zero; includes first_event_no_predecessor",
+      "zero_delta_label_cramers_v_event_level": 0.09167381825484892,
+      "raw_zero_dt_label_cramers_v_event_level": 0.08959944406744806
+    }
+  },
+  "checks": {
+    "paired_configs_share_one_frozen_v16_data_contract": true,
+    "dbb_train_and_validation_support_are_positive": true,
+    "zero_delta_reason_statistics_are_finite": true,
+    "zero_delta_association_is_report_only_not_a_training_gate": true,
+    "test_payload_access_zero": true
+  },
+  "interpretation": "zero_delta and raw-zero associations are diagnostic only; they do not alter sampling, labels, or thresholds",
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training_at_report_generation": "未执行",
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

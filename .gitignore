@@ -56,6 +56,9 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v21e_oof_contract_test.py
 !src-v3/smoke/known_gate_v21f_oof_contract_test.py
 !src-v3/smoke/known_gate_v21hi_oof_contract_test.py
+!src-v3/smoke/known_gate_v22_oof_contract_test.py
+!src-v3/smoke/known_gate_v22b_oof_contract_test.py
+!src-v3/smoke/known_gate_v21e_rd_modality_ablation_test.py
 !src-v3/README.md
 !docs/
 docs/*
@@ -72,4 +75,7 @@ docs/*
 !docs/radar_ln3_v21g_modal_consistency_decision.md
 !docs/radar_ln3_v21h_iso_oof_protocol.md
 !docs/radar_ln3_v21i_d_range_oof_protocol.md
+!docs/radar_ln3_v22_fixed_parent_balanced_oof_protocol.md
+!docs/radar_ln3_v22b_rd_temporal_late_readout_protocol.md
+!docs/radar_ln3_v21e_rd_modality_read_only_ablation.md
 v2r/

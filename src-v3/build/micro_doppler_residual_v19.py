@@ -21,6 +21,7 @@ from radar_ln3.micro_doppler_residual import (
     V19_ARTIFACT_RELATIVE_PATH,
     V19_CACHE_FIELDS,
     V19_CACHE_SCHEMA_VERSION,
+    V19_CLASS_COUNT,
     V19_CLASS_NAMES,
     V19_CONFIG_NAME,
     V19_CONFIG_RELATIVE_PATH,
@@ -116,6 +117,31 @@ def _require_empty_formal_artifact(root: Path) -> None:
         raise FileExistsError(
             f"refusing to prepare V19 over a non-empty formal artifact: {artifact}"
         )
+
+
+def _progress(message: str) -> None:
+    print(f"[V19 prepare] {message}", flush=True)
+
+
+def _model_state_guard(model: LiquidTaskClassifier) -> tuple[tuple[Any, ...], ...]:
+    rows: list[tuple[Any, ...]] = []
+    for kind, values in (
+        ("parameter", model.named_parameters()),
+        ("buffer", model.named_buffers()),
+    ):
+        for name, value in values:
+            rows.append(
+                (
+                    kind,
+                    str(name),
+                    id(value),
+                    int(value._version),
+                    tuple(int(item) for item in value.shape),
+                    str(value.dtype),
+                    str(value.device),
+                )
+            )
+    return tuple(rows)
 
 
 def _validate_source_pair(root: Path) -> dict[str, Any]:
@@ -411,6 +437,67 @@ def _build_split_cache(
     }
 
 
+def _describe_cache(dataset: ResidualCacheDataset) -> dict[str, Any]:
+    final_counts = np.asarray(
+        [
+            dataset.valid_counts[index, int(dataset.lengths[index]) - 1]
+            for index in range(len(dataset))
+        ],
+        dtype=np.int64,
+    )
+    return {
+        "split_name": dataset.split_name,
+        "parent_count": len(dataset),
+        "event_count": int(dataset.lengths.sum()),
+        "valid_micro_doppler_event_count": int(dataset.micro_doppler_valid.sum()),
+        "class_parent_counts": dict(
+            sorted(Counter(dataset.label_names.tolist()).items())
+        ),
+        "minimum_valid_observations_at_final": int(final_counts.min()),
+        "maximum_valid_observations_at_final": int(final_counts.max()),
+    }
+
+
+def _validate_cache_against_source(
+    root: Path,
+    *,
+    feature_config: Any,
+    split_name: str,
+    cache: ResidualCacheDataset,
+) -> dict[str, Any]:
+    if cache.split_name != split_name:
+        raise ValueError(
+            f"V19 cache split differs: expected={split_name}, actual={cache.split_name}"
+        )
+    source_dataset = build_task_dataset(
+        root,
+        feature_config,
+        split_name=split_name,
+    )
+    expected_parent_ids = [str(value) for value in source_dataset.parent_ids]
+    if cache.parent_sample_ids.tolist() != expected_parent_ids:
+        raise ValueError(f"V19 {split_name} cache parent order differs from source Dataset")
+    expected_labels: list[int] = []
+    expected_label_names: list[str] = []
+    expected_lengths: list[int] = []
+    for parent_id in expected_parent_ids:
+        group = source_dataset.base._groups[parent_id]
+        base_label = str(group.iloc[0]["label_name"])
+        class_id = int(source_dataset.spec.encode(base_label))
+        expected_labels.append(class_id)
+        expected_label_names.append(source_dataset.spec.class_names[class_id])
+        expected_lengths.append(
+            min(len(group), int(feature_config.data.max_sequence_length))
+        )
+    if not np.array_equal(cache.labels, np.asarray(expected_labels, dtype=np.int64)):
+        raise ValueError(f"V19 {split_name} cache labels differ from source Dataset")
+    if cache.label_names.tolist() != expected_label_names:
+        raise ValueError(f"V19 {split_name} cache label names differ from source Dataset")
+    if not np.array_equal(cache.lengths, np.asarray(expected_lengths, dtype=np.int64)):
+        raise ValueError(f"V19 {split_name} cache lengths differ from source Dataset")
+    return _describe_cache(cache)
+
+
 def _metrics_match(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
     return json.dumps(left, sort_keys=True, separators=(",", ":")) == json.dumps(
         right, sort_keys=True, separators=(",", ":")
@@ -419,59 +506,87 @@ def _metrics_match(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
 
 def build(project_root: Path) -> dict[str, Any]:
     root = project_root.resolve()
+    _progress("validating frozen V18 sources")
     _require_empty_formal_artifact(root)
     source = _validate_source_pair(root)
+    _progress("fitting and validating train-only stable8 normalization")
     normalization = _fit_parent_balanced_normalization(root, source["feature"])
     normalization_path = root / V19_NORMALIZATION_RELATIVE_PATH
     _write_text_if_same(normalization_path, _json_text(normalization))
 
-    device = task_device(source["control"])
-    control_model = LiquidTaskClassifier(source["control"]).to(device)
+    control_model = LiquidTaskClassifier(source["control"]).cpu()
     checkpoint = load_task_checkpoint(
         source["checkpoint_path"],
         control_model,
         expected_schema=source["control"].train.checkpoint_schema,
-        map_location=device,
+        map_location="cpu",
     )
     expected_best_epoch = int(source["control_summary"]["best_epoch"])
     if int(checkpoint.get("epoch", -1)) != expected_best_epoch:
         raise ValueError("V19 frozen Control checkpoint epoch differs from its summary")
+    del checkpoint
     for parameter in control_model.parameters():
         parameter.requires_grad_(False)
     control_model.eval()
     backbone_hash_before = tensor_state_sha256(control_model.state_dict())
+    backbone_hash_after = backbone_hash_before
     median = np.asarray(normalization["median"], dtype=np.float32)
     scale = np.asarray(normalization["scale"], dtype=np.float32)
-    train_arrays, train_description = _build_split_cache(
-        root,
-        feature_config=source["feature"],
-        control_model=control_model,
-        split_name=source["feature"].data.train_split_name,
-        median=median,
-        scale=scale,
-        device=device,
-    )
-    validation_arrays, validation_description = _build_split_cache(
-        root,
-        feature_config=source["feature"],
-        control_model=control_model,
-        split_name=source["feature"].data.validation_split_name,
-        median=median,
-        scale=scale,
-        device=device,
-    )
-    backbone_hash_after = tensor_state_sha256(control_model.state_dict())
-    if backbone_hash_before != backbone_hash_after:
-        raise ValueError("V19 frozen Control backbone changed during cache preparation")
     train_path = root / V19_TRAIN_CACHE_RELATIVE_PATH
     validation_path = root / V19_VALIDATION_CACHE_RELATIVE_PATH
-    _write_npz_if_same(train_path, train_arrays)
-    _write_npz_if_same(validation_path, validation_arrays)
+    if train_path.is_file() and validation_path.is_file():
+        _progress("reusing the existing cache pair after full internal/source validation")
+    else:
+        device = task_device(source["control"])
+        _progress(f"building frozen Control caches on {device}")
+        control_model.to(device)
+        state_guard_before = _model_state_guard(control_model)
+        train_arrays, _ = _build_split_cache(
+            root,
+            feature_config=source["feature"],
+            control_model=control_model,
+            split_name=source["feature"].data.train_split_name,
+            median=median,
+            scale=scale,
+            device=device,
+        )
+        validation_arrays, _ = _build_split_cache(
+            root,
+            feature_config=source["feature"],
+            control_model=control_model,
+            split_name=source["feature"].data.validation_split_name,
+            median=median,
+            scale=scale,
+            device=device,
+        )
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        state_guard_after = _model_state_guard(control_model)
+        if state_guard_before != state_guard_after:
+            raise ValueError("V19 frozen Control backbone changed during cache preparation")
+        _write_npz_if_same(train_path, train_arrays)
+        _write_npz_if_same(validation_path, validation_arrays)
+        del train_arrays, validation_arrays
+    del control_model
 
+    _progress("validating cache contents against the frozen source Dataset")
     train_dataset = ResidualCacheDataset(train_path)
     validation_dataset = ResidualCacheDataset(validation_path)
+    train_description = _validate_cache_against_source(
+        root,
+        feature_config=source["feature"],
+        split_name=source["feature"].data.train_split_name,
+        cache=train_dataset,
+    )
+    validation_description = _validate_cache_against_source(
+        root,
+        feature_config=source["feature"],
+        split_name=source["feature"].data.validation_split_name,
+        cache=validation_dataset,
+    )
     if set(train_dataset.parent_sample_ids) & set(validation_dataset.parent_sample_ids):
         raise ValueError("V19 train/validation caches share a parent")
+    _progress("reproducing frozen V18 Control parent-final validation metrics on CPU")
     baseline_validation = evaluate_residual(
         None,
         validation_dataset,

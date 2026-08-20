@@ -47,6 +47,16 @@ function Test-ArtifactNonEmpty {
     return $null -ne $first
 }
 
+function Read-Utf8Json {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $text = [System.IO.File]::ReadAllText(
+        $Path,
+        [System.Text.UTF8Encoding]::new($false, $true)
+    )
+    return ConvertFrom-Json -InputObject $text
+}
+
 function Assert-Prepared {
     if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
         throw ('V19 config is missing: ' + $configPath)
@@ -54,7 +64,7 @@ function Assert-Prepared {
     if (-not (Test-Path -LiteralPath $readinessPath -PathType Leaf)) {
         throw ('V19 readiness is missing: ' + $readinessPath)
     }
-    $readiness = Get-Content -Raw -LiteralPath $readinessPath | ConvertFrom-Json
+    $readiness = Read-Utf8Json -Path $readinessPath
     if ($readiness.status -ne 'passed') {
         throw ('V19 readiness did not pass: ' + $readiness.status)
     }
@@ -108,7 +118,7 @@ function Invoke-Train {
     Write-Host '[V19] stage=train'
     Assert-Prepared
     if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
-        $summary = Get-Content -Raw -LiteralPath $summaryPath | ConvertFrom-Json
+        $summary = Read-Utf8Json -Path $summaryPath
         if ($summary.status -eq 'completed') {
             Write-Host ('[V19] training already completed; best_epoch=' + $summary.best_epoch)
             return
@@ -141,7 +151,7 @@ function Invoke-Evaluate {
     if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf)) {
         throw ('V19 training summary is missing: ' + $summaryPath)
     }
-    $summary = Get-Content -Raw -LiteralPath $summaryPath | ConvertFrom-Json
+    $summary = Read-Utf8Json -Path $summaryPath
     if ($summary.status -ne 'completed') {
         throw ('V19 training is not completed: ' + $summary.status)
     }

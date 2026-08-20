@@ -2469,3 +2469,99 @@
 - Action：V21e晋级seed42/43/44严格配对复核，再决定是否进入train parent-grouped OOF；每个seed必须有独立同seed Baseline、共享初态、零新增列、同20轮parent顺序和own-best冻结选择。多seed报告必须同时检查parent-final、prefix方向错误、Clutter support及跨seedpaired delta，不得用三个epoch或三个seed事后选优。原development用于特征发现，后续仍需要新独立holdout。
 - 验证状态：seed43 prepare、20 epoch训练、development paired report、直接输入置零诊断和5000次bootstrap已执行；multi-seed、OOF、正式拒识、完整级联、test、stable、P95和部署未执行。
 - 关联版本：RADAR-LN3-V21e causal course consistency seed43 positive candidate v1。
+
+## Finding F225
+
+- Severity：Critical
+- Status：当前仍有效；实验命名与真实评估范围不一致
+- Evidence：`data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json`记录986个known parent、975个`provenance_component_id`组件，所有索引记录的`source_name`均为`CQ08`；`src-v3/processed/report/RADAR-LN3-V21e-known-gate-capture-content-grouped-oof-treatment.json`明确scope为`known train capture/content-grouped OOF; no validation/test/Unknown`。因此该结果是CQ08内部组件留出，不是真实跨source OOF。
+- Impact：V21e Clutter P/R/F1=`0.642857/0.818182/0.720000`仅能说明CQ08内部组件泛化不稳定，不能证明跨采集源或跨设备泛化；当前没有真实跨source性能证据。
+- Action：报告和V22验收统一称“CQ08内部组件留出”；只有加入具有权威source/provenance的新数据并新建相应`RADAR-LN3-VN`索引/契约后，才可报告真实跨source OOF。
+
+## Finding F226
+
+- Severity：Critical
+- Status：已确认代码/训练协议问题
+- Evidence：`src-v3/radar_ln3/losses.py:177`和`199-204`分别用`F.cross_entropy(..., weight=weights)`计算final与prefix loss；`src-v3/train/known_gate_v21e_oof.py:230-235`以配置`batch_size=2`构建DataLoader，`341-347`将同一class weight传入loss。PyTorch加权mean按当前batch出现的目标类别重新归一化；按V21e五折固定parent顺序重算，93.1%-93.6%的batch是同类目标，Clutter有效加权质量仅约6.3%-6.5%。
+- Impact：Clutter虽配置了约14.6-15.2倍class weight，但历史归约下仅约6.2%-6.6%的有效batch权重质量来自Clutter；该机制足以造成Clutter监督不足并构成fold波动的高可信候选，但Clutter每折仅6-7个且provenance难度不同，不能在V22训练前宣称它是首要因果来源。
+- Action：V22只验证`fixed_parent_count` class-weight归约，固定V21e Control、采样、batch size、特征、dt、液态、OOF分组和评估协议，不叠加其他因素；以Clutter P/R/F1、KnownTarget安全、eligible-prefix、component bootstrap及描述性fold方差共同判定性能猜测。
+
+## Finding F234
+
+- Severity：Critical
+- Status：loss机制已修复；性能猜测待正式五折验证
+- Evidence：`src-v3/radar_ln3/losses.py`新增`class_weight_normalization=fixed_parent_count`，final严格计算`sum(w[y] * CE) / batch_parent_count`，prefix先在parent内平均再按class weight求和并除以有prefix的parent数；历史V21默认`batch_weight_sum`且配置identity hash保持不变。V22 focused Smoke逐式验证历史同类Clutter batch权重完全抵消、修复后保留Clutter权重，并重放五折20 epoch全部parent order hash：目标同类batch比例=`0.9322/0.9334/0.9346/0.9352/0.9359`，历史Clutter有效质量=`0.06555/0.06436/0.06322/0.06271/0.06201`，V22约=`0.50015/0.49967/0.50000/0.50017/0.50066`。
+- Impact：代码层已不再把稀有类权重按batch组成重新归一化，V22在不改采样和模型的条件下恢复声明的全局parent/class-balanced目标；但更强Clutter梯度也可能把更多Bird/Drone推向Clutter，不能保证Precision与Recall同步上升。
+- Action：用户运行五个V22 Treatment fold，Control复用冻结V21e OOF Treatment；只有Clutter parent P/R/F1均严格改善、KnownTarget和三目标标签安全、eligible-prefix安全、fold描述性方差均不增且至少一项严格下降、component bootstrap的Clutter P/R与Macro-F1下界均>0，才把性能猜测记为支持；parent Macro-F1还需严格`>+0.02`才记为可采纳候选。无论结果如何，L3、Unknown、test、完整级联、stable和P95仍未执行。
+
+## Finding F227
+
+- Severity：High
+- Status：当前仍有效；窗口/parent/产品动作目标不完全统一
+- Evidence：`src-v3/radar_ln3/losses.py:132-136`规定主loss只监督每个parent最终状态；`188-216`规定prefix从第3事件开始、使用parent最终标签、排除最终状态并在parent内平均。`src-v3/radar_ln3/known_gate.py:1408-1417`同时输出window、eligible-prefix、parent-final指标并将最小证据前事件定义为`PENDING_ABSTAIN`，但该loss没有`PENDING_ABSTAIN`、`CLUTTER_ACCEPTED`或`UNKNOWN_REJECTED`动作目标。
+- Impact：parent-final指标可能优于早期prefix，而V21e正出现parent收益远大于eligible-prefix收益且早期KnownTarget Recall下降；训练选优不能被解释为已优化线上L1/L2/L3动作或stable可靠性。
+- Action：V22先固定现有监督协议以隔离类别平衡因素，同时把parent、eligible-prefix、window和产品动作分层验收；若后续修复动作监督，必须另建训练目标/checkpoint schema并重新训练。
+
+## Finding F228
+
+- Severity：High
+- Status：有证据但待验证为主要因果瓶颈
+- Evidence：V16时间字段只有1秒精度；`tr_dt_seconds=0`由首点无前驱和同秒时间戳构成，未发现负值、NaN、Inf或单位转换错误；train中Clutter同秒事件比例为0而Drone/Bird/Balloon存在同秒事件。V21配置使用`liquid_zero_dt_event_floor_seconds=0.001`和`liquid_invalid_dt_update_mode=bounded_observation`，V20/V21相关液态合同Smoke通过。
+- Impact：dt分布可能让液态路径学习到类别/来源相关捷径，但当前没有独立KnownGate dt消融或跨fold因果结果，不能把dt直接认定为Clutter主因，也不能以增大液态容量掩盖该问题。
+- Action：在V22固定类别平衡因素后另行做单因素dt语义消融；按source、类别、prefix、轨迹质量和fold报告零/无效dt，并验证offline/online逐点输出一致。
+
+## Finding F229
+
+- Severity：Critical
+- Status：已确认代码语义冲突；当前产品影响待运行验证
+- Evidence：`src-v3/radar_ln3/rejection.py:779-807`在DBB knownness未接受时先计算CU Clutter阈值，满足条件即返回`final_action="CLUTTER_ACCEPTED"`，理由包含`dbb_known_not_accepted_fallback_to_cu`；同文件注释说明该路径是DBB knownness失败后fallback到CU。用户固定语义要求“目标证据充分但DBB子类证据不足→UNKNOWN_REJECTED”，不能转为Clutter。
+- Impact：一旦该历史fallback被当前线上级联调用，目标子类证据不足可能被误接受为Clutter，直接损害Clutter Precision、Drone/Bird Recall和Unknown/Pending语义；当前V21完整三级调用链尚未执行，影响数为未执行。
+- Action：在完整L1/L2/L3重接前明确互斥动作契约；目标证据充分但子类不足只能进入`UNKNOWN_REJECTED`，观测不足/质量低只能进入`Pending/Abstain`，不得以CU预测替代open-set拒识。
+
+## Finding F230
+
+- Severity：High
+- Status：当前仍有效；特征发现与确认集重复使用风险
+- Evidence：V21e特征来自同一development错误分析；V21h/V21i均复用V21e OOF Treatment作为冻结Control，V21f完整OOF训练未执行。V21e development单seed正向信号后虽完成seed42/43/44复现，但五折OOF报告最终Clutter绝对护栏失败；V21h/V21i不能作为独立确认。
+- Impact：V21e course特征虽已真实接入且可能有信号，但其正向收益受到development后验选择、重复验证和多重比较影响；不能把V21e、V21h或V21i的结果当作已证明跨源泛化。
+- Action：V22不加入新特征组合；先以固定V21e Control验证训练平衡协议。后续特征实验必须使用未参与特征发现的独立确认集或嵌套OOF，并预注册主要错误方向和停止条件。
+
+## Finding F231
+
+- Severity：Critical
+- Status：当前仍有效；产品级证据缺失
+- Evidence：`data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json`将V21明确为`known_gate`，UnknownTarget不作为模型类，L2为`dbb_specialist`，L3为`semantic_decision_layer`且`cu_specialist_exists_in_v21=false`；`src-v3/radar_ln3/cascade.py:1-7`声明V21不使用旧cascade，但仍保留旧`dbb_cu_gate/dbb_specialist/cu_specialist`兼容路径。V21e报告将`test`、`formal_rejection`、`stable`均记为“未执行”，`deployment_eligible=false`。
+- Impact：当前Clutter指标只是KnownGate证据层，不是最终`CLUTTER_ACCEPTED`率；Unknown拒识、Pending/Abstain、L2子类、L3校准、stable和线上一致性均未完成，不能放行正式产品或用总指标替代三级决策指标。
+- Action：V22只允许在KnownGate训练层验证，训练前后必须保留产品语义不变；正式放行必须补齐L3 train-parent-grouped OOF校准、Unknown open-set、Pending/Abstain、完整cascade、stable和test证据。
+
+## Finding F232
+
+- Severity：High
+- Status：已确认实验结论；V21h不采纳
+- Evidence：`src-v3/processed/report/RADAR-LN3-V21h-cq08-known-gate-course-iso-paired-oof.json`对应V21h的Clutter parent Precision约提升`+0.163594`，但Recall约下降`-0.060606`；该报告为探索性、绝对安全门槛未通过，且没有形成Precision/Recall同步改善。
+- Impact：目标行能量占比iso只能改变Clutter接受边界的取舍，不能作为当前Clutter Precision和Recall同时提升的可靠主方向；并可能损害目标类别路由。
+- Action：V21h冻结为不采纳，不进入V22组合特征或L3阈值调优；如未来重新验证，必须独立预注册并同时设置目标类别安全门槛。
+
+## Finding F233
+
+- Severity：High
+- Status：已确认实验结论；V21i不采纳
+- Evidence：`src-v3/processed/report/RADAR-LN3-V21i-cq08-known-gate-course-d-range-paired-oof.json`为探索性OOF结果，Clutter parent Precision、Recall、F1均下降，报告状态为`completed_exploratory_not_confirmed`，未进入部署或阈值校准。
+- Impact：d_range稳定性当前没有改善Clutter跨组件留出边界的证据，组合该特征会增加因果归因和源域偏移风险。
+- Action：V21i冻结为不采纳；液态模块、dt和已否决特征均不与V22训练平衡实验联合改变。
+
+## Finding F235
+
+- Severity：Critical
+- Status：已确认冻结V21e模型对RD内容存在显著条件依赖
+- Evidence：五折epoch 20 checkpoint只读重放与正式OOF的986个parent、18923个window和15965个eligible-prefix硬预测逐项一致，概率最大绝对误差`1.1921e-7`。仅把RD embedding置零而保留原始因果质量向量后，parent Macro-F1从`0.854465`降至`0.587757`，KnownTarget Recall从`0.984260`降至`0.841553`，Clutter Precision从`0.642857`降至`0.156425`；142个原正确parent受损、7个被救回，exact McNemar `p=8.26e-34`，component bootstrap Macro-F1差值95%区间`[-0.319191,-0.212289]`。五折差值均为负，但范围为`-0.028307`至`-0.453447`。
+- Impact：现有masked-mean RD内容是V21e KnownGate已实际使用的判别来源，V22a/V22b只否决首尾embedding差分，不能据此删除整个RD分支。与此同时，跨fold幅度异质说明消融结果不能直接转化为“新增某个RD特征必然提升”的结论。
+- Action：保留现有RD内容主路径；停止首尾embedding residual方向。后续RD候选必须使用全帧分布且单因素预注册，并继续用组件OOF和类别安全门槛确认，不能只看development或权重绝对值。
+
+## Finding F236
+
+- Severity：Critical
+- Status：已确认RD缺失质量语义存在类别支持缺口
+- Evidence：V21e known train中，Drone/Bird/Balloon合计有153/18266个缺失RD事件，涉及25/953个目标parent；Clutter的33个parent、657个事件均有RD，缺失事件为0；所有类别都没有整条parent全事件缺RD支持。把五折冻结模型的每个事件改为合法missing质量向量`[0,0,0,1,0,0,0]`并移除RD内容后，986个parent全部输出KnownTarget，Clutter P/R/F1全部为0。
+- Impact：`rd_present/rd_missing`及其相关质量字段可形成目标/Clutter覆盖捷径；全missing臂是明确的分布外反事实，不能被报告成无RD重训练模型性能。若产品质量不足时仍直接消费KnownGate argmax，可能系统性偏向KnownTarget；当前尚未运行完整Pending/Abstain和L3语义决策链。
+- Action：下一优先项不是继续追加RD residual，而是冻结一个单因素质量鲁棒性方案：补齐或合成标签均衡的合法RD缺失训练支持，或由L3在质量不足时强制`PENDING_ABSTAIN`。方案必须预注册且分别验证正常RD性能、缺失RD安全、Bird/Drone误拒、Clutter安全和offline/online一致性。

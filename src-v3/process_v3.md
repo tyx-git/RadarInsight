@@ -2357,3 +2357,71 @@ train/validation描述审计只解析V16 index中42个Clutter parent；test 8个
 在线作用域仍有明显边界。window与eligible-prefix Macro-F1只改善约`+0.001317/+0.003806`，Known Target Recall分别下降约`-0.003498/-0.002763`；eligible-prefix净变化为Bird -4、Balloon -6、Clutter +8。Bird/Balloon 3027/3580到event 8才纠正，Clutter 3761到event 15才纠正，因此V21e当前证明的是parent-final候选收益，不是早期路由、stable或拒识收益。
 
 冻结裁决为晋级多seed配对，不直接采纳。下一阶段固定seed42/43/44，每个seed必须训练同seed Baseline与V21e Treatment，保持共享初态、零新增列、相同parent顺序、20 epoch和own-best规则；不得只复用seed43 champion与其他seed Treatment做非配对比较。V21e来自查看V21a-d固定development错例后的事后发现，原development和原V16 test都不是无偏最终确认集。OOF、正式拒识、完整级联、test、stable、P95和部署继续未执行。
+
+## 2026-08-19 Stage 083-089 - V20/V21 KnownGate与V22前置审查
+
+审查范围：仅读取`src-v3`当前工作树、`config/RADAR-LN3`中V20/V20r/V21相关有效配置、`data/processed`中CQ08 V16/V21索引/契约/manifest/cache、V20/V21报告与artifact。用户称谓中的`V20a-V20i`在仓库中未找到；实际可核实实体为`V20`、`V20r`和后续`V21a-V21i`。本轮没有修改模型、训练、数据处理、特征、评估、配置、索引、manifest、checkpoint或普通artifact。
+
+工作区状态：已执行根目录`git status --short`。结果显示用户已有修改、删除文件和未跟踪的V18-V21配置/报告/artifact；本轮未执行`git reset`、`git checkout`、`git clean`、递归删除或回退。`task_plan_v3.md`已在原最大Stage 082之后追加Stage 083-089；`process_v3.md`和`findings_v3.md`本次覆盖式追加本审查记录。
+
+已读取并绑定的关键版本与hash：
+
+- `data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv`，29663点、1546个parent、SHA-256=`0AF7412F0EA5963BA2BCF42BC87A3D02EE1C6FCFEDFC42D68F027A6922BF466C`。
+- `data/processed/RADAR-LN3-V16-cq08-product-local-data-contract.json`，SHA-256=`CA99A5F1B2FA77D1A2348F56AE6E74F480DAAD1BBA5BC9749B5311A382DCA373`。
+- `data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json`，SHA-256=`0102DAC76173FD75FD3D9C698B7B64465A943C34BD13A8D768D1D3335E41D9F9`。
+- `data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json`，SHA-256=`74EC107FF33C3FBE7C2D88A38CEF6010130C9AAC7849682F2E61368CC6E04070`。
+- `data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json`，SHA-256=`F389D8C6AC6282DC126138227EE43EA6CE1C1787953535C21E7BCB6A07B68588`。
+- `config/RADAR-LN3/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-config.json`，SHA-256=`2B74D2C33343692F76FFBBC3EE6A679C46F1B6BA12B5B0CE532D9B9EF9622F80`；`batch_size=2`、`class_weights=[0.5173137460650578,14.93939393939394]`、`loss_mode=parent_final_task_ce_with_prefix_auxiliary`、`prefix_auxiliary_weight=0.1`、`prefix_auxiliary_min_events=3`、`checkpoint_selection_metric=parent_min_precision_recall`、`liquid_invalid_dt_update_mode=bounded_observation`。
+- `data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json`，SHA-256=`C1CA228DD67EDEE4B4B30E456CB443B0EF1E2C48EB40DD230D4A56B94C1C60C7`；V21e折分组为`provenance_component_id`，986个known parent、975个组件，全部`source_name=CQ08`。
+- `data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-feature-cache-manifest.json`，SHA-256=`737D14C15B49C972D7E1D26D28FBCB877C04643EF9906F46C216E76462D84662`；train cache SHA-256=`A73C7E21656BABF63EF4634FE5F77B08F2489B814E4C457F0D23981564EE3425`，validation cache SHA-256=`FEA3C306563060476E73242E95A54DC188D75185DA86BAF8E1954B6204CB8CDC`。
+- `data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-04-data-contract.json`，SHA-256=`65BD7290BA8F92C8FB05B8D6F16FAE325E41F3D1A3E763A059EA92A73384886B`；fold-train normalization parent数789，held-out、validation、test均未用于统计。
+
+实际执行命令与结果：
+
+- `python -m compileall -q .`：通过，退出码0。
+- `python -m smoke.static_isolation_check --root F:\Project\RadarInsight\src-v3`：通过，`status=passed`、`violations=[]`。
+- `python -m smoke.known_gate_v21_contract_test --project-root F:\Project\RadarInsight`：通过。
+- `python -m smoke.known_gate_v21e_oof_contract_test --project-root F:\Project\RadarInsight`：通过。
+- `python -m smoke.known_gate_v21e_multiseed_contract_test --project-root F:\Project\RadarInsight`：通过。
+- `python -m smoke.known_gate_v21hi_oof_contract_test --project-root F:\Project\RadarInsight --variant h`和`--variant i`：通过。
+- `python -m smoke.invalid_dt_update_test --config ...RADAR-LN3-V4-cq08-tr-rd-invalid-dt-event-formal-supervised-config.json`：通过。
+- `python -m smoke.liquid_dynamics_v20_contract_test --project-root F:\Project\RadarInsight --variant skip`和`--variant density`：通过。
+- `dt_prefix_test`直接运行曾因缺少`--config`报错，使用V16配置又因测试仅接受V0-V4而不适用；未将该不适用结果归因于V21代码。
+
+数据与实验核验结果：CQ08 V16含50个合法Clutter parent，split为train/val/test=`33/9/8`，没有发现漏索引Clutter；KnownGate train为953个目标parent与33个Clutter parent，UnknownTarget 69个不进入KnownGate训练。`tr_dt_seconds`为1秒精度，零dt由首点无前驱和同秒时间戳构成，未发现负值、NaN、Inf或单位转换错误；Clutter train parent同秒事件比例为0，而目标类别存在同秒事件。V21e新增course特征确实进入cache、Dataset、KnownGate Fusion、梯度和OOF链路，V21h/V21i也通过了合同级Smoke，但V21h仅改善Clutter parent Precision约`+0.163594`并使Recall约`-0.060606`，V21i的Clutter Precision/Recall/F1均下降。
+
+V21e OOF结果实际为“CQ08内部capture/content组件留出”，不是跨source OOF。986个known parent的parent-final混淆矩阵为`[[938,15],[6,27]]`，Clutter P/R/F1=`0.642857/0.818182/0.720000`，support=33；eligible-prefix Clutter P/R/F1=`0.533333/0.659498/0.589744`，support=558。五折parent Clutter P/R分别为`1.000/0.500`、`0.750/1.000`、`0.714/0.714`、`0.750/0.857`、`0.438/1.000`，绝对护栏失败，不能称跨源泛化通过。
+
+代码链路核验：`radar_ln3/losses.py`的`parent_final_task_ce_with_prefix_auxiliary`只在每个parent最终合法状态计算主loss，prefix从第3事件开始使用同一parent最终标签，并排除最终状态；`train/known_gate_v21e_oof.py`以`batch_size=config.train.batch_size`构建DataLoader并把class weight传给`F.cross_entropy`；V21e五折实际重算显示同类目标batch约93.1%-93.6%，Clutter在batch-normalized class weight下的有效加权质量仅约6.3%-6.5%。`radar_ln3/known_gate.py`同时输出window、eligible-prefix、parent-final三层指标，并将最小证据前事件标记为`PENDING_ABSTAIN`，但训练loss没有直接监督`PENDING_ABSTAIN`、`CLUTTER_ACCEPTED`或`UNKNOWN_REJECTED`动作。`radar_ln3/rejection.py`的DBB knownness不接受分支仍可fallback到CU并返回`CLUTTER_ACCEPTED`；该分支代码已确认，但当前V21完整产品是否调用它尚未运行验证。`radar_ln3/cascade.py`保留旧`dbb_cu_gate -> dbb_specialist -> cu_specialist`兼容路径，同时文件头声明V21新产品应使用`known_gate -> dbb_specialist -> semantic_decision_layer`；完整V21三级产品尚未完成可验收运行。
+
+V20/V20r边界：V20和V20r实际为DBB specialist局部validation任务，V20r三seed密度实验的Accuracy平均增量约`+0.0089686`、Macro-F1平均增量约`+0.0096247`，但full gate失败；这些结果不能解释KnownGate Clutter跨组件留出，也不能冒充完整三级产品或最终泛化性能。V21a、V21b、V21c、V21d均未形成冻结硬动作收益；V21e development单seed信号虽通过局部门槛并完成多seed复现，但随后OOF绝对护栏失败；V21f完整OOF训练未执行；V21h/V21i为探索性OOF负结果或未确认结果。
+
+raw/MAT核验：CQ08 raw严格连续帧可解析，包含31个range bin、复数I/Q；MAT存在`data_out`、`data_proc_MTD_result`、`data_proc_MTD_result_db`、`Vr`、`Range_plot`、`debug_info`、`Amp_max_range`、`Amp_max_Vr`、`label`等字段。代表错误Clutter与Bird/Drone均可读取，未发现由文件损坏或RD缺失直接造成的错误；Clutter内部存在`PRT=226/360/570/900`、约15.6/15.9GHz等采集模式差异，但没有权威环境、传感器模式或物理机制真值，不能把描述性cluster当作标签。
+
+液态与线上边界：V20 skip/density和V21 invalid-dt合同Smoke均通过，offline/online一致、状态有限且梯度非零；目前没有证据证明液态单元是Clutter主要瓶颈。正式拒识、L3阈值、完整级联、Unknown open-set、stable、test、P95、部署和新全量OOF均未执行。
+
+V22冻结方案：唯一首选为KnownGate训练类别平衡/parent级loss协议修复；固定V16索引、V21 known-only normalization、V21e course cache、KnownGate结构、dt、液态参数、20 epoch、五折组件分组、seed和L1/L2/L3语义，仅改变训练曝光或loss聚合中的一个平衡因素。若输入schema、数据契约和特征顺序不变，不创建新索引；因训练目标和checkpoint protocol变化，建议创建新的`RADAR-LN3-V22`配置与checkpoint schema，旧V21e checkpoint不直接兼容。V22合同Smoke、五折训练和固定OOF由用户手动执行，本轮未启动。
+
+未执行事项：正式V22训练、全量新OOF、test评估、拒识阈值搜索、Unknown open-set审计、完整三级级联、L3校准、stable、P95、部署测试、全量数据重建和新增CQ08采集均未执行。下一Stage为Stage 089，由用户决定是否人工实施V22；未通过Clutter与KnownTarget安全门槛时回滚V21e Control并停止组合特征叠加。
+
+## 2026-08-19 Stage 089 - V22固定parent分母loss修复与流水线
+
+确定性修复：`parent_final_task_ce_with_prefix_auxiliary`新增显式`class_weight_normalization`。历史`batch_weight_sum`保持PyTorch batch加权mean及V21配置/checkpoint身份兼容；V22 `fixed_parent_count`改为`sum(w[y] * CE) / contributing_parent_count`。prefix仍先在parent内平均合法前缀，再应用class weight并除以有prefix的parent数。该公式与V21e每折逆频率权重配套；逐折验证完整fold-train人口上的权重均值为1。
+
+V22单因素合同：复用V21e seed43的986个known train parent、975个capture/content component、五折assignment、fold-train normalization、course cache、模型结构、初态、每epoch parent顺序、20 epoch、optimizer与固定最终epoch预测；唯一差异为`batch_weight_sum -> fixed_parent_count`。Control直接复用冻结V21e OOF Treatment预测，只需新增五个V22 Treatment训练。Unknown、validation和test访问为0。
+
+猜测状态：旧loss的batch-local权重抵消机制已确认；“Clutter Precision/Recall同步改善且fold方差下降”仍未验证，不能由代码修复直接推出。预注册判定要求Clutter parent P/R/F1均严格改善、KnownTarget及Drone/Bird/Balloon安全、eligible-prefix安全、Clutter fold描述性方差均不增且至少一项严格下降，并且component paired bootstrap的Clutter P/R与Macro-F1差值95%下界均大于0；parent Macro-F1严格`>+0.02`才构成可采纳候选。Clutter每折仅6-7个，fold方差只作描述性证据。
+
+新增产物：V22 config/build/train/report/smoke模块、`v22_known_gate_fixed_parent_balanced_oof_pipeline.ps1`和V22协议文档。正式五折训练、阈值、Unknown、test、完整级联、stable与P95仍未执行。
+
+## 2026-08-20 Stage 092 - V21e五折冻结模型RD模态只读消融
+
+本Stage未训练模型。新增`report/known_gate_v21e_rd_modality_ablation.py`、focused smoke、`scripts/v21e_known_gate_rd_modality_ablation.ps1`和协议文档；逐折加载V21e Treatment的epoch 20 checkpoint，只在原train OOF held-out parent上执行三臂推理。Unknown、validation、test、阈值、完整级联、stable和P95访问均为0。
+
+原始臂严格复现正式OOF：986个parent、18923个window和15965个eligible-prefix硬预测零差异，最大概率误差`1.1921e-7`。只读完整性清单覆盖1021个源文件，包括986份RD tensor；前后SHA一致、模型state一致、optimizer/training step为0。报告和986行逐parent CSV第二次执行均返回字节一致复用。
+
+RD内容归因臂把`rd_frame_mask`置零，使masked-mean embedding精确为零，同时保留原7维质量提示。parent Macro-F1下降`0.266708`、KnownTarget Recall下降`0.142707`、Clutter Precision下降`0.486433`，Clutter Recall上升`0.030303`；142个原正确parent受损、7个被救回，component bootstrap Macro-F1差值95%区间`[-0.319191,-0.212289]`。五折方向全部负向但幅度高度异质，支持“冻结模型依赖RD内容”，不支持“任何新增RD特征都会改善”。
+
+合法missing臂同时移除RD内容并给所有非padding事件写入`[0,0,0,1,0,0,0]`，最终全部parent预测KnownTarget，Clutter Recall为0。数据支持审计解释了该极端输出：目标类有153个缺失RD事件、25个parent含缺失；Clutter 657个事件全部有RD，且数据中没有整条parent全事件缺RD。故该臂是产品合同合法但训练支持之外的反事实，只能暴露RD质量类别捷径，不能估计重训练无RD模型性能。
+
+冻结决策：保留当前masked-mean RD内容路径，继续否决V22a/V22b首尾embedding residual；后续先处理RD缺失质量支持与Pending/Abstain语义，再决定是否实验全帧二阶离散度。KnownGate局部argmax仍不是最终`CLUTTER_ACCEPTED`或`UNKNOWN_REJECTED`动作，完整L1/L2/L3、正式拒识、test、stable和P95继续未执行。

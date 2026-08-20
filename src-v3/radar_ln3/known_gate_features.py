@@ -39,6 +39,7 @@ V21E_COURSE_PREFIX_VARIANT = "v21e_course_prefix"
 V21F_COURSE_INTERFRAME_VARIANT = "v21f_course_interframe"
 V21H_COURSE_ISO_VARIANT = "v21h_course_iso"
 V21I_COURSE_D_RANGE_VARIANT = "v21i_course_d_range"
+V22A_RD_TEMPORAL_RESIDUAL_VARIANT = "v22a_rd_temporal_residual"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -95,6 +96,9 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     V21F_COURSE_INTERFRAME_VARIANT: COURSE_INTERFRAME_FEATURE_NAMES,
     V21H_COURSE_ISO_VARIANT: COURSE_ISO_FEATURE_NAMES,
     V21I_COURSE_D_RANGE_VARIANT: COURSE_D_RANGE_FEATURE_NAMES,
+    # V22a reuses the frozen V21e course cache.  Its new RD evidence is an
+    # internal model branch, deliberately not an external feature-cache field.
+    V22A_RD_TEMPORAL_RESIDUAL_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
@@ -107,6 +111,7 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V21F_COURSE_INTERFRAME_VARIANT,
         V21H_COURSE_ISO_VARIANT,
         V21I_COURSE_D_RANGE_VARIANT,
+        V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
@@ -505,6 +510,7 @@ def load_known_gate_feature_cache(
         V21F_COURSE_INTERFRAME_VARIANT,
         V21H_COURSE_ISO_VARIANT,
         V21I_COURSE_D_RANGE_VARIANT,
+        V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     }:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
@@ -616,6 +622,7 @@ __all__ = [
     "V21F_COURSE_INTERFRAME_VARIANT",
     "V21H_COURSE_ISO_VARIANT",
     "V21I_COURSE_D_RANGE_VARIANT",
+    "V22A_RD_TEMPORAL_RESIDUAL_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_interframe_spectral_temporal_consistency",

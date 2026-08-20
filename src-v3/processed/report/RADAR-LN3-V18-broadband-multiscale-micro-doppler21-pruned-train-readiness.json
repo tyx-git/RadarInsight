@@ -1,0 +1,2592 @@
+{
+  "status": "blocked",
+  "schema_version": "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v2-pruned21",
+  "paired_protocol": "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler21-pruned-treatment-v2",
+  "paired_configs": {
+    "control": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler21-pruned-control-seed42-config.json",
+      "sha256": "6cd9b17d82f1184e929c4f24660e6ba16d99f63620af6098886903f95196c6ea"
+    },
+    "treatment": {
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler21-pruned-treatment-seed42-config.json",
+      "sha256": "ece50567d73744045811bde9856b3463a5bf41c7d7690964de200f3067ec71c5"
+    }
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "cacc5d9f0714c49b061a26a604886fa12b3e29ecb58ff976fb46ee600e8818f4",
+    "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "checks": {
+    "all_21_features_non_degenerate_train_only": true,
+    "at_least_four_train_only_drone_bird_features_have_auc_0_55_and_effect_0_10": true,
+    "at_least_four_parent_balanced_features_keep_direction_across_all_calibrated_sampling_modes": true,
+    "no_globally_informative_drone_bird_feature_reverses_or_lacks_mode_support": false,
+    "calibrated_sampling_modes_have_at_least_8_train_parents_per_dbb_class": true,
+    "all_train_sampling_modes_are_frozen_as_calibrated_or_zero_intervention": true,
+    "all_uncalibrated_sampling_mode_frames_are_intervention_neutral": true,
+    "prt_142_support_is_frozen_4_drone_3_bird_0_balloon": true,
+    "all_prt_142_frames_and_prt_142_only_events_are_intervention_neutral": true,
+    "train_summary_reconstructs_from_reliable_frame_evidence": true,
+    "train_reliable_frame_fraction_is_positive": true,
+    "train_raw_frame_mapping_uses_mat_acquisition_identity": true,
+    "frozen_track_1010_missing_mat_counterexample_is_preserved": true,
+    "sampling_metadata_and_profiles_are_not_model_inputs": true,
+    "validation_is_report_only_not_readiness_gate": true,
+    "test_payload_access_zero": true
+  },
+  "feature_checks": {
+    "median_residual_negative_8_30mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_positive_8_30mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_negative_30_60mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_positive_30_60mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_total_8_90mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_rms_offset_mps_over_90": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_q90_abs_offset_mps_over_90": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_top4_resolution_cell_concentration": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_resolution_cell_peak_count_over_12": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_residual_sideband_snr_db_over_30": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_rms_clipped_0_2_over_2": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_centroid_hz_over_2000": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_top3_concentration": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_entropy": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "median_pulse_envelope_modulation_snr_db_over_30": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "q90_residual_negative_8_30mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "q90_residual_positive_8_30mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    },
+    "q90_residual_total_8_90mps_energy_fraction": {
+      "standard_deviation_at_least_0_0001": true,
+      "unique_count_at_least_8": true,
+      "not_more_than_99_5_percent_at_zero": true,
+      "not_more_than_99_5_percent_at_one": true
+    }
+  },
+  "train_only_thresholds": {
+    "minimum_informative_feature_count": 4,
+    "minimum_direction_free_auc": 0.55,
+    "minimum_absolute_robust_effect": 0.1,
+    "minimum_direction_consistent_informative_feature_count": 4,
+    "all_globally_informative_features_must_be_mode_consistent": true,
+    "minimum_calibrated_sampling_modes_with_abs_effect_0_10": 2,
+    "minimum_train_parents_per_class_per_calibrated_sampling_mode": 8,
+    "uncalibrated_sampling_mode_policy": "evidence retained; exact-zero model intervention"
+  },
+  "split_reports": {
+    "train": {
+      "split": "train",
+      "parent_count": 953,
+      "event_count": 18266,
+      "valid_event_count": 18113,
+      "usable_reliable_intervention_event_count": 17956,
+      "parent_discrimination_event_scope": "all causal events per parent, including missing and unsupported-mode exact-zero interventions",
+      "neutral_intervention_event_count": 157,
+      "prt_142_frame_count": 343,
+      "prt_142_feature_reliable_frame_count": 0,
+      "prt_142_only_event_count": 99,
+      "prt_142_only_nonzero_intervention_event_count": 0,
+      "selected_frame_count": 65879,
+      "reliable_frame_count": 65368,
+      "reliable_frame_fraction": 0.9922433552421864,
+      "parent_support_by_prt_num_and_label": {
+        "142": {
+          "DroneTarget": 4,
+          "BirdTarget": 3,
+          "BalloonTarget": 0
+        },
+        "226": {
+          "DroneTarget": 234,
+          "BirdTarget": 65,
+          "BalloonTarget": 82
+        },
+        "360": {
+          "DroneTarget": 264,
+          "BirdTarget": 114,
+          "BalloonTarget": 130
+        },
+        "570": {
+          "DroneTarget": 157,
+          "BirdTarget": 105,
+          "BalloonTarget": 120
+        },
+        "900": {
+          "DroneTarget": 33,
+          "BirdTarget": 41,
+          "BalloonTarget": 25
+        }
+      },
+      "parent_support_by_sampling_mode_and_label": {
+        "prt_num=142|pri_ns=28000|carrier_mhz=15600": {
+          "DroneTarget": 3,
+          "BirdTarget": 3,
+          "BalloonTarget": 0
+        },
+        "prt_num=142|pri_ns=31000|carrier_mhz=16300": {
+          "DroneTarget": 4,
+          "BirdTarget": 3,
+          "BalloonTarget": 0
+        },
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "DroneTarget": 198,
+          "BirdTarget": 63,
+          "BalloonTarget": 67
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "DroneTarget": 230,
+          "BirdTarget": 65,
+          "BalloonTarget": 82
+        },
+        "prt_num=226|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 4,
+          "BirdTarget": 0,
+          "BalloonTarget": 0
+        },
+        "prt_num=226|pri_ns=51000|carrier_mhz=16300": {
+          "DroneTarget": 4,
+          "BirdTarget": 0,
+          "BalloonTarget": 0
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 264,
+          "BirdTarget": 114,
+          "BalloonTarget": 130
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 264,
+          "BirdTarget": 114,
+          "BalloonTarget": 130
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 157,
+          "BirdTarget": 105,
+          "BalloonTarget": 120
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 157,
+          "BirdTarget": 105,
+          "BalloonTarget": 120
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 33,
+          "BirdTarget": 41,
+          "BalloonTarget": 25
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 33,
+          "BirdTarget": 41,
+          "BalloonTarget": 25
+        }
+      },
+      "sampling_mode_diagnostics": {
+        "prt_num=142|pri_ns=28000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 142,
+            "pri_nanoseconds": 28000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 169,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 3,
+            "BirdTarget": 3,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=142|pri_ns=31000|carrier_mhz=16300": {
+          "sampling_mode": {
+            "prt_num": 142,
+            "pri_nanoseconds": 31000,
+            "carrier_megahertz": 16300
+          },
+          "frame_count": 174,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 4,
+            "BirdTarget": 3,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 20000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 9690,
+          "feature_reliable_frame_count": 9690,
+          "parent_support_by_label": {
+            "DroneTarget": 198,
+            "BirdTarget": 63,
+            "BalloonTarget": 67
+          }
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 24000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 10471,
+          "feature_reliable_frame_count": 10471,
+          "parent_support_by_label": {
+            "DroneTarget": 230,
+            "BirdTarget": 65,
+            "BalloonTarget": 82
+          }
+        },
+        "prt_num=226|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 84,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 4,
+            "BirdTarget": 0,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=226|pri_ns=51000|carrier_mhz=16300": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 16300
+          },
+          "frame_count": 84,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 4,
+            "BirdTarget": 0,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 14922,
+          "feature_reliable_frame_count": 14922,
+          "parent_support_by_label": {
+            "DroneTarget": 264,
+            "BirdTarget": 114,
+            "BalloonTarget": 130
+          }
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 10371,
+          "feature_reliable_frame_count": 10371,
+          "parent_support_by_label": {
+            "DroneTarget": 264,
+            "BirdTarget": 114,
+            "BalloonTarget": 130
+          }
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 10086,
+          "feature_reliable_frame_count": 10086,
+          "parent_support_by_label": {
+            "DroneTarget": 157,
+            "BirdTarget": 105,
+            "BalloonTarget": 120
+          }
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 6714,
+          "feature_reliable_frame_count": 6714,
+          "parent_support_by_label": {
+            "DroneTarget": 157,
+            "BirdTarget": 105,
+            "BalloonTarget": 120
+          }
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 1791,
+          "feature_reliable_frame_count": 1791,
+          "parent_support_by_label": {
+            "DroneTarget": 33,
+            "BirdTarget": 41,
+            "BalloonTarget": 25
+          }
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 1323,
+          "feature_reliable_frame_count": 1323,
+          "parent_support_by_label": {
+            "DroneTarget": 33,
+            "BirdTarget": 41,
+            "BalloonTarget": 25
+          }
+        }
+      },
+      "features": [
+        {
+          "feature": "median_residual_negative_8_30mps_energy_fraction",
+          "minimum": 7.298650928078132e-08,
+          "q05": 8.852067549014464e-05,
+          "median": 0.007946182042360306,
+          "q95": 0.10860250890254974,
+          "maximum": 0.9999745488166809,
+          "standard_deviation": 0.10697213560342789,
+          "unique_count_float32": 17927,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "minimum": 0.0,
+          "q05": 8.332324796356261e-05,
+          "median": 0.004387666471302509,
+          "q95": 0.09688548743724823,
+          "maximum": 0.9999533295631409,
+          "standard_deviation": 0.09876556694507599,
+          "unique_count_float32": 17928,
+          "zero_fraction": 5.569169079973268e-05,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "minimum": 7.940285513541312e-07,
+          "q05": 6.911940727150068e-05,
+          "median": 0.004997361451387405,
+          "q95": 0.08186379075050354,
+          "maximum": 0.9999778270721436,
+          "standard_deviation": 0.03364190831780434,
+          "unique_count_float32": 17927,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "minimum": 4.3767661850324657e-07,
+          "q05": 5.703018541680649e-05,
+          "median": 0.0029769986867904663,
+          "q95": 0.08200965821743011,
+          "maximum": 0.9999536275863647,
+          "standard_deviation": 0.03215043619275093,
+          "unique_count_float32": 17926,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_total_8_90mps_energy_fraction",
+          "minimum": 4.117187472729711e-06,
+          "q05": 0.000957449316047132,
+          "median": 0.04468781501054764,
+          "q95": 0.633963942527771,
+          "maximum": 0.9999990463256836,
+          "standard_deviation": 0.21517491340637207,
+          "unique_count_float32": 17928,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "minimum": 0.10287851840257645,
+          "q05": 0.2819186747074127,
+          "median": 0.5673118829727173,
+          "q95": 0.6349907517433167,
+          "maximum": 0.7608042359352112,
+          "standard_deviation": 0.1253942847251892,
+          "unique_count_float32": 17893,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_q90_abs_offset_mps_over_90",
+          "minimum": 0.09231480211019516,
+          "q05": 0.4510904550552368,
+          "median": 0.8683943748474121,
+          "q95": 0.9361788630485535,
+          "maximum": 0.9845818877220154,
+          "standard_deviation": 0.17447081208229065,
+          "unique_count_float32": 7361,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "minimum": 0.13626982271671295,
+          "q05": 0.1914774626493454,
+          "median": 0.32374462485313416,
+          "q95": 0.7524929046630859,
+          "maximum": 0.9999862909317017,
+          "standard_deviation": 0.1796417534351349,
+          "unique_count_float32": 17912,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_resolution_cell_peak_count_over_12",
+          "minimum": 0.0833333358168602,
+          "q05": 0.25,
+          "median": 0.8333333730697632,
+          "q95": 1.0,
+          "maximum": 1.0,
+          "standard_deviation": 0.2637394666671753,
+          "unique_count_float32": 34,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.3870015593673424
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "minimum": 2.5186732273141388e-06,
+          "q05": 0.005284509621560574,
+          "median": 0.03675786405801773,
+          "q95": 0.2684401869773865,
+          "maximum": 1.0,
+          "standard_deviation": 0.08849489688873291,
+          "unique_count_float32": 17921,
+          "zero_fraction": 0.0,
+          "one_fraction": 5.569169079973268e-05
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "minimum": 0.0014080575201660395,
+          "q05": 0.03182348236441612,
+          "median": 0.14622122049331665,
+          "q95": 0.25299888849258423,
+          "maximum": 0.292067289352417,
+          "standard_deviation": 0.07308416813611984,
+          "unique_count_float32": 17922,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.001139781903475523,
+          "median": 0.02403322234749794,
+          "q95": 0.08133479952812195,
+          "maximum": 0.2051209956407547,
+          "standard_deviation": 0.026152068749070168,
+          "unique_count_float32": 17733,
+          "zero_fraction": 0.010692804633548674,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.0023345318622887135,
+          "median": 0.027640491724014282,
+          "q95": 0.09664059430360794,
+          "maximum": 0.220150426030159,
+          "standard_deviation": 0.03028791770339012,
+          "unique_count_float32": 17868,
+          "zero_fraction": 0.0030630429939852975,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.002620309591293335,
+          "median": 0.024225285276770592,
+          "q95": 0.07169261574745178,
+          "maximum": 0.21498873829841614,
+          "standard_deviation": 0.024571575224399567,
+          "unique_count_float32": 17908,
+          "zero_fraction": 0.0007239919803965248,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_centroid_hz_over_2000",
+          "minimum": 0.0,
+          "q05": 0.2778899669647217,
+          "median": 0.46014267206192017,
+          "q95": 0.7042802572250366,
+          "maximum": 0.9745279550552368,
+          "standard_deviation": 0.12530210614204407,
+          "unique_count_float32": 17913,
+          "zero_fraction": 5.569169079973268e-05,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_top3_concentration",
+          "minimum": 0.0,
+          "q05": 0.11594073474407196,
+          "median": 0.27047199010849,
+          "q95": 0.5908600687980652,
+          "maximum": 1.0,
+          "standard_deviation": 0.1527305692434311,
+          "unique_count_float32": 17917,
+          "zero_fraction": 5.569169079973268e-05,
+          "one_fraction": 0.00016707507239919803
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_entropy",
+          "minimum": 0.0,
+          "q05": 0.5748910903930664,
+          "median": 0.85554438829422,
+          "q95": 0.9184848070144653,
+          "maximum": 0.9681038856506348,
+          "standard_deviation": 0.10794305801391602,
+          "unique_count_float32": 17882,
+          "zero_fraction": 0.00016707507239919803,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "minimum": 0.0,
+          "q05": 0.03333383798599243,
+          "median": 0.16543173789978027,
+          "q95": 0.5771282911300659,
+          "maximum": 0.9461036920547485,
+          "standard_deviation": 0.1851239651441574,
+          "unique_count_float32": 17923,
+          "zero_fraction": 5.569169079973268e-05,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_negative_8_30mps_energy_fraction",
+          "minimum": 8.235335968720392e-08,
+          "q05": 0.00027365569258108735,
+          "median": 0.0199122354388237,
+          "q95": 0.3055424690246582,
+          "maximum": 0.9999788403511047,
+          "standard_deviation": 0.1642621010541916,
+          "unique_count_float32": 17927,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_positive_8_30mps_energy_fraction",
+          "minimum": 0.0,
+          "q05": 0.0002606340276543051,
+          "median": 0.012107240036129951,
+          "q95": 0.2787778079509735,
+          "maximum": 0.9999614953994751,
+          "standard_deviation": 0.159917950630188,
+          "unique_count_float32": 17927,
+          "zero_fraction": 5.569169079973268e-05,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_total_8_90mps_energy_fraction",
+          "minimum": 4.654176791518694e-06,
+          "q05": 0.0021682067308574915,
+          "median": 0.10509072989225388,
+          "q95": 0.904342532157898,
+          "maximum": 0.9999995827674866,
+          "standard_deviation": 0.28103023767471313,
+          "unique_count_float32": 17920,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        }
+      ],
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 476,
+          "usable_event_count": 8929,
+          "mean": [
+            0.04506936151629944,
+            0.030286856555563256,
+            0.008297045278079687,
+            0.005383129537972339,
+            0.11096257152164223,
+            0.42074526658246014,
+            0.6890324549135148,
+            0.4723074049765538,
+            0.5887324069258961,
+            0.12014042140708353,
+            0.11379978554378596,
+            0.03139542020883665,
+            0.034953222153262506,
+            0.03148253877984703,
+            0.46237159470322153,
+            0.3054428309788795,
+            0.802516888745729,
+            0.3634201774468938,
+            0.096595544466924,
+            0.07409326456646591,
+            0.20995274348217963
+          ],
+          "median": [
+            0.0063545722514390945,
+            0.00228204857558012,
+            0.0023609630297869444,
+            0.000848135503474623,
+            0.024447578936815262,
+            0.4015354812145233,
+            0.7124530673027039,
+            0.43206074833869934,
+            0.5833333134651184,
+            0.09211378544569016,
+            0.10452090203762054,
+            0.026160068809986115,
+            0.028696201741695404,
+            0.022246407344937325,
+            0.42370349168777466,
+            0.2672944962978363,
+            0.8358985185623169,
+            0.3713281452655792,
+            0.017671527341008186,
+            0.006302556488662958,
+            0.06417074799537659
+          ],
+          "q25": [
+            0.0018656179308891296,
+            0.0007787350914441049,
+            0.0006702448008581996,
+            0.00026301515754312277,
+            0.007166140712797642,
+            0.3500168025493622,
+            0.6081916093826294,
+            0.35312044620513916,
+            0.4166666567325592,
+            0.036421772092580795,
+            0.0628252774477005,
+            0.011636681854724884,
+            0.015190433710813522,
+            0.011830267496407032,
+            0.3668808937072754,
+            0.1752040535211563,
+            0.7695217132568359,
+            0.23904885351657867,
+            0.004949134308844805,
+            0.0019235529471188784,
+            0.01658467948436737
+          ],
+          "q75": [
+            0.02238030731678009,
+            0.007985897362232208,
+            0.00752182025462389,
+            0.0032754919957369566,
+            0.09087225794792175,
+            0.513718843460083,
+            0.8354028463363647,
+            0.5469595193862915,
+            0.75,
+            0.1777808964252472,
+            0.16121052205562592,
+            0.04385681822896004,
+            0.04881296679377556,
+            0.03982756286859512,
+            0.5447454452514648,
+            0.40671032667160034,
+            0.8711961507797241,
+            0.4817548394203186,
+            0.0646982192993164,
+            0.027385510504245758,
+            0.2592255473136902
+          ]
+        },
+        "BirdTarget": {
+          "parent_count": 239,
+          "usable_event_count": 4477,
+          "mean": [
+            0.033861193924802455,
+            0.039057355720984475,
+            0.033236749594591726,
+            0.03370215482689327,
+            0.21774766884170887,
+            0.5772521131427953,
+            0.8731416395719972,
+            0.29704203812943414,
+            0.9045584855406897,
+            0.03295041663129368,
+            0.19027555885651706,
+            0.02979183095612155,
+            0.04739725463854809,
+            0.02825218769960134,
+            0.469059383626865,
+            0.3380094510364777,
+            0.7998986509174062,
+            0.12446887476808097,
+            0.06140997781210127,
+            0.0702950156549299,
+            0.3049008116154475
+          ],
+          "median": [
+            0.014112059026956558,
+            0.015207268297672272,
+            0.01789677143096924,
+            0.01815706118941307,
+            0.12125976383686066,
+            0.5947290062904358,
+            0.8966482281684875,
+            0.2544221580028534,
+            1.0,
+            0.033774591982364655,
+            0.21348606050014496,
+            0.02221512794494629,
+            0.0353393629193306,
+            0.02753826044499874,
+            0.4768814444541931,
+            0.3225855231285095,
+            0.8521833419799805,
+            0.10119723528623581,
+            0.028526319190859795,
+            0.029375897720456123,
+            0.2160254716873169
+          ],
+          "q25": [
+            0.003820606507360935,
+            0.0037554800510406494,
+            0.004497164394706488,
+            0.004466781858354807,
+            0.03296037018299103,
+            0.5698939561843872,
+            0.8710172772407532,
+            0.21635589003562927,
+            0.9166666269302368,
+            0.029137004166841507,
+            0.15447494387626648,
+            0.011070643551647663,
+            0.020600296556949615,
+            0.016559608280658722,
+            0.3928173780441284,
+            0.21871647238731384,
+            0.7183108925819397,
+            0.057827308773994446,
+            0.007971381768584251,
+            0.007828830741345882,
+            0.06142488494515419
+          ],
+          "q75": [
+            0.03851504996418953,
+            0.04136500880122185,
+            0.04562405124306679,
+            0.04574635624885559,
+            0.3124137818813324,
+            0.61386638879776,
+            0.9166316390037537,
+            0.3272831439971924,
+            1.0,
+            0.03701861575245857,
+            0.24144528806209564,
+            0.03713863343000412,
+            0.05815644562244415,
+            0.037769317626953125,
+            0.5427827835083008,
+            0.4392614960670471,
+            0.8965222835540771,
+            0.168364480137825,
+            0.06954128295183182,
+            0.07596033066511154,
+            0.48498955368995667
+          ]
+        },
+        "BalloonTarget": {
+          "parent_count": 238,
+          "usable_event_count": 4550,
+          "mean": [
+            0.01657142666294596,
+            0.01652725642812664,
+            0.022765928552612672,
+            0.02283438114745637,
+            0.1283996999345262,
+            0.6029332245444203,
+            0.8995439463002342,
+            0.25341173714661336,
+            0.963928574009256,
+            0.03422986627177714,
+            0.1631458298315468,
+            0.02579342164576711,
+            0.020961029351417713,
+            0.02410573984295447,
+            0.4876536764744874,
+            0.2746310212667827,
+            0.8580781059212736,
+            0.09022080344447334,
+            0.030396532412908697,
+            0.030561968510500574,
+            0.21405903501220555
+          ],
+          "median": [
+            0.006542546674609184,
+            0.0065000951290130615,
+            0.009026949293911457,
+            0.00915600173175335,
+            0.0538259819149971,
+            0.6037928462028503,
+            0.9019907116889954,
+            0.24297305941581726,
+            1.0,
+            0.03445880115032196,
+            0.17267364263534546,
+            0.022131629288196564,
+            0.02043076977133751,
+            0.023577284067869186,
+            0.5041582584381104,
+            0.2379343956708908,
+            0.8902696967124939,
+            0.08245959877967834,
+            0.01601554825901985,
+            0.01658620312809944,
+            0.12342525273561478
+          ],
+          "q25": [
+            0.0010762501042336226,
+            0.0011164937168359756,
+            0.0015717759961262345,
+            0.0015799188986420631,
+            0.009362832643091679,
+            0.5878950357437134,
+            0.8839378356933594,
+            0.2139170914888382,
+            0.9583333730697632,
+            0.0321832150220871,
+            0.1055879294872284,
+            0.010465968400239944,
+            0.00971754640340805,
+            0.010456377640366554,
+            0.4306749701499939,
+            0.17188388109207153,
+            0.8577507138252258,
+            0.06262228637933731,
+            0.0031359626445919275,
+            0.0031117612961679697,
+            0.025074252858757973
+          ],
+          "q75": [
+            0.02460147812962532,
+            0.02401692233979702,
+            0.03395950049161911,
+            0.034291163086891174,
+            0.19691160321235657,
+            0.6189608573913574,
+            0.9188037514686584,
+            0.27798590064048767,
+            1.0,
+            0.03667937591671944,
+            0.22614553570747375,
+            0.03403059020638466,
+            0.03104129619896412,
+            0.036504440009593964,
+            0.5637515187263489,
+            0.3369976878166199,
+            0.9075716137886047,
+            0.10464362055063248,
+            0.04757815599441528,
+            0.047512784600257874,
+            0.35588178038597107
+          ]
+        }
+      },
+      "drone_bird_discrimination": {
+        "median_residual_negative_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.5475677718786259,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.22870222725782716
+        },
+        "median_residual_positive_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.6852035793396857,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.6857419036481075
+        },
+        "median_residual_negative_30_60mps_energy_fraction": {
+          "direction_free_auc": 0.7758034176013502,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.0652549024680555
+        },
+        "median_residual_positive_30_60mps_energy_fraction": {
+          "direction_free_auc": 0.8341962307935726,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.1803826419083951
+        },
+        "median_residual_total_8_90mps_energy_fraction": {
+          "direction_free_auc": 0.6719920185647481,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.6074979438203767
+        },
+        "median_residual_rms_offset_mps_over_90": {
+          "direction_free_auc": 0.9194692521360008,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.9659347600065744
+        },
+        "median_residual_q90_abs_offset_mps_over_90": {
+          "direction_free_auc": 0.9055896417144264,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.8862417739002181
+        },
+        "median_residual_top4_resolution_cell_concentration": {
+          "direction_free_auc": 0.869435849653669,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.8613258881550576
+        },
+        "median_residual_resolution_cell_peak_count_over_12": {
+          "direction_free_auc": 0.8976389719067543,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.0092591851261614
+        },
+        "median_residual_sideband_snr_db_over_30": {
+          "direction_free_auc": 0.9032426778242678,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.5812426441595553
+        },
+        "median_pulse_envelope_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.8393560353011498,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.9970327119047278
+        },
+        "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.5427068316866496,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.2187535755097491
+        },
+        "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.5815152420800956,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.18138474337563903
+        },
+        "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.5013668647375268,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.07506894089705549
+        },
+        "median_pulse_envelope_modulation_centroid_hz_over_2000": {
+          "direction_free_auc": 0.5778937097851693,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.38292732804966184
+        },
+        "median_pulse_envelope_modulation_top3_concentration": {
+          "direction_free_auc": 0.5679696564818396,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.2655749085094891
+        },
+        "median_pulse_envelope_modulation_entropy": {
+          "direction_free_auc": 0.5524023416898141,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.0878705495576727
+        },
+        "median_pulse_envelope_modulation_snr_db_over_30": {
+          "direction_free_auc": 0.9270902921838191,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.9185439372449045
+        },
+        "q90_residual_negative_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.5239223304384515,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.051523181625759217
+        },
+        "q90_residual_positive_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.6256592595197075,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.48185489145499316
+        },
+        "q90_residual_total_8_90mps_energy_fraction": {
+          "direction_free_auc": 0.6241737280686332,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.4081802463366935
+        }
+      },
+      "drone_bird_discrimination_unit": "one mean feature vector per parent over every causal event; missing and unsupported-mode events retain exact-zero intervention rows",
+      "informative_feature_names": [
+        "median_residual_positive_8_30mps_energy_fraction",
+        "median_residual_negative_30_60mps_energy_fraction",
+        "median_residual_positive_30_60mps_energy_fraction",
+        "median_residual_total_8_90mps_energy_fraction",
+        "median_residual_rms_offset_mps_over_90",
+        "median_residual_q90_abs_offset_mps_over_90",
+        "median_residual_top4_resolution_cell_concentration",
+        "median_residual_resolution_cell_peak_count_over_12",
+        "median_residual_sideband_snr_db_over_30",
+        "median_pulse_envelope_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_centroid_hz_over_2000",
+        "median_pulse_envelope_modulation_top3_concentration",
+        "median_pulse_envelope_modulation_snr_db_over_30",
+        "q90_residual_positive_8_30mps_energy_fraction",
+        "q90_residual_total_8_90mps_energy_fraction"
+      ],
+      "informative_feature_count": 16,
+      "within_calibrated_sampling_mode_parent_balanced_effects": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 20000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 198,
+          "bird_parent_count": 63,
+          "event_count": 4607,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.3842430404416422,
+            "median_residual_positive_8_30mps_energy_fraction": -0.014445859176710294,
+            "median_residual_negative_30_60mps_energy_fraction": -0.9583295253102181,
+            "median_residual_positive_30_60mps_energy_fraction": -1.006235400773465,
+            "median_residual_total_8_90mps_energy_fraction": -0.34107195362610626,
+            "median_residual_rms_offset_mps_over_90": -0.8385131867983021,
+            "median_residual_q90_abs_offset_mps_over_90": -0.833918560639516,
+            "median_residual_top4_resolution_cell_concentration": 0.7538885815314664,
+            "median_residual_resolution_cell_peak_count_over_12": -0.8654667350308751,
+            "median_residual_sideband_snr_db_over_30": 0.5615645795293597,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.7136310223911936,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.22677774660562308,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.32360379525043087,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.29704582808701935,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.030764541867014692,
+            "median_pulse_envelope_modulation_top3_concentration": -0.3628575688413462,
+            "median_pulse_envelope_modulation_entropy": -0.4201919808598824,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.8256969966173677,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.18424903629966677,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.09121488372764988,
+            "q90_residual_total_8_90mps_energy_fraction": -0.1745772646135497
+          }
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 24000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 230,
+          "bird_parent_count": 65,
+          "event_count": 5159,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.06777263169022424,
+            "median_residual_positive_8_30mps_energy_fraction": -0.04814544725389397,
+            "median_residual_negative_30_60mps_energy_fraction": -0.7776590132622085,
+            "median_residual_positive_30_60mps_energy_fraction": -0.6179405780577822,
+            "median_residual_total_8_90mps_energy_fraction": -0.02193371517930633,
+            "median_residual_rms_offset_mps_over_90": -0.7287066529908565,
+            "median_residual_q90_abs_offset_mps_over_90": -0.6391740105412558,
+            "median_residual_top4_resolution_cell_concentration": 0.7565594419587994,
+            "median_residual_resolution_cell_peak_count_over_12": -0.6499092782741993,
+            "median_residual_sideband_snr_db_over_30": 0.5781672691589945,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.6993795067570128,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.23754938374884865,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.2943257025949817,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.46606530706160526,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.28704295791443313,
+            "median_pulse_envelope_modulation_top3_concentration": -0.3279724830512872,
+            "median_pulse_envelope_modulation_entropy": -0.41325963797153514,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.7646728496479009,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.09789272241329333,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.05022311006817806,
+            "q90_residual_total_8_90mps_energy_fraction": 0.05553687286208519
+          }
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 264,
+          "bird_parent_count": 114,
+          "event_count": 8241,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.20630446610787015,
+            "median_residual_positive_8_30mps_energy_fraction": -0.7412209723930382,
+            "median_residual_negative_30_60mps_energy_fraction": -1.2034558002209061,
+            "median_residual_positive_30_60mps_energy_fraction": -1.3906583086434392,
+            "median_residual_total_8_90mps_energy_fraction": -0.5319679211405531,
+            "median_residual_rms_offset_mps_over_90": -0.9280252379989371,
+            "median_residual_q90_abs_offset_mps_over_90": -0.842209515915959,
+            "median_residual_top4_resolution_cell_concentration": 0.8221161813445443,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9228979048501412,
+            "median_residual_sideband_snr_db_over_30": 0.7351685671816341,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -1.0679979232807983,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.1685783469566747,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.20915112786593318,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.38999758750005614,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.43764264664284314,
+            "median_pulse_envelope_modulation_top3_concentration": -0.20765176084355658,
+            "median_pulse_envelope_modulation_entropy": -0.1506844122985831,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9513172469611392,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.20945704152451378,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.719477156940602,
+            "q90_residual_total_8_90mps_energy_fraction": -0.5275429016814395
+          }
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 264,
+          "bird_parent_count": 114,
+          "event_count": 8230,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.16328822078193583,
+            "median_residual_positive_8_30mps_energy_fraction": -0.7520918459898998,
+            "median_residual_negative_30_60mps_energy_fraction": -1.3136866132991998,
+            "median_residual_positive_30_60mps_energy_fraction": -1.3264999153569086,
+            "median_residual_total_8_90mps_energy_fraction": -0.4912846218426681,
+            "median_residual_rms_offset_mps_over_90": -0.9813840756807423,
+            "median_residual_q90_abs_offset_mps_over_90": -0.828777403234001,
+            "median_residual_top4_resolution_cell_concentration": 0.8907240317830412,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9221189737663,
+            "median_residual_sideband_snr_db_over_30": 0.6686189563229998,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -1.1505626496598054,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.017211869325948315,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.30242817620811685,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.4538366743571541,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.4113636731725893,
+            "median_pulse_envelope_modulation_top3_concentration": -0.23483122296749886,
+            "median_pulse_envelope_modulation_entropy": -0.1020079430613396,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9480019542900696,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.10055826708024929,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.6476249461203256,
+            "q90_residual_total_8_90mps_energy_fraction": -0.46921753916237574
+          }
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 157,
+          "bird_parent_count": 105,
+          "event_count": 5762,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.130705414021266,
+            "median_residual_positive_8_30mps_energy_fraction": -0.6770539887014358,
+            "median_residual_negative_30_60mps_energy_fraction": -0.6140817967429878,
+            "median_residual_positive_30_60mps_energy_fraction": -0.833070804231095,
+            "median_residual_total_8_90mps_energy_fraction": -0.4281355960864037,
+            "median_residual_rms_offset_mps_over_90": -0.9442262223014317,
+            "median_residual_q90_abs_offset_mps_over_90": -0.9077142620876247,
+            "median_residual_top4_resolution_cell_concentration": 0.8382394676314265,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9151746871710964,
+            "median_residual_sideband_snr_db_over_30": 0.8596755430843275,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.8596251647419243,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.3001617284031187,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.09340281341421924,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.18252592490582883,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.35931693355546546,
+            "median_pulse_envelope_modulation_top3_concentration": -0.5370471236287425,
+            "median_pulse_envelope_modulation_entropy": 0.30396639725587904,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9065940396954831,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.12628855258756203,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.7224721617575879,
+            "q90_residual_total_8_90mps_energy_fraction": -0.43727431617316004
+          }
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 157,
+          "bird_parent_count": 105,
+          "event_count": 5749,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.11374956387839431,
+            "median_residual_positive_8_30mps_energy_fraction": -0.5869598246062654,
+            "median_residual_negative_30_60mps_energy_fraction": -0.6755909019428127,
+            "median_residual_positive_30_60mps_energy_fraction": -0.7586708078382056,
+            "median_residual_total_8_90mps_energy_fraction": -0.37683536474028595,
+            "median_residual_rms_offset_mps_over_90": -0.961653107646682,
+            "median_residual_q90_abs_offset_mps_over_90": -0.8528546825731866,
+            "median_residual_top4_resolution_cell_concentration": 0.8537856618834496,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9453211964123855,
+            "median_residual_sideband_snr_db_over_30": 0.7251100454749774,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.8130251704913156,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.2306821725999518,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.11371289445335922,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.08321182783012221,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.3931944462463324,
+            "median_pulse_envelope_modulation_top3_concentration": -0.6609942939853776,
+            "median_pulse_envelope_modulation_entropy": 0.4208212123633507,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.8355333006536622,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.09822323496892703,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.6367392752313363,
+            "q90_residual_total_8_90mps_energy_fraction": -0.3844465315542205
+          }
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 33,
+          "bird_parent_count": 41,
+          "event_count": 1158,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.3053158668366914,
+            "median_residual_positive_8_30mps_energy_fraction": -0.057552536573654965,
+            "median_residual_negative_30_60mps_energy_fraction": -0.3613265009179325,
+            "median_residual_positive_30_60mps_energy_fraction": -0.4062630706905088,
+            "median_residual_total_8_90mps_energy_fraction": 0.6854376215100245,
+            "median_residual_rms_offset_mps_over_90": -0.9573326712286563,
+            "median_residual_q90_abs_offset_mps_over_90": -1.0279958532840325,
+            "median_residual_top4_resolution_cell_concentration": 1.049953462762083,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9923076997141865,
+            "median_residual_sideband_snr_db_over_30": 1.2834931665882279,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.7805216790396629,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": -0.7827575886364535,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.5194531015238394,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.08878844238909343,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.39568655117941126,
+            "median_pulse_envelope_modulation_top3_concentration": 0.8035418271472965,
+            "median_pulse_envelope_modulation_entropy": -0.8344321104577589,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.8482004519107832,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.21631680796029404,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.12559278775826102,
+            "q90_residual_total_8_90mps_energy_fraction": 0.5822321537758867
+          }
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 33,
+          "bird_parent_count": 41,
+          "event_count": 1149,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.5523215928780346,
+            "median_residual_positive_8_30mps_energy_fraction": -0.13021788145170643,
+            "median_residual_negative_30_60mps_energy_fraction": -0.4557832661611297,
+            "median_residual_positive_30_60mps_energy_fraction": -0.5162627329998669,
+            "median_residual_total_8_90mps_energy_fraction": 0.4558028368713373,
+            "median_residual_rms_offset_mps_over_90": -0.9977829890994332,
+            "median_residual_q90_abs_offset_mps_over_90": -1.0084634041538532,
+            "median_residual_top4_resolution_cell_concentration": 1.0038637335955432,
+            "median_residual_resolution_cell_peak_count_over_12": -1.0536448001183207,
+            "median_residual_sideband_snr_db_over_30": 0.7748084946998992,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.47991597008744846,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": -0.7237188862143714,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.5135912291276359,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.06663126168729737,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.6735249973153251,
+            "median_pulse_envelope_modulation_top3_concentration": 0.5781564074555566,
+            "median_pulse_envelope_modulation_entropy": -0.6934963829091524,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9165434976678131,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.5525423907036822,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.019768824851798567,
+            "q90_residual_total_8_90mps_energy_fraction": 0.5903762583905968
+          }
+        }
+      },
+      "direction_consistent_informative_feature_names": [
+        "median_residual_positive_8_30mps_energy_fraction",
+        "median_residual_negative_30_60mps_energy_fraction",
+        "median_residual_positive_30_60mps_energy_fraction",
+        "median_residual_rms_offset_mps_over_90",
+        "median_residual_q90_abs_offset_mps_over_90",
+        "median_residual_top4_resolution_cell_concentration",
+        "median_residual_resolution_cell_peak_count_over_12",
+        "median_residual_sideband_snr_db_over_30",
+        "median_pulse_envelope_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_snr_db_over_30"
+      ],
+      "direction_consistent_informative_feature_count": 10,
+      "summary_reconstructed_from_frame_evidence": true,
+      "summary_reconstruction_maximum_absolute_error": 0.0,
+      "raw_frame_mapping_audit": {
+        "legacy_mat_list_ordinal_is_raw_dat_frame_index": false,
+        "legacy_ordinal_raw_dat_mismatch_frame_count": 46,
+        "legacy_ordinal_raw_dat_mismatch_track_ids": [
+          1010
+        ],
+        "mat_acquisition_to_raw_dat_exact": true
+      }
+    },
+    "val": {
+      "split": "val",
+      "parent_count": 223,
+      "event_count": 4288,
+      "valid_event_count": 4233,
+      "usable_reliable_intervention_event_count": 4184,
+      "parent_discrimination_event_scope": "all causal events per parent, including missing and unsupported-mode exact-zero interventions",
+      "neutral_intervention_event_count": 49,
+      "prt_142_frame_count": 170,
+      "prt_142_feature_reliable_frame_count": 0,
+      "prt_142_only_event_count": 49,
+      "prt_142_only_nonzero_intervention_event_count": 0,
+      "selected_frame_count": 15323,
+      "reliable_frame_count": 15153,
+      "reliable_frame_fraction": 0.9889055667950141,
+      "parent_support_by_prt_num_and_label": {
+        "142": {
+          "DroneTarget": 2,
+          "BirdTarget": 0,
+          "BalloonTarget": 0
+        },
+        "226": {
+          "DroneTarget": 51,
+          "BirdTarget": 16,
+          "BalloonTarget": 14
+        },
+        "360": {
+          "DroneTarget": 69,
+          "BirdTarget": 31,
+          "BalloonTarget": 28
+        },
+        "570": {
+          "DroneTarget": 32,
+          "BirdTarget": 22,
+          "BalloonTarget": 32
+        },
+        "900": {
+          "DroneTarget": 5,
+          "BirdTarget": 5,
+          "BalloonTarget": 4
+        }
+      },
+      "parent_support_by_sampling_mode_and_label": {
+        "prt_num=142|pri_ns=28000|carrier_mhz=15600": {
+          "DroneTarget": 2,
+          "BirdTarget": 0,
+          "BalloonTarget": 0
+        },
+        "prt_num=142|pri_ns=31000|carrier_mhz=16300": {
+          "DroneTarget": 2,
+          "BirdTarget": 0,
+          "BalloonTarget": 0
+        },
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "DroneTarget": 42,
+          "BirdTarget": 14,
+          "BalloonTarget": 14
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "DroneTarget": 51,
+          "BirdTarget": 16,
+          "BalloonTarget": 14
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 69,
+          "BirdTarget": 31,
+          "BalloonTarget": 28
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 69,
+          "BirdTarget": 31,
+          "BalloonTarget": 28
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 32,
+          "BirdTarget": 22,
+          "BalloonTarget": 32
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 32,
+          "BirdTarget": 22,
+          "BalloonTarget": 32
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "DroneTarget": 5,
+          "BirdTarget": 5,
+          "BalloonTarget": 4
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "DroneTarget": 5,
+          "BirdTarget": 5,
+          "BalloonTarget": 4
+        }
+      },
+      "sampling_mode_diagnostics": {
+        "prt_num=142|pri_ns=28000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 142,
+            "pri_nanoseconds": 28000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 85,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 2,
+            "BirdTarget": 0,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=142|pri_ns=31000|carrier_mhz=16300": {
+          "sampling_mode": {
+            "prt_num": 142,
+            "pri_nanoseconds": 31000,
+            "carrier_megahertz": 16300
+          },
+          "frame_count": 85,
+          "feature_reliable_frame_count": 0,
+          "parent_support_by_label": {
+            "DroneTarget": 2,
+            "BirdTarget": 0,
+            "BalloonTarget": 0
+          }
+        },
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 20000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 2220,
+          "feature_reliable_frame_count": 2220,
+          "parent_support_by_label": {
+            "DroneTarget": 42,
+            "BirdTarget": 14,
+            "BalloonTarget": 14
+          }
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 24000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 2392,
+          "feature_reliable_frame_count": 2392,
+          "parent_support_by_label": {
+            "DroneTarget": 51,
+            "BirdTarget": 16,
+            "BalloonTarget": 14
+          }
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 3745,
+          "feature_reliable_frame_count": 3745,
+          "parent_support_by_label": {
+            "DroneTarget": 69,
+            "BirdTarget": 31,
+            "BalloonTarget": 28
+          }
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 2508,
+          "feature_reliable_frame_count": 2508,
+          "parent_support_by_label": {
+            "DroneTarget": 69,
+            "BirdTarget": 31,
+            "BalloonTarget": 28
+          }
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 2291,
+          "feature_reliable_frame_count": 2291,
+          "parent_support_by_label": {
+            "DroneTarget": 32,
+            "BirdTarget": 22,
+            "BalloonTarget": 32
+          }
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 1533,
+          "feature_reliable_frame_count": 1533,
+          "parent_support_by_label": {
+            "DroneTarget": 32,
+            "BirdTarget": 22,
+            "BalloonTarget": 32
+          }
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "frame_count": 282,
+          "feature_reliable_frame_count": 282,
+          "parent_support_by_label": {
+            "DroneTarget": 5,
+            "BirdTarget": 5,
+            "BalloonTarget": 4
+          }
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "frame_count": 182,
+          "feature_reliable_frame_count": 182,
+          "parent_support_by_label": {
+            "DroneTarget": 5,
+            "BirdTarget": 5,
+            "BalloonTarget": 4
+          }
+        }
+      },
+      "features": [
+        {
+          "feature": "median_residual_negative_8_30mps_energy_fraction",
+          "minimum": 3.1316011472881655e-07,
+          "q05": 6.157983443699777e-05,
+          "median": 0.0076541840098798275,
+          "q95": 0.11691731214523315,
+          "maximum": 0.999919593334198,
+          "standard_deviation": 0.07610946893692017,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_positive_8_30mps_energy_fraction",
+          "minimum": 9.97166125671356e-07,
+          "q05": 7.799841114319861e-05,
+          "median": 0.004939604550600052,
+          "q95": 0.11108719557523727,
+          "maximum": 0.9999703168869019,
+          "standard_deviation": 0.10902372747659683,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_negative_30_60mps_energy_fraction",
+          "minimum": 8.45180466058082e-07,
+          "q05": 6.301181565504521e-05,
+          "median": 0.005431676749140024,
+          "q95": 0.0845833569765091,
+          "maximum": 0.9999725818634033,
+          "standard_deviation": 0.03435244411230087,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_positive_30_60mps_energy_fraction",
+          "minimum": 7.985671572896536e-07,
+          "q05": 5.976625834591687e-05,
+          "median": 0.0033844076097011566,
+          "q95": 0.08226904273033142,
+          "maximum": 0.9999619722366333,
+          "standard_deviation": 0.049607038497924805,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_total_8_90mps_energy_fraction",
+          "minimum": 9.34679337660782e-06,
+          "q05": 0.0007647617603652179,
+          "median": 0.04604311287403107,
+          "q95": 0.6611789464950562,
+          "maximum": 0.9999958276748657,
+          "standard_deviation": 0.21896147727966309,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_rms_offset_mps_over_90",
+          "minimum": 0.106491819024086,
+          "q05": 0.29933011531829834,
+          "median": 0.5654146671295166,
+          "q95": 0.6373456716537476,
+          "maximum": 0.7236644625663757,
+          "standard_deviation": 0.11912617087364197,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_q90_abs_offset_mps_over_90",
+          "minimum": 0.10319586098194122,
+          "q05": 0.47837215662002563,
+          "median": 0.8705037832260132,
+          "q95": 0.9356912970542908,
+          "maximum": 0.976880669593811,
+          "standard_deviation": 0.16235145926475525,
+          "unique_count_float32": 2282,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_top4_resolution_cell_concentration",
+          "minimum": 0.13807161152362823,
+          "q05": 0.19341275095939636,
+          "median": 0.32754284143447876,
+          "q95": 0.7214681506156921,
+          "maximum": 0.99998539686203,
+          "standard_deviation": 0.17270441353321075,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_residual_resolution_cell_peak_count_over_12",
+          "minimum": 0.0833333358168602,
+          "q05": 0.25,
+          "median": 0.875,
+          "q95": 1.0,
+          "maximum": 1.0,
+          "standard_deviation": 0.25763893127441406,
+          "unique_count_float32": 34,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.3991395793499044
+        },
+        {
+          "feature": "median_residual_sideband_snr_db_over_30",
+          "minimum": 1.7432861341148964e-06,
+          "q05": 0.007119528017938137,
+          "median": 0.03693528473377228,
+          "q95": 0.27404189109802246,
+          "maximum": 0.8304169178009033,
+          "standard_deviation": 0.09137628227472305,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_rms_clipped_0_2_over_2",
+          "minimum": 0.0013155293418094516,
+          "q05": 0.03615736588835716,
+          "median": 0.14956840872764587,
+          "q95": 0.25367048382759094,
+          "maximum": 0.2984187602996826,
+          "standard_deviation": 0.07242150604724884,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.0012337856460362673,
+          "median": 0.02523275837302208,
+          "q95": 0.07790840417146683,
+          "maximum": 0.18966743350028992,
+          "standard_deviation": 0.024723375216126442,
+          "unique_count_float32": 4097,
+          "zero_fraction": 0.010038240917782026,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.002012018347159028,
+          "median": 0.029027078300714493,
+          "q95": 0.10044056177139282,
+          "maximum": 0.20718640089035034,
+          "standard_deviation": 0.03069213591516018,
+          "unique_count_float32": 4134,
+          "zero_fraction": 0.0014340344168260039,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2",
+          "minimum": 0.0,
+          "q05": 0.0022999353241175413,
+          "median": 0.023943673819303513,
+          "q95": 0.07022435963153839,
+          "maximum": 0.2048773467540741,
+          "standard_deviation": 0.02477318048477173,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0002390057361376673,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_centroid_hz_over_2000",
+          "minimum": 0.1629762202501297,
+          "q05": 0.26895132660865784,
+          "median": 0.4498387575149536,
+          "q95": 0.684099018573761,
+          "maximum": 0.7991350889205933,
+          "standard_deviation": 0.12150084972381592,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_top3_concentration",
+          "minimum": 0.07635769993066788,
+          "q05": 0.1168288141489029,
+          "median": 0.2757987380027771,
+          "q95": 0.5917264819145203,
+          "maximum": 0.9631099700927734,
+          "standard_deviation": 0.15423354506492615,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_entropy",
+          "minimum": 0.2705886662006378,
+          "q05": 0.5767310261726379,
+          "median": 0.8534374237060547,
+          "q95": 0.917610764503479,
+          "maximum": 0.9560399055480957,
+          "standard_deviation": 0.10684911161661148,
+          "unique_count_float32": 4137,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "median_pulse_envelope_modulation_snr_db_over_30",
+          "minimum": 0.0010093165328726172,
+          "q05": 0.03302136808633804,
+          "median": 0.16843709349632263,
+          "q95": 0.5678179860115051,
+          "maximum": 0.8589245080947876,
+          "standard_deviation": 0.17739008367061615,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_negative_8_30mps_energy_fraction",
+          "minimum": 2.133176167262718e-06,
+          "q05": 0.00020803030929528177,
+          "median": 0.0188533216714859,
+          "q95": 0.2778993844985962,
+          "maximum": 0.9999576210975647,
+          "standard_deviation": 0.12971538305282593,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_positive_8_30mps_energy_fraction",
+          "minimum": 1.5755637150505208e-06,
+          "q05": 0.00021007108443882316,
+          "median": 0.012733645737171173,
+          "q95": 0.3312413990497589,
+          "maximum": 0.9999818205833435,
+          "standard_deviation": 0.17073537409305573,
+          "unique_count_float32": 4139,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        },
+        {
+          "feature": "q90_residual_total_8_90mps_energy_fraction",
+          "minimum": 4.2583073081914335e-05,
+          "q05": 0.0018328705336898565,
+          "median": 0.10509670525789261,
+          "q95": 0.9053545594215393,
+          "maximum": 0.9999985694885254,
+          "standard_deviation": 0.27850326895713806,
+          "unique_count_float32": 4138,
+          "zero_fraction": 0.0,
+          "one_fraction": 0.0
+        }
+      ],
+      "by_label": {
+        "DroneTarget": {
+          "parent_count": 113,
+          "usable_event_count": 2083,
+          "mean": [
+            0.03212593873792761,
+            0.040556198482417996,
+            0.00941110143200948,
+            0.009364297692299354,
+            0.11515435346886807,
+            0.4323131063102646,
+            0.7081623127897714,
+            0.46625005900573685,
+            0.6092974873321364,
+            0.1206058717753534,
+            0.11913612055162122,
+            0.03217640049391587,
+            0.03745222594563636,
+            0.03253283520675589,
+            0.4558589986838003,
+            0.30024930359049024,
+            0.8047683128100774,
+            0.35468962368067125,
+            0.0753975205343973,
+            0.0872025269106235,
+            0.21172419316383562
+          ],
+          "median": [
+            0.006608308758586645,
+            0.002736327238380909,
+            0.002861278597265482,
+            0.0010791714303195477,
+            0.02705363743007183,
+            0.41517195105552673,
+            0.7320020794868469,
+            0.4295133948326111,
+            0.5833333134651184,
+            0.083499975502491,
+            0.110110804438591,
+            0.02841031551361084,
+            0.0307606253772974,
+            0.02287454344332218,
+            0.42034420371055603,
+            0.26567691564559937,
+            0.8393635749816895,
+            0.3588712811470032,
+            0.017528342083096504,
+            0.007425086572766304,
+            0.06894859671592712
+          ],
+          "q25": [
+            0.002090955153107643,
+            0.0008584433817304671,
+            0.0008476407965645194,
+            0.00032572384225204587,
+            0.008494744077324867,
+            0.36129653453826904,
+            0.6378346085548401,
+            0.3453487753868103,
+            0.4166666865348816,
+            0.03593967854976654,
+            0.067936472594738,
+            0.015242267400026321,
+            0.01803419180214405,
+            0.01252782717347145,
+            0.3681451976299286,
+            0.1831475794315338,
+            0.7781986594200134,
+            0.22974252700805664,
+            0.005469119176268578,
+            0.001950352336280048,
+            0.017968006432056427
+          ],
+          "q75": [
+            0.020775150507688522,
+            0.010028447024524212,
+            0.009389940649271011,
+            0.004370537120848894,
+            0.10047131776809692,
+            0.5328261256217957,
+            0.8514682650566101,
+            0.5400173664093018,
+            0.7916666269302368,
+            0.18113751709461212,
+            0.16807830333709717,
+            0.04406700283288956,
+            0.050432655960321426,
+            0.040155574679374695,
+            0.5171053409576416,
+            0.39514586329460144,
+            0.8689517378807068,
+            0.4721384346485138,
+            0.05650424212217331,
+            0.03352956101298332,
+            0.28723007440567017
+          ]
+        },
+        "BirdTarget": {
+          "parent_count": 56,
+          "usable_event_count": 1051,
+          "mean": [
+            0.040987814549657546,
+            0.03870069006174176,
+            0.039608051729836086,
+            0.039886570291756955,
+            0.25497213487415227,
+            0.5776944180168956,
+            0.8823004783716915,
+            0.3065174721911564,
+            0.901522360189147,
+            0.03390137206988549,
+            0.20109961831943973,
+            0.029079636364135596,
+            0.05045951451319465,
+            0.028599176935578646,
+            0.46873503865286015,
+            0.3307981862129199,
+            0.8182529883652386,
+            0.12018372849441647,
+            0.07135242635563671,
+            0.07306240951705684,
+            0.3479550890256779
+          ],
+          "median": [
+            0.01859023980796337,
+            0.02101580984890461,
+            0.024246765300631523,
+            0.024189352989196777,
+            0.16647101938724518,
+            0.5927687287330627,
+            0.892738401889801,
+            0.26874086260795593,
+            1.0,
+            0.034297581762075424,
+            0.22278955578804016,
+            0.023429423570632935,
+            0.03896375373005867,
+            0.029227344319224358,
+            0.478897362947464,
+            0.32150113582611084,
+            0.8618966937065125,
+            0.09582066535949707,
+            0.036041975021362305,
+            0.03824147209525108,
+            0.27039316296577454
+          ],
+          "q25": [
+            0.004667190369218588,
+            0.00533271674066782,
+            0.005568582098931074,
+            0.005667528137564659,
+            0.03929145634174347,
+            0.5613740682601929,
+            0.8663687109947205,
+            0.23042486608028412,
+            0.8333333134651184,
+            0.030524343252182007,
+            0.1685488522052765,
+            0.013799399137496948,
+            0.02460206113755703,
+            0.017431942746043205,
+            0.4126531183719635,
+            0.21369802951812744,
+            0.7483252286911011,
+            0.05774553865194321,
+            0.010577383451163769,
+            0.0114603191614151,
+            0.0722767561674118
+          ],
+          "q75": [
+            0.0532100573182106,
+            0.05318967252969742,
+            0.056353744119405746,
+            0.05368277430534363,
+            0.3860912322998047,
+            0.6137897372245789,
+            0.9154247045516968,
+            0.35559752583503723,
+            1.0,
+            0.037570226937532425,
+            0.24614378809928894,
+            0.03617066890001297,
+            0.06640427559614182,
+            0.038244739174842834,
+            0.5371232032775879,
+            0.4217817783355713,
+            0.899878740310669,
+            0.15871012210845947,
+            0.08993490040302277,
+            0.09507784247398376,
+            0.5586888790130615
+          ]
+        },
+        "BalloonTarget": {
+          "parent_count": 54,
+          "usable_event_count": 1050,
+          "mean": [
+            0.012193342575218855,
+            0.012444410401082807,
+            0.016919739688203966,
+            0.016377519684488324,
+            0.09482686771079898,
+            0.6040244015625545,
+            0.9013866355305626,
+            0.24983746483212427,
+            0.9695634943530673,
+            0.03363115569155308,
+            0.153743551093198,
+            0.027356659951100093,
+            0.0191543392517737,
+            0.021326478212500832,
+            0.46616917151780357,
+            0.2972962161614781,
+            0.8369607245922088,
+            0.09613211868552579,
+            0.022797999804358933,
+            0.022721111799972365,
+            0.15814401922646323
+          ],
+          "median": [
+            0.004744311794638634,
+            0.004820845555514097,
+            0.006351134739816189,
+            0.0066263265907764435,
+            0.040034763514995575,
+            0.6043676137924194,
+            0.903598964214325,
+            0.2373792827129364,
+            1.0,
+            0.034270819276571274,
+            0.16276627779006958,
+            0.021384548395872116,
+            0.018855873495340347,
+            0.019985925406217575,
+            0.484708309173584,
+            0.24626195430755615,
+            0.8842535018920898,
+            0.08743715286254883,
+            0.011097779497504234,
+            0.011004721745848656,
+            0.08627750724554062
+          ],
+          "q25": [
+            0.0005072473431937397,
+            0.0005117893451824784,
+            0.0007712979568168521,
+            0.0007566553540527821,
+            0.00426335958763957,
+            0.5875394940376282,
+            0.8851873874664307,
+            0.21028591692447662,
+            1.0,
+            0.0314275287091732,
+            0.09246421605348587,
+            0.009465031325817108,
+            0.006983458064496517,
+            0.007080720737576485,
+            0.39353176951408386,
+            0.15670305490493774,
+            0.8237716555595398,
+            0.06499512493610382,
+            0.0013662505662068725,
+            0.001286578830331564,
+            0.010481676086783409
+          ],
+          "q75": [
+            0.01741277240216732,
+            0.018910378217697144,
+            0.023505832999944687,
+            0.0235905759036541,
+            0.14068388938903809,
+            0.6208646297454834,
+            0.9197021126747131,
+            0.2763138711452484,
+            1.0,
+            0.036728229373693466,
+            0.21646234393119812,
+            0.036288414150476456,
+            0.029540065675973892,
+            0.03373347595334053,
+            0.5531141757965088,
+            0.39164671301841736,
+            0.9053609371185303,
+            0.11267660558223724,
+            0.03351209685206413,
+            0.03537484630942345,
+            0.2586298882961273
+          ]
+        }
+      },
+      "drone_bird_discrimination": {
+        "median_residual_negative_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.6193109987357774,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.49043971092566196
+        },
+        "median_residual_positive_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.6823640960809103,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.428206886050035
+        },
+        "median_residual_negative_30_60mps_energy_fraction": {
+          "direction_free_auc": 0.8151074589127687,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.1967589766938125
+        },
+        "median_residual_positive_30_60mps_energy_fraction": {
+          "direction_free_auc": 0.8596713021491782,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.2662383798693033
+        },
+        "median_residual_total_8_90mps_energy_fraction": {
+          "direction_free_auc": 0.7239254108723135,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.705625248185893
+        },
+        "median_residual_rms_offset_mps_over_90": {
+          "direction_free_auc": 0.9333122629582806,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.9950281753705909
+        },
+        "median_residual_q90_abs_offset_mps_over_90": {
+          "direction_free_auc": 0.9262010113780025,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.9047810515343114
+        },
+        "median_residual_top4_resolution_cell_concentration": {
+          "direction_free_auc": 0.8463969658659924,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.8597874055483866
+        },
+        "median_residual_resolution_cell_peak_count_over_12": {
+          "direction_free_auc": 0.9049462705436156,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.081445961430077
+        },
+        "median_residual_sideband_snr_db_over_30": {
+          "direction_free_auc": 0.8906447534766119,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.5489701810421382
+        },
+        "median_pulse_envelope_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.877370417193426,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -1.0447223096385858
+        },
+        "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.5749051833122629,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 0.34104919735665623
+        },
+        "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.6281605562579013,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.24949346951982881
+        },
+        "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": {
+          "direction_free_auc": 0.5006321112515802,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.072818963274886
+        },
+        "median_pulse_envelope_modulation_centroid_hz_over_2000": {
+          "direction_free_auc": 0.6014538558786346,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.48547499248870585
+        },
+        "median_pulse_envelope_modulation_top3_concentration": {
+          "direction_free_auc": 0.5867572692793932,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.4136220617087507
+        },
+        "median_pulse_envelope_modulation_entropy": {
+          "direction_free_auc": 0.6088811630847029,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.19027144391352394
+        },
+        "median_pulse_envelope_modulation_snr_db_over_30": {
+          "direction_free_auc": 0.9337863463969659,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": 1.0184349096527896
+        },
+        "q90_residual_negative_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.5611567635903919,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.13591994212608563
+        },
+        "q90_residual_positive_8_30mps_energy_fraction": {
+          "direction_free_auc": 0.6528128950695322,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.3617791677474667
+        },
+        "q90_residual_total_8_90mps_energy_fraction": {
+          "direction_free_auc": 0.6803097345132743,
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": -0.5497201558942371
+        }
+      },
+      "drone_bird_discrimination_unit": "one mean feature vector per parent over every causal event; missing and unsupported-mode events retain exact-zero intervention rows",
+      "informative_feature_names": [
+        "median_residual_negative_8_30mps_energy_fraction",
+        "median_residual_positive_8_30mps_energy_fraction",
+        "median_residual_negative_30_60mps_energy_fraction",
+        "median_residual_positive_30_60mps_energy_fraction",
+        "median_residual_total_8_90mps_energy_fraction",
+        "median_residual_rms_offset_mps_over_90",
+        "median_residual_q90_abs_offset_mps_over_90",
+        "median_residual_top4_resolution_cell_concentration",
+        "median_residual_resolution_cell_peak_count_over_12",
+        "median_residual_sideband_snr_db_over_30",
+        "median_pulse_envelope_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2",
+        "median_pulse_envelope_modulation_centroid_hz_over_2000",
+        "median_pulse_envelope_modulation_top3_concentration",
+        "median_pulse_envelope_modulation_entropy",
+        "median_pulse_envelope_modulation_snr_db_over_30",
+        "q90_residual_negative_8_30mps_energy_fraction",
+        "q90_residual_positive_8_30mps_energy_fraction",
+        "q90_residual_total_8_90mps_energy_fraction"
+      ],
+      "informative_feature_count": 20,
+      "within_calibrated_sampling_mode_parent_balanced_effects": {
+        "prt_num=226|pri_ns=20000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 20000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 42,
+          "bird_parent_count": 14,
+          "event_count": 1015,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.1908063189376598,
+            "median_residual_positive_8_30mps_energy_fraction": 0.19369398390041104,
+            "median_residual_negative_30_60mps_energy_fraction": -0.6469852099917132,
+            "median_residual_positive_30_60mps_energy_fraction": -0.33851903980388676,
+            "median_residual_total_8_90mps_energy_fraction": 0.23614915414898394,
+            "median_residual_rms_offset_mps_over_90": -0.627667814262536,
+            "median_residual_q90_abs_offset_mps_over_90": -0.583878858098774,
+            "median_residual_top4_resolution_cell_concentration": 0.6576499016740674,
+            "median_residual_resolution_cell_peak_count_over_12": -0.7546498277802064,
+            "median_residual_sideband_snr_db_over_30": 0.8565568135353858,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.38630442456470077,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": -0.2670141683815908,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.44629136300640454,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.5335679878058422,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.6202103451373282,
+            "median_pulse_envelope_modulation_top3_concentration": -0.2792790426533978,
+            "median_pulse_envelope_modulation_entropy": -0.3892823373496721,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.724576188822016,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.3669747929477518,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.3786374802325522,
+            "q90_residual_total_8_90mps_energy_fraction": 0.5165336085286995
+          }
+        },
+        "prt_num=226|pri_ns=24000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 226,
+            "pri_nanoseconds": 24000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 51,
+          "bird_parent_count": 16,
+          "event_count": 1141,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.28451717782931063,
+            "median_residual_positive_8_30mps_energy_fraction": 0.10289777088359428,
+            "median_residual_negative_30_60mps_energy_fraction": -0.1288544835428371,
+            "median_residual_positive_30_60mps_energy_fraction": 0.03601722568218177,
+            "median_residual_total_8_90mps_energy_fraction": 0.40884706116227915,
+            "median_residual_rms_offset_mps_over_90": -0.7348886358909665,
+            "median_residual_q90_abs_offset_mps_over_90": -0.5262959103518504,
+            "median_residual_top4_resolution_cell_concentration": 0.7664273979560495,
+            "median_residual_resolution_cell_peak_count_over_12": -0.790485905120053,
+            "median_residual_sideband_snr_db_over_30": 0.6385228008966748,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.49157695113493205,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.09696084619387157,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.03832562373963984,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.7268489033935286,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.6226962525932739,
+            "median_pulse_envelope_modulation_top3_concentration": -0.894919954785626,
+            "median_pulse_envelope_modulation_entropy": 0.04041548500309161,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.4879939240802255,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.21959281502499137,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.1298860210556926,
+            "q90_residual_total_8_90mps_energy_fraction": 0.461279734502945
+          }
+        },
+        "prt_num=360|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 69,
+          "bird_parent_count": 31,
+          "event_count": 2060,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.5433135883272061,
+            "median_residual_positive_8_30mps_energy_fraction": -0.636972535839398,
+            "median_residual_negative_30_60mps_energy_fraction": -1.106772728459365,
+            "median_residual_positive_30_60mps_energy_fraction": -1.3882057752447818,
+            "median_residual_total_8_90mps_energy_fraction": -0.5878062789739547,
+            "median_residual_rms_offset_mps_over_90": -1.0048653575874085,
+            "median_residual_q90_abs_offset_mps_over_90": -0.9617607745885771,
+            "median_residual_top4_resolution_cell_concentration": 0.8922348833349639,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9021933733054809,
+            "median_residual_sideband_snr_db_over_30": 0.8438219548334721,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -1.0498643019793417,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.3048274636591041,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.46497241405464007,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.3351448589961568,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.5126398960198847,
+            "median_pulse_envelope_modulation_top3_concentration": -0.331683910011126,
+            "median_pulse_envelope_modulation_entropy": -0.0492232577214617,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9490102134571515,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.49209122642452446,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.7342097226146156,
+            "q90_residual_total_8_90mps_energy_fraction": -0.5636357775685076
+          }
+        },
+        "prt_num=360|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 360,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 69,
+          "bird_parent_count": 31,
+          "event_count": 2059,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.42726948186150326,
+            "median_residual_positive_8_30mps_energy_fraction": -0.5087340322841424,
+            "median_residual_negative_30_60mps_energy_fraction": -0.9601286987402545,
+            "median_residual_positive_30_60mps_energy_fraction": -1.1295402748810501,
+            "median_residual_total_8_90mps_energy_fraction": -0.36493834798396335,
+            "median_residual_rms_offset_mps_over_90": -0.9730118585832492,
+            "median_residual_q90_abs_offset_mps_over_90": -1.0028763184482186,
+            "median_residual_top4_resolution_cell_concentration": 0.7454320427108291,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9384763093417432,
+            "median_residual_sideband_snr_db_over_30": 0.8091303292159484,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -1.0743401212137962,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.30307928212550467,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.40753591165115216,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.4308705822773672,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.6613481691841621,
+            "median_pulse_envelope_modulation_top3_concentration": -0.42178728871114923,
+            "median_pulse_envelope_modulation_entropy": -0.053871013240118414,
+            "median_pulse_envelope_modulation_snr_db_over_30": 1.0609406142616609,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.27077695657941897,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.545928231510388,
+            "q90_residual_total_8_90mps_energy_fraction": -0.321259480439148
+          }
+        },
+        "prt_num=570|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 32,
+          "bird_parent_count": 22,
+          "event_count": 1294,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.3335517917818177,
+            "median_residual_positive_8_30mps_energy_fraction": -0.5880379543028077,
+            "median_residual_negative_30_60mps_energy_fraction": -0.9754884218117816,
+            "median_residual_positive_30_60mps_energy_fraction": -1.040796295024426,
+            "median_residual_total_8_90mps_energy_fraction": -0.7229293997406929,
+            "median_residual_rms_offset_mps_over_90": -1.0031116478329944,
+            "median_residual_q90_abs_offset_mps_over_90": -0.8300730690270948,
+            "median_residual_top4_resolution_cell_concentration": 1.0500269170400005,
+            "median_residual_resolution_cell_peak_count_over_12": -0.9248128597217442,
+            "median_residual_sideband_snr_db_over_30": 0.7829897115103228,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.8513611656060324,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": -0.019881245856094173,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.16609962183196925,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.3087403263620262,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.4962243802876137,
+            "median_pulse_envelope_modulation_top3_concentration": -0.32856441854533,
+            "median_pulse_envelope_modulation_entropy": 0.14204813397085655,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.9558262337256538,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.3701087509480177,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.6004178395627155,
+            "q90_residual_total_8_90mps_energy_fraction": -0.7310766039897428
+          }
+        },
+        "prt_num=570|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 570,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 32,
+          "bird_parent_count": 22,
+          "event_count": 1285,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.27575372891214417,
+            "median_residual_positive_8_30mps_energy_fraction": -0.8016828344656397,
+            "median_residual_negative_30_60mps_energy_fraction": -0.9697203020882478,
+            "median_residual_positive_30_60mps_energy_fraction": -0.9813244388481539,
+            "median_residual_total_8_90mps_energy_fraction": -0.562378075603703,
+            "median_residual_rms_offset_mps_over_90": -0.9193635756245578,
+            "median_residual_q90_abs_offset_mps_over_90": -0.9187070633389656,
+            "median_residual_top4_resolution_cell_concentration": 0.9001182651236539,
+            "median_residual_resolution_cell_peak_count_over_12": -0.919624684025384,
+            "median_residual_sideband_snr_db_over_30": 0.6561224447034687,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": -0.8673592886184295,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.0980593258244466,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": -0.10422982393319437,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": -0.08565973965147541,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": -0.5311596516076189,
+            "median_pulse_envelope_modulation_top3_concentration": -0.41587033440966026,
+            "median_pulse_envelope_modulation_entropy": 0.14885361027677002,
+            "median_pulse_envelope_modulation_snr_db_over_30": 0.8223848986128818,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.23253695908313776,
+            "q90_residual_positive_8_30mps_energy_fraction": -0.8019551343152319,
+            "q90_residual_total_8_90mps_energy_fraction": -0.5839768668240879
+          }
+        },
+        "prt_num=900|pri_ns=48000|carrier_mhz=15600": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 48000,
+            "carrier_megahertz": 15600
+          },
+          "drone_parent_count": 5,
+          "bird_parent_count": 5,
+          "event_count": 167,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": 0.40656572695037757,
+            "median_residual_positive_8_30mps_energy_fraction": 1.032539205341686,
+            "median_residual_negative_30_60mps_energy_fraction": -0.3546987892499385,
+            "median_residual_positive_30_60mps_energy_fraction": -0.2542732459898349,
+            "median_residual_total_8_90mps_energy_fraction": 0.727126805170551,
+            "median_residual_rms_offset_mps_over_90": -1.0445422260729416,
+            "median_residual_q90_abs_offset_mps_over_90": -1.1215446063951784,
+            "median_residual_top4_resolution_cell_concentration": 1.0940152492042177,
+            "median_residual_resolution_cell_peak_count_over_12": -1.128514584600212,
+            "median_residual_sideband_snr_db_over_30": 1.1951454667472179,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": 0.40028330275692614,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": 0.04575355607112694,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.5579031629819527,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 1.0110217572589941,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.4373481979649455,
+            "median_pulse_envelope_modulation_top3_concentration": 0.25376205246565253,
+            "median_pulse_envelope_modulation_entropy": -0.3583225706647327,
+            "median_pulse_envelope_modulation_snr_db_over_30": 1.0457372230472892,
+            "q90_residual_negative_8_30mps_energy_fraction": 0.3677700862143248,
+            "q90_residual_positive_8_30mps_energy_fraction": 0.9887432595107852,
+            "q90_residual_total_8_90mps_energy_fraction": 0.5990986053434648
+          }
+        },
+        "prt_num=900|pri_ns=51000|carrier_mhz=15900": {
+          "sampling_mode": {
+            "prt_num": 900,
+            "pri_nanoseconds": 51000,
+            "carrier_megahertz": 15900
+          },
+          "drone_parent_count": 5,
+          "bird_parent_count": 5,
+          "event_count": 166,
+          "aggregation": "frame summaries restricted to this reliable pulse-count/PRI/carrier mode, then mean over eligible events within each parent",
+          "drone_minus_bird_robust_effect_median_over_pooled_iqr": {
+            "median_residual_negative_8_30mps_energy_fraction": -0.03874453921097778,
+            "median_residual_positive_8_30mps_energy_fraction": 1.0847564216881689,
+            "median_residual_negative_30_60mps_energy_fraction": -0.5634441109322362,
+            "median_residual_positive_30_60mps_energy_fraction": -0.4826712867902446,
+            "median_residual_total_8_90mps_energy_fraction": 0.755201251725883,
+            "median_residual_rms_offset_mps_over_90": -1.1028616758829322,
+            "median_residual_q90_abs_offset_mps_over_90": -1.0438648659225334,
+            "median_residual_top4_resolution_cell_concentration": 1.2055237393019462,
+            "median_residual_resolution_cell_peak_count_over_12": -1.0143867584083144,
+            "median_residual_sideband_snr_db_over_30": 1.113894043062953,
+            "median_pulse_envelope_rms_clipped_0_2_over_2": 0.23686402394461856,
+            "median_pulse_envelope_modulation_300_600hz_rms_clipped_0_2_over_2": -0.35737355033019363,
+            "median_pulse_envelope_modulation_600_1200hz_rms_clipped_0_2_over_2": 0.6103007165996142,
+            "median_pulse_envelope_modulation_1200_2000hz_rms_clipped_0_2_over_2": 0.9134050222847674,
+            "median_pulse_envelope_modulation_centroid_hz_over_2000": 0.2004993047176396,
+            "median_pulse_envelope_modulation_top3_concentration": 0.5316322763618503,
+            "median_pulse_envelope_modulation_entropy": -0.7238495774648996,
+            "median_pulse_envelope_modulation_snr_db_over_30": 1.0644012858155216,
+            "q90_residual_negative_8_30mps_energy_fraction": -0.039490674348778856,
+            "q90_residual_positive_8_30mps_energy_fraction": 1.0847564216881689,
+            "q90_residual_total_8_90mps_energy_fraction": 0.633592497607311
+          }
+        }
+      },
+      "direction_consistent_informative_feature_names": [
+        "median_residual_negative_30_60mps_energy_fraction",
+        "median_residual_rms_offset_mps_over_90",
+        "median_residual_q90_abs_offset_mps_over_90",
+        "median_residual_top4_resolution_cell_concentration",
+        "median_residual_resolution_cell_peak_count_over_12",
+        "median_residual_sideband_snr_db_over_30",
+        "median_pulse_envelope_modulation_snr_db_over_30"
+      ],
+      "direction_consistent_informative_feature_count": 7,
+      "summary_reconstructed_from_frame_evidence": true,
+      "summary_reconstruction_maximum_absolute_error": 0.0,
+      "raw_frame_mapping_audit": {
+        "legacy_mat_list_ordinal_is_raw_dat_frame_index": false,
+        "legacy_ordinal_raw_dat_mismatch_frame_count": 0,
+        "legacy_ordinal_raw_dat_mismatch_track_ids": [],
+        "mat_acquisition_to_raw_dat_exact": true
+      }
+    }
+  },
+  "interpretation": "Do not start formal paired training until failed train-only V18 checks are adjudicated.",
+  "validation_used_for_readiness_gate": false,
+  "test": "未执行",
+  "formal_training_at_report_generation": "未执行",
+  "formal_training": "未执行",
+  "full_cascade": "未执行",
+  "OOF": "未执行",
+  "stable": "未执行",
+  "P95": "未执行"
+}

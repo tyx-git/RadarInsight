@@ -1886,3 +1886,219 @@
 - [ ] 依据Clutter/Bird净救回、KnownTarget/Clutter安全、parent bootstrap、Clutter support和绝对护栏裁决；未通过不得进入阈值或部署。
 
 冻结结论：V21i是单因素探索性实验，不与V21h联合，不读取test，不训练Unknown。
+
+## Stage 083 - V20/V21实际实验清点与OOF协议核验
+
+目标：按实际文件和artifact清点V20/V20r、V21及V21a-V21i，纠正用户称谓中的V20a-V20i与仓库实际命名差异，并确认当前最可信KnownGate基线。
+前置依赖：Stage 078-082产物存在且三个跟踪文件已读取。
+最小子任务：
+
+- [x] 确认仓库未找到V20a-V20i实体，实际实体为V20/V20r和V21a-V21i。
+- [x] 核对V20/V20r仅为DBB specialist局部任务，正式test、OOF、完整级联、拒识和stable均未执行。
+- [x] 核对V21e OOF包含986个known parent、975个provenance component，且所有`source_name=CQ08`。
+- [x] 核对V21h/V21i均复用V21e OOF Treatment作为冻结Control，不能作为独立跨源泛化结论。
+- [x] 记录配置、索引、契约、归一化统计、checkpoint和报告的实际路径/hash用途。
+
+验证命令：`git status --short`；V20/V21配置、report、artifact和data/processed文件清单；读取V21e/V21h/V21i JSON报告并重算关键混淆。
+验收标准：实验名称、任务、scope、source、split、checkpoint和指标分母均有实际文件证据；缺失项写“未找到”或“未执行”。
+是否需要数据重建：否。
+是否需要Smoke：否。
+是否需要正式训练：否，未执行。
+阻塞条件：报告无法与checkpoint/config/data hash绑定，或发现测试集参与训练/选优。
+
+## Stage 084 - CQ08 Clutter覆盖、标签语义与分层泄漏审查
+
+目标：确认Clutter support、split隔离、来源组件和描述性子流型，判断OOF中的Clutter失败是否可归因于真实跨源泛化。
+前置依赖：Stage 083完成实际数据路径和V16/V21合同核验。
+最小子任务：
+
+- [x] 核对V16共1546个parent、Clutter共50个parent，split为`33/9/8`，没有漏索引合法Clutter parent。
+- [x] 核对train KnownGate为953个目标parent与33个Clutter parent，Unknown 69个不进入训练。
+- [x] 核对Clutter capture/content hash无跨split精确重复，但5个provenance component同时关联Clutter与Drone/Balloon。
+- [x] 核对四个描述性Clutter cluster支持`25/4/1/3`，其语义状态仍为描述性、未人工裁决。
+- [x] 核对Clutter错误parent与Bird/Drone误路由parent的source、轨迹长度、RD覆盖、dt和raw文件完整性。
+
+验证命令：V16 CSV、CQ08 manifest、V21 Clutter registry、V21 clutter audit report；只读解析错误parent对应raw/MAT。
+验收标准：不得把capture_id日期、audit cluster、文件名类别词或parent/window重叠当作真实环境标签；跨源结论必须明确“当前CQ08内部组件留出”。
+是否需要数据重建：否；权威新来源若加入，必须新建RADAR-LN3-VN索引/契约。
+是否需要Smoke：已执行V21 Clutter coverage focused Smoke并通过。
+是否需要正式训练：否，未执行。
+阻塞条件：没有权威采集时间、环境、传感器模式或Clutter物理机制真值时，不能宣称真实跨源性能。
+
+## Stage 085 - KnownGate窗口目标、loss聚合与类别曝光审查
+
+目标：确认当前监督单位、prefix辅助目标、checkpoint单位和OOF边界是否一致，并核实Clutter class weight在batch_size=2下的实际效果。
+前置依赖：Stage 084的parent/split数据契约通过。
+最小子任务：
+
+- [x] 核对主loss只选每个parent最后合法状态，prefix辅助从第3事件开始且仍使用parent最终标签并排除最终状态。
+- [x] 核对评估同时输出window、eligible-prefix和parent-final；早期事件存在`PENDING_ABSTAIN`产品边界但未作为直接监督动作。
+- [x] 核对V21/V21e训练均为`batch_size=2`，使用`F.cross_entropy(weight=...)`的batch内加权平均。
+- [x] 以实际五折parent顺序重算20 epoch批次构成：同类目标batch约93.1%至93.6%，Clutter有效加权质量仅约6.3%至6.5%。
+- [x] 核对V21e parent错误为Clutter→KnownTarget 6个、Bird→KnownClutter 14个、Drone→KnownClutter 1个、Balloon→KnownClutter 0个。
+
+验证命令：`radar_ln3/losses.py`、`train/known_gate_v21e_oof.py`、`radar_ln3/known_gate.py`源码行级核对；五折配置、OOF predictions和固定DataLoader顺序重算。
+验收标准：不能把window/parent/final/stable任一层级指标互称；若修改采样或loss，必须保留V21e Control并重新训练。
+是否需要数据重建：否。
+是否需要Smoke：已执行V21 KnownGate、V21e OOF和V21h/i合同Smoke并通过。
+是否需要正式训练：本Stage未执行；V22正式训练需用户手动启动。
+阻塞条件：监督单位、checkpoint选择单位或最终产品动作继续混用。
+
+## Stage 086 - dt、液态状态与CQ08 raw/MAT特征利用链路审查
+
+目标：区分dt数据事实、液态数值保护、在线一致性和特征物理增量，确定液态模块是否为当前主要瓶颈。
+前置依赖：Stage 085完成KnownGate目标与曝光核验。
+最小子任务：
+
+- [x] 核对V16时间字段为1秒精度，dt原因仅为首点、同秒和正间隔；未发现负dt、NaN或单位转换错误。
+- [x] 核对Clutter train parent同秒事件比例为0，而Drone/Bird/Balloon存在同秒事件；V21使用`bounded_observation`并将dt validity限制在动力学路径。
+- [x] 核对V21e course特征真实进入Fusion、cache、Dataset、模型和梯度；V21h iso与V21i d_range也完成真实嵌套OOF。
+- [x] 核对V21h提高Clutter parent Precision约`+0.163594`但Recall下降约`-0.060606`；V21i parent Clutter Precision/Recall/F1均下降。
+- [x] 解析代表错误/正确Clutter、Bird和Drone raw帧及MAT字段，确认连续帧、31 range bin、复I/Q、RD矩阵和`Vr`均可用，但采集模式与Clutter子流异质。
+- [x] 核对V20 skip/density合同Smoke通过，但V20r只验证DBB specialist局部动力学，不能解释Clutter OOF。
+
+验证命令：V16索引dt统计；`radar_ln3/micro_doppler.py` raw解析；MAT字段shape/finite检查；V4 invalid-dt、V20/V20r dynamics、V21h/i OOF合同Smoke。
+验收标准：offline/online输出一致；不以增大液态容量掩盖dt、曝光和标签问题；raw/MAT特征必须通过因果、缺失、归一化和跨模式门禁后才能进入新实验。
+是否需要数据重建：当前否。
+是否需要Smoke：已执行并通过，V16/V21专用测试与旧V4测试边界分别记录。
+是否需要正式训练：否，未执行。
+阻塞条件：dt捷径、模式不变性或特征链路未在独立holdout确认。
+
+## Stage 087 - 静态隔离、编译与focused验证收口
+
+目标：在不启动长训练的情况下确认当前工作树可导入、可编译、V21合同完整且V20/V21关键状态可复现。
+前置依赖：Stage 083-086只读审查完成。
+最小子任务：
+
+- [x] `compileall`退出码0。
+- [x] `smoke.static_isolation_check`通过，`violations=[]`。
+- [x] V21 KnownGate、V21e OOF、多seed、V21h、V21i、V4 invalid-dt、V20 skip和V20r density合同Smoke全部通过。
+- [x] 记录`dt_prefix_test`使用V16配置时不适用：测试仅接受V0-V4，未把该命令失败归因于V21代码。
+- [x] 确认本轮未执行正式训练、全量OOF、test评估、拒识阈值搜索、完整级联、stable、P95、部署或数据重建。
+
+验证命令：本Stage列出的Python模块命令及其实际退出码。
+验收标准：测试输出与实际artifact/schema一致；任何“通过”只代表合同或链路，不代表泛化性能。
+是否需要数据重建：否。
+是否需要Smoke：已执行并通过适用项。
+是否需要正式训练：否，未执行。
+阻塞条件：正式产品验收所需test/拒识/完整级联/stable证据缺失。
+
+## Stage 088 - V22唯一首选实验方案冻结
+
+目标：在不改变KnownGate/L1/L2/L3语义、dt、特征和液态单元的前提下，验证Clutter边界是否主要受类别曝光与batch归一化影响。
+前置依赖：Stage 085已确认batch级class weight实际失效，Stage 086未证明液态为主要瓶颈，V21e OOF保留为固定参考。
+最小子任务：
+
+- [x] 冻结唯一主假设：将V21e当前batch_size=2的batch-normalized class weight替换为真正的parent/class-balanced训练协议，可降低Clutter跨fold边界方差并同时改善Precision与Recall。
+- [x] 固定V16 index、V21 known-only normalization、V21e course feature cache、五折capture/content component分组、20 epoch、seed=43、KnownGate结构、dt、液态参数和L3语义。
+- [x] 规定V22只改变sampler/loss aggregation中的一个训练平衡因素，不叠加iso、d_range、interframe、液态改造、阈值或标签处理。
+- [x] 冻结parent、eligible-prefix、window和per-fold指标，以及KnownTarget、Drone/Bird/Balloon安全护栏、停止条件和回滚规则。
+- [x] 正式训练命令、配置和artifact路径只作为人工执行方案输出；本轮未启动。
+
+验证命令：由用户手动执行V22 prepare/readiness、五折Treatment/Control训练和固定OOF评估命令；命令详见最终报告。
+验收标准：Clutter parent Precision、Recall、F1和五折分层结果相对V21e不下降并达到预设提升；KnownTarget Recall、Drone/Bird/Balloon安全护栏不下降；否则停止并回滚V21e Control。
+是否需要数据重建：否；若仅改loss/sampler，创建RADAR-LN3-V22配置与checkpoint protocol，不创建新索引。
+是否需要Smoke：需要，先执行V22训练平衡合同Smoke。
+是否需要正式训练：需要用户明确手动启动，本轮未执行。
+阻塞条件：无法实现真正parent/class-balanced协议、无法保持固定OOF和paired初始化、或Clutter语义仍未完成独立来源确认。
+
+## Stage 089 - V22训练平衡协议人工实施门禁
+
+目标：在不改变KnownGate、L1/L2/L3、dt、液态状态方程和CQ08数据契约的前提下，由用户人工实施并验证唯一V22主因素——parent/class-balanced训练目标。
+前置依赖：Stage 088已冻结V22假设；确认V21e作为固定Control；完成V22配置、checkpoint schema、loss/sampler合同和focused Smoke设计。
+最小子任务：
+
+- [x] 冻结唯一变量为class-weight归约：Control=`batch_weight_sum`，Treatment=`fixed_parent_count`；不改sampler、batch size、特征、液态、阈值、标签和L3规则。
+- [x] 创建并核对`RADAR-LN3-V22`五折配置、新loss字段、checkpoint/report schema；复用V16索引、V21e五折normalization与course cache，不创建新索引。
+- [x] 完成V22合同Smoke，验证同seed初态、parent顺序、fold分组、逆频率权重fold-train均值1、Unknown封存和checkpoint绑定。
+- [ ] 用户手动执行五折Treatment并复用已冻结的V21e Control预测，生成parent、eligible-prefix、window和per-fold OOF结果。
+- [ ] 只有在Clutter与KnownTarget安全门槛同时通过时才允许进入L3校准；否则回滚到V21e Control并停止组合特征实验。
+
+验证命令：由用户执行V22 readiness、focused Smoke、五折训练和固定OOF评估命令；正式命令在最终审查报告中给出。
+验收标准：Clutter parent Precision/Recall/F1相对V21e均严格改善；KnownTarget、DroneTarget、BirdTarget、BalloonTarget Recall及主要误路由不下降；eligible-prefix安全；Clutter fold描述性方差均不增且至少一项严格下降；component bootstrap的Clutter Precision、Recall与Macro-F1差值95%下界均大于0。满足机制假设后，parent Macro-F1还需严格`>+0.02`才记为可采纳候选。
+是否需要数据重建：否；若输入schema、数据契约或特征顺序发生变化，必须另建新的`RADAR-LN3-VN`数据/契约版本。
+是否需要Smoke：已执行V22 fixed-parent-denominator合同Smoke；正式性能未执行。
+是否需要正式训练：需要用户明确手动启动，本轮未执行。
+阻塞条件：无法证明唯一变量、无法复现V21e Control、Clutter语义未完成独立来源确认，或任何安全护栏下降。
+
+## Stage 090 - V22a RD当前事件帧时序残差实验
+
+目标：验证KnownGate当前事件内的RD帧顺序信息是否被`masked_mean`丢失，并在不改变RD张量、索引、TR、dt、液态、loss、标签或Unknown策略的前提下，测试首尾有效RD帧embedding残差是否提供增量证据。
+
+前置依赖：Stage 086 RD全链路审查完成；V21e seed43作为当前KnownGate Control；V22 fixed-parent loss实验不进入V22a。
+
+最小子任务：
+
+- [x] 冻结Control为V21e seed43 course consistency模型与现有`masked_mean`路径；Treatment仅增加当前事件`last_active_frame_embedding - first_active_frame_embedding`内部残差。
+- [x] 保证缺失RD或单帧事件残差严格为零，`rd_frame_mask`排除padding，残差不读取未来TR事件；offline/online共用同一RD residual路径。
+- [x] 生成独立V22a schema、config、contract、manifest、readiness和artifact命名；复用V21e course cache，未创建新index、RD tensor或test输入。
+- [x] 完成V22a paired initialization：共享参数逐tensor复制、24个残差融合列零初始化、初始logits精确一致、残差列可反向传播。
+- [x] 通过Python编译、PowerShell AST、V22a contract smoke和src-v3静态隔离检查。
+- [x] 修复训练门禁与缓存变体绑定：V22a manifest不再要求不存在的冗余`core_data_contract_sha256`，改为验证source manifest、source contract、实验contract、cache和config的完整哈希链；注册V22a对V21e course cache的合法复用。
+- [x] 增加真实CQ08训练批次门禁：冻结V21e初始状态可复现、有效多帧RD residual非零、residual融合列获得有限非零梯度；最佳checkpoint审计残差权重确实离开零初始化。
+- [x] 增加V22a评估完整性：parent-final、eligible-prefix、全causal window分开配对；补充`K=0`、`K=1`、`K=2-4`、`K=5`、`K>=6`、RD quality、source和parent length分层，并显式报告残差活动与单帧/缺失精确零。
+- [x] 用户已执行完整20 epoch V22a Treatment训练及冻结development validation paired report；结果为负向，不采纳recurrent residual注入。
+- [x] Parent Macro-F1、Clutter安全和Bird Recall均低于V21e Control，未进入多seed；Unknown正式拒识、L3、test、stable和P95继续未执行。
+
+验证命令：`F:\Project\RadarInsight\.venv\Scripts\python.exe -X utf8 -m smoke.known_gate_v22a_contract_test --project-root F:\Project\RadarInsight`。
+验收条件：已完成；V22a未通过采用门槛，只保留为注入机制负结果。
+是否需要数据重建：否。
+是否需要Smoke：已通过。
+是否需要正式训练：已执行。
+阻塞条件：V22a负向结果阻止其直接晋级；仅允许V22b后置读出机制诊断。
+
+## Stage 091 - V22b RD时间残差后置读出五折OOF
+
+目标：区分V22a负收益究竟来自首尾RD embedding残差本身无判别信息，还是来自将其逐事件注入CfC/liquid recurrent state所造成的状态污染。
+
+前置依赖：Stage 090 V22a完整20 epoch development配对结果已确认负向；V21e seed43 development为232/232，已无`>2pp`正向空间，故V22b不得继续在同一development上作增益验收。
+
+最小子任务：
+
+- [x] 冻结唯一结构变量：保持V22a的`last_active_RD_frame_embedding - first_active_RD_frame_embedding`定义不变，将其从recurrent fusion移到每事件liquid readout后的反对称二类logit修正头。
+- [x] 新增24个零初始化、无bias的late-readout权重；共享TR/RD/CfC/KnownGate参数与新增参数均参与每折完整20 epoch训练，禁止冻结主干或从final checkpoint继续训练。
+- [x] 复用V21e五折provenance-component assignment、每折train-only normalization、course cache、seed、初态、parent顺序、loss与fixed-final-epoch协议；Control prediction不重训。
+- [x] held-out每折只允许在epoch 20后前向一次，不参与checkpoint选择；validation、test、Unknown访问均为0。
+- [x] 生成独立V22b OOF config/contract/readiness/checkpoint/prediction/report schema以及串行脚本；完成Python编译、PowerShell AST、五折focused smoke与静态隔离。
+- [x] 用户已串行完成fold 00-04各20 epoch Treatment；五折均只在epoch 20后执行一次held-out预测，Unknown、validation、test访问均为0，并生成相对冻结V21e OOF Treatment的配对汇总。
+- [x] 冻结采用门槛未通过：parent Macro-F1由`0.854465`降至`0.849461`（差值`-0.005003`），KnownTarget Recall下降`0.001049`；Clutter Precision由`0.642857`降至`0.627907`、Recall保持`0.818182`、F1由`0.720000`降至`0.710526`。
+- [x] eligible-prefix安全门未通过：Macro-F1下降`0.002933`，KnownTarget Recall下降`0.001363`，Clutter Precision下降`0.013054`，虽Clutter Recall上升`0.007168`，但Clutter F1下降`0.005297`。
+- [x] parent-final仅翻转3个边界parent：救回Bird `411`，损害Bird `2247`与Balloon `2986`，Clutter无任何净救回；component bootstrap的Macro-F1差值95%区间为`[-0.023247, 0.011042]`，未排除零且不支持正收益。
+- [x] 排除机制未生效解释：每折24个late-readout权重全部非零、均收到梯度且未进入liquid state，权重跨折两两余弦相似度为`0.6862-0.8664`；结果说明首尾RD embedding residual虽被稳定消费，但没有足够的KnownGate增量判别价值。
+- [x] V22b状态冻结为`hypothesis_not_supported`；不采纳、不进入多seed、L3校准或正式模型，并停止`last_active_RD_frame_embedding - first_active_RD_frame_embedding` residual方向。
+
+冻结解释：若V22b正向而V22a负向，说明同一RD residual具有后置判别信息但不宜进入液态状态；若V22b中性或负向，停止first-last embedding residual方向，不进入多seed、L3或正式模型。
+
+验证命令：`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v22b_known_gate_rd_temporal_late_readout_pipeline.ps1 -Stage all -ProjectRoot F:\Project\RadarInsight`。
+
+是否需要数据重建：否；复用V16 index、V21e fold data contract/normalization/course cache。
+是否需要Smoke：已执行五折focused smoke，held-out/validation/test/Unknown访问均为0。
+是否需要正式训练：已完成五折各20 epoch局部KnownGate OOF；完整L1/L2/L3、正式拒识、stable、P95和test仍未执行。
+阻塞条件：安全护栏已下降且bootstrap不支持正收益，阻止V22b晋级；后续RD实验不得继续复用首尾embedding差分作为主变量。
+
+## Stage 092 - V21e五折冻结模型RD模态只读消融
+
+目标：在不训练、不调阈值、不访问Unknown/validation/test的前提下，复现V21e五折正式OOF输出并区分冻结KnownGate对RD张量内容与RD可用性/质量语义的条件依赖。
+
+前置依赖：Stage 091已否决首尾RD embedding residual，但该结果不能推出整个RD模态无效；V21e五折epoch 20 checkpoint、held-out assignment、fold-train normalization、course cache和正式prediction保持冻结。
+
+最小子任务：
+
+- [x] 新增独立只读诊断入口、focused smoke、PowerShell脚本和协议文档；没有optimizer、反向传播、checkpoint选择、阈值拟合或历史artifact覆盖。
+- [x] 冻结三臂：`original_replay`；仅把RD embedding置零且保留原7维质量向量的`rd_content_zero_quality_preserved`非物理归因臂；把RD embedding置零并按合法缺失语义设为`[0,0,0,1,0,0,0]`的`rd_contract_missing`臂。
+- [x] 五折原始重放全部通过：986个parent、18923个window、15965个eligible-prefix硬预测均与正式OOF逐项一致，最大概率绝对误差`1.1921e-7`，低于`1e-6`门槛。
+- [x] 审计1021个实际读取源文件，其中包含986份held-out RD tensor；推理前后SHA-256全部一致，五折模型state全部不变，训练/optimizer step、Unknown、validation、test访问均为0。
+- [x] 仅移除RD内容、保留质量提示时，parent Macro-F1由`0.854465`降至`0.587757`（`-0.266708`），KnownTarget Recall由`0.984260`降至`0.841553`（`-0.142707`），Clutter Precision由`0.642857`降至`0.156425`，Clutter Recall由`0.818182`升至`0.848485`；142个原正确parent受损、7个原错误parent被救回，exact McNemar `p=8.26e-34`。
+- [x] RD内容消融的component bootstrap Macro-F1差值95%区间为`[-0.319191,-0.212289]`，五折Macro-F1差值均为负，但幅度从fold 00的`-0.028307`到fold 01的`-0.453447`，说明冻结模型显著依赖RD内容且依赖强度存在fold/优化轨迹异质性。
+- [x] 合法整模态missing臂把986个parent全部判为KnownTarget，Clutter Precision/Recall/F1均为0，Macro-F1=`0.491490`；该输出不能解释成无RD模型性能，因为当前953个目标parent有25个包含缺失RD事件、共153/18266个目标事件缺RD，而33个Clutter的657个事件缺失数为0，且所有类别都没有整条parent全事件缺RD支持。
+- [x] 五折fusion真实连接`TR embedding 48 + RD embedding 24 + RD quality 7 + course evidence 1`；RD embedding和RD quality块均有稳定非零权重。权重范数只确认连接，不用于推断经过LayerNorm/SiLU/CfC后的类别方向。
+- [x] 输出986行逐parent归因CSV、parent/window/eligible-prefix指标、base-label/fold/RD帧数/RD覆盖率/parent长度分层、exact McNemar及provenance-component配对bootstrap；报告和CSV第二次运行均按字节完全复用。
+- [x] 冻结解释：现有masked-mean RD内容路径对V21e KnownGate有实质条件贡献，不能因V22a/V22b失败而删除；但`rd_present/rd_missing`质量语义存在类别支持缺口，全RD缺失必须由后续Pending/Abstain质量契约接管，不能把KnownGate argmax当最终动作。
+
+验证命令：`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v21e_known_gate_rd_modality_ablation.ps1 -ProjectRoot F:\Project\RadarInsight`；另执行Python编译、PowerShell AST、focused smoke、`smoke.static_isolation_check`、JSON/CSV结构检查和两次幂等重放，均通过。
+
+验收条件：已完成只读诊断；结论仅为冻结模型条件依赖，不等价于重训练无RD模型的性能，也不是新特征采用门槛。
+是否需要数据重建：否；读取并哈希现有V16 index、V21e合同/cache与986份RD tensor，未修改任何输入数据。
+是否需要Smoke：已执行并通过。
+是否需要正式训练：否；本Stage训练step为0。
+阻塞条件：Clutter缺失RD支持为0、全事件缺RD parent支持为0，阻止把missing臂作为泛化性能；完整L1/L2/L3、Pending/Abstain、正式拒识、stable、P95和test仍未执行。

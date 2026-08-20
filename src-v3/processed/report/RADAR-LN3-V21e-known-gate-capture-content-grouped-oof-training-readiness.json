@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V21e-known-gate-capture-content-grouped-oof-readiness-v1",
+  "checks": {
+    "source_multiseed_decision_allows_oof": true,
+    "selected_seed_is_43": true,
+    "known_train_parent_count_is_986": true,
+    "provenance_component_count_is_975": true,
+    "five_folds_are_label_balanced": true,
+    "no_provenance_component_crosses_folds": true,
+    "fold_specific_normalization_excludes_held_out": true,
+    "unknown_training_exposure_is_zero": true,
+    "validation_parent_assignment_is_zero": true,
+    "test_parent_assignment_is_zero": true,
+    "fixed_final_epoch_without_held_out_selection": true,
+    "control_treatment_configs_are_fold_paired": true
+  },
+  "fold_count": 5,
+  "known_parent_count": 986,
+  "provenance_component_count": 975,
+  "assignment_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json",
+  "assignment_sha256": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7",
+  "fold_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-contract.json",
+  "fold_contract_sha256": "fa12369173643dab232885247a5e8ae1aaa0bf8fb4a799776a9d4695babbc4d5",
+  "selected_seed": 43,
+  "treatment_first_futility_gate": {
+    "min_per_class_precision_recall_f1": 0.9,
+    "if_failed": "stop_before_control_training"
+  },
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "未执行（等待用户运行五折流水线）",
+  "OOF": "未执行",
+  "threshold_fitting": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

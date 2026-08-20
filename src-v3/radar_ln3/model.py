@@ -54,7 +54,9 @@ class RDSpatialEncoder(nn.Module):
         )
         self.temporal = nn.GRUCell(self.embedding_dim, self.embedding_dim) if self.aggregation_mode == "causal_gru" else None
 
-    def forward(self, rd_frames: torch.Tensor, rd_frame_mask: torch.Tensor) -> torch.Tensor:
+    def _encode_frames(
+        self, rd_frames: torch.Tensor, rd_frame_mask: torch.Tensor
+    ) -> torch.Tensor:
         if rd_frames.ndim != 6 or rd_frames.shape[3:] != (2, 21, 384):
             raise ValueError(f"rd_frames must have shape [B,L,K,2,21,384], got {tuple(rd_frames.shape)}")
         if rd_frame_mask.shape != rd_frames.shape[:3]:
@@ -63,12 +65,63 @@ class RDSpatialEncoder(nn.Module):
             raise ValueError("rd_frames must be finite")
         batch_size, sequence_length, frame_count = rd_frames.shape[:3]
         flattened = rd_frames.reshape(batch_size * sequence_length * frame_count, 2, 21, 384)
-        frame_embeddings = self.projection(self.network(flattened)).reshape(batch_size, sequence_length, frame_count, -1)
+        return self.projection(self.network(flattened)).reshape(
+            batch_size, sequence_length, frame_count, -1
+        )
+
+    @staticmethod
+    def _masked_mean(
+        frame_embeddings: torch.Tensor, rd_frame_mask: torch.Tensor
+    ) -> torch.Tensor:
         mask = rd_frame_mask.to(dtype=frame_embeddings.dtype).unsqueeze(-1)
+        frame_embeddings = frame_embeddings * mask
+        denominator = mask.sum(dim=2).clamp_min(1.0)
+        return frame_embeddings.sum(dim=2) / denominator
+
+    def forward_with_temporal_residual(
+        self, rd_frames: torch.Tensor, rd_frame_mask: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return masked-mean evidence plus a causal current-event frame residual.
+
+        The residual is the last active frame embedding minus the first active
+        frame embedding within the same TR event.  It never reads a later TR
+        event, and it is exactly zero for missing or single-frame events.  The
+        frame mask is applied after selection so padded frames cannot provide
+        either evidence or gradient.
+        """
+
+        if self.aggregation_mode != "masked_mean":
+            raise ValueError(
+                "V22a temporal residual requires the frozen masked_mean RD path"
+            )
+        frame_embeddings = self._encode_frames(rd_frames, rd_frame_mask)
+        mean_embedding = self._masked_mean(frame_embeddings, rd_frame_mask)
+        frame_count = int(frame_embeddings.shape[2])
+        active_mask = rd_frame_mask.to(dtype=torch.bool)
+        active_count = active_mask.to(dtype=torch.long).sum(dim=2)
+        first_index = active_mask.to(dtype=torch.long).argmax(dim=2)
+        reverse_index = active_mask.flip(dims=(2,)).to(dtype=torch.long).argmax(dim=2)
+        last_index = (frame_count - 1 - reverse_index).to(dtype=torch.long)
+        dimension = frame_embeddings.shape[-1]
+        first = torch.gather(
+            frame_embeddings,
+            2,
+            first_index.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, 1, dimension),
+        ).squeeze(2)
+        last = torch.gather(
+            frame_embeddings,
+            2,
+            last_index.unsqueeze(-1).unsqueeze(-1).expand(-1, -1, 1, dimension),
+        ).squeeze(2)
+        has_temporal_pair = (active_count >= 2).unsqueeze(-1)
+        residual = (last - first) * has_temporal_pair.to(dtype=frame_embeddings.dtype)
+        return mean_embedding, residual
+
+    def forward(self, rd_frames: torch.Tensor, rd_frame_mask: torch.Tensor) -> torch.Tensor:
+        frame_embeddings = self._encode_frames(rd_frames, rd_frame_mask)
+        batch_size, sequence_length, frame_count = frame_embeddings.shape[:3]
         if self.aggregation_mode == "masked_mean":
-            frame_embeddings = frame_embeddings * mask
-            denominator = mask.sum(dim=2).clamp_min(1.0)
-            return frame_embeddings.sum(dim=2) / denominator
+            return self._masked_mean(frame_embeddings, rd_frame_mask)
         state = frame_embeddings.new_zeros((batch_size, sequence_length, self.embedding_dim))
         if self.temporal is None:
             raise RuntimeError("causal RD aggregation is not initialized")

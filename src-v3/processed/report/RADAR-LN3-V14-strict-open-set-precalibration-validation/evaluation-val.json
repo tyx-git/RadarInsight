@@ -1,0 +1,1232 @@
+{
+  "schema_version": "RADAR-LN3-V14",
+  "split": "val",
+  "evaluation_scope": "val:strict_open_set_three_checkpoint_with_named_evidence",
+  "dataset_parent_count": 232,
+  "known_parent_count": 217,
+  "unknown_audit_parent_count": 15,
+  "window_count": 4474,
+  "product_semantics": {
+    "architecture": "strict_open_set_three_checkpoint_liquid_soft_cascade",
+    "unknown_is_model_class": false,
+    "unknown_training_exposure": 0,
+    "gate": "accept DBB evidence or route to CU evidence",
+    "dbb_specialist": "Drone/Bird/Balloon plus calibrated knownness acceptance",
+    "cu_specialist": "Clutter acceptance versus non-Clutter-known evidence",
+    "unresolved_open_set_evidence_is_unknown_probability": false,
+    "unknown_output": "UNKNOWN_REJECTED action only after known-only OOF calibration"
+  },
+  "known_closed_set": {
+    "window_metrics": {
+      "scope": "val:V14_known_causal_windows",
+      "support": 4201,
+      "accepted_known_count": 4154,
+      "unresolved_known_count": 47,
+      "known_action_coverage": 0.988812187574387,
+      "accuracy_including_unresolved_as_error": 0.9062128064746489,
+      "accepted_accuracy": 0.9164660568127106,
+      "macro_precision": 0.8294162036535564,
+      "macro_recall": 0.8985241857276003,
+      "macro_f1": 0.8530292743596026,
+      "per_class": [
+        {
+          "class": "DroneTarget",
+          "precision": 0.988191089640365,
+          "recall": 0.9082387765170202,
+          "f1": 0.9465295629820051,
+          "support": 2027,
+          "unresolved_count": 1,
+          "major_confusion_to": "BirdTarget",
+          "major_confusion_count": 165
+        },
+        {
+          "class": "BirdTarget",
+          "precision": 0.8311195445920304,
+          "recall": 0.8647581441263573,
+          "f1": 0.8476052249637155,
+          "support": 1013,
+          "unresolved_count": 32,
+          "major_confusion_to": "ClutterTarget",
+          "major_confusion_count": 93
+        },
+        {
+          "class": "BalloonTarget",
+          "precision": 0.967741935483871,
+          "recall": 0.9486166007905138,
+          "f1": 0.9580838323353295,
+          "support": 1012,
+          "unresolved_count": 8,
+          "major_confusion_to": "DroneTarget",
+          "major_confusion_count": 22
+        },
+        {
+          "class": "ClutterTarget",
+          "precision": 0.5306122448979592,
+          "recall": 0.87248322147651,
+          "f1": 0.6598984771573605,
+          "support": 149,
+          "unresolved_count": 6,
+          "major_confusion_to": "BirdTarget",
+          "major_confusion_count": 13
+        }
+      ],
+      "confusion_matrix_rows_known_true_columns_known_plus_unresolved": [
+        [
+          1841,
+          165,
+          20,
+          0,
+          1
+        ],
+        [
+          0,
+          876,
+          12,
+          93,
+          32
+        ],
+        [
+          22,
+          0,
+          960,
+          22,
+          8
+        ],
+        [
+          0,
+          13,
+          0,
+          130,
+          6
+        ]
+      ],
+      "prediction_columns": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget",
+        "ClutterTarget",
+        "UNRESOLVED_OPEN_SET_EVIDENCE"
+      ],
+      "unresolved_is_unknown_class": false,
+      "unresolved_semantics": "diagnostic known evidence not accepted as any known class; calibrated rejection not implied"
+    },
+    "parent_metrics": {
+      "scope": "val:V14_known_parent_final",
+      "support": 217,
+      "accepted_known_count": 215,
+      "unresolved_known_count": 2,
+      "known_action_coverage": 0.9907834101382489,
+      "accuracy_including_unresolved_as_error": 0.9216589861751152,
+      "accepted_accuracy": 0.9302325581395349,
+      "macro_precision": 0.9049205043859649,
+      "macro_recall": 0.8656364468864469,
+      "macro_f1": 0.8784970539940115,
+      "per_class": [
+        {
+          "class": "DroneTarget",
+          "precision": 0.9894736842105263,
+          "recall": 0.8952380952380953,
+          "f1": 0.9400000000000001,
+          "support": 105,
+          "unresolved_count": 0,
+          "major_confusion_to": "BirdTarget",
+          "major_confusion_count": 11
+        },
+        {
+          "class": "BirdTarget",
+          "precision": 0.796875,
+          "recall": 0.9807692307692307,
+          "f1": 0.8793103448275861,
+          "support": 52,
+          "unresolved_count": 1,
+          "major_confusion_to": "UNRESOLVED_OPEN_SET_EVIDENCE",
+          "major_confusion_count": 1
+        },
+        {
+          "class": "BalloonTarget",
+          "precision": 1.0,
+          "recall": 0.9615384615384616,
+          "f1": 0.9803921568627451,
+          "support": 52,
+          "unresolved_count": 0,
+          "major_confusion_to": "DroneTarget",
+          "major_confusion_count": 1
+        },
+        {
+          "class": "ClutterTarget",
+          "precision": 0.8333333333333334,
+          "recall": 0.625,
+          "f1": 0.7142857142857143,
+          "support": 8,
+          "unresolved_count": 1,
+          "major_confusion_to": "BirdTarget",
+          "major_confusion_count": 2
+        }
+      ],
+      "confusion_matrix_rows_known_true_columns_known_plus_unresolved": [
+        [
+          94,
+          11,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          51,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          50,
+          1,
+          0
+        ],
+        [
+          0,
+          2,
+          0,
+          5,
+          1
+        ]
+      ],
+      "prediction_columns": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget",
+        "ClutterTarget",
+        "UNRESOLVED_OPEN_SET_EVIDENCE"
+      ],
+      "unresolved_is_unknown_class": false,
+      "unresolved_semantics": "diagnostic known evidence not accepted as any known class; calibrated rejection not implied"
+    }
+  },
+  "component_metrics": {
+    "gate_known_parent": {
+      "scope": "V14_gate_known_parent_final",
+      "support": 217,
+      "accuracy": 0.9815668202764977,
+      "macro_precision": 0.8702153110047847,
+      "macro_recall": 0.8702153110047847,
+      "macro_f1": 0.8702153110047847,
+      "balanced_accuracy": 0.8702153110047847,
+      "per_class": [
+        {
+          "class": "DBB_ACCEPT_EVIDENCE",
+          "precision": 0.9904306220095693,
+          "recall": 0.9904306220095693,
+          "f1": 0.9904306220095693,
+          "support": 209,
+          "major_confusion_to": "ROUTE_TO_CU_EVIDENCE",
+          "major_confusion_count": 2
+        },
+        {
+          "class": "ROUTE_TO_CU_EVIDENCE",
+          "precision": 0.75,
+          "recall": 0.75,
+          "f1": 0.75,
+          "support": 8,
+          "major_confusion_to": "DBB_ACCEPT_EVIDENCE",
+          "major_confusion_count": 2
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          207,
+          2
+        ],
+        [
+          2,
+          6
+        ]
+      ]
+    },
+    "dbb_known_parent_conditional": {
+      "scope": "V14_dbb_known_parent_conditional",
+      "support": 209,
+      "accuracy": 0.937799043062201,
+      "macro_precision": 0.9339912280701754,
+      "macro_recall": 0.9522588522588523,
+      "macro_f1": 0.9389812936668921,
+      "balanced_accuracy": 0.9522588522588523,
+      "per_class": [
+        {
+          "class": "DroneTarget",
+          "precision": 0.9894736842105263,
+          "recall": 0.8952380952380953,
+          "f1": 0.9400000000000001,
+          "support": 105,
+          "major_confusion_to": "BirdTarget",
+          "major_confusion_count": 11
+        },
+        {
+          "class": "BirdTarget",
+          "precision": 0.8125,
+          "recall": 1.0,
+          "f1": 0.896551724137931,
+          "support": 52,
+          "major_confusion_to": null,
+          "major_confusion_count": 0
+        },
+        {
+          "class": "BalloonTarget",
+          "precision": 1.0,
+          "recall": 0.9615384615384616,
+          "f1": 0.9803921568627451,
+          "support": 52,
+          "major_confusion_to": "DroneTarget",
+          "major_confusion_count": 1
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          94,
+          11,
+          0
+        ],
+        [
+          0,
+          52,
+          0
+        ],
+        [
+          1,
+          1,
+          50
+        ]
+      ]
+    },
+    "clutter_acceptance_known_parent": {
+      "scope": "V14_clutter_acceptance_known_parent",
+      "support": 217,
+      "accuracy": 0.9815668202764977,
+      "macro_precision": 0.8475845410628019,
+      "macro_recall": 0.930322966507177,
+      "macro_f1": 0.8840811965811965,
+      "balanced_accuracy": 0.930322966507177,
+      "per_class": [
+        {
+          "class": "CLUTTER_ACCEPT_EVIDENCE",
+          "precision": 0.7,
+          "recall": 0.875,
+          "f1": 0.7777777777777777,
+          "support": 8,
+          "major_confusion_to": "NON_CLUTTER_KNOWN_EVIDENCE",
+          "major_confusion_count": 1
+        },
+        {
+          "class": "NON_CLUTTER_KNOWN_EVIDENCE",
+          "precision": 0.9951690821256038,
+          "recall": 0.9856459330143541,
+          "f1": 0.9903846153846154,
+          "support": 209,
+          "major_confusion_to": "CLUTTER_ACCEPT_EVIDENCE",
+          "major_confusion_count": 3
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          7,
+          1
+        ],
+        [
+          3,
+          206
+        ]
+      ]
+    }
+  },
+  "development_unknown_audit": {
+    "status": "frozen_development_open_set_audit_only",
+    "split": "val",
+    "parent_count": 15,
+    "gate_diagnostic_route_counts": {
+      "DBB": 8,
+      "CU": 7
+    },
+    "gate_dbb_probability": {
+      "minimum": 0.18532493710517883,
+      "median": 0.624226987361908,
+      "maximum": 0.995665967464447
+    },
+    "dbb_top_probability": {
+      "minimum": 0.5900884866714478,
+      "median": 0.9781216382980347,
+      "maximum": 0.9906666874885559
+    },
+    "dbb_top_margin": {
+      "minimum": 0.18592754006385803,
+      "median": 0.963783323764801,
+      "maximum": 0.9849178791046143
+    },
+    "clutter_accept_probability": {
+      "minimum": 0.0132924634963274,
+      "median": 0.368766725063324,
+      "maximum": 0.7200484871864319
+    },
+    "clutter_accept_margin": {
+      "minimum": -0.9734150767326355,
+      "median": -0.26246654987335205,
+      "maximum": 0.44009697437286377
+    },
+    "threshold_fitting_allowed": false,
+    "checkpoint_selection_allowed": false,
+    "unknown_is_learned_class": false
+  },
+  "checkpoint_selection_inputs": {
+    "status": "forbidden_for_development_open_set_audit",
+    "unknown_parent_count": 15,
+    "unknown_used_for_selection": false
+  },
+  "calibrated_hierarchical_action": {
+    "status": "not_evaluated",
+    "reason": "known-only train parent-grouped OOF calibration artifact was not supplied",
+    "coverage": "not_evaluated",
+    "false_acceptance_rate": "not_evaluated",
+    "false_rejection_rate": "not_evaluated",
+    "selective_risk": "not_evaluated"
+  },
+  "stable_action": {
+    "status": "not_evaluated_without_calibration",
+    "stable_coverage": "not_evaluated"
+  },
+  "dt_reason_counts_data_events": {
+    "first_event": 232,
+    "zero_delta": 1564,
+    "positive_delta": 2678
+  },
+  "collate_padding_positions": 1334,
+  "evaluation_batch_size": 8,
+  "session_metrics": {
+    "status": "not_available",
+    "reason": "current verified index has no session/capture field"
+  },
+  "status": "passed",
+  "device": "cuda",
+  "configs": {
+    "dbb_cu_gate": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V14-cq08-liquid-strict-open-set-dbb-cu-gate-config.json",
+    "dbb_specialist": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V14-cq08-liquid-strict-open-set-dbb-specialist-config.json",
+    "cu_specialist": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V14-cq08-liquid-strict-open-set-cu-specialist-config.json"
+  },
+  "checkpoints": {
+    "dbb_cu_gate": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal\\dbb_cu_gate\\best_model.pt",
+    "dbb_specialist": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal\\dbb_specialist\\best_model.pt",
+    "cu_specialist": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V14-cq08-liquid-strict-open-set-cascade-formal\\cu_specialist\\best_model.pt"
+  },
+  "checkpoint_epochs": {
+    "dbb_cu_gate": 12,
+    "dbb_specialist": 12,
+    "cu_specialist": 12
+  },
+  "data_contracts": {
+    "dbb_cu_gate": {
+      "paths": {
+        "index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-strict-open-set-data-contract.json",
+        "stats": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json"
+      },
+      "hashes": {
+        "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+        "stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0"
+      },
+      "contract": {
+        "schema_version": "RADAR-LN3-V14",
+        "contract_name": "cq08_tr_rd_known_only_strict_open_set_liquid_cascade_v1",
+        "contract_status": "implementation_prepared_formal_training_not_executed",
+        "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "source_contract": "data/processed/RADAR-LN3-V13-cq08-hierarchical-cascade-data-contract.json",
+        "source_contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+        "source_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+        "source_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+        "source_purity": {
+          "allowed_sources": [
+            "CQ08"
+          ],
+          "excluded_sources": [
+            "raw",
+            "Excel",
+            "RD-only"
+          ]
+        },
+        "data_scope": {
+          "index_schema_version": "RADAR-LN3-V3",
+          "parent_count": 1546,
+          "point_count": 29663,
+          "split_parent_counts": {
+            "train": 1081,
+            "val": 232,
+            "test": 233
+          },
+          "split_point_counts": {
+            "train": 20684,
+            "val": 4474,
+            "test": 4505
+          },
+          "label_parent_counts": {
+            "DroneTarget": 698,
+            "BirdTarget": 348,
+            "BalloonTarget": 350,
+            "ClutterTarget": 50,
+            "UnknownTarget": 100
+          },
+          "train_label_parent_counts": {
+            "DroneTarget": 488,
+            "BirdTarget": 243,
+            "BalloonTarget": 245,
+            "ClutterTarget": 35,
+            "UnknownTarget": 70
+          },
+          "validation_label_parent_counts": {
+            "DroneTarget": 105,
+            "BirdTarget": 52,
+            "BalloonTarget": 52,
+            "ClutterTarget": 8,
+            "UnknownTarget": 15
+          },
+          "test_label_parent_counts_metadata_only": {
+            "DroneTarget": 105,
+            "BirdTarget": 53,
+            "BalloonTarget": 53,
+            "ClutterTarget": 7,
+            "UnknownTarget": 15
+          },
+          "known_train_parent_count": 1011,
+          "known_validation_parent_count": 217,
+          "unknown_train_source_parent_count": 70,
+          "unknown_validation_audit_parent_count": 15,
+          "index_rows_changed": false,
+          "split_changed": false,
+          "rd_tensor_payloads_changed": false,
+          "test_payload_access_count": 0
+        },
+        "strict_open_set_contract": {
+          "known_training_labels": [
+            "DroneTarget",
+            "BirdTarget",
+            "BalloonTarget",
+            "ClutterTarget"
+          ],
+          "unknown_label": "UnknownTarget",
+          "unknown_is_model_class": false,
+          "unknown_is_training_target": false,
+          "unknown_is_normalization_population": false,
+          "unknown_is_sampler_population": false,
+          "unknown_is_optimizer_population": false,
+          "unknown_is_checkpoint_ranking_population": false,
+          "unknown_is_oof_population": false,
+          "unknown_is_threshold_fitting_population": false,
+          "unknown_training_exposure": 0,
+          "normalization_known_parent_count": 1011,
+          "normalization_excluded_unknown_parent_count": 70,
+          "normalization_selected_excluded_tensor_overlap_count": 0,
+          "validation_known_checkpoint_selection_parent_count": 217,
+          "validation_unknown_post_freeze_development_audit_parent_count": 15,
+          "validation_unknown_threshold_fitting_allowed": false,
+          "validation_unknown_checkpoint_selection_allowed": false,
+          "test_is_sealed": true,
+          "test_evaluation": "未执行"
+        },
+        "normalization_contract": {
+          "path": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "schema_version": "RADAR-LN3-V14",
+          "source_split": "train",
+          "known_parent_count": 1011,
+          "selected_label_parent_counts": {
+            "BalloonTarget": 245,
+            "BirdTarget": 243,
+            "ClutterTarget": 35,
+            "DroneTarget": 488
+          },
+          "forbidden_labels": [
+            "UnknownTarget"
+          ],
+          "excluded_label_parent_counts": {
+            "UnknownTarget": 70
+          },
+          "selected_parent_ids_sha256": "bd69711a63e987be581857ab175122d5662fb5f719dbe21698cf044170aa44bb",
+          "selected_rd_tensor_paths_sha256": "0378cad2f310f7a0827ea25cfb1da07a8951f50386fcdb03c271f4495f66a338",
+          "excluded_parent_ids_sha256": "31ca0a6bb9bb091581929c0e73b43258859f14a3cccebdec772f57a925e5fc71",
+          "excluded_rd_tensor_paths_sha256": "185a43c0f9188ca50f10efa6055494671f1100e76f13ba23f524f0de37711a0c",
+          "rd_amplitude_center": 55.9375,
+          "rd_amplitude_scale": 6.945900266082501
+        },
+        "time_contract": {
+          "raw_precision_seconds": 1.0,
+          "dt_field": "tr_dt_seconds",
+          "dt_valid_field": "tr_dt_valid",
+          "dt_reason_field": "tr_dt_reason",
+          "reason_encoding": {
+            "padding": 0,
+            "first_event_no_predecessor": 1,
+            "zero_delta_at_second_precision": 2,
+            "positive_delta_at_second_precision": 3
+          },
+          "dynamics_only": true,
+          "first_event_rule": "initialize from the current observation without claiming elapsed physical time",
+          "zero_delta_rule": "apply bounded current-observation update without time decay",
+          "positive_delta_rule": "apply continuous-time liquid update with the positive second-precision delta",
+          "padding_rule": "never update state",
+          "no_high_precision_dt_recovery_claim": true
+        },
+        "feature_contract": {
+          "tr_value_dim": 14,
+          "tr_missing_dim": 11,
+          "rd_quality_dim": 7,
+          "rd_quality_schema": "causal-current-event-v1",
+          "rd_quality_names": [
+            "rd_present",
+            "rd_frame_count_scaled",
+            "rd_local_duration_scaled",
+            "rd_missing",
+            "rd_local_time_non_monotonic",
+            "rd_multiple_frames",
+            "rd_frames_truncated"
+          ],
+          "rd_frame_shape": [
+            2,
+            21,
+            384
+          ],
+          "rd_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "rd_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "excluded_model_inputs": [
+            "label_name",
+            "path",
+            "filename",
+            "parent_sample_id",
+            "track_id",
+            "split_name",
+            "UnknownTarget indicator"
+          ],
+          "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification Fusion"
+        },
+        "model_io": {
+          "tr_features": "[B,L,14]",
+          "tr_missing_mask": "[B,L,11]",
+          "tr_dt_seconds": "[B,L]",
+          "tr_dt_valid": "[B,L] bool",
+          "tr_dt_reason": "[B,L] int64 dynamics-only",
+          "rd_frames": "[B,L,K,2,21,384]",
+          "rd_frame_mask": "[B,L,K] bool",
+          "rd_quality": "[B,L,7] causal-current-event-v1",
+          "tr_padding_mask": "[B,L] bool",
+          "gate_logits": "[B,L,2] DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE",
+          "dbb_logits": "[B,L,3] Drone/Bird/Balloon known conditional evidence",
+          "cu_logits": "[B,L,2] CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE",
+          "open_set_audit_evidence": "[B,L,5] four known evidence values plus UNRESOLVED_OPEN_SET_EVIDENCE; not Unknown posterior",
+          "hierarchical_action": "DBB_PENDING|DBB_ACCEPTED|CU_PENDING|CLUTTER_ACCEPTED|UNKNOWN_REJECTED"
+        },
+        "training_contract": {
+          "entry": "src-v3/train/cascade.py",
+          "single_task_entry_forbidden": true,
+          "optimization_population": "known train parents only",
+          "optimizer_parent_count": 1011,
+          "unknown_optimizer_parent_count": 0,
+          "gate_target": "DBB known versus Clutter route evidence; Unknown absent",
+          "dbb_target": "Drone/Bird/Balloon only",
+          "cu_target": "Clutter accept versus DBB known non-Clutter evidence; Unknown absent",
+          "main_loss": "parent-final known-only strict-open-set NLL",
+          "prefix_auxiliary_weight": 0.1,
+          "prefix_auxiliary_min_events": 3,
+          "checkpoint_selection": "known validation Gate/DBB/Clutter-acceptance/Drone-Bird guardrails only",
+          "unknown_checkpoint_selection_exposure": 0,
+          "epochs": 20,
+          "early_stopping": false,
+          "pretraining": "not_required_and_not_used"
+        },
+        "oof_calibration_contract": {
+          "fit_split": "train",
+          "fit_population": "known_only",
+          "grouping": "parent",
+          "prediction_protocol": "out_of_fold",
+          "unknown_oof_count": 0,
+          "validation_used_for_threshold_fitting": false,
+          "test_used": false,
+          "thresholds": [
+            "gate_accept_dbb_probability_and_margin",
+            "dbb_accept_known_probability_and_margin",
+            "cu_accept_clutter_probability_and_margin"
+          ],
+          "status": "未执行"
+        },
+        "action_contract": {
+          "gate_action": "accept DBB route when calibrated; otherwise route to CU",
+          "dbb_action": "accept Drone/Bird/Balloon only when DBB knownness is calibrated and passes",
+          "dbb_knownness_failure": "UNKNOWN_REJECTED",
+          "cu_action": "accept Clutter only when calibrated and passes",
+          "cu_clutter_failure": "UNKNOWN_REJECTED",
+          "unknown_is_rejection_action_only": true,
+          "unknown_is_probability_output": false,
+          "uncalibrated_mode": "named evidence audit only; no Coverage/FAR/FRR/reject/stable claim"
+        },
+        "reuse": {
+          "index_reused": true,
+          "split_reused": true,
+          "rd_tensors_reused_read_only": true,
+          "normalization_reused": false,
+          "v13_checkpoint_compatibility": "forbidden",
+          "v13_calibration_compatibility": "forbidden",
+          "version_reason": "V14 changes train population, normalization, task labels, loss, checkpoint ranking, evidence semantics and three-boundary rejection while reusing V3 rows/split/TR/RD tensors"
+        },
+        "validation_status": {
+          "focused": "未执行",
+          "bounded_cpu_smoke": "未执行",
+          "bounded_cuda_smoke": "未执行",
+          "formal_training": "未执行",
+          "oof_calibration": "未执行",
+          "formal_rejection": "未执行",
+          "stable": "未执行",
+          "test": "未执行",
+          "p95": "未执行"
+        }
+      },
+      "rd_physical": null
+    },
+    "dbb_specialist": {
+      "paths": {
+        "index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-strict-open-set-data-contract.json",
+        "stats": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json"
+      },
+      "hashes": {
+        "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+        "stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0"
+      },
+      "contract": {
+        "schema_version": "RADAR-LN3-V14",
+        "contract_name": "cq08_tr_rd_known_only_strict_open_set_liquid_cascade_v1",
+        "contract_status": "implementation_prepared_formal_training_not_executed",
+        "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "source_contract": "data/processed/RADAR-LN3-V13-cq08-hierarchical-cascade-data-contract.json",
+        "source_contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+        "source_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+        "source_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+        "source_purity": {
+          "allowed_sources": [
+            "CQ08"
+          ],
+          "excluded_sources": [
+            "raw",
+            "Excel",
+            "RD-only"
+          ]
+        },
+        "data_scope": {
+          "index_schema_version": "RADAR-LN3-V3",
+          "parent_count": 1546,
+          "point_count": 29663,
+          "split_parent_counts": {
+            "train": 1081,
+            "val": 232,
+            "test": 233
+          },
+          "split_point_counts": {
+            "train": 20684,
+            "val": 4474,
+            "test": 4505
+          },
+          "label_parent_counts": {
+            "DroneTarget": 698,
+            "BirdTarget": 348,
+            "BalloonTarget": 350,
+            "ClutterTarget": 50,
+            "UnknownTarget": 100
+          },
+          "train_label_parent_counts": {
+            "DroneTarget": 488,
+            "BirdTarget": 243,
+            "BalloonTarget": 245,
+            "ClutterTarget": 35,
+            "UnknownTarget": 70
+          },
+          "validation_label_parent_counts": {
+            "DroneTarget": 105,
+            "BirdTarget": 52,
+            "BalloonTarget": 52,
+            "ClutterTarget": 8,
+            "UnknownTarget": 15
+          },
+          "test_label_parent_counts_metadata_only": {
+            "DroneTarget": 105,
+            "BirdTarget": 53,
+            "BalloonTarget": 53,
+            "ClutterTarget": 7,
+            "UnknownTarget": 15
+          },
+          "known_train_parent_count": 1011,
+          "known_validation_parent_count": 217,
+          "unknown_train_source_parent_count": 70,
+          "unknown_validation_audit_parent_count": 15,
+          "index_rows_changed": false,
+          "split_changed": false,
+          "rd_tensor_payloads_changed": false,
+          "test_payload_access_count": 0
+        },
+        "strict_open_set_contract": {
+          "known_training_labels": [
+            "DroneTarget",
+            "BirdTarget",
+            "BalloonTarget",
+            "ClutterTarget"
+          ],
+          "unknown_label": "UnknownTarget",
+          "unknown_is_model_class": false,
+          "unknown_is_training_target": false,
+          "unknown_is_normalization_population": false,
+          "unknown_is_sampler_population": false,
+          "unknown_is_optimizer_population": false,
+          "unknown_is_checkpoint_ranking_population": false,
+          "unknown_is_oof_population": false,
+          "unknown_is_threshold_fitting_population": false,
+          "unknown_training_exposure": 0,
+          "normalization_known_parent_count": 1011,
+          "normalization_excluded_unknown_parent_count": 70,
+          "normalization_selected_excluded_tensor_overlap_count": 0,
+          "validation_known_checkpoint_selection_parent_count": 217,
+          "validation_unknown_post_freeze_development_audit_parent_count": 15,
+          "validation_unknown_threshold_fitting_allowed": false,
+          "validation_unknown_checkpoint_selection_allowed": false,
+          "test_is_sealed": true,
+          "test_evaluation": "未执行"
+        },
+        "normalization_contract": {
+          "path": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "schema_version": "RADAR-LN3-V14",
+          "source_split": "train",
+          "known_parent_count": 1011,
+          "selected_label_parent_counts": {
+            "BalloonTarget": 245,
+            "BirdTarget": 243,
+            "ClutterTarget": 35,
+            "DroneTarget": 488
+          },
+          "forbidden_labels": [
+            "UnknownTarget"
+          ],
+          "excluded_label_parent_counts": {
+            "UnknownTarget": 70
+          },
+          "selected_parent_ids_sha256": "bd69711a63e987be581857ab175122d5662fb5f719dbe21698cf044170aa44bb",
+          "selected_rd_tensor_paths_sha256": "0378cad2f310f7a0827ea25cfb1da07a8951f50386fcdb03c271f4495f66a338",
+          "excluded_parent_ids_sha256": "31ca0a6bb9bb091581929c0e73b43258859f14a3cccebdec772f57a925e5fc71",
+          "excluded_rd_tensor_paths_sha256": "185a43c0f9188ca50f10efa6055494671f1100e76f13ba23f524f0de37711a0c",
+          "rd_amplitude_center": 55.9375,
+          "rd_amplitude_scale": 6.945900266082501
+        },
+        "time_contract": {
+          "raw_precision_seconds": 1.0,
+          "dt_field": "tr_dt_seconds",
+          "dt_valid_field": "tr_dt_valid",
+          "dt_reason_field": "tr_dt_reason",
+          "reason_encoding": {
+            "padding": 0,
+            "first_event_no_predecessor": 1,
+            "zero_delta_at_second_precision": 2,
+            "positive_delta_at_second_precision": 3
+          },
+          "dynamics_only": true,
+          "first_event_rule": "initialize from the current observation without claiming elapsed physical time",
+          "zero_delta_rule": "apply bounded current-observation update without time decay",
+          "positive_delta_rule": "apply continuous-time liquid update with the positive second-precision delta",
+          "padding_rule": "never update state",
+          "no_high_precision_dt_recovery_claim": true
+        },
+        "feature_contract": {
+          "tr_value_dim": 14,
+          "tr_missing_dim": 11,
+          "rd_quality_dim": 7,
+          "rd_quality_schema": "causal-current-event-v1",
+          "rd_quality_names": [
+            "rd_present",
+            "rd_frame_count_scaled",
+            "rd_local_duration_scaled",
+            "rd_missing",
+            "rd_local_time_non_monotonic",
+            "rd_multiple_frames",
+            "rd_frames_truncated"
+          ],
+          "rd_frame_shape": [
+            2,
+            21,
+            384
+          ],
+          "rd_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "rd_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "excluded_model_inputs": [
+            "label_name",
+            "path",
+            "filename",
+            "parent_sample_id",
+            "track_id",
+            "split_name",
+            "UnknownTarget indicator"
+          ],
+          "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification Fusion"
+        },
+        "model_io": {
+          "tr_features": "[B,L,14]",
+          "tr_missing_mask": "[B,L,11]",
+          "tr_dt_seconds": "[B,L]",
+          "tr_dt_valid": "[B,L] bool",
+          "tr_dt_reason": "[B,L] int64 dynamics-only",
+          "rd_frames": "[B,L,K,2,21,384]",
+          "rd_frame_mask": "[B,L,K] bool",
+          "rd_quality": "[B,L,7] causal-current-event-v1",
+          "tr_padding_mask": "[B,L] bool",
+          "gate_logits": "[B,L,2] DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE",
+          "dbb_logits": "[B,L,3] Drone/Bird/Balloon known conditional evidence",
+          "cu_logits": "[B,L,2] CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE",
+          "open_set_audit_evidence": "[B,L,5] four known evidence values plus UNRESOLVED_OPEN_SET_EVIDENCE; not Unknown posterior",
+          "hierarchical_action": "DBB_PENDING|DBB_ACCEPTED|CU_PENDING|CLUTTER_ACCEPTED|UNKNOWN_REJECTED"
+        },
+        "training_contract": {
+          "entry": "src-v3/train/cascade.py",
+          "single_task_entry_forbidden": true,
+          "optimization_population": "known train parents only",
+          "optimizer_parent_count": 1011,
+          "unknown_optimizer_parent_count": 0,
+          "gate_target": "DBB known versus Clutter route evidence; Unknown absent",
+          "dbb_target": "Drone/Bird/Balloon only",
+          "cu_target": "Clutter accept versus DBB known non-Clutter evidence; Unknown absent",
+          "main_loss": "parent-final known-only strict-open-set NLL",
+          "prefix_auxiliary_weight": 0.1,
+          "prefix_auxiliary_min_events": 3,
+          "checkpoint_selection": "known validation Gate/DBB/Clutter-acceptance/Drone-Bird guardrails only",
+          "unknown_checkpoint_selection_exposure": 0,
+          "epochs": 20,
+          "early_stopping": false,
+          "pretraining": "not_required_and_not_used"
+        },
+        "oof_calibration_contract": {
+          "fit_split": "train",
+          "fit_population": "known_only",
+          "grouping": "parent",
+          "prediction_protocol": "out_of_fold",
+          "unknown_oof_count": 0,
+          "validation_used_for_threshold_fitting": false,
+          "test_used": false,
+          "thresholds": [
+            "gate_accept_dbb_probability_and_margin",
+            "dbb_accept_known_probability_and_margin",
+            "cu_accept_clutter_probability_and_margin"
+          ],
+          "status": "未执行"
+        },
+        "action_contract": {
+          "gate_action": "accept DBB route when calibrated; otherwise route to CU",
+          "dbb_action": "accept Drone/Bird/Balloon only when DBB knownness is calibrated and passes",
+          "dbb_knownness_failure": "UNKNOWN_REJECTED",
+          "cu_action": "accept Clutter only when calibrated and passes",
+          "cu_clutter_failure": "UNKNOWN_REJECTED",
+          "unknown_is_rejection_action_only": true,
+          "unknown_is_probability_output": false,
+          "uncalibrated_mode": "named evidence audit only; no Coverage/FAR/FRR/reject/stable claim"
+        },
+        "reuse": {
+          "index_reused": true,
+          "split_reused": true,
+          "rd_tensors_reused_read_only": true,
+          "normalization_reused": false,
+          "v13_checkpoint_compatibility": "forbidden",
+          "v13_calibration_compatibility": "forbidden",
+          "version_reason": "V14 changes train population, normalization, task labels, loss, checkpoint ranking, evidence semantics and three-boundary rejection while reusing V3 rows/split/TR/RD tensors"
+        },
+        "validation_status": {
+          "focused": "未执行",
+          "bounded_cpu_smoke": "未执行",
+          "bounded_cuda_smoke": "未执行",
+          "formal_training": "未执行",
+          "oof_calibration": "未执行",
+          "formal_rejection": "未执行",
+          "stable": "未执行",
+          "test": "未执行",
+          "p95": "未执行"
+        }
+      },
+      "rd_physical": null
+    },
+    "cu_specialist": {
+      "paths": {
+        "index": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "contract": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-strict-open-set-data-contract.json",
+        "stats": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json"
+      },
+      "hashes": {
+        "index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "contract_sha256": "062b67f7c9b33b682a55ce90a6b41e5d66bafada374e149ae46c02392a68f378",
+        "stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0"
+      },
+      "contract": {
+        "schema_version": "RADAR-LN3-V14",
+        "contract_name": "cq08_tr_rd_known_only_strict_open_set_liquid_cascade_v1",
+        "contract_status": "implementation_prepared_formal_training_not_executed",
+        "source_index": "data/processed/RADAR-LN3-V3-cq08-tr-rd-prefix-dt-index.csv",
+        "source_index_sha256": "a5d054f044709047938c88ef5601caf7d4b482ef980a5a61f19db87b6e649f87",
+        "source_contract": "data/processed/RADAR-LN3-V13-cq08-hierarchical-cascade-data-contract.json",
+        "source_contract_sha256": "d7fe425b78d71784d9cbc3a8c800acab7fa5dc156a0d16481ae9c94e9877b4a1",
+        "source_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+        "source_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+        "source_purity": {
+          "allowed_sources": [
+            "CQ08"
+          ],
+          "excluded_sources": [
+            "raw",
+            "Excel",
+            "RD-only"
+          ]
+        },
+        "data_scope": {
+          "index_schema_version": "RADAR-LN3-V3",
+          "parent_count": 1546,
+          "point_count": 29663,
+          "split_parent_counts": {
+            "train": 1081,
+            "val": 232,
+            "test": 233
+          },
+          "split_point_counts": {
+            "train": 20684,
+            "val": 4474,
+            "test": 4505
+          },
+          "label_parent_counts": {
+            "DroneTarget": 698,
+            "BirdTarget": 348,
+            "BalloonTarget": 350,
+            "ClutterTarget": 50,
+            "UnknownTarget": 100
+          },
+          "train_label_parent_counts": {
+            "DroneTarget": 488,
+            "BirdTarget": 243,
+            "BalloonTarget": 245,
+            "ClutterTarget": 35,
+            "UnknownTarget": 70
+          },
+          "validation_label_parent_counts": {
+            "DroneTarget": 105,
+            "BirdTarget": 52,
+            "BalloonTarget": 52,
+            "ClutterTarget": 8,
+            "UnknownTarget": 15
+          },
+          "test_label_parent_counts_metadata_only": {
+            "DroneTarget": 105,
+            "BirdTarget": 53,
+            "BalloonTarget": 53,
+            "ClutterTarget": 7,
+            "UnknownTarget": 15
+          },
+          "known_train_parent_count": 1011,
+          "known_validation_parent_count": 217,
+          "unknown_train_source_parent_count": 70,
+          "unknown_validation_audit_parent_count": 15,
+          "index_rows_changed": false,
+          "split_changed": false,
+          "rd_tensor_payloads_changed": false,
+          "test_payload_access_count": 0
+        },
+        "strict_open_set_contract": {
+          "known_training_labels": [
+            "DroneTarget",
+            "BirdTarget",
+            "BalloonTarget",
+            "ClutterTarget"
+          ],
+          "unknown_label": "UnknownTarget",
+          "unknown_is_model_class": false,
+          "unknown_is_training_target": false,
+          "unknown_is_normalization_population": false,
+          "unknown_is_sampler_population": false,
+          "unknown_is_optimizer_population": false,
+          "unknown_is_checkpoint_ranking_population": false,
+          "unknown_is_oof_population": false,
+          "unknown_is_threshold_fitting_population": false,
+          "unknown_training_exposure": 0,
+          "normalization_known_parent_count": 1011,
+          "normalization_excluded_unknown_parent_count": 70,
+          "normalization_selected_excluded_tensor_overlap_count": 0,
+          "validation_known_checkpoint_selection_parent_count": 217,
+          "validation_unknown_post_freeze_development_audit_parent_count": 15,
+          "validation_unknown_threshold_fitting_allowed": false,
+          "validation_unknown_checkpoint_selection_allowed": false,
+          "test_is_sealed": true,
+          "test_evaluation": "未执行"
+        },
+        "normalization_contract": {
+          "path": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "schema_version": "RADAR-LN3-V14",
+          "source_split": "train",
+          "known_parent_count": 1011,
+          "selected_label_parent_counts": {
+            "BalloonTarget": 245,
+            "BirdTarget": 243,
+            "ClutterTarget": 35,
+            "DroneTarget": 488
+          },
+          "forbidden_labels": [
+            "UnknownTarget"
+          ],
+          "excluded_label_parent_counts": {
+            "UnknownTarget": 70
+          },
+          "selected_parent_ids_sha256": "bd69711a63e987be581857ab175122d5662fb5f719dbe21698cf044170aa44bb",
+          "selected_rd_tensor_paths_sha256": "0378cad2f310f7a0827ea25cfb1da07a8951f50386fcdb03c271f4495f66a338",
+          "excluded_parent_ids_sha256": "31ca0a6bb9bb091581929c0e73b43258859f14a3cccebdec772f57a925e5fc71",
+          "excluded_rd_tensor_paths_sha256": "185a43c0f9188ca50f10efa6055494671f1100e76f13ba23f524f0de37711a0c",
+          "rd_amplitude_center": 55.9375,
+          "rd_amplitude_scale": 6.945900266082501
+        },
+        "time_contract": {
+          "raw_precision_seconds": 1.0,
+          "dt_field": "tr_dt_seconds",
+          "dt_valid_field": "tr_dt_valid",
+          "dt_reason_field": "tr_dt_reason",
+          "reason_encoding": {
+            "padding": 0,
+            "first_event_no_predecessor": 1,
+            "zero_delta_at_second_precision": 2,
+            "positive_delta_at_second_precision": 3
+          },
+          "dynamics_only": true,
+          "first_event_rule": "initialize from the current observation without claiming elapsed physical time",
+          "zero_delta_rule": "apply bounded current-observation update without time decay",
+          "positive_delta_rule": "apply continuous-time liquid update with the positive second-precision delta",
+          "padding_rule": "never update state",
+          "no_high_precision_dt_recovery_claim": true
+        },
+        "feature_contract": {
+          "tr_value_dim": 14,
+          "tr_missing_dim": 11,
+          "rd_quality_dim": 7,
+          "rd_quality_schema": "causal-current-event-v1",
+          "rd_quality_names": [
+            "rd_present",
+            "rd_frame_count_scaled",
+            "rd_local_duration_scaled",
+            "rd_missing",
+            "rd_local_time_non_monotonic",
+            "rd_multiple_frames",
+            "rd_frames_truncated"
+          ],
+          "rd_frame_shape": [
+            2,
+            21,
+            384
+          ],
+          "rd_normalization_stats": "data/processed/RADAR-LN3-V14-cq08-known-only-train-normalization-stats.json",
+          "rd_normalization_stats_sha256": "1484f58521be677b0a5f992e40fd8af558660da2c8f764669f151d9d969194b0",
+          "excluded_model_inputs": [
+            "label_name",
+            "path",
+            "filename",
+            "parent_sample_id",
+            "track_id",
+            "split_name",
+            "UnknownTarget indicator"
+          ],
+          "dt_reason_input_scope": "liquid dynamics control only; never concatenated into classification Fusion"
+        },
+        "model_io": {
+          "tr_features": "[B,L,14]",
+          "tr_missing_mask": "[B,L,11]",
+          "tr_dt_seconds": "[B,L]",
+          "tr_dt_valid": "[B,L] bool",
+          "tr_dt_reason": "[B,L] int64 dynamics-only",
+          "rd_frames": "[B,L,K,2,21,384]",
+          "rd_frame_mask": "[B,L,K] bool",
+          "rd_quality": "[B,L,7] causal-current-event-v1",
+          "tr_padding_mask": "[B,L] bool",
+          "gate_logits": "[B,L,2] DBB_ACCEPT_EVIDENCE/ROUTE_TO_CU_EVIDENCE",
+          "dbb_logits": "[B,L,3] Drone/Bird/Balloon known conditional evidence",
+          "cu_logits": "[B,L,2] CLUTTER_ACCEPT_EVIDENCE/NON_CLUTTER_KNOWN_EVIDENCE",
+          "open_set_audit_evidence": "[B,L,5] four known evidence values plus UNRESOLVED_OPEN_SET_EVIDENCE; not Unknown posterior",
+          "hierarchical_action": "DBB_PENDING|DBB_ACCEPTED|CU_PENDING|CLUTTER_ACCEPTED|UNKNOWN_REJECTED"
+        },
+        "training_contract": {
+          "entry": "src-v3/train/cascade.py",
+          "single_task_entry_forbidden": true,
+          "optimization_population": "known train parents only",
+          "optimizer_parent_count": 1011,
+          "unknown_optimizer_parent_count": 0,
+          "gate_target": "DBB known versus Clutter route evidence; Unknown absent",
+          "dbb_target": "Drone/Bird/Balloon only",
+          "cu_target": "Clutter accept versus DBB known non-Clutter evidence; Unknown absent",
+          "main_loss": "parent-final known-only strict-open-set NLL",
+          "prefix_auxiliary_weight": 0.1,
+          "prefix_auxiliary_min_events": 3,
+          "checkpoint_selection": "known validation Gate/DBB/Clutter-acceptance/Drone-Bird guardrails only",
+          "unknown_checkpoint_selection_exposure": 0,
+          "epochs": 20,
+          "early_stopping": false,
+          "pretraining": "not_required_and_not_used"
+        },
+        "oof_calibration_contract": {
+          "fit_split": "train",
+          "fit_population": "known_only",
+          "grouping": "parent",
+          "prediction_protocol": "out_of_fold",
+          "unknown_oof_count": 0,
+          "validation_used_for_threshold_fitting": false,
+          "test_used": false,
+          "thresholds": [
+            "gate_accept_dbb_probability_and_margin",
+            "dbb_accept_known_probability_and_margin",
+            "cu_accept_clutter_probability_and_margin"
+          ],
+          "status": "未执行"
+        },
+        "action_contract": {
+          "gate_action": "accept DBB route when calibrated; otherwise route to CU",
+          "dbb_action": "accept Drone/Bird/Balloon only when DBB knownness is calibrated and passes",
+          "dbb_knownness_failure": "UNKNOWN_REJECTED",
+          "cu_action": "accept Clutter only when calibrated and passes",
+          "cu_clutter_failure": "UNKNOWN_REJECTED",
+          "unknown_is_rejection_action_only": true,
+          "unknown_is_probability_output": false,
+          "uncalibrated_mode": "named evidence audit only; no Coverage/FAR/FRR/reject/stable claim"
+        },
+        "reuse": {
+          "index_reused": true,
+          "split_reused": true,
+          "rd_tensors_reused_read_only": true,
+          "normalization_reused": false,
+          "v13_checkpoint_compatibility": "forbidden",
+          "v13_calibration_compatibility": "forbidden",
+          "version_reason": "V14 changes train population, normalization, task labels, loss, checkpoint ranking, evidence semantics and three-boundary rejection while reusing V3 rows/split/TR/RD tensors"
+        },
+        "validation_status": {
+          "focused": "未执行",
+          "bounded_cpu_smoke": "未执行",
+          "bounded_cuda_smoke": "未执行",
+          "formal_training": "未执行",
+          "oof_calibration": "未执行",
+          "formal_rejection": "未执行",
+          "stable": "未执行",
+          "test": "未执行",
+          "p95": "未执行"
+        }
+      },
+      "rd_physical": null
+    }
+  },
+  "sample_detail_information": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V14-strict-open-set-precalibration-validation\\sample_detail_information.json",
+  "hierarchical_calibration": "未执行",
+  "full_validation": "executed",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "p95": "未执行",
+  "test_evaluation": "未执行",
+  "report_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V14-strict-open-set-precalibration-validation\\evaluation-val.json"
+}

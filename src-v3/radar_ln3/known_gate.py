@@ -43,6 +43,7 @@ from .known_gate_features import (
     V21F_COURSE_INTERFRAME_VARIANT,
     V21H_COURSE_ISO_VARIANT,
     V21I_COURSE_D_RANGE_VARIANT,
+V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -50,6 +51,8 @@ from .open_set_architecture import KNOWN_GATE_TASK_NAME, KnownGateClass
 
 
 V21_SCHEMA_VERSION = "RADAR-LN3-V21"
+V22_SCHEMA_VERSION = "RADAR-LN3-V22"
+V22A_SCHEMA_VERSION = "RADAR-LN3-V22a"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -63,6 +66,8 @@ KNOWN_GATE_LABEL_TO_ID = {
     KNOWN_CLUTTER_LABEL: 1,
 }
 KNOWN_GATE_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
+KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION = "batch_weight_sum"
+KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION = "fixed_parent_count"
 KNOWN_GATE_SELECTION_METRIC = "parent_min_precision_recall"
 KNOWN_GATE_CONTRACT_SCHEMA = "RADAR-LN3-V21-known-gate-data-contract-v1"
 KNOWN_GATE_MANIFEST_SCHEMA = "RADAR-LN3-V21-known-gate-feature-cache-manifest-v1"
@@ -97,6 +102,15 @@ KNOWN_GATE_V21E_MULTISEED_READINESS_SCHEMA = (
 )
 KNOWN_GATE_V21E_MANIFEST_SCHEMA = (
     "RADAR-LN3-V21e-known-gate-causal-course-consistency-feature-cache-manifest-v1"
+)
+KNOWN_GATE_V22A_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V22a-known-gate-rd-temporal-residual-feature-cache-manifest-v1"
+)
+KNOWN_GATE_V22A_READINESS_SCHEMA = (
+    "RADAR-LN3-V22a-known-gate-rd-temporal-residual-training-readiness-v1"
+)
+KNOWN_GATE_V22A_EXPERIMENT_SCHEMA = (
+    "RADAR-LN3-V22a-rd-temporal-residual-experiment-contract-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
 KNOWN_GATE_V21E_MULTISEED_SEEDS = KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -174,6 +188,7 @@ class KnownGateModelConfig:
     rd_frame_aggregation: str
     dt_reason_mode: str
     evidence_dim: int
+    rd_temporal_residual_dim: int = 0
 
 
 @dataclass(frozen=True)
@@ -194,6 +209,7 @@ class KnownGateTrainConfig:
     epoch_checkpoint_dir: str
     class_weights: tuple[float, float]
     loss_mode: str
+    class_weight_normalization: str
     prefix_auxiliary_weight: float
     prefix_auxiliary_min_events: int
     checkpoint_schema: str
@@ -222,6 +238,10 @@ class KnownGateConfig:
 _V21E_OOF_CONFIG_PATTERN = re.compile(
     r"RADAR-LN3-V21e-cq08-known-gate-oof-fold-(0[0-4])-"
     r"(control|treatment)-seed43"
+)
+_V22_OOF_CONFIG_PATTERN = re.compile(
+    r"RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof-fold-"
+    r"(0[0-4])-treatment-seed43"
 )
 _V21F_OOF_CONFIG_PATTERN = re.compile(
     r"RADAR-LN3-V21f-cq08-known-gate-oof-fold-(0[0-4])-"
@@ -431,11 +451,80 @@ def _validate_v21hi_oof_support_config(
     return True
 
 
+def _validate_v22_oof_support_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize the V22 fixed-denominator loss-only OOF treatment."""
+
+    match = _V22_OOF_CONFIG_PATTERN.fullmatch(config_name)
+    if match is None:
+        return False
+    fold_token = match.group(1)
+    artifact = (
+        "artifacts/RADAR-LN3-V22-cq08-known-gate-fixed-parent-balanced-oof/"
+        f"fold-{fold_token}/treatment"
+    )
+    if (
+        config_path.name != f"{config_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or variant != V21E_COURSE_PREFIX_VARIANT
+        or data.contract_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "data-contract.json"
+        )
+        or data.normalization_stats_path
+        != (
+            "data/processed/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "train-normalization-stats.json"
+        )
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/final_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            f"RADAR-LN3-V22-known-gate-fixed-parent-balanced-oof-fold-"
+            f"{fold_token}-treatment-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path
+        != (
+            "config/RADAR-LN3/"
+            f"RADAR-LN3-V21e-cq08-known-gate-oof-fold-{fold_token}-"
+            "treatment-seed43-config.json"
+        )
+        or train.class_weight_normalization
+        != KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION
+        or train.save_every_epoch
+    ):
+        raise ValueError(
+            "V22 OOF support config differs from its fixed-denominator loss-only contract"
+        )
+    return True
+
+
 def load_known_gate_config(path: str | Path) -> KnownGateConfig:
     config_path = Path(path).resolve()
     payload = json.loads(config_path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != V21_SCHEMA_VERSION:
-        raise ValueError("KnownGate config must use RADAR-LN3-V21")
+    schema_version = str(payload.get("schema_version"))
+    if schema_version not in {
+        V21_SCHEMA_VERSION,
+        V22_SCHEMA_VERSION,
+        V22A_SCHEMA_VERSION,
+    }:
+        raise ValueError(
+            "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22 or RADAR-LN3-V22a"
+        )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
     if variant not in FEATURE_NAMES_BY_VARIANT:
@@ -540,6 +629,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         rd_frame_aggregation=str(_require(model_payload, "rd_frame_aggregation")),
         dt_reason_mode=str(_require(model_payload, "dt_reason_mode")),
         evidence_dim=int(_require(model_payload, "evidence_dim")),
+        rd_temporal_residual_dim=int(model_payload.get("rd_temporal_residual_dim", 0)),
     )
     if (model.tr_value_dim, model.tr_missing_dim, model.rd_quality_dim) != (14, 11, 7):
         raise ValueError("V21 KnownGate requires TR/missing/RD-quality dimensions 14/11/7")
@@ -547,6 +637,15 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("V21 KnownGate requires canonical RD shape 21x384")
     if model.evidence_dim != len(feature_names):
         raise ValueError("V21 evidence_dim does not match variant feature_names")
+    if model.rd_temporal_residual_dim < 0:
+        raise ValueError("KnownGate RD temporal residual dimension must be non-negative")
+    if variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
+        if model.rd_temporal_residual_dim != model.rd_embedding_dim:
+            raise ValueError(
+                "V22a RD temporal residual dimension must equal rd_embedding_dim"
+            )
+    elif model.rd_temporal_residual_dim != 0:
+        raise ValueError("only V22a may enable an RD temporal residual branch")
     if model.liquid_invalid_dt_update_mode != "bounded_observation":
         raise ValueError("V21 KnownGate baseline freezes bounded_observation dynamics")
     if model.dt_reason_mode != "v3_reason_aware_dynamics_only":
@@ -575,6 +674,12 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         epoch_checkpoint_dir=str(_require(train_payload, "epoch_checkpoint_dir")),
         class_weights=(float(class_weights[0]), float(class_weights[1])),
         loss_mode=str(_require(train_payload, "loss_mode")),
+        class_weight_normalization=str(
+            train_payload.get(
+                "class_weight_normalization",
+                KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION,
+            )
+        ),
         prefix_auxiliary_weight=float(_require(train_payload, "prefix_auxiliary_weight")),
         prefix_auxiliary_min_events=max(1, int(_require(train_payload, "prefix_auxiliary_min_events"))),
         checkpoint_schema=str(_require(train_payload, "checkpoint_schema")),
@@ -609,15 +714,38 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
-    is_oof_support = (
-        is_v21e_oof_support or is_v21f_oof_support or is_v21hi_oof_support
+    is_v22_oof_support = _validate_v22_oof_support_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
     )
+    is_oof_support = (
+        is_v21e_oof_support
+        or is_v21f_oof_support
+        or is_v21hi_oof_support
+        or is_v22_oof_support
+    )
+    is_v22a_support = (
+        schema_version == V22A_SCHEMA_VERSION
+        and variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT
+    )
+    if (schema_version == V22_SCHEMA_VERSION) != is_v22_oof_support:
+        raise ValueError("RADAR-LN3-V22 config schema is reserved for the V22 OOF loss experiment")
+    if schema_version == V22A_SCHEMA_VERSION and not is_v22a_support:
+        raise ValueError("RADAR-LN3-V22a schema is reserved for the V22a RD residual experiment")
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
         or train.epochs != 20
         or train.early_stopping_patience != 0
         or train.loss_mode != KNOWN_GATE_LOSS_MODE
+        or (
+            train.class_weight_normalization
+            != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+            and not is_v22_oof_support
+        )
         or train.checkpoint_selection_metric != KNOWN_GATE_SELECTION_METRIC
         or train.prefix_auxiliary_weight != 0.1
         or train.prefix_auxiliary_min_events != 3
@@ -633,6 +761,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("V21 KnownGate local performance target must be 0.90")
     if (
         not is_oof_support
+        and not is_v22a_support
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -653,6 +782,11 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         and seed_token not in train.checkpoint_schema
     ):
         raise ValueError("V21 additional-seed checkpoint schema must bind the seed")
+
+    if is_v22a_support and not train.checkpoint_schema.startswith(
+        f"{V22A_SCHEMA_VERSION}-{variant}-"
+    ):
+        raise ValueError("V22a checkpoint schema must bind the RD residual variant")
 
     cache_fields = (
         data.feature_cache_manifest_path,
@@ -706,7 +840,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             )
 
     return KnownGateConfig(
-        schema_version=V21_SCHEMA_VERSION,
+        schema_version=schema_version,
         config_name=config_name,
         variant=variant,
         task_name=task_name,
@@ -728,6 +862,22 @@ def known_gate_config_identity_sha256(config: KnownGateConfig) -> str:
     ):
         data_payload.pop("feature_experiment_contract_path")
         data_payload.pop("expected_feature_experiment_contract_sha256")
+    train_payload = asdict(config.train)
+    if (
+        config.schema_version == V21_SCHEMA_VERSION
+        and config.train.class_weight_normalization
+        == KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+    ):
+        # Preserve every V21 config/checkpoint identity produced before this
+        # explicit field existed. V22 keeps the field in its identity.
+        train_payload.pop("class_weight_normalization")
+    model_payload = asdict(config.model)
+    if config.schema_version != V22A_SCHEMA_VERSION and model_payload.get(
+        "rd_temporal_residual_dim"
+    ) == 0:
+        # rd_temporal_residual_dim was introduced with V22a.  Keep every
+        # pre-V22a V21/V22 config and checkpoint identity byte-compatible.
+        model_payload.pop("rd_temporal_residual_dim")
     payload = {
         "schema_version": config.schema_version,
         "config_name": config.config_name,
@@ -738,8 +888,8 @@ def known_gate_config_identity_sha256(config: KnownGateConfig) -> str:
         "forbidden_training_labels": list(config.forbidden_training_labels),
         "feature_names": list(config.feature_names),
         "data": data_payload,
-        "model": asdict(config.model),
-        "train": asdict(config.train),
+        "model": model_payload,
+        "train": train_payload,
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
@@ -926,13 +1076,23 @@ def build_known_gate_dataloader(
 
 
 class KnownGateFusionLinear(nn.Linear):
-    """Explicit shared base columns plus zero-initialized experiment columns."""
+    """Explicit shared, zero-init residual, and frozen-tail column regions."""
 
-    def __init__(self, in_features: int, out_features: int, *, base_input_dim: int) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        *,
+        base_input_dim: int,
+        zero_input_dim: int = 0,
+    ) -> None:
         super().__init__(in_features, out_features)
         self.base_input_dim = int(base_input_dim)
+        self.zero_input_dim = int(zero_input_dim)
         if not 0 < self.base_input_dim <= self.in_features:
             raise ValueError("V21 Fusion base_input_dim is invalid")
+        if not 0 <= self.zero_input_dim <= self.in_features - self.base_input_dim:
+            raise ValueError("V22a Fusion zero_input_dim is invalid")
 
     def forward(self, value: torch.Tensor) -> torch.Tensor:
         if value.shape[-1] != self.in_features:
@@ -942,13 +1102,25 @@ class KnownGateFusionLinear(nn.Linear):
             self.weight[:, : self.base_input_dim],
             self.bias,
         )
-        if self.base_input_dim == self.in_features:
-            return base
-        return base + nn.functional.linear(
-            value[..., self.base_input_dim :],
-            self.weight[:, self.base_input_dim :],
+        if self.zero_input_dim:
+            zero_start = self.base_input_dim
+            zero_end = zero_start + self.zero_input_dim
+            residual = nn.functional.linear(
+                value[..., zero_start:zero_end],
+                self.weight[:, zero_start:zero_end],
+                None,
+            )
+        else:
+            residual = None
+            zero_end = self.base_input_dim
+        if zero_end == self.in_features:
+            return base if residual is None else base + residual
+        tail = nn.functional.linear(
+            value[..., zero_end:],
+            self.weight[:, zero_end:],
             None,
         )
+        return base + tail if residual is None else base + residual + tail
 
 
 class KnownGateClassifier(nn.Module):
@@ -959,6 +1131,7 @@ class KnownGateClassifier(nn.Module):
         self.task_name = KNOWN_GATE_TASK_NAME
         self.class_names = KNOWN_GATE_CLASS_NAMES
         self.evidence_dim = model.evidence_dim
+        self.rd_temporal_residual_dim = model.rd_temporal_residual_dim
         self.tr_encoder = nn.Sequential(
             nn.Linear(model.tr_value_dim + model.tr_missing_dim, model.hidden_dim),
             nn.LayerNorm(model.hidden_dim),
@@ -970,12 +1143,17 @@ class KnownGateClassifier(nn.Module):
             model.rd_embedding_dim, aggregation_mode=model.rd_frame_aggregation
         )
         self.base_fusion_input_dim = model.hidden_dim + model.rd_embedding_dim + model.rd_quality_dim
-        self.fusion_input_dim = self.base_fusion_input_dim + self.evidence_dim
+        self.fusion_input_dim = (
+            self.base_fusion_input_dim
+            + self.rd_temporal_residual_dim
+            + self.evidence_dim
+        )
         self.fusion = nn.Sequential(
             KnownGateFusionLinear(
                 self.fusion_input_dim,
                 model.liquid_hidden_dim,
                 base_input_dim=self.base_fusion_input_dim,
+                zero_input_dim=self.rd_temporal_residual_dim,
             ),
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.SiLU(),
@@ -1033,6 +1211,7 @@ class KnownGateClassifier(nn.Module):
         tr_padding_mask: torch.Tensor,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        return_rd_temporal_residual: bool = False,
     ) -> dict[str, torch.Tensor]:
         model = self.config.model
         if tr_features.ndim != 3 or tr_features.shape[-1] != model.tr_value_dim:
@@ -1048,8 +1227,22 @@ class KnownGateClassifier(nn.Module):
         if not all(torch.isfinite(value).all() for value in (tr_features, tr_missing_mask, tr_dt_seconds, rd_frames, rd_quality)):
             raise ValueError("V21 model received a non-finite base input")
         tr_embedding = self.tr_encoder(torch.cat([tr_features, tr_missing_mask], dim=-1))
-        rd_embedding = self.rd_encoder(rd_frames, rd_frame_mask)
+        if not isinstance(return_rd_temporal_residual, bool):
+            raise ValueError("KnownGate residual return flag must be boolean")
+        if self.rd_temporal_residual_dim or return_rd_temporal_residual:
+            rd_embedding, rd_temporal_residual = (
+                self.rd_encoder.forward_with_temporal_residual(
+                    rd_frames, rd_frame_mask
+                )
+            )
+        else:
+            rd_embedding = self.rd_encoder(rd_frames, rd_frame_mask)
+            rd_temporal_residual = None
         fusion_inputs = [tr_embedding, rd_embedding, rd_quality]
+        if self.rd_temporal_residual_dim:
+            if rd_temporal_residual is None:
+                raise RuntimeError("KnownGate residual fusion lacks RD residual evidence")
+            fusion_inputs.append(rd_temporal_residual)
         evidence = self._evidence_input(
             known_gate_features,
             known_gate_feature_valid,
@@ -1084,6 +1277,11 @@ class KnownGateClassifier(nn.Module):
             "dt_invalid_mask": state.dt_invalid_mask,
             "dt_first_event_mask": state.dt_first_event_mask,
             "dt_zero_delta_mask": state.dt_zero_delta_mask,
+            "rd_temporal_residual": (
+                rd_temporal_residual
+                if rd_temporal_residual is not None
+                else rd_embedding.new_zeros((*rd_embedding.shape[:-1], 0))
+            ),
         }
 
     def forward_online_point(
@@ -1100,12 +1298,31 @@ class KnownGateClassifier(nn.Module):
         liquid_state: torch.Tensor | None = None,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        return_rd_temporal_residual: bool = False,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
             raise ValueError("V21 online TR/RD quality tensors must be two-dimensional")
         tr_embedding = self.tr_encoder(torch.cat([tr_features, tr_missing_mask], dim=-1))
-        rd_embedding = self.rd_encoder(rd_frames.unsqueeze(1), rd_frame_mask.unsqueeze(1)).squeeze(1)
+        if not isinstance(return_rd_temporal_residual, bool):
+            raise ValueError("KnownGate online residual return flag must be boolean")
+        if self.rd_temporal_residual_dim or return_rd_temporal_residual:
+            rd_embedding, rd_temporal_residual = (
+                self.rd_encoder.forward_with_temporal_residual(
+                    rd_frames.unsqueeze(1), rd_frame_mask.unsqueeze(1)
+                )
+            )
+            rd_embedding = rd_embedding.squeeze(1)
+            rd_temporal_residual = rd_temporal_residual.squeeze(1)
+        else:
+            rd_embedding = self.rd_encoder(
+                rd_frames.unsqueeze(1), rd_frame_mask.unsqueeze(1)
+            ).squeeze(1)
+            rd_temporal_residual = None
         fusion_inputs = [tr_embedding, rd_embedding, rd_quality]
+        if self.rd_temporal_residual_dim:
+            if rd_temporal_residual is None:
+                raise RuntimeError("KnownGate online residual fusion lacks RD residual evidence")
+            fusion_inputs.append(rd_temporal_residual)
         evidence = self._evidence_input(
             known_gate_features,
             known_gate_feature_valid,
@@ -1129,6 +1346,11 @@ class KnownGateClassifier(nn.Module):
             "dt_clamped_mask": dt_clamped,
             "dt_zero_mask": dt_zero,
             "dt_invalid_mask": ~tr_dt_valid,
+            "rd_temporal_residual": (
+                rd_temporal_residual
+                if rd_temporal_residual is not None
+                else rd_embedding.new_zeros((*rd_embedding.shape[:-1], 0))
+            ),
         }
 
 
@@ -1156,6 +1378,21 @@ def build_known_gate_model_for_config(
         raise ValueError("V21 Treatment lacks paired_baseline_config_path")
     baseline_path = _resolve(project_root, config.train.paired_baseline_config_path)
     baseline_config = load_known_gate_config(baseline_path)
+    loss_only_pair = (
+        config.schema_version == V22_SCHEMA_VERSION
+        and config.variant == baseline_config.variant
+        and config.model.evidence_dim == baseline_config.model.evidence_dim
+        and config.train.class_weight_normalization
+        == KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION
+        and baseline_config.train.class_weight_normalization
+        == KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+    )
+    rd_temporal_pair = (
+        config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT
+        and baseline_config.variant == V21E_COURSE_PREFIX_VARIANT
+        and config.model.evidence_dim == baseline_config.model.evidence_dim
+        and tuple(config.feature_names) == tuple(baseline_config.feature_names)
+    )
     if (
         baseline_config.variant != BASELINE_VARIANT
         and tuple(config.feature_names[: len(baseline_config.feature_names)])
@@ -1164,7 +1401,11 @@ def build_known_gate_model_for_config(
         raise ValueError(
             "V21 Treatment paired reference features are not an exact prefix"
         )
-    if config.model.evidence_dim <= baseline_config.model.evidence_dim:
+    if (
+        not loss_only_pair
+        and not rd_temporal_pair
+        and config.model.evidence_dim <= baseline_config.model.evidence_dim
+    ):
         raise ValueError("V21 Treatment must append at least one evidence column")
     if baseline_config.train.seed != config.train.seed or baseline_config.train.dataloader_seed != config.train.dataloader_seed:
         raise ValueError("V21 Baseline/Treatment seeds differ")
@@ -1186,6 +1427,8 @@ def build_known_gate_model_for_config(
         raise ValueError("V21 Treatment base data contract differs from Baseline")
     base_model_fields = asdict(config.model)
     base_model_fields["evidence_dim"] = baseline_config.model.evidence_dim
+    if rd_temporal_pair:
+        base_model_fields["rd_temporal_residual_dim"] = 0
     if base_model_fields != asdict(baseline_config.model):
         raise ValueError("V21 Treatment model differs beyond appended evidence_dim")
     excluded_train = {
@@ -1195,6 +1438,7 @@ def build_known_gate_model_for_config(
         "epoch_checkpoint_dir",
         "checkpoint_schema",
         "paired_baseline_config_path",
+        "class_weight_normalization",
     }
     treatment_train = {key: value for key, value in asdict(config.train).items() if key not in excluded_train}
     baseline_train = {key: value for key, value in asdict(baseline_config.train).items() if key not in excluded_train}
@@ -1217,7 +1461,28 @@ def build_known_gate_model_for_config(
             treatment_value = treatment_parameters.get(name)
             if treatment_value is None:
                 raise ValueError(f"V21 Treatment lacks shared parameter {name}")
-            if name == "fusion.0.weight":
+            if name == "fusion.0.weight" and rd_temporal_pair:
+                shared_width = baseline.base_fusion_input_dim
+                baseline_evidence_width = (
+                    baseline.fusion_input_dim - baseline.base_fusion_input_dim
+                )
+                residual_width = treatment.rd_temporal_residual_dim
+                expected_width = shared_width + residual_width + baseline_evidence_width
+                if treatment_value.shape != (
+                    baseline_value.shape[0],
+                    expected_width,
+                ):
+                    raise ValueError(
+                        "V22a Treatment Fusion width is not Baseline plus RD residual"
+                    )
+                treatment_value[:, :shared_width].copy_(
+                    baseline_value[:, :shared_width]
+                )
+                treatment_value[:, shared_width : shared_width + residual_width].zero_()
+                treatment_value[
+                    :, shared_width + residual_width : expected_width
+                ].copy_(baseline_value[:, shared_width:])
+            elif name == "fusion.0.weight" and not loss_only_pair:
                 if treatment_value.shape != (
                     baseline_value.shape[0],
                     baseline_value.shape[1]
@@ -1238,11 +1503,31 @@ def build_known_gate_model_for_config(
             treatment_value.copy_(baseline_value)
     for name, baseline_value in baseline.state_dict().items():
         treatment_value = treatment.state_dict()[name]
-        comparable = treatment_value[:, : baseline_value.shape[1]] if name == "fusion.0.weight" else treatment_value
+        if name == "fusion.0.weight" and rd_temporal_pair:
+            shared_width = baseline.base_fusion_input_dim
+            residual_width = treatment.rd_temporal_residual_dim
+            comparable = torch.cat(
+                [
+                    treatment_value[:, :shared_width],
+                    treatment_value[
+                        :, shared_width + residual_width : shared_width + residual_width + (
+                            baseline.fusion_input_dim - shared_width
+                        )
+                    ],
+                ],
+                dim=1,
+            )
+        else:
+            comparable = treatment_value[:, : baseline_value.shape[1]] if name == "fusion.0.weight" else treatment_value
         if not torch.equal(baseline_value, comparable):
             raise AssertionError(f"V21 shared initialization differs at {name}")
-    new_columns = treatment.state_dict()["fusion.0.weight"][:, baseline.fusion_input_dim :]
-    if not torch.equal(new_columns, torch.zeros_like(new_columns)):
+    if rd_temporal_pair:
+        residual_start = baseline.base_fusion_input_dim
+        residual_end = residual_start + treatment.rd_temporal_residual_dim
+        new_columns = treatment.state_dict()["fusion.0.weight"][:, residual_start:residual_end]
+    else:
+        new_columns = treatment.state_dict()["fusion.0.weight"][:, baseline.fusion_input_dim :]
+    if not loss_only_pair and not torch.equal(new_columns, torch.zeros_like(new_columns)):
         raise AssertionError("V21 new experiment Fusion columns are not exactly zero")
     return treatment, baseline, {
         "paired_baseline": True,
@@ -1252,14 +1537,18 @@ def build_known_gate_model_for_config(
         "nested_reference_present": nested_reference_present,
         "seed": config.train.seed,
         "shared_parameters_and_buffers_exactly_equal": True,
+        "loss_only_pair": loss_only_pair,
         "baseline_fusion_input_dim": baseline.fusion_input_dim,
         "treatment_fusion_input_dim": treatment.fusion_input_dim,
         "baseline_evidence_dim": baseline_config.model.evidence_dim,
         "treatment_evidence_dim": config.model.evidence_dim,
         "new_fusion_columns": (
-            config.model.evidence_dim - baseline_config.model.evidence_dim
+            treatment.rd_temporal_residual_dim
+            if rd_temporal_pair
+            else config.model.evidence_dim - baseline_config.model.evidence_dim
         ),
         "new_fusion_columns_exactly_zero": True,
+        "rd_temporal_residual_pair": rd_temporal_pair,
         "full_parameter_training": True,
     }
 
@@ -1377,6 +1666,17 @@ def evaluate_known_gate(
                 for event_index in range(length):
                     event_prob = probabilities[batch_index, event_index]
                     pred_id = int(event_prob.argmax().item())
+                    event_rd_frame_count = int(
+                        batch["rd_frame_mask"][batch_index, event_index].sum().item()
+                    )
+                    event_residual = output["rd_temporal_residual"][
+                        batch_index, event_index
+                    ]
+                    event_residual_l2 = (
+                        float(torch.linalg.vector_norm(event_residual).item())
+                        if event_residual.numel()
+                        else 0.0
+                    )
                     final = {
                         "true_id": true_id,
                         "pred_id": pred_id,
@@ -1390,6 +1690,18 @@ def evaluate_known_gate(
                         "event_index": event_index,
                         "window_length": event_index + 1,
                         "product_action_eligible": event_index + 1 >= config.train.prefix_auxiliary_min_events,
+                        "rd_frame_count": event_rd_frame_count,
+                        "rd_present": event_rd_frame_count > 0,
+                        "rd_multiple_frames": event_rd_frame_count > 1,
+                        "parent_length": length,
+                        "rd_quality_missing": bool(
+                            float(batch["rd_quality"][batch_index, event_index, 3].item()) > 0.5
+                        ),
+                        "rd_quality_frame_count_scaled": float(
+                            batch["rd_quality"][batch_index, event_index, 1].item()
+                        ),
+                        "rd_temporal_residual_l2": event_residual_l2,
+                        "rd_temporal_residual_nonzero": event_residual_l2 > 0.0,
                     }
                     window_records.append(dict(final))
                     if event_index + 1 >= config.train.prefix_auxiliary_min_events and event_index + 1 < length:
@@ -1455,19 +1767,26 @@ __all__ = [
     "KNOWN_GATE_V21D_MANIFEST_SCHEMA",
     "KNOWN_GATE_V21D_READINESS_SCHEMA",
     "KNOWN_GATE_V21E_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V22A_MANIFEST_SCHEMA",
     "KNOWN_GATE_V21E_READINESS_SCHEMA",
+    "KNOWN_GATE_V22A_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V22A_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
+    "KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION",
+    "KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION",
     "KNOWN_GATE_LOSS_MODE",
     "KNOWN_GATE_MANIFEST_SCHEMA",
     "KNOWN_GATE_READINESS_SCHEMA",
     "KNOWN_GATE_SELECTION_METRIC",
     "KNOWN_LABELS",
     "KNOWN_TARGET_LABELS",
+    "V22A_SCHEMA_VERSION",
     "KnownGateClassifier",
     "KnownGateConfig",
     "KnownGateDataset",
     "UNKNOWN_LABEL",
     "V21_SCHEMA_VERSION",
+    "V22_SCHEMA_VERSION",
     "build_known_gate_dataloader",
     "build_known_gate_dataset",
     "build_known_gate_model_for_config",

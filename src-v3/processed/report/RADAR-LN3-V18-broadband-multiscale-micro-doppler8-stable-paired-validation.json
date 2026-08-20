@@ -1,0 +1,783 @@
+{
+  "status": "completed_but_gate_failed",
+  "schema_version": "RADAR-LN3-V18-broadband-multiscale-micro-doppler-paired-validation-v3-stable8",
+  "paired_protocol": "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler8-stable-treatment-v3",
+  "scope": "DBB specialist validation parent-final local task only",
+  "strict_lower_bound_absolute_improvement_for_adoption": 0.02,
+  "strict_improvement_comparison_epsilon": 1e-12,
+  "minimum_improvement_role": "frozen post-training paired acceptance only; never used to choose an epoch",
+  "checks": {
+    "all_treatment_classes_precision_recall_f1_at_least_0_95": false,
+    "own_best_parent_macro_f1_improves_by_more_than_0_02": true,
+    "own_best_drone_bird_weak_floor_improves_by_more_than_0_02": true,
+    "own_best_drone_to_bird_not_increased": false,
+    "own_best_bird_to_drone_not_increased": true,
+    "own_best_bidirectional_drone_bird_errors_reduced": false,
+    "at_least_one_frozen_same_epoch_guard_also_passes_0_02_gate": false,
+    "all_20_epoch_parent_orders_identical": true,
+    "initial_cpu_logits_identical": true
+  },
+  "class_threshold_checks": {
+    "DroneTarget": {
+      "floor": 0.9557522123893806,
+      "target": 0.95,
+      "passed": true
+    },
+    "BirdTarget": {
+      "floor": 0.9137931034482759,
+      "target": 0.95,
+      "passed": false
+    },
+    "BalloonTarget": {
+      "floor": 0.9629629629629629,
+      "target": 0.95,
+      "passed": true
+    }
+  },
+  "own_best_primary_comparison": {
+    "control": {
+      "support": 223,
+      "accuracy": 0.9372197309417041,
+      "macro_precision": 0.931187923512485,
+      "macro_recall": 0.9342409202291209,
+      "macro_f1": 0.9323796523796523,
+      "balanced_accuracy": 0.9342409202291209,
+      "per_class": {
+        "DroneTarget": {
+          "precision": 0.9553571428571429,
+          "recall": 0.9469026548672567,
+          "f1": 0.9511111111111111,
+          "support": 113,
+          "correct_parent_count": 107
+        },
+        "BirdTarget": {
+          "precision": 0.9259259259259259,
+          "recall": 0.8928571428571429,
+          "f1": 0.9090909090909091,
+          "support": 56,
+          "correct_parent_count": 50
+        },
+        "BalloonTarget": {
+          "precision": 0.9122807017543859,
+          "recall": 0.9629629629629629,
+          "f1": 0.9369369369369369,
+          "support": 54,
+          "correct_parent_count": 52
+        }
+      },
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          107,
+          3,
+          3
+        ],
+        [
+          4,
+          50,
+          2
+        ],
+        [
+          1,
+          1,
+          52
+        ]
+      ],
+      "directional_errors": {
+        "DroneTarget_to_BirdTarget": 3,
+        "BirdTarget_to_DroneTarget": 4,
+        "Drone_Bird_bidirectional_total": 7,
+        "DroneTarget_to_BalloonTarget": 3,
+        "BirdTarget_to_BalloonTarget": 2,
+        "BalloonTarget_to_DroneTarget": 1,
+        "BalloonTarget_to_BirdTarget": 1
+      }
+    },
+    "treatment": {
+      "support": 223,
+      "accuracy": 0.9551569506726457,
+      "macro_precision": 0.9530702977352293,
+      "macro_recall": 0.9550479155936382,
+      "macro_f1": 0.9539290594086461,
+      "balanced_accuracy": 0.9550479155936382,
+      "per_class": {
+        "DroneTarget": {
+          "precision": 0.9642857142857143,
+          "recall": 0.9557522123893806,
+          "f1": 0.96,
+          "support": 113,
+          "correct_parent_count": 108
+        },
+        "BirdTarget": {
+          "precision": 0.9137931034482759,
+          "recall": 0.9464285714285714,
+          "f1": 0.9298245614035087,
+          "support": 56,
+          "correct_parent_count": 53
+        },
+        "BalloonTarget": {
+          "precision": 0.9811320754716981,
+          "recall": 0.9629629629629629,
+          "f1": 0.9719626168224299,
+          "support": 54,
+          "correct_parent_count": 52
+        }
+      },
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          108,
+          4,
+          1
+        ],
+        [
+          3,
+          53,
+          0
+        ],
+        [
+          1,
+          1,
+          52
+        ]
+      ],
+      "directional_errors": {
+        "DroneTarget_to_BirdTarget": 4,
+        "BirdTarget_to_DroneTarget": 3,
+        "Drone_Bird_bidirectional_total": 7,
+        "DroneTarget_to_BalloonTarget": 1,
+        "BirdTarget_to_BalloonTarget": 0,
+        "BalloonTarget_to_DroneTarget": 1,
+        "BalloonTarget_to_BirdTarget": 1
+      }
+    },
+    "treatment_minus_control": {
+      "macro_f1": 0.021549407028993883,
+      "accuracy": 0.017937219730941645,
+      "drone_bird_weak_floor": 0.020935960591133007,
+      "DroneTarget_floor": 0.008849557522123908,
+      "BirdTarget_floor": 0.020935960591133007,
+      "BalloonTarget_floor": 0.050682261208576995,
+      "Drone_to_Bird_error_reduction": -1,
+      "Bird_to_Drone_error_reduction": 1,
+      "Drone_Bird_bidirectional_error_reduction": 0
+    },
+    "passes_two_percentage_point_information_gain": false
+  },
+  "same_epoch_attribution_guards": {
+    "15": {
+      "epoch": 15,
+      "control": {
+        "support": 223,
+        "accuracy": 0.9372197309417041,
+        "macro_precision": 0.931187923512485,
+        "macro_recall": 0.9342409202291209,
+        "macro_f1": 0.9323796523796523,
+        "balanced_accuracy": 0.9342409202291209,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9553571428571429,
+            "recall": 0.9469026548672567,
+            "f1": 0.9511111111111111,
+            "support": 113,
+            "correct_parent_count": 107
+          },
+          "BirdTarget": {
+            "precision": 0.9259259259259259,
+            "recall": 0.8928571428571429,
+            "f1": 0.9090909090909091,
+            "support": 56,
+            "correct_parent_count": 50
+          },
+          "BalloonTarget": {
+            "precision": 0.9122807017543859,
+            "recall": 0.9629629629629629,
+            "f1": 0.9369369369369369,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            107,
+            3,
+            3
+          ],
+          [
+            4,
+            50,
+            2
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 3,
+          "BirdTarget_to_DroneTarget": 4,
+          "Drone_Bird_bidirectional_total": 7,
+          "DroneTarget_to_BalloonTarget": 3,
+          "BirdTarget_to_BalloonTarget": 2,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment": {
+        "support": 223,
+        "accuracy": 0.9461883408071748,
+        "macro_precision": 0.9359525890076404,
+        "macro_recall": 0.949148210578889,
+        "macro_f1": 0.9419668480053697,
+        "balanced_accuracy": 0.949148210578889,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9814814814814815,
+            "recall": 0.9380530973451328,
+            "f1": 0.9592760180995475,
+            "support": 113,
+            "correct_parent_count": 106
+          },
+          "BirdTarget": {
+            "precision": 0.9298245614035088,
+            "recall": 0.9464285714285714,
+            "f1": 0.9380530973451328,
+            "support": 56,
+            "correct_parent_count": 53
+          },
+          "BalloonTarget": {
+            "precision": 0.896551724137931,
+            "recall": 0.9629629629629629,
+            "f1": 0.9285714285714286,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            106,
+            3,
+            4
+          ],
+          [
+            1,
+            53,
+            2
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 3,
+          "BirdTarget_to_DroneTarget": 1,
+          "Drone_Bird_bidirectional_total": 4,
+          "DroneTarget_to_BalloonTarget": 4,
+          "BirdTarget_to_BalloonTarget": 2,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment_minus_control": {
+        "macro_f1": 0.009587195625717415,
+        "accuracy": 0.008968609865470767,
+        "drone_bird_weak_floor": 0.03696741854636587,
+        "DroneTarget_floor": -0.008849557522123908,
+        "BirdTarget_floor": 0.03696741854636587,
+        "BalloonTarget_floor": -0.015728977616454864,
+        "Drone_to_Bird_error_reduction": 0,
+        "Bird_to_Drone_error_reduction": 3,
+        "Drone_Bird_bidirectional_error_reduction": 3
+      },
+      "passes_two_percentage_point_information_gain": false
+    },
+    "16": {
+      "epoch": 16,
+      "control": {
+        "support": 223,
+        "accuracy": 0.9372197309417041,
+        "macro_precision": 0.9437120736555764,
+        "macro_recall": 0.9280154047853163,
+        "macro_f1": 0.9353535353535354,
+        "balanced_accuracy": 0.9280154047853163,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.923728813559322,
+            "recall": 0.9646017699115044,
+            "f1": 0.9437229437229437,
+            "support": 113,
+            "correct_parent_count": 109
+          },
+          "BirdTarget": {
+            "precision": 0.9074074074074074,
+            "recall": 0.875,
+            "f1": 0.8909090909090909,
+            "support": 56,
+            "correct_parent_count": 49
+          },
+          "BalloonTarget": {
+            "precision": 1.0,
+            "recall": 0.9444444444444444,
+            "f1": 0.9714285714285714,
+            "support": 54,
+            "correct_parent_count": 51
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            109,
+            4,
+            0
+          ],
+          [
+            7,
+            49,
+            0
+          ],
+          [
+            2,
+            1,
+            51
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 4,
+          "BirdTarget_to_DroneTarget": 7,
+          "Drone_Bird_bidirectional_total": 11,
+          "DroneTarget_to_BalloonTarget": 0,
+          "BirdTarget_to_BalloonTarget": 0,
+          "BalloonTarget_to_DroneTarget": 2,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment": {
+        "support": 223,
+        "accuracy": 0.9551569506726457,
+        "macro_precision": 0.9530702977352293,
+        "macro_recall": 0.9550479155936382,
+        "macro_f1": 0.9539290594086461,
+        "balanced_accuracy": 0.9550479155936382,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9642857142857143,
+            "recall": 0.9557522123893806,
+            "f1": 0.96,
+            "support": 113,
+            "correct_parent_count": 108
+          },
+          "BirdTarget": {
+            "precision": 0.9137931034482759,
+            "recall": 0.9464285714285714,
+            "f1": 0.9298245614035087,
+            "support": 56,
+            "correct_parent_count": 53
+          },
+          "BalloonTarget": {
+            "precision": 0.9811320754716981,
+            "recall": 0.9629629629629629,
+            "f1": 0.9719626168224299,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            108,
+            4,
+            1
+          ],
+          [
+            3,
+            53,
+            0
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 4,
+          "BirdTarget_to_DroneTarget": 3,
+          "Drone_Bird_bidirectional_total": 7,
+          "DroneTarget_to_BalloonTarget": 1,
+          "BirdTarget_to_BalloonTarget": 0,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment_minus_control": {
+        "macro_f1": 0.01857552405511076,
+        "accuracy": 0.017937219730941645,
+        "drone_bird_weak_floor": 0.03879310344827591,
+        "DroneTarget_floor": 0.03202339883005856,
+        "BirdTarget_floor": 0.03879310344827591,
+        "BalloonTarget_floor": 0.01851851851851849,
+        "Drone_to_Bird_error_reduction": 0,
+        "Bird_to_Drone_error_reduction": 4,
+        "Drone_Bird_bidirectional_error_reduction": 4
+      },
+      "passes_two_percentage_point_information_gain": false
+    },
+    "20": {
+      "epoch": 20,
+      "control": {
+        "support": 223,
+        "accuracy": 0.9417040358744395,
+        "macro_precision": 0.9393804873236657,
+        "macro_recall": 0.9461983580715144,
+        "macro_f1": 0.9417943687211355,
+        "balanced_accuracy": 0.9461983580715144,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.963302752293578,
+            "recall": 0.9292035398230089,
+            "f1": 0.9459459459459459,
+            "support": 113,
+            "correct_parent_count": 105
+          },
+          "BirdTarget": {
+            "precision": 0.8548387096774194,
+            "recall": 0.9464285714285714,
+            "f1": 0.8983050847457628,
+            "support": 56,
+            "correct_parent_count": 53
+          },
+          "BalloonTarget": {
+            "precision": 1.0,
+            "recall": 0.9629629629629629,
+            "f1": 0.9811320754716981,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            105,
+            8,
+            0
+          ],
+          [
+            3,
+            53,
+            0
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 8,
+          "BirdTarget_to_DroneTarget": 3,
+          "Drone_Bird_bidirectional_total": 11,
+          "DroneTarget_to_BalloonTarget": 0,
+          "BirdTarget_to_BalloonTarget": 0,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment": {
+        "support": 223,
+        "accuracy": 0.9461883408071748,
+        "macro_precision": 0.943121693121693,
+        "macro_recall": 0.9521507390238954,
+        "macro_f1": 0.9463071150085578,
+        "balanced_accuracy": 0.9521507390238954,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9722222222222222,
+            "recall": 0.9292035398230089,
+            "f1": 0.9502262443438914,
+            "support": 113,
+            "correct_parent_count": 105
+          },
+          "BirdTarget": {
+            "precision": 0.8571428571428571,
+            "recall": 0.9642857142857143,
+            "f1": 0.9075630252100839,
+            "support": 56,
+            "correct_parent_count": 54
+          },
+          "BalloonTarget": {
+            "precision": 1.0,
+            "recall": 0.9629629629629629,
+            "f1": 0.9811320754716981,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            105,
+            8,
+            0
+          ],
+          [
+            2,
+            54,
+            0
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 8,
+          "BirdTarget_to_DroneTarget": 2,
+          "Drone_Bird_bidirectional_total": 10,
+          "DroneTarget_to_BalloonTarget": 0,
+          "BirdTarget_to_BalloonTarget": 0,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "treatment_minus_control": {
+        "macro_f1": 0.004512746287422265,
+        "accuracy": 0.004484304932735328,
+        "drone_bird_weak_floor": 0.0023041474654377225,
+        "DroneTarget_floor": 0.0,
+        "BirdTarget_floor": 0.0023041474654377225,
+        "BalloonTarget_floor": 0.0,
+        "Drone_to_Bird_error_reduction": 0,
+        "Bird_to_Drone_error_reduction": 1,
+        "Drone_Bird_bidirectional_error_reduction": 1
+      },
+      "passes_two_percentage_point_information_gain": false
+    }
+  },
+  "same_epoch_passing_count": 0,
+  "runs": {
+    "control": {
+      "arm": "control",
+      "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-config.json",
+      "config_sha256": "5d317b9ebf45ac08a54fef0d7d203adbf91b52d62d27abca195f55858147de17",
+      "artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-formal",
+      "summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-formal\\training-summary.json",
+      "summary_sha256": "2fc0c3da0ff8f545bc0fc53a439addb9ddee6eae3b9f4d63f8b32a6421df75e5",
+      "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-formal\\best_model.pt",
+      "best_checkpoint_sha256": "c04517741ce0041a269db567f722b67b91496a276987cacea5f734f3a71b9d59",
+      "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-formal\\last_model.pt",
+      "last_checkpoint_sha256": "f30d3a46875d3f6755041350a3e1cd1d5e755eb12e591bba5a6eb11d200c273e",
+      "best_epoch": 15,
+      "performance_status": "failed",
+      "best_metrics": {
+        "support": 223,
+        "accuracy": 0.9372197309417041,
+        "macro_precision": 0.931187923512485,
+        "macro_recall": 0.9342409202291209,
+        "macro_f1": 0.9323796523796523,
+        "balanced_accuracy": 0.9342409202291209,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9553571428571429,
+            "recall": 0.9469026548672567,
+            "f1": 0.9511111111111111,
+            "support": 113,
+            "correct_parent_count": 107
+          },
+          "BirdTarget": {
+            "precision": 0.9259259259259259,
+            "recall": 0.8928571428571429,
+            "f1": 0.9090909090909091,
+            "support": 56,
+            "correct_parent_count": 50
+          },
+          "BalloonTarget": {
+            "precision": 0.9122807017543859,
+            "recall": 0.9629629629629629,
+            "f1": 0.9369369369369369,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            107,
+            3,
+            3
+          ],
+          [
+            4,
+            50,
+            2
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 3,
+          "BirdTarget_to_DroneTarget": 4,
+          "Drone_Bird_bidirectional_total": 7,
+          "DroneTarget_to_BalloonTarget": 3,
+          "BirdTarget_to_BalloonTarget": 2,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "paired_initialization": {
+        "paired_protocol": "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler8-stable-treatment-v3",
+        "seed": 42,
+        "shared_state_entry_count": 40,
+        "shared_parameters_and_buffers_exactly_equal": true,
+        "control_fusion_input_dim": 83,
+        "treatment_fusion_input_dim": 91,
+        "shared_rd_physical_columns": 4,
+        "treatment_new_fusion_columns": 8,
+        "treatment_new_fusion_columns_exactly_zero": true,
+        "paired_arm": "control",
+        "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json",
+        "counterpart_config_name": "RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42",
+        "initial_cpu_reference_logits_exactly_equal": true,
+        "initial_logits_maximum_absolute_difference": 0.0,
+        "initial_logits_sha256": "ce19b63987e2618d0a7b3a2c23b18fe01f74f554760df0c035c51e9634bac039",
+        "initial_logit_probe": "same real DBB batch and shared RD-physical4 input; Treatment additionally receives real current-event micro-Doppler0 through exactly-zero Fusion columns",
+        "initial_logit_parent_sample_ids": [
+          "cq08|track|1",
+          "cq08|track|101"
+        ]
+      },
+      "v18_training_readiness": {
+        "path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-train-readiness.json",
+        "sha256": "89a1f25cb127bb107008a4b928139826d53fa37bbeb490bdd70ada7708dc39d7",
+        "schema_version": "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v3-stable8",
+        "status": "passed",
+        "validation_used_for_readiness_gate": false,
+        "test": "未执行"
+      },
+      "independent_best_checkpoint_validation_matches": true,
+      "contract_hashes": {
+        "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+        "contract_sha256": "741bf043c387cd23005e1b878d0b8e4d97697408ba695def8a99a170e7eb427d",
+        "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+      },
+      "micro_doppler_dim": 0
+    },
+    "treatment": {
+      "arm": "treatment",
+      "config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-config.json",
+      "config_sha256": "5e66e18194d89b01bf89b86339d176dca9e231da988f39986404d77c3dea775c",
+      "artifact": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal",
+      "summary": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\training-summary.json",
+      "summary_sha256": "64977b3386cb7f6065b783aa54d97bf11747808730fd8dad2f12dcdb95717c6c",
+      "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\best_model.pt",
+      "best_checkpoint_sha256": "ba66a11bc321c5b138a9c3444583ea69ca1e856131c3e8e26643c1c503a6ad56",
+      "last_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-treatment-seed42-formal\\last_model.pt",
+      "last_checkpoint_sha256": "c7d291a5f89d6f59a8efbf7ff1ce6b6be02194bca1cf7b5272225540ea18e59d",
+      "best_epoch": 16,
+      "performance_status": "failed",
+      "best_metrics": {
+        "support": 223,
+        "accuracy": 0.9551569506726457,
+        "macro_precision": 0.9530702977352293,
+        "macro_recall": 0.9550479155936382,
+        "macro_f1": 0.9539290594086461,
+        "balanced_accuracy": 0.9550479155936382,
+        "per_class": {
+          "DroneTarget": {
+            "precision": 0.9642857142857143,
+            "recall": 0.9557522123893806,
+            "f1": 0.96,
+            "support": 113,
+            "correct_parent_count": 108
+          },
+          "BirdTarget": {
+            "precision": 0.9137931034482759,
+            "recall": 0.9464285714285714,
+            "f1": 0.9298245614035087,
+            "support": 56,
+            "correct_parent_count": 53
+          },
+          "BalloonTarget": {
+            "precision": 0.9811320754716981,
+            "recall": 0.9629629629629629,
+            "f1": 0.9719626168224299,
+            "support": 54,
+            "correct_parent_count": 52
+          }
+        },
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            108,
+            4,
+            1
+          ],
+          [
+            3,
+            53,
+            0
+          ],
+          [
+            1,
+            1,
+            52
+          ]
+        ],
+        "directional_errors": {
+          "DroneTarget_to_BirdTarget": 4,
+          "BirdTarget_to_DroneTarget": 3,
+          "Drone_Bird_bidirectional_total": 7,
+          "DroneTarget_to_BalloonTarget": 1,
+          "BirdTarget_to_BalloonTarget": 0,
+          "BalloonTarget_to_DroneTarget": 1,
+          "BalloonTarget_to_BirdTarget": 1
+        }
+      },
+      "paired_initialization": {
+        "paired_protocol": "v18-dbb-rd-physical4-control-versus-plus-broadband-multiscale-micro-doppler8-stable-treatment-v3",
+        "seed": 42,
+        "shared_state_entry_count": 40,
+        "shared_parameters_and_buffers_exactly_equal": true,
+        "control_fusion_input_dim": 83,
+        "treatment_fusion_input_dim": 91,
+        "shared_rd_physical_columns": 4,
+        "treatment_new_fusion_columns": 8,
+        "treatment_new_fusion_columns_exactly_zero": true,
+        "paired_arm": "treatment",
+        "counterpart_config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42-config.json",
+        "counterpart_config_name": "RADAR-LN3-V18-cq08-liquid-dbb-specialist-rd-physical4-broadband-multiscale-micro-doppler8-stable-control-seed42",
+        "initial_cpu_reference_logits_exactly_equal": true,
+        "initial_logits_maximum_absolute_difference": 0.0,
+        "initial_logits_sha256": "ce19b63987e2618d0a7b3a2c23b18fe01f74f554760df0c035c51e9634bac039",
+        "initial_logit_probe": "same real DBB batch and shared RD-physical4 input; Treatment additionally receives real current-event micro-Doppler8 through exactly-zero Fusion columns",
+        "initial_logit_parent_sample_ids": [
+          "cq08|track|1",
+          "cq08|track|101"
+        ]
+      },
+      "v18_training_readiness": {
+        "path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V18-broadband-multiscale-micro-doppler8-stable-train-readiness.json",
+        "sha256": "89a1f25cb127bb107008a4b928139826d53fa37bbeb490bdd70ada7708dc39d7",
+        "schema_version": "RADAR-LN3-V18-broadband-multiscale-micro-doppler-training-readiness-v3-stable8",
+        "status": "passed",
+        "validation_used_for_readiness_gate": false,
+        "test": "未执行"
+      },
+      "independent_best_checkpoint_validation_matches": true,
+      "contract_hashes": {
+        "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+        "contract_sha256": "741bf043c387cd23005e1b878d0b8e4d97697408ba695def8a99a170e7eb427d",
+        "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+      },
+      "micro_doppler_dim": 8
+    }
+  },
+  "conclusion": "V18 Treatment does not pass the frozen local DBB >2 percentage-point adoption gate; do not adopt the feature set or advance it to cascade/open-set claims.",
+  "not_final_five_class_performance": true,
+  "formal_training": "已执行（仅在两份完成摘要通过完整性校验时）",
+  "full_cascade": "未执行",
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

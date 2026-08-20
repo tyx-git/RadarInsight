@@ -126,6 +126,7 @@ def parent_final_task_ce_with_prefix_auxiliary(
     class_weights: torch.Tensor | None = None,
     prefix_auxiliary_weight: float = 0.0,
     prefix_auxiliary_min_events: int = 3,
+    class_weight_normalization: str = "batch_weight_sum",
 ) -> dict[str, torch.Tensor]:
     """Train one local hierarchy task with an explicit product-aligned target.
 
@@ -134,6 +135,15 @@ def parent_final_task_ce_with_prefix_auxiliary(
     count, excludes each parent's final state, averages eligible prefixes
     inside a parent, and then averages parents.  Consequently neither padding
     nor parent length changes a parent's contribution to the auxiliary term.
+
+    ``batch_weight_sum`` preserves the historical PyTorch weighted-mean
+    semantics: the weighted numerator is divided by the sum of target weights
+    present in the current minibatch.  In a single-class minibatch this cancels
+    the class weight completely.  ``fixed_parent_count`` instead divides by the
+    number of contributing parents.  With dataset inverse-frequency weights
+    whose dataset mean is one, this is an unbiased minibatch estimate of the
+    declared parent/class-balanced objective and does not renormalize a rare
+    class away merely because the other class is absent from that minibatch.
     """
 
     if sequence_logits.ndim != 3:
@@ -167,6 +177,10 @@ def parent_final_task_ce_with_prefix_auxiliary(
     minimum_events = int(prefix_auxiliary_min_events)
     if minimum_events < 2:
         raise ValueError("local task prefix auxiliary supervision must exclude the first evidence event")
+    if class_weight_normalization not in {"batch_weight_sum", "fixed_parent_count"}:
+        raise ValueError(
+            "local task class_weight_normalization must be batch_weight_sum or fixed_parent_count"
+        )
 
     lengths = (~padding_mask).long().sum(dim=1)
     if bool((lengths <= 0).any()):
@@ -174,7 +188,15 @@ def parent_final_task_ce_with_prefix_auxiliary(
     batch_indices = torch.arange(sequence_logits.shape[0], device=sequence_logits.device)
     final_indices = lengths - 1
     final_logits = sequence_logits[batch_indices, final_indices]
-    final_loss = nn.functional.cross_entropy(final_logits, targets, weight=weights)
+    if weights is None or class_weight_normalization == "batch_weight_sum":
+        final_loss = nn.functional.cross_entropy(final_logits, targets, weight=weights)
+    else:
+        final_per_parent = nn.functional.cross_entropy(
+            final_logits,
+            targets,
+            reduction="none",
+        )
+        final_loss = (final_per_parent * weights[targets]).sum() / targets.numel()
 
     prefix_loss = final_loss.new_zeros(())
     eligible_prefix_count = final_indices.new_zeros(())
@@ -199,7 +221,11 @@ def parent_final_task_ce_with_prefix_auxiliary(
             per_event = nn.functional.cross_entropy(
                 sequence_logits.reshape(-1, class_count),
                 expanded_targets.reshape(-1),
-                weight=weights,
+                weight=(
+                    weights
+                    if class_weight_normalization == "batch_weight_sum"
+                    else None
+                ),
                 reduction="none",
             ).reshape(sequence_logits.shape[:2])
             parent_means = (
@@ -209,9 +235,14 @@ def parent_final_task_ce_with_prefix_auxiliary(
             selected_parent_means = parent_means[eligible_parents]
             if weights is None:
                 prefix_loss = selected_parent_means.mean()
-            else:
+            elif class_weight_normalization == "batch_weight_sum":
                 selected_parent_weights = weights[targets[eligible_parents]]
                 prefix_loss = selected_parent_means.sum() / selected_parent_weights.sum()
+            else:
+                selected_parent_weights = weights[targets[eligible_parents]]
+                prefix_loss = (
+                    selected_parent_means * selected_parent_weights
+                ).sum() / eligible_parent_count
 
     total_loss = final_loss + prefix_weight * prefix_loss
     if not all(torch.isfinite(value).item() for value in (total_loss, final_loss, prefix_loss)):

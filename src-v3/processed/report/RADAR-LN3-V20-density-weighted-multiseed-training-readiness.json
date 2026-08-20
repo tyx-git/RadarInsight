@@ -1,0 +1,128 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V20-density-weighted-multiseed-training-readiness-v1",
+  "experiment": "V20r-density-multiseed-confirmation",
+  "paired_protocol": "v20r-dbb-bounded-observation-control-versus-density-weighted-treatment-v1",
+  "seed_set": [
+    42,
+    43,
+    44
+  ],
+  "new_training_seeds": [
+    43,
+    44
+  ],
+  "source_v16_config": {
+    "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V16-cq08-liquid-product-local-dbb-specialist-config.json",
+    "sha256": "2d552654603787104a281d789fb50e62c55221f79e443a362b0c6fa626d83e50"
+  },
+  "seed42_reuse": {
+    "report": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V20-density-weighted-paired-validation.json",
+    "report_sha256": "89a028b47287d96265ba8b5fc4a8ca51589b498c1a5da915abe34338c6663fdb",
+    "control_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20-cq08-liquid-dbb-specialist-zero-delta-skip-control-seed42-config.json",
+    "control_config_sha256": "affda8e084144e34ce0adfdcd53659d048f94a4efc04f7bb3c0fde0ea7401ca2",
+    "treatment_config": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-treatment-seed42-config.json",
+    "treatment_config_sha256": "545a4139971cdd2a5825fb658c5c32bb3bcf3ad10c8e6b85568ac5452b061e6a",
+    "runs": {
+      "control": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V20-cq08-liquid-dbb-specialist-zero-delta-skip-control-seed42-formal\\training-summary.json",
+        "sha256": "538a2b05451ea476e0b599e5e8386af3df9211fc523024842653999b0cf3b75d",
+        "best_epoch": 15,
+        "initial_logits_sha256": "c3310a200cbdfde187cb3e38a02ee7f308edf59237704cb4d7c41f606a120f27"
+      },
+      "treatment": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-treatment-seed42-formal\\training-summary.json",
+        "sha256": "4e334ce258276a23465d29ccbb5fd515a1324127f02d0aa2e12c63d66e2c7ba2",
+        "best_epoch": 15,
+        "initial_logits_sha256": "c3310a200cbdfde187cb3e38a02ee7f308edf59237704cb4d7c41f606a120f27"
+      }
+    },
+    "role": "completed_seed42_screening_pair_reused_read_only"
+  },
+  "paired_configs": {
+    "seed43_control": {
+      "seed": 43,
+      "arm": "control",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-control-seed43-config.json",
+      "sha256": "1b69716ab02e8854c35ebc5d399901d27814d6f95bdbaca87de168e3baa5753d",
+      "mode": "bounded_observation"
+    },
+    "seed43_treatment": {
+      "seed": 43,
+      "arm": "treatment",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-treatment-seed43-config.json",
+      "sha256": "9c046ce49e351d93dae7850ba621f12c686fafb3b9c42d3c859cb4029b773575",
+      "mode": "density_weighted"
+    },
+    "seed44_control": {
+      "seed": 44,
+      "arm": "control",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-control-seed44-config.json",
+      "sha256": "e30589c349d69b67f6029fa859044b990f12595d2a39d7878bfbb0b43b671398",
+      "mode": "bounded_observation"
+    },
+    "seed44_treatment": {
+      "seed": 44,
+      "arm": "treatment",
+      "path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V20r-cq08-liquid-dbb-specialist-density-weighted-treatment-seed44-config.json",
+      "sha256": "2b607c072a58da83ba7bffa758b33ae25a32ce547c55e9c8b671a8f52afe0449",
+      "mode": "density_weighted"
+    }
+  },
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "contract_sha256": "ca99a5f1b2fa77d1a2348f56ae6e74f480daad1bba5bc9749b5311a382dca373",
+    "stats_sha256": "4b809a36dd1ad6885b2db4aa9041b5929c835033d969e3b61d43eaeba9388013"
+  },
+  "initial_state_sha256_by_new_seed": {
+    "43": "235e8a869da14c57bbaaa2de230cb925498a5cfacde3265da217da3650e667fb",
+    "44": "1ce37c7af807c3880a334d8b73c815bddb621c0487d5442f00117e2d4210fa8e"
+  },
+  "pairing_evidence_by_new_seed": {
+    "43": {
+      "paired_protocol": "v20r-dbb-bounded-observation-control-versus-density-weighted-treatment-v1",
+      "seed": 43,
+      "shared_state_entry_count": 40,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "treatment_new_fusion_columns_exactly_zero": true,
+      "dynamics_control_mode": "bounded_observation",
+      "dynamics_treatment_mode": "density_weighted"
+    },
+    "44": {
+      "paired_protocol": "v20r-dbb-bounded-observation-control-versus-density-weighted-treatment-v1",
+      "seed": 44,
+      "shared_state_entry_count": 40,
+      "shared_parameters_and_buffers_exactly_equal": true,
+      "treatment_new_fusion_columns_exactly_zero": true,
+      "dynamics_control_mode": "bounded_observation",
+      "dynamics_treatment_mode": "density_weighted"
+    }
+  },
+  "decision_contract": {
+    "primary_signal": "at least 2 of 3 seeds and the three-seed median must have Treatment-Control parent Macro-F1 > 0.02",
+    "full_adoption": "at least 2 of 3 seeds and the three-seed median must pass every frozen seed42 class-floor, weak-floor, and directional-error guard",
+    "same_validation_parents": "seeds are optimization replicates, not independent data samples"
+  },
+  "checks": {
+    "seed_set_is_exactly_42_43_44": true,
+    "seed42_screening_pair_is_complete_and_read_only": true,
+    "new_training_is_restricted_to_seeds_43_44": true,
+    "all_new_configs_share_frozen_v16_data_contract": true,
+    "all_new_pairs_differ_only_by_density_update_mode": true,
+    "each_new_pair_has_exactly_equal_initial_state": true,
+    "seed43_and_seed44_initial_states_are_distinct": true,
+    "validation_does_not_select_configs_or_seed_set": true,
+    "test_payload_access_zero": true
+  },
+  "validation_used_for_readiness_gate": false,
+  "seed42_validation_role": "authorization_only_not_hyperparameter_tuning",
+  "test_payload_access_count": 0,
+  "formal_training_at_report_generation": "未执行",
+  "test": "未执行",
+  "OOF": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

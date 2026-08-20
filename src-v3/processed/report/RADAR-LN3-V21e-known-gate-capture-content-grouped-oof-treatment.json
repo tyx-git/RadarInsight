@@ -1,0 +1,736 @@
+{
+  "status": "completed_absolute_guard_failed",
+  "schema_version": "RADAR-LN3-V21e-known-gate-capture-content-grouped-oof-treatment-report-v1",
+  "experiment": "V21e KnownGate treatment-first OOF futility gate",
+  "scope": "known train capture/content-grouped OOF; no validation/test/Unknown",
+  "metrics_by_scope": {
+    "parent": {
+      "scope": "oof_treatment_parent",
+      "support": 986,
+      "accuracy": 0.9787018255578094,
+      "macro_precision": 0.8182506053268765,
+      "macro_recall": 0.9012210245158829,
+      "macro_f1": 0.8544649446494466,
+      "balanced_accuracy": 0.9012210245158829,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9936440677966102,
+          "recall": 0.9842602308499475,
+          "f1": 0.9889298892988929,
+          "support": 953,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 15
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.6428571428571429,
+          "recall": 0.8181818181818182,
+          "f1": 0.7200000000000001,
+          "support": 33,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 6
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          938,
+          15
+        ],
+        [
+          6,
+          27
+        ]
+      ]
+    },
+    "window": {
+      "scope": "oof_treatment_window",
+      "support": 18923,
+      "accuracy": 0.9673941763990911,
+      "macro_precision": 0.7559227011022633,
+      "macro_recall": 0.8173031429170914,
+      "macro_f1": 0.782930151645219,
+      "balanced_accuracy": 0.8173031429170914,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9875145019612176,
+          "recall": 0.9785941092740611,
+          "f1": 0.9830340693485854,
+          "support": 18266,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 391
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.524330900243309,
+          "recall": 0.6560121765601218,
+          "f1": 0.5828262339418525,
+          "support": 657,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 226
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          17875,
+          391
+        ],
+        [
+          226,
+          431
+        ]
+      ]
+    },
+    "eligible_prefix": {
+      "scope": "oof_treatment_eligible_prefix",
+      "support": 15965,
+      "accuracy": 0.9679298465393047,
+      "macro_precision": 0.7604473540643754,
+      "macro_recall": 0.8192993083951738,
+      "macro_f1": 0.7865281406119683,
+      "balanced_accuracy": 0.8192993083951738,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9875613747954174,
+          "recall": 0.9791004089050431,
+          "f1": 0.9833126914803468,
+          "support": 15407,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 322
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.5333333333333333,
+          "recall": 0.6594982078853047,
+          "f1": 0.5897435897435898,
+          "support": 558,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 190
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          15085,
+          322
+        ],
+        [
+          190,
+          368
+        ]
+      ]
+    }
+  },
+  "base_label_parent_metrics": {
+    "DroneTarget": {
+      "support": 476,
+      "correct_parent_count": 475,
+      "acceptance_recall": 0.9978991596638656
+    },
+    "BirdTarget": {
+      "support": 239,
+      "correct_parent_count": 225,
+      "acceptance_recall": 0.9414225941422594
+    },
+    "BalloonTarget": {
+      "support": 238,
+      "correct_parent_count": 238,
+      "acceptance_recall": 1.0
+    },
+    "ClutterTarget": {
+      "support": 33,
+      "correct_parent_count": 27,
+      "acceptance_recall": 0.8181818181818182
+    }
+  },
+  "fold_summaries": [
+    {
+      "fold_id": 0,
+      "prediction_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof\\fold-00\\treatment\\held-out-predictions.json",
+      "prediction_sha256": "ed08f1d25f1d8cef0a5a7978002cfee1622e891d9fa7477dda8ad6546ed68d52",
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 197,
+        "accuracy": 0.9847715736040609,
+        "macro_precision": 0.9922680412371134,
+        "macro_recall": 0.75,
+        "macro_f1": 0.8294372294372294,
+        "balanced_accuracy": 0.75,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9845360824742269,
+            "recall": 1.0,
+            "f1": 0.9922077922077922,
+            "support": 191,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 6,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 3
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            191,
+            0
+          ],
+          [
+            3,
+            3
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3141,
+        "accuracy": 0.9719834447628144,
+        "macro_precision": 0.7736341138397107,
+        "macro_recall": 0.6490202854476967,
+        "macro_f1": 0.6914593416799129,
+        "balanced_accuracy": 0.6490202854476967,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9786407766990292,
+            "recall": 0.9927774130006566,
+            "f1": 0.985658409387223,
+            "support": 3046,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 22
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5686274509803921,
+            "recall": 0.30526315789473685,
+            "f1": 0.3972602739726027,
+            "support": 95,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 66
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3024,
+            22
+          ],
+          [
+            66,
+            29
+          ]
+        ]
+      },
+      "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+      "paired_baseline_reference_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "epoch_parent_order_hashes": [
+        "533a1621bf90c183f6e74bff41b0cbd3bec1d7f2099f626ad04d29fe617e5c30",
+        "104340ac29340864e8f34e1eb30ebe75f492718f8452c335d40364c87c252df2",
+        "71b3051a4c29255a5aa1be96a42cc01ddada5235b5239c8e85be9d70f974e9d6",
+        "a6f5aecca2f9c2c1bbfb5d910e67cfbdbcebcfd7e4de8e80e5ab7ed25ef870ee",
+        "498c3807d319490ac867679f1dea9c830d912b2078c4c0334cb977e224e91111",
+        "21cddc1a8818fbd28c79a137c669a21fcdb04d84aded75be2b19f71b52ee19c1",
+        "544b83cbb7dc9a18572915709dc24646c3775054abc623db943e1ea572201bcf",
+        "0e0c01cc30138c6e7c0477726a7fd71a980189a009c9d59834fc8cfbbf3642eb",
+        "31891000afe661774a1554417f9c5650da16f7c4ae9f1c5811e8dd45e6421757",
+        "f24419c5f835b62bed22fa9492d106ddb923f95a318ef3e7630f27f5021d710a",
+        "eca0e3094c94c2efe3cfc68d218e2d727c7b162f6b1e1f3fd2a5aaadc453f8fa",
+        "aa0df79c4fb2b04f76bc8538831fb5b3833519a22ad51d74f0aa15e58a47a078",
+        "3067b53617f77e20750578a0946f3fc9c84bf46843124ea78ede6339291b6ddb",
+        "996cf22f9be81e36ba8afc3dce16c02ec2286b83477dd64a512e2a088b71421c",
+        "ae4897d5b79b7f6a51db0b9a729093300a15368f58ba7130d8a71c47daa1d639",
+        "b4f6a1db28f4b19deab3790e77702e5b7f744a55b983f99807da82f00ab9edf4",
+        "5b7379276c73e824d6196fedd352f655e98685e1e07e746793e9606513a096c4",
+        "2d159d603e724cffeedcaa00f8d6e973d362d9eed9ba7ec13f117b9b5821f060",
+        "9d18d0fe5aec2cab445940bdded614639a7dbc72d53036e6952c6506e25c52a0",
+        "ab900d81e37acf238c389c7edc8260e4f8b78c8dac8812a7063782c80f732436"
+      ]
+    },
+    {
+      "fold_id": 1,
+      "prediction_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof\\fold-01\\treatment\\held-out-predictions.json",
+      "prediction_sha256": "ce4d6464efcdb5ca0e0fa00026ff04232f62069946d8a663b9676d227b3cf7c7",
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 6
+      },
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 197,
+        "accuracy": 0.9898477157360406,
+        "macro_precision": 0.875,
+        "macro_recall": 0.9947643979057592,
+        "macro_f1": 0.9259398496240601,
+        "balanced_accuracy": 0.9947643979057592,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9895287958115183,
+            "f1": 0.9947368421052631,
+            "support": 191,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "support": 6,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            189,
+            2
+          ],
+          [
+            0,
+            6
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3200,
+        "accuracy": 0.985625,
+        "macro_precision": 0.8802083333333333,
+        "macro_recall": 0.924963900353606,
+        "macro_f1": 0.9012236987967006,
+        "balanced_accuracy": 0.924963900353606,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9947916666666666,
+            "recall": 0.9902786779001944,
+            "f1": 0.9925300422215004,
+            "support": 3086,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 30
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.765625,
+            "recall": 0.8596491228070176,
+            "f1": 0.8099173553719009,
+            "support": 114,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 16
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3056,
+            30
+          ],
+          [
+            16,
+            98
+          ]
+        ]
+      },
+      "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+      "paired_baseline_reference_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "epoch_parent_order_hashes": [
+        "55580a4b6256c73250f1f772341e5772bfddf4df8087f1a334abcea30a78f1c8",
+        "ecbb5b7fb90670ae17fb5475de332417f2bd488d5ff43eae22f517d267a73e29",
+        "65870ffa1ec84dcb0376ade8c47fe6157ae0463a6764a9a2cec03bc9348b962a",
+        "66d8c4e19d9bd83fd02886085e4c711277519c37ccc8e3b17a8cbe390a8b9e7d",
+        "a0cbd39b3a688bc4f3063b2fca5a7e222f438c5c84cba103ee69c2c5bffd09ff",
+        "2236bd7db5de606bb2a536b62f7b8313b22a3c39df0b60b761779413e5e803ca",
+        "e5aeaa96a9848326db43f469253ff8a056702f7ff52a5c82dd77911b4561312a",
+        "297c03f9498462fabcb8d01394360c3f1dace14ff128789c670bc26ef9b2e8c9",
+        "d15402d3aabbd259d8fe2bff22b6287e561bd809b75fd8b81665b517408f6fbf",
+        "8034d198a59d1bd77286cb6138183e9ce85c81645e12cea9d4b2f843e45a1d8f",
+        "c0628666d73c9197b9b8394400b1816be9bb0e916fc8abb51c702431cbc1541e",
+        "73170d56f4392db6f9af50ce458cc70a3365ecca460209a104f66b67a5a9ec03",
+        "220bba0dd476a2523ef223ceae3b0676841525bdd340f559a1611486e790a3a1",
+        "1cd966f0131a07e22a7893d7ab13416467a064ca195e412d78012e07f52d9e59",
+        "27ee8c31ad4fedd2031e7836b58e4cb6bd1f62d099e72a9fa41a47b8b509496c",
+        "432be50aec237132c87591877a4e73617b517b95bf845b1ebad998629314fd52",
+        "36fa416bc78eff4b55215ade91bcf049b1a90210cf909939ebdf9a58f20d60a7",
+        "85cdcfd2839b2d0cf85183ea4c7bc47cd21be73ea53906e6f3b8823b14e4a10c",
+        "8d536cf1c053a7f52805190a8494f4665973d453f91ab9b25ce95ddcea19682e",
+        "4c9e1154318f2b1856854c584e361849a9b7f0556c89411065e16c608a550146"
+      ]
+    },
+    {
+      "fold_id": 2,
+      "prediction_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof\\fold-02\\treatment\\held-out-predictions.json",
+      "prediction_sha256": "4c75be662ca6cb40988b27bdae26d49718b867848777f070896dd69ba8f83a61",
+      "train_parent_count": 788,
+      "held_out_parent_count": 198,
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 48,
+        "ClutterTarget": 7
+      },
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 198,
+        "accuracy": 0.9797979797979798,
+        "macro_precision": 0.8519072550486163,
+        "macro_recall": 0.8519072550486163,
+        "macro_f1": 0.8519072550486163,
+        "balanced_accuracy": 0.8519072550486163,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9895287958115183,
+            "recall": 0.9895287958115183,
+            "f1": 0.9895287958115183,
+            "support": 191,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "support": 7,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            189,
+            2
+          ],
+          [
+            2,
+            5
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3177,
+        "accuracy": 0.9726156751652503,
+        "macro_precision": 0.8169554390563565,
+        "macro_recall": 0.8194068763669791,
+        "macro_f1": 0.8181758976939699,
+        "balanced_accuracy": 0.8194068763669791,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9859108781127129,
+            "recall": 0.9855879462823453,
+            "f1": 0.9857493857493858,
+            "support": 3053,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 44
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.648,
+            "recall": 0.6532258064516129,
+            "f1": 0.6506024096385542,
+            "support": 124,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 43
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3009,
+            44
+          ],
+          [
+            43,
+            81
+          ]
+        ]
+      },
+      "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+      "paired_baseline_reference_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "epoch_parent_order_hashes": [
+        "c57ce6bc331e840c0e2c2632328fcd809009cf407d288f9160a8bccfa538452f",
+        "b42092f4b7a2c115bfad856e3020b97a72f8045a6db09a13798d83fed292034b",
+        "2f5c983fc10203e2a7f86bc6cf32931b601c370eca9a71fa44b3719e8c4e1db4",
+        "959b63594e2b564f889acd2d6d67face01934b978050c8ec365560b4c70c04b8",
+        "fbef03b7b38d08cba4d5d9af5420a7beaac29cfff0fa979ae12be1178327fcc3",
+        "66fddd5c6a5c519fad1fb36d4273ed3c91ffcce0e72c1be11e9e52846a8bc856",
+        "e5d762e56fd8e2dc9f23a9a81525d21127f7c77a3ab1f1846c7bb9b6021b7c0e",
+        "1e4beb7d47e865fe30960426f9ad683f3b574222008dd328e8d16c2fdd23ccbb",
+        "3187182aeda436d02505fa5298c9617bc423597a3c4bcb04fa78ed4e8562700b",
+        "b8f69550251988af9147fa640a359a38e673daeb1d4886a338f225334a7d6b6e",
+        "03f1ff53dc94563acb1fe0dd4b2fbbdb17838fb587ce199e3d4748919d0d3591",
+        "d4add7e860268e87c7f60e4ff83595312999b4a33876accfe9df7c5421a8b3f3",
+        "9cef7dd97ebbd6e5ff9bee9ce94753326988af5e11d7b51819c7bf8e4578d8d8",
+        "17379a6532bf4a1730d6262253f563dd2f7b8234cde073a78446a0085a22954b",
+        "f225d75037d026b08a0c19f1f8d7daf88683d02b3ceb68429026a5dbb68aeb5f",
+        "5942f4718e7ac30d65af79cad91603a3a9b5da2d90b3aa1db6c9ef26c5bc0216",
+        "40afeb6d324d46ca530197b883820d1fb1ccc79728bf4312ed123c29e507fbe8",
+        "b2ef3f856370c5267ad38f792f36d991c01032526eea16885b5116f69caf0e59",
+        "66a9fbc15954145681cc07dce6d5c9e1f53e090a36b58f1a1ee7e494ebb70cda",
+        "d5408160f12d23915b69665f95a98b85b7a96a8d28ce0b282c4c972c75494c30"
+      ]
+    },
+    {
+      "fold_id": 3,
+      "prediction_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof\\fold-03\\treatment\\held-out-predictions.json",
+      "prediction_sha256": "cc5ced29a355d256e1c505674658ed8577f09030f9a421e90b2630ba3c47e1d4",
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "held_out_label_parent_counts": {
+        "DroneTarget": 96,
+        "BirdTarget": 47,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 197,
+        "accuracy": 0.9847715736040609,
+        "macro_precision": 0.8723544973544973,
+        "macro_recall": 0.9233082706766917,
+        "macro_f1": 0.896042216358839,
+        "balanced_accuracy": 0.9233082706766917,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9947089947089947,
+            "recall": 0.9894736842105263,
+            "f1": 0.992084432717678,
+            "support": 190,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 0.8571428571428571,
+            "f1": 0.7999999999999999,
+            "support": 7,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            188,
+            2
+          ],
+          [
+            1,
+            6
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3206,
+        "accuracy": 0.9753587024329382,
+        "macro_precision": 0.8507377834557649,
+        "macro_recall": 0.7376777634130576,
+        "macro_f1": 0.7824246719498313,
+        "balanced_accuracy": 0.7376777634130576,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9814755669115298,
+            "recall": 0.9932126696832579,
+            "f1": 0.9873092369477912,
+            "support": 3094,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 21
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.72,
+            "recall": 0.48214285714285715,
+            "f1": 0.5775401069518716,
+            "support": 112,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 58
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3073,
+            21
+          ],
+          [
+            58,
+            54
+          ]
+        ]
+      },
+      "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+      "paired_baseline_reference_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "epoch_parent_order_hashes": [
+        "d34dca1d520cfab5287976ed1e08c2f5aac37fac1acc96ff400f81402c7039ee",
+        "a06f92164a0fc2208df1ec76c39aa779528b95b2a5c9725712278675692cfdaf",
+        "1a668dfe58974f6054a2883ef57e9bdd18ffd8dd07db2eb649d09ccc7faa85af",
+        "79808f1c3db4afb562d4a8e29e0ed5dcdbcd99bbd6e233e850b4bbf38a261804",
+        "97d476d082ee857fdbfa20424946d522799b46254f6eaa95760a142f61451774",
+        "385405a9c18815ab0daa569cc5eb107bf15bd1525a485c6bfa393568f3e189da",
+        "c4389f3fbef295b6ea4571b3ae6ba552fe3cffb237dd77f0192dee77a9e35bd6",
+        "ef9b1ba0d0cb58e99648acc42dc40090972db200a5568c2a9dcfb7a43410d0d7",
+        "6b6f75a387055a3358054f4739ce207416ca9b60374fa37f1da82998664d97a2",
+        "0b9a53f59f436303d05159a6fde26befbc7e83ed3f4d9c83d4a611acc4752fcd",
+        "b2b79c0e63a1a84f9b1d1a1c9b8d0dd0ed45c9125d777114c6ed1670957870f7",
+        "e845ed5f7ecbb61ab4f2203c19976b7b9bcbed51d2ea557dd984b41dc8d0f5b3",
+        "509e204332b23b237cefd9c66e188759581a2569ac12e9845ab8530181cc742f",
+        "36a393feaff702fb8932a47c283a25385f552e88d7aa337d7aed93c8080a5ff2",
+        "9762abf0138fde058df7931068cb2e260117559b5649e173fa9808dc132edf8f",
+        "51a56337e30f6fb4b8830a5d3c11d492e15ca4e3f404f575a6375784110dc8b4",
+        "e23f232f642356d1d3e6afc0e0954e38cc110c580afef630947b438e529cdf82",
+        "20f8b9d184cc77a704d529b6386ba227725d83a85d0cd8d033b2b50329c88b95",
+        "5dafb6ef74b28c29f6ea271afc364b8961eb6d9e6fd7961099936180dd9c5505",
+        "f6f1510b23e856c1c066f5044e4ccdf29acc627d6a79a8943b2925a81743905c"
+      ]
+    },
+    {
+      "fold_id": 4,
+      "prediction_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof\\fold-04\\treatment\\held-out-predictions.json",
+      "prediction_sha256": "923e283d4a81e1ab3177c9286e686f1404798e015b6fdab2b6a74728802358f9",
+      "train_parent_count": 789,
+      "held_out_parent_count": 197,
+      "held_out_label_parent_counts": {
+        "DroneTarget": 95,
+        "BirdTarget": 48,
+        "BalloonTarget": 47,
+        "ClutterTarget": 7
+      },
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 197,
+        "accuracy": 0.9543147208121827,
+        "macro_precision": 0.71875,
+        "macro_recall": 0.9763157894736842,
+        "macro_f1": 0.7922184460330481,
+        "balanced_accuracy": 0.9763157894736842,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9526315789473684,
+            "f1": 0.9757412398921832,
+            "support": 190,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 9
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.4375,
+            "recall": 1.0,
+            "f1": 0.6086956521739131,
+            "support": 7,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            181,
+            9
+          ],
+          [
+            0,
+            7
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3241,
+        "accuracy": 0.9345880900956495,
+        "macro_precision": 0.6692234671817214,
+        "macro_recall": 0.9362580064730779,
+        "macro_f1": 0.7325024760647079,
+        "balanced_accuracy": 0.9362580064730779,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9976109215017065,
+            "recall": 0.934462915601023,
+            "f1": 0.9650049521294156,
+            "support": 3128,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 205
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.3408360128617363,
+            "recall": 0.9380530973451328,
+            "f1": 0.5,
+            "support": 113,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 7
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            2923,
+            205
+          ],
+          [
+            7,
+            106
+          ]
+        ]
+      },
+      "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+      "paired_baseline_reference_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "epoch_parent_order_hashes": [
+        "adf687dc5535cf6c662e4b95baa484510876e9b2ca4c3579ba22a16b1a02f1cc",
+        "13a9ab6711ae4ad38f76d9009b575fee1645938be64fbebb0c9b796c50a59336",
+        "d5d5167e1a8864078a20b0964c56d1c302b122ed80a12087aafbbb308386407e",
+        "aba2192d6d5b60fde81ea1fe1d6772494b32c7aa89faaf14a2747a2d0f8be294",
+        "0c3d44f678c64e2968439cc971ba1562cb82286ce36ab28226f7d609fba10e7e",
+        "8bda219d038f667d5909aefd7d74c732bb4fa01a2910d0fb6719ec6ebf577298",
+        "1aee762abf989cf85b0f9503e9bb1482607cf049aae913931e63d7fb6dee5c2d",
+        "28875b3475627c5140deb5c828bf3b43322df67ce0625caa0857fe7d7583cd1f",
+        "3ae5b10efd9fc1e0e9c779608e58c04b8d3d27d38d91e41474e3f5fe61d756fb",
+        "5e49e742e95c626ee9ddb025ec93cdc1e246dec7b3a79b5e0c1185dffbb63a01",
+        "2510d26f9e0b6a1a72b8c6daa0095a55ba3037800dafa7a37ad631803411126c",
+        "7e1c3838050df679b5c420eb60bd276e78b20ae4e707b440d81463f41369a322",
+        "1d2099fe9329f84f70d0b6d7e6af2d5e20713691dbcb3925ef482bbbad6ef00a",
+        "51907cc7281027fa98b4c6d832e7603822ed11c881b193064a92c45969db4570",
+        "098d8299b9e9b0b5ac6174de0908fdc54eaca23e3bc7ba4125b0f51694f5c158",
+        "dffa15ffdf14145c4ec9a50764d03351097074c79d1a528c2431039bec506c94",
+        "538c75e44adfced31c65d5885a835f77d09a1c62965915a774a7f087ecf1ffc1",
+        "0bfb34a8f8803d3e6fd97a6df4603b36ee163dbcf18ede030a166befd18b1f5d",
+        "b324583a02e7f1dd54236455c1f29857375dc557f313724dccf00ad9c19f972b",
+        "9d397cdc9beebd3add53d52ea19b38436b55c7825cc7155988cdeae38ff07bca"
+      ]
+    }
+  ],
+  "absolute_guard": {
+    "threshold": 0.9,
+    "observed_weak_class_precision_recall_f1_floor": 0.6428571428571429,
+    "passed": false
+  },
+  "advance_to_control_training": false,
+  "threshold_fitting": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

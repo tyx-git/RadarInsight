@@ -1,0 +1,116 @@
+{
+  "schema_version": "RADAR-LN3-V22b-oof-config-v1",
+  "config_name": "RADAR-LN3-V22b-cq08-known-gate-rd-temporal-late-readout-oof-fold-02-treatment-seed43",
+  "variant": "v22b_rd_temporal_late_readout",
+  "task": {
+    "name": "known_gate",
+    "class_names": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE"
+    ],
+    "label_to_id": {
+      "DroneTarget": 0,
+      "BirdTarget": 0,
+      "BalloonTarget": 0,
+      "ClutterTarget": 1
+    },
+    "forbidden_training_labels": [
+      "UnknownTarget"
+    ],
+    "feature_names": [
+      "causal_prefix_course_circular_incoherence"
+    ]
+  },
+  "data": {
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-data-contract.json",
+    "normalization_stats_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-train-normalization-stats.json",
+    "train_split_name": "train",
+    "validation_split_name": "val",
+    "test_split_name": "test",
+    "index_schema_version": "RADAR-LN3-V16",
+    "contract_schema_version": "RADAR-LN3-V21-known-gate-data-contract-v1",
+    "expected_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "expected_contract_sha256": "e547a5f962b0e75c6ba657cff1ac2c87bb8daa32efc4360bff314e17e15bcf03",
+    "expected_stats_sha256": "ab9f54056210d278c217e11a03e7f60cfc0a1821fba9096ad0ee9078b00a1523",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "rd_amplitude_center": 56.0,
+    "rd_amplitude_scale": 6.887280099536877,
+    "feature_cache_manifest_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-feature-cache-manifest.json",
+    "expected_feature_cache_manifest_sha256": "737d14c15b49c972d7e1d26d28fbcb877c04643ef9906f46c216e76462d84662",
+    "train_feature_cache_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+    "validation_feature_cache_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz",
+    "expected_train_feature_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "expected_validation_feature_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "feature_experiment_contract_path": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-contract.json",
+    "expected_feature_experiment_contract_sha256": "37f6a8a9dc1b658fa7ff1c5a2ef1090fe0e79e3ab3eefebde69ab0404e911cc0"
+  },
+  "model": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "hidden_dim": 48,
+    "rd_embedding_dim": 24,
+    "liquid_hidden_dim": 48,
+    "rd_height": 21,
+    "rd_width": 384,
+    "liquid_tau_min_seconds": 0.05,
+    "liquid_tau_max_seconds": 30.0,
+    "liquid_zero_dt_event_floor_seconds": 0.001,
+    "liquid_dt_max_seconds": 120.0,
+    "liquid_invalid_dt_update_mode": "bounded_observation",
+    "liquid_invalid_dt_observation_gain": 0.25,
+    "liquid_state_normalization": "recurrent",
+    "rd_frame_aggregation": "masked_mean",
+    "dt_reason_mode": "v3_reason_aware_dynamics_only",
+    "evidence_dim": 1,
+    "rd_temporal_residual_dim": 0
+  },
+  "train": {
+    "batch_size": 2,
+    "learning_rate": 0.0001,
+    "seed": 43,
+    "dataloader_seed": 43,
+    "device": "cuda",
+    "epochs": 20,
+    "early_stopping_patience": 0,
+    "gradient_clip_norm": 100.0,
+    "checkpoint_selection_metric": "parent_min_precision_recall",
+    "task_min_precision_recall_target": 0.9,
+    "checkpoint_path": "artifacts/RADAR-LN3-V22b-cq08-known-gate-rd-temporal-late-readout-paired-oof/fold-02/treatment/final_model.pt",
+    "last_checkpoint_path": "artifacts/RADAR-LN3-V22b-cq08-known-gate-rd-temporal-late-readout-paired-oof/fold-02/treatment/last_model.pt",
+    "formal_artifact_dir": "artifacts/RADAR-LN3-V22b-cq08-known-gate-rd-temporal-late-readout-paired-oof/fold-02/treatment",
+    "epoch_checkpoint_dir": "artifacts/RADAR-LN3-V22b-cq08-known-gate-rd-temporal-late-readout-paired-oof/fold-02/treatment/epochs",
+    "class_weights": [
+      0.5170603674540682,
+      15.153846153846153
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_schema": "RADAR-LN3-V22b-known-gate-rd-temporal-late-readout-oof-checkpoint-v1",
+    "record_parent_order_hash": true,
+    "save_every_epoch": false,
+    "cuda_deterministic_algorithms": false,
+    "full_parameter_training": true,
+    "paired_baseline_config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-control-seed43-config.json"
+  },
+  "v22b_oof": {
+    "fold_id": 2,
+    "source_v21e_config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-known-gate-oof-fold-02-treatment-seed43-config.json",
+    "source_v21e_config_sha256": "57d9d58c63f502eb8fb5c564d78d2e1f37b7ac81500599dc9b21ad02723adcad",
+    "source_control_prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-02/treatment/held-out-predictions.json",
+    "source_control_prediction_sha256": "4c75be662ca6cb40988b27bdae26d49718b867848777f070896dd69ba8f83a61",
+    "source_data_contract_sha256": "e547a5f962b0e75c6ba657cff1ac2c87bb8daa32efc4360bff314e17e15bcf03",
+    "source_normalization_sha256": "ab9f54056210d278c217e11a03e7f60cfc0a1821fba9096ad0ee9078b00a1523",
+    "residual_definition": "last_active_rd_frame_embedding - first_active_rd_frame_embedding",
+    "injection_point": "per_event_logits_after_liquid_readout",
+    "liquid_state_receives_residual": false,
+    "added_trainable_parameter_count": 24,
+    "unknown_training_exposure": 0,
+    "held_out_checkpoint_selection": false,
+    "validation_access_count": 0,
+    "test_payload_access_count": 0
+  }
+}
