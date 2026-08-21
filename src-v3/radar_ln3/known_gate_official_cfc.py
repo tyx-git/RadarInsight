@@ -2,18 +2,32 @@
 
 from __future__ import annotations
 
+import hashlib
+import numpy as np
+from pathlib import Path
 from typing import Any
 
 import torch
 from torch import nn
 
-from .known_gate import KNOWN_GATE_CLASS_NAMES, KnownGateConfig, KnownGateFusionLinear
+from .known_gate import (
+    KNOWN_GATE_CLASS_NAMES,
+    KnownGateConfig,
+    KnownGateFusionLinear,
+    build_known_gate_model_for_config,
+    seed_everything,
+)
 from .model import RDSpatialEncoder
 from .official_cfc import OfficialCfCCausalEncoder
 
 
 class OfficialCfCKnownGateClassifier(nn.Module):
-    """Keep V21e/V22 feature interfaces while replacing only recurrence in V23."""
+    """V23's pure official-CfC KnownGate baseline.
+
+    V23 deliberately reuses V21's ordinary TR/RD front end and output heads,
+    but replaces the complete project-local recurrent core with dense official
+    ``ncps.torch.CfC``.  The baseline has no appended experimental evidence.
+    """
 
     def __init__(self, config: KnownGateConfig) -> None:
         super().__init__()
@@ -21,6 +35,8 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         model = config.model
         if model.rd_temporal_residual_dim != 0:
             raise ValueError("V23 official CfC excludes the rejected V22a residual branch")
+        if model.evidence_dim != 0:
+            raise ValueError("V23 pure official CfC baseline forbids appended evidence")
         self.task_name = "known_gate"
         self.class_names = KNOWN_GATE_CLASS_NAMES
         self.evidence_dim = model.evidence_dim
@@ -50,7 +66,6 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         self.liquid = OfficialCfCCausalEncoder(
             model.liquid_hidden_dim,
             model.liquid_hidden_dim,
-            dt_max_seconds=model.liquid_dt_max_seconds,
             backbone_units=model.liquid_hidden_dim,
             backbone_layers=1,
             backbone_dropout=0.0,
@@ -175,10 +190,10 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             dt_reason=tr_dt_reason,
         )
         logits = self.classifier(state.sequence)
-        # The official encoder never receives padding, but the classifier has
-        # a bias.  Mask its padded outputs explicitly so padding cannot become
-        # audit evidence or receive a gradient through a downstream loss.
-        logits = logits.masked_fill(tr_padding_mask.unsqueeze(-1), 0.0)
+        # Padding never reaches the official recurrence.  Keep the readout's
+        # padded bias values untouched so V23 has the same observable tensor
+        # contract as the frozen V21e/V22 controls; loss and evaluation use
+        # only true causal lengths and therefore never supervise/read them.
         lengths = (~tr_padding_mask).long().sum(dim=1)
         indices = lengths - 1
         batch_indices = torch.arange(tr_features.shape[0], device=tr_features.device)
@@ -240,4 +255,104 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         }
 
 
-__all__ = ["OfficialCfCKnownGateClassifier"]
+def _state_subset_sha256(
+    state: dict[str, torch.Tensor], *, names: set[str]
+) -> str:
+    """Hash a named state subset without importing a training entry point."""
+
+    digest = hashlib.sha256()
+    for name in sorted(names):
+        value = state[name].detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(value.dtype).encode("ascii"))
+        digest.update(np.asarray(value.shape, dtype=np.int64).tobytes(order="C"))
+        digest.update(value.numpy().tobytes(order="C"))
+    return digest.hexdigest()
+
+
+def _state_dict_sha256(state: dict[str, torch.Tensor]) -> str:
+    """Hash complete initialization state with the same stable tensor ordering."""
+
+    digest = hashlib.sha256()
+    for name in sorted(state):
+        value = state[name].detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(value.dtype).encode("ascii"))
+        digest.update(np.asarray(value.shape, dtype=np.int64).tobytes(order="C"))
+        digest.update(value.numpy().tobytes(order="C"))
+    return digest.hexdigest()
+
+
+def build_official_cfc_model_from_frozen_source(
+    project_root: Path,
+    source_config: KnownGateConfig,
+) -> tuple[OfficialCfCKnownGateClassifier, dict[str, Any]]:
+    """Construct V23 with every non-recurrent tensor copied from its Control.
+
+    The recurrent state equations cannot share weights across the historical
+    project-local encoder and the official CfC.  All compatible TR/RD front
+    end, fusion and classifier parameters/buffers *can* and must be copied
+    exactly.  This prevents differences in random-number consumption during
+    CfC construction from becoming an unregistered second experiment factor.
+    """
+
+    source_model, source_reference, source_pairing = build_known_gate_model_for_config(
+        project_root, source_config
+    )
+    del source_reference
+    source_state = dict(source_model.state_dict())
+    source_initial_hash = _state_dict_sha256(source_state)
+    source_parameter_names = {name for name, _value in source_model.named_parameters()}
+    source_buffer_names = {name for name, _value in source_model.named_buffers()}
+
+    # Deliberately give the newly introduced official recurrent module a
+    # reproducible seed of its own, then overwrite every compatible tensor.
+    # The training entry point resets all RNGs again before optimization.
+    seed_everything(source_config.train.seed)
+    official_model = OfficialCfCKnownGateClassifier(source_config)
+    official_state = official_model.state_dict()
+    source_names = {name for name in source_state if not name.startswith("liquid.")}
+    official_names = {name for name in official_state if not name.startswith("liquid.")}
+    if source_names != official_names:
+        missing = sorted(source_names - official_names)
+        unexpected = sorted(official_names - source_names)
+        raise ValueError(
+            "V23 non-recurrent source/official state namespaces differ: "
+            f"missing={missing}, unexpected={unexpected}"
+        )
+    with torch.no_grad():
+        for name in sorted(source_names):
+            source_value = source_state[name]
+            official_value = official_state[name]
+            if source_value.shape != official_value.shape or source_value.dtype != official_value.dtype:
+                raise ValueError(f"V23 non-recurrent source/official state differs at {name}")
+            official_value.copy_(source_value)
+    copied_state = official_model.state_dict()
+    if any(not torch.equal(source_state[name], copied_state[name]) for name in source_names):
+        raise AssertionError("V23 non-recurrent initialization copy is not tensor-exact")
+    parameter_names = {name for name, _value in official_model.named_parameters()}
+    buffer_names = {name for name, _value in official_model.named_buffers()}
+    audit = {
+        "strategy": "copy_frozen_source_non_recurrent_state_then_seed_official_cfc",
+        "source_initial_model_state_sha256": source_initial_hash,
+        "source_initialization_pairing": dict(source_pairing),
+        "shared_non_recurrent_state_sha256": _state_subset_sha256(
+            copied_state, names=source_names
+        ),
+        "shared_non_recurrent_tensor_count": len(source_names),
+        "shared_non_recurrent_parameter_count": len(source_names & parameter_names),
+        "shared_non_recurrent_buffer_count": len(source_names & buffer_names),
+        "source_non_recurrent_parameter_count": len(source_names & source_parameter_names),
+        "source_non_recurrent_buffer_count": len(source_names & source_buffer_names),
+        "shared_non_recurrent_state_exactly_equal": True,
+        "official_recurrent_state_is_distinct_by_architecture": True,
+    }
+    # Keep the complete source model out of the training graph and CUDA memory.
+    del source_model
+    return official_model, audit
+
+
+__all__ = [
+    "OfficialCfCKnownGateClassifier",
+    "build_official_cfc_model_from_frozen_source",
+]

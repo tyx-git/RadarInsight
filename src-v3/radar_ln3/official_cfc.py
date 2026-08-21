@@ -4,7 +4,8 @@ The project historically used a locally implemented, CfC-inspired recurrent
 unit.  This module deliberately does *not* reimplement the CfC equations:
 the recurrent operator is ``ncps.torch.CfC`` from the Neural Circuit Policies
 project.  The surrounding code only applies Radar-LN3's causal padding and
-``dt`` tensor contracts.
+raw-``dt`` validity contracts.  It does not floor, cap, reweight, normalize,
+or otherwise transform the time span before the official cell receives it.
 """
 
 from __future__ import annotations
@@ -28,8 +29,13 @@ from .data import (
 
 OFFICIAL_CFC_DISTRIBUTION = "ncps"
 OFFICIAL_CFC_DISTRIBUTION_VERSION = "1.0.1"
+OFFICIAL_CFC_DIRECT_URL = "https://github.com/mlech26l/ncps.git"
 OFFICIAL_CFC_GIT_COMMIT = "695ec22d7d1831f2ced67346ef7d2f08c525bd47"
 OFFICIAL_CFC_CLASS_PATH = "ncps.torch.CfC"
+OFFICIAL_CFC_CLASS_MODULE = "ncps.torch.cfc"
+OFFICIAL_CFC_STATE_EQUATION_OWNER = (
+    "official ncps.torch.CfC; Radar-LN3 does not reimplement CfCCell"
+)
 OFFICIAL_CFC_MODE = "default"
 OFFICIAL_CFC_ACTIVATION = "lecun_tanh"
 
@@ -40,6 +46,8 @@ class OfficialCfCForwardState:
 
     sequence: torch.Tensor
     final_state: torch.Tensor
+    # Retained solely for the common KnownGate output interface.  Pure V23
+    # never caps dt, so this tensor is always false for active events.
     dt_clamped_mask: torch.Tensor
     dt_zero_mask: torch.Tensor
     dt_invalid_mask: torch.Tensor
@@ -84,20 +92,25 @@ def official_cfc_runtime_binding() -> dict[str, Any]:
     )
     direct_url = json.loads(direct_url_path.read_text(encoding="utf-8"))
     vcs_info = dict(direct_url.get("vcs_info") or {})
+    source_url = str(direct_url.get("url") or "")
     commit = str(vcs_info.get("commit_id") or "")
-    if version != OFFICIAL_CFC_DISTRIBUTION_VERSION or commit != OFFICIAL_CFC_GIT_COMMIT:
+    if (
+        version != OFFICIAL_CFC_DISTRIBUTION_VERSION
+        or source_url != OFFICIAL_CFC_DIRECT_URL
+        or commit != OFFICIAL_CFC_GIT_COMMIT
+    ):
         raise RuntimeError(
             "V23 requires official ncps=="
             f"{OFFICIAL_CFC_DISTRIBUTION_VERSION} at commit "
-            f"{OFFICIAL_CFC_GIT_COMMIT}; found version={version!r}, "
-            f"commit={commit!r}"
+            f"{OFFICIAL_CFC_GIT_COMMIT} from {OFFICIAL_CFC_DIRECT_URL}; "
+            f"found version={version!r}, url={source_url!r}, commit={commit!r}"
         )
-    if CfC.__module__ != "ncps.torch.cfc":
+    if CfC.__module__ != OFFICIAL_CFC_CLASS_MODULE:
         raise RuntimeError("V23 CfC import is not the official ncps.torch.cfc class")
     return {
         "distribution": OFFICIAL_CFC_DISTRIBUTION,
         "distribution_version": version,
-        "direct_url": str(direct_url.get("url") or ""),
+        "direct_url": source_url,
         "git_commit": commit,
         "class_path": OFFICIAL_CFC_CLASS_PATH,
         "class_module": CfC.__module__,
@@ -109,9 +122,10 @@ class OfficialCfCCausalEncoder(nn.Module):
 
     V23 intentionally gives official CfC the native event time spans: first
     observations and same-second observations have a zero time span, while
-    positive deltas retain their measured, bounded wall-clock duration.  No
-    project-specific floor, observation gain, state normalization, or hand
-    written state equation is applied inside this adapter.
+    positive deltas retain their measured wall-clock duration without a
+    project-specific upper cap.  No project-specific tau, alpha update,
+    zero-dt floor, observation gain, state normalization, candidate/gate, or
+    hand-written state equation is applied inside this adapter.
 
     The upstream ``ncps==1.0.1`` sequence wrapper squeezes the per-event
     time-span tensor before passing it to ``CfCCell``.  Calling it one parent
@@ -127,7 +141,6 @@ class OfficialCfCCausalEncoder(nn.Module):
         input_dim: int,
         hidden_dim: int,
         *,
-        dt_max_seconds: float,
         mode: str = OFFICIAL_CFC_MODE,
         activation: str = OFFICIAL_CFC_ACTIVATION,
         backbone_units: int | None = None,
@@ -143,8 +156,8 @@ class OfficialCfCCausalEncoder(nn.Module):
             raise ValueError("V23 fixes the official CfC activation to lecun_tanh")
         if backbone_layers != 1 or backbone_dropout != 0.0 or mixed_memory:
             raise ValueError("V23 fixes one dropout-free, non-mixed official CfC layer")
-        if input_dim <= 0 or hidden_dim <= 0 or dt_max_seconds <= 0.0:
-            raise ValueError("V23 official CfC dimensions/dt maximum are invalid")
+        if input_dim <= 0 or hidden_dim <= 0:
+            raise ValueError("V23 official CfC dimensions are invalid")
         units = int(hidden_dim)
         backbone = units if backbone_units is None else int(backbone_units)
         if backbone != units:
@@ -155,7 +168,6 @@ class OfficialCfCCausalEncoder(nn.Module):
             raise RuntimeError("V23 official ncps.CfC became unavailable") from error
         self.input_dim = int(input_dim)
         self.hidden_dim = units
-        self.dt_max_seconds = float(dt_max_seconds)
         self.runtime_binding = runtime
         self.mode = mode
         self.activation = activation
@@ -166,6 +178,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         self.cfc = CfC(
             self.input_dim,
             self.hidden_dim,
+            proj_size=None,
             return_sequences=True,
             batch_first=True,
             mixed_memory=False,
@@ -191,14 +204,27 @@ class OfficialCfCCausalEncoder(nn.Module):
             "backbone_layers": self.backbone_layers,
             "backbone_dropout": self.backbone_dropout,
             "mixed_memory": self.mixed_memory,
+            "proj_size": None,
+            "wiring": None,
+            "dense": True,
             "return_sequences": True,
             "batch_first": True,
+            "state_equation_owner": OFFICIAL_CFC_STATE_EQUATION_OWNER,
             "dt_semantics": (
                 "official_cfc_raw_nonnegative_wall_clock_seconds; "
                 "first_event_and_same_second_use_zero_timespan; "
-                "positive_delta_preserves_measured_dt; "
-                "only_positive_dt_is_capped"
+                "positive_delta_preserves_measured_dt_without_cap; "
+                "dt_valid_and_dt_reason_are_contract_audits_not_state_update_rules"
             ),
+            "project_legacy_recurrent_mechanisms": {
+                "learned_tau": False,
+                "alpha_exponential_interpolation": False,
+                "zero_dt_floor": False,
+                "bounded_observation_gain": False,
+                "recurrent_layer_norm": False,
+                "custom_candidate_gate": False,
+                "positive_dt_cap": False,
+            },
             "parameter_count": self.parameter_count,
         }
 
@@ -252,11 +278,11 @@ class OfficialCfCCausalEncoder(nn.Module):
         negative = dt_seconds < 0.0
         if bool(negative.masked_select(active).any()):
             raise ValueError("V23 official CfC does not accept negative wall-clock dt")
-        clamped = (dt_seconds > self.dt_max_seconds) & active
-        safe = dt_seconds.clamp(min=0.0, max=self.dt_max_seconds)
-        safe = torch.where(active, safe, torch.zeros_like(safe))
+        # Do not reuse the historical 120-second cap.  The official CfC sees
+        # each finite, non-negative measured time span exactly as supplied.
+        safe = torch.where(active, dt_seconds, torch.zeros_like(dt_seconds))
         zero = (dt_seconds.abs() <= 1.0e-9) & active
-        return safe, clamped, zero
+        return safe, torch.zeros_like(active), zero
 
     def forward(
         self,
@@ -392,10 +418,13 @@ class OfficialCfCCausalEncoder(nn.Module):
 __all__ = [
     "OFFICIAL_CFC_ACTIVATION",
     "OFFICIAL_CFC_CLASS_PATH",
+    "OFFICIAL_CFC_CLASS_MODULE",
+    "OFFICIAL_CFC_DIRECT_URL",
     "OFFICIAL_CFC_DISTRIBUTION",
     "OFFICIAL_CFC_DISTRIBUTION_VERSION",
     "OFFICIAL_CFC_GIT_COMMIT",
     "OFFICIAL_CFC_MODE",
+    "OFFICIAL_CFC_STATE_EQUATION_OWNER",
     "OfficialCfCCausalEncoder",
     "OfficialCfCForwardState",
     "official_cfc_runtime_binding",

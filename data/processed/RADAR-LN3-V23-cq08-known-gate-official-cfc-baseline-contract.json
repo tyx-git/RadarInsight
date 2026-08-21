@@ -1,0 +1,99 @@
+{
+  "schema_version": "RADAR-LN3-V23-known-gate-official-cfc-baseline-contract-v1",
+  "experiment": "V23 pure official dense CfC KnownGate formal baseline",
+  "source": {
+    "name": "V21 seed43 formal baseline",
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "config_identity_sha256": "92e8ad1564461fc9b0428444ad3d0469341d85e73a580035e37bc3e5c2ad3cb9",
+    "summary_path": "artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "summary_status": "completed"
+  },
+  "treatment": {
+    "name": "V23 pure official dense CfC baseline",
+    "architecture": "ncps.torch.CfC",
+    "state_equation_owner": "official ncps CfCCell",
+    "changed_component": "project-local CfC-inspired recurrent encoder replaced by official dense CfC",
+    "not_a_reimplementation": true,
+    "legacy_recurrent_mechanisms_reintroduced": false
+  },
+  "official_runtime": {
+    "distribution": "ncps",
+    "distribution_version": "1.0.1",
+    "direct_url": "https://github.com/mlech26l/ncps.git",
+    "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+    "class_path": "ncps.torch.CfC",
+    "class_module": "ncps.torch.cfc"
+  },
+  "official_specification": {
+    "distribution": "ncps",
+    "distribution_version": "1.0.1",
+    "direct_url": "https://github.com/mlech26l/ncps.git",
+    "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+    "class_path": "ncps.torch.CfC",
+    "class_module": "ncps.torch.cfc",
+    "mode": "default",
+    "activation": "lecun_tanh",
+    "input_dim": 48,
+    "hidden_dim": 48,
+    "backbone_units": 48,
+    "backbone_layers": 1,
+    "backbone_dropout": 0.0,
+    "mixed_memory": false,
+    "proj_size": null,
+    "wiring": null,
+    "return_sequences": true,
+    "batch_first": true,
+    "per_parent_forward_for_upstream_batch_timespan_compatibility": true,
+    "state_equation_owner": "official ncps.torch.CfC; Radar-LN3 does not reimplement CfCCell",
+    "dt_semantics": "official_cfc_raw_nonnegative_wall_clock_seconds; first_event_and_same_second_use_zero_timespan; positive_delta_preserves_measured_dt_without_cap; dt_valid_and_dt_reason_are_contract_audits_not_state_update_rules"
+  },
+  "parameter_matching": {
+    "official_ncps_cfc_parameter_count": 14064,
+    "historical_custom_cfc_inspired_encoder_parameter_count": 14112,
+    "official_minus_historical_parameter_count": -48,
+    "absolute_parameter_difference": 48,
+    "parameter_matching_decision": "official dense 48x1 baseline fixed before training"
+  },
+  "formal_protocol": {
+    "training_split": "V21 train known-only",
+    "development_validation_split": "V21 validation known-only",
+    "train_parent_count": 986,
+    "validation_parent_count": 232,
+    "validation_clutter_parent_support": 9,
+    "epochs": 20,
+    "checkpoint_selection": "V21 parent_min_precision_recall on development validation",
+    "full_parameter_training": true,
+    "oof": "deferred_pending_baseline_and_multiseed_confirmation"
+  },
+  "single_factor": {
+    "changed_component": "causal recurrent encoder only",
+    "frozen": [
+      "V16 index and V21 data contract",
+      "V21 train-only normalization",
+      "KnownGate labels and Unknown exclusion",
+      "TR/RD front ends, fusion and classifier topology",
+      "batch size, seed, optimizer, learning rate, epochs and gradient clipping",
+      "V21 parent-final plus prefix auxiliary loss",
+      "V21 development validation and checkpoint selection rule"
+    ],
+    "not_reintroduced": [
+      "learned tau",
+      "alpha equals one minus exp minus dt over tau",
+      "zero-dt floor",
+      "bounded observation gain",
+      "recurrent LayerNorm",
+      "project custom candidate gate",
+      "positive-dt cap"
+    ]
+  },
+  "unknown_training_exposure": 0,
+  "oof": "未执行（先完成V23基座与多seed）",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

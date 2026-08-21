@@ -2569,7 +2569,15 @@
 ## Finding F237
 
 - Severity：High
-- Status：已确认架构命名/实现边界；V23性能待五折训练
-- Evidence：`src-v3/radar_ln3/model.py:187-291`的历史`CfCLiquidCausalEncoder`仅定义`input_projection/state_projection/gate_projection/candidate_projection/tau_unconstrained/output_norm`，以`alpha=1-exp(-dt/tau)`及线性插值更新state；项目V3代码未导入`ncps`、`torch_cfc`或LTC实现，审计时`.venv`中三者均不存在。V23新增`src-v3/radar_ln3/official_cfc.py`，runtime硬校验官方`ncps==1.0.1`、Git commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`、类模块`ncps.torch.cfc`，并在真实CQ08 fold-0 batch Smoke确认官方CfC参数14,064、梯度有限非零；历史48维自定义单元参数为14,112。
-- Impact：V16-V22的相对实验结论只适用于项目自定义、CfC-inspired连续时间门控主干，不能宣称已经证明标准CfC/LTC收益。V23a/V23b可分别检验官方CfC相对V21e历史loss和V22固定parent分母loss的架构效应，但二者都不是完整KnownGate产品、Unknown拒识或跨source泛化结论。
-- Action：历史文档与后续报告统一称`CfC-inspired custom encoder`或“自定义连续时间门控编码器”；仅V23 Treatment称官方`ncps.torch.CfC`。保持V23a对V21e、V23b对V22分开五折比较，固定V16 index、course输入、fold、loss、seed、parent order和epoch；不使用初始logit相等作为不同架构的伪配对条件，而是记录source hash、官方runtime绑定和每epoch parent order hash。只有同时通过parent、eligible-prefix、方向安全和component bootstrap门槛才可提出后续架构候选；test、正式拒识、L3、完整级联、stable和P95继续未执行。
+- Status：已确认架构命名/实现边界；V23基座尚未训练
+- Evidence：`src-v3/radar_ln3/model.py:187-291`的历史`CfCLiquidCausalEncoder`仅定义`input_projection/state_projection/gate_projection/candidate_projection/tau_unconstrained/output_norm`，以`alpha=1-exp(-dt/tau)`及线性插值更新state；项目V3代码未导入`ncps`、`torch_cfc`或LTC实现，审计时`.venv`中三者均不存在。V23新增`src-v3/radar_ln3/official_cfc.py`，runtime硬校验官方`ncps==1.0.1`、Git commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`、类模块`ncps.torch.cfc`；真实V21 train batch smoke确认官方CfC参数14,064、梯度有限非零、290s正dt未截断且offline/online最大logit误差`4.76837158203125e-07`低于`1e-6`容差；历史48维自定义单元参数为14,112。
+- Impact：V16-V22的相对实验结论只适用于项目自定义、CfC-inspired连续时间门控主干，不能宣称已经证明标准CfC/LTC收益。V23只先提供一份无course、`batch_weight_sum`、seed43的开发基座，不是完整KnownGate产品、Unknown拒识或跨source泛化结论。
+- Action：历史文档与后续报告统一称`CfC-inspired custom encoder`或“自定义连续时间门控编码器”；仅V23称官方`ncps.torch.CfC`。先完成单模型20 epoch基座与开发validation，再决定多seed；五折OOF在多seed后独立预注册。旧V23a/V23b OOF预备方案已取消且未训练，禁止作为现有性能或实验依据；test、正式拒识、L3、完整级联、stable和P95继续未执行。
+
+## Finding F238
+
+- Severity：High
+- Status：训练前V23隔离缺口已修复并复核
+- Evidence：初版`OfficialCfCKnownGateClassifier`在官方CfC构造后继续初始化fusion/classifier，因官方CfC与历史自定义单元消耗不同数量随机数，非liquid参数中fusion和classifier初态并不等于冻结V21e/V22 Control；同时初版仅V23对padding logits施加零填充，而历史`KnownGateClassifier`保留classifier bias。复审后新增冻结source非recurrent tensor复制和哈希审计；真实batch Smoke确认30个非recurrent tensor逐值相等、40个可训练参数均有有限非零梯度，官方recurrent state仍保持独立。V23已改为只阻止padding进入official recurrence，并让loss/评估继续以真实长度排除padding。
+- Impact：修复后V23的可变化因素收窄为官方CfC recurrent结构及其内在原生timespan方程；TR/RD前端、fusion、classifier、数据、loss、parent顺序、epoch和评估张量契约均冻结。不能把这保证解读为跨架构初始logits相同，也不能将V23作为Unknown、L3、完整级联、stable、P95或test结论。
+- Action：V23 checkpoint、summary和report必须绑定source初态hash、共享non-recurrent-state hash与官方runtime direct-url/class-module/owner；先运行单一基座全量20 epoch与开发评估，之后再决定多seed和五折全量脚本。

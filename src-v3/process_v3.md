@@ -2426,12 +2426,16 @@ RD内容归因臂把`rd_frame_mask`置零，使masked-mean embedding精确为零
 
 冻结决策：保留当前masked-mean RD内容路径，继续否决V22a/V22b首尾embedding residual；后续先处理RD缺失质量支持与Pending/Abstain语义，再决定是否实验全帧二阶离散度。KnownGate局部argmax仍不是最终`CLUTTER_ACCEPTED`或`UNKNOWN_REJECTED`动作，完整L1/L2/L3、正式拒识、test、stable和P95继续未执行。
 
-## 2026-08-21 Stage 093 - V23官方CfC架构替换准备
+## 2026-08-21 Stage 093 - V23纯官方CfC基座准备
 
 代码审计确认，历史`src-v3/radar_ln3/model.py::CfCLiquidCausalEncoder`不是标准CfC/LTC：它以项目自定义的`candidate/gate`线性层、每维静态`tau`和`(1-alpha)*state+alpha*candidate`更新构成；虽具备显式dt、因果状态和离线/在线共用`_step`，但没有官方CfC的`ff1/ff2/time_a/time_b`结构、LTC ODE求解或NCP wiring。V3运行环境此前没有`ncps`、`torch_cfc`或`liquidnet`。
 
-本Stage将官方`ncps==1.0.1`从`https://github.com/mlech26l/ncps.git` commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`安装至项目`.venv`，并创建`radar_ln3.official_cfc.OfficialCfCCausalEncoder`。适配层不重写CfC方程，实际状态单元是`ncps.torch.CfC`/`ncps.torch.cfc.CfCCell`。它仅处理Radar-LN3的右侧padding、dt reason审计和online state接口。上游该版本在batch>1且per-event timespan为向量时存在广播限制，因此离线adapter逐parent调用未修改的官方`CfC.forward()`；只传入真实有效长度，padding永不进入official recurrence。first/same-second保留zero timespan，positive delta保留实测dt并仅截断到历史120秒上限；这与历史`bounded_observation`增益不同，是替换官方encoder的内在语义差异，而不是隐藏的第二个输入因素。
+V23现收敛为单一的开发基座，而非V23a/V23b五折OOF实验：官方`ncps==1.0.1`由`https://github.com/mlech26l/ncps.git` commit `695ec22d7d1831f2ced67346ef7d2f08c525bd47`安装至项目`.venv`，实际状态单元为未改写的`ncps.torch.CfC`/`ncps.torch.cfc.CfCCell`。固定规格为dense input/units/backbone均48、backbone一层、default、lecun_tanh、无dropout、无mixed memory、无projection、无wiring。adapter只处理右侧padding排除、dt reason审计与offline/online接口；为规避上游batch timespan广播限制，它逐parent调用官方`CfC.forward()`。first/same-second传真实0，positive delta传真实dt且不保留历史120秒截断；历史`tau/alpha/zero-floor/bounded_observation/LayerNorm/candidate-gate`均不复刻。
 
-参数量采用预先固定的近似匹配而非默认容量：历史48维自定义单元14,112参数，官方`CfC(48,48,default,lecun_tanh,backbone=48x1,no dropout,no mixed memory)`14,064参数，差48。V23a相对冻结V21e OOF Treatment保留历史`batch_weight_sum`；V23b相对冻结V22 OOF Treatment保留`fixed_parent_count`。两条线均复用V16 index、V21e course特征、986 known parent/975 provenance component五折assignment、fold-train normalization、batch=2、seed43、每epoch parent顺序、AdamW、20 epoch与epoch20唯一held-out预测。V22保持其历史自定义encoder Control身份，不能被改写成官方CfC，否则V23b不再能区分loss与架构。
+训练前V23复审发现，初版官方CfC构造的参数初始化会消耗不同数量的随机数，导致本应冻结的fusion/classifier初态也与历史Control不同；这构成了未注册的第二因素。现新增`build_official_cfc_model_from_frozen_source`：先按原配置构建冻结source model，逐tensor复制全部30个非`liquid.*`参数/缓冲，再仅保留官方CfC recurrent tensor为架构差异；source state hash、共享state hash和完整性断言被写入checkpoint、prediction、summary、report与Smoke。复审还发现初版V23独自把padded logits清零，而历史V21e/V22会保留classifier bias；现取消该额外改写，仍只向官方CfC传入真实长度，loss/evaluation均按真实长度排除padding。官方direct URL、class module、state-equation owner和sidecar字段也已强校验；真实batch中40个可训练参数梯度均有限非零。
 
-准备级检查均通过：Python编译、PowerShell AST与静态隔离均通过。V23a/V23b分别在真实fold-0 train batch上完成一次forward/backward；官方`ncps.torch.CfC`版本/commit、14,064参数、非零有限梯度、course evidence、Unknown/validation/test封存和padding logits严格零均通过。完整前端offline/online最大logit误差为V23a=`3.5762786865234375e-7`、V23b=`4.172325134277344e-7`；差异来自batch与单点CNN/GEMM浮点归约次序，低于明确`atol=rtol=1e-6`，不能被写成位级不一致。尚未执行任何V23 fold训练、OOF聚合、阈值、Unknown、L3、完整级联、stable、P95或test。
+参数量采用预先固定的近似匹配而非默认容量：历史48维自定义单元14,112参数，官方`CfC(48,48,default,lecun_tanh,backbone=48x1,no dropout,no mixed memory)`14,064参数，差48。V23以V21 seed43 formal baseline为来源，复用986 train、232 validation、V16 index、V21 train-only normalization、无附加evidence、`batch_weight_sum`、batch=2、seed43、每epoch parent顺序、AdamW和完整20 epoch。V22固定parent分母loss不进入当前基座。
+
+旧V23a/V23b五折OOF预备文件已经取消且未训练；其原有fold Smoke、配置或合同不再作为V23基座结果。当前仅准备V23 seed43 full 20 epoch training和development validation；完成后先决定是否多seed，之后才预注册五折OOF。OOF、Unknown、L3、完整级联、stable、P95和test保持未执行。
+
+当前V23基座入口已实际复核：`v23_official_cfc_baseline_pipeline.ps1 -Stage prepare`、`-Stage smoke`、Python编译、PowerShell AST和静态隔离均通过。focused smoke在真实V21 train batch上确认官方CfC参数=`14064`、全部可训练参数与官方CfC参数梯度均有限非零、first/zero/positive dt合同均被覆盖、训练集290s正dt原值传入官方timespan且未截断、padding不进入递归；offline/online最大logit误差=`4.76837158203125e-07`，低于明确的float32 `atol=rtol=1e-6`。这些只是训练前合同证据，不是性能结果；V23 20 epoch训练、development validation、多seed和OOF均未执行。
