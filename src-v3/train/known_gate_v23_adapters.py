@@ -1,4 +1,4 @@
-"""Train one fully isolated V23a/V23b/V23c official-CfC adapter experiment."""
+﻿"""Train one fully isolated V23 official-CfC adapter experiment."""
 
 from __future__ import annotations
 
@@ -27,6 +27,10 @@ from radar_ln3.known_gate_official_cfc import (
 from radar_ln3.known_gate_v23 import FIXED_EPOCHS, sha256_file
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
+    V23A_VARIANT,
+    V23B_VARIANT,
+    V23D_VARIANT,
+    adapter_state_names,
     artifact_relative,
     checkpoint_schema,
     config_identity_sha256,
@@ -81,10 +85,11 @@ def _initialization_pairing_audit(
 ) -> dict[str, Any]:
     """Bind each treatment's initial state to the frozen V23 Control.
 
-    V23a/V23c add no state tensors, so their complete state must hash exactly
-    like V23's saved initialization.  V23b adds only its two affine
-    LayerNorm tensors; after excluding that namespace, its entire remaining
-    core must still be byte-identical to the same V23 initialization.
+    Zero-parameter adapters must exactly match V23.  Parameterized adapters
+    may add only their declared tensors; after excluding that namespace, their
+    entire remaining core must still be byte-identical to the V23
+    initialization.  V23d's log_tau_ratio starts at zero, so it is also
+    functionally identical to V23a before the first optimizer step.
     """
 
     state = model.state_dict()
@@ -99,6 +104,7 @@ def _initialization_pairing_audit(
     if actual_adapter_parameter_count != adapter_parameter_count:
         raise RuntimeError("V23 adapter trainable parameter count differs from its frozen spec")
 
+    expected_adapter_names = adapter_state_names(model.state_adapter_spec)
     if adapter_parameter_count == 0:
         core_hash = adapter_state_dict_sha256(state)
         full_matches_v23 = full_hash == source_hash
@@ -109,11 +115,8 @@ def _initialization_pairing_audit(
         core_hash = adapter_state_dict_sha256(state, exclude_prefixes=("state_adapter.",))
         full_matches_v23 = False
         core_matches_v23 = core_hash == source_hash
-        if adapter_names != (
-            "state_adapter.recurrent_norm.bias",
-            "state_adapter.recurrent_norm.weight",
-        ) or not core_matches_v23:
-            raise RuntimeError("V23 LayerNorm adapter core initial state differs from frozen V23")
+        if adapter_names != expected_adapter_names or not core_matches_v23:
+            raise RuntimeError("V23 parameterized adapter core initial state differs from frozen V23")
     return {
         "source_v23_initial_model_state_sha256": source_hash,
         "treatment_full_initial_model_state_sha256": full_hash,
@@ -146,6 +149,76 @@ def _assert_v23_parent_order_history(
             raise ValueError("V23 adapter parent order differs from its frozen Control")
 
 
+def _assert_v23d_initially_replays_v23a(
+    root: Path,
+    *,
+    source_config: Any,
+    model: OfficialCfCKnownGateClassifier,
+) -> dict[str, Any]:
+    """Prove V23d changes only learnable per-dimension tau after step zero.
+
+    V23a's fixed scalar tau is the direct Control for V23d.  V23d's zero
+    log-ratio initialization must produce bit-identical logits on a real train
+    batch before optimization; any difference would be an unregistered factor.
+    """
+
+    reference, _audit = build_official_cfc_model_from_frozen_source(
+        root,
+        source_config,
+        state_adapter_spec=load_adapter_config(root, V23A_VARIANT)[0].adapter,
+    )
+    dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    batch = next(iter(build_known_gate_dataloader(dataset, batch_size=2, shuffle=False)))
+    model.eval()
+    reference.eval()
+    with torch.inference_mode():
+        actual = model(**_model_inputs(batch))["sequence_logits"]
+        expected = reference(**_model_inputs(batch))["sequence_logits"]
+    error = float((actual - expected).abs().max().item())
+    if not torch.allclose(actual, expected, atol=1.0e-6, rtol=1.0e-6):
+        raise RuntimeError(
+            "V23d zero log-tau initialization does not replay V23a fixed-tau logits: "
+            f"max_error={error}"
+        )
+    return {
+        "direct_control_variant": V23A_VARIANT,
+        "before_optimizer_step_replays_v23a_within_float32_tolerance": True,
+        "max_sequence_logit_error": error,
+        "tolerance": {"atol": 1.0e-6, "rtol": 1.0e-6},
+        "train_parent_ids": [str(value) for value in batch["parent_sample_ids"]],
+    }
+
+
+def _v23d_tau_audit(model: OfficialCfCKnownGateClassifier) -> dict[str, Any]:
+    """Describe V23d's learned positive per-dimension time scales."""
+
+    parameter = model.state_adapter.log_tau_ratio
+    base_tau = model.state_adapter_spec.fixed_tau_seconds
+    if parameter is None or base_tau is None:
+        raise RuntimeError("V23d tau audit requires the per-dimension tau adapter")
+    ratios = parameter.detach().float().cpu()
+    taus = float(base_tau) * torch.exp(ratios)
+    if ratios.shape != (48,) or not bool(torch.isfinite(ratios).all()) or not bool(torch.isfinite(taus).all()):
+        raise RuntimeError("V23d learned per-dimension tau values are invalid")
+    maximum_absolute_ratio = float(ratios.abs().max().item())
+    return {
+        "parameterization": "tau_i=15.025*exp(log_tau_ratio_i)",
+        "dimension_count": int(ratios.numel()),
+        "base_tau_seconds": float(base_tau),
+        "log_tau_ratio_minimum": float(ratios.min().item()),
+        "log_tau_ratio_maximum": float(ratios.max().item()),
+        "log_tau_ratio_mean": float(ratios.mean().item()),
+        "log_tau_ratio_standard_deviation": float(ratios.std(unbiased=False).item()),
+        "tau_seconds_minimum": float(taus.min().item()),
+        "tau_seconds_maximum": float(taus.max().item()),
+        "tau_seconds_mean": float(taus.mean().item()),
+        "tau_seconds_standard_deviation": float(taus.std(unbiased=False).item()),
+        "all_tau_positive_and_finite": True,
+        "learned_values_differ_from_fixed_initialization": maximum_absolute_ratio > 1.0e-8,
+        "maximum_absolute_log_tau_ratio": maximum_absolute_ratio,
+    }
+
+
 def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any], Path, dict[str, Any]]:
     config_path = root / config_relative(variant)
     contract_path = root / contract_relative(variant)
@@ -172,6 +245,15 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
         or contract.get("test") != "未执行" or contract.get("deployment_eligible") is not False
         or config.train.checkpoint_schema != checkpoint_schema(variant)
         or config.train.epochs != FIXED_EPOCHS
+        or (
+            variant == V23D_VARIANT
+            and (
+                config.direct_control is None
+                or contract.get("direct_control") != config.direct_control
+                or readiness.get("direct_control") != config.direct_control
+            )
+        )
+
     ):
         raise ValueError("V23 adapter readiness/contract is stale or outside sealed scope")
     return config, source_config, readiness, contract_path, contract
@@ -191,6 +273,7 @@ def _checkpoint_payload(
         "source_config_path": config.source_config_path, "source_config_sha256": config.source_config_sha256,
         "source_config_identity_sha256": config.source_config_identity_sha256,
         "source_v23_report_path": config.source_v23_report_path, "source_v23_report_sha256": config.source_v23_report_sha256,
+        "direct_control": config.direct_control,
         "readiness_sha256": readiness_sha256,
         "runtime_compatibility": {"path": str(runtime_path), "sha256": runtime_sha256},
         "official_cfc": model.backbone_specification(), "external_state_adapter": model.external_state_adapter_specification(),
@@ -214,6 +297,7 @@ def _load_checkpoint(
         or payload.get("config_identity_sha256") != config_identity_sha256(config)
         or payload.get("config_file_sha256") != sha256_file(config_path)
         or payload.get("readiness_sha256") != readiness_sha256
+        or payload.get("direct_control") != config.direct_control
         or dict(payload.get("runtime_compatibility") or {}) != {"path": str(runtime_path), "sha256": runtime_sha256}
         or payload.get("official_cfc") != model.backbone_specification()
         or payload.get("external_state_adapter") != model.external_state_adapter_specification()
@@ -268,6 +352,13 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
             source_v23_summary=source_v23_summary,
             adapter_parameter_count=config.adapter.trainable_parameter_count,
         )
+        if variant == V23D_VARIANT:
+            pairing_audit["v23d_direct_v23a_replay"] = _assert_v23d_initially_replays_v23a(
+                root,
+                source_config=source_config,
+                model=model,
+            )
+
         device = known_gate_device(source_config)
         if config.train.device == "cuda" and device.type != "cuda":
             raise RuntimeError("V23 adapter formal training requires CUDA")
@@ -353,11 +444,16 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
         _assert_v23_parent_order_history(history, source_parent_order_hashes)
         _load_checkpoint(best_checkpoint, model, None, variant=variant, config=config, config_path=config_path, readiness_sha256=readiness_sha256, runtime_path=runtime_path, runtime_sha256=runtime_sha256, initialization_audit=initialization_audit, pairing_audit=pairing_audit, map_location=device)
         best_validation = evaluate_known_gate(model, validation_dataset, config=source_config, device=device)
+        v23d_tau_audit = _v23d_tau_audit(model) if variant == V23D_VARIANT else None
         detail_path = artifact / "sample_detail_information.json"
         _write_json(detail_path, {"schema_version": f"{checkpoint_schema(variant)}-sample-detail-v1", "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "adapter": model.external_state_adapter_specification(), "seed": 43, "checkpoint": str(best_checkpoint), "epoch": best_epoch, "counts": {key: len(value) for key, value in best_validation["records"].items()}, "records": best_validation["records"], "scope": "development validation KnownGate only; not OOF or test"})
         performance = _performance(best_validation, config.train.task_min_precision_recall_target)
         final_state_sha256 = _state_dict_sha256(model.state_dict())
         result = {"status": "completed", **performance, "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "official_cfc": model.backbone_specification(), "external_state_adapter": model.external_state_adapter_specification(), "seed": 43, "dataloader_seed": 43, "config_name": config.config_name, "config_path": str(config_path), "config_sha256": sha256_file(config_path), "config_identity_sha256": config_identity_sha256(config), "source_control": {"v23_report_path": config.source_v23_report_path, "v23_report_sha256": config.source_v23_report_sha256, "v21_config_path": config.source_config_path, "v21_config_sha256": config.source_config_sha256}, "train_parent_count": len(train_dataset), "validation_parent_count": len(validation_dataset), "validation_clutter_support": 9, "global_step": global_step, "best_epoch": best_epoch, "best_checkpoint_selection": best_selection, "best_validation_metrics": {key: value for key, value in best_validation.items() if key != "records"}, "history": history, "best_checkpoint": str(best_checkpoint), "last_checkpoint": str(last_checkpoint), "sample_detail_information": str(detail_path), "trainable_parameter_count": sum(parameter.numel() for parameter in model.parameters()), "full_parameter_training": True, "all_model_parameters_trainable": True, "initial_model_state_sha256": initial_state_sha256, "best_model_state_sha256": final_state_sha256, "model_state_changed_from_initialization": initial_state_sha256 != final_state_sha256, "initialization_audit": initialization_audit, "v23_initialization_pairing": pairing_audit, "training_readiness": {"path": str(root / readiness_relative(variant)), "sha256": readiness_sha256, "schema_version": readiness_schema(variant), "status": "passed", "validation_used_for_readiness_gate": False, "test": "未执行"}, "official_runtime_compatibility": {"path": str(runtime_path), "sha256": runtime_sha256, "schema_version": runtime["schema_version"], "checks": dict(runtime["checks"])}, "data_contract": {"source_data_contract_path": source_config.data.contract_path, "source_data_contract_sha256": source_config.data.expected_contract_sha256, "normalization_path": source_config.data.normalization_stats_path, "normalization_sha256": source_config.data.expected_stats_sha256, "index_path": source_config.data.index_path, "index_sha256": source_config.data.expected_index_sha256}, "dataloader_contract": {"seed": 43, "independent_generator": True, "epoch_parent_order_hashes": [{"epoch": int(row["epoch"]), "sha256": row["parent_order_sha256"], "v23_control_sha256": row["v23_control_parent_order_sha256"], "exactly_matches_v23_control": row["parent_order_exactly_matches_v23_control"], "count": int(row["parent_order_count"])} for row in history], "all_epoch_parent_orders_exactly_match_v23_control": True, "cuda_deterministic_algorithms": False}, "resume": {"resumed": resumed_from is not None, "checkpoint": resumed_from, "start_epoch": start_epoch, "epoch_boundary_only": True}, "unknown_is_model_class": False, "local_argmax_is_product_action": False, "validation_interpretation": "development-only KnownGate local evidence, not final product action", "multiseed": "未执行", "OOF": "未执行", "test_evaluation": "not_executed", "oof_threshold_calibration": "not_executed", "full_cascade_evaluation": "not_executed", "formal_rejection": "not_executed", "stable_evaluation": "not_executed", "p95_latency": "not_executed", "deployment_eligible": False, "elapsed_seconds": time.perf_counter() - started}
+        if variant == V23D_VARIANT:
+            result["direct_control"] = config.direct_control
+        if variant == V23D_VARIANT:
+            result["v23d_per_dimension_tau_audit"] = v23d_tau_audit
         _write_json(artifact / "training-summary.json", result)
         logger.info("run=complete | task=known_gate | variant=%s | status=completed | performance_status=%s | best_epoch=%02d", variant, result["performance_status"], best_epoch)
         return result

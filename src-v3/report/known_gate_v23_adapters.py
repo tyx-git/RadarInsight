@@ -1,4 +1,4 @@
-"""Paired development report for one completed V23a/V23b/V23c experiment."""
+﻿"""Paired development report for one completed V23 external-adapter experiment."""
 
 from __future__ import annotations
 
@@ -13,6 +13,9 @@ from radar_ln3.known_gate import (
 )
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
+    V23A_VARIANT,
+    V23D_VARIANT,
+    adapter_state_names,
     artifact_relative,
     config_identity_sha256,
     config_relative,
@@ -22,6 +25,7 @@ from radar_ln3.known_gate_v23_adapters import (
     report_schema,
     source_v23_parent_order_hashes,
     source_v23_training,
+    source_v23a_control,
 )
 from radar_ln3.known_gate_v23 import sha256_file
 from report.known_gate_v21e import (
@@ -92,8 +96,8 @@ def _load_v23(root: Path) -> dict[str, Any]:
     ):
         raise ValueError("frozen V23 artifact violates the expected baseline contract")
     return {
-        "summary": summary, "summary_path": summary_path, "summary_sha256": sha256_file(summary_path),
-        "checkpoint_path": checkpoint_path, "checkpoint_sha256": sha256_file(checkpoint_path), "records": records,
+        "summary": summary, "summary_path": str(summary_path), "summary_sha256": sha256_file(summary_path),
+        "checkpoint_path": str(checkpoint_path), "checkpoint_sha256": sha256_file(checkpoint_path), "records": records,
     }
 
 
@@ -158,8 +162,32 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
             and pairing.get("treatment_full_initial_model_state_sha256") == recorded_initial_hash
             and pairing.get("treatment_core_initial_model_state_sha256") == expected_initial
             and pairing.get("adapter_state_names")
-            == ["state_adapter.recurrent_norm.bias", "state_adapter.recurrent_norm.weight"]
+            == list(adapter_state_names(config.adapter))
         )
+    direct_control_ok = (
+        True
+        if variant != V23D_VARIANT
+        else (
+            config.direct_control == source_v23a_control(root)
+            and pairing.get("v23d_direct_v23a_replay", {}).get(
+                "before_optimizer_step_replays_v23a_within_float32_tolerance"
+            ) is True
+        )
+    )
+    direct_control_summary_ok = (
+        True
+        if variant != V23D_VARIANT
+        else summary.get("direct_control") == config.direct_control
+    )
+    tau_audit_ok = (
+        True
+        if variant != V23D_VARIANT
+        else (
+            isinstance(summary.get("v23d_per_dimension_tau_audit"), dict)
+            and int(dict(summary["v23d_per_dimension_tau_audit"]).get("dimension_count", -1)) == 48
+            and dict(summary["v23d_per_dimension_tau_audit"]).get("all_tau_positive_and_finite") is True
+        )
+    )
     if (
         readiness.get("status") != "passed" or summary.get("status") != "completed"
         or summary.get("variant") != variant or summary.get("architecture") != "official_ncps_cfc_external_state_adapter"
@@ -188,7 +216,7 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
         or summary.get("external_state_adapter") != config.adapter.as_dict()
         or not recorded_metrics_match
         or int(pairing.get("adapter_trainable_parameter_count", -1)) != expected_adapter_count
-        or not initialization_ok or not parent_order_ok
+        or not initialization_ok or not direct_control_ok or not direct_control_summary_ok or not tau_audit_ok or not parent_order_ok
         or dict(summary.get("dataloader_contract") or {}).get(
             "all_epoch_parent_orders_exactly_match_v23_control"
         ) is not True
@@ -197,9 +225,9 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
     ):
         raise ValueError(f"{variant} completed artifact violates its contract")
     return {
-        "config": config, "summary": summary, "summary_path": summary_path, "summary_sha256": sha256_file(summary_path),
-        "checkpoint_path": checkpoint_path, "checkpoint_sha256": sha256_file(checkpoint_path),
-        "records": records, "readiness_path": readiness_path, "readiness_sha256": sha256_file(readiness_path),
+        "config": config, "summary": summary, "summary_path": str(summary_path), "summary_sha256": sha256_file(summary_path),
+        "checkpoint_path": str(checkpoint_path), "checkpoint_sha256": sha256_file(checkpoint_path),
+        "records": records, "readiness_path": str(readiness_path), "readiness_sha256": sha256_file(readiness_path),
         "v23_pairing": pairing,
     }
 
@@ -272,6 +300,8 @@ def _dt_stratified_metrics(
     baseline: Sequence[Mapping[str, Any]],
     treatment: Sequence[Mapping[str, Any]],
     dt_groups: Mapping[str, set[str]],
+    *,
+    delta_name: str,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for name, parent_ids in dt_groups.items():
@@ -289,9 +319,118 @@ def _dt_stratified_metrics(
             "base_label_support": labels,
             "baseline": before_metrics,
             "treatment": after_metrics,
-            "treatment_minus_v23": _delta(before_metrics, after_metrics),
+            delta_name: _delta(before_metrics, after_metrics),
         }
     return result
+
+
+def _reference_metadata(treatment: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the immutable fields needed to name a completed direct control."""
+
+    summary = dict(treatment["summary"])
+    config = treatment["config"]
+    return {
+        "variant": summary["variant"],
+        "adapter": config.adapter.as_dict(),
+        "summary_path": treatment["summary_path"],
+        "summary_sha256": treatment["summary_sha256"],
+        "checkpoint_path": treatment["checkpoint_path"],
+        "checkpoint_sha256": treatment["checkpoint_sha256"],
+        "readiness_path": treatment["readiness_path"],
+        "readiness_sha256": treatment["readiness_sha256"],
+        "best_epoch": summary["best_epoch"],
+        "trainable_parameter_count": summary["trainable_parameter_count"],
+    }
+
+
+def _v23d_direct_gate(
+    direct_deltas: Mapping[str, Mapping[str, float]],
+    direct_bootstrap: Mapping[str, Any],
+    tau_audit: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Freeze the decision rule for V23d versus its V23a fixed-tau control.
+
+    V23d is not a second test of whether the official CfC is useful: V23a has
+    already established that.  It can advance only if its extra 48 degrees of
+    freedom improve parent-final evidence over *that* direct control without
+    worsening the already weak causal-prefix evidence.  Prefix/window rows
+    remain development diagnostics rather than independent parent samples.
+    """
+
+    parent = direct_deltas["parent"]
+    eligible_prefix = direct_deltas["eligible_prefix"]
+    window = direct_deltas["window"]
+    parent_signal = (
+        parent["macro_f1"] > 0.02
+        and parent["known_target_recall"] >= 0.0
+        and parent["known_clutter_f1"] >= 0.0
+    )
+    prefix_window_non_degrading = all(
+        delta >= 0.0
+        for delta in (
+            eligible_prefix["macro_f1"],
+            eligible_prefix["known_target_recall"],
+            eligible_prefix["known_clutter_f1"],
+            window["macro_f1"],
+            window["known_target_recall"],
+            window["known_clutter_f1"],
+        )
+    )
+    bootstrap_positive = (
+        float(
+            dict(direct_bootstrap["treatment_minus_baseline"])["macro_f1"]
+            ["lower_95"]
+        )
+        > 0.0
+    )
+    learned_from_fixed = bool(
+        tau_audit["learned_values_differ_from_fixed_initialization"]
+    )
+    dimension_specific = float(
+        tau_audit["log_tau_ratio_standard_deviation"]
+    ) > 1.0e-6
+    return {
+        "parent_macro_f1_strictly_greater_than_2pp_vs_v23a": parent["macro_f1"]
+        > 0.02,
+        "known_target_recall_non_decreasing_vs_v23a": parent[
+            "known_target_recall"
+        ]
+        >= 0.0,
+        "clutter_f1_non_decreasing_vs_v23a": parent["known_clutter_f1"]
+        >= 0.0,
+        "parent_direct_single_factor_signal_passed": parent_signal,
+        "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23a": bootstrap_positive,
+        "eligible_prefix_macro_f1_non_decreasing_vs_v23a": eligible_prefix[
+            "macro_f1"
+        ]
+        >= 0.0,
+        "eligible_prefix_known_target_recall_non_decreasing_vs_v23a": eligible_prefix[
+            "known_target_recall"
+        ]
+        >= 0.0,
+        "eligible_prefix_clutter_f1_non_decreasing_vs_v23a": eligible_prefix[
+            "known_clutter_f1"
+        ]
+        >= 0.0,
+        "window_macro_f1_non_decreasing_vs_v23a": window["macro_f1"] >= 0.0,
+        "window_known_target_recall_non_decreasing_vs_v23a": window[
+            "known_target_recall"
+        ]
+        >= 0.0,
+        "window_clutter_f1_non_decreasing_vs_v23a": window["known_clutter_f1"]
+        >= 0.0,
+        "prefix_window_safety_non_degrading_vs_v23a": prefix_window_non_degrading,
+        "per_dimension_tau_learned_from_fixed_initialization": learned_from_fixed,
+        "per_dimension_tau_has_nonzero_cross_dimension_spread": dimension_specific,
+        "advance_to_three_seed_confirmation": (
+            parent_signal
+            and bootstrap_positive
+            and prefix_window_non_degrading
+            and learned_from_fixed
+            and dimension_specific
+        ),
+        "advance_to_oof": False,
+    }
 
 
 def run(project_root: Path, *, variant: str) -> dict[str, Any]:
@@ -310,6 +449,7 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         parent_before,
         parent_after,
         dt_strata["groups"],
+        delta_name="treatment_minus_v23",
     )
     known_target_recall_non_decreasing = deltas["parent"]["known_target_recall"] >= 0.0
     clutter_f1_non_decreasing = deltas["parent"]["known_clutter_f1"] >= 0.0
@@ -373,6 +513,79 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         },
         "OOF": "未执行", "test": "未执行", "formal_rejection": "未执行", "full_cascade": "未执行", "stable": "未执行", "P95": "未执行", "deployment_eligible": False,
     }
+    if variant == V23D_VARIANT:
+        direct_control = _load_treatment(root, V23A_VARIANT)
+        direct_metrics = {
+            scope: {
+                "v23a_fixed_tau_control": _scope_metrics(
+                    direct_control["records"][scope], f"v23a_{scope}"
+                ),
+                "v23d_per_dimension_tau_treatment": _scope_metrics(
+                    treatment["records"][scope], f"v23d_{scope}"
+                ),
+            }
+            for scope in SCOPES
+        }
+        direct_deltas = {
+            scope: _delta(
+                values["v23a_fixed_tau_control"],
+                values["v23d_per_dimension_tau_treatment"],
+            )
+            for scope, values in direct_metrics.items()
+        }
+        direct_parent_before, direct_parent_after = _ordered_pair(
+            direct_control["records"]["parent"],
+            treatment["records"]["parent"],
+            scope="parent",
+        )
+        direct_bootstrap = _bootstrap(direct_parent_before, direct_parent_after)
+        direct_outcomes = _base_label_outcomes(
+            direct_parent_before, direct_parent_after
+        )
+        direct_dt_metrics = _dt_stratified_metrics(
+            direct_parent_before,
+            direct_parent_after,
+            dt_strata["groups"],
+            delta_name="v23d_minus_v23a",
+        )
+        tau_audit = dict(treatment["summary"]["v23d_per_dimension_tau_audit"])
+        direct_gate = _v23d_direct_gate(
+            direct_deltas,
+            direct_bootstrap,
+            tau_audit,
+        )
+        report["direct_control"] = {
+            "binding": treatment["config"].direct_control,
+            "completed_v23a_fixed_tau_treatment": _reference_metadata(direct_control),
+        }
+        report["v23d_per_dimension_tau_audit"] = tau_audit
+        report["v23d_vs_v23a_direct_control"] = {
+            "scope": (
+                "primary V23d decision comparison: completed V23a fixed-tau "
+                "treatment versus V23d per-dimension-tau treatment; development "
+                "KnownGate only"
+            ),
+            "metrics_by_scope": direct_metrics,
+            "v23d_minus_v23a_by_scope": direct_deltas,
+            "parent_base_label_outcomes": direct_outcomes,
+            "scope_prediction_changes": _scope_changes(
+                direct_control["records"], treatment["records"]
+            ),
+            "probability_attribution": _probability_attribution(
+                direct_parent_before, direct_parent_after
+            ),
+            "paired_parent_bootstrap": direct_bootstrap,
+            "dt_stratified_parent_final": direct_dt_metrics,
+            "gate": direct_gate,
+        }
+        report["gate"] = {
+            "v23_reference_diagnostic": report["gate"],
+            "v23a_direct_control_primary": direct_gate,
+            "advance_to_three_seed_confirmation": direct_gate[
+                "advance_to_three_seed_confirmation"
+            ],
+            "advance_to_oof": False,
+        }
     output = root / report_relative(variant)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

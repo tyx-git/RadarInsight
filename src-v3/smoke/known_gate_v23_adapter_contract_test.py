@@ -1,4 +1,4 @@
-"""Train-only contract smoke for V23a/V23b/V23c official-CfC adapters.
+﻿"""Train-only contract smoke for V23 external-state official-CfC adapters.
 
 This deliberately does not train a model or read validation/test/Unknown data.
 It checks that each single-factor adapter is attached outside the unmodified
@@ -19,6 +19,8 @@ from radar_ln3.known_gate import build_known_gate_dataloader, build_known_gate_d
 from radar_ln3.known_gate_official_cfc import build_official_cfc_model_from_frozen_source
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
+    V23A_VARIANT,
+    V23D_VARIANT,
     load_adapter_config,
     source_v23_training,
     state_dict_sha256,
@@ -94,11 +96,20 @@ def _adapter_formula_checks() -> dict[str, bool]:
             ),
         ),
         (
+            "official_cfc_positive_dt_per_dimension_retention",
+            ExternalStateAdapterSpec(
+                kind="positive_dt_per_dimension_retention",
+                hidden_dim=48,
+                fixed_tau_seconds=15.025,
+            ),
+        ),
+        (
             "official_cfc_recurrent_layer_norm",
             ExternalStateAdapterSpec(
                 kind="recurrent_layer_norm", hidden_dim=48, layer_norm_eps=1.0e-5
             ),
         ),
+
         (
             "official_cfc_zero_delta_bounded_observation",
             ExternalStateAdapterSpec(
@@ -119,6 +130,19 @@ def _adapter_formula_checks() -> dict[str, bool]:
                 torch.equal(first_result, official)
                 and torch.equal(zero_result, official)
                 and torch.allclose(positive_result, expected, atol=ATOL, rtol=RTOL)
+            )
+        elif spec.kind == "positive_dt_per_dimension_retention":
+            if adapter.log_tau_ratio is None:
+                checks[variant] = False
+                continue
+            alpha = 1.0 - torch.exp(-seconds.unsqueeze(-1) / 15.025)
+            expected = (1.0 - alpha) * previous + alpha * official
+            checks[variant] = bool(
+                torch.equal(adapter.log_tau_ratio, torch.zeros_like(adapter.log_tau_ratio))
+                and torch.equal(first_result, official)
+                and torch.equal(zero_result, official)
+                and torch.allclose(positive_result, expected, atol=ATOL, rtol=RTOL)
+                and sum(parameter.numel() for parameter in adapter.parameters()) == 48
             )
         elif spec.kind == "recurrent_layer_norm":
             checks[variant] = bool(
@@ -164,6 +188,26 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         initialization_matches = (
             state_dict_sha256(treatment_state, exclude_prefixes=("state_adapter.",))
             == source_initial_hash
+        )
+
+    v23a_initial_replay = True
+    v23a_initial_replay_max_error = 0.0
+    if variant == V23D_VARIANT:
+        fixed_tau, _v23a_audit = build_official_cfc_model_from_frozen_source(
+            root,
+            source_config,
+            state_adapter_spec=load_adapter_config(root, V23A_VARIANT)[0].adapter,
+        )
+        treatment.eval()
+        fixed_tau.eval()
+        with torch.inference_mode():
+            initial_v23d = treatment(**_model_inputs(batch))["sequence_logits"]
+            initial_v23a = fixed_tau(**_model_inputs(batch))["sequence_logits"]
+        v23a_initial_replay_max_error = float(
+            (initial_v23d - initial_v23a).abs().max().item()
+        )
+        v23a_initial_replay = bool(
+            torch.allclose(initial_v23d, initial_v23a, atol=ATOL, rtol=RTOL)
         )
 
     treatment.train()
@@ -252,10 +296,17 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         "zero_parameter_or_core_initialization_matches_v23": initialization_matches,
         "disabled_adapter_replays_v23_logits": disabled_replay_max_error <= ATOL,
         "adapter_formula_matches_registered_causal_branch": formula[variant],
+        "v23d_zero_log_tau_replays_v23a_fixed_tau_before_optimization": v23a_initial_replay,
+        "v23d_direct_v23a_control_binding_is_frozen": (
+            True
+            if variant != V23D_VARIANT
+            else config.direct_control is not None
+        ),
+
         "real_train_batch_loss_and_all_gradients_are_finite": bool(
             torch.isfinite(objective["loss"]) and all_gradients_finite
         ),
-        "v23b_layer_norm_has_96_finite_nonzero_gradient_parameters": adapter_gradients_finite_nonzero,
+        "parameterized_adapter_has_finite_nonzero_gradients": adapter_gradients_finite_nonzero,
         "padding_never_enters_external_recurrence": bool(
             torch.equal(padding_values, torch.zeros_like(padding_values))
         ),
@@ -276,6 +327,7 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         "real_train_batch_parent_ids": list(batch["parent_sample_ids"]),
         "loss": float(objective["loss"].item()),
         "disabled_adapter_replay_max_logit_error": disabled_replay_max_error,
+        "v23d_initial_v23a_replay_max_logit_error": v23a_initial_replay_max_error,
         "offline_online_max_logit_error": online_error,
         "tolerance": {"atol": ATOL, "rtol": RTOL},
         "validation_dataset_access_count": 0,

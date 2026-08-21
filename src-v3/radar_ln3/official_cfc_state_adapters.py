@@ -1,4 +1,4 @@
-"""External causal-state adapters for controlled V23 official-CfC experiments.
+﻿"""External causal-state adapters for controlled V23 official-CfC experiments.
 
 The adapters in this module deliberately operate *after* an unmodified
 ``ncps.torch.CfC`` call.  They never alter or reimplement ``CfCCell``.  Each
@@ -19,12 +19,14 @@ from .data import DT_REASON_POSITIVE_DELTA, DT_REASON_ZERO_DELTA
 
 ADAPTER_NONE = "none"
 ADAPTER_POSITIVE_DT_FIXED_RETENTION = "positive_dt_fixed_retention"
+ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION = "positive_dt_per_dimension_retention"
 ADAPTER_RECURRENT_LAYER_NORM = "recurrent_layer_norm"
 ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION = "zero_delta_bounded_observation"
 
 ADAPTER_KINDS = (
     ADAPTER_NONE,
     ADAPTER_POSITIVE_DT_FIXED_RETENTION,
+    ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION,
     ADAPTER_RECURRENT_LAYER_NORM,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
 )
@@ -50,6 +52,11 @@ class ExternalStateAdapterSpec:
                 raise ValueError("positive-dt retention requires a positive fixed_tau_seconds")
             if self.zero_delta_gain is not None or self.layer_norm_eps is not None:
                 raise ValueError("positive-dt retention must not carry unrelated adapter fields")
+        elif self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            if self.fixed_tau_seconds is None or self.fixed_tau_seconds <= 0.0:
+                raise ValueError("per-dimension positive-dt retention requires a positive base tau")
+            if self.zero_delta_gain is not None or self.layer_norm_eps is not None:
+                raise ValueError("per-dimension positive-dt retention must not carry unrelated adapter fields")
         elif self.kind == ADAPTER_RECURRENT_LAYER_NORM:
             if self.layer_norm_eps is None or self.layer_norm_eps <= 0.0:
                 raise ValueError("recurrent LayerNorm requires a positive epsilon")
@@ -69,7 +76,23 @@ class ExternalStateAdapterSpec:
 
     @property
     def trainable_parameter_count(self) -> int:
-        return 2 * self.hidden_dim if self.kind == ADAPTER_RECURRENT_LAYER_NORM else 0
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            return 2 * self.hidden_dim
+
+        if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            return self.hidden_dim
+        return 0
+
+    @property
+    def trainable_parameter_names(self) -> tuple[str, ...]:
+        """Return state-dict suffixes introduced by this adapter only."""
+
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            return ("recurrent_norm.bias", "recurrent_norm.weight")
+
+        if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            return ("log_tau_ratio",)
+        return ()
 
     def as_dict(self) -> dict[str, Any]:
         if self.kind == ADAPTER_POSITIVE_DT_FIXED_RETENTION:
@@ -79,6 +102,18 @@ class ExternalStateAdapterSpec:
                 "applies_to": "positive_delta_at_second_precision only",
                 "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
                 "fixed_tau_seconds": self.fixed_tau_seconds,
+                "trainable_parameter_count": self.trainable_parameter_count,
+                "first_and_zero_delta_behavior": "h=h_official",
+            }
+        if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "positive_delta_at_second_precision only",
+                "formula": "h_i=(1-alpha_i)*h_previous_i+alpha_i*h_official_i; alpha_i=1-exp(-dt/tau_i)",
+                "tau_parameterization": "tau_i=base_tau_seconds*exp(log_tau_ratio_i)",
+                "base_tau_seconds": self.fixed_tau_seconds,
+                "initial_log_tau_ratio": 0.0,
                 "trainable_parameter_count": self.trainable_parameter_count,
                 "first_and_zero_delta_behavior": "h=h_official",
             }
@@ -118,6 +153,7 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
         super().__init__()
         self.spec = spec
         self.recurrent_norm: nn.LayerNorm | None
+        self.log_tau_ratio: nn.Parameter | None
         if spec.kind == ADAPTER_RECURRENT_LAYER_NORM:
             self.recurrent_norm = nn.LayerNorm(
                 spec.hidden_dim,
@@ -126,6 +162,12 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
             )
         else:
             self.recurrent_norm = None
+        if spec.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            # Zero initialization makes V23d's first forward exactly the V23a
+            # fixed-tau equation while retaining a strictly positive tau_i.
+            self.log_tau_ratio = nn.Parameter(torch.zeros(spec.hidden_dim))
+        else:
+            self.log_tau_ratio = None
 
     def specification(self) -> dict[str, Any]:
         return self.spec.as_dict()
@@ -172,6 +214,19 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
             retained = (1.0 - alpha) * previous_state + alpha * official_state
             applies = (dt_reason == DT_REASON_POSITIVE_DELTA).unsqueeze(-1)
             return torch.where(applies, retained, official_state)
+        if self.spec.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
+            if self.log_tau_ratio is None:  # pragma: no cover - constructor invariant
+                raise RuntimeError("per-dimension tau adapter is not initialized")
+            base_tau = torch.as_tensor(
+                self.spec.fixed_tau_seconds,
+                dtype=official_state.dtype,
+                device=official_state.device,
+            )
+            tau = base_tau * torch.exp(self.log_tau_ratio.to(dtype=official_state.dtype))
+            alpha = 1.0 - torch.exp(-dt_seconds.unsqueeze(-1) / tau.unsqueeze(0))
+            retained = (1.0 - alpha) * previous_state + alpha * official_state
+            applies = (dt_reason == DT_REASON_POSITIVE_DELTA).unsqueeze(-1)
+            return torch.where(applies, retained, official_state)
         if self.spec.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
             gain = torch.as_tensor(
                 self.spec.zero_delta_gain,
@@ -188,6 +243,7 @@ __all__ = [
     "ADAPTER_KINDS",
     "ADAPTER_NONE",
     "ADAPTER_POSITIVE_DT_FIXED_RETENTION",
+    "ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION",
     "ADAPTER_RECURRENT_LAYER_NORM",
     "ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION",
     "ExternalOfficialCfCStateAdapter",

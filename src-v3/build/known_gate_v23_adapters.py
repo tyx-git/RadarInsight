@@ -1,4 +1,4 @@
-"""Prepare isolated V23a/V23b/V23c external-state-adapter experiments."""
+﻿"""Prepare isolated V23 official-CfC external-state-adapter experiments."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from radar_ln3.known_gate_v23 import FIXED_EPOCHS, SOURCE_SUMMARY_RELATIVE, sha2
 from radar_ln3.known_gate_v23_adapters import (
     VARIANT_TO_ADAPTER,
     V23_ADAPTER_VARIANTS,
+    V23D_VARIANT,
     artifact_relative,
     checkpoint_schema,
     config_identity_sha256,
@@ -25,6 +26,7 @@ from radar_ln3.known_gate_v23_adapters import (
     readiness_schema,
     report_relative,
     source_runtime_report,
+    source_v23a_control,
     source_v23_parent_order_hashes,
     source_v23_training,
 )
@@ -79,7 +81,7 @@ def _config_payload(
     spec = VARIANT_TO_ADAPTER[variant]
     artifact = str(artifact_relative(variant)).replace("\\", "/")
     report_path = root / "src-v3/processed/report/RADAR-LN3-V23-known-gate-official-cfc-baseline-validation.json"
-    return {
+    payload = {
         "schema_version": config_schema(variant),
         "config_name": config_relative(variant).stem.removesuffix("-config"),
         "variant": variant,
@@ -124,6 +126,10 @@ def _config_payload(
             "full_parameter_training": True,
         },
     }
+    if variant == V23D_VARIANT:
+        payload["direct_control"] = source_v23a_control(root)
+
+    return payload
 
 
 def build(project_root: Path, variant: str) -> dict[str, Any]:
@@ -158,7 +164,12 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "adapter_is_exactly_one_pre_registered_mechanism": True,
         "adapter_parameter_count_is_expected": (
             config.adapter.trainable_parameter_count
-            == (96 if config.adapter.kind == "recurrent_layer_norm" else 0)
+            == {
+                "positive_dt_fixed_retention": 0,
+                "positive_dt_per_dimension_retention": 48,
+                "recurrent_layer_norm": 96,
+                "zero_delta_bounded_observation": 0,
+            }[config.adapter.kind]
         ),
         "v23_control_parent_order_has_20_complete_epochs": len(v23_parent_order_hashes) == FIXED_EPOCHS,
         "v21_train_validation_split_and_normalization_are_reused": True,
@@ -166,6 +177,18 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "oof_is_deferred": True,
         "test_payload_access_count_is_zero": True,
     }
+    if variant == V23D_VARIANT:
+        checks["v23d_direct_v23a_fixed_tau_control_is_frozen"] = (
+            config.direct_control == source_v23a_control(root)
+        )
+    frozen_components = [
+        "official dense 48x1 default lecun_tanh CfC",
+        "raw first/zero/positive dt input to official CfC",
+        "V16 index and V21 known-only data contract",
+        "V21 train-only normalization",
+        "TR/RD front ends, fusion, classifier, loss and checkpoint rule",
+        "batch size, seed, parent order, optimizer, learning rate, 20 epochs and gradient clipping",
+    ]
     contract = {
         "schema_version": contract_schema(variant),
         "experiment": f"{variant} isolated external official-CfC state-adapter experiment",
@@ -193,16 +216,13 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         },
         "adapter": adapter_specification,
         "single_factor": {
-            "changed_component": "external post-official-CfC recurrent state adapter only",
+            "changed_component": (
+                "per-hidden-dimension positive-dt retention time-scale only; V23a fixed tau is the direct control"
+                if variant == V23D_VARIANT
+                else "external post-official-CfC recurrent state adapter only"
+            ),
             "official_cfcell_unmodified": True,
-            "frozen": [
-                "official dense 48x1 default lecun_tanh CfC",
-                "raw first/zero/positive dt input to official CfC",
-                "V16 index and V21 known-only data contract",
-                "V21 train-only normalization",
-                "TR/RD front ends, fusion, classifier, loss and checkpoint rule",
-                "batch size, seed, parent order, optimizer, learning rate, 20 epochs and gradient clipping",
-            ],
+            "frozen": frozen_components,
             "not_executed": [
                 "Unknown training or threshold fitting", "OOF", "test", "L3", "full cascade", "formal rejection", "stable", "P95",
             ],
@@ -227,6 +247,8 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
+    if variant == V23D_VARIANT:
+        contract["direct_control"] = config.direct_control
     contract_path = root / contract_relative(variant)
     _write_new_or_identical(contract_path, contract)
     readiness = {
@@ -259,6 +281,8 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
+    if variant == V23D_VARIANT:
+        readiness["direct_control"] = config.direct_control
     readiness_path = root / readiness_relative(variant)
     _write_new_or_identical(readiness_path, readiness)
     return {
