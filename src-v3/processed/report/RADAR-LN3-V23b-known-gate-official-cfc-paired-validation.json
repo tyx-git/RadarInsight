@@ -1,0 +1,2536 @@
+{
+  "status": "completed_development_single_factor_only",
+  "schema_version": "RADAR-LN3-V23b-known-gate-official-cfc-adapter-paired-validation-v1",
+  "experiment": "official_cfc_recurrent_layer_norm isolated official-CfC external-state-adapter paired development evaluation",
+  "scope": "V21 development KnownGate only; no OOF, test, Unknown, L3, full cascade, stable or P95",
+  "source_control": {
+    "name": "frozen V23 pure official dense CfC negative baseline",
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal\\training-summary.json",
+    "summary_sha256": "bf81cb289909396713e34d2d6951b079d5afc669478085a0c072aaad6cb17a82",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "f04480f55bd784383d08eafc300b8c01dd2aa8399a24efbebcb48054df563e84"
+  },
+  "treatment": {
+    "variant": "official_cfc_recurrent_layer_norm",
+    "adapter": {
+      "kind": "recurrent_layer_norm",
+      "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+      "applies_to": "every valid causal event",
+      "formula": "h=LayerNorm(h_official)",
+      "layer_norm_eps": 1e-05,
+      "affine": true,
+      "trainable_parameter_count": 96
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal\\training-summary.json",
+    "summary_sha256": "ffb78219b95fc94eab99fa8a2ec6ebc06d278c4b6a0972c17ea08f01dbb87b01",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "018db9a37c5cf9d71c5c1d53d00ce4f17da3780b4d352f89a0d0fc58ff081c12",
+    "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23b-known-gate-official-cfc-training-readiness.json",
+    "readiness_sha256": "92bb8b2522c90e6c8d5e57e7851a2f3b8047a5cb3618c4a1db143c4e04e53b98",
+    "best_epoch": 14,
+    "trainable_parameter_count": 27530,
+    "v23_initialization_pairing": {
+      "source_v23_initial_model_state_sha256": "42aa2ad0e72f320a87e428ee386466260339cce87fdaa3ca75c153902b141c36",
+      "treatment_full_initial_model_state_sha256": "4fe013e7ad1b3cf9daa71a71f71d9c8cdbe411ca3227d493c79afac826070082",
+      "treatment_core_initial_model_state_sha256": "42aa2ad0e72f320a87e428ee386466260339cce87fdaa3ca75c153902b141c36",
+      "adapter_state_names": [
+        "state_adapter.recurrent_norm.bias",
+        "state_adapter.recurrent_norm.weight"
+      ],
+      "adapter_trainable_parameter_count": 96,
+      "full_initial_state_exactly_matches_v23": false,
+      "core_initial_state_exactly_matches_v23": true
+    }
+  },
+  "metrics_by_scope": {
+    "parent": {
+      "baseline": {
+        "scope": "v23_parent_recomputed",
+        "support": 232,
+        "accuracy": 0.9612068965517241,
+        "macro_precision": 0.7431818181818182,
+        "macro_recall": 0.819880418535127,
+        "macro_f1": 0.7755562721702678,
+        "balanced_accuracy": 0.819880418535127,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9863636363636363,
+            "recall": 0.9730941704035875,
+            "f1": 0.979683972911964,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 6
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "f1": 0.5714285714285715,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 3
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            217,
+            6
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_recurrent_layer_norm_parent_recomputed",
+        "support": 232,
+        "accuracy": 0.9698275862068966,
+        "macro_precision": 0.7932432432432432,
+        "macro_recall": 0.8243647234678624,
+        "macro_f1": 0.8079243051448847,
+        "balanced_accuracy": 0.8243647234678624,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9864864864864865,
+            "recall": 0.9820627802690582,
+            "f1": 0.9842696629213483,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6,
+            "recall": 0.6666666666666666,
+            "f1": 0.631578947368421,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 3
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219,
+            4
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      }
+    },
+    "eligible_prefix": {
+      "baseline": {
+        "scope": "v23_eligible_prefix_recomputed",
+        "support": 3756,
+        "accuracy": 0.9675186368477103,
+        "macro_precision": 0.7697983679915767,
+        "macro_recall": 0.7584100943318213,
+        "macro_f1": 0.7639672976915532,
+        "balanced_accuracy": 0.7584100943318213,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9823448275862069,
+            "recall": 0.9839734733351755,
+            "f1": 0.9831584759801215,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 58
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5572519083969466,
+            "recall": 0.5328467153284672,
+            "f1": 0.5447761194029851,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 64
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3561,
+            58
+          ],
+          [
+            64,
+            73
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_recurrent_layer_norm_eligible_prefix_recomputed",
+        "support": 3756,
+        "accuracy": 0.9675186368477103,
+        "macro_precision": 0.7775911958368434,
+        "macro_recall": 0.6987150138260559,
+        "macro_f1": 0.7309348158482536,
+        "balanced_accuracy": 0.6987150138260559,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.977862804044821,
+            "recall": 0.9886709035645206,
+            "f1": 0.9832371530640286,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 41
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5773195876288659,
+            "recall": 0.40875912408759124,
+            "f1": 0.47863247863247865,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 81
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3578,
+            41
+          ],
+          [
+            81,
+            56
+          ]
+        ]
+      }
+    },
+    "window": {
+      "baseline": {
+        "scope": "v23_window_recomputed",
+        "support": 4452,
+        "accuracy": 0.9665318957771788,
+        "macro_precision": 0.7663606989436649,
+        "macro_recall": 0.7333909719694212,
+        "macro_f1": 0.7486631765720866,
+        "balanced_accuracy": 0.7333909719694212,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9802738454397772,
+            "recall": 0.9850746268656716,
+            "f1": 0.982668372688147,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 64
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5524475524475524,
+            "recall": 0.4817073170731707,
+            "f1": 0.5146579804560261,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 85
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4224,
+            64
+          ],
+          [
+            85,
+            79
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_recurrent_layer_norm_window_recomputed",
+        "support": 4452,
+        "accuracy": 0.9669811320754716,
+        "macro_precision": 0.7779819967090758,
+        "macro_recall": 0.6837771887513651,
+        "macro_f1": 0.7202684455895874,
+        "balanced_accuracy": 0.6837771887513651,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9765247410817031,
+            "recall": 0.9895055970149254,
+            "f1": 0.9829723155334182,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 45
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5794392523364486,
+            "recall": 0.3780487804878049,
+            "f1": 0.4575645756457565,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 102
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4243,
+            45
+          ],
+          [
+            102,
+            62
+          ]
+        ]
+      }
+    }
+  },
+  "treatment_minus_v23_by_scope": {
+    "parent": {
+      "accuracy": 0.008620689655172487,
+      "macro_precision": 0.05006142506142508,
+      "macro_recall": 0.004484304932735328,
+      "macro_f1": 0.03236803297461688,
+      "known_target_precision": 0.00012285012285018215,
+      "known_target_recall": 0.008968609865470767,
+      "known_target_f1": 0.004585690009384358,
+      "known_clutter_precision": 0.09999999999999998,
+      "known_clutter_recall": 0.0,
+      "known_clutter_f1": 0.06015037593984951,
+      "weak_class_precision_recall_f1_floor": 0.09999999999999998
+    },
+    "eligible_prefix": {
+      "accuracy": 0.0,
+      "macro_precision": 0.007792827845266692,
+      "macro_recall": -0.05969508050576533,
+      "macro_f1": -0.033032481843299655,
+      "known_target_precision": -0.004482023541385938,
+      "known_target_recall": 0.004697430229345101,
+      "known_target_f1": 7.867708390707495e-05,
+      "known_clutter_precision": 0.020067679231919322,
+      "known_clutter_recall": -0.12408759124087593,
+      "known_clutter_f1": -0.06614364077050644,
+      "weak_class_precision_recall_f1_floor": -0.12408759124087593
+    },
+    "window": {
+      "accuracy": 0.0004492362982928544,
+      "macro_precision": 0.011621297765410876,
+      "macro_recall": -0.049613783218056096,
+      "macro_f1": -0.028394730982499228,
+      "known_target_precision": -0.0037491043580741845,
+      "known_target_recall": 0.0044309701492537545,
+      "known_target_f1": 0.0003039428452712434,
+      "known_clutter_precision": 0.02699169988889616,
+      "known_clutter_recall": -0.10365853658536583,
+      "known_clutter_f1": -0.05709340481026959,
+      "weak_class_precision_recall_f1_floor": -0.10365853658536583
+    }
+  },
+  "parent_base_label_outcomes": {
+    "DroneTarget": {
+      "support": 113,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "BirdTarget": {
+      "support": 56,
+      "changed": 2,
+      "rescued": 2,
+      "harmed": 0,
+      "net_rescue": 2
+    },
+    "BalloonTarget": {
+      "support": 54,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "ClutterTarget": {
+      "support": 9,
+      "changed": 2,
+      "rescued": 1,
+      "harmed": 1,
+      "net_rescue": 0
+    }
+  },
+  "scope_prediction_changes": {
+    "parent": {
+      "support": 232,
+      "changed_prediction_count": 4,
+      "changed_prediction_fraction": 0.017241379310344827
+    },
+    "window": {
+      "support": 4452,
+      "changed_prediction_count": 64,
+      "changed_prediction_fraction": 0.014375561545372867
+    },
+    "eligible_prefix": {
+      "support": 3756,
+      "changed_prediction_count": 60,
+      "changed_prediction_fraction": 0.01597444089456869
+    }
+  },
+  "probability_attribution": {
+    "by_base_label": {
+      "DroneTarget": {
+        "support": 113,
+        "known_clutter_probability_delta_mean": 0.002736099592855085,
+        "known_clutter_probability_delta_median": 0.0007775623816996813,
+        "known_clutter_probability_delta_minimum": -0.05778498947620392,
+        "known_clutter_probability_delta_maximum": 0.20549314469099045
+      },
+      "BirdTarget": {
+        "support": 56,
+        "known_clutter_probability_delta_mean": -0.010038170354424178,
+        "known_clutter_probability_delta_median": 0.0007307934574782848,
+        "known_clutter_probability_delta_minimum": -0.36384522914886475,
+        "known_clutter_probability_delta_maximum": 0.2491902131587267
+      },
+      "BalloonTarget": {
+        "support": 54,
+        "known_clutter_probability_delta_mean": 0.0011645273383085926,
+        "known_clutter_probability_delta_median": 0.0004081351216882467,
+        "known_clutter_probability_delta_minimum": -0.0031287632882595062,
+        "known_clutter_probability_delta_maximum": 0.011162780923768878
+      },
+      "ClutterTarget": {
+        "support": 9,
+        "known_clutter_probability_delta_mean": -0.04205600720726781,
+        "known_clutter_probability_delta_median": -0.004553496837615967,
+        "known_clutter_probability_delta_minimum": -0.25627845525741577,
+        "known_clutter_probability_delta_maximum": 0.14482754468917847
+      }
+    },
+    "overall": {
+      "baseline_nll": 0.08401651765575298,
+      "treatment_nll": 0.07421720850141925,
+      "nll_delta": -0.009799309154333732,
+      "baseline_brier": 0.02523980317517885,
+      "treatment_brier": 0.022643039292307147,
+      "brier_delta": -0.0025967638828717013
+    }
+  },
+  "paired_parent_bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 21543,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "baseline": {
+      "accuracy": {
+        "median": 0.9612068965517241,
+        "lower_95": 0.9396551724137931,
+        "upper_95": 0.9827586206896551
+      },
+      "macro_precision": {
+        "median": 0.7454128440366973,
+        "lower_95": 0.6364864864864865,
+        "upper_95": 0.8844045839561534
+      },
+      "macro_recall": {
+        "median": 0.819880418535127,
+        "lower_95": 0.6532137518684604,
+        "upper_95": 0.9422022919780767
+      },
+      "macro_f1": {
+        "median": 0.7755562721702678,
+        "lower_95": 0.6505224660397075,
+        "upper_95": 0.8954954954954955
+      },
+      "known_target_precision": {
+        "median": 0.9863636363636363,
+        "lower_95": 0.9730941704035875,
+        "upper_95": 0.9955156950672646
+      },
+      "known_target_recall": {
+        "median": 0.9730941704035875,
+        "lower_95": 0.9506726457399103,
+        "upper_95": 0.9910313901345291
+      },
+      "known_target_f1": {
+        "median": 0.9797752808988766,
+        "lower_95": 0.9678899082568807,
+        "upper_95": 0.9910313901345291
+      },
+      "known_clutter_precision": {
+        "median": 0.5,
+        "lower_95": 0.29411764705882354,
+        "upper_95": 0.7777777777777778
+      },
+      "known_clutter_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.8888888888888888
+      },
+      "known_clutter_f1": {
+        "median": 0.5714285714285715,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.7999999999999999
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.5,
+        "lower_95": 0.2857142857142857,
+        "upper_95": 0.75
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.8928571428571429,
+        "lower_95": 0.8035714285714286,
+        "upper_95": 0.9642857142857143
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.8888888888888888
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.8898809523809523,
+        "lower_95": 0.8065476190476191,
+        "upper_95": 0.9632936507936508
+      }
+    },
+    "treatment": {
+      "accuracy": {
+        "median": 0.9698275862068966,
+        "lower_95": 0.9482758620689655,
+        "upper_95": 0.9870689655172413
+      },
+      "macro_precision": {
+        "median": 0.8,
+        "lower_95": 0.6705059646236117,
+        "upper_95": 0.9422022919780767
+      },
+      "macro_recall": {
+        "median": 0.8243647234678624,
+        "lower_95": 0.6576980568011958,
+        "upper_95": 0.9843609865470845
+      },
+      "macro_f1": {
+        "median": 0.8079243051448847,
+        "lower_95": 0.6763392857142858,
+        "upper_95": 0.9251854240567559
+      },
+      "known_target_precision": {
+        "median": 0.9864864864864865,
+        "lower_95": 0.9733333333333334,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 0.9820627802690582,
+        "lower_95": 0.9641255605381166,
+        "upper_95": 0.9955156950672646
+      },
+      "known_target_f1": {
+        "median": 0.9843048538320388,
+        "lower_95": 0.972972972972973,
+        "upper_95": 0.9932885906040269
+      },
+      "known_clutter_precision": {
+        "median": 0.6,
+        "lower_95": 0.36363636363636365,
+        "upper_95": 0.8888888888888888
+      },
+      "known_clutter_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 0.631578947368421,
+        "lower_95": 0.375,
+        "upper_95": 0.8571428571428571
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.5555555555555556,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.8
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.9285714285714286,
+        "lower_95": 0.8571428571428571,
+        "upper_95": 0.9821428571428571
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 1.0
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.8988095238095238,
+        "lower_95": 0.8154761904761906,
+        "upper_95": 0.9722470238095234
+      }
+    },
+    "treatment_minus_baseline": {
+      "accuracy": {
+        "median": 0.008620689655172376,
+        "lower_95": -0.008620689655172376,
+        "upper_95": 0.025862068965517238
+      },
+      "macro_precision": {
+        "median": 0.04783039920654597,
+        "lower_95": -0.040284264810826614,
+        "upper_95": 0.15953842826323672
+      },
+      "macro_recall": {
+        "median": 0.004484304932735439,
+        "lower_95": -0.1621823617339312,
+        "upper_95": 0.16890881913303435
+      },
+      "macro_f1": {
+        "median": 0.03236803297461688,
+        "lower_95": -0.0837591956762998,
+        "upper_95": 0.14361370757541225
+      },
+      "known_target_precision": {
+        "median": 9.703462195315149e-05,
+        "lower_95": -0.013162266448717133,
+        "upper_95": 0.0133532920110093
+      },
+      "known_target_recall": {
+        "median": 0.008968609865470767,
+        "lower_95": 0.0,
+        "upper_95": 0.022421524663677084
+      },
+      "known_target_f1": {
+        "median": 0.0045443625880846605,
+        "lower_95": -0.004362559097457641,
+        "upper_95": 0.013656628942020466
+      },
+      "known_clutter_precision": {
+        "median": 0.09722222222222221,
+        "lower_95": -0.07142857142857145,
+        "upper_95": 0.3116883116883117
+      },
+      "known_clutter_recall": {
+        "median": 0.0,
+        "lower_95": -0.3333333333333333,
+        "upper_95": 0.33333333333333326
+      },
+      "known_clutter_f1": {
+        "median": 0.06015037593984951,
+        "lower_95": -0.16542258051545966,
+        "upper_95": 0.27452205882352915
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.07850140056022409,
+        "lower_95": -0.16666666666666669,
+        "upper_95": 0.26666666666666666
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.0357142857142857,
+        "lower_95": 0.0,
+        "upper_95": 0.0892857142857143
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": -0.3333333333333333,
+        "upper_95": 0.33333333333333326
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.008928571428571397,
+        "lower_95": -0.07440476190476186,
+        "upper_95": 0.08779761904761907
+      }
+    }
+  },
+  "dt_stratified_parent_final": {
+    "definition": {
+      "all_positive_dt_after_first": "contains no zero_delta_at_second_precision event after the mandatory first event",
+      "contains_zero_delta": "contains at least one zero_delta_at_second_precision event"
+    },
+    "derivation": "frozen V21 development Dataset tr_dt_reason only; no test or Unknown Dataset constructed",
+    "groups": {
+      "all_positive_dt_after_first": {
+        "support": 120,
+        "base_label_support": {
+          "DroneTarget": 61,
+          "BirdTarget": 23,
+          "BalloonTarget": 27,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "scope": "v23_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.925,
+          "macro_precision": 0.7361111111111112,
+          "macro_recall": 0.8063063063063063,
+          "macro_f1": 0.7651663405088063,
+          "balanced_accuracy": 0.8063063063063063,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9722222222222222,
+              "recall": 0.9459459459459459,
+              "f1": 0.9589041095890412,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5,
+              "recall": 0.6666666666666666,
+              "f1": 0.5714285714285715,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 3
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              105,
+              6
+            ],
+            [
+              3,
+              6
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.9416666666666667,
+          "macro_precision": 0.7863636363636364,
+          "macro_recall": 0.8153153153153153,
+          "macro_f1": 0.7999523696118124,
+          "balanced_accuracy": 0.8153153153153153,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9727272727272728,
+              "recall": 0.963963963963964,
+              "f1": 0.9683257918552037,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 4
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6,
+              "recall": 0.6666666666666666,
+              "f1": 0.631578947368421,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 3
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              107,
+              4
+            ],
+            [
+              3,
+              6
+            ]
+          ]
+        },
+        "treatment_minus_v23": {
+          "accuracy": 0.016666666666666607,
+          "macro_precision": 0.050252525252525215,
+          "macro_recall": 0.009009009009009028,
+          "macro_f1": 0.0347860291030061,
+          "known_target_precision": 0.0005050505050505638,
+          "known_target_recall": 0.018018018018018056,
+          "known_target_f1": 0.009421682266162579,
+          "known_clutter_precision": 0.09999999999999998,
+          "known_clutter_recall": 0.0,
+          "known_clutter_f1": 0.06015037593984951,
+          "weak_class_precision_recall_f1_floor": 0.09999999999999998
+        }
+      },
+      "contains_zero_delta": {
+        "support": 112,
+        "base_label_support": {
+          "DroneTarget": 52,
+          "BirdTarget": 33,
+          "BalloonTarget": 27,
+          "ClutterTarget": 0
+        },
+        "baseline": {
+          "scope": "v23_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "treatment_minus_v23": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0,
+          "known_target_precision": 0.0,
+          "known_target_recall": 0.0,
+          "known_target_f1": 0.0,
+          "known_clutter_precision": 0.0,
+          "known_clutter_recall": 0.0,
+          "known_clutter_f1": 0.0,
+          "weak_class_precision_recall_f1_floor": 0.0
+        }
+      }
+    },
+    "parent_details": {
+      "cq08|track|100": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|102": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1033": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1069": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1071": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1082": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1152": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1163": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1190": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1258": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|127": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1288": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 28,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 27,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1301": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|1313": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1315": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1333": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1339": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1343": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1399": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|14": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1436": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1457": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1469": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|148": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1487": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1490": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1494": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1496": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1510": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1513": {
+        "group": "contains_zero_delta",
+        "event_count": 21,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1535": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|160": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1688": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1694": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1717": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1720": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1741": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1781": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1800": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|185": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1853": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1864": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1908": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1925": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1932": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1945": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1955": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|198": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2056": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2068": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|208": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2083": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2103": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2109": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2196": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2210": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2237": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|224": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|225": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|228": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|23": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|231": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|232": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2338": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2349": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|235": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 26,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 25,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|236": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2367": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2419": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2462": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2489": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|25": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|250": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|251": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|252": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2524": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2537": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2569": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|258": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2582": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2589": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|261": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2619": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|263": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 29,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 28,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|264": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 13,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 12,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|266": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2663": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2687": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|274": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|275": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|28": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|284": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 1,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2872": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2893": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2900": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|2903": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|2921": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2956": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2959": {
+        "group": "contains_zero_delta",
+        "event_count": 21,
+        "zero_delta_event_count": 9,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|297": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2974": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2977": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2982": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3016": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3023": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3027": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3076": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3080": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3089": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3093": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3100": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3109": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3171": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3172": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3180": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3202": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3248": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3264": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3284": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|333": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3344": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3465": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|35": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3500": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3513": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3580": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3581": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3583": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 26,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 25,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3589": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|36": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3605": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|361": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3622": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3624": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3628": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 8,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3634": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3652": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3656": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3676": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3684": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3687": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3688": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3694": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3696": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3698": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3738": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3748": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3761": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3773": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3783": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3789": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3794": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3800": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3820": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3822": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3846": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3847": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3850": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3854": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3866": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3880": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3887": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|390": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3904": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3905": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3908": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3909": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3951": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3960": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|399": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4005": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|401": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4012": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|403": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4036": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4106": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4143": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4155": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4173": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4211": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4213": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|422": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4237": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4238": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 28,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 27,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|432": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|441": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|444": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|497": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|521": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|528": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|531": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|552": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|561": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|573": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|590": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|633": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|665": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|676": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|717": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|721": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 8,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|73": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 27,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 26,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|731": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|735": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|749": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 6,
+        "positive_delta_event_count": 9,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|751": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|756": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|77": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|774": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|780": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|782": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|79": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|8": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|801": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|802": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|814": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 9,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|816": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|817": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|818": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|845": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|847": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 8,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|851": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|852": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|861": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|875": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|886": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|936": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|95": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|951": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|969": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|973": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      }
+    },
+    "validation_dataset_parent_count": 232,
+    "unknown_dataset_access": 0,
+    "test_dataset_access": 0
+  },
+  "gate": {
+    "parent_macro_f1_strictly_greater_than_2pp": true,
+    "known_target_recall_non_decreasing": true,
+    "clutter_f1_non_decreasing": true,
+    "all_positive_dt_parent_macro_f1_non_decreasing": true,
+    "parent_single_factor_signal_passed": true,
+    "bootstrap_macro_f1_lower_95_above_zero": false,
+    "v21_seed43_reference_reached": false,
+    "advance_to_three_seed_confirmation": false,
+    "advance_to_oof": false
+  },
+  "statistical_boundary": {
+    "development_parent_count": 232,
+    "clutter_parent_support": 9,
+    "bootstrap_is_descriptive_not_new_holdout": true,
+    "single_seed_is_not_confirmation": true,
+    "dt_stratum_metrics_are_development_descriptive_only": true
+  },
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}
