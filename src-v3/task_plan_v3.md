@@ -2150,9 +2150,9 @@
 
 最小子任务：
 
-- [ ] V23a（正dt显式状态保留）：以V23为直接Control，唯一变量仅作用于`positive_delta`事件：先以原始dt和前一外部状态调用官方CfC得到`h_official_t`，再令`h_t=(1-alpha_t)h_(t-1)+alpha_t*h_official_t`，其中`alpha_t=1-exp(-dt/15.025)`。首点与zero-dt逐值保留V23官方输出。`15.025s`为V21已冻结tau边界中点，非validation调得；该实验不新增可训练参数，隔离历史显式指数残差保留，不改变zero-dt语义、原始timespan或官方`CfCCell`。它优先级最高，因为V23新增Bird→Clutter错误均为全positive-dt轨迹。
-- [ ] V23b（递归LayerNorm）：以V23为直接Control，唯一变量是在每个官方CfC有效事件输出后施加一个新训练的48维LayerNorm，并将归一化状态作为下一事件的官方CfC hidden state和当前readout。raw dt、first/zero/positive-dt语义、输入、损失和分类头保持不变；新增的96个仿射参数属于该归一化机制本身。该实验直接检验历史递归归一化是否抑制状态翻转。
-- [ ] V23c（zero-dt有界观测）：以V23为直接Control，唯一变量仅作用于`zero_delta`事件：`h_t=0.75*h_(t-1)+0.25*h_official_t`；首点和positive-dt逐值保留V23。该实验检验历史`bounded_observation=0.25`，但必须按“全positive-dt/含zero-dt”分层报告，因为当前KnownGate train+development中Clutter zero-dt事件为0，而Drone/Bird/Balloon zero-dt比例分别约35.98%/43.61%/29.15%，存在强类别捷径风险。
+- [x] V23a（正dt显式状态保留）已落盘，等待用户正式训练：以V23为直接Control，唯一变量仅作用于`positive_delta`事件：先以原始dt和前一外部状态调用官方CfC得到`h_official_t`，再令`h_t=(1-alpha_t)h_(t-1)+alpha_t*h_official_t`，其中`alpha_t=1-exp(-dt/15.025)`。首点与zero-dt逐值保留V23官方输出。`15.025s`为V21已冻结tau边界中点，非validation调得；该实验不新增可训练参数，隔离历史显式指数残差保留，不改变zero-dt语义、原始timespan或官方`CfCCell`。它优先级最高，因为V23新增Bird→Clutter错误均为全positive-dt轨迹。
+- [x] V23b（递归LayerNorm）已落盘，等待用户正式训练：以V23为直接Control，唯一变量是在每个官方CfC有效事件输出后施加一个新训练的48维LayerNorm，并将归一化状态作为下一事件的官方CfC hidden state和当前readout。raw dt、first/zero/positive-dt语义、输入、损失和分类头保持不变；新增的96个仿射参数属于该归一化机制本身。该实验直接检验历史递归归一化是否抑制状态翻转。
+- [x] V23c（zero-dt有界观测）已落盘，等待用户正式训练：以V23为直接Control，唯一变量仅作用于`zero_delta`事件：`h_t=0.75*h_(t-1)+0.25*h_official_t`；首点和positive-dt逐值保留V23。该实验检验历史`bounded_observation=0.25`，但必须按“全positive-dt/含zero-dt”分层报告，因为当前KnownGate train+development中Clutter zero-dt事件为0，而Drone/Bird/Balloon zero-dt比例分别约35.98%/43.61%/29.15%，存在强类别捷径风险。
 - [ ] V23d（可学习tau）：只有V23a在开发集表现出可信正向信号后才执行；继承V23a固定指数保留并只将`15.025s`替换为48维、边界`[0.05,30]s`、以中点初始化的可学习tau。它只回答“固定时间尺度之外，历史可学习tau是否增加价值”，不重测V23本体。
 - [ ] V23e（LayerNorm×正dt保留交互）：只有V23a与V23b各自达到开发信号门槛后，才以预注册2×2组合验证二者是否互补；它明确标记为交互确认，不冒充单因素实验。若任一主效应不通过，禁止执行组合。
 - [ ] V23f（同秒因果密度增益）：只有V23c显示安全的zero-dt机制信号后才执行，并以V23c为直接Control；唯一变量将固定`0.25`混合替换为`min(0.25*k,0.75)`，其中`k`为同一秒内因果观测序。该项对应历史V20r的后续机制，不属于V21基础差异；因Clutter没有zero-dt支持，必须同时满足全positive-dt子群不下降、含zero-dt目标子群改善和类别频率审计，才可保留。
@@ -2161,7 +2161,17 @@
 - [ ] candidate/gate、input/state projection和完整自定义状态方程不列为V23a+单因素：它们共同构成另一种递归单元，直接引入等同放弃“官方CfC核心不变”的问题设定；V21已是其整体参考，而非可由单个V23适配器解释的因素。
 - [ ] 每个已执行主效应必须完成：源码/配置/合同hash绑定、真实batch梯度与offline/online一致性Smoke、适配关闭时逐logit重放V23、完整20 epoch seed43开发训练、parent-final/eligible-prefix/window分开报告、Clutter support与parent bootstrap、以及positive-dt/zero-dt分层。仅当相对V23的parent Macro-F1严格提升至少2pp、KnownTarget Recall和Clutter F1均不下降、且正dt受影响子群不恶化时，才记为“机制正向信号”。要进入3-seed确认还必须不低于V21 seed43的parent Macro-F1=`0.862803`及Clutter F1=`0.736842`；任何未通过项立即冻结，不进入OOF。
 
-验证命令：待每个单因素实现后单独提供；禁止复用已归档的旧V23a/V23b OOF脚本。
+实现与Smoke已完成：三个变体均生成独立config、contract、readiness、checkpoint schema、artifact和报告路径；适配关闭时“逐事件透明重放”与原V23整parent路径的真实batch最大logit误差为`0`；三变体真实train batch均有限，padding不进入递归，offline/online最大logit误差均小于`1e-6`。V23a/V23c完整初态SHA256必须等于冻结V23，V23b排除`state_adapter.`后核心初态SHA256必须等于冻结V23，且所有20个epoch的parent order SHA256必须逐轮等于冻结V23。
+
+验证/训练命令：
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_adapter_pipeline.ps1 -Variant V23a -Stage all -ProjectRoot F:\Project\RadarInsight`
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_adapter_pipeline.ps1 -Variant V23b -Stage all -ProjectRoot F:\Project\RadarInsight`
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File F:\Project\RadarInsight\src-v3\scripts\v23_official_cfc_adapter_pipeline.ps1 -Variant V23c -Stage all -ProjectRoot F:\Project\RadarInsight`
+
+禁止复用已归档的旧V23a/V23b OOF脚本。
 
 是否需要数据重建：否；复用冻结V16/V21数据契约和训练归一化。
 是否需要Smoke：需要；每个适配机制必须证明padding隔离、first/zero/positive-dt语义、有限梯度及offline/online一致性。

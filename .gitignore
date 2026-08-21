@@ -61,6 +61,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v22b_oof_contract_test.py
 !src-v3/smoke/known_gate_v21e_rd_modality_ablation_test.py
 !src-v3/smoke/known_gate_v23_official_cfc_contract_test.py
+!src-v3/smoke/known_gate_v23_adapter_contract_test.py
 !src-v3/README.md
 !docs/
 docs/*

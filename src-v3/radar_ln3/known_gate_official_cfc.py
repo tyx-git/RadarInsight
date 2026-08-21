@@ -19,6 +19,11 @@ from .known_gate import (
 )
 from .model import RDSpatialEncoder
 from .official_cfc import OfficialCfCCausalEncoder
+from .official_cfc_state_adapters import (
+    ADAPTER_NONE,
+    ExternalOfficialCfCStateAdapter,
+    ExternalStateAdapterSpec,
+)
 
 
 class OfficialCfCKnownGateClassifier(nn.Module):
@@ -29,7 +34,12 @@ class OfficialCfCKnownGateClassifier(nn.Module):
     ``ncps.torch.CfC``.  The baseline has no appended experimental evidence.
     """
 
-    def __init__(self, config: KnownGateConfig) -> None:
+    def __init__(
+        self,
+        config: KnownGateConfig,
+        *,
+        state_adapter_spec: ExternalStateAdapterSpec | None = None,
+    ) -> None:
         super().__init__()
         self.config = config
         model = config.model
@@ -71,6 +81,13 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             backbone_dropout=0.0,
             mixed_memory=False,
         )
+        self.state_adapter_spec = state_adapter_spec or ExternalStateAdapterSpec(
+            kind=ADAPTER_NONE,
+            hidden_dim=model.liquid_hidden_dim,
+        )
+        if self.state_adapter_spec.hidden_dim != model.liquid_hidden_dim:
+            raise ValueError("V23 official-CfC state adapter hidden dimension differs from model")
+        self.state_adapter = ExternalOfficialCfCStateAdapter(self.state_adapter_spec)
         self.classifier = nn.Sequential(
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.Linear(model.liquid_hidden_dim, len(KNOWN_GATE_CLASS_NAMES)),
@@ -78,6 +95,9 @@ class OfficialCfCKnownGateClassifier(nn.Module):
 
     def backbone_specification(self) -> dict[str, Any]:
         return self.liquid.specification()
+
+    def external_state_adapter_specification(self) -> dict[str, Any]:
+        return self.state_adapter.specification()
 
     def _evidence_input(
         self,
@@ -188,6 +208,15 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             tr_padding_mask,
             dt_valid=tr_dt_valid,
             dt_reason=tr_dt_reason,
+            # Preserve frozen V23 exactly when adaptation is disabled: the
+            # original parent-wise official-CfC path remains the baseline.
+            # V23a/V23b/V23c alone opt into the explicit per-event external
+            # adapter path below.
+            state_adapter=(
+                None
+                if self.state_adapter_spec.kind == ADAPTER_NONE
+                else self.state_adapter
+            ),
         )
         logits = self.classifier(state.sequence)
         # Padding never reaches the official recurrence.  Keep the readout's
@@ -243,6 +272,11 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             liquid_state,
             tr_dt_valid,
             tr_dt_reason,
+            (
+                None
+                if self.state_adapter_spec.kind == ADAPTER_NONE
+                else self.state_adapter
+            ),
         )
         logits = self.classifier(self.liquid.readout(state))
         return {
@@ -286,6 +320,8 @@ def _state_dict_sha256(state: dict[str, torch.Tensor]) -> str:
 def build_official_cfc_model_from_frozen_source(
     project_root: Path,
     source_config: KnownGateConfig,
+    *,
+    state_adapter_spec: ExternalStateAdapterSpec | None = None,
 ) -> tuple[OfficialCfCKnownGateClassifier, dict[str, Any]]:
     """Construct V23 with every non-recurrent tensor copied from its Control.
 
@@ -309,10 +345,17 @@ def build_official_cfc_model_from_frozen_source(
     # reproducible seed of its own, then overwrite every compatible tensor.
     # The training entry point resets all RNGs again before optimization.
     seed_everything(source_config.train.seed)
-    official_model = OfficialCfCKnownGateClassifier(source_config)
+    official_model = OfficialCfCKnownGateClassifier(
+        source_config,
+        state_adapter_spec=state_adapter_spec,
+    )
     official_state = official_model.state_dict()
     source_names = {name for name in source_state if not name.startswith("liquid.")}
-    official_names = {name for name in official_state if not name.startswith("liquid.")}
+    official_names = {
+        name
+        for name in official_state
+        if not name.startswith("liquid.") and not name.startswith("state_adapter.")
+    }
     if source_names != official_names:
         missing = sorted(source_names - official_names)
         unexpected = sorted(official_names - source_names)
@@ -346,6 +389,7 @@ def build_official_cfc_model_from_frozen_source(
         "source_non_recurrent_buffer_count": len(source_names & source_buffer_names),
         "shared_non_recurrent_state_exactly_equal": True,
         "official_recurrent_state_is_distinct_by_architecture": True,
+        "external_state_adapter": official_model.external_state_adapter_specification(),
     }
     # Keep the complete source model out of the training graph and CUDA memory.
     del source_model

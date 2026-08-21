@@ -1,0 +1,195 @@
+"""External causal-state adapters for controlled V23 official-CfC experiments.
+
+The adapters in this module deliberately operate *after* an unmodified
+``ncps.torch.CfC`` call.  They never alter or reimplement ``CfCCell``.  Each
+adapted state is fed back as the next official call's ``hx`` so the experiment
+can isolate one historical project mechanism at a time.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import torch
+from torch import nn
+
+from .data import DT_REASON_POSITIVE_DELTA, DT_REASON_ZERO_DELTA
+
+
+ADAPTER_NONE = "none"
+ADAPTER_POSITIVE_DT_FIXED_RETENTION = "positive_dt_fixed_retention"
+ADAPTER_RECURRENT_LAYER_NORM = "recurrent_layer_norm"
+ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION = "zero_delta_bounded_observation"
+
+ADAPTER_KINDS = (
+    ADAPTER_NONE,
+    ADAPTER_POSITIVE_DT_FIXED_RETENTION,
+    ADAPTER_RECURRENT_LAYER_NORM,
+    ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
+)
+
+
+@dataclass(frozen=True)
+class ExternalStateAdapterSpec:
+    """Immutable, externally audited state-adapter definition."""
+
+    kind: str
+    hidden_dim: int
+    fixed_tau_seconds: float | None = None
+    zero_delta_gain: float | None = None
+    layer_norm_eps: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind not in ADAPTER_KINDS:
+            raise ValueError(f"unsupported external state adapter: {self.kind}")
+        if self.hidden_dim <= 0:
+            raise ValueError("external state adapter hidden_dim must be positive")
+        if self.kind == ADAPTER_POSITIVE_DT_FIXED_RETENTION:
+            if self.fixed_tau_seconds is None or self.fixed_tau_seconds <= 0.0:
+                raise ValueError("positive-dt retention requires a positive fixed_tau_seconds")
+            if self.zero_delta_gain is not None or self.layer_norm_eps is not None:
+                raise ValueError("positive-dt retention must not carry unrelated adapter fields")
+        elif self.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            if self.layer_norm_eps is None or self.layer_norm_eps <= 0.0:
+                raise ValueError("recurrent LayerNorm requires a positive epsilon")
+            if self.fixed_tau_seconds is not None or self.zero_delta_gain is not None:
+                raise ValueError("recurrent LayerNorm must not carry unrelated adapter fields")
+        elif self.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
+            if self.zero_delta_gain is None or not 0.0 < self.zero_delta_gain <= 1.0:
+                raise ValueError("zero-delta bounded observation requires gain in (0, 1]")
+            if self.fixed_tau_seconds is not None or self.layer_norm_eps is not None:
+                raise ValueError("zero-delta bounded observation must not carry unrelated adapter fields")
+        elif any(value is not None for value in (
+            self.fixed_tau_seconds,
+            self.zero_delta_gain,
+            self.layer_norm_eps,
+        )):
+            raise ValueError("the disabled adapter must not carry mechanism parameters")
+
+    @property
+    def trainable_parameter_count(self) -> int:
+        return 2 * self.hidden_dim if self.kind == ADAPTER_RECURRENT_LAYER_NORM else 0
+
+    def as_dict(self) -> dict[str, Any]:
+        if self.kind == ADAPTER_POSITIVE_DT_FIXED_RETENTION:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "positive_delta_at_second_precision only",
+                "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+                "fixed_tau_seconds": self.fixed_tau_seconds,
+                "trainable_parameter_count": self.trainable_parameter_count,
+                "first_and_zero_delta_behavior": "h=h_official",
+            }
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "every valid causal event",
+                "formula": "h=LayerNorm(h_official)",
+                "layer_norm_eps": self.layer_norm_eps,
+                "affine": True,
+                "trainable_parameter_count": self.trainable_parameter_count,
+            }
+        if self.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "zero_delta_at_second_precision only",
+                "formula": "h=(1-zero_delta_gain)*h_previous+zero_delta_gain*h_official",
+                "zero_delta_gain": self.zero_delta_gain,
+                "trainable_parameter_count": self.trainable_parameter_count,
+                "first_and_positive_delta_behavior": "h=h_official",
+            }
+        return {
+            "kind": self.kind,
+            "state_equation_owner": "official ncps.torch.CfC",
+            "applies_to": "disabled",
+            "formula": "h=h_official",
+            "trainable_parameter_count": 0,
+        }
+
+
+class ExternalOfficialCfCStateAdapter(nn.Module):
+    """Apply exactly one pre-registered state adaptation after official CfC."""
+
+    def __init__(self, spec: ExternalStateAdapterSpec) -> None:
+        super().__init__()
+        self.spec = spec
+        self.recurrent_norm: nn.LayerNorm | None
+        if spec.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            self.recurrent_norm = nn.LayerNorm(
+                spec.hidden_dim,
+                eps=float(spec.layer_norm_eps),
+                elementwise_affine=True,
+            )
+        else:
+            self.recurrent_norm = None
+
+    def specification(self) -> dict[str, Any]:
+        return self.spec.as_dict()
+
+    def _validate(
+        self,
+        official_state: torch.Tensor,
+        previous_state: torch.Tensor,
+        dt_seconds: torch.Tensor,
+        dt_reason: torch.Tensor,
+    ) -> None:
+        if official_state.ndim != 2 or official_state.shape[-1] != self.spec.hidden_dim:
+            raise ValueError("external adapter official state has an invalid shape")
+        if previous_state.shape != official_state.shape:
+            raise ValueError("external adapter previous state shape differs from official state")
+        if dt_seconds.ndim != 1 or dt_seconds.shape[0] != official_state.shape[0]:
+            raise ValueError("external adapter dt must have shape [batch]")
+        if dt_reason.ndim != 1 or dt_reason.shape != dt_seconds.shape:
+            raise ValueError("external adapter dt_reason must have shape [batch]")
+        if not all(torch.isfinite(value).all() for value in (official_state, previous_state, dt_seconds)):
+            raise ValueError("external adapter inputs must be finite")
+
+    def forward(
+        self,
+        official_state: torch.Tensor,
+        previous_state: torch.Tensor,
+        dt_seconds: torch.Tensor,
+        dt_reason: torch.Tensor,
+    ) -> torch.Tensor:
+        self._validate(official_state, previous_state, dt_seconds, dt_reason)
+        if self.spec.kind == ADAPTER_NONE:
+            return official_state
+        if self.spec.kind == ADAPTER_RECURRENT_LAYER_NORM:
+            if self.recurrent_norm is None:  # pragma: no cover - constructor invariant
+                raise RuntimeError("recurrent LayerNorm adapter is not initialized")
+            return self.recurrent_norm(official_state)
+        if self.spec.kind == ADAPTER_POSITIVE_DT_FIXED_RETENTION:
+            tau = torch.as_tensor(
+                self.spec.fixed_tau_seconds,
+                dtype=official_state.dtype,
+                device=official_state.device,
+            )
+            alpha = 1.0 - torch.exp(-dt_seconds.unsqueeze(-1) / tau)
+            retained = (1.0 - alpha) * previous_state + alpha * official_state
+            applies = (dt_reason == DT_REASON_POSITIVE_DELTA).unsqueeze(-1)
+            return torch.where(applies, retained, official_state)
+        if self.spec.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
+            gain = torch.as_tensor(
+                self.spec.zero_delta_gain,
+                dtype=official_state.dtype,
+                device=official_state.device,
+            )
+            bounded = (1.0 - gain) * previous_state + gain * official_state
+            applies = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
+            return torch.where(applies, bounded, official_state)
+        raise RuntimeError(f"unhandled external state adapter: {self.spec.kind}")
+
+
+__all__ = [
+    "ADAPTER_KINDS",
+    "ADAPTER_NONE",
+    "ADAPTER_POSITIVE_DT_FIXED_RETENTION",
+    "ADAPTER_RECURRENT_LAYER_NORM",
+    "ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION",
+    "ExternalOfficialCfCStateAdapter",
+    "ExternalStateAdapterSpec",
+]

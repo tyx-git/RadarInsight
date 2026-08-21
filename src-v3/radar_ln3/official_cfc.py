@@ -25,6 +25,10 @@ from .data import (
     DT_REASON_POSITIVE_DELTA,
     DT_REASON_ZERO_DELTA,
 )
+from .official_cfc_state_adapters import (
+    ADAPTER_NONE,
+    ExternalOfficialCfCStateAdapter,
+)
 
 
 OFFICIAL_CFC_DISTRIBUTION = "ncps"
@@ -292,6 +296,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
         initial_state: torch.Tensor | None = None,
+        state_adapter: ExternalOfficialCfCStateAdapter | None = None,
     ) -> OfficialCfCForwardState:
         if events.ndim != 3:
             raise ValueError("V23 official CfC events must have shape [batch, sequence, features]")
@@ -322,22 +327,65 @@ class OfficialCfCCausalEncoder(nn.Module):
             initial_state=initial_state,
         )
         timespans, clamped_mask, zero_mask = self._timespans(dt_seconds, active)
-        parent_sequences: list[torch.Tensor] = []
-        parent_final_states: list[torch.Tensor] = []
-        for batch_index, length in enumerate(lengths.tolist()):
-            hx = None if initial_state is None else initial_state[batch_index : batch_index + 1]
-            parent_sequence, parent_final = self.cfc(
-                events[batch_index : batch_index + 1, :length],
-                hx=hx,
-                timespans=timespans[batch_index : batch_index + 1, :length],
-            )
-            if parent_sequence.shape != (1, length, self.hidden_dim) or parent_final.shape != (
-                1,
-                self.hidden_dim,
-            ):
-                raise RuntimeError("official ncps.CfC returned an unexpected per-parent shape")
-            parent_sequences.append(parent_sequence.squeeze(0))
-            parent_final_states.append(parent_final)
+        if state_adapter is None:
+            parent_sequences: list[torch.Tensor] = []
+            parent_final_states: list[torch.Tensor] = []
+            for batch_index, length in enumerate(lengths.tolist()):
+                hx = None if initial_state is None else initial_state[batch_index : batch_index + 1]
+                parent_sequence, parent_final = self.cfc(
+                    events[batch_index : batch_index + 1, :length],
+                    hx=hx,
+                    timespans=timespans[batch_index : batch_index + 1, :length],
+                )
+                if parent_sequence.shape != (1, length, self.hidden_dim) or parent_final.shape != (
+                    1,
+                    self.hidden_dim,
+                ):
+                    raise RuntimeError("official ncps.CfC returned an unexpected per-parent shape")
+                parent_sequences.append(parent_sequence.squeeze(0))
+                parent_final_states.append(parent_final)
+        else:
+            if dt_reason is None:
+                raise ValueError("an external official-CfC state adapter requires dt_reason")
+            parent_sequences = []
+            parent_final_states = []
+            for batch_index, length in enumerate(lengths.tolist()):
+                # Keep the official V23 first-event call exact: ``ncps.CfC``
+                # receives ``hx=None`` for a fresh parent.  The adapters need
+                # a finite previous state only for their *external* formula,
+                # so use an all-zero audit state there without changing the
+                # upstream call itself.  Subsequent events feed the adapted
+                # state back to the untouched official cell.
+                has_previous_state = initial_state is not None
+                state = (
+                    events.new_zeros((1, self.hidden_dim))
+                    if initial_state is None
+                    else initial_state[batch_index : batch_index + 1]
+                )
+                rows: list[torch.Tensor] = []
+                for event_index in range(length):
+                    official_sequence, official_state = self.cfc(
+                        events[batch_index : batch_index + 1, event_index : event_index + 1],
+                        hx=state if has_previous_state else None,
+                        timespans=timespans[
+                            batch_index : batch_index + 1, event_index : event_index + 1
+                        ],
+                    )
+                    if official_sequence.shape != (1, 1, self.hidden_dim) or official_state.shape != (
+                        1,
+                        self.hidden_dim,
+                    ):
+                        raise RuntimeError("official ncps.CfC returned an unexpected adapted per-event shape")
+                    state = state_adapter(
+                        official_state,
+                        state,
+                        dt_seconds[batch_index : batch_index + 1, event_index],
+                        dt_reason[batch_index : batch_index + 1, event_index],
+                    )
+                    has_previous_state = True
+                    rows.append(state.squeeze(0))
+                parent_sequences.append(torch.stack(rows, dim=0))
+                parent_final_states.append(state)
         sequence = events.new_zeros((events.shape[0], events.shape[1], self.hidden_dim))
         for batch_index, parent_sequence in enumerate(parent_sequences):
             sequence[batch_index, : parent_sequence.shape[0]] = parent_sequence
@@ -363,6 +411,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         state: torch.Tensor | None = None,
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
+        state_adapter: ExternalOfficialCfCStateAdapter | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2 or event.shape[-1] != self.input_dim:
             raise ValueError("V23 official CfC online event must have shape [batch, features]")
@@ -395,6 +444,8 @@ class OfficialCfCCausalEncoder(nn.Module):
             raise ValueError("V23 official CfC online state shape is invalid")
         active = torch.ones_like(dt_seconds, dtype=torch.bool)
         timespans, clamped_mask, zero_mask = self._timespans(dt_seconds, active)
+        if state_adapter is not None and state_adapter.spec.kind != ADAPTER_NONE and dt_reason is None:
+            raise ValueError("an external official-CfC state adapter requires online dt_reason")
         next_states: list[torch.Tensor] = []
         for batch_index in range(event.shape[0]):
             hx = None if state is None else state[batch_index : batch_index + 1]
@@ -405,6 +456,18 @@ class OfficialCfCCausalEncoder(nn.Module):
             )
             if output.shape != (1, 1, self.hidden_dim) or next_state.shape != (1, self.hidden_dim):
                 raise RuntimeError("official ncps.CfC returned an unexpected online state shape")
+            previous = (
+                event.new_zeros((1, self.hidden_dim))
+                if hx is None
+                else hx
+            )
+            if state_adapter is not None and state_adapter.spec.kind != ADAPTER_NONE:
+                next_state = state_adapter(
+                    next_state,
+                    previous,
+                    dt_seconds[batch_index : batch_index + 1],
+                    dt_reason[batch_index : batch_index + 1],
+                )
             next_states.append(next_state)
         return torch.cat(next_states, dim=0), clamped_mask, zero_mask
 

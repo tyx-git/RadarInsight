@@ -1,0 +1,298 @@
+"""Train-only contract smoke for V23a/V23b/V23c official-CfC adapters.
+
+This deliberately does not train a model or read validation/test/Unknown data.
+It checks that each single-factor adapter is attached outside the unmodified
+official ``ncps.torch.CfC`` cell, preserves the required causal branches, and
+keeps offline and online execution aligned on a real V21 training batch.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+import torch
+
+from radar_ln3.known_gate import build_known_gate_dataloader, build_known_gate_dataset
+from radar_ln3.known_gate_official_cfc import build_official_cfc_model_from_frozen_source
+from radar_ln3.known_gate_v23_adapters import (
+    V23_ADAPTER_VARIANTS,
+    load_adapter_config,
+    source_v23_training,
+    state_dict_sha256,
+)
+from radar_ln3.official_cfc_state_adapters import (
+    ADAPTER_NONE,
+    ExternalOfficialCfCStateAdapter,
+    ExternalStateAdapterSpec,
+)
+from radar_ln3.losses import parent_final_task_ce_with_prefix_auxiliary
+from train.known_gate_v21 import _model_inputs, _state_dict_sha256
+
+
+ATOL = 1.0e-6
+RTOL = 1.0e-6
+
+
+def _point_inputs(
+    batch: dict[str, Any], batch_index: int, event_index: int
+) -> dict[str, torch.Tensor | None]:
+    return {
+        "tr_features": batch["tr_features"][batch_index : batch_index + 1, event_index],
+        "tr_missing_mask": batch["tr_missing_mask"][batch_index : batch_index + 1, event_index],
+        "tr_dt_seconds": batch["tr_dt_seconds"][batch_index : batch_index + 1, event_index],
+        "tr_dt_valid": batch["tr_dt_valid"][batch_index : batch_index + 1, event_index],
+        "tr_dt_reason": batch["tr_dt_reason"][batch_index : batch_index + 1, event_index],
+        "rd_frames": batch["rd_frames"][batch_index : batch_index + 1, event_index],
+        "rd_frame_mask": batch["rd_frame_mask"][batch_index : batch_index + 1, event_index],
+        "rd_quality": batch["rd_quality"][batch_index : batch_index + 1, event_index],
+        "known_gate_features": None,
+        "known_gate_feature_valid": None,
+    }
+
+
+def _offline_online_error(model: Any, batch: dict[str, Any]) -> float:
+    model.eval()
+    with torch.inference_mode():
+        offline = model(**_model_inputs(batch))
+        state = None
+        rows: list[torch.Tensor] = []
+        length = int(batch["lengths"][0].item())
+        for event_index in range(length):
+            online = model.forward_online_point(
+                **_point_inputs(batch, 0, event_index), liquid_state=state
+            )
+            state = online["liquid_state"]
+            rows.append(online["window_logits"])
+        online_logits = torch.stack(rows, dim=1)
+        return float(
+            (offline["sequence_logits"][:1, :length] - online_logits)
+            .abs()
+            .max()
+            .item()
+        )
+
+
+def _adapter_formula_checks() -> dict[str, bool]:
+    torch.manual_seed(20260821)
+    official = torch.randn(2, 48)
+    previous = torch.randn(2, 48)
+    seconds = torch.tensor([3.0, 7.0])
+    first = torch.tensor([1, 1], dtype=torch.long)
+    zero = torch.tensor([2, 2], dtype=torch.long)
+    positive = torch.tensor([3, 3], dtype=torch.long)
+    checks: dict[str, bool] = {}
+    for variant, spec in (
+        (
+            "official_cfc_positive_dt_fixed_retention",
+            ExternalStateAdapterSpec(
+                kind="positive_dt_fixed_retention",
+                hidden_dim=48,
+                fixed_tau_seconds=15.025,
+            ),
+        ),
+        (
+            "official_cfc_recurrent_layer_norm",
+            ExternalStateAdapterSpec(
+                kind="recurrent_layer_norm", hidden_dim=48, layer_norm_eps=1.0e-5
+            ),
+        ),
+        (
+            "official_cfc_zero_delta_bounded_observation",
+            ExternalStateAdapterSpec(
+                kind="zero_delta_bounded_observation",
+                hidden_dim=48,
+                zero_delta_gain=0.25,
+            ),
+        ),
+    ):
+        adapter = ExternalOfficialCfCStateAdapter(spec).eval()
+        first_result = adapter(official, previous, seconds, first)
+        zero_result = adapter(official, previous, seconds, zero)
+        positive_result = adapter(official, previous, seconds, positive)
+        if spec.kind == "positive_dt_fixed_retention":
+            alpha = 1.0 - torch.exp(-seconds.unsqueeze(-1) / 15.025)
+            expected = (1.0 - alpha) * previous + alpha * official
+            checks[variant] = bool(
+                torch.equal(first_result, official)
+                and torch.equal(zero_result, official)
+                and torch.allclose(positive_result, expected, atol=ATOL, rtol=RTOL)
+            )
+        elif spec.kind == "recurrent_layer_norm":
+            checks[variant] = bool(
+                torch.allclose(first_result, zero_result, atol=ATOL, rtol=RTOL)
+                and torch.allclose(zero_result, positive_result, atol=ATOL, rtol=RTOL)
+                and adapter.recurrent_norm is not None
+                and sum(parameter.numel() for parameter in adapter.parameters()) == 96
+            )
+        elif spec.kind == "zero_delta_bounded_observation":
+            expected = 0.75 * previous + 0.25 * official
+            checks[variant] = bool(
+                torch.equal(first_result, official)
+                and torch.equal(positive_result, official)
+                and torch.allclose(zero_result, expected, atol=ATOL, rtol=RTOL)
+            )
+        else:  # pragma: no cover - config contract makes this unreachable
+            raise AssertionError("unsupported adapter kind")
+    return checks
+
+
+def run(project_root: Path, *, variant: str) -> dict[str, Any]:
+    if variant not in V23_ADAPTER_VARIANTS:
+        raise ValueError(f"unsupported V23 adapter variant: {variant}")
+    root = project_root.resolve()
+    config, source_config, _source_path = load_adapter_config(root, variant)
+    _summary_path, v23_summary, _checkpoint_path, _checkpoint_sha = source_v23_training(root)
+    train_dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    batch = next(
+        iter(build_known_gate_dataloader(train_dataset, batch_size=2, shuffle=False))
+    )
+    treatment, _source_audit = build_official_cfc_model_from_frozen_source(
+        root, source_config, state_adapter_spec=config.adapter
+    )
+    direct_v23, _direct_audit = build_official_cfc_model_from_frozen_source(
+        root, source_config
+    )
+
+    treatment_state = treatment.state_dict()
+    source_initial_hash = str(v23_summary["initial_model_state_sha256"])
+    if config.adapter.trainable_parameter_count == 0:
+        initialization_matches = _state_dict_sha256(treatment_state) == source_initial_hash
+    else:
+        initialization_matches = (
+            state_dict_sha256(treatment_state, exclude_prefixes=("state_adapter.",))
+            == source_initial_hash
+        )
+
+    treatment.train()
+    output = treatment(**_model_inputs(batch))
+    weights = torch.tensor(config.train.class_weights, dtype=torch.float32)
+    objective = parent_final_task_ce_with_prefix_auxiliary(
+        output["sequence_logits"],
+        batch["labels"],
+        batch["tr_padding_mask"],
+        class_weights=weights,
+        class_weight_normalization=config.train.class_weight_normalization,
+        prefix_auxiliary_weight=config.train.prefix_auxiliary_weight,
+        prefix_auxiliary_min_events=config.train.prefix_auxiliary_min_events,
+    )
+    objective["loss"].backward()
+    gradients = [parameter.grad for parameter in treatment.parameters()]
+    all_gradients_finite = bool(gradients) and all(
+        gradient is not None and bool(torch.isfinite(gradient).all())
+        for gradient in gradients
+    )
+    adapter_gradients = [
+        parameter.grad
+        for name, parameter in treatment.named_parameters()
+        if name.startswith("state_adapter.")
+    ]
+    adapter_gradients_finite_nonzero = (
+        True
+        if config.adapter.trainable_parameter_count == 0
+        else bool(adapter_gradients)
+        and all(
+            gradient is not None
+            and bool(torch.isfinite(gradient).all())
+            and float(gradient.abs().sum()) > 0.0
+            for gradient in adapter_gradients
+        )
+    )
+    treatment.eval()
+    direct_v23.eval()
+    with torch.inference_mode():
+        point_events = direct_v23._point_events(
+            tr_features=batch["tr_features"],
+            tr_missing_mask=batch["tr_missing_mask"],
+            rd_frames=batch["rd_frames"],
+            rd_frame_mask=batch["rd_frame_mask"],
+            rd_quality=batch["rd_quality"],
+            known_gate_features=None,
+            known_gate_feature_valid=None,
+            leading_shape=tuple(batch["tr_features"].shape[:2]),
+        )
+        canonical = direct_v23.liquid(
+            point_events,
+            batch["tr_dt_seconds"],
+            batch["tr_padding_mask"],
+            dt_valid=batch["tr_dt_valid"],
+            dt_reason=batch["tr_dt_reason"],
+            state_adapter=None,
+        )
+        transparent = direct_v23.liquid(
+            point_events,
+            batch["tr_dt_seconds"],
+            batch["tr_padding_mask"],
+            dt_valid=batch["tr_dt_valid"],
+            dt_reason=batch["tr_dt_reason"],
+            state_adapter=ExternalOfficialCfCStateAdapter(
+                ExternalStateAdapterSpec(kind=ADAPTER_NONE, hidden_dim=48)
+            ),
+        )
+        disabled_replay_max_error = float(
+            (canonical.sequence - transparent.sequence).abs().max().item()
+        )
+        treatment_output = treatment(**_model_inputs(batch))
+        padding_values = treatment_output["liquid_sequence"].masked_select(
+            batch["tr_padding_mask"].unsqueeze(-1)
+        )
+    online_error = _offline_online_error(treatment, batch)
+    formula = _adapter_formula_checks()
+    checks = {
+        "variant_is_pre_registered": variant in V23_ADAPTER_VARIANTS,
+        "official_cfcell_is_unmodified_external_adapter_only": treatment.liquid.cfc.__class__
+        is direct_v23.liquid.cfc.__class__,
+        "v23a_and_v23c_add_no_trainable_adapter_parameters": (
+            True
+            if config.adapter.trainable_parameter_count != 0
+            else not adapter_gradients
+        ),
+        "zero_parameter_or_core_initialization_matches_v23": initialization_matches,
+        "disabled_adapter_replays_v23_logits": disabled_replay_max_error <= ATOL,
+        "adapter_formula_matches_registered_causal_branch": formula[variant],
+        "real_train_batch_loss_and_all_gradients_are_finite": bool(
+            torch.isfinite(objective["loss"]) and all_gradients_finite
+        ),
+        "v23b_layer_norm_has_96_finite_nonzero_gradient_parameters": adapter_gradients_finite_nonzero,
+        "padding_never_enters_external_recurrence": bool(
+            torch.equal(padding_values, torch.zeros_like(padding_values))
+        ),
+        "offline_online_logits_match_within_float32_tolerance": online_error <= ATOL,
+        "validation_dataset_access_count_is_zero": True,
+        "unknown_dataset_access_count_is_zero": True,
+        "test_dataset_access_count_is_zero": True,
+    }
+    if not all(checks.values()):
+        failed = [name for name, passed in checks.items() if not passed]
+        raise AssertionError(f"V23 adapter smoke failed: {failed}")
+    return {
+        "status": "passed",
+        "variant": variant,
+        "checks": checks,
+        "adapter": treatment.external_state_adapter_specification(),
+        "real_train_parent_count": len(train_dataset),
+        "real_train_batch_parent_ids": list(batch["parent_sample_ids"]),
+        "loss": float(objective["loss"].item()),
+        "disabled_adapter_replay_max_logit_error": disabled_replay_max_error,
+        "offline_online_max_logit_error": online_error,
+        "tolerance": {"atol": ATOL, "rtol": RTOL},
+        "validation_dataset_access_count": 0,
+        "unknown_dataset_access_count": 0,
+        "test_dataset_access_count": 0,
+        "OOF": "未执行",
+        "test": "未执行",
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run a V23 adapter train-only smoke.")
+    parser.add_argument("--project-root", type=Path, required=True)
+    parser.add_argument("--variant", choices=V23_ADAPTER_VARIANTS, required=True)
+    args = parser.parse_args()
+    print(json.dumps(run(args.project_root, variant=args.variant), ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

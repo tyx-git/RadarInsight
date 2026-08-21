@@ -1,0 +1,48 @@
+{
+  "schema_version": "RADAR-LN3-V23b-known-gate-official-cfc-adapter-config-v1",
+  "config_name": "RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43",
+  "variant": "official_cfc_recurrent_layer_norm",
+  "source": {
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "config_identity_sha256": "92e8ad1564461fc9b0428444ad3d0469341d85e73a580035e37bc3e5c2ad3cb9",
+    "v23_report_path": "src-v3/processed/report/RADAR-LN3-V23-known-gate-official-cfc-baseline-validation.json",
+    "v23_report_sha256": "4b4c9ff98a261ecc6203b5945f5dca1e060e2514e48eb82a3623210c8e7d81d2"
+  },
+  "adapter": {
+    "kind": "recurrent_layer_norm",
+    "hidden_dim": 48,
+    "fixed_tau_seconds": null,
+    "zero_delta_gain": null,
+    "layer_norm_eps": 1e-05
+  },
+  "train": {
+    "batch_size": 2,
+    "learning_rate": 0.0001,
+    "seed": 43,
+    "dataloader_seed": 43,
+    "device": "cuda",
+    "epochs": 20,
+    "early_stopping_patience": 0,
+    "gradient_clip_norm": 100.0,
+    "checkpoint_selection_metric": "parent_min_precision_recall",
+    "task_min_precision_recall_target": 0.9,
+    "class_weights": [
+      0.5173137460650578,
+      14.93939393939394
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "class_weight_normalization": "batch_weight_sum",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_path": "artifacts/RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal/best_model.pt",
+    "last_checkpoint_path": "artifacts/RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal/last_model.pt",
+    "formal_artifact_dir": "artifacts/RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal",
+    "epoch_checkpoint_dir": "artifacts/RADAR-LN3-V23b-cq08-known-gate-official-cfc-recurrent-layer-norm-seed43-formal/epochs",
+    "checkpoint_schema": "RADAR-LN3-V23b-known-gate-official-cfc-adapter-seed43-checkpoint-v1",
+    "record_parent_order_hash": true,
+    "save_every_epoch": true,
+    "cuda_deterministic_algorithms": false,
+    "full_parameter_training": true
+  }
+}
