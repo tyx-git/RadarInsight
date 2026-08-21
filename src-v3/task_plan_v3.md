@@ -2122,8 +2122,10 @@
 - [x] 将官方包direct URL、类模块、state-equation owner、strict sidecar字段、初始化哈希链与checkpoint/report/script验收绑定；真实batch所有40个可训练参数梯度有限非零。
 - [x] 增加独立的官方运行时兼容性 sidecar：固定随机张量审计确认`CfC(dt=0)`有限但非状态恒等、batch=2异步timespan触发上游`RuntimeError`、`CfC.forward`无padding-mask API、dense CfC无wiring、而`LTC(dt=0)`产生NaN；sidecar不读取Radar数据、checkpoint、validation、test或OOF，训练checkpoint/summary/report均绑定其SHA。
 - [x] 收紧开发validation报告为核心指标：仅保留parent-final、eligible-prefix、window的Accuracy/Macro-F1、两类P/R/F1/support、混淆矩阵、best epoch、global step、elapsed、参数量和checkpoint选择；明确Clutter development support=9，不复制逐parent明细，也不形成OOF/test/产品动作结论。
-- [ ] 用户手动执行V23 seed43完整20 epoch formal training并生成开发validation报告。
-- [ ] 评估开发结果后，先决定是否创建V23多seed；只有多seed确认后才设计五折OOF，OOF不得用于快速特征或架构筛选。
+- [x] 用户已手动完成V23 seed43完整20 epoch正式训练，并生成开发validation报告；训练流程`completed`，best epoch=9。
+- [x] 冻结开发结果为负向：parent-final Macro-F1=`0.775556`，相对冻结V21 seed43基座`0.862803`下降`0.087247`；KnownTarget Recall=`0.973094`，Clutter Precision/Recall/F1=`0.500000/0.666667/0.571429`，Clutter support=9。V23未通过KnownGate两类`>=0.90`护栏。
+- [x] 冻结V23为“纯官方dense CfC + 原始V3 dt语义”的负向开发基座；不采纳、不进行V23多seed、OOF、L3校准、完整级联、正式拒识、stable、P95或test。
+- [x] 逐parent只读复放确认冻结checkpoint与artifact输出一致；新增Bird→Clutter错误集中于全positive-dt轨迹，不能将本次退化直接归因于zero-dt。后续只允许以独立、预注册单因素方式检验旧主干机制，不得整体回灌旧状态方程。
 
 验证命令：
 
@@ -2135,7 +2137,33 @@
 
 是否需要数据重建：否；复用V16 index和V21 seed43 train-only normalization，零新字段、零新特征、零OOF折数据处理。
 是否需要Smoke：是；Smoke只验证合同、真实dt、padding、梯度与offline/online接口，不等价于模型性能。
-是否需要正式训练：是；一个seed43、完整20 epoch，由用户手动执行。
-阻塞条件：官方runtime版本/commit漂移、source数据或normalization hash变化、Unknown/validation以外数据泄漏、任何非有限梯度、超过120秒的正dt被截断、padding进入official recurrence、或offline/online超出浮点容差。
+是否需要正式训练：已执行；一个seed43、完整20 epoch。性能未通过，不得作为产品候选。
+阻塞条件：V23负向开发结果阻止其多seed、OOF和产品后续；后续仅可进入独立V23a+机制拆解实验。官方runtime版本/commit漂移、source数据或normalization hash变化、Unknown/validation以外数据泄漏、任何非有限梯度、padding进入official recurrence、或offline/online超出浮点容差同样阻塞任何后续实验。
 
-历史处理：此前V23a/V23b五折OOF方案仅为未训练预备方案，现已取消并归档；不得引用其删去的配置、合同、脚本或Smoke作为当前V23基座的结果。
+历史处理：此前V23a/V23b五折OOF方案仅为未训练预备方案，现已取消并归档；不得引用其删去的配置、合同、脚本或Smoke作为当前V23基座的结果。Stage 094重新使用V23a起的序列号，但其含义是新的单因素机制实验，与历史归档方案无关。
+
+## Stage 094 - V23a起官方CfC机制拆解实验设计
+
+目标：将历史`CfCLiquidCausalEncoder`相对纯官方CfC的差异拆解为可证伪的单因素实验；识别是否存在一个能在保持官方CfC核心状态方程前提下，稳定改善当前KnownGate开发表现的外部适配机制。
+
+前置依赖：Stage 093 V23已冻结为负向基座；V21 seed43和V23使用同一986/232 known-only parent、V16 index、V21 train-only normalization、TR/RD前端、fusion、classifier、训练预算与开发评估分母。V23a+不访问Unknown、test、OOF、L3、完整级联、正式拒识、stable或P95。
+
+最小子任务：
+
+- [ ] V23a（正dt显式状态保留）：以V23为直接Control，唯一变量仅作用于`positive_delta`事件：先以原始dt和前一外部状态调用官方CfC得到`h_official_t`，再令`h_t=(1-alpha_t)h_(t-1)+alpha_t*h_official_t`，其中`alpha_t=1-exp(-dt/15.025)`。首点与zero-dt逐值保留V23官方输出。`15.025s`为V21已冻结tau边界中点，非validation调得；该实验不新增可训练参数，隔离历史显式指数残差保留，不改变zero-dt语义、原始timespan或官方`CfCCell`。它优先级最高，因为V23新增Bird→Clutter错误均为全positive-dt轨迹。
+- [ ] V23b（递归LayerNorm）：以V23为直接Control，唯一变量是在每个官方CfC有效事件输出后施加一个新训练的48维LayerNorm，并将归一化状态作为下一事件的官方CfC hidden state和当前readout。raw dt、first/zero/positive-dt语义、输入、损失和分类头保持不变；新增的96个仿射参数属于该归一化机制本身。该实验直接检验历史递归归一化是否抑制状态翻转。
+- [ ] V23c（zero-dt有界观测）：以V23为直接Control，唯一变量仅作用于`zero_delta`事件：`h_t=0.75*h_(t-1)+0.25*h_official_t`；首点和positive-dt逐值保留V23。该实验检验历史`bounded_observation=0.25`，但必须按“全positive-dt/含zero-dt”分层报告，因为当前KnownGate train+development中Clutter zero-dt事件为0，而Drone/Bird/Balloon zero-dt比例分别约35.98%/43.61%/29.15%，存在强类别捷径风险。
+- [ ] V23d（可学习tau）：只有V23a在开发集表现出可信正向信号后才执行；继承V23a固定指数保留并只将`15.025s`替换为48维、边界`[0.05,30]s`、以中点初始化的可学习tau。它只回答“固定时间尺度之外，历史可学习tau是否增加价值”，不重测V23本体。
+- [ ] V23e（LayerNorm×正dt保留交互）：只有V23a与V23b各自达到开发信号门槛后，才以预注册2×2组合验证二者是否互补；它明确标记为交互确认，不冒充单因素实验。若任一主效应不通过，禁止执行组合。
+- [ ] V23f（同秒因果密度增益）：只有V23c显示安全的zero-dt机制信号后才执行，并以V23c为直接Control；唯一变量将固定`0.25`混合替换为`min(0.25*k,0.75)`，其中`k`为同一秒内因果观测序。该项对应历史V20r的后续机制，不属于V21基础差异；因Clutter没有zero-dt支持，必须同时满足全positive-dt子群不下降、含zero-dt目标子群改善和类别频率审计，才可保留。
+- [ ] 每个需要逐状态外部适配的实验必须先通过“适配关闭时逐logit重放V23”的Smoke，再测打开适配的有限梯度、padding隔离、offline/online一致性和小批耗时；这是防止将逐事件调用官方CfC的适配器差异误写成机制收益。由于官方CfC的异步batch timespan限制，递归适配可能较V23整parent调用更慢，性能报告只记录训练耗时，不把它写成P95。
+- [ ] zero-dt floor不单列训练实验：当前KnownGate带`dt_reason`路径将V21首点强制gain=1、同秒强制gain=0.25，历史`0.001s` floor不控制该路径的实际首点/同秒更新；将其单列会成为名义变量而非有效变量。120秒cap也不列入开发训练：development中无`>120s`正dt，仅train有2个事件，缺乏可验收support。
+- [ ] candidate/gate、input/state projection和完整自定义状态方程不列为V23a+单因素：它们共同构成另一种递归单元，直接引入等同放弃“官方CfC核心不变”的问题设定；V21已是其整体参考，而非可由单个V23适配器解释的因素。
+- [ ] 每个已执行主效应必须完成：源码/配置/合同hash绑定、真实batch梯度与offline/online一致性Smoke、适配关闭时逐logit重放V23、完整20 epoch seed43开发训练、parent-final/eligible-prefix/window分开报告、Clutter support与parent bootstrap、以及positive-dt/zero-dt分层。仅当相对V23的parent Macro-F1严格提升至少2pp、KnownTarget Recall和Clutter F1均不下降、且正dt受影响子群不恶化时，才记为“机制正向信号”。要进入3-seed确认还必须不低于V21 seed43的parent Macro-F1=`0.862803`及Clutter F1=`0.736842`；任何未通过项立即冻结，不进入OOF。
+
+验证命令：待每个单因素实现后单独提供；禁止复用已归档的旧V23a/V23b OOF脚本。
+
+是否需要数据重建：否；复用冻结V16/V21数据契约和训练归一化。
+是否需要Smoke：需要；每个适配机制必须证明padding隔离、first/zero/positive-dt语义、有限梯度及offline/online一致性。
+是否需要正式训练：需要；先单seed完整20 epoch，未通过不得开展多seed或OOF。
+阻塞条件：任何机制不止改变一个可训练或时序因素、破坏官方CfCCell所有权、通过validation选择time transform、或出现未封存范围访问。

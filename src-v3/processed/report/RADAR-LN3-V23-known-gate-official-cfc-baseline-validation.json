@@ -1,0 +1,310 @@
+{
+  "status": "completed_development_baseline_only",
+  "schema_version": "RADAR-LN3-V23-known-gate-official-cfc-baseline-validation-report-v1",
+  "experiment": "V23 pure official dense CfC KnownGate baseline development validation",
+  "scope": "V21 development validation KnownGate only; no OOF, test, strict Unknown calibration, L3, full cascade, stable or P95",
+  "source_control": {
+    "name": "V21 seed43 formal baseline",
+    "architecture": "project_local_cfc_inspired_encoder",
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab"
+  },
+  "v23": {
+    "architecture": "official_ncps_cfc",
+    "runtime": {
+      "distribution": "ncps",
+      "distribution_version": "1.0.1",
+      "direct_url": "https://github.com/mlech26l/ncps.git",
+      "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+      "class_path": "ncps.torch.CfC",
+      "class_module": "ncps.torch.cfc",
+      "mode": "default",
+      "activation": "lecun_tanh",
+      "input_dim": 48,
+      "hidden_dim": 48,
+      "backbone_units": 48,
+      "backbone_layers": 1,
+      "backbone_dropout": 0.0,
+      "mixed_memory": false,
+      "proj_size": null,
+      "wiring": null,
+      "dense": true,
+      "return_sequences": true,
+      "batch_first": true,
+      "state_equation_owner": "official ncps.torch.CfC; Radar-LN3 does not reimplement CfCCell",
+      "dt_semantics": "official_cfc_raw_nonnegative_wall_clock_seconds; first_event_and_same_second_use_zero_timespan; positive_delta_preserves_measured_dt_without_cap; dt_valid_and_dt_reason_are_contract_audits_not_state_update_rules",
+      "project_legacy_recurrent_mechanisms": {
+        "learned_tau": false,
+        "alpha_exponential_interpolation": false,
+        "zero_dt_floor": false,
+        "bounded_observation_gain": false,
+        "recurrent_layer_norm": false,
+        "custom_candidate_gate": false,
+        "positive_dt_cap": false
+      },
+      "parameter_count": 14064
+    },
+    "best_checkpoint": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal\\best_model.pt",
+    "best_checkpoint_sha256": "f04480f55bd784383d08eafc300b8c01dd2aa8399a24efbebcb48054df563e84",
+    "best_epoch": 9,
+    "trainable_parameter_count": 27434,
+    "initialization_audit": {
+      "strategy": "copy_frozen_source_non_recurrent_state_then_seed_official_cfc",
+      "source_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "source_initialization_pairing": {
+        "paired_baseline": false,
+        "initialization": "seeded_full_random_initialization",
+        "seed": 43
+      },
+      "shared_non_recurrent_state_sha256": "02b23b047798a8991d0389d93e8818395101b96c1f525439516764e76618faa7",
+      "shared_non_recurrent_tensor_count": 30,
+      "shared_non_recurrent_parameter_count": 30,
+      "shared_non_recurrent_buffer_count": 0,
+      "source_non_recurrent_parameter_count": 30,
+      "source_non_recurrent_buffer_count": 0,
+      "shared_non_recurrent_state_exactly_equal": true,
+      "official_recurrent_state_is_distinct_by_architecture": true
+    }
+  },
+  "training": {
+    "global_step": 9860,
+    "elapsed_seconds": 2210.0308810998686,
+    "checkpoint_selection": {
+      "metric": "parent_min_precision_recall",
+      "primary_metric": "parent_min_class_precision_recall",
+      "primary_value": 0.5,
+      "tie_break_metric": "parent_macro_f1",
+      "tie_break_value": 0.7755562721702678,
+      "ranking_key": [
+        0.5,
+        0.7755562721702678
+      ]
+    },
+    "trainable_parameter_count": 27434
+  },
+  "development_metrics_core": {
+    "parent_final": {
+      "scope": "parent_final",
+      "support": 232,
+      "accuracy": 0.9612068965517241,
+      "macro_precision": 0.7431818181818182,
+      "macro_recall": 0.819880418535127,
+      "macro_f1": 0.7755562721702678,
+      "balanced_accuracy": 0.819880418535127,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9863636363636363,
+          "recall": 0.9730941704035875,
+          "f1": 0.979683972911964,
+          "support": 223,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 6
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.5,
+          "recall": 0.6666666666666666,
+          "f1": 0.5714285714285715,
+          "support": 9,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 3
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          217,
+          6
+        ],
+        [
+          3,
+          6
+        ]
+      ]
+    },
+    "eligible_prefix": {
+      "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+      "support": 3756,
+      "accuracy": 0.9675186368477103,
+      "macro_precision": 0.7697983679915767,
+      "macro_recall": 0.7584100943318213,
+      "macro_f1": 0.7639672976915532,
+      "balanced_accuracy": 0.7584100943318213,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9823448275862069,
+          "recall": 0.9839734733351755,
+          "f1": 0.9831584759801215,
+          "support": 3619,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 58
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.5572519083969466,
+          "recall": 0.5328467153284672,
+          "f1": 0.5447761194029851,
+          "support": 137,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 64
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          3561,
+          58
+        ],
+        [
+          64,
+          73
+        ]
+      ]
+    },
+    "window": {
+      "scope": "causal_prefix_windows",
+      "support": 4452,
+      "accuracy": 0.9665318957771788,
+      "macro_precision": 0.7663606989436649,
+      "macro_recall": 0.7333909719694212,
+      "macro_f1": 0.7486631765720866,
+      "balanced_accuracy": 0.7333909719694212,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 0.9802738454397772,
+          "recall": 0.9850746268656716,
+          "f1": 0.982668372688147,
+          "support": 4288,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 64
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.5524475524475524,
+          "recall": 0.4817073170731707,
+          "f1": 0.5146579804560261,
+          "support": 164,
+          "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+          "major_confusion_count": 85
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          4224,
+          64
+        ],
+        [
+          85,
+          79
+        ]
+      ]
+    },
+    "parent_final_focus": {
+      "KnownTarget": {
+        "class": "KNOWN_TARGET_EVIDENCE",
+        "precision": 0.9863636363636363,
+        "recall": 0.9730941704035875,
+        "f1": 0.979683972911964,
+        "support": 223,
+        "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+        "major_confusion_count": 6
+      },
+      "Clutter": {
+        "class": "KNOWN_CLUTTER_EVIDENCE",
+        "precision": 0.5,
+        "recall": 0.6666666666666666,
+        "f1": 0.5714285714285715,
+        "support": 9,
+        "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+        "major_confusion_count": 3
+      }
+    },
+    "clutter_support_warning": "development Clutter support is 9 parents; this report includes no OOF or cross-source conclusion"
+  },
+  "official_runtime_compatibility": {
+    "path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23-official-cfc-runtime-compatibility.json",
+    "sha256": "e0c39029afa5494b787829d80aeb0166e68072d41857275fed4cfc69a9ad8df7",
+    "schema_version": "RADAR-LN3-V23-official-cfc-runtime-compatibility-v1",
+    "checks": {
+      "exact_ncps_distribution_version": true,
+      "exact_official_runtime_binding": true,
+      "official_cfc_forward_has_no_padding_mask": true,
+      "official_cfc_batch_two_heterogeneous_timespans_are_not_supported": true,
+      "official_cfc_zero_dt_is_finite_but_not_state_identity": true,
+      "official_ltc_zero_dt_is_not_safe_for_v23_direct_swap": true,
+      "official_cfc_baseline_is_dense_not_wired": true
+    },
+    "runtime": {
+      "distribution": "ncps",
+      "distribution_version": "1.0.1",
+      "direct_url": "https://github.com/mlech26l/ncps.git",
+      "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+      "class_path": "ncps.torch.CfC",
+      "class_module": "ncps.torch.cfc"
+    },
+    "facts": {
+      "cfc_zero_dt_is_finite": true,
+      "cfc_zero_dt_is_state_identity": false,
+      "heterogeneous_batch_two_timespans_supported": false,
+      "padding_mask_keyword_supported": false,
+      "ltc_zero_dt_is_finite": false
+    },
+    "adapter_decision": {
+      "recurrent_operator": "unmodified ncps.torch.CfC.forward",
+      "valid_event_time_input": "raw non-negative dt; zero is passed unchanged",
+      "zero_dt_means_state_update_not_skip": true,
+      "padding_strategy": "adapter removes right padding before each official per-parent forward call",
+      "per_parent_reason": "upstream CfC batch=2 heterogeneous timespans RuntimeError",
+      "wiring": "forbidden in V23 dense baseline",
+      "ltc": "not a V23 direct replacement because dt=0 is numerically unsafe",
+      "no_project_time_semantic_reintroduction": [
+        "zero_dt_floor",
+        "skip_update",
+        "bounded_observation_gain",
+        "positive_dt_cap"
+      ]
+    },
+    "performance_boundary": {
+      "per_parent_adapter_required": true,
+      "expected_overhead_relative_to_hypothetical_vectorized_batch": "higher",
+      "semantically_equivalent_upstream_batch_two_reference": "unavailable because batch-two heterogeneous timespans raise RuntimeError",
+      "formal_latency_measurement": "not_executed; training-summary elapsed_seconds is descriptive only"
+    }
+  },
+  "performance": {
+    "status": "failed",
+    "guardrails": [
+      {
+        "class": "KNOWN_TARGET_EVIDENCE",
+        "support": 223,
+        "precision": 0.9863636363636363,
+        "recall": 0.9730941704035875,
+        "f1": 0.979683972911964,
+        "target": 0.9,
+        "passed": true
+      },
+      {
+        "class": "KNOWN_CLUTTER_EVIDENCE",
+        "support": 9,
+        "precision": 0.5,
+        "recall": 0.6666666666666666,
+        "f1": 0.5714285714285715,
+        "target": 0.9,
+        "passed": false
+      }
+    ],
+    "target": 0.9
+  },
+  "next_stage": {
+    "multiseed_required_before_oof": true,
+    "oof_status": "未执行（延后至基座和多seed确认后）",
+    "comparison_to_v21e_or_v22": "not_claimed; V23 is a new no-evidence formal baseline",
+    "formal_rejection": "未执行",
+    "full_cascade": "未执行",
+    "test": "未执行",
+    "stable": "未执行",
+    "P95": "未执行",
+    "deployment_eligible": false
+  }
+}
