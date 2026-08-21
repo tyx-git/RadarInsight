@@ -2581,3 +2581,11 @@
 - Evidence：初版`OfficialCfCKnownGateClassifier`在官方CfC构造后继续初始化fusion/classifier，因官方CfC与历史自定义单元消耗不同数量随机数，非liquid参数中fusion和classifier初态并不等于冻结V21e/V22 Control；同时初版仅V23对padding logits施加零填充，而历史`KnownGateClassifier`保留classifier bias。复审后新增冻结source非recurrent tensor复制和哈希审计；真实batch Smoke确认30个非recurrent tensor逐值相等、40个可训练参数均有有限非零梯度，官方recurrent state仍保持独立。V23已改为只阻止padding进入official recurrence，并让loss/评估继续以真实长度排除padding。
 - Impact：修复后V23的可变化因素收窄为官方CfC recurrent结构及其内在原生timespan方程；TR/RD前端、fusion、classifier、数据、loss、parent顺序、epoch和评估张量契约均冻结。不能把这保证解读为跨架构初始logits相同，也不能将V23作为Unknown、L3、完整级联、stable、P95或test结论。
 - Action：V23 checkpoint、summary和report必须绑定source初态hash、共享non-recurrent-state hash与官方runtime direct-url/class-module/owner；先运行单一基座全量20 epoch与开发评估，之后再决定多seed和五折全量脚本。
+
+## Finding F239
+
+- Severity：High
+- Status：已确认官方CfC运行时兼容边界；V23基座尚未训练
+- Evidence：`smoke/known_gate_v23_official_cfc_runtime_compatibility.py`只用固定随机张量运行官方`ncps==1.0.1`。`CfC(dt=0)`的output/state均有限、最大状态变化非零，故零间隔不是skip/identity；`CfC.forward(..., padding_mask=...)`报`TypeError`；batch=2的异步`[B,L]`timespans报broadcast `RuntimeError`；dense 48-unit CfC无wiring；同一输入下`LTC(dt=0)`产生96个NaN。审计报告的data/checkpoint/validation/test访问计数均为0。
+- Impact：直接替换为LTC、将零dt改为floor/skip、把异步batch强行传给官方CfC或把padding传给上游API，都会改变V23的冻结定义或失败。逐parent调用官方CfC是当前上游API限制下的必要适配，预计相对假设的向量化批处理更慢；这不是P95测量。
+- Action：运行时sidecar必须在prepare/smoke中重新生成并通过，checkpoint、summary和development report绑定其路径/SHA/schema/checks。开发报告只留三种评估范围的核心指标、2×2混淆矩阵和Clutter support=9警告；训练、多seed、OOF、test、完整L1/L2/L3、拒识、stable和P95仍未执行。

@@ -48,6 +48,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v21_multiseed_contract_test.py
 !src-v3/smoke/known_gate_v21a_contract_test.py
 !src-v3/smoke/known_gate_v21b_contract_test.py
+!src-v3/smoke/known_gate_v23_official_cfc_runtime_compatibility.py
 !src-v3/smoke/known_gate_v21c_contract_test.py
 !src-v3/smoke/known_gate_v21d_contract_test.py
 !src-v3/smoke/clutter_coverage_semantics_audit_test.py

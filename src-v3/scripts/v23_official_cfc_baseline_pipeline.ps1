@@ -22,6 +22,7 @@ $python = Join-Path $projectPath '.venv\Scripts\python.exe'
 $artifactPath = Join-Path $projectPath 'artifacts\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal'
 $configPath = Join-Path $projectPath 'config\RADAR-LN3\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-config.json'
 $readinessPath = Join-Path $projectPath 'src-v3\processed\report\RADAR-LN3-V23-known-gate-official-cfc-baseline-training-readiness.json'
+$runtimeCompatibilityPath = Join-Path $projectPath 'src-v3\processed\report\RADAR-LN3-V23-official-cfc-runtime-compatibility.json'
 $reportPath = Join-Path $projectPath 'src-v3\processed\report\RADAR-LN3-V23-known-gate-official-cfc-baseline-validation.json'
 $minimumFreeGpuMemoryMiB = 4096
 
@@ -87,6 +88,35 @@ function Assert-Readiness {
     }
 }
 
+function Assert-RuntimeCompatibility {
+    Assert-File $runtimeCompatibilityPath 'V23 official-CfC runtime compatibility report'
+    $compatibility = Read-Utf8Json $runtimeCompatibilityPath
+    $issues = [System.Collections.Generic.List[string]]::new()
+    if ([string]$compatibility.status -ne 'passed') { $issues.Add('status') }
+    if ([string]$compatibility.schema_version -ne 'RADAR-LN3-V23-official-cfc-runtime-compatibility-v1') { $issues.Add('schema_version') }
+    foreach ($field in @('dataset_access_count', 'checkpoint_access_count', 'validation_access_count', 'test_access_count')) {
+        if ([int]$compatibility.$field -ne 0) { $issues.Add($field) }
+    }
+    $requiredChecks = @(
+        'exact_ncps_distribution_version',
+        'exact_official_runtime_binding',
+        'official_cfc_forward_has_no_padding_mask',
+        'official_cfc_batch_two_heterogeneous_timespans_are_not_supported',
+        'official_cfc_zero_dt_is_finite_but_not_state_identity',
+        'official_ltc_zero_dt_is_not_safe_for_v23_direct_swap',
+        'official_cfc_baseline_is_dense_not_wired'
+    )
+    foreach ($name in $requiredChecks) {
+        if (-not ($compatibility.checks.PSObject.Properties.Name -contains $name) -or [bool]$compatibility.checks.$name -ne $true) {
+            $issues.Add('check:' + $name)
+        }
+    }
+    if (@($compatibility.checks.PSObject.Properties).Count -ne $requiredChecks.Count) { $issues.Add('check_set') }
+    if ($issues.Count -ne 0) {
+        throw ('V23 official-CfC runtime compatibility is stale or failed; fields=' + ($issues -join ',') + '; path=' + $runtimeCompatibilityPath)
+    }
+}
+
 function Get-GpuMemoryState {
     $nvidiaSmi = Get-Command 'nvidia-smi.exe' -ErrorAction SilentlyContinue
     if ($null -eq $nvidiaSmi) {
@@ -131,6 +161,8 @@ function Assert-CompletedBaseline {
         Assert-File (Join-Path $artifactPath ('epochs\epoch-' + $epoch.ToString('000') + '.pt')) ('V23 epoch checkpoint ' + $epoch)
     }
     $summary = Read-Utf8Json $summaryPath
+    $compatibility = Read-Utf8Json $runtimeCompatibilityPath
+    $compatibilityHash = (Get-FileHash -LiteralPath $runtimeCompatibilityPath -Algorithm SHA256).Hash.ToLowerInvariant()
     if (
         $summary.status -ne 'completed' -or
         $summary.task_name -ne 'known_gate' -or
@@ -144,6 +176,11 @@ function Assert-CompletedBaseline {
         $summary.full_parameter_training -ne $true -or
         $summary.all_model_parameters_trainable -ne $true -or
         $summary.model_state_changed_from_initialization -ne $true -or
+        -not ($summary.PSObject.Properties.Name -contains 'official_runtime_compatibility') -or
+        $summary.official_runtime_compatibility.schema_version -ne 'RADAR-LN3-V23-official-cfc-runtime-compatibility-v1' -or
+        $summary.official_runtime_compatibility.path -ne $runtimeCompatibilityPath -or
+        $summary.official_runtime_compatibility.sha256 -ne $compatibilityHash -or
+        $summary.official_runtime_compatibility.checks.PSObject.Properties.Count -ne $compatibility.checks.PSObject.Properties.Count -or
         -not ($summary.PSObject.Properties.Name -contains 'OOF') -or
         $summary.test_evaluation -ne 'not_executed' -or
         $summary.deployment_eligible -ne $false
@@ -161,20 +198,26 @@ function Invoke-Prepare {
         'build\known_gate_v23.py',
         'train\known_gate_v23.py',
         'report\known_gate_v23.py',
-        'smoke\known_gate_v23_official_cfc_contract_test.py'
+        'smoke\known_gate_v23_official_cfc_contract_test.py',
+        'smoke\known_gate_v23_official_cfc_runtime_compatibility.py'
     )
     Invoke-RadarPython @('-m', 'build.known_gate_v23', '--project-root', $projectPath)
     Assert-Readiness
+    Invoke-RadarPython @('-m', 'smoke.known_gate_v23_official_cfc_runtime_compatibility', '--project-root', $projectPath)
+    Assert-RuntimeCompatibility
 }
 
 function Invoke-Smoke {
     Assert-Readiness
+    Invoke-RadarPython @('-m', 'smoke.known_gate_v23_official_cfc_runtime_compatibility', '--project-root', $projectPath)
+    Assert-RuntimeCompatibility
     Invoke-RadarPython @('-m', 'smoke.known_gate_v23_official_cfc_contract_test', '--project-root', $projectPath)
     Invoke-RadarPython @('-m', 'smoke.static_isolation_check', '--root', $srcRoot)
 }
 
 function Invoke-Train {
     Assert-Readiness
+    Assert-RuntimeCompatibility
     $summaryPath = Join-Path $artifactPath 'training-summary.json'
     $lastCheckpoint = Join-Path $artifactPath 'last_model.pt'
     if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
@@ -204,6 +247,7 @@ function Invoke-Train {
 }
 
 function Invoke-Evaluate {
+    Assert-RuntimeCompatibility
     Assert-CompletedBaseline
     Invoke-RadarPython @('-m', 'report.known_gate_v23', '--project-root', $projectPath)
     Assert-File $reportPath 'V23 development validation report'

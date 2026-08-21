@@ -33,6 +33,9 @@ from radar_ln3.known_gate_v23 import (
     FIXED_EPOCHS,
     READINESS_RELATIVE,
     READINESS_SCHEMA,
+    RUNTIME_COMPATIBILITY_REPORT_RELATIVE,
+    RUNTIME_COMPATIBILITY_REQUIRED_CHECKS,
+    RUNTIME_COMPATIBILITY_REPORT_SCHEMA,
     TRAINING_SEED,
     config_identity_sha256,
     load_v23_config,
@@ -66,6 +69,27 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(dict(payload), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(temporary, path)
+
+
+def _runtime_compatibility(root: Path) -> tuple[Path, dict[str, Any]]:
+    path = (root / RUNTIME_COMPATIBILITY_REPORT_RELATIVE).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"V23 official-CfC runtime compatibility report is missing: {path}")
+    report = _read_json(path)
+    checks = dict(report.get("checks") or {})
+    failed = [name for name, value in checks.items() if value is not True]
+    if (
+        report.get("status") != "passed"
+        or report.get("schema_version") != RUNTIME_COMPATIBILITY_REPORT_SCHEMA
+        or report.get("dataset_access_count") != 0
+        or report.get("checkpoint_access_count") != 0
+        or report.get("validation_access_count") != 0
+        or report.get("test_access_count") != 0
+        or set(checks) != set(RUNTIME_COMPATIBILITY_REQUIRED_CHECKS)
+        or failed
+    ):
+        raise ValueError("V23 official-CfC runtime compatibility report is invalid")
+    return path, report
 
 
 def _save_checkpoint(path: Path, payload: Mapping[str, Any]) -> None:
@@ -118,6 +142,8 @@ def _checkpoint_payload(
     source_config: Any,
     config_path: Path,
     readiness_sha256: str,
+    runtime_compatibility_path: Path,
+    runtime_compatibility_sha256: str,
     initialization_audit: Mapping[str, Any],
     epoch: int,
     global_step: int,
@@ -137,6 +163,11 @@ def _checkpoint_payload(
         "source_config_identity_sha256": config.source_config_identity_sha256,
         "source_variant": source_config.variant,
         "readiness_sha256": readiness_sha256,
+        "runtime_compatibility": {
+            "path": str(runtime_compatibility_path),
+            "sha256": runtime_compatibility_sha256,
+            "schema_version": RUNTIME_COMPATIBILITY_REPORT_SCHEMA,
+        },
         "official_cfc": model.backbone_specification(),
         "initialization_audit": dict(initialization_audit),
         "epoch": int(epoch),
@@ -158,6 +189,8 @@ def _load_checkpoint(
     config: Any,
     config_path: Path,
     readiness_sha256: str,
+    runtime_compatibility_path: Path,
+    runtime_compatibility_sha256: str,
     initialization_audit: Mapping[str, Any],
     map_location: torch.device,
 ) -> dict[str, Any]:
@@ -173,6 +206,11 @@ def _load_checkpoint(
         or payload.get("source_config_sha256") != config.source_config_sha256
         or payload.get("source_config_identity_sha256") != config.source_config_identity_sha256
         or payload.get("readiness_sha256") != readiness_sha256
+        or dict(payload.get("runtime_compatibility") or {}) != {
+            "path": str(runtime_compatibility_path),
+            "sha256": runtime_compatibility_sha256,
+            "schema_version": RUNTIME_COMPATIBILITY_REPORT_SCHEMA,
+        }
         or payload.get("official_cfc") != expected_spec
         or dict(payload.get("initialization_audit") or {}) != dict(initialization_audit)
         or payload.get("full_parameter_training") is not True
@@ -220,6 +258,8 @@ def _official_spec_matches_config(model: OfficialCfCKnownGateClassifier, config:
 def train(project_root: Path, *, resume_checkpoint: Path | None = None) -> dict[str, Any]:
     root = project_root.resolve()
     config, source_config, _source_path, readiness, _contract_path, _contract = _verify_prepared(root)
+    runtime_compatibility_path, runtime_compatibility = _runtime_compatibility(root)
+    runtime_compatibility_sha256 = sha256_file(runtime_compatibility_path)
     config_path = (root / CONFIG_RELATIVE).resolve()
     artifact = (root / ARTIFACT_RELATIVE).resolve()
     if artifact != (root / config.train.formal_artifact_dir).resolve():
@@ -286,6 +326,8 @@ def train(project_root: Path, *, resume_checkpoint: Path | None = None) -> dict[
                 config=config,
                 config_path=config_path,
                 readiness_sha256=readiness_sha256,
+                runtime_compatibility_path=runtime_compatibility_path,
+                runtime_compatibility_sha256=runtime_compatibility_sha256,
                 initialization_audit=initialization_audit,
                 map_location=device,
             )
@@ -392,6 +434,8 @@ def train(project_root: Path, *, resume_checkpoint: Path | None = None) -> dict[
                 source_config=source_config,
                 config_path=config_path,
                 readiness_sha256=readiness_sha256,
+                runtime_compatibility_path=runtime_compatibility_path,
+                runtime_compatibility_sha256=runtime_compatibility_sha256,
                 initialization_audit=initialization_audit,
                 epoch=epoch,
                 global_step=global_step,
@@ -414,7 +458,10 @@ def train(project_root: Path, *, resume_checkpoint: Path | None = None) -> dict[
             raise ValueError("V23 training did not produce a development-selected checkpoint")
         _load_checkpoint(
             best_checkpoint, model, None, config=config, config_path=config_path,
-            readiness_sha256=readiness_sha256, initialization_audit=initialization_audit,
+            readiness_sha256=readiness_sha256,
+            runtime_compatibility_path=runtime_compatibility_path,
+            runtime_compatibility_sha256=runtime_compatibility_sha256,
+            initialization_audit=initialization_audit,
             map_location=device,
         )
         best_validation = evaluate_known_gate(model, validation_dataset, config=source_config, device=device)
@@ -477,6 +524,12 @@ def train(project_root: Path, *, resume_checkpoint: Path | None = None) -> dict[
                 "status": "passed",
                 "validation_used_for_readiness_gate": False,
                 "test": "未执行",
+            },
+            "official_runtime_compatibility": {
+                "path": str(runtime_compatibility_path),
+                "sha256": runtime_compatibility_sha256,
+                "schema_version": runtime_compatibility["schema_version"],
+                "checks": dict(runtime_compatibility["checks"]),
             },
             "data_contract": {
                 "source_data_contract_path": source_config.data.contract_path,

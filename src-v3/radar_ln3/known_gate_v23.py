@@ -50,6 +50,9 @@ CONTRACT_RELATIVE = Path(
 READINESS_RELATIVE = Path(
     "src-v3/processed/report/RADAR-LN3-V23-known-gate-official-cfc-baseline-training-readiness.json"
 )
+RUNTIME_COMPATIBILITY_REPORT_RELATIVE = Path(
+    "src-v3/processed/report/RADAR-LN3-V23-official-cfc-runtime-compatibility.json"
+)
 REPORT_RELATIVE = Path(
     "src-v3/processed/report/RADAR-LN3-V23-known-gate-official-cfc-baseline-validation.json"
 )
@@ -57,6 +60,16 @@ REPORT_RELATIVE = Path(
 CONFIG_SCHEMA = "RADAR-LN3-V23-known-gate-official-cfc-baseline-config-v1"
 CONTRACT_SCHEMA = "RADAR-LN3-V23-known-gate-official-cfc-baseline-contract-v1"
 READINESS_SCHEMA = "RADAR-LN3-V23-known-gate-official-cfc-baseline-readiness-v1"
+RUNTIME_COMPATIBILITY_REPORT_SCHEMA = "RADAR-LN3-V23-official-cfc-runtime-compatibility-v1"
+RUNTIME_COMPATIBILITY_REQUIRED_CHECKS = (
+    "exact_ncps_distribution_version",
+    "exact_official_runtime_binding",
+    "official_cfc_forward_has_no_padding_mask",
+    "official_cfc_batch_two_heterogeneous_timespans_are_not_supported",
+    "official_cfc_zero_dt_is_finite_but_not_state_identity",
+    "official_ltc_zero_dt_is_not_safe_for_v23_direct_swap",
+    "official_cfc_baseline_is_dense_not_wired",
+)
 CHECKPOINT_SCHEMA = "RADAR-LN3-V23-known-gate-official-cfc-baseline-seed43-checkpoint-v1"
 REPORT_SCHEMA = "RADAR-LN3-V23-known-gate-official-cfc-baseline-validation-report-v1"
 
@@ -418,6 +431,9 @@ __all__ = [
     "READINESS_SCHEMA",
     "REPORT_RELATIVE",
     "REPORT_SCHEMA",
+    "RUNTIME_COMPATIBILITY_REPORT_RELATIVE",
+    "RUNTIME_COMPATIBILITY_REQUIRED_CHECKS",
+    "RUNTIME_COMPATIBILITY_REPORT_SCHEMA",
     "SOURCE_CONFIG_RELATIVE",
     "SOURCE_ARTIFACT_RELATIVE",
     "SOURCE_SUMMARY_RELATIVE",

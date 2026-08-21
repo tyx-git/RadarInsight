@@ -2120,6 +2120,8 @@
 - [x] 通过Python编译、PowerShell AST、V23基座prepare、真实train batch focused smoke与静态隔离检查；official CfC 14,064参数、290s正dt原值传入、全参数梯度有限非零、padding隔离、offline/online最大logit误差`4.76837158203125e-07`，低于`1e-6`容差。
 - [x] 完成训练前全链路复审并修复两项实验隔离缺口：官方CfC构造的随机数消耗不再改变TR/RD前端、fusion或classifier初态，现逐tensor继承冻结Control的30个非recurrent参数；同时取消仅V23的padded-logit清零，保持与V21e/V22一致的可观测张量契约，padding仍绝不进入官方recurrent state或监督/评估分母。
 - [x] 将官方包direct URL、类模块、state-equation owner、strict sidecar字段、初始化哈希链与checkpoint/report/script验收绑定；真实batch所有40个可训练参数梯度有限非零。
+- [x] 增加独立的官方运行时兼容性 sidecar：固定随机张量审计确认`CfC(dt=0)`有限但非状态恒等、batch=2异步timespan触发上游`RuntimeError`、`CfC.forward`无padding-mask API、dense CfC无wiring、而`LTC(dt=0)`产生NaN；sidecar不读取Radar数据、checkpoint、validation、test或OOF，训练checkpoint/summary/report均绑定其SHA。
+- [x] 收紧开发validation报告为核心指标：仅保留parent-final、eligible-prefix、window的Accuracy/Macro-F1、两类P/R/F1/support、混淆矩阵、best epoch、global step、elapsed、参数量和checkpoint选择；明确Clutter development support=9，不复制逐parent明细，也不形成OOF/test/产品动作结论。
 - [ ] 用户手动执行V23 seed43完整20 epoch formal training并生成开发validation报告。
 - [ ] 评估开发结果后，先决定是否创建V23多seed；只有多seed确认后才设计五折OOF，OOF不得用于快速特征或架构筛选。
 

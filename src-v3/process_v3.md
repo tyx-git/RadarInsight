@@ -2439,3 +2439,7 @@ V23现收敛为单一的开发基座，而非V23a/V23b五折OOF实验：官方`n
 旧V23a/V23b五折OOF预备文件已经取消且未训练；其原有fold Smoke、配置或合同不再作为V23基座结果。当前仅准备V23 seed43 full 20 epoch training和development validation；完成后先决定是否多seed，之后才预注册五折OOF。OOF、Unknown、L3、完整级联、stable、P95和test保持未执行。
 
 当前V23基座入口已实际复核：`v23_official_cfc_baseline_pipeline.ps1 -Stage prepare`、`-Stage smoke`、Python编译、PowerShell AST和静态隔离均通过。focused smoke在真实V21 train batch上确认官方CfC参数=`14064`、全部可训练参数与官方CfC参数梯度均有限非零、first/zero/positive dt合同均被覆盖、训练集290s正dt原值传入官方timespan且未截断、padding不进入递归；offline/online最大logit误差=`4.76837158203125e-07`，低于明确的float32 `atol=rtol=1e-6`。这些只是训练前合同证据，不是性能结果；V23 20 epoch训练、development validation、多seed和OOF均未执行。
+
+补强官方运行时兼容性合同：新增不访问Radar数据、checkpoint、validation、test或OOF的固定随机张量sidecar。实际`ncps==1.0.1`审计确认：`CfC(dt=0)`输出/状态有限但状态不是identity；`CfC.forward`不接受`padding_mask`；batch=2且每parent timespan不同会因上游squeeze/broadcast限制报`RuntimeError`；dense整数units实例没有wiring；`LTC(dt=0)`输出/状态含NaN。因此V23保留逐parent、移除右padding后调用未修改`CfC.forward`的薄适配，而不引入floor、skip、截断或手写cell；这描述兼容性和预期吞吐边界，不构成P95或性能结论。sidecar SHA现在被写入并由V23 checkpoint、training summary、development report和PowerShell流水线复核。
+
+报告收敛：V23完成训练后只发布紧凑development KnownGate报告，包括parent-final、eligible-prefix、window的Accuracy/Macro-F1、KnownTarget/Clutter P/R/F1/support和2×2混淆矩阵，以及best epoch、global step、elapsed、参数量和冻结选择规则。完整逐parent记录仍仅留在formal artifact；Clutter validation support=9必须随报告保留，不能外推成跨source、正式拒识、完整级联、stable、P95或test结论。
