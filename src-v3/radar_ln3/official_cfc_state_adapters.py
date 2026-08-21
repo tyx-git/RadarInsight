@@ -1,4 +1,4 @@
-﻿"""External causal-state adapters for controlled V23 official-CfC experiments.
+"""External causal-state adapters for controlled V23 official-CfC experiments.
 
 The adapters in this module deliberately operate *after* an unmodified
 ``ncps.torch.CfC`` call.  They never alter or reimplement ``CfCCell``.  Each
@@ -21,6 +21,7 @@ ADAPTER_NONE = "none"
 ADAPTER_POSITIVE_DT_FIXED_RETENTION = "positive_dt_fixed_retention"
 ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION = "positive_dt_per_dimension_retention"
 ADAPTER_RECURRENT_LAYER_NORM = "recurrent_layer_norm"
+ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY = "recurrent_layer_norm_scale_only"
 ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION = "zero_delta_bounded_observation"
 
 ADAPTER_KINDS = (
@@ -28,6 +29,7 @@ ADAPTER_KINDS = (
     ADAPTER_POSITIVE_DT_FIXED_RETENTION,
     ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION,
     ADAPTER_RECURRENT_LAYER_NORM,
+    ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
 )
 
@@ -57,7 +59,10 @@ class ExternalStateAdapterSpec:
                 raise ValueError("per-dimension positive-dt retention requires a positive base tau")
             if self.zero_delta_gain is not None or self.layer_norm_eps is not None:
                 raise ValueError("per-dimension positive-dt retention must not carry unrelated adapter fields")
-        elif self.kind == ADAPTER_RECURRENT_LAYER_NORM:
+        elif self.kind in (
+            ADAPTER_RECURRENT_LAYER_NORM,
+            ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
+        ):
             if self.layer_norm_eps is None or self.layer_norm_eps <= 0.0:
                 raise ValueError("recurrent LayerNorm requires a positive epsilon")
             if self.fixed_tau_seconds is not None or self.zero_delta_gain is not None:
@@ -78,7 +83,8 @@ class ExternalStateAdapterSpec:
     def trainable_parameter_count(self) -> int:
         if self.kind == ADAPTER_RECURRENT_LAYER_NORM:
             return 2 * self.hidden_dim
-
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY:
+            return self.hidden_dim
         if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
             return self.hidden_dim
         return 0
@@ -89,7 +95,8 @@ class ExternalStateAdapterSpec:
 
         if self.kind == ADAPTER_RECURRENT_LAYER_NORM:
             return ("recurrent_norm.bias", "recurrent_norm.weight")
-
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY:
+            return ("recurrent_norm.weight",)
         if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
             return ("log_tau_ratio",)
         return ()
@@ -127,6 +134,18 @@ class ExternalStateAdapterSpec:
                 "affine": True,
                 "trainable_parameter_count": self.trainable_parameter_count,
             }
+        if self.kind == ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "every valid causal event",
+                "formula": "h=LayerNorm_scale_only(h_official)",
+                "layer_norm_eps": self.layer_norm_eps,
+                "affine": True,
+                "bias": False,
+                "position": "post-official-state; emitted and fed back as the next official CfC hx",
+                "trainable_parameter_count": self.trainable_parameter_count,
+            }
         if self.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
             return {
                 "kind": self.kind,
@@ -154,11 +173,15 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
         self.spec = spec
         self.recurrent_norm: nn.LayerNorm | None
         self.log_tau_ratio: nn.Parameter | None
-        if spec.kind == ADAPTER_RECURRENT_LAYER_NORM:
+        if spec.kind in (
+            ADAPTER_RECURRENT_LAYER_NORM,
+            ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
+        ):
             self.recurrent_norm = nn.LayerNorm(
                 spec.hidden_dim,
                 eps=float(spec.layer_norm_eps),
                 elementwise_affine=True,
+                bias=spec.kind == ADAPTER_RECURRENT_LAYER_NORM,
             )
         else:
             self.recurrent_norm = None
@@ -200,7 +223,10 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
         self._validate(official_state, previous_state, dt_seconds, dt_reason)
         if self.spec.kind == ADAPTER_NONE:
             return official_state
-        if self.spec.kind == ADAPTER_RECURRENT_LAYER_NORM:
+        if self.spec.kind in (
+            ADAPTER_RECURRENT_LAYER_NORM,
+            ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
+        ):
             if self.recurrent_norm is None:  # pragma: no cover - constructor invariant
                 raise RuntimeError("recurrent LayerNorm adapter is not initialized")
             return self.recurrent_norm(official_state)
@@ -245,6 +271,7 @@ __all__ = [
     "ADAPTER_POSITIVE_DT_FIXED_RETENTION",
     "ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION",
     "ADAPTER_RECURRENT_LAYER_NORM",
+    "ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY",
     "ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION",
     "ExternalOfficialCfCStateAdapter",
     "ExternalStateAdapterSpec",

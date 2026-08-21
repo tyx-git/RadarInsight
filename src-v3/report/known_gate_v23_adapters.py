@@ -1,4 +1,4 @@
-﻿"""Paired development report for one completed V23 external-adapter experiment."""
+"""Paired development report for one completed V23 external-adapter experiment."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ from radar_ln3.known_gate import (
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
     V23A_VARIANT,
+    V23B_VARIANT,
+    V23BR_VARIANT,
     V23D_VARIANT,
     adapter_state_names,
     artifact_relative,
@@ -26,6 +28,7 @@ from radar_ln3.known_gate_v23_adapters import (
     source_v23_parent_order_hashes,
     source_v23_training,
     source_v23a_control,
+    source_v23b_control,
 )
 from radar_ln3.known_gate_v23 import sha256_file
 from report.known_gate_v21e import (
@@ -166,17 +169,26 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
         )
     direct_control_ok = (
         True
-        if variant != V23D_VARIANT
+        if variant not in (V23D_VARIANT, V23BR_VARIANT)
         else (
-            config.direct_control == source_v23a_control(root)
-            and pairing.get("v23d_direct_v23a_replay", {}).get(
-                "before_optimizer_step_replays_v23a_within_float32_tolerance"
-            ) is True
+            (
+                config.direct_control == source_v23a_control(root)
+                and pairing.get("v23d_direct_v23a_replay", {}).get(
+                    "before_optimizer_step_replays_v23a_within_float32_tolerance"
+                ) is True
+            )
+            if variant == V23D_VARIANT
+            else (
+                config.direct_control == source_v23b_control(root)
+                and pairing.get("v23br_direct_v23b_scale_only_audit", {}).get(
+                    "before_optimizer_step_replays_v23b_within_float32_tolerance"
+                ) is True
+            )
         )
     )
     direct_control_summary_ok = (
         True
-        if variant != V23D_VARIANT
+        if variant not in (V23D_VARIANT, V23BR_VARIANT)
         else summary.get("direct_control") == config.direct_control
     )
     tau_audit_ok = (
@@ -433,6 +445,121 @@ def _v23d_direct_gate(
     }
 
 
+def _v23br_direct_gate(
+    direct_deltas: Mapping[str, Mapping[str, float]],
+    direct_bootstrap: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Freeze V23b-r's repair test against V23b's affine LayerNorm.
+
+    This is deliberately a *repair* comparison, not a second demand for a
+    further two-point parent-final gain.  Removing beta is admissible only if
+    it preserves V23b's parent-final evidence and does not worsen its already
+    weak Clutter prefix/window boundary.  The direct bootstrap is retained as
+    a diagnostic; robustness of the retained LayerNorm signal is separately
+    assessed against the frozen V23 baseline.
+    """
+
+    parent = direct_deltas["parent"]
+    eligible_prefix = direct_deltas["eligible_prefix"]
+    window = direct_deltas["window"]
+    bootstrap = dict(direct_bootstrap["treatment_minus_baseline"])
+    parent_non_degrading = (
+        parent["macro_f1"] >= 0.0
+        and parent["known_target_recall"] >= 0.0
+        and parent["known_clutter_f1"] >= 0.0
+    )
+    bootstrap_positive = float(bootstrap["macro_f1"]["lower_95"]) > 0.0
+    prefix_window_safe = all(
+        delta >= 0.0
+        for delta in (
+            eligible_prefix["macro_f1"],
+            eligible_prefix["known_clutter_recall"],
+            eligible_prefix["known_clutter_f1"],
+            window["macro_f1"],
+            window["known_clutter_recall"],
+            window["known_clutter_f1"],
+        )
+    )
+    direct_repair_passed = parent_non_degrading and prefix_window_safe
+    return {
+        "parent_macro_f1_non_decreasing_vs_v23b": parent["macro_f1"] >= 0.0,
+        "known_target_recall_non_decreasing_vs_v23b": parent[
+            "known_target_recall"
+        ]
+        >= 0.0,
+        "clutter_f1_non_decreasing_vs_v23b": parent["known_clutter_f1"]
+        >= 0.0,
+        "parent_final_repair_non_degrading_vs_v23b": parent_non_degrading,
+        "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23b_descriptive": bootstrap_positive,
+        "eligible_prefix_macro_f1_non_decreasing_vs_v23b": eligible_prefix[
+            "macro_f1"
+        ]
+        >= 0.0,
+        "eligible_prefix_clutter_recall_non_decreasing_vs_v23b": eligible_prefix[
+            "known_clutter_recall"
+        ]
+        >= 0.0,
+        "eligible_prefix_clutter_f1_non_decreasing_vs_v23b": eligible_prefix[
+            "known_clutter_f1"
+        ]
+        >= 0.0,
+        "window_macro_f1_non_decreasing_vs_v23b": window["macro_f1"] >= 0.0,
+        "window_clutter_recall_non_decreasing_vs_v23b": window[
+            "known_clutter_recall"
+        ]
+        >= 0.0,
+        "window_clutter_f1_non_decreasing_vs_v23b": window["known_clutter_f1"]
+        >= 0.0,
+        "prefix_window_clutter_safety_non_degrading_vs_v23b": prefix_window_safe,
+        "direct_control_repair_passed": direct_repair_passed,
+        "advance_to_three_seed_confirmation": direct_repair_passed,
+        "advance_to_oof": False,
+    }
+
+
+def _v23br_v23_reference_gate(
+    deltas: Mapping[str, Mapping[str, float]],
+    bootstrap: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Assess whether V23b-r retains a robust parent-final signal over V23.
+
+    V23b-r has two separate questions: does removing beta repair the affine
+    LayerNorm failure mode, and is the remaining scale-only mechanism more than
+    a single-validation-split fluctuation?  This function answers only the
+    latter, using the pre-registered V23 baseline and its paired parent
+    bootstrap.  It intentionally does not turn prefix/window rows into
+    independent samples; their direct V23b safety check remains separate.
+    """
+
+    parent = deltas["parent"]
+    parent_signal = (
+        parent["macro_f1"] > 0.02
+        and parent["known_target_recall"] >= 0.0
+        and parent["known_clutter_f1"] >= 0.0
+    )
+    bootstrap_positive = (
+        float(bootstrap["treatment_minus_baseline"]["macro_f1"]["lower_95"])
+        > 0.0
+    )
+    robust_signal = parent_signal and bootstrap_positive
+    return {
+        "parent_macro_f1_strictly_greater_than_2pp_vs_v23": parent[
+            "macro_f1"
+        ]
+        > 0.02,
+        "known_target_recall_non_decreasing_vs_v23": parent[
+            "known_target_recall"
+        ]
+        >= 0.0,
+        "clutter_f1_non_decreasing_vs_v23": parent["known_clutter_f1"] >= 0.0,
+        "parent_v23_reference_signal_passed": parent_signal,
+        "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23": bootstrap_positive,
+        "v23_reference_signal_is_bootstrap_robust": robust_signal,
+        "advance_to_three_seed_confirmation": robust_signal,
+        "advance_to_oof": False,
+    }
+
+
 def run(project_root: Path, *, variant: str) -> dict[str, Any]:
     if variant not in V23_ADAPTER_VARIANTS:
         raise ValueError(f"unsupported V23 adapter variant: {variant}")
@@ -584,6 +711,80 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
             "advance_to_three_seed_confirmation": direct_gate[
                 "advance_to_three_seed_confirmation"
             ],
+            "advance_to_oof": False,
+        }
+    elif variant == V23BR_VARIANT:
+        direct_control = _load_treatment(root, V23B_VARIANT)
+        direct_metrics = {
+            scope: {
+                "v23b_affine_layer_norm_control": _scope_metrics(
+                    direct_control["records"][scope], f"v23b_{scope}"
+                ),
+                "v23br_scale_only_layer_norm_treatment": _scope_metrics(
+                    treatment["records"][scope], f"v23br_{scope}"
+                ),
+            }
+            for scope in SCOPES
+        }
+        direct_deltas = {
+            scope: _delta(
+                values["v23b_affine_layer_norm_control"],
+                values["v23br_scale_only_layer_norm_treatment"],
+            )
+            for scope, values in direct_metrics.items()
+        }
+        direct_parent_before, direct_parent_after = _ordered_pair(
+            direct_control["records"]["parent"],
+            treatment["records"]["parent"],
+            scope="parent",
+        )
+        direct_bootstrap = _bootstrap(direct_parent_before, direct_parent_after)
+        direct_outcomes = _base_label_outcomes(
+            direct_parent_before, direct_parent_after
+        )
+        direct_dt_metrics = _dt_stratified_metrics(
+            direct_parent_before,
+            direct_parent_after,
+            dt_strata["groups"],
+            delta_name="v23br_minus_v23b",
+        )
+        direct_gate = _v23br_direct_gate(direct_deltas, direct_bootstrap)
+        reference_gate = _v23br_v23_reference_gate(deltas, bootstrap)
+        advance_to_three_seed_confirmation = (
+            reference_gate["advance_to_three_seed_confirmation"]
+            and direct_gate["direct_control_repair_passed"]
+        )
+        report["direct_control"] = {
+            "binding": treatment["config"].direct_control,
+            "completed_v23b_affine_layer_norm_treatment": _reference_metadata(
+                direct_control
+            ),
+        }
+        report["v23br_vs_v23b_direct_control"] = {
+            "scope": (
+                "primary V23b-r repair comparison: completed V23b all-event "
+                "affine LayerNorm treatment versus V23b-r scale-only all-event "
+                "LayerNorm treatment; development KnownGate only"
+            ),
+            "metrics_by_scope": direct_metrics,
+            "v23br_minus_v23b_by_scope": direct_deltas,
+            "parent_base_label_outcomes": direct_outcomes,
+            "scope_prediction_changes": _scope_changes(
+                direct_control["records"], treatment["records"]
+            ),
+            "probability_attribution": _probability_attribution(
+                direct_parent_before, direct_parent_after
+            ),
+            "paired_parent_bootstrap": direct_bootstrap,
+            "dt_stratified_parent_final": direct_dt_metrics,
+            "gate": direct_gate,
+        }
+        report["gate"] = {
+            "v23_reference_diagnostic": report["gate"],
+            "v23_reference_primary": reference_gate,
+            "v23b_direct_control_primary": direct_gate,
+            "v23br_scale_only_signal_is_robust_and_repairs_v23b": advance_to_three_seed_confirmation,
+            "advance_to_three_seed_confirmation": advance_to_three_seed_confirmation,
             "advance_to_oof": False,
         }
     output = root / report_relative(variant)

@@ -1,4 +1,4 @@
-﻿"""Train-only contract smoke for V23 external-state official-CfC adapters.
+"""Train-only contract smoke for V23 external-state official-CfC adapters.
 
 This deliberately does not train a model or read validation/test/Unknown data.
 It checks that each single-factor adapter is attached outside the unmodified
@@ -20,6 +20,8 @@ from radar_ln3.known_gate_official_cfc import build_official_cfc_model_from_froz
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
     V23A_VARIANT,
+    V23B_VARIANT,
+    V23BR_VARIANT,
     V23D_VARIANT,
     load_adapter_config,
     source_v23_training,
@@ -109,7 +111,14 @@ def _adapter_formula_checks() -> dict[str, bool]:
                 kind="recurrent_layer_norm", hidden_dim=48, layer_norm_eps=1.0e-5
             ),
         ),
-
+        (
+            "official_cfc_recurrent_layer_norm_scale_only",
+            ExternalStateAdapterSpec(
+                kind="recurrent_layer_norm_scale_only",
+                hidden_dim=48,
+                layer_norm_eps=1.0e-5,
+            ),
+        ),
         (
             "official_cfc_zero_delta_bounded_observation",
             ExternalStateAdapterSpec(
@@ -150,6 +159,18 @@ def _adapter_formula_checks() -> dict[str, bool]:
                 and torch.allclose(zero_result, positive_result, atol=ATOL, rtol=RTOL)
                 and adapter.recurrent_norm is not None
                 and sum(parameter.numel() for parameter in adapter.parameters()) == 96
+            )
+        elif spec.kind == "recurrent_layer_norm_scale_only":
+            checks[variant] = bool(
+                torch.allclose(first_result, zero_result, atol=ATOL, rtol=RTOL)
+                and torch.allclose(zero_result, positive_result, atol=ATOL, rtol=RTOL)
+                and adapter.recurrent_norm is not None
+                and adapter.recurrent_norm.bias is None
+                and torch.equal(
+                    adapter.recurrent_norm.weight,
+                    torch.ones_like(adapter.recurrent_norm.weight),
+                )
+                and sum(parameter.numel() for parameter in adapter.parameters()) == 48
             )
         elif spec.kind == "zero_delta_bounded_observation":
             expected = 0.75 * previous + 0.25 * official
@@ -208,6 +229,26 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         )
         v23a_initial_replay = bool(
             torch.allclose(initial_v23d, initial_v23a, atol=ATOL, rtol=RTOL)
+        )
+
+    v23b_initial_replay = True
+    v23b_initial_replay_max_error = 0.0
+    if variant == V23BR_VARIANT:
+        affine, _v23b_audit = build_official_cfc_model_from_frozen_source(
+            root,
+            source_config,
+            state_adapter_spec=load_adapter_config(root, V23B_VARIANT)[0].adapter,
+        )
+        treatment.eval()
+        affine.eval()
+        with torch.inference_mode():
+            initial_v23br = treatment(**_model_inputs(batch))["sequence_logits"]
+            initial_v23b = affine(**_model_inputs(batch))["sequence_logits"]
+        v23b_initial_replay_max_error = float(
+            (initial_v23br - initial_v23b).abs().max().item()
+        )
+        v23b_initial_replay = bool(
+            torch.allclose(initial_v23br, initial_v23b, atol=ATOL, rtol=RTOL)
         )
 
     treatment.train()
@@ -302,7 +343,14 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
             if variant != V23D_VARIANT
             else config.direct_control is not None
         ),
-
+        "v23br_zero_beta_replays_v23b_affine_layer_norm_before_optimization": (
+            v23b_initial_replay
+        ),
+        "v23br_direct_v23b_control_binding_is_frozen": (
+            True
+            if variant != V23BR_VARIANT
+            else config.direct_control is not None
+        ),
         "real_train_batch_loss_and_all_gradients_are_finite": bool(
             torch.isfinite(objective["loss"]) and all_gradients_finite
         ),
@@ -328,6 +376,7 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         "loss": float(objective["loss"].item()),
         "disabled_adapter_replay_max_logit_error": disabled_replay_max_error,
         "v23d_initial_v23a_replay_max_logit_error": v23a_initial_replay_max_error,
+        "v23br_initial_v23b_replay_max_logit_error": v23b_initial_replay_max_error,
         "offline_online_max_logit_error": online_error,
         "tolerance": {"atol": ATOL, "rtol": RTOL},
         "validation_dataset_access_count": 0,

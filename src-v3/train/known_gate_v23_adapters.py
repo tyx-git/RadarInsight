@@ -1,4 +1,4 @@
-﻿"""Train one fully isolated V23 official-CfC adapter experiment."""
+"""Train one fully isolated V23 official-CfC adapter experiment."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
     V23A_VARIANT,
     V23B_VARIANT,
+    V23BR_VARIANT,
     V23D_VARIANT,
     adapter_state_names,
     artifact_relative,
@@ -42,6 +43,7 @@ from radar_ln3.known_gate_v23_adapters import (
     readiness_schema,
     source_v23_parent_order_hashes,
     source_runtime_report,
+    source_v23b_control,
     source_v23_training,
     state_dict_sha256 as adapter_state_dict_sha256,
 )
@@ -189,6 +191,79 @@ def _assert_v23d_initially_replays_v23a(
     }
 
 
+def _assert_v23br_initially_replays_v23b_scale_only(
+    root: Path,
+    *,
+    source_config: Any,
+    model: OfficialCfCKnownGateClassifier,
+) -> dict[str, Any]:
+    """Audit the sole V23b-r difference: V23b beta is structurally absent.
+
+    PyTorch initializes the affine LayerNorm as gamma=1 and beta=0.  Therefore
+    the scale-only revision must exactly replay V23b before the first optimizer
+    step, while proving that beta is absent and every remaining tensor is the
+    same.  Any initial logit difference would add an unregistered factor.
+    """
+
+    reference, _audit = build_official_cfc_model_from_frozen_source(
+        root,
+        source_config,
+        state_adapter_spec=load_adapter_config(root, V23B_VARIANT)[0].adapter,
+    )
+    actual_state = model.state_dict()
+    reference_state = reference.state_dict()
+    excluded = {
+        "state_adapter.recurrent_norm.bias",
+    }
+    actual_shared = {
+        name: value
+        for name, value in actual_state.items()
+        if name not in excluded
+    }
+    reference_shared = {
+        name: value
+        for name, value in reference_state.items()
+        if name not in excluded
+    }
+    if set(actual_shared) != set(reference_shared) or any(
+        not torch.equal(actual_shared[name], reference_shared[name])
+        for name in actual_shared
+    ):
+        raise RuntimeError("V23b-r shared initial state differs from frozen V23b")
+    scale = model.state_adapter.recurrent_norm
+    if scale is None or scale.bias is not None or not torch.equal(
+        scale.weight,
+        torch.ones_like(scale.weight),
+    ):
+        raise RuntimeError("V23b-r scale-only LayerNorm initialization is invalid")
+    dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    batch = next(iter(build_known_gate_dataloader(dataset, batch_size=2, shuffle=False)))
+    model.eval()
+    reference.eval()
+    with torch.inference_mode():
+        output = model(**_model_inputs(batch))["sequence_logits"]
+        reference_output = reference(**_model_inputs(batch))["sequence_logits"]
+    if not bool(torch.isfinite(output).all()):
+        raise RuntimeError("V23b-r initial scale-only logits are non-finite")
+    initial_error = float((output - reference_output).abs().max().item())
+    if not torch.allclose(output, reference_output, atol=1.0e-6, rtol=1.0e-6):
+        raise RuntimeError(
+            "V23b-r zero-beta initialization does not replay V23b logits: "
+            f"max_error={initial_error}"
+        )
+    return {
+        "direct_control_variant": V23B_VARIANT,
+        "v23b_shared_initial_state_is_tensor_exact_except_removed_beta": True,
+        "scale_only_weight_is_identity": True,
+        "scale_only_bias_is_structurally_absent": True,
+        "before_optimizer_step_replays_v23b_within_float32_tolerance": True,
+        "max_sequence_logit_error": initial_error,
+        "tolerance": {"atol": 1.0e-6, "rtol": 1.0e-6},
+        "initial_train_batch_logits_are_finite": True,
+        "train_parent_ids": [str(value) for value in batch["parent_sample_ids"]],
+    }
+
+
 def _v23d_tau_audit(model: OfficialCfCKnownGateClassifier) -> dict[str, Any]:
     """Describe V23d's learned positive per-dimension time scales."""
 
@@ -253,7 +328,14 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
                 or readiness.get("direct_control") != config.direct_control
             )
         )
-
+        or (
+            variant == V23BR_VARIANT
+            and (
+                config.direct_control is None
+                or contract.get("direct_control") != config.direct_control
+                or readiness.get("direct_control") != config.direct_control
+            )
+        )
     ):
         raise ValueError("V23 adapter readiness/contract is stale or outside sealed scope")
     return config, source_config, readiness, contract_path, contract
@@ -358,7 +440,16 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
                 source_config=source_config,
                 model=model,
             )
-
+        elif variant == V23BR_VARIANT:
+            if config.direct_control != source_v23b_control(root):
+                raise RuntimeError("V23b-r direct V23b control binding changed during training")
+            pairing_audit["v23br_direct_v23b_scale_only_audit"] = (
+                _assert_v23br_initially_replays_v23b_scale_only(
+                    root,
+                    source_config=source_config,
+                    model=model,
+                )
+            )
         device = known_gate_device(source_config)
         if config.train.device == "cuda" and device.type != "cuda":
             raise RuntimeError("V23 adapter formal training requires CUDA")
@@ -450,7 +541,7 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
         performance = _performance(best_validation, config.train.task_min_precision_recall_target)
         final_state_sha256 = _state_dict_sha256(model.state_dict())
         result = {"status": "completed", **performance, "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "official_cfc": model.backbone_specification(), "external_state_adapter": model.external_state_adapter_specification(), "seed": 43, "dataloader_seed": 43, "config_name": config.config_name, "config_path": str(config_path), "config_sha256": sha256_file(config_path), "config_identity_sha256": config_identity_sha256(config), "source_control": {"v23_report_path": config.source_v23_report_path, "v23_report_sha256": config.source_v23_report_sha256, "v21_config_path": config.source_config_path, "v21_config_sha256": config.source_config_sha256}, "train_parent_count": len(train_dataset), "validation_parent_count": len(validation_dataset), "validation_clutter_support": 9, "global_step": global_step, "best_epoch": best_epoch, "best_checkpoint_selection": best_selection, "best_validation_metrics": {key: value for key, value in best_validation.items() if key != "records"}, "history": history, "best_checkpoint": str(best_checkpoint), "last_checkpoint": str(last_checkpoint), "sample_detail_information": str(detail_path), "trainable_parameter_count": sum(parameter.numel() for parameter in model.parameters()), "full_parameter_training": True, "all_model_parameters_trainable": True, "initial_model_state_sha256": initial_state_sha256, "best_model_state_sha256": final_state_sha256, "model_state_changed_from_initialization": initial_state_sha256 != final_state_sha256, "initialization_audit": initialization_audit, "v23_initialization_pairing": pairing_audit, "training_readiness": {"path": str(root / readiness_relative(variant)), "sha256": readiness_sha256, "schema_version": readiness_schema(variant), "status": "passed", "validation_used_for_readiness_gate": False, "test": "未执行"}, "official_runtime_compatibility": {"path": str(runtime_path), "sha256": runtime_sha256, "schema_version": runtime["schema_version"], "checks": dict(runtime["checks"])}, "data_contract": {"source_data_contract_path": source_config.data.contract_path, "source_data_contract_sha256": source_config.data.expected_contract_sha256, "normalization_path": source_config.data.normalization_stats_path, "normalization_sha256": source_config.data.expected_stats_sha256, "index_path": source_config.data.index_path, "index_sha256": source_config.data.expected_index_sha256}, "dataloader_contract": {"seed": 43, "independent_generator": True, "epoch_parent_order_hashes": [{"epoch": int(row["epoch"]), "sha256": row["parent_order_sha256"], "v23_control_sha256": row["v23_control_parent_order_sha256"], "exactly_matches_v23_control": row["parent_order_exactly_matches_v23_control"], "count": int(row["parent_order_count"])} for row in history], "all_epoch_parent_orders_exactly_match_v23_control": True, "cuda_deterministic_algorithms": False}, "resume": {"resumed": resumed_from is not None, "checkpoint": resumed_from, "start_epoch": start_epoch, "epoch_boundary_only": True}, "unknown_is_model_class": False, "local_argmax_is_product_action": False, "validation_interpretation": "development-only KnownGate local evidence, not final product action", "multiseed": "未执行", "OOF": "未执行", "test_evaluation": "not_executed", "oof_threshold_calibration": "not_executed", "full_cascade_evaluation": "not_executed", "formal_rejection": "not_executed", "stable_evaluation": "not_executed", "p95_latency": "not_executed", "deployment_eligible": False, "elapsed_seconds": time.perf_counter() - started}
-        if variant == V23D_VARIANT:
+        if variant in (V23D_VARIANT, V23BR_VARIANT):
             result["direct_control"] = config.direct_control
         if variant == V23D_VARIANT:
             result["v23d_per_dimension_tau_audit"] = v23d_tau_audit

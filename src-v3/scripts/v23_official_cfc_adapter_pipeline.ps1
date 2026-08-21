@@ -1,6 +1,6 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
-    [ValidateSet('V23a', 'V23b', 'V23c', 'V23d')]
+    [ValidateSet('V23a', 'V23b', 'V23b-r', 'V23c', 'V23d')]
     [string]$Variant,
     [ValidateSet('prepare', 'smoke', 'train', 'evaluate', 'all')]
     [string]$Stage = 'all',
@@ -39,6 +39,14 @@ $variantMap = @{
         ReportName = 'RADAR-LN3-V23b-known-gate-official-cfc-paired-validation.json'
         ReadinessSchema = 'RADAR-LN3-V23b-known-gate-official-cfc-adapter-readiness-v1'
         ReportSchema = 'RADAR-LN3-V23b-known-gate-official-cfc-adapter-paired-validation-v1'
+    }
+    'V23b-r' = [pscustomobject]@{
+        Key = 'official_cfc_recurrent_layer_norm_scale_only'
+        ArtifactName = 'RADAR-LN3-V23b-r-cq08-known-gate-official-cfc-recurrent-layer-norm-scale-only-seed43-formal'
+        ReadinessName = 'RADAR-LN3-V23b-r-known-gate-official-cfc-training-readiness.json'
+        ReportName = 'RADAR-LN3-V23b-r-known-gate-official-cfc-paired-validation.json'
+        ReadinessSchema = 'RADAR-LN3-V23b-r-known-gate-official-cfc-adapter-readiness-v1'
+        ReportSchema = 'RADAR-LN3-V23b-r-known-gate-official-cfc-adapter-paired-validation-v1'
     }
     'V23c' = [pscustomobject]@{
         Key = 'official_cfc_zero_delta_bounded_observation'
@@ -176,7 +184,11 @@ function Assert-CompletedTreatment {
         if ($null -eq $summary.v23d_per_dimension_tau_audit) { $issues.Add('v23d_tau_audit') }
         elseif ([int]$summary.v23d_per_dimension_tau_audit.dimension_count -ne 48 -or $summary.v23d_per_dimension_tau_audit.all_tau_positive_and_finite -ne $true) { $issues.Add('v23d_tau_audit') }
     }
-
+    if ($Variant -eq 'V23b-r') {
+        if ([int]$summary.v23_initialization_pairing.adapter_trainable_parameter_count -ne 48) { $issues.Add('v23br_adapter_parameter_count') }
+        if ($summary.v23_initialization_pairing.v23br_direct_v23b_scale_only_audit.before_optimizer_step_replays_v23b_within_float32_tolerance -ne $true) { $issues.Add('v23br_direct_v23b_replay') }
+        if ($summary.external_state_adapter.bias -ne $false) { $issues.Add('v23br_bias') }
+    }
     foreach ($row in @($summary.history)) {
         if ($row.parent_order_exactly_matches_v23_control -ne $true -or [string]$row.parent_order_sha256 -ne [string]$row.v23_control_parent_order_sha256) { $issues.Add('epoch_parent_order') }
     }
@@ -260,7 +272,14 @@ function Invoke-Evaluate {
             throw ($Variant + ' report incorrectly advances to OOF: ' + $reportPath)
         }
     }
-
+    if ($Variant -eq 'V23b-r') {
+        if ($null -eq $report.v23br_vs_v23b_direct_control) {
+            throw ($Variant + ' report lacks the required V23b direct-control comparison: ' + $reportPath)
+        }
+        if ($report.gate.v23b_direct_control_primary.advance_to_oof -ne $false) {
+            throw ($Variant + ' report incorrectly advances to OOF: ' + $reportPath)
+        }
+    }
 }
 
 try {

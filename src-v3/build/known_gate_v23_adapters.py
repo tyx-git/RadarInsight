@@ -1,4 +1,4 @@
-﻿"""Prepare isolated V23 official-CfC external-state-adapter experiments."""
+"""Prepare isolated V23 official-CfC external-state-adapter experiments."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from radar_ln3.known_gate_v23 import FIXED_EPOCHS, SOURCE_SUMMARY_RELATIVE, sha2
 from radar_ln3.known_gate_v23_adapters import (
     VARIANT_TO_ADAPTER,
     V23_ADAPTER_VARIANTS,
+    V23BR_VARIANT,
     V23D_VARIANT,
     artifact_relative,
     checkpoint_schema,
@@ -27,6 +28,7 @@ from radar_ln3.known_gate_v23_adapters import (
     report_relative,
     source_runtime_report,
     source_v23a_control,
+    source_v23b_control,
     source_v23_parent_order_hashes,
     source_v23_training,
 )
@@ -128,7 +130,8 @@ def _config_payload(
     }
     if variant == V23D_VARIANT:
         payload["direct_control"] = source_v23a_control(root)
-
+    elif variant == V23BR_VARIANT:
+        payload["direct_control"] = source_v23b_control(root)
     return payload
 
 
@@ -168,6 +171,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                 "positive_dt_fixed_retention": 0,
                 "positive_dt_per_dimension_retention": 48,
                 "recurrent_layer_norm": 96,
+                "recurrent_layer_norm_scale_only": 48,
                 "zero_delta_bounded_observation": 0,
             }[config.adapter.kind]
         ),
@@ -181,6 +185,23 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         checks["v23d_direct_v23a_fixed_tau_control_is_frozen"] = (
             config.direct_control == source_v23a_control(root)
         )
+    elif variant == V23BR_VARIANT:
+        checks["v23br_direct_v23b_affine_layer_norm_control_is_frozen"] = (
+            config.direct_control == source_v23b_control(root)
+        )
+        checks["v23br_is_scale_only_all_event_post_official_layer_norm"] = (
+            adapter_specification == {
+                "kind": "recurrent_layer_norm_scale_only",
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "every valid causal event",
+                "formula": "h=LayerNorm_scale_only(h_official)",
+                "layer_norm_eps": 1.0e-5,
+                "affine": True,
+                "bias": False,
+                "position": "post-official-state; emitted and fed back as the next official CfC hx",
+                "trainable_parameter_count": 48,
+            }
+        )
     frozen_components = [
         "official dense 48x1 default lecun_tanh CfC",
         "raw first/zero/positive dt input to official CfC",
@@ -189,6 +210,13 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "TR/RD front ends, fusion, classifier, loss and checkpoint rule",
         "batch size, seed, parent order, optimizer, learning rate, 20 epochs and gradient clipping",
     ]
+    # This statement belongs to the V23b-r contract only.  Adding it to the
+    # shared list would make the already sealed V23a/b/c/d contracts appear
+    # stale when their prepare stage is re-run.
+    if variant == V23BR_VARIANT:
+        frozen_components.append(
+            "V23b-r keeps V23b's LayerNorm epsilon=1e-5, all-event post-official placement and state feedback; only beta is absent"
+        )
     contract = {
         "schema_version": contract_schema(variant),
         "experiment": f"{variant} isolated external official-CfC state-adapter experiment",
@@ -219,7 +247,11 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
             "changed_component": (
                 "per-hidden-dimension positive-dt retention time-scale only; V23a fixed tau is the direct control"
                 if variant == V23D_VARIANT
-                else "external post-official-CfC recurrent state adapter only"
+                else (
+                    "remove the additive bias from V23b's all-event post-official recurrent LayerNorm; keep its scale, epsilon and position"
+                    if variant == V23BR_VARIANT
+                    else "external post-official-CfC recurrent state adapter only"
+                )
             ),
             "official_cfcell_unmodified": True,
             "frozen": frozen_components,
@@ -247,7 +279,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant == V23D_VARIANT:
+    if variant in (V23D_VARIANT, V23BR_VARIANT):
         contract["direct_control"] = config.direct_control
     contract_path = root / contract_relative(variant)
     _write_new_or_identical(contract_path, contract)
@@ -281,7 +313,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant == V23D_VARIANT:
+    if variant in (V23D_VARIANT, V23BR_VARIANT):
         readiness["direct_control"] = config.direct_control
     readiness_path = root / readiness_relative(variant)
     _write_new_or_identical(readiness_path, readiness)

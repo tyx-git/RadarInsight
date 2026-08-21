@@ -1,4 +1,4 @@
-﻿"""Frozen contracts shared by V23 official-CfC adapter experiments."""
+"""Frozen contracts shared by V23 official-CfC adapter experiments."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from .official_cfc_state_adapters import (
     ADAPTER_POSITIVE_DT_FIXED_RETENTION,
     ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION,
     ADAPTER_RECURRENT_LAYER_NORM,
+    ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
     ExternalStateAdapterSpec,
 )
@@ -34,10 +35,12 @@ V23_ADAPTER_VARIANTS = (
     "official_cfc_positive_dt_fixed_retention",
     "official_cfc_positive_dt_per_dimension_retention",
     "official_cfc_recurrent_layer_norm",
+    "official_cfc_recurrent_layer_norm_scale_only",
     "official_cfc_zero_delta_bounded_observation",
 )
 V23A_VARIANT = "official_cfc_positive_dt_fixed_retention"
 V23B_VARIANT = "official_cfc_recurrent_layer_norm"
+V23BR_VARIANT = "official_cfc_recurrent_layer_norm_scale_only"
 V23D_VARIANT = "official_cfc_positive_dt_per_dimension_retention"
 
 V23_ARTIFACT_RELATIVE = Path(
@@ -51,6 +54,7 @@ VARIANT_TO_SUFFIX = {
     V23A_VARIANT: "V23a",
     V23D_VARIANT: "V23d",
     V23B_VARIANT: "V23b",
+    V23BR_VARIANT: "V23b-r",
     "official_cfc_zero_delta_bounded_observation": "V23c",
 }
 
@@ -70,7 +74,11 @@ VARIANT_TO_ADAPTER = {
         hidden_dim=48,
         layer_norm_eps=1.0e-5,
     ),
-
+    V23BR_VARIANT: ExternalStateAdapterSpec(
+        kind=ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
+        hidden_dim=48,
+        layer_norm_eps=1.0e-5,
+    ),
     "official_cfc_zero_delta_bounded_observation": ExternalStateAdapterSpec(
         kind=ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
         hidden_dim=48,
@@ -343,7 +351,7 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         raise FileNotFoundError(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     expected_top_level = {"schema_version", "config_name", "variant", "source", "adapter", "train"}
-    if variant == V23D_VARIANT:
+    if variant in (V23D_VARIANT, V23BR_VARIANT):
         expected_top_level.add("direct_control")
     if set(payload) != expected_top_level:
         raise ValueError("V23 adapter config top-level fields differ")
@@ -383,7 +391,10 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         direct_control = dict(_require(payload, "direct_control"))
         if direct_control != source_v23a_control(root):
             raise ValueError("V23d direct V23a control binding is stale")
-
+    elif variant == V23BR_VARIANT:
+        direct_control = dict(_require(payload, "direct_control"))
+        if direct_control != source_v23b_control(root):
+            raise ValueError("V23b-r direct V23b control binding is stale")
     adapter = _adapter_from_payload(variant, dict(_require(payload, "adapter")))
     train_payload = dict(_require(payload, "train"))
     expected_train_fields = set(AdapterTrainConfig.__dataclass_fields__)
@@ -493,6 +504,63 @@ def source_v23a_control(root: Path) -> dict[str, Any]:
     }
 
 
+def source_v23b_control(root: Path) -> dict[str, Any]:
+    """Return the sealed affine V23b control required by V23b-r.
+
+    V23b-r asks whether V23b's additive LayerNorm bias causes its unstable
+    Clutter prefix behavior.  It is therefore not a second V23 comparison:
+    the only direct control is the completed V23b all-event affine LayerNorm
+    treatment, including its registered mixed parent-final signal and failed
+    bootstrap robustness gate.
+    """
+
+    root = root.resolve()
+    config_path = (root / config_relative(V23B_VARIANT)).resolve()
+    artifact = (root / artifact_relative(V23B_VARIANT)).resolve()
+    summary_path = artifact / "training-summary.json"
+    checkpoint_path = artifact / "best_model.pt"
+    report_path = (root / report_relative(V23B_VARIANT)).resolve()
+    required_paths = (config_path, summary_path, checkpoint_path, report_path)
+    if not all(path.is_file() for path in required_paths):
+        missing = [str(path) for path in required_paths if not path.is_file()]
+        raise FileNotFoundError("V23b-r requires completed V23b direct-control files: " + ", ".join(missing))
+    control_config, _source, _source_path = load_adapter_config(root, V23B_VARIANT)
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    gate = dict(report.get("gate") or {})
+    if (
+        summary.get("status") != "completed"
+        or summary.get("variant") != V23B_VARIANT
+        or summary.get("architecture") != "official_ncps_cfc_external_state_adapter"
+        or int(summary.get("seed", -1)) != TRAINING_SEED
+        or len(list(summary.get("history") or ())) != FIXED_EPOCHS
+        or report.get("status") != "completed_development_single_factor_only"
+        or report.get("schema_version") != report_schema(V23B_VARIANT)
+        or dict(report.get("treatment") or {}).get("variant") != V23B_VARIANT
+        or gate.get("parent_single_factor_signal_passed") is not True
+        or gate.get("bootstrap_macro_f1_lower_95_above_zero") is not False
+        or gate.get("advance_to_three_seed_confirmation") is not False
+    ):
+        raise ValueError("V23b direct control is incomplete or does not match the registered mixed-signal result")
+    return {
+        "variant": V23B_VARIANT,
+        "config_path": _relative(root, config_path),
+        "config_sha256": sha256_file(config_path),
+        "config_identity_sha256": config_identity_sha256(control_config),
+        "summary_path": _relative(root, summary_path),
+        "summary_sha256": sha256_file(summary_path),
+        "checkpoint_path": _relative(root, checkpoint_path),
+        "checkpoint_sha256": sha256_file(checkpoint_path),
+        "report_path": _relative(root, report_path),
+        "report_sha256": sha256_file(report_path),
+        "registered_v23b_gate": {
+            "parent_single_factor_signal_passed": True,
+            "bootstrap_macro_f1_lower_95_above_zero": False,
+            "advance_to_three_seed_confirmation": False,
+        },
+    }
+
+
 def source_runtime_report(root: Path) -> tuple[Path, dict[str, Any], str]:
     path = (root / RUNTIME_COMPATIBILITY_REPORT_RELATIVE).resolve()
     if not path.is_file():
@@ -514,5 +582,6 @@ __all__ = [
     "contract_relative", "contract_schema", "load_adapter_config", "readiness_relative", "readiness_schema",
     "report_relative", "report_schema", "source_runtime_report", "source_v23_training", "state_dict_sha256",
     "source_v23_parent_order_hashes", "adapter_state_names", "source_v23a_control",
-    "V23A_VARIANT", "V23B_VARIANT", "V23D_VARIANT",
+    "V23A_VARIANT", "V23B_VARIANT", "V23BR_VARIANT", "V23D_VARIANT",
+    "source_v23b_control",
 ]
