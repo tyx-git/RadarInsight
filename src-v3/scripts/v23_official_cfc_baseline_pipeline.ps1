@@ -163,6 +163,25 @@ function Assert-CompletedBaseline {
     $summary = Read-Utf8Json $summaryPath
     $compatibility = Read-Utf8Json $runtimeCompatibilityPath
     $compatibilityHash = (Get-FileHash -LiteralPath $runtimeCompatibilityPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $summaryCompatibilityChecks = @($summary.official_runtime_compatibility.checks.PSObject.Properties)
+    $runtimeCompatibilityChecks = @($compatibility.checks.PSObject.Properties)
+    $compatibilityChecksMatch = $summaryCompatibilityChecks.Count -eq $runtimeCompatibilityChecks.Count
+    if ($compatibilityChecksMatch) {
+        $summaryCheckNames = @($summaryCompatibilityChecks | ForEach-Object { [string]$_.Name } | Sort-Object)
+        $runtimeCheckNames = @($runtimeCompatibilityChecks | ForEach-Object { [string]$_.Name } | Sort-Object)
+        if ([string]::Join("`n", [string[]]$summaryCheckNames) -ne [string]::Join("`n", [string[]]$runtimeCheckNames)) {
+            $compatibilityChecksMatch = $false
+        }
+    }
+    if ($compatibilityChecksMatch) {
+        foreach ($runtimeCheck in $runtimeCompatibilityChecks) {
+            $summaryCheck = $summary.official_runtime_compatibility.checks.PSObject.Properties[$runtimeCheck.Name]
+            if ($null -eq $summaryCheck -or [bool]$summaryCheck.Value -ne [bool]$runtimeCheck.Value) {
+                $compatibilityChecksMatch = $false
+                break
+            }
+        }
+    }
     if (
         $summary.status -ne 'completed' -or
         $summary.task_name -ne 'known_gate' -or
@@ -180,7 +199,7 @@ function Assert-CompletedBaseline {
         $summary.official_runtime_compatibility.schema_version -ne 'RADAR-LN3-V23-official-cfc-runtime-compatibility-v1' -or
         $summary.official_runtime_compatibility.path -ne $runtimeCompatibilityPath -or
         $summary.official_runtime_compatibility.sha256 -ne $compatibilityHash -or
-        $summary.official_runtime_compatibility.checks.PSObject.Properties.Count -ne $compatibility.checks.PSObject.Properties.Count -or
+        -not $compatibilityChecksMatch -or
         -not ($summary.PSObject.Properties.Name -contains 'OOF') -or
         $summary.test_evaluation -ne 'not_executed' -or
         $summary.deployment_eligible -ne $false
