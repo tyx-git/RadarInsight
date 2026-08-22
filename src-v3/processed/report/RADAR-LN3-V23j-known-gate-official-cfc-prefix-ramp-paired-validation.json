@@ -1,0 +1,254 @@
+{
+  "status": "completed_development_prefix_ramp_only",
+  "schema_version": "RADAR-LN3-V23j-known-gate-official-cfc-prefix-ramp-report-v1",
+  "experiment": "V23j V23a official-CfC epoch-linear prefix auxiliary weight ramp 0.1 to 1.0 only",
+  "scope": "V21 development KnownGate only; no OOF, test, Unknown, L3, full cascade, rejection, stable or P95",
+  "source_v23a": {
+    "variant": "official_cfc_positive_dt_fixed_retention",
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-config.json",
+    "config_sha256": "06112cbc6ebc5a66bebbd3cd3e475ebab1e8f15d2f827900322c141ba229af8a",
+    "config_identity_sha256": "f176cec2579f1f72077fab30d8959e6c5178de3884fbd6965158314873f8d1a7",
+    "readiness_path": "src-v3/processed/report/RADAR-LN3-V23a-known-gate-official-cfc-training-readiness.json",
+    "readiness_sha256": "e278d65ab4e0f0826e1c92643c35a1ae43b8aba4d726761db672abf9b610ba1f",
+    "summary_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/training-summary.json",
+    "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+    "legacy_best_checkpoint_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/best_model.pt",
+    "legacy_best_checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+    "legacy_best_epoch": 14,
+    "v23e_selector_rule_schema": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1"
+  },
+  "selector": {
+    "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+    "name": "V23e_parent_final_and_parent_balanced_eligible_prefix_selector",
+    "source_v23a_legacy_reference_epoch": 14
+  },
+  "prefix_ramp": {
+    "kind": "linear_epoch_inclusive",
+    "start_weight": 0.1,
+    "end_weight": 1.0,
+    "start_epoch": 1,
+    "end_epoch": 20
+  },
+  "legacy_reference": {
+    "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+    "role": "frozen_v23a_legacy_parent_final_selector_reference",
+    "epoch": 14,
+    "source": {
+      "variant": "official_cfc_positive_dt_fixed_retention",
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\training-summary.json",
+      "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+      "legacy_best_checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\best_model.pt",
+      "legacy_best_checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+      "epoch_checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-014.pt",
+      "epoch_checkpoint_sha256": "d0ffe337737244d167651118086ec0b1499143fff162cf711164ad7f652ae02c",
+      "sample_detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\sample_detail_information.json",
+      "sample_detail_sha256": "22a4918ec1fa54b6875532c15a84289d67dcb77d50fec7efe2972e17db0c2368"
+    },
+    "metrics": {
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3756,
+        "accuracy": 0.9704472843450479,
+        "macro_precision": 0.8162153750389045,
+        "macro_recall": 0.6967232953410931,
+        "macro_f1": 0.7412566537434424,
+        "balanced_accuracy": 0.6967232953410931,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9776688453159041,
+            "recall": 0.9919867366675877,
+            "f1": 0.9847757509257988,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 29
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6547619047619048,
+            "recall": 0.40145985401459855,
+            "f1": 0.497737556561086,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 82
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3590,
+            29
+          ],
+          [
+            82,
+            55
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999764,
+        "accuracy": 0.9672487219385643,
+        "macro_precision": 0.8037778677977816,
+        "macro_recall": 0.6815104405870961,
+        "macro_f1": 0.7256836204212649,
+        "balanced_accuracy": 0.6815104405870961,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9750591209123971,
+            "recall": 0.9912827829868188,
+            "f1": 0.9831040238099535,
+            "support": 223,
+            "weighted_support": 222.99999999999764,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 1.9439393939393947
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.632496614683166,
+            "recall": 0.3717380981873734,
+            "f1": 0.4682632170325761,
+            "support": 9,
+            "weighted_support": 9.0,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 5.654357116313639
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221.05606060605825,
+            1.9439393939393947
+          ],
+          [
+            5.654357116313639,
+            3.3456428836863608
+          ]
+        ]
+      },
+      "window_metrics": {
+        "scope": "causal_prefix_windows",
+        "support": 4452,
+        "accuracy": 0.9699011680143755,
+        "macro_precision": 0.8180846181637096,
+        "macro_recall": 0.6852930469603203,
+        "macro_f1": 0.7325608293121164,
+        "balanced_accuracy": 0.6852930469603203,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.976594768242313,
+            "recall": 0.9925373134328358,
+            "f1": 0.9845015035854731,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 32
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6595744680851063,
+            "recall": 0.3780487804878049,
+            "f1": 0.4806201550387597,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 102
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4256,
+            32
+          ],
+          [
+            102,
+            62
+          ]
+        ]
+      }
+    }
+  },
+  "same_selector_v23a_control": {
+    "path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection.json",
+    "sha256": "8c79534eb1d40d679b09802146ce73f8c308cc37314af38f027284dcabc342b8",
+    "status": "completed_development_selector_only",
+    "selector_schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+    "scanned_all_frozen_epochs": true,
+    "feasible_epoch_count": 0,
+    "selected_checkpoint": null,
+    "conclusion": "V23e selector-only scan found no feasible V23a epoch; checkpoint selection alone cannot satisfy the frozen parent-final and causal-prefix constraints."
+  },
+  "comparison_interpretation": {
+    "training_variable": "epoch-level causal-prefix auxiliary weight only: 0.1 at epoch 1 linearly to 1.0 at epoch 20",
+    "v23a_training_control": "fixed 0.1 prefix weight with the same official CfC fixed-retention path",
+    "v23j_checkpoint_rule": "V23e parent-final plus parent-balanced eligible-prefix selector",
+    "v23a_legacy_best_checkpoint_rule": "parent_min_precision_recall",
+    "same_selector_v23a_result": "V23e found zero feasible V23a epochs",
+    "selected_checkpoint_delta_vs_v23a_legacy_is_not_pure_ramp_effect": true,
+    "primary_admissibility_comparison": "V23j feasible-epoch count under V23e versus the frozen V23a V23e feasible-epoch count of zero"
+  },
+  "training_summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23j-cq08-known-gate-official-cfc-positive-dt-fixed-retention-prefix-ramp-0-1-to-1-0-seed43-formal\\training-summary.json",
+  "training_summary_sha256": "a2ab28a1fe3f76bd3b293229ff29ad5d24e44f2450cb468211c1a73a9bcf2031",
+  "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V23j-cq08-known-gate-official-cfc-positive-dt-fixed-retention-prefix-ramp-0-1-to-1-0-seed43-config.json",
+  "config_sha256": "2a5723f027cd387bc2eb8d72fca573161d094974d3277a9f2ebdc5058a4c87fb",
+  "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23j-known-gate-official-cfc-prefix-ramp-training-readiness.json",
+  "readiness_sha256": "c9928c2d21fdd42affec56c34296aedebf9e6076733130badcd79f22df8a9abd",
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false,
+  "selection_status": "no_feasible_checkpoint",
+  "best_epoch": null,
+  "best_epoch_prefix_auxiliary_weight": null,
+  "metrics": null,
+  "v23j_vs_v23a_direct_control": null,
+  "clutter_parent_bootstrap": null,
+  "clutter_prefix_action_trajectories": null,
+  "conclusion": "V23j completed all 20 epochs but no checkpoint met the frozen V23e feasibility constraints; the prefix ramp did not create an admissible development checkpoint.",
+  "not_final_product_performance": true
+}
