@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('V23a', 'V23b', 'V23b-r', 'V23c', 'V23d')]
+    [ValidateSet('V23a', 'V23b', 'V23b-r', 'V23c', 'V23d', 'V23gr')]
     [string]$Variant,
     [ValidateSet('prepare', 'smoke', 'train', 'evaluate', 'all')]
     [string]$Stage = 'all',
@@ -63,6 +63,14 @@ $variantMap = @{
         ReportName = 'RADAR-LN3-V23d-known-gate-official-cfc-paired-validation.json'
         ReadinessSchema = 'RADAR-LN3-V23d-known-gate-official-cfc-adapter-readiness-v1'
         ReportSchema = 'RADAR-LN3-V23d-known-gate-official-cfc-adapter-paired-validation-v1'
+    }
+    'V23gr' = [pscustomobject]@{
+        Key = 'official_cfc_zero_delta_density_weighted_multiplicity'
+        ArtifactName = 'RADAR-LN3-V23gr-cq08-known-gate-official-cfc-zero-delta-density-weighted-multiplicity-seed43-formal'
+        ReadinessName = 'RADAR-LN3-V23gr-known-gate-official-cfc-training-readiness.json'
+        ReportName = 'RADAR-LN3-V23gr-known-gate-official-cfc-paired-validation.json'
+        ReadinessSchema = 'RADAR-LN3-V23gr-known-gate-official-cfc-adapter-readiness-v1'
+        ReportSchema = 'RADAR-LN3-V23gr-known-gate-official-cfc-adapter-paired-validation-v1'
     }
 }
 $selected = $variantMap[$Variant]
@@ -189,6 +197,11 @@ function Assert-CompletedTreatment {
         if ($summary.v23_initialization_pairing.v23br_direct_v23b_scale_only_audit.before_optimizer_step_replays_v23b_within_float32_tolerance -ne $true) { $issues.Add('v23br_direct_v23b_replay') }
         if ($summary.external_state_adapter.bias -ne $false) { $issues.Add('v23br_bias') }
     }
+    if ($Variant -eq 'V23gr') {
+        if ([int]$summary.v23_initialization_pairing.adapter_trainable_parameter_count -ne 0) { $issues.Add('v23gr_adapter_parameter_count') }
+        if ($summary.v23_initialization_pairing.v23gr_direct_v23c_multiplicity_audit.pre_zero_delta_replays_v23c_within_float32_tolerance -ne $true) { $issues.Add('v23gr_pre_zero_replay') }
+        if ($summary.v23_initialization_pairing.v23gr_direct_v23c_multiplicity_audit.first_k2_zero_delta_differs_from_v23c -ne $true) { $issues.Add('v23gr_first_density_difference') }
+    }
     foreach ($row in @($summary.history)) {
         if ($row.parent_order_exactly_matches_v23_control -ne $true -or [string]$row.parent_order_sha256 -ne [string]$row.v23_control_parent_order_sha256) { $issues.Add('epoch_parent_order') }
     }
@@ -221,6 +234,29 @@ function Invoke-Smoke {
     Invoke-RadarPython @('-m', 'smoke.static_isolation_check', '--root', $srcRoot)
 }
 
+function Archive-NonResumableFailedArtifact {
+    if (-not (Test-Path -LiteralPath $artifactPath -PathType Container)) { return $false }
+    $summaryPath = Join-Path $artifactPath 'training-summary.json'
+    $lastCheckpoint = Join-Path $artifactPath 'last_model.pt'
+    $epochPath = Join-Path $artifactPath 'epochs'
+    if (-not (Test-Path -LiteralPath $summaryPath -PathType Leaf)) { return $false }
+    if (Test-Path -LiteralPath $lastCheckpoint -PathType Leaf) { return $false }
+    if (Test-Path -LiteralPath $epochPath -PathType Container) {
+        $epochCheckpoints = @(Get-ChildItem -LiteralPath $epochPath -Filter '*.pt' -File)
+        if ($epochCheckpoints.Count -ne 0) { return $false }
+    }
+    $summary = Read-Utf8Json $summaryPath
+    if ([string]$summary.status -ne 'failed') { return $false }
+    $timestamp = (Get-Date).ToString('yyyyMMdd-HHmmss-fff', [System.Globalization.CultureInfo]::InvariantCulture)
+    $archivePath = $artifactPath + '.failed-before-checkpoint-' + $timestamp
+    if (Test-Path -LiteralPath $archivePath) {
+        throw ($Variant + ' failed-artifact archive path already exists: ' + $archivePath)
+    }
+    Move-Item -LiteralPath $artifactPath -Destination $archivePath
+    Write-Host ('[' + $Variant + '] archived non-resumable failed attempt to ' + $archivePath) -ForegroundColor Yellow
+    return $true
+}
+
 function Invoke-Train {
     Assert-Readiness
     $summaryPath = Join-Path $artifactPath 'training-summary.json'
@@ -241,7 +277,7 @@ function Invoke-Train {
                 $arguments += @('--resume-checkpoint', $lastCheckpoint)
                 Write-Host ('[' + $Variant + '] resuming from ' + $lastCheckpoint) -ForegroundColor Yellow
             }
-            else {
+            elseif (-not (Archive-NonResumableFailedArtifact)) {
                 throw ($Variant + ' artifact has no resumable last_model.pt; preserve it for inspection and archive it manually before retrying: ' + $artifactPath)
             }
         }
@@ -277,6 +313,14 @@ function Invoke-Evaluate {
             throw ($Variant + ' report lacks the required V23b direct-control comparison: ' + $reportPath)
         }
         if ($report.gate.v23b_direct_control_primary.advance_to_oof -ne $false) {
+            throw ($Variant + ' report incorrectly advances to OOF: ' + $reportPath)
+        }
+    }
+    if ($Variant -eq 'V23gr') {
+        if ($null -eq $report.v23gr_vs_v23c_direct_control) {
+            throw ($Variant + ' report lacks the required V23c direct-control comparison: ' + $reportPath)
+        }
+        if ($report.gate.v23c_direct_control_primary.advance_to_oof -ne $false) {
             throw ($Variant + ' report incorrectly advances to OOF: ' + $reportPath)
         }
     }

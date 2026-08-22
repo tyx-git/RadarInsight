@@ -15,6 +15,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
     V23BR_VARIANT,
     V23D_VARIANT,
+    V23GR_VARIANT,
     artifact_relative,
     checkpoint_schema,
     config_identity_sha256,
@@ -29,6 +30,7 @@ from radar_ln3.known_gate_v23_adapters import (
     source_runtime_report,
     source_v23a_control,
     source_v23b_control,
+    source_v23c_control,
     source_v23_parent_order_hashes,
     source_v23_training,
 )
@@ -132,6 +134,8 @@ def _config_payload(
         payload["direct_control"] = source_v23a_control(root)
     elif variant == V23BR_VARIANT:
         payload["direct_control"] = source_v23b_control(root)
+    elif variant == V23GR_VARIANT:
+        payload["direct_control"] = source_v23c_control(root)
     return payload
 
 
@@ -173,6 +177,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                 "recurrent_layer_norm": 96,
                 "recurrent_layer_norm_scale_only": 48,
                 "zero_delta_bounded_observation": 0,
+                "zero_delta_density_weighted_multiplicity": 0,
             }[config.adapter.kind]
         ),
         "v23_control_parent_order_has_20_complete_epochs": len(v23_parent_order_hashes) == FIXED_EPOCHS,
@@ -202,6 +207,24 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                 "trainable_parameter_count": 48,
             }
         )
+    elif variant == V23GR_VARIANT:
+        checks["v23gr_direct_v23c_fixed_gain_control_is_frozen"] = (
+            config.direct_control == source_v23c_control(root)
+        )
+        checks["v23gr_is_external_zero_delta_multiplicity_only"] = (
+            adapter_specification
+            == {
+                "kind": "zero_delta_density_weighted_multiplicity",
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "zero_delta_at_second_precision only",
+                "formula": "h=(1-alpha_k)*h_previous+alpha_k*h_official; alpha_k=min(zero_delta_gain*k,3*zero_delta_gain)",
+                "zero_delta_gain": 0.25,
+                "causal_same_second_ordinal": "first/positive set k=1; each zero_delta increments k; padding does not advance k",
+                "gain_schedule": "0.25, 0.50, 0.75 for k=1,2,>=3 when zero_delta_gain=0.25",
+                "trainable_parameter_count": 0,
+                "first_and_positive_delta_behavior": "h=h_official",
+            }
+        )
     frozen_components = [
         "official dense 48x1 default lecun_tanh CfC",
         "raw first/zero/positive dt input to official CfC",
@@ -216,6 +239,10 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
     if variant == V23BR_VARIANT:
         frozen_components.append(
             "V23b-r keeps V23b's LayerNorm epsilon=1e-5, all-event post-official placement and state feedback; only beta is absent"
+        )
+    if variant == V23GR_VARIANT:
+        frozen_components.append(
+            "V23gr replays V23c before the first zero-delta follow-up; first zero-delta follow-up is k=2 and follows min(0.25*k,0.75)"
         )
     contract = {
         "schema_version": contract_schema(variant),
@@ -250,7 +277,11 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                 else (
                     "remove the additive bias from V23b's all-event post-official recurrent LayerNorm; keep its scale, epsilon and position"
                     if variant == V23BR_VARIANT
-                    else "external post-official-CfC recurrent state adapter only"
+                    else (
+                        "replace only V23c's fixed zero-delta external gain 0.25 with causal same-second multiplicity min(0.25*k,0.75)"
+                        if variant == V23GR_VARIANT
+                        else "external post-official-CfC recurrent state adapter only"
+                    )
                 )
             ),
             "official_cfcell_unmodified": True,
@@ -279,7 +310,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant in (V23D_VARIANT, V23BR_VARIANT):
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
         contract["direct_control"] = config.direct_control
     contract_path = root / contract_relative(variant)
     _write_new_or_identical(contract_path, contract)
@@ -313,7 +344,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant in (V23D_VARIANT, V23BR_VARIANT):
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
         readiness["direct_control"] = config.direct_control
     readiness_path = root / readiness_relative(variant)
     _write_new_or_identical(readiness_path, readiness)

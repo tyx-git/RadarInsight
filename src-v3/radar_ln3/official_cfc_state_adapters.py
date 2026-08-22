@@ -23,6 +23,9 @@ ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION = "positive_dt_per_dimension_retenti
 ADAPTER_RECURRENT_LAYER_NORM = "recurrent_layer_norm"
 ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY = "recurrent_layer_norm_scale_only"
 ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION = "zero_delta_bounded_observation"
+ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY = (
+    "zero_delta_density_weighted_multiplicity"
+)
 
 ADAPTER_KINDS = (
     ADAPTER_NONE,
@@ -31,6 +34,7 @@ ADAPTER_KINDS = (
     ADAPTER_RECURRENT_LAYER_NORM,
     ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
+    ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
 )
 
 
@@ -67,11 +71,14 @@ class ExternalStateAdapterSpec:
                 raise ValueError("recurrent LayerNorm requires a positive epsilon")
             if self.fixed_tau_seconds is not None or self.zero_delta_gain is not None:
                 raise ValueError("recurrent LayerNorm must not carry unrelated adapter fields")
-        elif self.kind == ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION:
+        elif self.kind in (
+            ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
+            ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
+        ):
             if self.zero_delta_gain is None or not 0.0 < self.zero_delta_gain <= 1.0:
-                raise ValueError("zero-delta bounded observation requires gain in (0, 1]")
+                raise ValueError("zero-delta observation adapter requires gain in (0, 1]")
             if self.fixed_tau_seconds is not None or self.layer_norm_eps is not None:
-                raise ValueError("zero-delta bounded observation must not carry unrelated adapter fields")
+                raise ValueError("zero-delta observation adapter must not carry unrelated adapter fields")
         elif any(value is not None for value in (
             self.fixed_tau_seconds,
             self.zero_delta_gain,
@@ -156,6 +163,18 @@ class ExternalStateAdapterSpec:
                 "trainable_parameter_count": self.trainable_parameter_count,
                 "first_and_positive_delta_behavior": "h=h_official",
             }
+        if self.kind == ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY:
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": "zero_delta_at_second_precision only",
+                "formula": "h=(1-alpha_k)*h_previous+alpha_k*h_official; alpha_k=min(zero_delta_gain*k,3*zero_delta_gain)",
+                "zero_delta_gain": self.zero_delta_gain,
+                "causal_same_second_ordinal": "first/positive set k=1; each zero_delta increments k; padding does not advance k",
+                "gain_schedule": "0.25, 0.50, 0.75 for k=1,2,>=3 when zero_delta_gain=0.25",
+                "trainable_parameter_count": self.trainable_parameter_count,
+                "first_and_positive_delta_behavior": "h=h_official",
+            }
         return {
             "kind": self.kind,
             "state_equation_owner": "official ncps.torch.CfC",
@@ -201,6 +220,7 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
         previous_state: torch.Tensor,
         dt_seconds: torch.Tensor,
         dt_reason: torch.Tensor,
+        zero_ordinal: torch.Tensor | None,
     ) -> None:
         if official_state.ndim != 2 or official_state.shape[-1] != self.spec.hidden_dim:
             raise ValueError("external adapter official state has an invalid shape")
@@ -210,6 +230,16 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
             raise ValueError("external adapter dt must have shape [batch]")
         if dt_reason.ndim != 1 or dt_reason.shape != dt_seconds.shape:
             raise ValueError("external adapter dt_reason must have shape [batch]")
+        if zero_ordinal is not None:
+            if (
+                zero_ordinal.ndim != 1
+                or zero_ordinal.shape != dt_seconds.shape
+                or zero_ordinal.dtype not in (torch.int64, torch.long)
+                or bool((zero_ordinal < 1).any())
+            ):
+                raise ValueError(
+                    "external adapter zero_ordinal must be positive long with shape [batch]"
+                )
         if not all(torch.isfinite(value).all() for value in (official_state, previous_state, dt_seconds)):
             raise ValueError("external adapter inputs must be finite")
 
@@ -219,8 +249,15 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
         previous_state: torch.Tensor,
         dt_seconds: torch.Tensor,
         dt_reason: torch.Tensor,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        self._validate(official_state, previous_state, dt_seconds, dt_reason)
+        self._validate(
+            official_state,
+            previous_state,
+            dt_seconds,
+            dt_reason,
+            zero_ordinal,
+        )
         if self.spec.kind == ADAPTER_NONE:
             return official_state
         if self.spec.kind in (
@@ -262,6 +299,24 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
             bounded = (1.0 - gain) * previous_state + gain * official_state
             applies = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
             return torch.where(applies, bounded, official_state)
+        if self.spec.kind == ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY:
+            ordinal = (
+                torch.ones_like(dt_seconds, dtype=torch.long)
+                if zero_ordinal is None
+                else zero_ordinal
+            )
+            gain = torch.clamp(
+                torch.as_tensor(
+                    self.spec.zero_delta_gain,
+                    dtype=official_state.dtype,
+                    device=official_state.device,
+                )
+                * ordinal.to(dtype=official_state.dtype),
+                max=3.0 * float(self.spec.zero_delta_gain),
+            ).unsqueeze(-1)
+            weighted = (1.0 - gain) * previous_state + gain * official_state
+            applies = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
+            return torch.where(applies, weighted, official_state)
         raise RuntimeError(f"unhandled external state adapter: {self.spec.kind}")
 
 
@@ -273,6 +328,7 @@ __all__ = [
     "ADAPTER_RECURRENT_LAYER_NORM",
     "ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY",
     "ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION",
+    "ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY",
     "ExternalOfficialCfCStateAdapter",
     "ExternalStateAdapterSpec",
 ]

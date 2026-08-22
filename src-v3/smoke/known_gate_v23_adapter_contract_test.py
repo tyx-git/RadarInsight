@@ -23,7 +23,9 @@ from radar_ln3.known_gate_v23_adapters import (
     V23B_VARIANT,
     V23BR_VARIANT,
     V23D_VARIANT,
+    V23GR_VARIANT,
     load_adapter_config,
+    source_v23c_control,
     source_v23_training,
     state_dict_sha256,
 )
@@ -34,6 +36,9 @@ from radar_ln3.official_cfc_state_adapters import (
 )
 from radar_ln3.losses import parent_final_task_ce_with_prefix_auxiliary
 from train.known_gate_v21 import _model_inputs, _state_dict_sha256
+from train.known_gate_v23_adapters import (
+    _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges,
+)
 
 
 ATOL = 1.0e-6
@@ -64,9 +69,19 @@ def _offline_online_error(model: Any, batch: dict[str, Any]) -> float:
         state = None
         rows: list[torch.Tensor] = []
         length = int(batch["lengths"][0].item())
+        ordinal = 0
         for event_index in range(length):
+            reason = int(batch["tr_dt_reason"][0, event_index].item())
+            if reason in (1, 3):
+                ordinal = 1
+            elif reason == 2:
+                ordinal += 1
+            else:
+                raise ValueError(f"unsupported V23 adapter online dt reason: {reason}")
             online = model.forward_online_point(
-                **_point_inputs(batch, 0, event_index), liquid_state=state
+                **_point_inputs(batch, 0, event_index),
+                liquid_state=state,
+                zero_ordinal=torch.tensor([ordinal], dtype=torch.long),
             )
             state = online["liquid_state"]
             rows.append(online["window_logits"])
@@ -127,6 +142,14 @@ def _adapter_formula_checks() -> dict[str, bool]:
                 zero_delta_gain=0.25,
             ),
         ),
+        (
+            "official_cfc_zero_delta_density_weighted_multiplicity",
+            ExternalStateAdapterSpec(
+                kind="zero_delta_density_weighted_multiplicity",
+                hidden_dim=48,
+                zero_delta_gain=0.25,
+            ),
+        ),
     ):
         adapter = ExternalOfficialCfCStateAdapter(spec).eval()
         first_result = adapter(official, previous, seconds, first)
@@ -178,6 +201,18 @@ def _adapter_formula_checks() -> dict[str, bool]:
                 torch.equal(first_result, official)
                 and torch.equal(positive_result, official)
                 and torch.allclose(zero_result, expected, atol=ATOL, rtol=RTOL)
+            )
+        elif spec.kind == "zero_delta_density_weighted_multiplicity":
+            ordinal = torch.tensor([2, 4], dtype=torch.long)
+            weighted = adapter(official, previous, seconds, zero, ordinal)
+            expected = torch.stack(
+                [0.5 * previous[0] + 0.5 * official[0], 0.25 * previous[1] + 0.75 * official[1]],
+                dim=0,
+            )
+            checks[variant] = bool(
+                torch.equal(first_result, official)
+                and torch.equal(positive_result, official)
+                and torch.allclose(weighted, expected, atol=ATOL, rtol=RTOL)
             )
         else:  # pragma: no cover - config contract makes this unreachable
             raise AssertionError("unsupported adapter kind")
@@ -249,6 +284,57 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         )
         v23b_initial_replay = bool(
             torch.allclose(initial_v23br, initial_v23b, atol=ATOL, rtol=RTOL)
+        )
+
+    v23gr_pre_zero_replay = True
+    v23gr_first_density_difference = True
+    v23gr_pre_zero_error = 0.0
+    v23gr_first_density_delta = 0.0
+    v23gr_training_entry_audit: dict[str, Any] | None = None
+    if variant == V23GR_VARIANT:
+        control, _v23c_audit = build_official_cfc_model_from_frozen_source(
+            root,
+            source_config,
+            state_adapter_spec=load_adapter_config(
+                root, "official_cfc_zero_delta_bounded_observation"
+            )[0].adapter,
+        )
+        selected = None
+        index = None
+        for item in train_dataset:
+            ordinal = 0
+            for event_index, reason in enumerate(item.base.tr_dt_reason.tolist()):
+                if reason in (1, 3):
+                    ordinal = 1
+                elif reason == 2:
+                    ordinal += 1
+                    if ordinal >= 2:
+                        selected, index = item, event_index
+                        break
+            if selected is not None:
+                break
+        if selected is None or index is None:
+            raise AssertionError("V23gr smoke lacks real k>=2 zero-delta evidence")
+        density_batch = next(iter(build_known_gate_dataloader([selected], batch_size=1, shuffle=False)))
+        treatment.eval(); control.eval()
+        with torch.inference_mode():
+            observed = treatment(**_model_inputs(density_batch))["sequence_logits"]
+            expected = control(**_model_inputs(density_batch))["sequence_logits"]
+        v23gr_pre_zero_error = (
+            float((observed[:, :index] - expected[:, :index]).abs().max().item())
+            if index > 0 else 0.0
+        )
+        v23gr_first_density_delta = float(
+            (observed[:, index] - expected[:, index]).abs().max().item()
+        )
+        v23gr_pre_zero_replay = v23gr_pre_zero_error <= ATOL
+        v23gr_first_density_difference = v23gr_first_density_delta > 1.0e-8
+        v23gr_training_entry_audit = (
+            _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges(
+                root,
+                source_config=source_config,
+                model=treatment,
+            )
         )
 
     treatment.train()
@@ -351,6 +437,27 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
             if variant != V23BR_VARIANT
             else config.direct_control is not None
         ),
+        "v23gr_pre_zero_replays_v23c_and_first_k2_zero_delta_diverges": (
+            True
+            if variant != V23GR_VARIANT
+            else v23gr_pre_zero_replay and v23gr_first_density_difference
+        ),
+        "v23gr_training_entry_direct_v23c_audit_is_executable": (
+            True
+            if variant != V23GR_VARIANT
+            else (
+                config.direct_control == source_v23c_control(root)
+                and v23gr_training_entry_audit is not None
+                and v23gr_training_entry_audit[
+                    "pre_zero_delta_replays_v23c_within_float32_tolerance"
+                ]
+                is True
+                and v23gr_training_entry_audit[
+                    "first_k2_zero_delta_differs_from_v23c"
+                ]
+                is True
+            )
+        ),
         "real_train_batch_loss_and_all_gradients_are_finite": bool(
             torch.isfinite(objective["loss"]) and all_gradients_finite
         ),
@@ -377,6 +484,9 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         "disabled_adapter_replay_max_logit_error": disabled_replay_max_error,
         "v23d_initial_v23a_replay_max_logit_error": v23a_initial_replay_max_error,
         "v23br_initial_v23b_replay_max_logit_error": v23b_initial_replay_max_error,
+        "v23gr_pre_zero_v23c_replay_max_logit_error": v23gr_pre_zero_error,
+        "v23gr_first_k2_zero_delta_logit_difference": v23gr_first_density_delta,
+        "v23gr_training_entry_direct_control_audit": v23gr_training_entry_audit,
         "offline_online_max_logit_error": online_error,
         "tolerance": {"atol": ATOL, "rtol": RTOL},
         "validation_dataset_access_count": 0,

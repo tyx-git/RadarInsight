@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 
 from radar_ln3.known_gate import (
     build_known_gate_dataset,
+    summarize_parent_balanced_eligible_prefix_records,
     summarize_known_gate_records,
 )
 from radar_ln3.known_gate_v23_adapters import (
@@ -17,6 +18,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23B_VARIANT,
     V23BR_VARIANT,
     V23D_VARIANT,
+    V23GR_VARIANT,
     adapter_state_names,
     artifact_relative,
     config_identity_sha256,
@@ -29,6 +31,7 @@ from radar_ln3.known_gate_v23_adapters import (
     source_v23_training,
     source_v23a_control,
     source_v23b_control,
+    source_v23c_control,
 )
 from radar_ln3.known_gate_v23 import sha256_file
 from report.known_gate_v21e import (
@@ -169,7 +172,7 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
         )
     direct_control_ok = (
         True
-        if variant not in (V23D_VARIANT, V23BR_VARIANT)
+        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT)
         else (
             (
                 config.direct_control == source_v23a_control(root)
@@ -179,16 +182,28 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
             )
             if variant == V23D_VARIANT
             else (
-                config.direct_control == source_v23b_control(root)
-                and pairing.get("v23br_direct_v23b_scale_only_audit", {}).get(
-                    "before_optimizer_step_replays_v23b_within_float32_tolerance"
-                ) is True
+                (
+                    config.direct_control == source_v23b_control(root)
+                    and pairing.get("v23br_direct_v23b_scale_only_audit", {}).get(
+                        "before_optimizer_step_replays_v23b_within_float32_tolerance"
+                    ) is True
+                )
+                if variant == V23BR_VARIANT
+                else (
+                    config.direct_control == source_v23c_control(root)
+                    and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
+                        "pre_zero_delta_replays_v23c_within_float32_tolerance"
+                    ) is True
+                    and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
+                        "first_k2_zero_delta_differs_from_v23c"
+                    ) is True
+                )
             )
         )
     )
     direct_control_summary_ok = (
         True
-        if variant not in (V23D_VARIANT, V23BR_VARIANT)
+        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT)
         else summary.get("direct_control") == config.direct_control
     )
     tau_audit_ok = (
@@ -560,6 +575,80 @@ def _v23br_v23_reference_gate(
     }
 
 
+def _v23gr_direct_gate(
+    direct_deltas: Mapping[str, Mapping[str, float]],
+    direct_bootstrap: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Frozen V23gr interpretation against fixed-gain V23c.
+
+    V23gr is a mechanism replication test, not an opportunity to retune the
+    already failed official CfC backbone.  The development parent signal is
+    reported descriptively; Clutter has zero same-second exposure, so it is
+    explicitly excluded from any claim of density-mechanism benefit.
+    """
+
+    parent = direct_deltas["parent"]
+    prefix = direct_deltas["eligible_prefix"]
+    parent_balanced_prefix = direct_deltas["parent_balanced_eligible_prefix"]
+    window = direct_deltas["window"]
+    bootstrap_positive = (
+        float(direct_bootstrap["treatment_minus_baseline"]["macro_f1"]["lower_95"])
+        > 0.0
+    )
+    known_target_non_degrading = parent["known_target_recall"] >= 0.0
+    parent_balanced_prefix_non_degrading = all(
+        value >= 0.0
+        for value in (
+            parent_balanced_prefix["macro_f1"],
+            parent_balanced_prefix["known_target_recall"],
+        )
+    )
+    event_pooled_prefix_window_non_degrading = all(
+        value >= 0.0
+        for value in (
+            prefix["macro_f1"],
+            prefix["known_target_recall"],
+            window["macro_f1"],
+            window["known_target_recall"],
+        )
+    )
+    return {
+        "parent_macro_f1_strictly_greater_than_2pp_vs_v23c": parent["macro_f1"]
+        > 0.02,
+        "known_target_recall_non_decreasing_vs_v23c": known_target_non_degrading,
+        "parent_clutter_metrics_are_not_density_estimable": True,
+        "eligible_prefix_known_target_metrics_non_degrading_vs_v23c": (
+            prefix["macro_f1"] >= 0.0 and prefix["known_target_recall"] >= 0.0
+        ),
+        "parent_balanced_eligible_prefix_known_target_metrics_non_degrading_vs_v23c": (
+            parent_balanced_prefix_non_degrading
+        ),
+        "window_known_target_metrics_non_degrading_vs_v23c": (
+            window["macro_f1"] >= 0.0 and window["known_target_recall"] >= 0.0
+        ),
+        "event_pooled_prefix_window_known_target_safety_non_degrading_vs_v23c": (
+            event_pooled_prefix_window_non_degrading
+        ),
+        "parent_balanced_prefix_and_window_known_target_safety_non_degrading_vs_v23c": (
+            parent_balanced_prefix_non_degrading
+            and window["macro_f1"] >= 0.0
+            and window["known_target_recall"] >= 0.0
+        ),
+        "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23c": (
+            bootstrap_positive
+        ),
+        "density_mechanism_development_signal": (
+            parent["macro_f1"] > 0.02
+            and known_target_non_degrading
+            and parent_balanced_prefix_non_degrading
+            and event_pooled_prefix_window_non_degrading
+            and bootstrap_positive
+        ),
+        "advance_to_three_seed_confirmation": False,
+        "advance_to_oof": False,
+    }
+
+
 def run(project_root: Path, *, variant: str) -> dict[str, Any]:
     if variant not in V23_ADAPTER_VARIANTS:
         raise ValueError(f"unsupported V23 adapter variant: {variant}")
@@ -785,6 +874,95 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
             "v23b_direct_control_primary": direct_gate,
             "v23br_scale_only_signal_is_robust_and_repairs_v23b": advance_to_three_seed_confirmation,
             "advance_to_three_seed_confirmation": advance_to_three_seed_confirmation,
+            "advance_to_oof": False,
+        }
+    elif variant == V23GR_VARIANT:
+        direct_control = _load_treatment(
+            root, "official_cfc_zero_delta_bounded_observation"
+        )
+        direct_metrics = {
+            scope: {
+                "v23c_fixed_zero_delta_gain_control": _scope_metrics(
+                    direct_control["records"][scope], f"v23c_{scope}"
+                ),
+                "v23gr_density_weighted_multiplicity_treatment": _scope_metrics(
+                    treatment["records"][scope], f"v23gr_{scope}"
+                ),
+            }
+            for scope in SCOPES
+        }
+        direct_metrics["parent_balanced_eligible_prefix"] = {
+            "v23c_fixed_zero_delta_gain_control": (
+                summarize_parent_balanced_eligible_prefix_records(
+                    direct_control["records"]["eligible_prefix"],
+                    scope="v23c_parent_balanced_eligible_prefix",
+                )
+            ),
+            "v23gr_density_weighted_multiplicity_treatment": (
+                summarize_parent_balanced_eligible_prefix_records(
+                    treatment["records"]["eligible_prefix"],
+                    scope="v23gr_parent_balanced_eligible_prefix",
+                )
+            ),
+        }
+        direct_deltas = {
+            scope: _delta(
+                values["v23c_fixed_zero_delta_gain_control"],
+                values["v23gr_density_weighted_multiplicity_treatment"],
+            )
+            for scope, values in direct_metrics.items()
+        }
+        direct_parent_before, direct_parent_after = _ordered_pair(
+            direct_control["records"]["parent"], treatment["records"]["parent"], scope="parent"
+        )
+        direct_bootstrap = _bootstrap(direct_parent_before, direct_parent_after)
+        direct_outcomes = _base_label_outcomes(direct_parent_before, direct_parent_after)
+        direct_dt_metrics = _dt_stratified_metrics(
+            direct_parent_before,
+            direct_parent_after,
+            dt_strata["groups"],
+            delta_name="v23gr_minus_v23c",
+        )
+        clutter_details = {
+            parent_id: values
+            for parent_id, values in dt_strata["details"].items()
+            if values["label_name"] == "ClutterTarget"
+        }
+        if any(int(values["zero_delta_event_count"]) != 0 for values in clutter_details.values()):
+            raise ValueError("V23gr Clutter exposure audit differs from frozen development data")
+        direct_gate = _v23gr_direct_gate(direct_deltas, direct_bootstrap)
+        report["direct_control"] = {
+            "binding": treatment["config"].direct_control,
+            "completed_v23c_fixed_gain_treatment": _reference_metadata(direct_control),
+        }
+        report["v23gr_vs_v23c_direct_control"] = {
+            "scope": (
+                "primary V23gr mechanism comparison: completed V23c fixed 0.25 "
+                "zero-delta external adapter versus V23gr causal multiplicity "
+                "min(0.25*k,0.75); development KnownGate only"
+            ),
+            "metrics_by_scope": direct_metrics,
+            "v23gr_minus_v23c_by_scope": direct_deltas,
+            "parent_base_label_outcomes": direct_outcomes,
+            "scope_prediction_changes": _scope_changes(
+                direct_control["records"], treatment["records"]
+            ),
+            "probability_attribution": _probability_attribution(
+                direct_parent_before, direct_parent_after
+            ),
+            "paired_parent_bootstrap": direct_bootstrap,
+            "dt_stratified_parent_final": direct_dt_metrics,
+            "clutter_density_exposure_boundary": {
+                "clutter_parent_support": len(clutter_details),
+                "clutter_zero_delta_event_count": 0,
+                "interpretation": "No development Clutter parent has a zero-delta follow-up, so V23gr cannot identify a Clutter-specific same-second-density effect.",
+            },
+            "gate": direct_gate,
+        }
+        report["gate"] = {
+            "v23_reference_diagnostic": report["gate"],
+            "v23c_direct_control_primary": direct_gate,
+            "advance_to_three_seed_confirmation": False,
             "advance_to_oof": False,
         }
     output = root / report_relative(variant)

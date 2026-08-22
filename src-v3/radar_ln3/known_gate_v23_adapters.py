@@ -27,6 +27,7 @@ from .official_cfc_state_adapters import (
     ADAPTER_RECURRENT_LAYER_NORM,
     ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
+    ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
     ExternalStateAdapterSpec,
 )
 
@@ -37,11 +38,13 @@ V23_ADAPTER_VARIANTS = (
     "official_cfc_recurrent_layer_norm",
     "official_cfc_recurrent_layer_norm_scale_only",
     "official_cfc_zero_delta_bounded_observation",
+    "official_cfc_zero_delta_density_weighted_multiplicity",
 )
 V23A_VARIANT = "official_cfc_positive_dt_fixed_retention"
 V23B_VARIANT = "official_cfc_recurrent_layer_norm"
 V23BR_VARIANT = "official_cfc_recurrent_layer_norm_scale_only"
 V23D_VARIANT = "official_cfc_positive_dt_per_dimension_retention"
+V23GR_VARIANT = "official_cfc_zero_delta_density_weighted_multiplicity"
 
 V23_ARTIFACT_RELATIVE = Path(
     "artifacts/RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal"
@@ -56,6 +59,7 @@ VARIANT_TO_SUFFIX = {
     V23B_VARIANT: "V23b",
     V23BR_VARIANT: "V23b-r",
     "official_cfc_zero_delta_bounded_observation": "V23c",
+    V23GR_VARIANT: "V23gr",
 }
 
 VARIANT_TO_ADAPTER = {
@@ -81,6 +85,11 @@ VARIANT_TO_ADAPTER = {
     ),
     "official_cfc_zero_delta_bounded_observation": ExternalStateAdapterSpec(
         kind=ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
+        hidden_dim=48,
+        zero_delta_gain=0.25,
+    ),
+    V23GR_VARIANT: ExternalStateAdapterSpec(
+        kind=ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
         hidden_dim=48,
         zero_delta_gain=0.25,
     ),
@@ -351,7 +360,7 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         raise FileNotFoundError(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     expected_top_level = {"schema_version", "config_name", "variant", "source", "adapter", "train"}
-    if variant in (V23D_VARIANT, V23BR_VARIANT):
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
         expected_top_level.add("direct_control")
     if set(payload) != expected_top_level:
         raise ValueError("V23 adapter config top-level fields differ")
@@ -395,6 +404,10 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         direct_control = dict(_require(payload, "direct_control"))
         if direct_control != source_v23b_control(root):
             raise ValueError("V23b-r direct V23b control binding is stale")
+    elif variant == V23GR_VARIANT:
+        direct_control = dict(_require(payload, "direct_control"))
+        if direct_control != source_v23c_control(root):
+            raise ValueError("V23gr direct V23c control binding is stale")
     adapter = _adapter_from_payload(variant, dict(_require(payload, "adapter")))
     train_payload = dict(_require(payload, "train"))
     expected_train_fields = set(AdapterTrainConfig.__dataclass_fields__)
@@ -561,6 +574,59 @@ def source_v23b_control(root: Path) -> dict[str, Any]:
     }
 
 
+def source_v23c_control(root: Path) -> dict[str, Any]:
+    """Return the completed fixed-0.25 V23c direct control for V23gr.
+
+    V23gr isolates only the same-second multiplicity schedule.  It must not
+    silently compare against pure V23, V23a, or V23f: V23c is the sole arm
+    that already applies the identical external zero-delta gain at k=1.
+    """
+
+    root = root.resolve()
+    variant = "official_cfc_zero_delta_bounded_observation"
+    config_path = (root / config_relative(variant)).resolve()
+    artifact = (root / artifact_relative(variant)).resolve()
+    summary_path = artifact / "training-summary.json"
+    checkpoint_path = artifact / "best_model.pt"
+    report_path = (root / report_relative(variant)).resolve()
+    required_paths = (config_path, summary_path, checkpoint_path, report_path)
+    if not all(path.is_file() for path in required_paths):
+        missing = [str(path) for path in required_paths if not path.is_file()]
+        raise FileNotFoundError(
+            "V23gr requires completed V23c direct-control files: "
+            + ", ".join(missing)
+        )
+    control_config, _source, _source_path = load_adapter_config(root, variant)
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    if (
+        summary.get("status") != "completed"
+        or summary.get("variant") != variant
+        or summary.get("architecture")
+        != "official_ncps_cfc_external_state_adapter"
+        or int(summary.get("seed", -1)) != TRAINING_SEED
+        or len(list(summary.get("history") or ())) != FIXED_EPOCHS
+        or report.get("status") != "completed_development_single_factor_only"
+        or report.get("schema_version") != report_schema(variant)
+        or dict(report.get("treatment") or {}).get("variant") != variant
+    ):
+        raise ValueError("V23gr V23c direct control is incomplete or stale")
+    return {
+        "variant": variant,
+        "config_path": _relative(root, config_path),
+        "config_sha256": sha256_file(config_path),
+        "config_identity_sha256": config_identity_sha256(control_config),
+        "summary_path": _relative(root, summary_path),
+        "summary_sha256": sha256_file(summary_path),
+        "checkpoint_path": _relative(root, checkpoint_path),
+        "checkpoint_sha256": sha256_file(checkpoint_path),
+        "report_path": _relative(root, report_path),
+        "report_sha256": sha256_file(report_path),
+        "fixed_zero_delta_gain": 0.25,
+        "direct_control_semantics": "external zero-delta bounded observation h=0.75*h_previous+0.25*h_official",
+    }
+
+
 def source_runtime_report(root: Path) -> tuple[Path, dict[str, Any], str]:
     path = (root / RUNTIME_COMPATIBILITY_REPORT_RELATIVE).resolve()
     if not path.is_file():
@@ -582,6 +648,6 @@ __all__ = [
     "contract_relative", "contract_schema", "load_adapter_config", "readiness_relative", "readiness_schema",
     "report_relative", "report_schema", "source_runtime_report", "source_v23_training", "state_dict_sha256",
     "source_v23_parent_order_hashes", "adapter_state_names", "source_v23a_control",
-    "V23A_VARIANT", "V23B_VARIANT", "V23BR_VARIANT", "V23D_VARIANT",
-    "source_v23b_control",
+    "V23A_VARIANT", "V23B_VARIANT", "V23BR_VARIANT", "V23D_VARIANT", "V23GR_VARIANT",
+    "source_v23b_control", "source_v23c_control",
 ]

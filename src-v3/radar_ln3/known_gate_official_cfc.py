@@ -168,6 +168,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         tr_padding_mask: torch.Tensor,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         model = self.config.model
         if tr_features.ndim != 3 or tr_features.shape[-1] != model.tr_value_dim:
@@ -217,6 +218,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
                 if self.state_adapter_spec.kind == ADAPTER_NONE
                 else self.state_adapter
             ),
+            zero_ordinal=zero_ordinal,
         )
         logits = self.classifier(state.sequence)
         # Padding never reaches the official recurrence.  Keep the readout's
@@ -253,6 +255,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         liquid_state: torch.Tensor | None = None,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
             raise ValueError("V23 online TR/RD-quality tensors must be rank 2")
@@ -277,6 +280,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
                 if self.state_adapter_spec.kind == ADAPTER_NONE
                 else self.state_adapter
             ),
+            zero_ordinal,
         )
         logits = self.classifier(self.liquid.readout(state))
         return {

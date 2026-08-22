@@ -31,6 +31,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23B_VARIANT,
     V23BR_VARIANT,
     V23D_VARIANT,
+    V23GR_VARIANT,
     adapter_state_names,
     artifact_relative,
     checkpoint_schema,
@@ -44,6 +45,7 @@ from radar_ln3.known_gate_v23_adapters import (
     source_v23_parent_order_hashes,
     source_runtime_report,
     source_v23b_control,
+    source_v23c_control,
     source_v23_training,
     state_dict_sha256 as adapter_state_dict_sha256,
 )
@@ -264,6 +266,103 @@ def _assert_v23br_initially_replays_v23b_scale_only(
     }
 
 
+def _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges(
+    root: Path,
+    *,
+    source_config: Any,
+    model: OfficialCfCKnownGateClassifier,
+) -> dict[str, Any]:
+    """Prove V23gr differs from V23c only after same-second multiplicity.
+
+    The V20r/V23g convention assigns k=1 to the first observation in a
+    second.  Therefore the *first zero-delta follow-up* is k=2 and must be
+    the first place V23gr differs from V23c.  Before that point the two paths
+    must replay exactly, proving no change to official CfC, first-event,
+    positive-dt, or front-end processing.
+    """
+
+    control, _audit = build_official_cfc_model_from_frozen_source(
+        root,
+        source_config,
+        state_adapter_spec=load_adapter_config(
+            root, "official_cfc_zero_delta_bounded_observation"
+        )[0].adapter,
+    )
+    dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    chosen = None
+    for item in dataset:
+        reasons = item.base.tr_dt_reason
+        ordinal = 0
+        first_density_zero_index: int | None = None
+        for index, reason in enumerate(reasons.tolist()):
+            if reason in (1, 3):
+                ordinal = 1
+            elif reason == 2:
+                ordinal += 1
+                if ordinal >= 2 and first_density_zero_index is None:
+                    first_density_zero_index = index
+        if first_density_zero_index is not None:
+            chosen = item
+            break
+    if chosen is None:
+        raise RuntimeError("V23gr train data has no causal same-second ordinal k>=2")
+    batch = next(iter(build_known_gate_dataloader([chosen], batch_size=1, shuffle=False)))
+    model.eval()
+    control.eval()
+    with torch.inference_mode():
+        actual = model(**_model_inputs(batch))["sequence_logits"]
+        expected = control(**_model_inputs(batch))["sequence_logits"]
+    reasons = batch["tr_dt_reason"][0]
+    ordinal = 0
+    first_density_zero_index = None
+    for index, reason in enumerate(reasons.tolist()):
+        if reason in (1, 3):
+            ordinal = 1
+        elif reason == 2:
+            ordinal += 1
+            if ordinal >= 2 and first_density_zero_index is None:
+                first_density_zero_index = index
+    if first_density_zero_index is None:
+        raise RuntimeError("V23gr selected parent lacks a k>=2 zero-delta event")
+    first_density_difference = float(
+        (actual[:, first_density_zero_index] - expected[:, first_density_zero_index])
+        .abs()
+        .max()
+        .item()
+    )
+    if first_density_zero_index > 0:
+        pre_difference = float(
+            (
+                actual[:, :first_density_zero_index]
+                - expected[:, :first_density_zero_index]
+            )
+            .abs()
+            .max()
+            .item()
+        )
+    else:
+        pre_difference = 0.0
+    if pre_difference > 1.0e-6:
+        raise RuntimeError(
+            "V23gr initial recurrence does not replay V23c before first density zero-delta: "
+            f"max_error={pre_difference}"
+        )
+    if first_density_difference <= 1.0e-8:
+        raise RuntimeError(
+            "V23gr multiplicity adapter did not diverge from V23c at a real first k>=2 zero-delta"
+        )
+    return {
+        "direct_control_variant": "official_cfc_zero_delta_bounded_observation",
+        "pre_zero_delta_replays_v23c_within_float32_tolerance": True,
+        "first_k2_zero_delta_differs_from_v23c": True,
+        "max_logit_error_before_first_density_zero_delta": pre_difference,
+        "first_k2_zero_delta_logit_difference": first_density_difference,
+        "tolerance": {"atol": 1.0e-6, "rtol": 1.0e-6},
+        "train_parent_id": str(batch["parent_sample_ids"][0]),
+        "first_k2_zero_delta_index": int(first_density_zero_index),
+    }
+
+
 def _v23d_tau_audit(model: OfficialCfCKnownGateClassifier) -> dict[str, Any]:
     """Describe V23d's learned positive per-dimension time scales."""
 
@@ -329,7 +428,7 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
             )
         )
         or (
-            variant == V23BR_VARIANT
+            variant in (V23BR_VARIANT, V23GR_VARIANT)
             and (
                 config.direct_control is None
                 or contract.get("direct_control") != config.direct_control
@@ -450,6 +549,16 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
                     model=model,
                 )
             )
+        elif variant == V23GR_VARIANT:
+            if config.direct_control != source_v23c_control(root):
+                raise RuntimeError("V23gr direct V23c control binding changed during training")
+            pairing_audit["v23gr_direct_v23c_multiplicity_audit"] = (
+                _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges(
+                    root,
+                    source_config=source_config,
+                    model=model,
+                )
+            )
         device = known_gate_device(source_config)
         if config.train.device == "cuda" and device.type != "cuda":
             raise RuntimeError("V23 adapter formal training requires CUDA")
@@ -541,7 +650,7 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
         performance = _performance(best_validation, config.train.task_min_precision_recall_target)
         final_state_sha256 = _state_dict_sha256(model.state_dict())
         result = {"status": "completed", **performance, "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "official_cfc": model.backbone_specification(), "external_state_adapter": model.external_state_adapter_specification(), "seed": 43, "dataloader_seed": 43, "config_name": config.config_name, "config_path": str(config_path), "config_sha256": sha256_file(config_path), "config_identity_sha256": config_identity_sha256(config), "source_control": {"v23_report_path": config.source_v23_report_path, "v23_report_sha256": config.source_v23_report_sha256, "v21_config_path": config.source_config_path, "v21_config_sha256": config.source_config_sha256}, "train_parent_count": len(train_dataset), "validation_parent_count": len(validation_dataset), "validation_clutter_support": 9, "global_step": global_step, "best_epoch": best_epoch, "best_checkpoint_selection": best_selection, "best_validation_metrics": {key: value for key, value in best_validation.items() if key != "records"}, "history": history, "best_checkpoint": str(best_checkpoint), "last_checkpoint": str(last_checkpoint), "sample_detail_information": str(detail_path), "trainable_parameter_count": sum(parameter.numel() for parameter in model.parameters()), "full_parameter_training": True, "all_model_parameters_trainable": True, "initial_model_state_sha256": initial_state_sha256, "best_model_state_sha256": final_state_sha256, "model_state_changed_from_initialization": initial_state_sha256 != final_state_sha256, "initialization_audit": initialization_audit, "v23_initialization_pairing": pairing_audit, "training_readiness": {"path": str(root / readiness_relative(variant)), "sha256": readiness_sha256, "schema_version": readiness_schema(variant), "status": "passed", "validation_used_for_readiness_gate": False, "test": "未执行"}, "official_runtime_compatibility": {"path": str(runtime_path), "sha256": runtime_sha256, "schema_version": runtime["schema_version"], "checks": dict(runtime["checks"])}, "data_contract": {"source_data_contract_path": source_config.data.contract_path, "source_data_contract_sha256": source_config.data.expected_contract_sha256, "normalization_path": source_config.data.normalization_stats_path, "normalization_sha256": source_config.data.expected_stats_sha256, "index_path": source_config.data.index_path, "index_sha256": source_config.data.expected_index_sha256}, "dataloader_contract": {"seed": 43, "independent_generator": True, "epoch_parent_order_hashes": [{"epoch": int(row["epoch"]), "sha256": row["parent_order_sha256"], "v23_control_sha256": row["v23_control_parent_order_sha256"], "exactly_matches_v23_control": row["parent_order_exactly_matches_v23_control"], "count": int(row["parent_order_count"])} for row in history], "all_epoch_parent_orders_exactly_match_v23_control": True, "cuda_deterministic_algorithms": False}, "resume": {"resumed": resumed_from is not None, "checkpoint": resumed_from, "start_epoch": start_epoch, "epoch_boundary_only": True}, "unknown_is_model_class": False, "local_argmax_is_product_action": False, "validation_interpretation": "development-only KnownGate local evidence, not final product action", "multiseed": "未执行", "OOF": "未执行", "test_evaluation": "not_executed", "oof_threshold_calibration": "not_executed", "full_cascade_evaluation": "not_executed", "formal_rejection": "not_executed", "stable_evaluation": "not_executed", "p95_latency": "not_executed", "deployment_eligible": False, "elapsed_seconds": time.perf_counter() - started}
-        if variant in (V23D_VARIANT, V23BR_VARIANT):
+        if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
             result["direct_control"] = config.direct_control
         if variant == V23D_VARIANT:
             result["v23d_per_dimension_tau_audit"] = v23d_tau_audit

@@ -297,6 +297,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         dt_reason: torch.Tensor | None = None,
         initial_state: torch.Tensor | None = None,
         state_adapter: ExternalOfficialCfCStateAdapter | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> OfficialCfCForwardState:
         if events.ndim != 3:
             raise ValueError("V23 official CfC events must have shape [batch, sequence, features]")
@@ -319,6 +320,18 @@ class OfficialCfCCausalEncoder(nn.Module):
             raise ValueError("V23 official CfC requires right-sided causal padding")
         if initial_state is not None and initial_state.shape != (events.shape[0], self.hidden_dim):
             raise ValueError("V23 official CfC initial state shape is invalid")
+        if zero_ordinal is not None:
+            if (
+                zero_ordinal.shape != events.shape[:2]
+                or zero_ordinal.dtype not in (torch.int64, torch.long)
+            ):
+                raise ValueError(
+                    "V23 official CfC zero_ordinal must be long with shape [batch, sequence]"
+                )
+            if bool((zero_ordinal.masked_select(padding_mask) != 0).any()):
+                raise ValueError(
+                    "V23 official CfC padded zero_ordinal values must be zero"
+                )
         first_mask, zero_delta_mask = self._validate_reason_tensors(
             dt_seconds,
             padding_mask,
@@ -363,7 +376,26 @@ class OfficialCfCCausalEncoder(nn.Module):
                     else initial_state[batch_index : batch_index + 1]
                 )
                 rows: list[torch.Tensor] = []
+                causal_zero_ordinal = 0
                 for event_index in range(length):
+                    reason = int(dt_reason[batch_index, event_index].item())
+                    if reason in (DT_REASON_FIRST_EVENT, DT_REASON_POSITIVE_DELTA):
+                        causal_zero_ordinal = 1
+                    elif reason == DT_REASON_ZERO_DELTA:
+                        causal_zero_ordinal += 1
+                    else:  # `_validate_reason_tensors` rejects this before recurrence.
+                        raise RuntimeError("unsupported V23 official-CfC dt reason")
+                    step_ordinal = torch.tensor(
+                        [causal_zero_ordinal],
+                        dtype=torch.long,
+                        device=events.device,
+                    )
+                    if zero_ordinal is not None and int(
+                        zero_ordinal[batch_index, event_index].item()
+                    ) != causal_zero_ordinal:
+                        raise ValueError(
+                            "V23 official CfC zero_ordinal does not match the causal dt_reason sequence"
+                        )
                     official_sequence, official_state = self.cfc(
                         events[batch_index : batch_index + 1, event_index : event_index + 1],
                         hx=state if has_previous_state else None,
@@ -381,6 +413,7 @@ class OfficialCfCCausalEncoder(nn.Module):
                         state,
                         dt_seconds[batch_index : batch_index + 1, event_index],
                         dt_reason[batch_index : batch_index + 1, event_index],
+                        step_ordinal,
                     )
                     has_previous_state = True
                     rows.append(state.squeeze(0))
@@ -412,6 +445,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         dt_valid: torch.Tensor | None = None,
         dt_reason: torch.Tensor | None = None,
         state_adapter: ExternalOfficialCfCStateAdapter | None = None,
+        zero_ordinal: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if event.ndim != 2 or event.shape[-1] != self.input_dim:
             raise ValueError("V23 official CfC online event must have shape [batch, features]")
@@ -442,10 +476,28 @@ class OfficialCfCCausalEncoder(nn.Module):
                 raise ValueError("V23 official CfC online dt_reason/dt_valid mismatch")
         if state is not None and state.shape != (event.shape[0], self.hidden_dim):
             raise ValueError("V23 official CfC online state shape is invalid")
+        if zero_ordinal is not None:
+            if (
+                zero_ordinal.shape != dt_seconds.shape
+                or zero_ordinal.dtype not in (torch.int64, torch.long)
+                or bool((zero_ordinal < 1).any())
+            ):
+                raise ValueError(
+                    "V23 official CfC online zero_ordinal must be positive long with shape [batch]"
+                )
         active = torch.ones_like(dt_seconds, dtype=torch.bool)
         timespans, clamped_mask, zero_mask = self._timespans(dt_seconds, active)
         if state_adapter is not None and state_adapter.spec.kind != ADAPTER_NONE and dt_reason is None:
             raise ValueError("an external official-CfC state adapter requires online dt_reason")
+        if (
+            state_adapter is not None
+            and state_adapter.spec.kind
+            == "zero_delta_density_weighted_multiplicity"
+            and zero_ordinal is None
+        ):
+            raise ValueError(
+                "official-CfC density multiplicity adapter requires explicit online zero_ordinal"
+            )
         next_states: list[torch.Tensor] = []
         for batch_index in range(event.shape[0]):
             hx = None if state is None else state[batch_index : batch_index + 1]
@@ -467,6 +519,11 @@ class OfficialCfCCausalEncoder(nn.Module):
                     previous,
                     dt_seconds[batch_index : batch_index + 1],
                     dt_reason[batch_index : batch_index + 1],
+                    (
+                        None
+                        if zero_ordinal is None
+                        else zero_ordinal[batch_index : batch_index + 1]
+                    ),
                 )
             next_states.append(next_state)
         return torch.cat(next_states, dim=0), clamped_mask, zero_mask
