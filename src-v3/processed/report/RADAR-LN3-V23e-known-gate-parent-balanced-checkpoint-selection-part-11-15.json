@@ -1,0 +1,1297 @@
+{
+  "status": "completed_development_selector_partial_only",
+  "schema_version": "RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-report-v1",
+  "selector_schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+  "experiment": "V23e checkpoint-selection-only scan of frozen V23a training states",
+  "scope": "V21 development KnownGate only; no retraining, OOF, test, Unknown, L3, full cascade, rejection, stable or P95",
+  "single_factor": {
+    "changed_component": "checkpoint selection rule only",
+    "frozen": [
+      "V23a loss",
+      "official-CfC model and V23a positive-dt adapter",
+      "features",
+      "dt semantics",
+      "initialization",
+      "DataLoader parent order",
+      "optimizer",
+      "batch weighting",
+      "20 saved epochs"
+    ],
+    "training_step_count": 0,
+    "optimizer_step_count": 0
+  },
+  "source_v23a": {
+    "config_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-config.json",
+    "config_sha256": "06112cbc6ebc5a66bebbd3cd3e475ebab1e8f15d2f827900322c141ba229af8a",
+    "config_identity_sha256": "f176cec2579f1f72077fab30d8959e6c5178de3884fbd6965158314873f8d1a7",
+    "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23a-known-gate-official-cfc-training-readiness.json",
+    "readiness_sha256": "e278d65ab4e0f0826e1c92643c35a1ae43b8aba4d726761db672abf9b610ba1f",
+    "training_summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\training-summary.json",
+    "training_summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+    "legacy_best_epoch": 14,
+    "initialization_audit": {
+      "strategy": "copy_frozen_source_non_recurrent_state_then_seed_official_cfc",
+      "source_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+      "source_initialization_pairing": {
+        "paired_baseline": false,
+        "initialization": "seeded_full_random_initialization",
+        "seed": 43
+      },
+      "shared_non_recurrent_state_sha256": "02b23b047798a8991d0389d93e8818395101b96c1f525439516764e76618faa7",
+      "shared_non_recurrent_tensor_count": 30,
+      "shared_non_recurrent_parameter_count": 30,
+      "shared_non_recurrent_buffer_count": 0,
+      "source_non_recurrent_parameter_count": 30,
+      "source_non_recurrent_buffer_count": 0,
+      "shared_non_recurrent_state_exactly_equal": true,
+      "official_recurrent_state_is_distinct_by_architecture": true,
+      "external_state_adapter": {
+        "kind": "positive_dt_fixed_retention",
+        "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+        "applies_to": "positive_delta_at_second_precision only",
+        "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+        "fixed_tau_seconds": 15.025,
+        "trainable_parameter_count": 0,
+        "first_and_zero_delta_behavior": "h=h_official"
+      }
+    }
+  },
+  "legacy_reference": {
+    "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+    "role": "frozen_v23a_legacy_parent_final_selector_reference",
+    "epoch": 14,
+    "source": {
+      "variant": "official_cfc_positive_dt_fixed_retention",
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\training-summary.json",
+      "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+      "legacy_best_checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\best_model.pt",
+      "legacy_best_checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+      "epoch_checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-014.pt",
+      "epoch_checkpoint_sha256": "d0ffe337737244d167651118086ec0b1499143fff162cf711164ad7f652ae02c",
+      "sample_detail_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\sample_detail_information.json",
+      "sample_detail_sha256": "22a4918ec1fa54b6875532c15a84289d67dcb77d50fec7efe2972e17db0c2368"
+    },
+    "metrics": {
+      "parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "eligible_prefix_metrics": {
+        "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+        "support": 3756,
+        "accuracy": 0.9704472843450479,
+        "macro_precision": 0.8162153750389045,
+        "macro_recall": 0.6967232953410931,
+        "macro_f1": 0.7412566537434424,
+        "balanced_accuracy": 0.6967232953410931,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9776688453159041,
+            "recall": 0.9919867366675877,
+            "f1": 0.9847757509257988,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 29
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6547619047619048,
+            "recall": 0.40145985401459855,
+            "f1": 0.497737556561086,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 82
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3590,
+            29
+          ],
+          [
+            82,
+            55
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999764,
+        "accuracy": 0.9672487219385643,
+        "macro_precision": 0.8037778677977816,
+        "macro_recall": 0.6815104405870961,
+        "macro_f1": 0.7256836204212649,
+        "balanced_accuracy": 0.6815104405870961,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9750591209123971,
+            "recall": 0.9912827829868188,
+            "f1": 0.9831040238099535,
+            "support": 223,
+            "weighted_support": 222.99999999999764,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 1.9439393939393947
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.632496614683166,
+            "recall": 0.3717380981873734,
+            "f1": 0.4682632170325761,
+            "support": 9,
+            "weighted_support": 9.0,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 5.654357116313639
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221.05606060605825,
+            1.9439393939393947
+          ],
+          [
+            5.654357116313639,
+            3.3456428836863608
+          ]
+        ]
+      },
+      "window_metrics": {
+        "scope": "causal_prefix_windows",
+        "support": 4452,
+        "accuracy": 0.9699011680143755,
+        "macro_precision": 0.8180846181637096,
+        "macro_recall": 0.6852930469603203,
+        "macro_f1": 0.7325608293121164,
+        "balanced_accuracy": 0.6852930469603203,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.976594768242313,
+            "recall": 0.9925373134328358,
+            "f1": 0.9845015035854731,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 32
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6595744680851063,
+            "recall": 0.3780487804878049,
+            "f1": 0.4806201550387597,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 102
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4256,
+            32
+          ],
+          [
+            102,
+            62
+          ]
+        ]
+      }
+    }
+  },
+  "selector_protocol": {
+    "clutter_parent_support": 9,
+    "parent_final_clutter_true_positive_count_minimum": 8,
+    "parent_final_clutter_recall_minimum": 0.8888888888888888,
+    "parent_final_clutter_precision_minimum": 0.9,
+    "prefix_aggregation": "hard causal actions; each eligible parent total weight is one, each prefix is 1/n_parent",
+    "pending_events": "events 1-2 are PENDING_ABSTAIN and excluded from prefix classification denominators",
+    "reference": "frozen V23a legacy parent-final-selected epoch only",
+    "ranking": [
+      "parent_balanced_eligible_prefix_clutter_recall_desc",
+      "parent_balanced_eligible_prefix_clutter_f1_desc",
+      "parent_final_clutter_precision_desc",
+      "parent_final_clutter_recall_desc",
+      "parent_final_macro_f1_desc",
+      "earlier_epoch_asc_for_exact_tie"
+    ]
+  },
+  "scanned_epoch_range": [
+    11,
+    15
+  ],
+  "scanned_all_frozen_epochs": false,
+  "epoch_candidates": [
+    {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "epoch": 11,
+      "feasible": false,
+      "constraints": {
+        "all_selector_metrics_are_finite": true,
+        "parent_final_clutter_support_is_9": true,
+        "parent_final_clutter_true_positives_at_least_8_of_9": false,
+        "parent_final_clutter_recall_at_least_88_89_percent": false,
+        "parent_final_clutter_precision_at_least_0_90": false,
+        "parent_final_known_target_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_class_support_matches_v23a_legacy": true,
+        "parent_balanced_prefix_known_target_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_clutter_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_f1_non_decreasing_vs_v23a_legacy": true
+      },
+      "parent_final_counts": {
+        "known_target_support": 223,
+        "known_target_true_positive_count": 217,
+        "clutter_support": 9,
+        "clutter_true_positive_count": 6,
+        "clutter_false_positive_count": 6,
+        "clutter_false_negative_count": 3
+      },
+      "ranking_definition": [
+        "parent_balanced_eligible_prefix_clutter_recall_desc",
+        "parent_balanced_eligible_prefix_clutter_f1_desc",
+        "parent_final_clutter_precision_desc",
+        "parent_final_clutter_recall_desc",
+        "parent_final_macro_f1_desc",
+        "earlier_epoch_asc_for_exact_tie"
+      ],
+      "ranking_key": null,
+      "metrics": {
+        "parent_final": {
+          "scope": "parent_final",
+          "support": 232,
+          "accuracy": 0.9612068965517241,
+          "macro_precision": 0.7431818181818182,
+          "macro_recall": 0.819880418535127,
+          "macro_f1": 0.7755562721702678,
+          "balanced_accuracy": 0.819880418535127,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9863636363636363,
+              "recall": 0.9730941704035875,
+              "f1": 0.979683972911964,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5,
+              "recall": 0.6666666666666666,
+              "f1": 0.5714285714285715,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 3
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              217,
+              6
+            ],
+            [
+              3,
+              6
+            ]
+          ]
+        },
+        "eligible_prefix_event_pooled": {
+          "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+          "support": 3756,
+          "accuracy": 0.966986155484558,
+          "macro_precision": 0.765603630937681,
+          "macro_recall": 0.7581337749065657,
+          "macro_f1": 0.7618091994231183,
+          "balanced_accuracy": 0.7581337749065657,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9823350814242341,
+              "recall": 0.9834208344846642,
+              "f1": 0.9828776581054958,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 60
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5488721804511278,
+              "recall": 0.5328467153284672,
+              "f1": 0.5407407407407409,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 64
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3559,
+              60
+            ],
+            [
+              64,
+              73
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+          "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+          "support": 232,
+          "event_support": 3756,
+          "weighted_support": 231.9999999999974,
+          "accuracy": 0.9641403820962476,
+          "macro_precision": 0.7598964583420195,
+          "macro_recall": 0.7518101770193633,
+          "macro_f1": 0.7557813052022182,
+          "balanced_accuracy": 0.7518101770193633,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9807183967591347,
+              "recall": 0.9819999320559857,
+              "f1": 0.9813587460253876,
+              "support": 223,
+              "weighted_support": 222.9999999999974,
+              "event_support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 4.014015151515149
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5390745199249042,
+              "recall": 0.5216204219827408,
+              "f1": 0.5302038643790487,
+              "support": 9,
+              "weighted_support": 9.000000000000002,
+              "event_support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 4.3054162021553335
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              218.98598484848227,
+              4.014015151515149
+            ],
+            [
+              4.3054162021553335,
+              4.694583797844668
+            ]
+          ]
+        },
+        "window_event_pooled": {
+          "scope": "causal_prefix_windows",
+          "support": 4452,
+          "accuracy": 0.9660826594788859,
+          "macro_precision": 0.7625461358013819,
+          "macro_recall": 0.7331577630141972,
+          "macro_f1": 0.7468792535737079,
+          "balanced_accuracy": 0.7331577630141972,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9802646853958672,
+              "recall": 0.9846082089552238,
+              "f1": 0.9824316463059918,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 66
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5448275862068965,
+              "recall": 0.4817073170731707,
+              "f1": 0.511326860841424,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 85
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4222,
+              66
+            ],
+            [
+              85,
+              79
+            ]
+          ]
+        }
+      },
+      "checkpoint": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-011.pt",
+        "sha256": "81d9d88453ed37c84a3ade54fcb2019d9243d9a3e0a5c9659b3fe2aed5288619",
+        "saved_epoch_metrics_match_checkpoint_epoch": true
+      }
+    },
+    {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "epoch": 12,
+      "feasible": false,
+      "constraints": {
+        "all_selector_metrics_are_finite": true,
+        "parent_final_clutter_support_is_9": true,
+        "parent_final_clutter_true_positives_at_least_8_of_9": false,
+        "parent_final_clutter_recall_at_least_88_89_percent": false,
+        "parent_final_clutter_precision_at_least_0_90": false,
+        "parent_final_known_target_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_class_support_matches_v23a_legacy": true,
+        "parent_balanced_prefix_known_target_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_clutter_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_f1_non_decreasing_vs_v23a_legacy": true
+      },
+      "parent_final_counts": {
+        "known_target_support": 223,
+        "known_target_true_positive_count": 217,
+        "clutter_support": 9,
+        "clutter_true_positive_count": 7,
+        "clutter_false_positive_count": 6,
+        "clutter_false_negative_count": 2
+      },
+      "ranking_definition": [
+        "parent_balanced_eligible_prefix_clutter_recall_desc",
+        "parent_balanced_eligible_prefix_clutter_f1_desc",
+        "parent_final_clutter_precision_desc",
+        "parent_final_clutter_recall_desc",
+        "parent_final_macro_f1_desc",
+        "earlier_epoch_asc_for_exact_tie"
+      ],
+      "ranking_key": null,
+      "metrics": {
+        "parent_final": {
+          "scope": "parent_final",
+          "support": 232,
+          "accuracy": 0.9655172413793104,
+          "macro_precision": 0.7646645591851071,
+          "macro_recall": 0.8754359740906826,
+          "macro_f1": 0.809132044426162,
+          "balanced_accuracy": 0.8754359740906826,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9908675799086758,
+              "recall": 0.9730941704035875,
+              "f1": 0.9819004524886878,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5384615384615384,
+              "recall": 0.7777777777777778,
+              "f1": 0.6363636363636364,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              217,
+              6
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "eligible_prefix_event_pooled": {
+          "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+          "support": 3756,
+          "accuracy": 0.9715122470713525,
+          "macro_precision": 0.7929603072609381,
+          "macro_recall": 0.8236890458508722,
+          "macro_f1": 0.8074719980914487,
+          "balanced_accuracy": 0.8236890458508722,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9872364039955605,
+              "recall": 0.9831445150594087,
+              "f1": 0.9851862107157692,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 61
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5986842105263158,
+              "recall": 0.6642335766423357,
+              "f1": 0.629757785467128,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 46
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3558,
+              61
+            ],
+            [
+              46,
+              91
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+          "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+          "support": 232,
+          "event_support": 3756,
+          "weighted_support": 231.99999999999756,
+          "accuracy": 0.9686970198612811,
+          "macro_precision": 0.7870097887409533,
+          "macro_recall": 0.8118326210152913,
+          "macro_f1": 0.7988435000164331,
+          "balanced_accuracy": 0.8118326210152913,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9854894679984691,
+              "recall": 0.981891221633374,
+              "f1": 0.9836870543045904,
+              "support": 223,
+              "weighted_support": 222.99999999999756,
+              "event_support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 4.038257575757571
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5885301094834374,
+              "recall": 0.6417740203972088,
+              "f1": 0.6139999457282758,
+              "support": 9,
+              "weighted_support": 9.0,
+              "event_support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 3.2240338164251203
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              218.96174242424,
+              4.038257575757571
+            ],
+            [
+              3.2240338164251203,
+              5.775966183574879
+            ]
+          ]
+        },
+        "window_event_pooled": {
+          "scope": "causal_prefix_windows",
+          "support": 4452,
+          "accuracy": 0.970125786163522,
+          "macro_precision": 0.7892720062769049,
+          "macro_recall": 0.7909679878048781,
+          "macro_f1": 0.7901172383847157,
+          "balanced_accuracy": 0.7909679878048781,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9846046186144157,
+              "recall": 0.984375,
+              "f1": 0.9844897959183674,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 67
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.593939393939394,
+              "recall": 0.5975609756097561,
+              "f1": 0.5957446808510639,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 66
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4221,
+              67
+            ],
+            [
+              66,
+              98
+            ]
+          ]
+        }
+      },
+      "checkpoint": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-012.pt",
+        "sha256": "1dfdca7cfb4149eda81192445c3fbcf02f108368e4899f7bb3af45d5a47b93f4",
+        "saved_epoch_metrics_match_checkpoint_epoch": true
+      }
+    },
+    {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "epoch": 13,
+      "feasible": false,
+      "constraints": {
+        "all_selector_metrics_are_finite": true,
+        "parent_final_clutter_support_is_9": true,
+        "parent_final_clutter_true_positives_at_least_8_of_9": false,
+        "parent_final_clutter_recall_at_least_88_89_percent": false,
+        "parent_final_clutter_precision_at_least_0_90": false,
+        "parent_final_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_class_support_matches_v23a_legacy": true,
+        "parent_balanced_prefix_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_clutter_f1_non_decreasing_vs_v23a_legacy": false
+      },
+      "parent_final_counts": {
+        "known_target_support": 223,
+        "known_target_true_positive_count": 221,
+        "clutter_support": 9,
+        "clutter_true_positive_count": 1,
+        "clutter_false_positive_count": 2,
+        "clutter_false_negative_count": 8
+      },
+      "ranking_definition": [
+        "parent_balanced_eligible_prefix_clutter_recall_desc",
+        "parent_balanced_eligible_prefix_clutter_f1_desc",
+        "parent_final_clutter_precision_desc",
+        "parent_final_clutter_recall_desc",
+        "parent_final_macro_f1_desc",
+        "earlier_epoch_asc_for_exact_tie"
+      ],
+      "ranking_key": null,
+      "metrics": {
+        "parent_final": {
+          "scope": "parent_final",
+          "support": 232,
+          "accuracy": 0.9568965517241379,
+          "macro_precision": 0.6491994177583698,
+          "macro_recall": 0.5510712506228201,
+          "macro_f1": 0.5722713864306785,
+          "balanced_accuracy": 0.5510712506228201,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9650655021834061,
+              "recall": 0.9910313901345291,
+              "f1": 0.9778761061946903,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 2
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.3333333333333333,
+              "recall": 0.1111111111111111,
+              "f1": 0.16666666666666666,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 8
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              221,
+              2
+            ],
+            [
+              8,
+              1
+            ]
+          ]
+        },
+        "eligible_prefix_event_pooled": {
+          "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+          "support": 3756,
+          "accuracy": 0.9616613418530351,
+          "macro_precision": 0.48172846092291277,
+          "macro_recall": 0.4990328820116054,
+          "macro_f1": 0.49022801302931596,
+          "balanced_accuracy": 0.4990328820116054,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9634569218458255,
+              "recall": 0.9980657640232108,
+              "f1": 0.9804560260586319,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 7
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 137
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3612,
+              7
+            ],
+            [
+              137,
+              0
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+          "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+          "support": 232,
+          "event_support": 3756,
+          "weighted_support": 231.9999999999975,
+          "accuracy": 0.9596982758620686,
+          "macro_precision": 0.48057414202460585,
+          "macro_recall": 0.4992152466367713,
+          "macro_f1": 0.4897173650060485,
+          "balanced_accuracy": 0.4992152466367713,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9611482840492117,
+              "recall": 0.9984304932735426,
+              "f1": 0.979434730012097,
+              "support": 223,
+              "weighted_support": 222.9999999999975,
+              "event_support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 0.35
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 9,
+              "weighted_support": 8.999999999999995,
+              "event_support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 8.999999999999995
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              222.6499999999975,
+              0.35
+            ],
+            [
+              8.999999999999995,
+              0.0
+            ]
+          ]
+        },
+        "window_event_pooled": {
+          "scope": "causal_prefix_windows",
+          "support": 4452,
+          "accuracy": 0.9613656783468104,
+          "macro_precision": 0.5316524088248537,
+          "macro_recall": 0.5019993401892974,
+          "macro_f1": 0.49589603823517797,
+          "balanced_accuracy": 0.5019993401892974,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9633048176497073,
+              "recall": 0.9979011194029851,
+              "f1": 0.9802978235967927,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 9
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.1,
+              "recall": 0.006097560975609756,
+              "f1": 0.01149425287356322,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 163
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4279,
+              9
+            ],
+            [
+              163,
+              1
+            ]
+          ]
+        }
+      },
+      "checkpoint": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-013.pt",
+        "sha256": "1b5a145a201162d82ac53a728e7e3d1b45f2d307efa8f3bd567a50aa8c551bf7",
+        "saved_epoch_metrics_match_checkpoint_epoch": true
+      }
+    },
+    {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "epoch": 14,
+      "feasible": false,
+      "constraints": {
+        "all_selector_metrics_are_finite": true,
+        "parent_final_clutter_support_is_9": true,
+        "parent_final_clutter_true_positives_at_least_8_of_9": false,
+        "parent_final_clutter_recall_at_least_88_89_percent": false,
+        "parent_final_clutter_precision_at_least_0_90": false,
+        "parent_final_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_class_support_matches_v23a_legacy": true,
+        "parent_balanced_prefix_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_f1_non_decreasing_vs_v23a_legacy": true
+      },
+      "parent_final_counts": {
+        "known_target_support": 223,
+        "known_target_true_positive_count": 220,
+        "clutter_support": 9,
+        "clutter_true_positive_count": 7,
+        "clutter_false_positive_count": 3,
+        "clutter_false_negative_count": 2
+      },
+      "ranking_definition": [
+        "parent_balanced_eligible_prefix_clutter_recall_desc",
+        "parent_balanced_eligible_prefix_clutter_f1_desc",
+        "parent_final_clutter_precision_desc",
+        "parent_final_clutter_recall_desc",
+        "parent_final_macro_f1_desc",
+        "earlier_epoch_asc_for_exact_tie"
+      ],
+      "ranking_key": null,
+      "metrics": {
+        "parent_final": {
+          "scope": "parent_final",
+          "support": 232,
+          "accuracy": 0.978448275862069,
+          "macro_precision": 0.8454954954954954,
+          "macro_recall": 0.8821624314897858,
+          "macro_f1": 0.862803075103489,
+          "balanced_accuracy": 0.8821624314897858,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.990990990990991,
+              "recall": 0.9865470852017937,
+              "f1": 0.9887640449438202,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              220,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "eligible_prefix_event_pooled": {
+          "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+          "support": 3756,
+          "accuracy": 0.9704472843450479,
+          "macro_precision": 0.8162153750389045,
+          "macro_recall": 0.6967232953410931,
+          "macro_f1": 0.7412566537434424,
+          "balanced_accuracy": 0.6967232953410931,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9776688453159041,
+              "recall": 0.9919867366675877,
+              "f1": 0.9847757509257988,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 29
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6547619047619048,
+              "recall": 0.40145985401459855,
+              "f1": 0.497737556561086,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 82
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3590,
+              29
+            ],
+            [
+              82,
+              55
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+          "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+          "support": 232,
+          "event_support": 3756,
+          "weighted_support": 231.99999999999764,
+          "accuracy": 0.9672487219385643,
+          "macro_precision": 0.8037778677977816,
+          "macro_recall": 0.6815104405870961,
+          "macro_f1": 0.7256836204212649,
+          "balanced_accuracy": 0.6815104405870961,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9750591209123971,
+              "recall": 0.9912827829868188,
+              "f1": 0.9831040238099535,
+              "support": 223,
+              "weighted_support": 222.99999999999764,
+              "event_support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 1.9439393939393947
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.632496614683166,
+              "recall": 0.3717380981873734,
+              "f1": 0.4682632170325761,
+              "support": 9,
+              "weighted_support": 9.0,
+              "event_support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 5.654357116313639
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              221.05606060605825,
+              1.9439393939393947
+            ],
+            [
+              5.654357116313639,
+              3.3456428836863608
+            ]
+          ]
+        },
+        "window_event_pooled": {
+          "scope": "causal_prefix_windows",
+          "support": 4452,
+          "accuracy": 0.9699011680143755,
+          "macro_precision": 0.8180846181637096,
+          "macro_recall": 0.6852930469603203,
+          "macro_f1": 0.7325608293121164,
+          "balanced_accuracy": 0.6852930469603203,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.976594768242313,
+              "recall": 0.9925373134328358,
+              "f1": 0.9845015035854731,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 32
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6595744680851063,
+              "recall": 0.3780487804878049,
+              "f1": 0.4806201550387597,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 102
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4256,
+              32
+            ],
+            [
+              102,
+              62
+            ]
+          ]
+        }
+      },
+      "checkpoint": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-014.pt",
+        "sha256": "d0ffe337737244d167651118086ec0b1499143fff162cf711164ad7f652ae02c",
+        "saved_epoch_metrics_match_checkpoint_epoch": true
+      }
+    },
+    {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "epoch": 15,
+      "feasible": false,
+      "constraints": {
+        "all_selector_metrics_are_finite": true,
+        "parent_final_clutter_support_is_9": true,
+        "parent_final_clutter_true_positives_at_least_8_of_9": false,
+        "parent_final_clutter_recall_at_least_88_89_percent": false,
+        "parent_final_clutter_precision_at_least_0_90": false,
+        "parent_final_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_class_support_matches_v23a_legacy": true,
+        "parent_balanced_prefix_known_target_recall_non_decreasing_vs_v23a_legacy": true,
+        "parent_balanced_prefix_clutter_recall_non_decreasing_vs_v23a_legacy": false,
+        "parent_balanced_prefix_clutter_f1_non_decreasing_vs_v23a_legacy": false
+      },
+      "parent_final_counts": {
+        "known_target_support": 223,
+        "known_target_true_positive_count": 220,
+        "clutter_support": 9,
+        "clutter_true_positive_count": 5,
+        "clutter_false_positive_count": 3,
+        "clutter_false_negative_count": 4
+      },
+      "ranking_definition": [
+        "parent_balanced_eligible_prefix_clutter_recall_desc",
+        "parent_balanced_eligible_prefix_clutter_f1_desc",
+        "parent_final_clutter_precision_desc",
+        "parent_final_clutter_recall_desc",
+        "parent_final_macro_f1_desc",
+        "earlier_epoch_asc_for_exact_tie"
+      ],
+      "ranking_key": null,
+      "metrics": {
+        "parent_final": {
+          "scope": "parent_final",
+          "support": 232,
+          "accuracy": 0.9698275862068966,
+          "macro_precision": 0.8035714285714286,
+          "macro_recall": 0.7710513203786746,
+          "macro_f1": 0.7862876694301881,
+          "balanced_accuracy": 0.7710513203786746,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9821428571428571,
+              "recall": 0.9865470852017937,
+              "f1": 0.9843400447427293,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.625,
+              "recall": 0.5555555555555556,
+              "f1": 0.5882352941176471,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 4
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              220,
+              3
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "eligible_prefix_event_pooled": {
+          "scope": "eligible_causal_prefix_auxiliary_excluding_final",
+          "support": 3756,
+          "accuracy": 0.966986155484558,
+          "macro_precision": 0.7951757510255213,
+          "macro_recall": 0.6211862372756921,
+          "macro_f1": 0.6686133879781421,
+          "balanced_accuracy": 0.6211862372756921,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9721696838692245,
+              "recall": 0.9941972920696325,
+              "f1": 0.9830601092896174,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 21
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6181818181818182,
+              "recall": 0.24817518248175183,
+              "f1": 0.3541666666666667,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 103
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3598,
+              21
+            ],
+            [
+              103,
+              34
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+          "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+          "support": 232,
+          "event_support": 3756,
+          "weighted_support": 231.99999999999753,
+          "accuracy": 0.9644627951903998,
+          "macro_precision": 0.7887747979552406,
+          "macro_recall": 0.6153920118602155,
+          "macro_f1": 0.661345621810888,
+          "balanced_accuracy": 0.6153920118602155,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9699446093835656,
+              "recall": 0.9938238891153689,
+              "f1": 0.981739064111569,
+              "support": 223,
+              "weighted_support": 222.99999999999753,
+              "event_support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 1.3772727272727279
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6076049865269157,
+              "recall": 0.23696013460506213,
+              "f1": 0.340952179510207,
+              "support": 9,
+              "weighted_support": 8.999999999999995,
+              "event_support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 6.867358788554437
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              221.6227272727248,
+              1.3772727272727279
+            ],
+            [
+              6.867358788554437,
+              2.132641211445558
+            ]
+          ]
+        },
+        "window_event_pooled": {
+          "scope": "causal_prefix_windows",
+          "support": 4452,
+          "accuracy": 0.9665318957771788,
+          "macro_precision": 0.7952836637047164,
+          "macro_recall": 0.6161039315617036,
+          "macro_f1": 0.6632202506093633,
+          "balanced_accuracy": 0.6161039315617036,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9715197083618137,
+              "recall": 0.9944029850746269,
+              "f1": 0.9828281664169645,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 24
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6190476190476191,
+              "recall": 0.23780487804878048,
+              "f1": 0.3436123348017621,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 125
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4264,
+              24
+            ],
+            [
+              125,
+              39
+            ]
+          ]
+        }
+      },
+      "checkpoint": {
+        "path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\epochs\\epoch-015.pt",
+        "sha256": "e513dcf38701d883af21971350c585ce9cf38aa06ebe933ced9ee43667e55b79",
+        "saved_epoch_metrics_match_checkpoint_epoch": true
+      }
+    }
+  ],
+  "feasible_epoch_count": 0,
+  "selected_checkpoint": null,
+  "selected_checkpoint_parent_bootstrap": null,
+  "selected_checkpoint_clutter_prefix_action_trajectories": null,
+  "conclusion": "V23e partial read-only scan completed; no selector conclusion is permitted until every frozen epoch 1-20 is scanned.",
+  "not_final_product_performance": true,
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

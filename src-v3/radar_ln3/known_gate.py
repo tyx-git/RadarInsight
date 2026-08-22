@@ -1605,6 +1605,147 @@ def summarize_known_gate_records(
     }
 
 
+def parent_balanced_eligible_prefix_rows(
+    records: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach the exact causal-prefix weight owned by each parent.
+
+    ``eligible_prefix`` historically reports one hard action per causal event.
+    That is useful for event-level diagnostics, but a long parent then carries
+    more evaluation mass than a short parent even though the training loss
+    averages eligible prefixes inside each parent.  This helper preserves each
+    individual causal action while assigning every eligible parent total mass
+    one.  It deliberately does *not* average probabilities or predictions.
+    """
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for raw in records:
+        row = dict(raw)
+        parent_id = str(row.get("parent_sample_id", ""))
+        if not parent_id:
+            raise ValueError("parent-balanced prefix record has no parent_sample_id")
+        if row.get("product_action_eligible") is not True:
+            raise ValueError(
+                "parent-balanced prefix metric received a non-eligible causal action"
+            )
+        true_id = int(row.get("true_id", -1))
+        pred_id = int(row.get("pred_id", -1))
+        if true_id not in {0, 1} or pred_id not in {0, 1}:
+            raise ValueError("parent-balanced prefix record has an invalid class id")
+        grouped.setdefault(parent_id, []).append(row)
+
+    weighted: list[dict[str, Any]] = []
+    for parent_id, rows in grouped.items():
+        if not rows:
+            raise AssertionError("empty parent group is impossible")
+        true_ids = {int(row["true_id"]) for row in rows}
+        label_names = {str(row.get("label_name", "")) for row in rows}
+        event_indices = [int(row.get("event_index", -1)) for row in rows]
+        if len(true_ids) != 1 or len(label_names) != 1:
+            raise ValueError(
+                "parent-balanced prefix records disagree on a parent label"
+            )
+        if len(set(event_indices)) != len(event_indices) or min(event_indices) < 0:
+            raise ValueError(
+                "parent-balanced prefix records repeat or omit an event index"
+            )
+        weight = 1.0 / len(rows)
+        for row in rows:
+            row["parent_balanced_prefix_weight"] = weight
+            row["parent_balanced_prefix_event_count"] = len(rows)
+            weighted.append(row)
+    return weighted
+
+
+def summarize_parent_balanced_eligible_prefix_records(
+    records: Iterable[Mapping[str, Any]],
+    *,
+    scope: str,
+) -> dict[str, Any]:
+    """Summarize eligible causal-prefix actions with one unit per parent.
+
+    ``support`` is the number of eligible parents rather than the number of
+    causal events.  ``event_support`` remains available for comparison with
+    the historical event-pooled metric.  The confusion matrix intentionally
+    contains fractional mass because a parent with ``n`` legal prefixes gives
+    each of its actions weight ``1/n``.
+    """
+
+    weighted = parent_balanced_eligible_prefix_rows(records)
+    matrix = np.zeros((2, 2), dtype=np.float64)
+    event_support = np.zeros(2, dtype=np.int64)
+    parent_ids_by_class: list[set[str]] = [set(), set()]
+    for row in weighted:
+        true_id = int(row["true_id"])
+        pred_id = int(row["pred_id"])
+        weight = float(row["parent_balanced_prefix_weight"])
+        if not np.isfinite(weight) or not 0.0 < weight <= 1.0:
+            raise ValueError("parent-balanced prefix weight is invalid")
+        matrix[true_id, pred_id] += weight
+        event_support[true_id] += 1
+        parent_ids_by_class[true_id].add(str(row["parent_sample_id"]))
+
+    parent_support = np.asarray(
+        [len(parent_ids_by_class[class_id]) for class_id in range(2)],
+        dtype=np.int64,
+    )
+    total_parent_support = int(parent_support.sum())
+    if weighted and not np.isclose(matrix.sum(), float(total_parent_support), atol=1.0e-9):
+        raise AssertionError(
+            "parent-balanced eligible-prefix weights do not sum to one per parent"
+        )
+    predicted = matrix.sum(axis=0)
+    per_class: list[dict[str, Any]] = []
+    precision_values: list[float] = []
+    recall_values: list[float] = []
+    f1_values: list[float] = []
+    for class_id, class_name in enumerate(KNOWN_GATE_CLASS_NAMES):
+        true_mass = float(matrix[class_id].sum())
+        predicted_mass = float(predicted[class_id])
+        tp = float(matrix[class_id, class_id])
+        precision = tp / predicted_mass if predicted_mass else 0.0
+        recall = tp / true_mass if true_mass else 0.0
+        f1 = 2.0 * precision * recall / (precision + recall) if precision + recall else 0.0
+        precision_values.append(float(precision))
+        recall_values.append(float(recall))
+        f1_values.append(float(f1))
+        other = 1 - class_id
+        per_class.append(
+            {
+                "class": class_name,
+                "precision": float(precision),
+                "recall": float(recall),
+                "f1": float(f1),
+                "support": int(parent_support[class_id]),
+                "weighted_support": true_mass,
+                "event_support": int(event_support[class_id]),
+                "major_confusion_to": (
+                    KNOWN_GATE_CLASS_NAMES[other]
+                    if float(matrix[class_id, other]) > 0.0
+                    else None
+                ),
+                "major_confusion_weight": float(matrix[class_id, other]),
+            }
+        )
+    return {
+        "scope": scope,
+        "aggregation": (
+            "eligible causal-prefix hard actions; each eligible parent has total "
+            "weight one and each of its prefixes has weight 1/n_parent"
+        ),
+        "support": total_parent_support,
+        "event_support": int(len(weighted)),
+        "weighted_support": float(matrix.sum()),
+        "accuracy": float(np.trace(matrix) / matrix.sum()) if matrix.sum() else None,
+        "macro_precision": float(np.mean(precision_values)),
+        "macro_recall": float(np.mean(recall_values)),
+        "macro_f1": float(np.mean(f1_values)),
+        "balanced_accuracy": float(np.mean(recall_values)),
+        "per_class": per_class,
+        "confusion_matrix_rows_true_columns_pred": matrix.tolist(),
+    }
+
+
 def _base_label_metrics(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     rows = list(records)
     result: dict[str, Any] = {}
@@ -1721,6 +1862,12 @@ def evaluate_known_gate(
         "eligible_prefix_metrics": summarize_known_gate_records(
             eligible_prefix_records, scope="eligible_causal_prefix_auxiliary_excluding_final"
         ),
+        "parent_balanced_eligible_prefix_metrics": (
+            summarize_parent_balanced_eligible_prefix_records(
+                eligible_prefix_records,
+                scope="parent_balanced_eligible_causal_prefix_auxiliary_excluding_final",
+            )
+        ),
         "parent_metrics": summarize_known_gate_records(parent_records, scope="parent_final"),
         "base_label_parent_metrics": _base_label_metrics(parent_records),
         "prefix_action_contract": {
@@ -1797,4 +1944,6 @@ __all__ = [
     "seed_everything",
     "sha256_file",
     "summarize_known_gate_records",
+    "parent_balanced_eligible_prefix_rows",
+    "summarize_parent_balanced_eligible_prefix_records",
 ]

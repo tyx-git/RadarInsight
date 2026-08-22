@@ -62,6 +62,14 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v21e_rd_modality_ablation_test.py
 !src-v3/smoke/known_gate_v23_official_cfc_contract_test.py
 !src-v3/smoke/known_gate_v23_adapter_contract_test.py
+!src-v3/smoke/known_gate_v23e_selection_contract_test.py
+!src-v3/processed/
+!src-v3/processed/report/
+!src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-01-05.json
+!src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-06-10.json
+!src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-11-15.json
+!src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-16-20.json
+!src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection.json
 !src-v3/README.md
 !docs/
 docs/*
