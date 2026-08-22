@@ -220,6 +220,14 @@ class CfCLiquidCausalEncoder(nn.Module):
                 raise ValueError("liquid zero_ordinal must be long with shape [batch]")
             if bool((zero_ordinal < 1).any()):
                 raise ValueError("liquid zero_ordinal must be positive")
+        if (
+            self.invalid_dt_update_mode == "density_weighted"
+            and dt_reason is not None
+            and zero_ordinal is None
+        ):
+            raise ValueError(
+                "density_weighted online liquid step requires an explicit causal zero_ordinal"
+            )
         raw_dt = dt_seconds
         if dt_reason is not None:
             if dt_reason.shape != dt_seconds.shape or dt_reason.dtype not in (torch.int64, torch.long):

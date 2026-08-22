@@ -1211,6 +1211,7 @@ class KnownGateClassifier(nn.Module):
         tr_padding_mask: torch.Tensor,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
         return_rd_temporal_residual: bool = False,
     ) -> dict[str, torch.Tensor]:
         model = self.config.model
@@ -1260,6 +1261,7 @@ class KnownGateClassifier(nn.Module):
             tr_padding_mask,
             dt_valid=tr_dt_valid,
             dt_reason=tr_dt_reason,
+            zero_ordinal=zero_ordinal,
         )
         sequence_logits = self.classifier(state.sequence)
         lengths = (~tr_padding_mask).long().sum(dim=1)
@@ -1298,6 +1300,7 @@ class KnownGateClassifier(nn.Module):
         liquid_state: torch.Tensor | None = None,
         known_gate_features: torch.Tensor | None = None,
         known_gate_feature_valid: torch.Tensor | None = None,
+        zero_ordinal: torch.Tensor | None = None,
         return_rd_temporal_residual: bool = False,
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
@@ -1338,6 +1341,7 @@ class KnownGateClassifier(nn.Module):
             liquid_state,
             tr_dt_valid,
             tr_dt_reason,
+            zero_ordinal,
         )
         logits = self.classifier(self.liquid.readout(state))
         return {
