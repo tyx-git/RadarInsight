@@ -1,0 +1,3482 @@
+{
+  "status": "completed_development_single_factor_only",
+  "schema_version": "RADAR-LN3-V23h-known-gate-official-cfc-adapter-paired-validation-v1",
+  "experiment": "official_cfc_positive_dt_fixed_retention_capped_120_seconds isolated official-CfC external-state-adapter paired development evaluation",
+  "scope": "V21 development KnownGate only; no OOF, test, Unknown, L3, full cascade, stable or P95",
+  "source_control": {
+    "name": "frozen V23 pure official dense CfC negative baseline",
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal\\training-summary.json",
+    "summary_sha256": "bf81cb289909396713e34d2d6951b079d5afc669478085a0c072aaad6cb17a82",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "f04480f55bd784383d08eafc300b8c01dd2aa8399a24efbebcb48054df563e84"
+  },
+  "treatment": {
+    "variant": "official_cfc_positive_dt_fixed_retention_capped_120_seconds",
+    "adapter": {
+      "kind": "positive_dt_fixed_retention",
+      "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+      "applies_to": "positive_delta_at_second_precision only",
+      "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+      "fixed_tau_seconds": 15.025,
+      "trainable_parameter_count": 0,
+      "first_and_zero_delta_behavior": "h=h_official"
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23h-cq08-known-gate-official-cfc-positive-dt-fixed-retention-capped-120-seconds-seed43-formal\\training-summary.json",
+    "summary_sha256": "66380b3e5ddd5249840c7f167eae3b3a1e6186a25ab2162d0c53e632c439fc53",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23h-cq08-known-gate-official-cfc-positive-dt-fixed-retention-capped-120-seconds-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "f275a5707a0ad2b13c1e8d2437a04ff31532e54d09e13765ae7d4b618eb196f3",
+    "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23h-known-gate-official-cfc-training-readiness.json",
+    "readiness_sha256": "141ab0db5f121eacd0d457f3b8755bd144c26a3ff8e201d6571e51c5f18998d9",
+    "best_epoch": 14,
+    "trainable_parameter_count": 27434,
+    "v23_initialization_pairing": {
+      "source_v23_initial_model_state_sha256": "42aa2ad0e72f320a87e428ee386466260339cce87fdaa3ca75c153902b141c36",
+      "treatment_full_initial_model_state_sha256": "42aa2ad0e72f320a87e428ee386466260339cce87fdaa3ca75c153902b141c36",
+      "treatment_core_initial_model_state_sha256": "42aa2ad0e72f320a87e428ee386466260339cce87fdaa3ca75c153902b141c36",
+      "adapter_state_names": [],
+      "adapter_trainable_parameter_count": 0,
+      "full_initial_state_exactly_matches_v23": true,
+      "core_initial_state_exactly_matches_v23": true,
+      "v23h_direct_v23a_cap_audit": {
+        "direct_control_variant": "official_cfc_positive_dt_fixed_retention",
+        "pre_above_cap_positive_dt_replays_v23a_within_float32_tolerance": true,
+        "first_real_above_cap_positive_dt_diverges_from_v23a": true,
+        "raw_positive_dt_seconds": 290.0,
+        "effective_positive_dt_seconds": 120.0,
+        "cap_seconds": 120.0,
+        "official_cfc_and_external_retention_share_effective_dt": true,
+        "max_logit_error_before_first_above_cap_event": 0.0,
+        "first_above_cap_logit_difference": 0.013511180877685547,
+        "train_parent_id": "cq08|track|234",
+        "first_above_cap_event_index": 6,
+        "tolerance": {
+          "atol": 1e-06,
+          "rtol": 1e-06
+        }
+      }
+    },
+    "time_policy": {
+      "kind": "positive_dt_capped",
+      "positive_dt_cap_seconds": 120.0,
+      "applies_to": "positive_delta_at_second_precision only; first, zero-delta and padding remain unmodified",
+      "effective_duration_consumer": "both official CfC timespans and any external positive-dt state adapter"
+    }
+  },
+  "metrics_by_scope": {
+    "parent": {
+      "baseline": {
+        "scope": "v23_parent_recomputed",
+        "support": 232,
+        "accuracy": 0.9612068965517241,
+        "macro_precision": 0.7431818181818182,
+        "macro_recall": 0.819880418535127,
+        "macro_f1": 0.7755562721702678,
+        "balanced_accuracy": 0.819880418535127,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9863636363636363,
+            "recall": 0.9730941704035875,
+            "f1": 0.979683972911964,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 6
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "f1": 0.5714285714285715,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 3
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            217,
+            6
+          ],
+          [
+            3,
+            6
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_positive_dt_fixed_retention_capped_120_seconds_parent_recomputed",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      }
+    },
+    "eligible_prefix": {
+      "baseline": {
+        "scope": "v23_eligible_prefix_recomputed",
+        "support": 3756,
+        "accuracy": 0.9675186368477103,
+        "macro_precision": 0.7697983679915767,
+        "macro_recall": 0.7584100943318213,
+        "macro_f1": 0.7639672976915532,
+        "balanced_accuracy": 0.7584100943318213,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9823448275862069,
+            "recall": 0.9839734733351755,
+            "f1": 0.9831584759801215,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 58
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5572519083969466,
+            "recall": 0.5328467153284672,
+            "f1": 0.5447761194029851,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 64
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3561,
+            58
+          ],
+          [
+            64,
+            73
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_positive_dt_fixed_retention_capped_120_seconds_eligible_prefix_recomputed",
+        "support": 3756,
+        "accuracy": 0.9707135250266241,
+        "macro_precision": 0.8183793484705242,
+        "macro_recall": 0.7003729303775895,
+        "macro_f1": 0.7447076706335964,
+        "balanced_accuracy": 0.7003729303775895,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9779351675292836,
+            "recall": 0.9919867366675877,
+            "f1": 0.9849108367626885,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 29
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6588235294117647,
+            "recall": 0.40875912408759124,
+            "f1": 0.5045045045045045,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 81
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3590,
+            29
+          ],
+          [
+            81,
+            56
+          ]
+        ]
+      }
+    },
+    "window": {
+      "baseline": {
+        "scope": "v23_window_recomputed",
+        "support": 4452,
+        "accuracy": 0.9665318957771788,
+        "macro_precision": 0.7663606989436649,
+        "macro_recall": 0.7333909719694212,
+        "macro_f1": 0.7486631765720866,
+        "balanced_accuracy": 0.7333909719694212,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9802738454397772,
+            "recall": 0.9850746268656716,
+            "f1": 0.982668372688147,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 64
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5524475524475524,
+            "recall": 0.4817073170731707,
+            "f1": 0.5146579804560261,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 85
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4224,
+            64
+          ],
+          [
+            85,
+            79
+          ]
+        ]
+      },
+      "treatment": {
+        "scope": "official_cfc_positive_dt_fixed_retention_capped_120_seconds_window_recomputed",
+        "support": 4452,
+        "accuracy": 0.970125786163522,
+        "macro_precision": 0.8199884034161603,
+        "macro_recall": 0.6883418274481252,
+        "macro_f1": 0.7355509355509355,
+        "balanced_accuracy": 0.6883418274481252,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9768189120954786,
+            "recall": 0.9925373134328358,
+            "f1": 0.9846153846153846,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 32
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6631578947368421,
+            "recall": 0.38414634146341464,
+            "f1": 0.48648648648648646,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 101
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4256,
+            32
+          ],
+          [
+            101,
+            63
+          ]
+        ]
+      }
+    }
+  },
+  "treatment_minus_v23_by_scope": {
+    "parent": {
+      "accuracy": 0.017241379310344862,
+      "macro_precision": 0.10231367731367724,
+      "macro_recall": 0.06228201295465874,
+      "macro_f1": 0.08724680293322118,
+      "known_target_precision": 0.004627354627354641,
+      "known_target_recall": 0.013452914798206206,
+      "known_target_f1": 0.009080072031856234,
+      "known_clutter_precision": 0.19999999999999996,
+      "known_clutter_recall": 0.11111111111111116,
+      "known_clutter_f1": 0.16541353383458623,
+      "weak_class_precision_recall_f1_floor": 0.19999999999999996
+    },
+    "eligible_prefix": {
+      "accuracy": 0.0031948881789137795,
+      "macro_precision": 0.04858098047894743,
+      "macro_recall": -0.05803716395423175,
+      "macro_f1": -0.019259627057956807,
+      "known_target_precision": -0.004409660056923337,
+      "known_target_recall": 0.008013263332412257,
+      "known_target_f1": 0.0017523607825670195,
+      "known_clutter_precision": 0.10157162101481809,
+      "known_clutter_recall": -0.12408759124087593,
+      "known_clutter_f1": -0.040271614898480634,
+      "weak_class_precision_recall_f1_floor": -0.12408759124087593
+    },
+    "window": {
+      "accuracy": 0.003593890386343168,
+      "macro_precision": 0.05362770447249543,
+      "macro_recall": -0.045049144521295936,
+      "macro_f1": -0.01311224102115105,
+      "known_target_precision": -0.003454933344298694,
+      "known_target_recall": 0.007462686567164201,
+      "known_target_f1": 0.001947011927237563,
+      "known_clutter_precision": 0.11071034228928966,
+      "known_clutter_recall": -0.09756097560975607,
+      "known_clutter_f1": -0.028171493969539607,
+      "weak_class_precision_recall_f1_floor": -0.09756097560975607
+    }
+  },
+  "parent_base_label_outcomes": {
+    "DroneTarget": {
+      "support": 113,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "BirdTarget": {
+      "support": 56,
+      "changed": 3,
+      "rescued": 3,
+      "harmed": 0,
+      "net_rescue": 3
+    },
+    "BalloonTarget": {
+      "support": 54,
+      "changed": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "net_rescue": 0
+    },
+    "ClutterTarget": {
+      "support": 9,
+      "changed": 1,
+      "rescued": 1,
+      "harmed": 0,
+      "net_rescue": 1
+    }
+  },
+  "scope_prediction_changes": {
+    "parent": {
+      "support": 232,
+      "changed_prediction_count": 4,
+      "changed_prediction_fraction": 0.017241379310344827
+    },
+    "window": {
+      "support": 4452,
+      "changed_prediction_count": 76,
+      "changed_prediction_fraction": 0.017070979335130278
+    },
+    "eligible_prefix": {
+      "support": 3756,
+      "changed_prediction_count": 72,
+      "changed_prediction_fraction": 0.019169329073482427
+    }
+  },
+  "probability_attribution": {
+    "by_base_label": {
+      "DroneTarget": {
+        "support": 113,
+        "known_clutter_probability_delta_mean": -0.0038239205816546374,
+        "known_clutter_probability_delta_median": -0.0011549560585990548,
+        "known_clutter_probability_delta_minimum": -0.1987564917653799,
+        "known_clutter_probability_delta_maximum": 0.002563951537013054
+      },
+      "BirdTarget": {
+        "support": 56,
+        "known_clutter_probability_delta_mean": -0.016425081437254057,
+        "known_clutter_probability_delta_median": -0.0012355572544038296,
+        "known_clutter_probability_delta_minimum": -0.7350742965936661,
+        "known_clutter_probability_delta_maximum": 0.24015045166015625
+      },
+      "BalloonTarget": {
+        "support": 54,
+        "known_clutter_probability_delta_mean": -0.0011867625030895902,
+        "known_clutter_probability_delta_median": -0.0009500691667199135,
+        "known_clutter_probability_delta_minimum": -0.005069872131571174,
+        "known_clutter_probability_delta_maximum": 0.00017292797565460205
+      },
+      "ClutterTarget": {
+        "support": 9,
+        "known_clutter_probability_delta_mean": 0.08174611110654142,
+        "known_clutter_probability_delta_median": 0.06935036182403564,
+        "known_clutter_probability_delta_minimum": -0.08041118085384369,
+        "known_clutter_probability_delta_maximum": 0.27657800912857056
+      }
+    },
+    "overall": {
+      "baseline_nll": 0.08401651765575298,
+      "treatment_nll": 0.07222885566112533,
+      "nll_delta": -0.011787661994627649,
+      "baseline_brier": 0.02523980317517885,
+      "treatment_brier": 0.020573136166527575,
+      "brier_delta": -0.0046666670086512735
+    }
+  },
+  "paired_parent_bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 21543,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "baseline": {
+      "accuracy": {
+        "median": 0.9612068965517241,
+        "lower_95": 0.9396551724137931,
+        "upper_95": 0.9827586206896551
+      },
+      "macro_precision": {
+        "median": 0.7454128440366973,
+        "lower_95": 0.6364864864864865,
+        "upper_95": 0.8844045839561534
+      },
+      "macro_recall": {
+        "median": 0.819880418535127,
+        "lower_95": 0.6532137518684604,
+        "upper_95": 0.9422022919780767
+      },
+      "macro_f1": {
+        "median": 0.7755562721702678,
+        "lower_95": 0.6505224660397075,
+        "upper_95": 0.8954954954954955
+      },
+      "known_target_precision": {
+        "median": 0.9863636363636363,
+        "lower_95": 0.9730941704035875,
+        "upper_95": 0.9955156950672646
+      },
+      "known_target_recall": {
+        "median": 0.9730941704035875,
+        "lower_95": 0.9506726457399103,
+        "upper_95": 0.9910313901345291
+      },
+      "known_target_f1": {
+        "median": 0.9797752808988766,
+        "lower_95": 0.9678899082568807,
+        "upper_95": 0.9910313901345291
+      },
+      "known_clutter_precision": {
+        "median": 0.5,
+        "lower_95": 0.29411764705882354,
+        "upper_95": 0.7777777777777778
+      },
+      "known_clutter_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.8888888888888888
+      },
+      "known_clutter_f1": {
+        "median": 0.5714285714285715,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.7999999999999999
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.5,
+        "lower_95": 0.2857142857142857,
+        "upper_95": 0.75
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.8928571428571429,
+        "lower_95": 0.8035714285714286,
+        "upper_95": 0.9642857142857143
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.3333333333333333,
+        "upper_95": 0.8888888888888888
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.8898809523809523,
+        "lower_95": 0.8065476190476191,
+        "upper_95": 0.9632936507936508
+      }
+    },
+    "treatment": {
+      "accuracy": {
+        "median": 0.978448275862069,
+        "lower_95": 0.9612068965517241,
+        "upper_95": 0.9956896551724138
+      },
+      "macro_precision": {
+        "median": 0.8482539682539683,
+        "lower_95": 0.7388392857142857,
+        "upper_95": 0.9955555555555555
+      },
+      "macro_recall": {
+        "median": 0.8844045839561534,
+        "lower_95": 0.7199800697558545,
+        "upper_95": 0.9955156950672646
+      },
+      "macro_f1": {
+        "median": 0.8681818181818182,
+        "lower_95": 0.7410714285714286,
+        "upper_95": 0.9694696670614554
+      },
+      "known_target_precision": {
+        "median": 0.9910313901345291,
+        "lower_95": 0.9779735682819384,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 0.9865470852017937,
+        "lower_95": 0.9729820627802691,
+        "upper_95": 1.0
+      },
+      "known_target_f1": {
+        "median": 0.9888143176733781,
+        "lower_95": 0.979591836734694,
+        "upper_95": 0.9977528089887641
+      },
+      "known_clutter_precision": {
+        "median": 0.7142857142857143,
+        "lower_95": 0.5,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 0.7499999999999999,
+        "lower_95": 0.5,
+        "upper_95": 0.9411764705882353
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.6666666666666666,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 0.8888888888888888
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.9464285714285714,
+        "lower_95": 0.8924107142857145,
+        "upper_95": 1.0
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.7777777777777778,
+        "lower_95": 0.4444444444444444,
+        "upper_95": 1.0
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.935515873015873,
+        "lower_95": 0.8566468253968254,
+        "upper_95": 0.9910714285714286
+      }
+    },
+    "treatment_minus_baseline": {
+      "accuracy": {
+        "median": 0.01724137931034475,
+        "lower_95": 0.004310344827586188,
+        "upper_95": 0.034482758620689724
+      },
+      "macro_precision": {
+        "median": 0.09728337183494129,
+        "lower_95": 0.01654338808988184,
+        "upper_95": 0.22364907322986488
+      },
+      "macro_recall": {
+        "median": 0.06003986048829102,
+        "lower_95": 0.0022421524663676085,
+        "upper_95": 0.1756352765321375
+      },
+      "macro_f1": {
+        "median": 0.08183249798156633,
+        "lower_95": 0.016300611706268398,
+        "upper_95": 0.1827291129762615
+      },
+      "known_target_precision": {
+        "median": 0.00458640458640458,
+        "lower_95": 0.0,
+        "upper_95": 0.013656738301705107
+      },
+      "known_target_recall": {
+        "median": 0.013452914798206206,
+        "lower_95": 0.0,
+        "upper_95": 0.03139013452914796
+      },
+      "known_target_f1": {
+        "median": 0.009028938050799018,
+        "lower_95": 0.002216823565138193,
+        "upper_95": 0.01831564207384682
+      },
+      "known_clutter_precision": {
+        "median": 0.1923076923076923,
+        "lower_95": 0.029151785714285727,
+        "upper_95": 0.4404761904761904
+      },
+      "known_clutter_recall": {
+        "median": 0.11111111111111105,
+        "lower_95": 0.0,
+        "upper_95": 0.33333333333333337
+      },
+      "known_clutter_f1": {
+        "median": 0.1553884711779448,
+        "lower_95": 0.030303030303030276,
+        "upper_95": 0.34736842105263166
+      },
+      "weak_class_precision_recall_f1_floor": {
+        "median": 0.16666666666666663,
+        "lower_95": 0.0,
+        "upper_95": 0.3615384615384616
+      },
+      "DroneTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "BirdTarget_acceptance_recall": {
+        "median": 0.05357142857142849,
+        "lower_95": 0.0,
+        "upper_95": 0.125
+      },
+      "BalloonTarget_acceptance_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "ClutterTarget_acceptance_recall": {
+        "median": 0.11111111111111105,
+        "lower_95": 0.0,
+        "upper_95": 0.33333333333333337
+      },
+      "four_label_macro_acceptance_recall": {
+        "median": 0.0367063492063493,
+        "lower_95": 0.004464285714285587,
+        "upper_95": 0.10119047619047616
+      }
+    }
+  },
+  "dt_stratified_parent_final": {
+    "definition": {
+      "all_positive_dt_after_first": "contains no zero_delta_at_second_precision event after the mandatory first event",
+      "contains_zero_delta": "contains at least one zero_delta_at_second_precision event"
+    },
+    "derivation": "frozen V21 development Dataset tr_dt_reason only; no test or Unknown Dataset constructed",
+    "groups": {
+      "all_positive_dt_after_first": {
+        "support": 120,
+        "base_label_support": {
+          "DroneTarget": 61,
+          "BirdTarget": 23,
+          "BalloonTarget": 27,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "scope": "v23_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.925,
+          "macro_precision": 0.7361111111111112,
+          "macro_recall": 0.8063063063063063,
+          "macro_f1": 0.7651663405088063,
+          "balanced_accuracy": 0.8063063063063063,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9722222222222222,
+              "recall": 0.9459459459459459,
+              "f1": 0.9589041095890412,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5,
+              "recall": 0.6666666666666666,
+              "f1": 0.5714285714285715,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 3
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              105,
+              6
+            ],
+            [
+              3,
+              6
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.9583333333333334,
+          "macro_precision": 0.8409090909090908,
+          "macro_recall": 0.8753753753753755,
+          "macro_f1": 0.8571088354370088,
+          "balanced_accuracy": 0.8753753753753755,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9818181818181818,
+              "recall": 0.972972972972973,
+              "f1": 0.9773755656108598,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              108,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "treatment_minus_v23": {
+          "accuracy": 0.033333333333333326,
+          "macro_precision": 0.10479797979797967,
+          "macro_recall": 0.06906906906906918,
+          "macro_f1": 0.0919424949282025,
+          "known_target_precision": 0.009595959595959602,
+          "known_target_recall": 0.027027027027027084,
+          "known_target_f1": 0.018471456021818655,
+          "known_clutter_precision": 0.19999999999999996,
+          "known_clutter_recall": 0.11111111111111116,
+          "known_clutter_f1": 0.16541353383458623,
+          "weak_class_precision_recall_f1_floor": 0.19999999999999996
+        }
+      },
+      "contains_zero_delta": {
+        "support": 112,
+        "base_label_support": {
+          "DroneTarget": 52,
+          "BirdTarget": 33,
+          "BalloonTarget": 27,
+          "ClutterTarget": 0
+        },
+        "baseline": {
+          "scope": "v23_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "treatment_minus_v23": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0,
+          "known_target_precision": 0.0,
+          "known_target_recall": 0.0,
+          "known_target_f1": 0.0,
+          "known_clutter_precision": 0.0,
+          "known_clutter_recall": 0.0,
+          "known_clutter_f1": 0.0,
+          "weak_class_precision_recall_f1_floor": 0.0
+        }
+      }
+    },
+    "parent_details": {
+      "cq08|track|100": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|102": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1033": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1069": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1071": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1082": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1152": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1163": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1190": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1258": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|127": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1288": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 28,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 27,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1301": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|1313": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1315": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1333": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1339": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1343": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1399": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|14": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1436": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1457": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1469": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|148": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1487": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1490": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1494": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1496": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1510": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1513": {
+        "group": "contains_zero_delta",
+        "event_count": 21,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1535": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|160": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1688": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1694": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1717": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1720": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1741": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1781": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1800": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|185": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1853": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1864": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1908": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1925": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1932": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1945": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|1955": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|198": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2056": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2068": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|208": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2083": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2103": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2109": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2196": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2210": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2237": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|224": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|225": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|228": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|23": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|231": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|232": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2338": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2349": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|235": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 26,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 25,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|236": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2367": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2419": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2462": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2489": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|25": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|250": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|251": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|252": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2524": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2537": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2569": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|258": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2582": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2589": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|261": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2619": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|263": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 29,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 28,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|264": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 13,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 12,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|266": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2663": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2687": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|274": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|275": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|28": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|284": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 1,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2872": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2893": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2900": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|2903": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|2921": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2956": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|2959": {
+        "group": "contains_zero_delta",
+        "event_count": 21,
+        "zero_delta_event_count": 9,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|297": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|2974": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2977": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|2982": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3016": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3023": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3027": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3076": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3080": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3089": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3093": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3100": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3109": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3171": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3172": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3180": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3202": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3248": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3264": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3284": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|333": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3344": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3465": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|35": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3500": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3513": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 21,
+        "positive_delta_event_count": 3,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3580": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3581": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3583": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 26,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 25,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3589": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|36": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|3605": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|361": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3622": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3624": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 17,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 16,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3628": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 8,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3634": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3652": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3656": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3676": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3684": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3687": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3688": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3694": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3696": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3698": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3738": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3748": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3761": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3773": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3783": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3789": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "ClutterTarget"
+      },
+      "cq08|track|3794": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3800": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3820": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3822": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3846": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3847": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 22,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 21,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3850": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3854": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3866": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 16,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 15,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3880": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3887": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|390": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|3904": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3905": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 4,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3908": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3909": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 16,
+        "positive_delta_event_count": 3,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3951": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|3960": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|399": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4005": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|401": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4012": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 12,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 11,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|403": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4036": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4106": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 14,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 13,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4143": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4155": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4173": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BalloonTarget"
+      },
+      "cq08|track|4211": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4213": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 18,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 17,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|422": {
+        "group": "contains_zero_delta",
+        "event_count": 19,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|4237": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|4238": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 28,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 27,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|432": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|441": {
+        "group": "contains_zero_delta",
+        "event_count": 25,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|444": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 23,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 22,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|497": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|521": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|528": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|531": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|552": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|561": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|573": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|590": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 19,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|633": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|665": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 20,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|676": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|717": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|721": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 8,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|73": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 27,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 26,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|731": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|735": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 17,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|749": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 6,
+        "positive_delta_event_count": 9,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|751": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|756": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 10,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|77": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|774": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|780": {
+        "group": "contains_zero_delta",
+        "event_count": 24,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|782": {
+        "group": "contains_zero_delta",
+        "event_count": 22,
+        "zero_delta_event_count": 15,
+        "positive_delta_event_count": 6,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|79": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 21,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 20,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|8": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|801": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|802": {
+        "group": "contains_zero_delta",
+        "event_count": 18,
+        "zero_delta_event_count": 14,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|814": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 9,
+        "positive_delta_event_count": 5,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|816": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 25,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 24,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|817": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|818": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|845": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 20,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 19,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|847": {
+        "group": "contains_zero_delta",
+        "event_count": 20,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 8,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|851": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 15,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 14,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|852": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 19,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 18,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|861": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|875": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|886": {
+        "group": "contains_zero_delta",
+        "event_count": 23,
+        "zero_delta_event_count": 18,
+        "positive_delta_event_count": 4,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|936": {
+        "group": "contains_zero_delta",
+        "event_count": 17,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|95": {
+        "group": "all_positive_dt_after_first",
+        "event_count": 24,
+        "zero_delta_event_count": 0,
+        "positive_delta_event_count": 23,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|951": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 11,
+        "positive_delta_event_count": 3,
+        "label_name": "BirdTarget"
+      },
+      "cq08|track|969": {
+        "group": "contains_zero_delta",
+        "event_count": 16,
+        "zero_delta_event_count": 13,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      },
+      "cq08|track|973": {
+        "group": "contains_zero_delta",
+        "event_count": 15,
+        "zero_delta_event_count": 12,
+        "positive_delta_event_count": 2,
+        "label_name": "DroneTarget"
+      }
+    },
+    "validation_dataset_parent_count": 232,
+    "unknown_dataset_access": 0,
+    "test_dataset_access": 0
+  },
+  "gate": {
+    "v23_reference_diagnostic": {
+      "parent_macro_f1_strictly_greater_than_2pp": true,
+      "known_target_recall_non_decreasing": true,
+      "clutter_f1_non_decreasing": true,
+      "all_positive_dt_parent_macro_f1_non_decreasing": true,
+      "parent_single_factor_signal_passed": true,
+      "bootstrap_macro_f1_lower_95_above_zero": true,
+      "v21_seed43_reference_reached": true,
+      "advance_to_three_seed_confirmation": true,
+      "advance_to_oof": false
+    },
+    "v23a_direct_control_primary": {
+      "parent_macro_f1_non_decreasing_vs_v23a": true,
+      "known_target_recall_non_decreasing_vs_v23a": true,
+      "clutter_f1_non_decreasing_vs_v23a": true,
+      "parent_final_non_degrading_vs_v23a": true,
+      "eligible_prefix_and_window_non_degrading_vs_v23a": true,
+      "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23a_descriptive": false,
+      "validation_has_above_120_second_cap_exposure": false,
+      "cap_effect_is_estimable_on_development_validation": false,
+      "advance_to_three_seed_confirmation": false,
+      "advance_to_oof": false
+    },
+    "advance_to_three_seed_confirmation": false,
+    "advance_to_oof": false
+  },
+  "statistical_boundary": {
+    "development_parent_count": 232,
+    "clutter_parent_support": 9,
+    "bootstrap_is_descriptive_not_new_holdout": true,
+    "single_seed_is_not_confirmation": true,
+    "dt_stratum_metrics_are_development_descriptive_only": true
+  },
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false,
+  "direct_control": {
+    "binding": {
+      "variant": "official_cfc_positive_dt_fixed_retention",
+      "config_path": "config/RADAR-LN3/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-config.json",
+      "config_sha256": "06112cbc6ebc5a66bebbd3cd3e475ebab1e8f15d2f827900322c141ba229af8a",
+      "config_identity_sha256": "f176cec2579f1f72077fab30d8959e6c5178de3884fbd6965158314873f8d1a7",
+      "summary_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/training-summary.json",
+      "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+      "checkpoint_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/best_model.pt",
+      "checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+      "report_path": "src-v3/processed/report/RADAR-LN3-V23a-known-gate-official-cfc-paired-validation.json",
+      "report_sha256": "8e6cced79581eb2d33061241972d10cdab9b83a30c41ac262fe77aa7a6958d11"
+    },
+    "completed_v23a_raw_positive_dt_fixed_retention_treatment": {
+      "variant": "official_cfc_positive_dt_fixed_retention",
+      "adapter": {
+        "kind": "positive_dt_fixed_retention",
+        "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+        "applies_to": "positive_delta_at_second_precision only",
+        "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+        "fixed_tau_seconds": 15.025,
+        "trainable_parameter_count": 0,
+        "first_and_zero_delta_behavior": "h=h_official"
+      },
+      "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\training-summary.json",
+      "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+      "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal\\best_model.pt",
+      "checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+      "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V23a-known-gate-official-cfc-training-readiness.json",
+      "readiness_sha256": "e278d65ab4e0f0826e1c92643c35a1ae43b8aba4d726761db672abf9b610ba1f",
+      "best_epoch": 14,
+      "trainable_parameter_count": 27434
+    }
+  },
+  "v23h_vs_v23a_direct_control": {
+    "scope": "primary V23h mechanism comparison: completed V23a raw-positive-dt fixed-retention treatment versus V23h effective positive-dt min(raw_dt,120s) for both official CfC and fixed-retention alpha; development KnownGate only",
+    "metrics_by_scope": {
+      "parent": {
+        "v23a_raw_positive_dt_control": {
+          "scope": "v23a_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.978448275862069,
+          "macro_precision": 0.8454954954954954,
+          "macro_recall": 0.8821624314897858,
+          "macro_f1": 0.862803075103489,
+          "balanced_accuracy": 0.8821624314897858,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.990990990990991,
+              "recall": 0.9865470852017937,
+              "f1": 0.9887640449438202,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              220,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "v23h_positive_dt_capped_120_seconds_treatment": {
+          "scope": "v23h_parent_recomputed",
+          "support": 232,
+          "accuracy": 0.978448275862069,
+          "macro_precision": 0.8454954954954954,
+          "macro_recall": 0.8821624314897858,
+          "macro_f1": 0.862803075103489,
+          "balanced_accuracy": 0.8821624314897858,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.990990990990991,
+              "recall": 0.9865470852017937,
+              "f1": 0.9887640449438202,
+              "support": 223,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              220,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        }
+      },
+      "eligible_prefix": {
+        "v23a_raw_positive_dt_control": {
+          "scope": "v23a_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9704472843450479,
+          "macro_precision": 0.8162153750389045,
+          "macro_recall": 0.6967232953410931,
+          "macro_f1": 0.7412566537434424,
+          "balanced_accuracy": 0.6967232953410931,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9776688453159041,
+              "recall": 0.9919867366675877,
+              "f1": 0.9847757509257988,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 29
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6547619047619048,
+              "recall": 0.40145985401459855,
+              "f1": 0.497737556561086,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 82
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3590,
+              29
+            ],
+            [
+              82,
+              55
+            ]
+          ]
+        },
+        "v23h_positive_dt_capped_120_seconds_treatment": {
+          "scope": "v23h_eligible_prefix_recomputed",
+          "support": 3756,
+          "accuracy": 0.9707135250266241,
+          "macro_precision": 0.8183793484705242,
+          "macro_recall": 0.7003729303775895,
+          "macro_f1": 0.7447076706335964,
+          "balanced_accuracy": 0.7003729303775895,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9779351675292836,
+              "recall": 0.9919867366675877,
+              "f1": 0.9849108367626885,
+              "support": 3619,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 29
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6588235294117647,
+              "recall": 0.40875912408759124,
+              "f1": 0.5045045045045045,
+              "support": 137,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 81
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              3590,
+              29
+            ],
+            [
+              81,
+              56
+            ]
+          ]
+        }
+      },
+      "window": {
+        "v23a_raw_positive_dt_control": {
+          "scope": "v23a_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.9699011680143755,
+          "macro_precision": 0.8180846181637096,
+          "macro_recall": 0.6852930469603203,
+          "macro_f1": 0.7325608293121164,
+          "balanced_accuracy": 0.6852930469603203,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.976594768242313,
+              "recall": 0.9925373134328358,
+              "f1": 0.9845015035854731,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 32
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6595744680851063,
+              "recall": 0.3780487804878049,
+              "f1": 0.4806201550387597,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 102
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4256,
+              32
+            ],
+            [
+              102,
+              62
+            ]
+          ]
+        },
+        "v23h_positive_dt_capped_120_seconds_treatment": {
+          "scope": "v23h_window_recomputed",
+          "support": 4452,
+          "accuracy": 0.970125786163522,
+          "macro_precision": 0.8199884034161603,
+          "macro_recall": 0.6883418274481252,
+          "macro_f1": 0.7355509355509355,
+          "balanced_accuracy": 0.6883418274481252,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9768189120954786,
+              "recall": 0.9925373134328358,
+              "f1": 0.9846153846153846,
+              "support": 4288,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 32
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6631578947368421,
+              "recall": 0.38414634146341464,
+              "f1": 0.48648648648648646,
+              "support": 164,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 101
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              4256,
+              32
+            ],
+            [
+              101,
+              63
+            ]
+          ]
+        }
+      }
+    },
+    "v23h_minus_v23a_by_scope": {
+      "parent": {
+        "accuracy": 0.0,
+        "macro_precision": 0.0,
+        "macro_recall": 0.0,
+        "macro_f1": 0.0,
+        "known_target_precision": 0.0,
+        "known_target_recall": 0.0,
+        "known_target_f1": 0.0,
+        "known_clutter_precision": 0.0,
+        "known_clutter_recall": 0.0,
+        "known_clutter_f1": 0.0,
+        "weak_class_precision_recall_f1_floor": 0.0
+      },
+      "eligible_prefix": {
+        "accuracy": 0.00026624068157621306,
+        "macro_precision": 0.00216397343161967,
+        "macro_recall": 0.0036496350364964014,
+        "macro_f1": 0.003451016890154035,
+        "known_target_precision": 0.00026632221337941075,
+        "known_target_recall": 0.0,
+        "known_target_f1": 0.00013508583688970344,
+        "known_clutter_precision": 0.0040616246498599295,
+        "known_clutter_recall": 0.007299270072992692,
+        "known_clutter_f1": 0.006766947943418478,
+        "weak_class_precision_recall_f1_floor": 0.007299270072992692
+      },
+      "window": {
+        "accuracy": 0.0002246181491464272,
+        "macro_precision": 0.0019037852524507182,
+        "macro_recall": 0.0030487804878048808,
+        "macro_f1": 0.0029901062388191235,
+        "known_target_precision": 0.0002241438531656037,
+        "known_target_recall": 0.0,
+        "known_target_f1": 0.00011388102991150006,
+        "known_clutter_precision": 0.0035834266517357216,
+        "known_clutter_recall": 0.0060975609756097615,
+        "known_clutter_f1": 0.005866331447726747,
+        "weak_class_precision_recall_f1_floor": 0.0060975609756097615
+      }
+    },
+    "parent_base_label_outcomes": {
+      "DroneTarget": {
+        "support": 113,
+        "changed": 0,
+        "rescued": 0,
+        "harmed": 0,
+        "net_rescue": 0
+      },
+      "BirdTarget": {
+        "support": 56,
+        "changed": 0,
+        "rescued": 0,
+        "harmed": 0,
+        "net_rescue": 0
+      },
+      "BalloonTarget": {
+        "support": 54,
+        "changed": 0,
+        "rescued": 0,
+        "harmed": 0,
+        "net_rescue": 0
+      },
+      "ClutterTarget": {
+        "support": 9,
+        "changed": 0,
+        "rescued": 0,
+        "harmed": 0,
+        "net_rescue": 0
+      }
+    },
+    "scope_prediction_changes": {
+      "parent": {
+        "support": 232,
+        "changed_prediction_count": 0,
+        "changed_prediction_fraction": 0.0
+      },
+      "window": {
+        "support": 4452,
+        "changed_prediction_count": 1,
+        "changed_prediction_fraction": 0.00022461814914645105
+      },
+      "eligible_prefix": {
+        "support": 3756,
+        "changed_prediction_count": 1,
+        "changed_prediction_fraction": 0.00026624068157614486
+      }
+    },
+    "probability_attribution": {
+      "by_base_label": {
+        "DroneTarget": {
+          "support": 113,
+          "known_clutter_probability_delta_mean": -5.4668532107519895e-06,
+          "known_clutter_probability_delta_median": -4.689325578510761e-06,
+          "known_clutter_probability_delta_minimum": -9.75397415459156e-05,
+          "known_clutter_probability_delta_maximum": 9.426381438970566e-05
+        },
+        "BirdTarget": {
+          "support": 56,
+          "known_clutter_probability_delta_mean": -0.00015523481540315385,
+          "known_clutter_probability_delta_median": -1.0930350981652737e-05,
+          "known_clutter_probability_delta_minimum": -0.006570696830749512,
+          "known_clutter_probability_delta_maximum": 0.0017723441123962402
+        },
+        "BalloonTarget": {
+          "support": 54,
+          "known_clutter_probability_delta_mean": -7.840664626133662e-06,
+          "known_clutter_probability_delta_median": -7.283524610102177e-06,
+          "known_clutter_probability_delta_minimum": -2.862350083887577e-05,
+          "known_clutter_probability_delta_maximum": 1.4156335964798927e-05
+        },
+        "ClutterTarget": {
+          "support": 9,
+          "known_clutter_probability_delta_mean": 0.00012863282528188493,
+          "known_clutter_probability_delta_median": -0.00018167495727539062,
+          "known_clutter_probability_delta_minimum": -0.0011777877807617188,
+          "known_clutter_probability_delta_maximum": 0.002788722515106201
+        }
+      },
+      "overall": {
+        "baseline_nll": 0.07217531537029424,
+        "treatment_nll": 0.07222885566112533,
+        "nll_delta": 5.3540290831086135e-05,
+        "baseline_brier": 0.020591136813067096,
+        "treatment_brier": 0.020573136166527575,
+        "brier_delta": -1.8000646539520493e-05
+      }
+    },
+    "paired_parent_bootstrap": {
+      "method": "paired parent bootstrap stratified by original base label",
+      "replicates": 5000,
+      "seed": 21543,
+      "confidence_level": 0.95,
+      "stratum_support": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "baseline": {
+        "accuracy": {
+          "median": 0.978448275862069,
+          "lower_95": 0.9612068965517241,
+          "upper_95": 0.9956896551724138
+        },
+        "macro_precision": {
+          "median": 0.8482539682539683,
+          "lower_95": 0.7388392857142857,
+          "upper_95": 0.9955555555555555
+        },
+        "macro_recall": {
+          "median": 0.8844045839561534,
+          "lower_95": 0.7199800697558545,
+          "upper_95": 0.9955156950672646
+        },
+        "macro_f1": {
+          "median": 0.8681818181818182,
+          "lower_95": 0.7410714285714286,
+          "upper_95": 0.9694696670614554
+        },
+        "known_target_precision": {
+          "median": 0.9910313901345291,
+          "lower_95": 0.9779735682819384,
+          "upper_95": 1.0
+        },
+        "known_target_recall": {
+          "median": 0.9865470852017937,
+          "lower_95": 0.9729820627802691,
+          "upper_95": 1.0
+        },
+        "known_target_f1": {
+          "median": 0.9888143176733781,
+          "lower_95": 0.979591836734694,
+          "upper_95": 0.9977528089887641
+        },
+        "known_clutter_precision": {
+          "median": 0.7142857142857143,
+          "lower_95": 0.5,
+          "upper_95": 1.0
+        },
+        "known_clutter_recall": {
+          "median": 0.7777777777777778,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 1.0
+        },
+        "known_clutter_f1": {
+          "median": 0.7499999999999999,
+          "lower_95": 0.5,
+          "upper_95": 0.9411764705882353
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "median": 0.6666666666666666,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 0.8888888888888888
+        },
+        "DroneTarget_acceptance_recall": {
+          "median": 1.0,
+          "lower_95": 1.0,
+          "upper_95": 1.0
+        },
+        "BirdTarget_acceptance_recall": {
+          "median": 0.9464285714285714,
+          "lower_95": 0.8924107142857145,
+          "upper_95": 1.0
+        },
+        "BalloonTarget_acceptance_recall": {
+          "median": 1.0,
+          "lower_95": 1.0,
+          "upper_95": 1.0
+        },
+        "ClutterTarget_acceptance_recall": {
+          "median": 0.7777777777777778,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 1.0
+        },
+        "four_label_macro_acceptance_recall": {
+          "median": 0.935515873015873,
+          "lower_95": 0.8566468253968254,
+          "upper_95": 0.9910714285714286
+        }
+      },
+      "treatment": {
+        "accuracy": {
+          "median": 0.978448275862069,
+          "lower_95": 0.9612068965517241,
+          "upper_95": 0.9956896551724138
+        },
+        "macro_precision": {
+          "median": 0.8482539682539683,
+          "lower_95": 0.7388392857142857,
+          "upper_95": 0.9955555555555555
+        },
+        "macro_recall": {
+          "median": 0.8844045839561534,
+          "lower_95": 0.7199800697558545,
+          "upper_95": 0.9955156950672646
+        },
+        "macro_f1": {
+          "median": 0.8681818181818182,
+          "lower_95": 0.7410714285714286,
+          "upper_95": 0.9694696670614554
+        },
+        "known_target_precision": {
+          "median": 0.9910313901345291,
+          "lower_95": 0.9779735682819384,
+          "upper_95": 1.0
+        },
+        "known_target_recall": {
+          "median": 0.9865470852017937,
+          "lower_95": 0.9729820627802691,
+          "upper_95": 1.0
+        },
+        "known_target_f1": {
+          "median": 0.9888143176733781,
+          "lower_95": 0.979591836734694,
+          "upper_95": 0.9977528089887641
+        },
+        "known_clutter_precision": {
+          "median": 0.7142857142857143,
+          "lower_95": 0.5,
+          "upper_95": 1.0
+        },
+        "known_clutter_recall": {
+          "median": 0.7777777777777778,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 1.0
+        },
+        "known_clutter_f1": {
+          "median": 0.7499999999999999,
+          "lower_95": 0.5,
+          "upper_95": 0.9411764705882353
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "median": 0.6666666666666666,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 0.8888888888888888
+        },
+        "DroneTarget_acceptance_recall": {
+          "median": 1.0,
+          "lower_95": 1.0,
+          "upper_95": 1.0
+        },
+        "BirdTarget_acceptance_recall": {
+          "median": 0.9464285714285714,
+          "lower_95": 0.8924107142857145,
+          "upper_95": 1.0
+        },
+        "BalloonTarget_acceptance_recall": {
+          "median": 1.0,
+          "lower_95": 1.0,
+          "upper_95": 1.0
+        },
+        "ClutterTarget_acceptance_recall": {
+          "median": 0.7777777777777778,
+          "lower_95": 0.4444444444444444,
+          "upper_95": 1.0
+        },
+        "four_label_macro_acceptance_recall": {
+          "median": 0.935515873015873,
+          "lower_95": 0.8566468253968254,
+          "upper_95": 0.9910714285714286
+        }
+      },
+      "treatment_minus_baseline": {
+        "accuracy": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "macro_precision": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "macro_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "macro_f1": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_target_precision": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_target_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_target_f1": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_clutter_precision": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_clutter_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "known_clutter_f1": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "weak_class_precision_recall_f1_floor": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "DroneTarget_acceptance_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "BirdTarget_acceptance_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "BalloonTarget_acceptance_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "ClutterTarget_acceptance_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        },
+        "four_label_macro_acceptance_recall": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0
+        }
+      }
+    },
+    "dt_stratified_parent_final": {
+      "all_positive_dt_after_first": {
+        "support": 120,
+        "base_label_support": {
+          "DroneTarget": 61,
+          "BirdTarget": 23,
+          "BalloonTarget": 27,
+          "ClutterTarget": 9
+        },
+        "baseline": {
+          "scope": "v23_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.9583333333333334,
+          "macro_precision": 0.8409090909090908,
+          "macro_recall": 0.8753753753753755,
+          "macro_f1": 0.8571088354370088,
+          "balanced_accuracy": 0.8753753753753755,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9818181818181818,
+              "recall": 0.972972972972973,
+              "f1": 0.9773755656108598,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              108,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_all_positive_dt_after_first_parent_recomputed",
+          "support": 120,
+          "accuracy": 0.9583333333333334,
+          "macro_precision": 0.8409090909090908,
+          "macro_recall": 0.8753753753753755,
+          "macro_f1": 0.8571088354370088,
+          "balanced_accuracy": 0.8753753753753755,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9818181818181818,
+              "recall": 0.972972972972973,
+              "f1": 0.9773755656108598,
+              "support": 111,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7,
+              "recall": 0.7777777777777778,
+              "f1": 0.7368421052631577,
+              "support": 9,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              108,
+              3
+            ],
+            [
+              2,
+              7
+            ]
+          ]
+        },
+        "v23h_minus_v23a": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0,
+          "known_target_precision": 0.0,
+          "known_target_recall": 0.0,
+          "known_target_f1": 0.0,
+          "known_clutter_precision": 0.0,
+          "known_clutter_recall": 0.0,
+          "known_clutter_f1": 0.0,
+          "weak_class_precision_recall_f1_floor": 0.0
+        }
+      },
+      "contains_zero_delta": {
+        "support": 112,
+        "base_label_support": {
+          "DroneTarget": 52,
+          "BirdTarget": 33,
+          "BalloonTarget": 27,
+          "ClutterTarget": 0
+        },
+        "baseline": {
+          "scope": "v23_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "treatment": {
+          "scope": "treatment_contains_zero_delta_parent_recomputed",
+          "support": 112,
+          "accuracy": 1.0,
+          "macro_precision": 0.5,
+          "macro_recall": 0.5,
+          "macro_f1": 0.5,
+          "balanced_accuracy": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 112,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              112,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        },
+        "v23h_minus_v23a": {
+          "accuracy": 0.0,
+          "macro_precision": 0.0,
+          "macro_recall": 0.0,
+          "macro_f1": 0.0,
+          "known_target_precision": 0.0,
+          "known_target_recall": 0.0,
+          "known_target_f1": 0.0,
+          "known_clutter_precision": 0.0,
+          "known_clutter_recall": 0.0,
+          "known_clutter_f1": 0.0,
+          "weak_class_precision_recall_f1_floor": 0.0
+        }
+      }
+    },
+    "train_cap_exposure_audit": {
+      "train_parent_count": 986,
+      "train_positive_dt_event_count": 11404,
+      "train_positive_dt_maximum_seconds": 290.0,
+      "train_positive_dt_above_120_event_count": 2,
+      "train_positive_dt_above_120_parent_count": 2,
+      "train_positive_dt_above_120_parent_ids": [
+        "cq08|track|234",
+        "cq08|track|239"
+      ],
+      "train_positive_dt_above_120_parent_label_support": {
+        "DroneTarget": 2
+      },
+      "validation_dataset_access_count": 0,
+      "unknown_dataset_access_count": 0,
+      "test_dataset_access_count": 0
+    },
+    "validation_cap_exposure_audit": {
+      "validation_parent_count": 232,
+      "validation_positive_dt_maximum_seconds": 25.0,
+      "validation_positive_dt_above_120_event_count": 0,
+      "validation_positive_dt_above_120_parent_count": 0,
+      "validation_positive_dt_above_120_parent_ids": [],
+      "validation_positive_dt_above_120_parent_label_support": {},
+      "unknown_dataset_access_count": 0,
+      "test_dataset_access_count": 0
+    },
+    "development_cap_exposure_boundary": {
+      "validation_above_120_second_parent_count": 0,
+      "interpretation": "The cap has train exposure but no development-validation parent with dt>120s; development metrics cannot identify a long-positive-dt cap effect."
+    },
+    "gate": {
+      "parent_macro_f1_non_decreasing_vs_v23a": true,
+      "known_target_recall_non_decreasing_vs_v23a": true,
+      "clutter_f1_non_decreasing_vs_v23a": true,
+      "parent_final_non_degrading_vs_v23a": true,
+      "eligible_prefix_and_window_non_degrading_vs_v23a": true,
+      "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23a_descriptive": false,
+      "validation_has_above_120_second_cap_exposure": false,
+      "cap_effect_is_estimable_on_development_validation": false,
+      "advance_to_three_seed_confirmation": false,
+      "advance_to_oof": false
+    }
+  }
+}

@@ -32,6 +32,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23BR_VARIANT,
     V23D_VARIANT,
     V23GR_VARIANT,
+    V23H_VARIANT,
     adapter_state_names,
     artifact_relative,
     checkpoint_schema,
@@ -46,6 +47,7 @@ from radar_ln3.known_gate_v23_adapters import (
     source_runtime_report,
     source_v23b_control,
     source_v23c_control,
+    source_v23a_control,
     source_v23_training,
     state_dict_sha256 as adapter_state_dict_sha256,
 )
@@ -363,6 +365,89 @@ def _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges(
     }
 
 
+def _assert_v23h_cap_policy(
+    root: Path,
+    *,
+    source_config: Any,
+    model: OfficialCfCKnownGateClassifier,
+) -> dict[str, Any]:
+    """Prove V23h differs from V23a only at real positive dt above 120 seconds."""
+
+    reference, _audit = build_official_cfc_model_from_frozen_source(
+        root,
+        source_config,
+        state_adapter_spec=load_adapter_config(root, V23A_VARIANT)[0].adapter,
+    )
+    dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    chosen = None
+    first_exposed_index: int | None = None
+    for item in dataset:
+        exposed = (item.base.tr_dt_reason == 3) & (item.base.tr_dt_seconds > 120.0)
+        if bool(exposed.any()):
+            chosen = item
+            first_exposed_index = int(exposed.nonzero(as_tuple=False)[0].item())
+            break
+    if chosen is None or first_exposed_index is None:
+        raise RuntimeError("V23h train data has no positive-dt cap exposure")
+    batch = next(iter(build_known_gate_dataloader([chosen], batch_size=1, shuffle=False)))
+    model.eval()
+    reference.eval()
+    with torch.inference_mode():
+        actual = model(**_model_inputs(batch))
+        expected = reference(**_model_inputs(batch))
+        active = ~batch["tr_padding_mask"]
+        effective, clamped, _zero = model.liquid._timespans(
+            batch["tr_dt_seconds"], active, batch["tr_dt_reason"]
+        )
+        raw = float(batch["tr_dt_seconds"][0, first_exposed_index].item())
+        capped = float(effective[0, first_exposed_index].item())
+        prefix_error = (
+            float(
+                (
+                    actual["sequence_logits"][:, :first_exposed_index]
+                    - expected["sequence_logits"][:, :first_exposed_index]
+                )
+                .abs()
+                .max()
+                .item()
+            )
+            if first_exposed_index > 0
+            else 0.0
+        )
+        exposed_difference = float(
+            (
+                actual["sequence_logits"][:, first_exposed_index]
+                - expected["sequence_logits"][:, first_exposed_index]
+            )
+            .abs()
+            .max()
+            .item()
+        )
+    if prefix_error > 1.0e-6:
+        raise RuntimeError(
+            "V23h differs from V23a before its first real above-cap positive dt: "
+            f"max_error={prefix_error}"
+        )
+    if raw <= 120.0 or capped != 120.0 or not bool(clamped[0, first_exposed_index]):
+        raise RuntimeError("V23h did not cap the real above-cap positive dt to 120 seconds")
+    if exposed_difference <= 1.0e-8:
+        raise RuntimeError("V23h did not diverge from V23a at a real above-cap positive dt")
+    return {
+        "direct_control_variant": V23A_VARIANT,
+        "pre_above_cap_positive_dt_replays_v23a_within_float32_tolerance": True,
+        "first_real_above_cap_positive_dt_diverges_from_v23a": True,
+        "raw_positive_dt_seconds": raw,
+        "effective_positive_dt_seconds": capped,
+        "cap_seconds": 120.0,
+        "official_cfc_and_external_retention_share_effective_dt": True,
+        "max_logit_error_before_first_above_cap_event": prefix_error,
+        "first_above_cap_logit_difference": exposed_difference,
+        "train_parent_id": str(batch["parent_sample_ids"][0]),
+        "first_above_cap_event_index": first_exposed_index,
+        "tolerance": {"atol": 1.0e-6, "rtol": 1.0e-6},
+    }
+
+
 def _v23d_tau_audit(model: OfficialCfCKnownGateClassifier) -> dict[str, Any]:
     """Describe V23d's learned positive per-dimension time scales."""
 
@@ -403,6 +488,22 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
     readiness = _read_json(readiness_path)
     contract = _read_json(contract_path)
     failed_checks = [name for name, value in dict(readiness.get("checks") or {}).items() if value is not True]
+    v23h_cap_binding_is_valid = True
+    if variant == V23H_VARIANT:
+        expected_time_policy = config.time_policy.as_dict()
+        contract_cap_audit = dict(contract.get("positive_dt_cap_exposure_audit") or {})
+        readiness_cap_audit = dict(readiness.get("positive_dt_cap_exposure_audit") or {})
+        v23h_cap_binding_is_valid = (
+            contract.get("time_policy") == expected_time_policy
+            and readiness.get("time_policy") == expected_time_policy
+            and contract_cap_audit == readiness_cap_audit
+            and int(contract_cap_audit.get("train_parent_count", -1)) == 986
+            and int(contract_cap_audit.get("train_positive_dt_above_120_event_count", 0)) > 0
+            and int(contract_cap_audit.get("train_positive_dt_above_120_parent_count", 0)) > 0
+            and int(contract_cap_audit.get("validation_dataset_access_count", -1)) == 0
+            and int(contract_cap_audit.get("unknown_dataset_access_count", -1)) == 0
+            and int(contract_cap_audit.get("test_dataset_access_count", -1)) == 0
+        )
     if (
         readiness.get("status") != "passed" or readiness.get("schema_version") != readiness_schema(variant)
         or readiness.get("variant") != variant or readiness.get("config_sha256") != sha256_file(config_path)
@@ -419,6 +520,7 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
         or contract.get("test") != "未执行" or contract.get("deployment_eligible") is not False
         or config.train.checkpoint_schema != checkpoint_schema(variant)
         or config.train.epochs != FIXED_EPOCHS
+        or not v23h_cap_binding_is_valid
         or (
             variant == V23D_VARIANT
             and (
@@ -428,7 +530,7 @@ def _verify_prepared(root: Path, variant: str) -> tuple[Any, Any, dict[str, Any]
             )
         )
         or (
-            variant in (V23BR_VARIANT, V23GR_VARIANT)
+            variant in (V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT)
             and (
                 config.direct_control is None
                 or contract.get("direct_control") != config.direct_control
@@ -447,7 +549,7 @@ def _checkpoint_payload(
     epoch: int, global_step: int, metrics: Mapping[str, Any],
     training_state: Mapping[str, Any],
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "checkpoint_schema": checkpoint_schema(variant), "task_name": "known_gate", "variant": variant,
         "architecture": "official_ncps_cfc_external_state_adapter", "config_name": config.config_name,
         "config_identity_sha256": config_identity_sha256(config), "config_file_sha256": sha256_file(config_path),
@@ -464,6 +566,12 @@ def _checkpoint_payload(
         "model_state": model.state_dict(), "optimizer_state": optimizer.state_dict(), "metrics": dict(metrics),
         "training_state": dict(training_state), "full_parameter_training": True, "unknown_is_model_class": False,
     }
+    # V23h is the only adapter variant with a non-default effective-dt policy.
+    # Bind it to every resumable and selected checkpoint without altering the
+    # frozen checkpoint payload schema of V23a through V23gr.
+    if variant == V23H_VARIANT:
+        payload["time_policy"] = config.time_policy.as_dict()
+    return payload
 
 
 def _load_checkpoint(
@@ -487,6 +595,8 @@ def _load_checkpoint(
         or payload.get("full_parameter_training") is not True or payload.get("unknown_is_model_class") is not False
     ):
         raise ValueError("V23 adapter checkpoint schema/config/runtime/readiness binding differs")
+    if variant == V23H_VARIANT and payload.get("time_policy") != config.time_policy.as_dict():
+        raise ValueError("V23h checkpoint time-policy binding differs")
     model.load_state_dict(payload["model_state"], strict=True)
     if optimizer is not None:
         optimizer.load_state_dict(payload["optimizer_state"])
@@ -519,9 +629,16 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
         generator = torch.Generator(device="cpu")
         generator.manual_seed(config.train.dataloader_seed)
         train_loader = build_known_gate_dataloader(train_dataset, batch_size=config.train.batch_size, shuffle=True, generator=generator)
-        model, initialization_audit = build_official_cfc_model_from_frozen_source(root, source_config, state_adapter_spec=config.adapter)
+        model, initialization_audit = build_official_cfc_model_from_frozen_source(
+            root,
+            source_config,
+            state_adapter_spec=config.adapter,
+            time_policy=config.time_policy,
+        )
         if model.external_state_adapter_specification() != config.adapter.as_dict():
             raise RuntimeError("V23 adapter constructed a different external mechanism")
+        if model.liquid.time_policy != config.time_policy:
+            raise RuntimeError("V23 adapter constructed a different effective-dt time policy")
         expected_parameters = 27434 + config.adapter.trainable_parameter_count
         if sum(parameter.numel() for parameter in model.parameters()) != expected_parameters:
             raise RuntimeError("V23 adapter parameter count differs from pre-registered mechanism")
@@ -558,6 +675,14 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
                     source_config=source_config,
                     model=model,
                 )
+            )
+        elif variant == V23H_VARIANT:
+            if config.direct_control != source_v23a_control(root):
+                raise RuntimeError("V23h direct V23a control binding changed during training")
+            pairing_audit["v23h_direct_v23a_cap_audit"] = _assert_v23h_cap_policy(
+                root,
+                source_config=source_config,
+                model=model,
             )
         device = known_gate_device(source_config)
         if config.train.device == "cuda" and device.type != "cuda":
@@ -646,11 +771,16 @@ def train(project_root: Path, *, variant: str, resume_checkpoint: Path | None = 
         best_validation = evaluate_known_gate(model, validation_dataset, config=source_config, device=device)
         v23d_tau_audit = _v23d_tau_audit(model) if variant == V23D_VARIANT else None
         detail_path = artifact / "sample_detail_information.json"
-        _write_json(detail_path, {"schema_version": f"{checkpoint_schema(variant)}-sample-detail-v1", "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "adapter": model.external_state_adapter_specification(), "seed": 43, "checkpoint": str(best_checkpoint), "epoch": best_epoch, "counts": {key: len(value) for key, value in best_validation["records"].items()}, "records": best_validation["records"], "scope": "development validation KnownGate only; not OOF or test"})
+        detail = {"schema_version": f"{checkpoint_schema(variant)}-sample-detail-v1", "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "adapter": model.external_state_adapter_specification(), "seed": 43, "checkpoint": str(best_checkpoint), "epoch": best_epoch, "counts": {key: len(value) for key, value in best_validation["records"].items()}, "records": best_validation["records"], "scope": "development validation KnownGate only; not OOF or test"}
+        if variant == V23H_VARIANT:
+            detail["time_policy"] = config.time_policy.as_dict()
+        _write_json(detail_path, detail)
         performance = _performance(best_validation, config.train.task_min_precision_recall_target)
         final_state_sha256 = _state_dict_sha256(model.state_dict())
         result = {"status": "completed", **performance, "task_name": "known_gate", "variant": variant, "architecture": "official_ncps_cfc_external_state_adapter", "official_cfc": model.backbone_specification(), "external_state_adapter": model.external_state_adapter_specification(), "seed": 43, "dataloader_seed": 43, "config_name": config.config_name, "config_path": str(config_path), "config_sha256": sha256_file(config_path), "config_identity_sha256": config_identity_sha256(config), "source_control": {"v23_report_path": config.source_v23_report_path, "v23_report_sha256": config.source_v23_report_sha256, "v21_config_path": config.source_config_path, "v21_config_sha256": config.source_config_sha256}, "train_parent_count": len(train_dataset), "validation_parent_count": len(validation_dataset), "validation_clutter_support": 9, "global_step": global_step, "best_epoch": best_epoch, "best_checkpoint_selection": best_selection, "best_validation_metrics": {key: value for key, value in best_validation.items() if key != "records"}, "history": history, "best_checkpoint": str(best_checkpoint), "last_checkpoint": str(last_checkpoint), "sample_detail_information": str(detail_path), "trainable_parameter_count": sum(parameter.numel() for parameter in model.parameters()), "full_parameter_training": True, "all_model_parameters_trainable": True, "initial_model_state_sha256": initial_state_sha256, "best_model_state_sha256": final_state_sha256, "model_state_changed_from_initialization": initial_state_sha256 != final_state_sha256, "initialization_audit": initialization_audit, "v23_initialization_pairing": pairing_audit, "training_readiness": {"path": str(root / readiness_relative(variant)), "sha256": readiness_sha256, "schema_version": readiness_schema(variant), "status": "passed", "validation_used_for_readiness_gate": False, "test": "未执行"}, "official_runtime_compatibility": {"path": str(runtime_path), "sha256": runtime_sha256, "schema_version": runtime["schema_version"], "checks": dict(runtime["checks"])}, "data_contract": {"source_data_contract_path": source_config.data.contract_path, "source_data_contract_sha256": source_config.data.expected_contract_sha256, "normalization_path": source_config.data.normalization_stats_path, "normalization_sha256": source_config.data.expected_stats_sha256, "index_path": source_config.data.index_path, "index_sha256": source_config.data.expected_index_sha256}, "dataloader_contract": {"seed": 43, "independent_generator": True, "epoch_parent_order_hashes": [{"epoch": int(row["epoch"]), "sha256": row["parent_order_sha256"], "v23_control_sha256": row["v23_control_parent_order_sha256"], "exactly_matches_v23_control": row["parent_order_exactly_matches_v23_control"], "count": int(row["parent_order_count"])} for row in history], "all_epoch_parent_orders_exactly_match_v23_control": True, "cuda_deterministic_algorithms": False}, "resume": {"resumed": resumed_from is not None, "checkpoint": resumed_from, "start_epoch": start_epoch, "epoch_boundary_only": True}, "unknown_is_model_class": False, "local_argmax_is_product_action": False, "validation_interpretation": "development-only KnownGate local evidence, not final product action", "multiseed": "未执行", "OOF": "未执行", "test_evaluation": "not_executed", "oof_threshold_calibration": "not_executed", "full_cascade_evaluation": "not_executed", "formal_rejection": "not_executed", "stable_evaluation": "not_executed", "p95_latency": "not_executed", "deployment_eligible": False, "elapsed_seconds": time.perf_counter() - started}
-        if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
+        if variant == V23H_VARIANT:
+            result["time_policy"] = config.time_policy.as_dict()
+        if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT):
             result["direct_control"] = config.direct_control
         if variant == V23D_VARIANT:
             result["v23d_per_dimension_tau_audit"] = v23d_tau_audit

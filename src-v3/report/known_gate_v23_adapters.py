@@ -19,6 +19,7 @@ from radar_ln3.known_gate_v23_adapters import (
     V23BR_VARIANT,
     V23D_VARIANT,
     V23GR_VARIANT,
+    V23H_VARIANT,
     adapter_state_names,
     artifact_relative,
     config_identity_sha256,
@@ -172,7 +173,7 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
         )
     direct_control_ok = (
         True
-        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT)
+        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT)
         else (
             (
                 config.direct_control == source_v23a_control(root)
@@ -190,20 +191,32 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
                 )
                 if variant == V23BR_VARIANT
                 else (
-                    config.direct_control == source_v23c_control(root)
-                    and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
-                        "pre_zero_delta_replays_v23c_within_float32_tolerance"
-                    ) is True
-                    and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
-                        "first_k2_zero_delta_differs_from_v23c"
-                    ) is True
+                    (
+                        config.direct_control == source_v23c_control(root)
+                        and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
+                            "pre_zero_delta_replays_v23c_within_float32_tolerance"
+                        ) is True
+                        and pairing.get("v23gr_direct_v23c_multiplicity_audit", {}).get(
+                            "first_k2_zero_delta_differs_from_v23c"
+                        ) is True
+                    )
+                    if variant == V23GR_VARIANT
+                    else (
+                        config.direct_control == source_v23a_control(root)
+                        and pairing.get("v23h_direct_v23a_cap_audit", {}).get(
+                            "pre_above_cap_positive_dt_replays_v23a_within_float32_tolerance"
+                        ) is True
+                        and pairing.get("v23h_direct_v23a_cap_audit", {}).get(
+                            "first_real_above_cap_positive_dt_diverges_from_v23a"
+                        ) is True
+                    )
                 )
             )
         )
     )
     direct_control_summary_ok = (
         True
-        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT)
+        if variant not in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT)
         else summary.get("direct_control") == config.direct_control
     )
     tau_audit_ok = (
@@ -251,6 +264,11 @@ def _load_treatment(root: Path, variant: str) -> dict[str, Any]:
         != sha256_file(readiness_path)
     ):
         raise ValueError(f"{variant} completed artifact violates its contract")
+    if variant == V23H_VARIANT and (
+        summary.get("time_policy") != config.time_policy.as_dict()
+        or detail.get("time_policy") != config.time_policy.as_dict()
+    ):
+        raise ValueError("V23h completed artifact time policy differs from its config")
     return {
         "config": config, "summary": summary, "summary_path": str(summary_path), "summary_sha256": sha256_file(summary_path),
         "checkpoint_path": str(checkpoint_path), "checkpoint_sha256": sha256_file(checkpoint_path),
@@ -311,6 +329,41 @@ def _dt_parent_groups(root: Path, source_config: Any) -> dict[str, Any]:
         "validation_dataset_parent_count": len(dataset),
         "unknown_dataset_access": 0,
         "test_dataset_access": 0,
+    }
+
+
+def _positive_dt_cap_validation_exposure(root: Path, source_config: Any) -> dict[str, Any]:
+    """Describe V23h validation cap exposure only during development evaluation."""
+
+    dataset = build_known_gate_dataset(root, source_config, split_name="val")
+    parent_ids: list[str] = []
+    labels: dict[str, int] = {}
+    event_count = 0
+    maximum_seconds = 0.0
+    for item in dataset:
+        positive = item.base.tr_dt_reason == 3
+        durations = item.base.tr_dt_seconds
+        if bool(positive.any()):
+            maximum_seconds = max(
+                maximum_seconds,
+                float(durations.masked_select(positive).max().item()),
+            )
+        exposed = positive & (durations > 120.0)
+        count = int(exposed.sum().item())
+        event_count += count
+        if count:
+            parent_ids.append(str(item.base.parent_sample_id))
+            label = str(item.base.label_name)
+            labels[label] = labels.get(label, 0) + 1
+    return {
+        "validation_parent_count": len(dataset),
+        "validation_positive_dt_maximum_seconds": maximum_seconds,
+        "validation_positive_dt_above_120_event_count": event_count,
+        "validation_positive_dt_above_120_parent_count": len(parent_ids),
+        "validation_positive_dt_above_120_parent_ids": parent_ids,
+        "validation_positive_dt_above_120_parent_label_support": labels,
+        "unknown_dataset_access_count": 0,
+        "test_dataset_access_count": 0,
     }
 
 
@@ -649,6 +702,54 @@ def _v23gr_direct_gate(
     }
 
 
+def _v23h_direct_gate(
+    direct_deltas: Mapping[str, Mapping[str, float]],
+    direct_bootstrap: Mapping[str, Any],
+    *,
+    validation_above_cap_parent_count: int,
+) -> dict[str, bool]:
+    """Describe V23h without claiming validation evidence that does not exist."""
+
+    parent = direct_deltas["parent"]
+    prefix = direct_deltas["eligible_prefix"]
+    window = direct_deltas["window"]
+    bootstrap_positive = (
+        float(direct_bootstrap["treatment_minus_baseline"]["macro_f1"]["lower_95"])
+        > 0.0
+    )
+    parent_non_degrading = (
+        parent["macro_f1"] >= 0.0
+        and parent["known_target_recall"] >= 0.0
+        and parent["known_clutter_f1"] >= 0.0
+    )
+    prefix_window_non_degrading = all(
+        value >= 0.0
+        for value in (
+            prefix["macro_f1"],
+            prefix["known_target_recall"],
+            prefix["known_clutter_f1"],
+            window["macro_f1"],
+            window["known_target_recall"],
+            window["known_clutter_f1"],
+        )
+    )
+    validation_exposes_cap = validation_above_cap_parent_count > 0
+    return {
+        "parent_macro_f1_non_decreasing_vs_v23a": parent["macro_f1"] >= 0.0,
+        "known_target_recall_non_decreasing_vs_v23a": parent[
+            "known_target_recall"
+        ] >= 0.0,
+        "clutter_f1_non_decreasing_vs_v23a": parent["known_clutter_f1"] >= 0.0,
+        "parent_final_non_degrading_vs_v23a": parent_non_degrading,
+        "eligible_prefix_and_window_non_degrading_vs_v23a": prefix_window_non_degrading,
+        "paired_parent_bootstrap_macro_f1_lower_95_above_zero_vs_v23a_descriptive": bootstrap_positive,
+        "validation_has_above_120_second_cap_exposure": validation_exposes_cap,
+        "cap_effect_is_estimable_on_development_validation": validation_exposes_cap,
+        "advance_to_three_seed_confirmation": False,
+        "advance_to_oof": False,
+    }
+
+
 def run(project_root: Path, *, variant: str) -> dict[str, Any]:
     if variant not in V23_ADAPTER_VARIANTS:
         raise ValueError(f"unsupported V23 adapter variant: {variant}")
@@ -729,6 +830,8 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         },
         "OOF": "未执行", "test": "未执行", "formal_rejection": "未执行", "full_cascade": "未执行", "stable": "未执行", "P95": "未执行", "deployment_eligible": False,
     }
+    if variant == V23H_VARIANT:
+        report["treatment"]["time_policy"] = treatment["config"].time_policy.as_dict()
     if variant == V23D_VARIANT:
         direct_control = _load_treatment(root, V23A_VARIANT)
         direct_metrics = {
@@ -962,6 +1065,99 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         report["gate"] = {
             "v23_reference_diagnostic": report["gate"],
             "v23c_direct_control_primary": direct_gate,
+            "advance_to_three_seed_confirmation": False,
+            "advance_to_oof": False,
+        }
+    elif variant == V23H_VARIANT:
+        direct_control = _load_treatment(root, V23A_VARIANT)
+        direct_metrics = {
+            scope: {
+                "v23a_raw_positive_dt_control": _scope_metrics(
+                    direct_control["records"][scope], f"v23a_{scope}"
+                ),
+                "v23h_positive_dt_capped_120_seconds_treatment": _scope_metrics(
+                    treatment["records"][scope], f"v23h_{scope}"
+                ),
+            }
+            for scope in SCOPES
+        }
+        direct_deltas = {
+            scope: _delta(
+                values["v23a_raw_positive_dt_control"],
+                values["v23h_positive_dt_capped_120_seconds_treatment"],
+            )
+            for scope, values in direct_metrics.items()
+        }
+        direct_parent_before, direct_parent_after = _ordered_pair(
+            direct_control["records"]["parent"],
+            treatment["records"]["parent"],
+            scope="parent",
+        )
+        direct_bootstrap = _bootstrap(direct_parent_before, direct_parent_after)
+        direct_outcomes = _base_label_outcomes(direct_parent_before, direct_parent_after)
+        direct_dt_metrics = _dt_stratified_metrics(
+            direct_parent_before,
+            direct_parent_after,
+            dt_strata["groups"],
+            delta_name="v23h_minus_v23a",
+        )
+        contract_path = root / "data/processed/RADAR-LN3-V23h-cq08-known-gate-official-cfc-positive-dt-fixed-retention-capped-120-seconds-contract.json"
+        contract = _read_json(contract_path)
+        train_exposure = dict(contract.get("positive_dt_cap_exposure_audit") or {})
+        validation_exposure = _positive_dt_cap_validation_exposure(root, source_config)
+        if (
+            int(train_exposure.get("train_positive_dt_above_120_parent_count", 0)) <= 0
+            or int(train_exposure.get("validation_dataset_access_count", -1)) != 0
+            or int(train_exposure.get("unknown_dataset_access_count", -1)) != 0
+            or int(train_exposure.get("test_dataset_access_count", -1)) != 0
+            or int(validation_exposure.get("unknown_dataset_access_count", -1)) != 0
+            or int(validation_exposure.get("test_dataset_access_count", -1)) != 0
+        ):
+            raise ValueError("V23h cap exposure audit differs from its sealed scope")
+        direct_gate = _v23h_direct_gate(
+            direct_deltas,
+            direct_bootstrap,
+            validation_above_cap_parent_count=int(
+                validation_exposure["validation_positive_dt_above_120_parent_count"]
+            ),
+        )
+        report["direct_control"] = {
+            "binding": treatment["config"].direct_control,
+            "completed_v23a_raw_positive_dt_fixed_retention_treatment": _reference_metadata(
+                direct_control
+            ),
+        }
+        report["v23h_vs_v23a_direct_control"] = {
+            "scope": (
+                "primary V23h mechanism comparison: completed V23a raw-positive-dt "
+                "fixed-retention treatment versus V23h effective positive-dt "
+                "min(raw_dt,120s) for both official CfC and fixed-retention alpha; "
+                "development KnownGate only"
+            ),
+            "metrics_by_scope": direct_metrics,
+            "v23h_minus_v23a_by_scope": direct_deltas,
+            "parent_base_label_outcomes": direct_outcomes,
+            "scope_prediction_changes": _scope_changes(
+                direct_control["records"], treatment["records"]
+            ),
+            "probability_attribution": _probability_attribution(
+                direct_parent_before, direct_parent_after
+            ),
+            "paired_parent_bootstrap": direct_bootstrap,
+            "dt_stratified_parent_final": direct_dt_metrics,
+            "train_cap_exposure_audit": train_exposure,
+            "validation_cap_exposure_audit": validation_exposure,
+            "development_cap_exposure_boundary": {
+                "validation_above_120_second_parent_count": int(
+                    validation_exposure["validation_positive_dt_above_120_parent_count"]
+                ),
+                "interpretation": "The cap has train exposure but no development-validation parent with dt>120s; development metrics cannot identify a long-positive-dt cap effect.",
+            },
+            "gate": direct_gate,
+        }
+        report["gate"] = {
+            "v23_reference_diagnostic": report["gate"],
+            "v23a_direct_control_primary": direct_gate,
             "advance_to_three_seed_confirmation": False,
             "advance_to_oof": False,
         }

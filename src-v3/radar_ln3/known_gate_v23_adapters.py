@@ -20,7 +20,12 @@ from .known_gate_v23 import (
     TRAINING_SEED,
     sha256_file,
 )
-from .official_cfc import official_cfc_runtime_binding
+from .official_cfc import (
+    OFFICIAL_CFC_TIME_POLICY_POSITIVE_DT_CAPPED,
+    OFFICIAL_CFC_TIME_POLICY_RAW,
+    OfficialCfCTimePolicy,
+    official_cfc_runtime_binding,
+)
 from .official_cfc_state_adapters import (
     ADAPTER_POSITIVE_DT_FIXED_RETENTION,
     ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION,
@@ -39,12 +44,14 @@ V23_ADAPTER_VARIANTS = (
     "official_cfc_recurrent_layer_norm_scale_only",
     "official_cfc_zero_delta_bounded_observation",
     "official_cfc_zero_delta_density_weighted_multiplicity",
+    "official_cfc_positive_dt_fixed_retention_capped_120_seconds",
 )
 V23A_VARIANT = "official_cfc_positive_dt_fixed_retention"
 V23B_VARIANT = "official_cfc_recurrent_layer_norm"
 V23BR_VARIANT = "official_cfc_recurrent_layer_norm_scale_only"
 V23D_VARIANT = "official_cfc_positive_dt_per_dimension_retention"
 V23GR_VARIANT = "official_cfc_zero_delta_density_weighted_multiplicity"
+V23H_VARIANT = "official_cfc_positive_dt_fixed_retention_capped_120_seconds"
 
 V23_ARTIFACT_RELATIVE = Path(
     "artifacts/RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal"
@@ -60,6 +67,7 @@ VARIANT_TO_SUFFIX = {
     V23BR_VARIANT: "V23b-r",
     "official_cfc_zero_delta_bounded_observation": "V23c",
     V23GR_VARIANT: "V23gr",
+    V23H_VARIANT: "V23h",
 }
 
 VARIANT_TO_ADAPTER = {
@@ -93,7 +101,21 @@ VARIANT_TO_ADAPTER = {
         hidden_dim=48,
         zero_delta_gain=0.25,
     ),
+    V23H_VARIANT: ExternalStateAdapterSpec(
+        kind=ADAPTER_POSITIVE_DT_FIXED_RETENTION,
+        hidden_dim=48,
+        fixed_tau_seconds=15.025,
+    ),
 }
+
+VARIANT_TO_TIME_POLICY = {
+    variant: OfficialCfCTimePolicy(kind=OFFICIAL_CFC_TIME_POLICY_RAW)
+    for variant in V23_ADAPTER_VARIANTS
+}
+VARIANT_TO_TIME_POLICY[V23H_VARIANT] = OfficialCfCTimePolicy(
+    kind=OFFICIAL_CFC_TIME_POLICY_POSITIVE_DT_CAPPED,
+    positive_dt_cap_seconds=120.0,
+)
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -225,6 +247,7 @@ class AdapterConfig:
     source_v23_report_sha256: str
     direct_control: dict[str, Any] | None
     adapter: ExternalStateAdapterSpec
+    time_policy: OfficialCfCTimePolicy
     train: AdapterTrainConfig
 
 
@@ -245,6 +268,8 @@ def config_identity_sha256(config: AdapterConfig) -> str:
     # Only post-hoc revisions own an additional direct-control binding.
     if config.direct_control is not None:
         payload["direct_control"] = config.direct_control
+    if not config.time_policy.is_raw:
+        payload["time_policy"] = config.time_policy.__dict__
     return canonical_sha256(payload)
 
 
@@ -345,6 +370,27 @@ def _adapter_from_payload(variant: str, payload: Mapping[str, Any]) -> ExternalS
     return actual
 
 
+def _time_policy_from_payload(
+    variant: str, payload: Mapping[str, Any]
+) -> OfficialCfCTimePolicy:
+    expected = VARIANT_TO_TIME_POLICY[variant]
+    if set(payload) != {"kind", "positive_dt_cap_seconds"}:
+        raise ValueError("V23 time-policy config fields differ")
+    actual = OfficialCfCTimePolicy(
+        kind=str(_require(payload, "kind")),
+        positive_dt_cap_seconds=(
+            None
+            if payload["positive_dt_cap_seconds"] is None
+            else float(payload["positive_dt_cap_seconds"])
+        ),
+    )
+    if actual != expected:
+        raise ValueError(
+            "V23 time-policy config differs from its pre-registered single factor"
+        )
+    return actual
+
+
 def adapter_state_names(spec: ExternalStateAdapterSpec) -> tuple[str, ...]:
     """Return the complete model state names added by one adapter variant."""
 
@@ -359,8 +405,12 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
     if not path.is_file():
         raise FileNotFoundError(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
-    expected_top_level = {"schema_version", "config_name", "variant", "source", "adapter", "train"}
-    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
+    expected_top_level = {
+        "schema_version", "config_name", "variant", "source", "adapter", "train",
+    }
+    if variant == V23H_VARIANT:
+        expected_top_level.add("time_policy")
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT):
         expected_top_level.add("direct_control")
     if set(payload) != expected_top_level:
         raise ValueError("V23 adapter config top-level fields differ")
@@ -408,7 +458,16 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         direct_control = dict(_require(payload, "direct_control"))
         if direct_control != source_v23c_control(root):
             raise ValueError("V23gr direct V23c control binding is stale")
+    elif variant == V23H_VARIANT:
+        direct_control = dict(_require(payload, "direct_control"))
+        if direct_control != source_v23a_control(root):
+            raise ValueError("V23h direct V23a control binding is stale")
     adapter = _adapter_from_payload(variant, dict(_require(payload, "adapter")))
+    time_policy = (
+        _time_policy_from_payload(variant, dict(_require(payload, "time_policy")))
+        if variant == V23H_VARIANT
+        else VARIANT_TO_TIME_POLICY[variant]
+    )
     train_payload = dict(_require(payload, "train"))
     expected_train_fields = set(AdapterTrainConfig.__dataclass_fields__)
     if set(train_payload) != expected_train_fields:
@@ -464,7 +523,8 @@ def load_adapter_config(root: Path, variant: str) -> tuple[AdapterConfig, KnownG
         schema_version=config_schema(variant), config_name=str(payload["config_name"]), variant=variant,
         source_config_path=source_path_value, source_config_sha256=source_sha,
         source_config_identity_sha256=source_identity, source_v23_report_path=report_path,
-        source_v23_report_sha256=report_sha, direct_control=direct_control, adapter=adapter, train=train,
+        source_v23_report_sha256=report_sha, direct_control=direct_control,
+        adapter=adapter, time_policy=time_policy, train=train,
     ), source_config, source_path
 
 
@@ -643,11 +703,11 @@ def source_runtime_report(root: Path) -> tuple[Path, dict[str, Any], str]:
 
 
 __all__ = [
-    "AdapterConfig", "AdapterTrainConfig", "V23_ADAPTER_VARIANTS", "VARIANT_TO_ADAPTER", "VARIANT_TO_SUFFIX",
+    "AdapterConfig", "AdapterTrainConfig", "V23_ADAPTER_VARIANTS", "VARIANT_TO_ADAPTER", "VARIANT_TO_TIME_POLICY", "VARIANT_TO_SUFFIX",
     "V23_ARTIFACT_RELATIVE", "V23_REPORT_RELATIVE", "artifact_relative", "checkpoint_schema", "config_identity_sha256", "config_relative", "config_schema",
     "contract_relative", "contract_schema", "load_adapter_config", "readiness_relative", "readiness_schema",
     "report_relative", "report_schema", "source_runtime_report", "source_v23_training", "state_dict_sha256",
     "source_v23_parent_order_hashes", "adapter_state_names", "source_v23a_control",
-    "V23A_VARIANT", "V23B_VARIANT", "V23BR_VARIANT", "V23D_VARIANT", "V23GR_VARIANT",
+    "V23A_VARIANT", "V23B_VARIANT", "V23BR_VARIANT", "V23D_VARIANT", "V23GR_VARIANT", "V23H_VARIANT",
     "source_v23b_control", "source_v23c_control",
 ]

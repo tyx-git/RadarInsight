@@ -18,7 +18,7 @@ from .known_gate import (
     seed_everything,
 )
 from .model import RDSpatialEncoder
-from .official_cfc import OfficialCfCCausalEncoder
+from .official_cfc import OfficialCfCCausalEncoder, OfficialCfCTimePolicy
 from .official_cfc_state_adapters import (
     ADAPTER_NONE,
     ExternalOfficialCfCStateAdapter,
@@ -39,6 +39,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         config: KnownGateConfig,
         *,
         state_adapter_spec: ExternalStateAdapterSpec | None = None,
+        time_policy: OfficialCfCTimePolicy | None = None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -80,6 +81,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             backbone_layers=1,
             backbone_dropout=0.0,
             mixed_memory=False,
+            time_policy=time_policy,
         )
         self.state_adapter_spec = state_adapter_spec or ExternalStateAdapterSpec(
             kind=ADAPTER_NONE,
@@ -326,6 +328,7 @@ def build_official_cfc_model_from_frozen_source(
     source_config: KnownGateConfig,
     *,
     state_adapter_spec: ExternalStateAdapterSpec | None = None,
+    time_policy: OfficialCfCTimePolicy | None = None,
 ) -> tuple[OfficialCfCKnownGateClassifier, dict[str, Any]]:
     """Construct V23 with every non-recurrent tensor copied from its Control.
 
@@ -352,6 +355,7 @@ def build_official_cfc_model_from_frozen_source(
     official_model = OfficialCfCKnownGateClassifier(
         source_config,
         state_adapter_spec=state_adapter_spec,
+        time_policy=time_policy,
     )
     official_state = official_model.state_dict()
     source_names = {name for name in source_state if not name.startswith("liquid.")}

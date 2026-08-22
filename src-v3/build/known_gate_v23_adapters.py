@@ -8,14 +8,21 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from radar_ln3.known_gate import known_gate_config_identity_sha256, load_known_gate_config
+from radar_ln3.known_gate import (
+    build_known_gate_dataset,
+    known_gate_config_identity_sha256,
+    load_known_gate_config,
+)
 from radar_ln3.known_gate_v23 import FIXED_EPOCHS, SOURCE_SUMMARY_RELATIVE, sha256_file
 from radar_ln3.known_gate_v23_adapters import (
     VARIANT_TO_ADAPTER,
+    VARIANT_TO_TIME_POLICY,
     V23_ADAPTER_VARIANTS,
+    V23A_VARIANT,
     V23BR_VARIANT,
     V23D_VARIANT,
     V23GR_VARIANT,
+    V23H_VARIANT,
     artifact_relative,
     checkpoint_schema,
     config_identity_sha256,
@@ -79,10 +86,52 @@ def _official_parameter_count() -> int:
     return model.parameter_count
 
 
+def _positive_dt_cap_exposure(root: Path, source_config: Any) -> dict[str, Any]:
+    """Audit train-only cap exposure without constructing validation/Unknown/test."""
+
+    dataset = build_known_gate_dataset(root, source_config, split_name="train")
+    positive_event_count = 0
+    exposed_event_count = 0
+    exposed_parent_ids: list[str] = []
+    exposed_parent_labels: dict[str, int] = {}
+    maximum_positive_dt_seconds = 0.0
+    for item in dataset:
+        reasons = item.base.tr_dt_reason
+        durations = item.base.tr_dt_seconds
+        positive = reasons == 3
+        count = int(positive.sum().item())
+        positive_event_count += count
+        if count:
+            maximum_positive_dt_seconds = max(
+                maximum_positive_dt_seconds,
+                float(durations.masked_select(positive).max().item()),
+            )
+        exposed = positive & (durations > 120.0)
+        exposed_count = int(exposed.sum().item())
+        exposed_event_count += exposed_count
+        if exposed_count:
+            exposed_parent_ids.append(str(item.base.parent_sample_id))
+            label = str(item.base.label_name)
+            exposed_parent_labels[label] = exposed_parent_labels.get(label, 0) + 1
+    return {
+        "train_parent_count": len(dataset),
+        "train_positive_dt_event_count": positive_event_count,
+        "train_positive_dt_maximum_seconds": maximum_positive_dt_seconds,
+        "train_positive_dt_above_120_event_count": exposed_event_count,
+        "train_positive_dt_above_120_parent_count": len(exposed_parent_ids),
+        "train_positive_dt_above_120_parent_ids": exposed_parent_ids,
+        "train_positive_dt_above_120_parent_label_support": exposed_parent_labels,
+        "validation_dataset_access_count": 0,
+        "unknown_dataset_access_count": 0,
+        "test_dataset_access_count": 0,
+    }
+
+
 def _config_payload(
     root: Path, variant: str, source_config_path: Path, source_config: Any
 ) -> dict[str, Any]:
     spec = VARIANT_TO_ADAPTER[variant]
+    time_policy = VARIANT_TO_TIME_POLICY[variant]
     artifact = str(artifact_relative(variant)).replace("\\", "/")
     report_path = root / "src-v3/processed/report/RADAR-LN3-V23-known-gate-official-cfc-baseline-validation.json"
     payload = {
@@ -136,6 +185,12 @@ def _config_payload(
         payload["direct_control"] = source_v23b_control(root)
     elif variant == V23GR_VARIANT:
         payload["direct_control"] = source_v23c_control(root)
+    elif variant == V23H_VARIANT:
+        payload["direct_control"] = source_v23a_control(root)
+        payload["time_policy"] = {
+            "kind": time_policy.kind,
+            "positive_dt_cap_seconds": time_policy.positive_dt_cap_seconds,
+        }
     return payload
 
 
@@ -150,6 +205,11 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
     )
     v23_summary_path, v23_summary, v23_checkpoint_path, v23_checkpoint_sha = source_v23_training(root)
     v23_parent_order_hashes = source_v23_parent_order_hashes(v23_summary)
+    cap_exposure = (
+        _positive_dt_cap_exposure(root, source_config)
+        if variant == V23H_VARIANT
+        else None
+    )
     config_path = root / config_relative(variant)
     _write_new_or_identical(
         config_path,
@@ -225,9 +285,35 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                 "first_and_positive_delta_behavior": "h=h_official",
             }
         )
+    elif variant == V23H_VARIANT:
+        checks["time_policy_is_exactly_pre_registered"] = (
+            config.time_policy == VARIANT_TO_TIME_POLICY[variant]
+        )
+        checks["v23h_direct_v23a_fixed_retention_control_is_frozen"] = (
+            config.direct_control == source_v23a_control(root)
+        )
+        checks["v23h_is_only_positive_dt_cap_120_seconds"] = (
+            adapter_specification == VARIANT_TO_ADAPTER[V23A_VARIANT].as_dict()
+            and config.time_policy.as_dict()
+            == {
+                "kind": "positive_dt_capped",
+                "positive_dt_cap_seconds": 120.0,
+                "applies_to": "positive_delta_at_second_precision only; first, zero-delta and padding remain unmodified",
+                "effective_duration_consumer": "both official CfC timespans and any external positive-dt state adapter",
+            }
+        )
+        checks["v23h_train_has_real_above_cap_positive_dt_exposure"] = (
+            int(cap_exposure["train_positive_dt_above_120_event_count"]) > 0
+            and int(cap_exposure["train_positive_dt_above_120_parent_count"]) > 0
+        )
+        checks["v23h_readiness_is_train_only"] = (
+            int(cap_exposure["validation_dataset_access_count"]) == 0
+            and int(cap_exposure["unknown_dataset_access_count"]) == 0
+            and int(cap_exposure["test_dataset_access_count"]) == 0
+        )
     frozen_components = [
         "official dense 48x1 default lecun_tanh CfC",
-        "raw first/zero/positive dt input to official CfC",
+        "raw first/zero/positive dt input to official CfC except V23h positive-delta effective duration cap",
         "V16 index and V21 known-only data contract",
         "V21 train-only normalization",
         "TR/RD front ends, fusion, classifier, loss and checkpoint rule",
@@ -243,6 +329,10 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
     if variant == V23GR_VARIANT:
         frozen_components.append(
             "V23gr replays V23c before the first zero-delta follow-up; first zero-delta follow-up is k=2 and follows min(0.25*k,0.75)"
+        )
+    if variant == V23H_VARIANT:
+        frozen_components.append(
+            "V23h changes only effective positive-delta duration to min(raw_dt_seconds,120.0) for both official CfC and V23a fixed-retention alpha; raw duration remains an audit value"
         )
     contract = {
         "schema_version": contract_schema(variant),
@@ -272,6 +362,9 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "adapter": adapter_specification,
         "single_factor": {
             "changed_component": (
+                "positive-delta effective-duration cap only: min(raw_dt_seconds,120.0) enters both official CfC and the fixed-retention adapter; V23a raw duration is the direct control"
+                if variant == V23H_VARIANT
+                else (
                 "per-hidden-dimension positive-dt retention time-scale only; V23a fixed tau is the direct control"
                 if variant == V23D_VARIANT
                 else (
@@ -281,6 +374,7 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
                         "replace only V23c's fixed zero-delta external gain 0.25 with causal same-second multiplicity min(0.25*k,0.75)"
                         if variant == V23GR_VARIANT
                         else "external post-official-CfC recurrent state adapter only"
+                    )
                     )
                 )
             ),
@@ -310,8 +404,11 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT):
         contract["direct_control"] = config.direct_control
+    if variant == V23H_VARIANT:
+        contract["time_policy"] = config.time_policy.as_dict()
+        contract["positive_dt_cap_exposure_audit"] = cap_exposure
     contract_path = root / contract_relative(variant)
     _write_new_or_identical(contract_path, contract)
     readiness = {
@@ -344,8 +441,11 @@ def build(project_root: Path, variant: str) -> dict[str, Any]:
         "P95": "未执行",
         "deployment_eligible": False,
     }
-    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT):
+    if variant in (V23D_VARIANT, V23BR_VARIANT, V23GR_VARIANT, V23H_VARIANT):
         readiness["direct_control"] = config.direct_control
+    if variant == V23H_VARIANT:
+        readiness["time_policy"] = config.time_policy.as_dict()
+        readiness["positive_dt_cap_exposure_audit"] = cap_exposure
     readiness_path = root / readiness_relative(variant)
     _write_new_or_identical(readiness_path, readiness)
     return {

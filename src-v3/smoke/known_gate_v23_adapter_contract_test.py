@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ import torch
 
 from radar_ln3.known_gate import build_known_gate_dataloader, build_known_gate_dataset
 from radar_ln3.known_gate_official_cfc import build_official_cfc_model_from_frozen_source
+from radar_ln3.known_gate_v23 import sha256_file
 from radar_ln3.known_gate_v23_adapters import (
     V23_ADAPTER_VARIANTS,
     V23A_VARIANT,
@@ -24,8 +26,13 @@ from radar_ln3.known_gate_v23_adapters import (
     V23BR_VARIANT,
     V23D_VARIANT,
     V23GR_VARIANT,
+    V23H_VARIANT,
+    config_relative,
     load_adapter_config,
+    readiness_relative,
+    source_runtime_report,
     source_v23c_control,
+    source_v23a_control,
     source_v23_training,
     state_dict_sha256,
 )
@@ -38,6 +45,9 @@ from radar_ln3.losses import parent_final_task_ce_with_prefix_auxiliary
 from train.known_gate_v21 import _model_inputs, _state_dict_sha256
 from train.known_gate_v23_adapters import (
     _assert_v23gr_pre_zero_replays_v23c_and_first_density_zero_diverges,
+    _assert_v23h_cap_policy,
+    _checkpoint_payload,
+    _load_checkpoint,
 )
 
 
@@ -216,6 +226,11 @@ def _adapter_formula_checks() -> dict[str, bool]:
             )
         else:  # pragma: no cover - config contract makes this unreachable
             raise AssertionError("unsupported adapter kind")
+    # V23h intentionally reuses V23a's fixed-retention post-state equation;
+    # its sole difference is the separate effective-dt time policy.
+    checks["official_cfc_positive_dt_fixed_retention_capped_120_seconds"] = checks[
+        "official_cfc_positive_dt_fixed_retention"
+    ]
     return checks
 
 
@@ -230,7 +245,10 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         iter(build_known_gate_dataloader(train_dataset, batch_size=2, shuffle=False))
     )
     treatment, _source_audit = build_official_cfc_model_from_frozen_source(
-        root, source_config, state_adapter_spec=config.adapter
+        root,
+        source_config,
+        state_adapter_spec=config.adapter,
+        time_policy=config.time_policy,
     )
     direct_v23, _direct_audit = build_official_cfc_model_from_frozen_source(
         root, source_config
@@ -337,6 +355,63 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
             )
         )
 
+    v23h_pre_cap_replay = True
+    v23h_first_cap_difference = True
+    v23h_pre_cap_error = 0.0
+    v23h_first_cap_delta = 0.0
+    v23h_raw_dt = 0.0
+    v23h_effective_dt = 0.0
+    if variant == V23H_VARIANT:
+        control, _v23a_audit = build_official_cfc_model_from_frozen_source(
+            root,
+            source_config,
+            state_adapter_spec=load_adapter_config(root, V23A_VARIANT)[0].adapter,
+        )
+        selected = None
+        index = None
+        for item in train_dataset:
+            exposed = (item.base.tr_dt_reason == 3) & (item.base.tr_dt_seconds > 120.0)
+            if bool(exposed.any()):
+                selected = item
+                index = int(exposed.nonzero(as_tuple=False)[0].item())
+                break
+        if selected is None or index is None:
+            raise AssertionError("V23h smoke lacks real positive-dt >120-second evidence")
+        capped_batch = next(
+            iter(build_known_gate_dataloader([selected], batch_size=1, shuffle=False))
+        )
+        treatment.eval(); control.eval()
+        with torch.inference_mode():
+            observed = treatment(**_model_inputs(capped_batch))["sequence_logits"]
+            expected = control(**_model_inputs(capped_batch))["sequence_logits"]
+            active = ~capped_batch["tr_padding_mask"]
+            effective, clamped, _zero = treatment.liquid._timespans(
+                capped_batch["tr_dt_seconds"], active, capped_batch["tr_dt_reason"]
+            )
+        v23h_pre_cap_error = (
+            float((observed[:, :index] - expected[:, :index]).abs().max().item())
+            if index > 0 else 0.0
+        )
+        v23h_first_cap_delta = float(
+            (observed[:, index] - expected[:, index]).abs().max().item()
+        )
+        v23h_raw_dt = float(capped_batch["tr_dt_seconds"][0, index].item())
+        v23h_effective_dt = float(effective[0, index].item())
+        v23h_pre_cap_replay = v23h_pre_cap_error <= ATOL
+        v23h_first_cap_difference = (
+            v23h_first_cap_delta > 1.0e-8
+            and bool(clamped[0, index])
+            and v23h_raw_dt > 120.0
+            and v23h_effective_dt == 120.0
+        )
+        v23h_training_entry_audit = _assert_v23h_cap_policy(
+            root,
+            source_config=source_config,
+            model=treatment,
+        )
+    else:
+        v23h_training_entry_audit = None
+
     treatment.train()
     output = treatment(**_model_inputs(batch))
     weights = torch.tensor(config.train.class_weights, dtype=torch.float32)
@@ -411,6 +486,49 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         )
     online_error = _offline_online_error(treatment, batch)
     formula = _adapter_formula_checks()
+    checkpoint_time_policy_round_trip = True
+    if variant == V23H_VARIANT:
+        runtime_path, _runtime, runtime_sha256 = source_runtime_report(root)
+        readiness_sha256 = sha256_file(root / readiness_relative(variant))
+        optimizer = torch.optim.AdamW(treatment.parameters(), lr=config.train.learning_rate)
+        checkpoint_payload = _checkpoint_payload(
+            treatment,
+            optimizer,
+            variant=variant,
+            config=config,
+            config_path=root / config_relative(variant),
+            readiness_sha256=readiness_sha256,
+            runtime_path=runtime_path,
+            runtime_sha256=runtime_sha256,
+            initialization_audit=_source_audit,
+            pairing_audit=v23h_training_entry_audit,
+            epoch=1,
+            global_step=1,
+            metrics={"smoke": True},
+            training_state={"smoke": True},
+        )
+        # Exercise the same serialization path used by epoch, best and resume
+        # checkpoints.  The cap policy must survive a disk round trip.
+        with tempfile.TemporaryDirectory(prefix="v23h-checkpoint-") as temporary:
+            checkpoint_path = Path(temporary) / "checkpoint.pt"
+            torch.save(checkpoint_payload, checkpoint_path)
+            _load_checkpoint(
+                checkpoint_path,
+                treatment,
+                None,
+                variant=variant,
+                config=config,
+                config_path=root / config_relative(variant),
+                readiness_sha256=readiness_sha256,
+                runtime_path=runtime_path,
+                runtime_sha256=runtime_sha256,
+                initialization_audit=_source_audit,
+                pairing_audit=v23h_training_entry_audit,
+                map_location=torch.device("cpu"),
+            )
+        checkpoint_time_policy_round_trip = (
+            checkpoint_payload.get("time_policy") == config.time_policy.as_dict()
+        )
     checks = {
         "variant_is_pre_registered": variant in V23_ADAPTER_VARIANTS,
         "official_cfcell_is_unmodified_external_adapter_only": treatment.liquid.cfc.__class__
@@ -458,6 +576,30 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
                 is True
             )
         ),
+        "v23h_pre_cap_replays_v23a_and_first_above_cap_positive_delta_diverges": (
+            True
+            if variant != V23H_VARIANT
+            else v23h_pre_cap_replay and v23h_first_cap_difference
+        ),
+        "v23h_direct_v23a_control_binding_is_frozen": (
+            True
+            if variant != V23H_VARIANT
+            else config.direct_control == source_v23a_control(root)
+        ),
+        "v23h_training_entry_direct_v23a_audit_is_executable": (
+            True
+            if variant != V23H_VARIANT
+            else (
+                v23h_training_entry_audit is not None
+                and v23h_training_entry_audit[
+                    "official_cfc_and_external_retention_share_effective_dt"
+                ]
+                is True
+            )
+        ),
+        "v23h_checkpoint_time_policy_round_trip": (
+            True if variant != V23H_VARIANT else checkpoint_time_policy_round_trip
+        ),
         "real_train_batch_loss_and_all_gradients_are_finite": bool(
             torch.isfinite(objective["loss"]) and all_gradients_finite
         ),
@@ -487,6 +629,12 @@ def run(project_root: Path, *, variant: str) -> dict[str, Any]:
         "v23gr_pre_zero_v23c_replay_max_logit_error": v23gr_pre_zero_error,
         "v23gr_first_k2_zero_delta_logit_difference": v23gr_first_density_delta,
         "v23gr_training_entry_direct_control_audit": v23gr_training_entry_audit,
+        "v23h_pre_cap_v23a_replay_max_logit_error": v23h_pre_cap_error,
+        "v23h_first_above_cap_logit_difference": v23h_first_cap_delta,
+        "v23h_raw_positive_dt_seconds": v23h_raw_dt,
+        "v23h_effective_positive_dt_seconds": v23h_effective_dt,
+        "v23h_training_entry_direct_control_audit": v23h_training_entry_audit,
+        "v23h_checkpoint_time_policy_round_trip": checkpoint_time_policy_round_trip,
         "offline_online_max_logit_error": online_error,
         "tolerance": {"atol": ATOL, "rtol": RTOL},
         "validation_dataset_access_count": 0,

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('V23a', 'V23b', 'V23b-r', 'V23c', 'V23d', 'V23gr')]
+    [ValidateSet('V23a', 'V23b', 'V23b-r', 'V23c', 'V23d', 'V23gr', 'V23h')]
     [string]$Variant,
     [ValidateSet('prepare', 'smoke', 'train', 'evaluate', 'all')]
     [string]$Stage = 'all',
@@ -71,6 +71,14 @@ $variantMap = @{
         ReportName = 'RADAR-LN3-V23gr-known-gate-official-cfc-paired-validation.json'
         ReadinessSchema = 'RADAR-LN3-V23gr-known-gate-official-cfc-adapter-readiness-v1'
         ReportSchema = 'RADAR-LN3-V23gr-known-gate-official-cfc-adapter-paired-validation-v1'
+    }
+    'V23h' = [pscustomobject]@{
+        Key = 'official_cfc_positive_dt_fixed_retention_capped_120_seconds'
+        ArtifactName = 'RADAR-LN3-V23h-cq08-known-gate-official-cfc-positive-dt-fixed-retention-capped-120-seconds-seed43-formal'
+        ReadinessName = 'RADAR-LN3-V23h-known-gate-official-cfc-training-readiness.json'
+        ReportName = 'RADAR-LN3-V23h-known-gate-official-cfc-paired-validation.json'
+        ReadinessSchema = 'RADAR-LN3-V23h-known-gate-official-cfc-adapter-readiness-v1'
+        ReportSchema = 'RADAR-LN3-V23h-known-gate-official-cfc-adapter-paired-validation-v1'
     }
 }
 $selected = $variantMap[$Variant]
@@ -202,6 +210,11 @@ function Assert-CompletedTreatment {
         if ($summary.v23_initialization_pairing.v23gr_direct_v23c_multiplicity_audit.pre_zero_delta_replays_v23c_within_float32_tolerance -ne $true) { $issues.Add('v23gr_pre_zero_replay') }
         if ($summary.v23_initialization_pairing.v23gr_direct_v23c_multiplicity_audit.first_k2_zero_delta_differs_from_v23c -ne $true) { $issues.Add('v23gr_first_density_difference') }
     }
+    if ($Variant -eq 'V23h') {
+        if ($null -eq $summary.v23_initialization_pairing.v23h_direct_v23a_cap_audit) { $issues.Add('v23h_cap_audit') }
+        elseif ($summary.v23_initialization_pairing.v23h_direct_v23a_cap_audit.pre_above_cap_positive_dt_replays_v23a_within_float32_tolerance -ne $true -or $summary.v23_initialization_pairing.v23h_direct_v23a_cap_audit.first_real_above_cap_positive_dt_diverges_from_v23a -ne $true) { $issues.Add('v23h_cap_audit') }
+        if ([string]$summary.time_policy.kind -ne 'positive_dt_capped' -or [double]$summary.time_policy.positive_dt_cap_seconds -ne 120.0) { $issues.Add('v23h_time_policy') }
+    }
     foreach ($row in @($summary.history)) {
         if ($row.parent_order_exactly_matches_v23_control -ne $true -or [string]$row.parent_order_sha256 -ne [string]$row.v23_control_parent_order_sha256) { $issues.Add('epoch_parent_order') }
     }
@@ -322,6 +335,14 @@ function Invoke-Evaluate {
         }
         if ($report.gate.v23c_direct_control_primary.advance_to_oof -ne $false) {
             throw ($Variant + ' report incorrectly advances to OOF: ' + $reportPath)
+        }
+    }
+    if ($Variant -eq 'V23h') {
+        if ($null -eq $report.v23h_vs_v23a_direct_control) {
+            throw ($Variant + ' report lacks the required V23a direct-control comparison: ' + $reportPath)
+        }
+        if ($report.gate.v23a_direct_control_primary.advance_to_three_seed_confirmation -ne $false -or $report.gate.v23a_direct_control_primary.cap_effect_is_estimable_on_development_validation -ne $false) {
+            throw ($Variant + ' report incorrectly claims development cap estimability or advances: ' + $reportPath)
         }
     }
 }

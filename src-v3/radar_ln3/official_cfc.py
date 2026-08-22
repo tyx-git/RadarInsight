@@ -4,8 +4,10 @@ The project historically used a locally implemented, CfC-inspired recurrent
 unit.  This module deliberately does *not* reimplement the CfC equations:
 the recurrent operator is ``ncps.torch.CfC`` from the Neural Circuit Policies
 project.  The surrounding code only applies Radar-LN3's causal padding and
-raw-``dt`` validity contracts.  It does not floor, cap, reweight, normalize,
-or otherwise transform the time span before the official cell receives it.
+raw-``dt`` validity contracts.  Its default policy does not floor, cap,
+reweight, normalize, or otherwise transform the time span before the official
+cell receives it.  A separately registered experiment may use an explicit
+positive-delta cap policy without reimplementing ``CfCCell``.
 """
 
 from __future__ import annotations
@@ -42,6 +44,55 @@ OFFICIAL_CFC_STATE_EQUATION_OWNER = (
 )
 OFFICIAL_CFC_MODE = "default"
 OFFICIAL_CFC_ACTIVATION = "lecun_tanh"
+OFFICIAL_CFC_TIME_POLICY_RAW = "raw_positive_dt"
+OFFICIAL_CFC_TIME_POLICY_POSITIVE_DT_CAPPED = "positive_dt_capped"
+
+
+@dataclass(frozen=True)
+class OfficialCfCTimePolicy:
+    """One explicit preprocessing policy for official-CfC time spans.
+
+    The policy is deliberately separate from external state adapters.  A cap
+    changes the duration supplied to the untouched official CfC *and* the
+    effective positive-delta duration supplied to an external retention
+    adapter.  This prevents a half-applied time experiment in which the two
+    recurrent paths consume different durations.
+    """
+
+    kind: str = OFFICIAL_CFC_TIME_POLICY_RAW
+    positive_dt_cap_seconds: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.kind == OFFICIAL_CFC_TIME_POLICY_RAW:
+            if self.positive_dt_cap_seconds is not None:
+                raise ValueError("raw official-CfC time policy cannot carry a cap")
+            return
+        if self.kind == OFFICIAL_CFC_TIME_POLICY_POSITIVE_DT_CAPPED:
+            if (
+                self.positive_dt_cap_seconds is None
+                or not float(self.positive_dt_cap_seconds) > 0.0
+            ):
+                raise ValueError("capped official-CfC time policy requires a positive cap")
+            return
+        raise ValueError(f"unsupported official-CfC time policy: {self.kind}")
+
+    @property
+    def is_raw(self) -> bool:
+        return self.kind == OFFICIAL_CFC_TIME_POLICY_RAW
+
+    def as_dict(self) -> dict[str, Any]:
+        if self.is_raw:
+            return {
+                "kind": self.kind,
+                "positive_dt_cap_seconds": None,
+                "applies_to": "raw non-negative wall-clock duration for every active event",
+            }
+        return {
+            "kind": self.kind,
+            "positive_dt_cap_seconds": float(self.positive_dt_cap_seconds),
+            "applies_to": "positive_delta_at_second_precision only; first, zero-delta and padding remain unmodified",
+            "effective_duration_consumer": "both official CfC timespans and any external positive-dt state adapter",
+        }
 
 
 @dataclass
@@ -151,6 +202,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         backbone_layers: int = 1,
         backbone_dropout: float = 0.0,
         mixed_memory: bool = False,
+        time_policy: OfficialCfCTimePolicy | None = None,
     ) -> None:
         super().__init__()
         runtime = official_cfc_runtime_binding()
@@ -179,6 +231,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         self.backbone_layers = int(backbone_layers)
         self.backbone_dropout = float(backbone_dropout)
         self.mixed_memory = bool(mixed_memory)
+        self.time_policy = time_policy or OfficialCfCTimePolicy()
         self.cfc = CfC(
             self.input_dim,
             self.hidden_dim,
@@ -198,7 +251,7 @@ class OfficialCfCCausalEncoder(nn.Module):
         return sum(parameter.numel() for parameter in self.parameters())
 
     def specification(self) -> dict[str, Any]:
-        return {
+        specification = {
             **self.runtime_binding,
             "mode": self.mode,
             "activation": self.activation,
@@ -216,9 +269,13 @@ class OfficialCfCCausalEncoder(nn.Module):
             "state_equation_owner": OFFICIAL_CFC_STATE_EQUATION_OWNER,
             "dt_semantics": (
                 "official_cfc_raw_nonnegative_wall_clock_seconds; "
-                "first_event_and_same_second_use_zero_timespan; "
-                "positive_delta_preserves_measured_dt_without_cap; "
-                "dt_valid_and_dt_reason_are_contract_audits_not_state_update_rules"
+                + "first_event_and_same_second_use_zero_timespan; "
+                + (
+                    "positive_delta_preserves_measured_dt_without_cap; "
+                    if self.time_policy.is_raw
+                    else "positive_delta_uses_min(measured_dt,positive_dt_cap_seconds); "
+                )
+                + "dt_valid_and_dt_reason_are_contract_audits_not_state_update_rules"
             ),
             "project_legacy_recurrent_mechanisms": {
                 "learned_tau": False,
@@ -227,10 +284,16 @@ class OfficialCfCCausalEncoder(nn.Module):
                 "bounded_observation_gain": False,
                 "recurrent_layer_norm": False,
                 "custom_candidate_gate": False,
-                "positive_dt_cap": False,
+                "positive_dt_cap": not self.time_policy.is_raw,
             },
             "parameter_count": self.parameter_count,
         }
+        # Keep every sealed V23 through V23gr backbone specification byte-for-
+        # byte compatible.  The new field belongs only to the explicit V23h
+        # cap experiment; raw behavior remains the original default contract.
+        if not self.time_policy.is_raw:
+            specification["time_policy"] = self.time_policy.as_dict()
+        return specification
 
     @staticmethod
     def _validate_reason_tensors(
@@ -276,17 +339,30 @@ class OfficialCfCCausalEncoder(nn.Module):
         self,
         dt_seconds: torch.Tensor,
         active: torch.Tensor,
+        dt_reason: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         if not torch.isfinite(dt_seconds).all():
             raise ValueError("V23 official CfC dt must be finite")
         negative = dt_seconds < 0.0
         if bool(negative.masked_select(active).any()):
             raise ValueError("V23 official CfC does not accept negative wall-clock dt")
-        # Do not reuse the historical 120-second cap.  The official CfC sees
-        # each finite, non-negative measured time span exactly as supplied.
         safe = torch.where(active, dt_seconds, torch.zeros_like(dt_seconds))
+        clamped = torch.zeros_like(active)
+        if not self.time_policy.is_raw:
+            if dt_reason is None:
+                raise ValueError("capped official-CfC policy requires dt_reason")
+            if dt_reason.shape != dt_seconds.shape:
+                raise ValueError("official-CfC capped time policy dt_reason shape differs")
+            positive = (dt_reason == DT_REASON_POSITIVE_DELTA) & active
+            cap = torch.as_tensor(
+                self.time_policy.positive_dt_cap_seconds,
+                dtype=dt_seconds.dtype,
+                device=dt_seconds.device,
+            )
+            clamped = positive & (safe > cap)
+            safe = torch.where(clamped, cap, safe)
         zero = (dt_seconds.abs() <= 1.0e-9) & active
-        return safe, torch.zeros_like(active), zero
+        return safe, clamped, zero
 
     def forward(
         self,
@@ -339,7 +415,9 @@ class OfficialCfCCausalEncoder(nn.Module):
             dt_reason,
             initial_state=initial_state,
         )
-        timespans, clamped_mask, zero_mask = self._timespans(dt_seconds, active)
+        timespans, clamped_mask, zero_mask = self._timespans(
+            dt_seconds, active, dt_reason
+        )
         if state_adapter is None:
             parent_sequences: list[torch.Tensor] = []
             parent_final_states: list[torch.Tensor] = []
@@ -411,7 +489,7 @@ class OfficialCfCCausalEncoder(nn.Module):
                     state = state_adapter(
                         official_state,
                         state,
-                        dt_seconds[batch_index : batch_index + 1, event_index],
+                        timespans[batch_index : batch_index + 1, event_index],
                         dt_reason[batch_index : batch_index + 1, event_index],
                         step_ordinal,
                     )
@@ -486,7 +564,9 @@ class OfficialCfCCausalEncoder(nn.Module):
                     "V23 official CfC online zero_ordinal must be positive long with shape [batch]"
                 )
         active = torch.ones_like(dt_seconds, dtype=torch.bool)
-        timespans, clamped_mask, zero_mask = self._timespans(dt_seconds, active)
+        timespans, clamped_mask, zero_mask = self._timespans(
+            dt_seconds, active, dt_reason
+        )
         if state_adapter is not None and state_adapter.spec.kind != ADAPTER_NONE and dt_reason is None:
             raise ValueError("an external official-CfC state adapter requires online dt_reason")
         if (
@@ -517,7 +597,7 @@ class OfficialCfCCausalEncoder(nn.Module):
                 next_state = state_adapter(
                     next_state,
                     previous,
-                    dt_seconds[batch_index : batch_index + 1],
+                    timespans[batch_index : batch_index + 1],
                     dt_reason[batch_index : batch_index + 1],
                     (
                         None
@@ -545,7 +625,10 @@ __all__ = [
     "OFFICIAL_CFC_GIT_COMMIT",
     "OFFICIAL_CFC_MODE",
     "OFFICIAL_CFC_STATE_EQUATION_OWNER",
+    "OFFICIAL_CFC_TIME_POLICY_POSITIVE_DT_CAPPED",
+    "OFFICIAL_CFC_TIME_POLICY_RAW",
     "OfficialCfCCausalEncoder",
     "OfficialCfCForwardState",
+    "OfficialCfCTimePolicy",
     "official_cfc_runtime_binding",
 ]
