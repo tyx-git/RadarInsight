@@ -45,6 +45,7 @@ from .known_gate_features import (
     V21I_COURSE_D_RANGE_VARIANT,
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
+    V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -55,6 +56,7 @@ V21_SCHEMA_VERSION = "RADAR-LN3-V21"
 V22_SCHEMA_VERSION = "RADAR-LN3-V22"
 V22A_SCHEMA_VERSION = "RADAR-LN3-V22a"
 V24_SCHEMA_VERSION = "RADAR-LN3-V24"
+V24A_SCHEMA_VERSION = "RADAR-LN3-V24a"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -123,6 +125,16 @@ KNOWN_GATE_V24_READINESS_SCHEMA = (
 )
 KNOWN_GATE_V24_EXPERIMENT_SCHEMA = (
     "RADAR-LN3-V24-known-gate-course-reason-aware-baseline-experiment-contract-v1"
+)
+KNOWN_GATE_V24A_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-"
+    "feature-cache-manifest-v1"
+)
+KNOWN_GATE_V24A_READINESS_SCHEMA = (
+    "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-training-readiness-v1"
+)
+KNOWN_GATE_V24A_EXPERIMENT_SCHEMA = (
+    "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-experiment-contract-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
 KNOWN_GATE_V21E_MULTISEED_SEEDS = KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -343,6 +355,82 @@ def _validate_v24_baseline_config(
         )
     ):
         raise ValueError("V24 baseline config differs from its sealed namespace")
+    return True
+
+
+def _validate_v24a_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize V24a's one sealed V24-plus-current-RD-drift namespace."""
+
+    expected_name = (
+        "RADAR-LN3-V24a-cq08-liquid-known-gate-course-rd-peak-drift-mean-seed43"
+    )
+    artifact = (
+        "artifacts/RADAR-LN3-V24a-cq08-liquid-known-gate-course-rd-peak-drift-"
+        "mean-seed43-formal"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        "RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-"
+        "seed43-config.json"
+    )
+    if (
+        config_name != expected_name
+        and variant != V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT
+    ):
+        return False
+    if (
+        config_path.name != f"{expected_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or config_name != expected_name
+        or variant != V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/best_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            "RADAR-LN3-V24a-v24a_course_rd_peak_drift_mean-seed43-"
+            "known-gate-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.class_weight_normalization
+        != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+        or data.feature_cache_manifest_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24a-cq08-known-gate-course-rd-peak-drift-mean-"
+            "feature-cache-manifest.json"
+        )
+        or data.train_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24a-cq08-known-gate-train-course-rd-peak-drift-"
+            "mean-cache.npz"
+        )
+        or data.validation_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24a-cq08-known-gate-val-course-rd-peak-drift-"
+            "mean-cache.npz"
+        )
+        or data.feature_experiment_contract_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24a-cq08-known-gate-course-rd-peak-drift-mean-"
+            "contract.json"
+        )
+    ):
+        raise ValueError("V24a config differs from its sealed namespace")
     return True
 
 
@@ -615,10 +703,11 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         V22_SCHEMA_VERSION,
         V22A_SCHEMA_VERSION,
         V24_SCHEMA_VERSION,
+        V24A_SCHEMA_VERSION,
     }:
         raise ValueError(
             "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22, "
-            "RADAR-LN3-V22a or RADAR-LN3-V24"
+            "RADAR-LN3-V22a, RADAR-LN3-V24 or RADAR-LN3-V24a"
         )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
@@ -823,6 +912,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
+    is_v24a = _validate_v24a_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
     is_oof_support = (
         is_v21e_oof_support
         or is_v21f_oof_support
@@ -839,6 +935,8 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("RADAR-LN3-V22a schema is reserved for the V22a RD residual experiment")
     if (schema_version == V24_SCHEMA_VERSION) != is_v24_baseline:
         raise ValueError("RADAR-LN3-V24 schema is reserved for the V24 fresh baseline")
+    if (schema_version == V24A_SCHEMA_VERSION) != is_v24a:
+        raise ValueError("RADAR-LN3-V24a schema is reserved for the V24a RD-drift experiment")
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -867,6 +965,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         not is_oof_support
         and not is_v22a_support
         and not is_v24_baseline
+        and not is_v24a
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -896,6 +995,10 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         f"{V24_SCHEMA_VERSION}-{variant}-"
     ):
         raise ValueError("V24 checkpoint schema must bind the fresh baseline variant")
+    if is_v24a and not train.checkpoint_schema.startswith(
+        f"{V24A_SCHEMA_VERSION}-{variant}-"
+    ):
+        raise ValueError("V24a checkpoint schema must bind the RD-drift variant")
 
     cache_fields = (
         data.feature_cache_manifest_path,
@@ -2029,11 +2132,14 @@ __all__ = [
     "KNOWN_GATE_V21E_MANIFEST_SCHEMA",
     "KNOWN_GATE_V22A_MANIFEST_SCHEMA",
     "KNOWN_GATE_V24_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V24A_MANIFEST_SCHEMA",
     "KNOWN_GATE_V21E_READINESS_SCHEMA",
     "KNOWN_GATE_V22A_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V22A_READINESS_SCHEMA",
     "KNOWN_GATE_V24_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V24_READINESS_SCHEMA",
+    "KNOWN_GATE_V24A_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V24A_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
     "KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION",
     "KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION",
@@ -2045,6 +2151,7 @@ __all__ = [
     "KNOWN_TARGET_LABELS",
     "V22A_SCHEMA_VERSION",
     "V24_SCHEMA_VERSION",
+    "V24A_SCHEMA_VERSION",
     "KnownGateClassifier",
     "KnownGateConfig",
     "KnownGateDataset",

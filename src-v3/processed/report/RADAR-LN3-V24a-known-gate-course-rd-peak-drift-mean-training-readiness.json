@@ -1,0 +1,198 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-training-readiness-v1",
+  "variant": "v24a_course_rd_peak_drift_mean",
+  "checks": {
+    "v24_control_is_completed_sha_bound_and_never_loaded_as_trained_weights": true,
+    "only_current_event_adjacent_rd_frames_contribute_to_drift": true,
+    "no_preceding_event_bridge_or_future_event_is_used": true,
+    "events_with_fewer_than_two_current_rd_frames_are_invalid_not_valid_zero": true,
+    "course_column_reused_byte_for_byte_and_new_drift_column_is_appended": true,
+    "current_event_frame_indices_are_ordered_unique_and_non_overlapping_per_parent": true,
+    "new_drift_cache_is_aligned_to_v16_train_validation_event_order": true,
+    "v24_fresh_reference_and_v24a_shared_initialization_are_exact": true,
+    "both_course_and_drift_fusion_columns_start_exactly_zero": true,
+    "v16_index_v21_normalization_and_v24_control_are_sha_bound": true,
+    "unknown_is_excluded_and_test_payload_access_is_zero": true,
+    "validation_values_are_not_a_readiness_gate": true,
+    "full_20_epoch_training_is_required": true
+  },
+  "config": {
+    "path": "config/RADAR-LN3/RADAR-LN3-V24a-cq08-liquid-known-gate-course-rd-peak-drift-mean-seed43-config.json",
+    "sha256": "a589faced7713e1142a9a3040c1ee2376bf8ff8843a5dca51df2d9c7cd58916a"
+  },
+  "feature_manifest_path": "data/processed/RADAR-LN3-V24a-cq08-known-gate-course-rd-peak-drift-mean-feature-cache-manifest.json",
+  "feature_manifest_sha256": "d6249a22b48e1179ac5b8ce361dde762139e9ce650d1c05db12ca6e94a430e1c",
+  "contract_path": "data/processed/RADAR-LN3-V24a-cq08-known-gate-course-rd-peak-drift-mean-contract.json",
+  "contract_sha256": "7fd73ddeebc08fe06fcec2f22236523e8b964829ec409cb03ea4a7690f8efef2",
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "feature_manifest_sha256": "d6249a22b48e1179ac5b8ce361dde762139e9ce650d1c05db12ca6e94a430e1c",
+    "train_feature_cache_sha256": "3ea4ddd5141ca1cb6b946e50c7d7ae014e7a1f1620028e5808c9b3e600512263",
+    "validation_feature_cache_sha256": "3de00fc3e0c482df130950d7940f4e2929f1c04c726b5353733cb6cb67d15f5a",
+    "experiment_contract_sha256": "7fd73ddeebc08fe06fcec2f22236523e8b964829ec409cb03ea4a7690f8efef2"
+  },
+  "control": {
+    "config": "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-config.json",
+    "config_sha256": "46352be271ac7f92e8c3ab4f3fbb1aa44d1b508ca802cc815241ca48c000cf8a",
+    "summary": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "a783a613bc1fbdb74d6d3963f3a6ff3f5e2d342209634e7dc8433eb3b381bc7e",
+    "checkpoint": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/best_model.pt",
+    "checkpoint_sha256": "e74665c0782819fade1802b13e320846953f6c580699f335dab0ca49eae83db1",
+    "readiness": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness.json",
+    "readiness_sha256": "947b989e1752f35a037bd2e56d6a21ddccda850644cba159d5d68afbf8c29bf7",
+    "report": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-development.json",
+    "report_sha256": "c7373d6d9277f7d7cd80ff939ebd79ff5777f168c9c4fe5923c808a375f243ce",
+    "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "trained_checkpoint_loaded": false
+  },
+  "initialization": {
+    "v24_reference_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "v24a_initial_model_state_sha256": "46db4866a2b952eb4019c51716d399739344325f6ed0530b7a3cf8a513a8ae3f",
+    "fresh_v24_reference_reconstructed": true,
+    "trained_v24_checkpoint_loaded": false,
+    "trained_v24_checkpoint_accessed": false,
+    "course_fusion_column_exactly_zero": true,
+    "drift_fusion_column_exactly_zero": true,
+    "new_drift_fusion_column_count": 1
+  },
+  "split_statistics": {
+    "train": {
+      "event_count": 18923,
+      "parent_count": 986,
+      "parent_label_counts": {
+        "BalloonTarget": 238,
+        "BirdTarget": 239,
+        "ClutterTarget": 33,
+        "DroneTarget": 476
+      },
+      "feature_names": [
+        "causal_prefix_course_circular_incoherence",
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction"
+      ],
+      "course_column_reused_byte_for_byte": true,
+      "drift_feature": {
+        "current_event_only": true,
+        "preceding_event_frame_bridge_used": false,
+        "event_rd_frame_count": {
+          "support": 18923,
+          "mean": 3.58394546319294,
+          "median": 3.0,
+          "q25": 3.0,
+          "q75": 4.0
+        },
+        "valid_event_count": 18680,
+        "invalid_event_count": 243,
+        "valid_event_fraction": 0.9871584843840828,
+        "invalid_values_exactly_zero": true,
+        "valid_zero_drift_event_count": 7745,
+        "label_diagnostics": {
+          "DroneTarget": {
+            "event_support": 9095,
+            "drift_valid_event_count": 8997,
+            "drift_valid_event_fraction": 0.9892248488180319,
+            "drift_mean_fraction": {
+              "support": 8997,
+              "mean": 0.004728480296111012,
+              "median": 0.0008703219937160611,
+              "q25": 0.0,
+              "q75": 0.0026109640020877123
+            }
+          },
+          "BirdTarget": {
+            "event_support": 4620,
+            "drift_valid_event_count": 4540,
+            "drift_valid_event_fraction": 0.9826839826839827,
+            "drift_mean_fraction": {
+              "support": 4540,
+              "mean": 0.00608329028465543,
+              "median": 0.0013054830487817526,
+              "q25": 0.0,
+              "q75": 0.003916449612006545
+            }
+          },
+          "BalloonTarget": {
+            "event_support": 4551,
+            "drift_valid_event_count": 4490,
+            "drift_valid_event_fraction": 0.986596352450011,
+            "drift_mean_fraction": {
+              "support": 4490,
+              "mean": 0.003920908662465137,
+              "median": 0.0013054831069894135,
+              "q25": 0.0,
+              "q75": 0.00522193219512701
+            }
+          },
+          "ClutterTarget": {
+            "event_support": 657,
+            "drift_valid_event_count": 653,
+            "drift_valid_event_fraction": 0.9939117199391172,
+            "drift_mean_fraction": {
+              "support": 653,
+              "mean": 0.0029949663646567674,
+              "median": 0.0017406439874321222,
+              "q25": 0.0,
+              "q75": 0.002610966097563505
+            }
+          }
+        }
+      },
+      "canonical_rd_tensor_access_count": 986,
+      "raw_echo_payload_access_count": 0,
+      "mat_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    "val": {
+      "event_count": 4452,
+      "parent_count": 232,
+      "parent_label_counts": {
+        "BalloonTarget": 54,
+        "BirdTarget": 56,
+        "ClutterTarget": 9,
+        "DroneTarget": 113
+      },
+      "feature_names": [
+        "causal_prefix_course_circular_incoherence",
+        "current_event_adjacent_rd_peak_velocity_drift_mean_fraction"
+      ],
+      "course_column_reused_byte_for_byte": true,
+      "drift_feature": {
+        "current_event_only": true,
+        "preceding_event_frame_bridge_used": false,
+        "event_rd_frame_count": {
+          "support": 4452,
+          "mean": 3.5460467205750223,
+          "median": 3.0,
+          "q25": 3.0,
+          "q75": 4.0
+        },
+        "valid_event_count": 4383,
+        "invalid_event_count": 69,
+        "valid_event_fraction": 0.9845013477088949,
+        "invalid_values_exactly_zero": true,
+        "valid_zero_drift_event_count": 1817,
+        "label_diagnostics": {}
+      },
+      "canonical_rd_tensor_access_count": 232,
+      "raw_echo_payload_access_count": 0,
+      "mat_payload_access_count": 0,
+      "test_payload_access_count": 0
+    }
+  },
+  "known_train_parent_count": 986,
+  "known_validation_parent_count": 232,
+  "validation_clutter_parent_support": 9,
+  "unknown_training_exposure": 0,
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "not_executed",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

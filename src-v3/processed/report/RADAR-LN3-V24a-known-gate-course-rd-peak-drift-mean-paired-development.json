@@ -1,0 +1,4433 @@
+{
+  "status": "completed_development_paired_only",
+  "schema_version": "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-paired-development-v1",
+  "scope": "V24a development KnownGate L1 paired experiment only; no OOF, test, Unknown, L3, full cascade, rejection, stable or P95",
+  "feature_semantics": {
+    "feature": "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
+    "current_event_only": true,
+    "preceding_event_frame_bridge_used": false,
+    "fewer_than_two_current_rd_frames": "invalid_value_zero_not_a_valid_zero",
+    "rd_drift_validity": "retained for cache/audit stratification only; gating-only validity is not a fusion input, so invalid and valid physical zero both contribute numeric zero",
+    "course_strata": {
+      "invalid": "causal course feature invalid",
+      "valid_low": "valid course incoherence < 0.05",
+      "valid_high": "valid course incoherence >= 0.05"
+    }
+  },
+  "control": {
+    "metrics": {
+      "parent_final": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "eligible_prefix": {
+        "scope": "eligible_causal_prefix",
+        "support": 3756,
+        "accuracy": 0.9808306709265175,
+        "macro_precision": 0.8443797832031674,
+        "macro_recall": 0.916311518889559,
+        "macro_f1": 0.8765844967579881,
+        "balanced_accuracy": 0.916311518889559,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941487879632209,
+            "recall": 0.9859077093119646,
+            "f1": 0.9900110987791342,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 51
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6946107784431138,
+            "recall": 0.8467153284671532,
+            "f1": 0.7631578947368421,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 21
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3568,
+            51
+          ],
+          [
+            21,
+            116
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_causal_prefix",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999764,
+        "accuracy": 0.9794881543265161,
+        "macro_precision": 0.841852195094233,
+        "macro_recall": 0.9208372473039885,
+        "macro_f1": 0.8767855612739162,
+        "balanced_accuracy": 0.9208372473039885,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941817935269849,
+            "recall": 0.9844214081882241,
+            "f1": 0.9892775270256511,
+            "support": 223,
+            "weighted_support": 222.99999999999764,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 3.4740259740259756
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6895225966614812,
+            "recall": 0.8572530864197531,
+            "f1": 0.7642935955221813,
+            "support": 9,
+            "weighted_support": 8.999999999999996,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 1.2847222222222223
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219.52597402597166,
+            3.4740259740259756
+          ],
+          [
+            1.2847222222222223,
+            7.715277777777774
+          ]
+        ]
+      },
+      "window": {
+        "scope": "causal_windows",
+        "support": 4452,
+        "accuracy": 0.9797843665768194,
+        "macro_precision": 0.8377437133045309,
+        "macro_recall": 0.9162011967601019,
+        "macro_f1": 0.8724456012387434,
+        "balanced_accuracy": 0.9162011967601019,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941148775894538,
+            "recall": 0.9848414179104478,
+            "f1": 0.9894564198687911,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 65
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6813725490196079,
+            "recall": 0.8475609756097561,
+            "f1": 0.7554347826086957,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 25
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4223,
+            65
+          ],
+          [
+            25,
+            139
+          ]
+        ]
+      }
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal\\training-summary.json",
+    "summary_sha256": "a783a613bc1fbdb74d6d3963f3a6ff3f5e2d342209634e7dc8433eb3b381bc7e",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "e74665c0782819fade1802b13e320846953f6c580699f335dab0ca49eae83db1"
+  },
+  "treatment": {
+    "metrics": {
+      "parent_final": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "eligible_prefix": {
+        "scope": "eligible_causal_prefix",
+        "support": 3756,
+        "accuracy": 0.981629392971246,
+        "macro_precision": 0.8507353740018468,
+        "macro_recall": 0.9167259980274423,
+        "macro_f1": 0.8805977025686577,
+        "balanced_accuracy": 0.9167259980274423,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941536748329621,
+            "recall": 0.9867366675877314,
+            "f1": 0.9904312855359866,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 48
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7073170731707317,
+            "recall": 0.8467153284671532,
+            "f1": 0.7707641196013287,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 21
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3571,
+            48
+          ],
+          [
+            21,
+            116
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_causal_prefix",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999764,
+        "accuracy": 0.9802963439816885,
+        "macro_precision": 0.8477303128107252,
+        "macro_recall": 0.9212576508914325,
+        "macro_f1": 0.8805812779749589,
+        "balanced_accuracy": 0.9212576508914325,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941867298284217,
+            "recall": 0.9852622153631121,
+            "f1": 0.9897043541282927,
+            "support": 223,
+            "weighted_support": 222.99999999999764,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 3.2865259740259756
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7012738957930287,
+            "recall": 0.8572530864197531,
+            "f1": 0.771458201821625,
+            "support": 9,
+            "weighted_support": 8.999999999999996,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 1.2847222222222223
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219.71347402597166,
+            3.2865259740259756
+          ],
+          [
+            1.2847222222222223,
+            7.715277777777774
+          ]
+        ]
+      },
+      "window": {
+        "scope": "causal_windows",
+        "support": 4452,
+        "accuracy": 0.9804582210242587,
+        "macro_precision": 0.8428306596867462,
+        "macro_recall": 0.9165510101929377,
+        "macro_f1": 0.875727644474105,
+        "balanced_accuracy": 0.9165510101929377,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941190308162785,
+            "recall": 0.9855410447761194,
+            "f1": 0.9898114533317718,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 62
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6915422885572139,
+            "recall": 0.8475609756097561,
+            "f1": 0.7616438356164382,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 25
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4226,
+            62
+          ],
+          [
+            25,
+            139
+          ]
+        ]
+      }
+    },
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V24a-cq08-liquid-known-gate-course-rd-peak-drift-mean-seed43-formal\\training-summary.json",
+    "summary_sha256": "53fbca56e6483385322be6e0333446cc6672940a2617a8fd0bff39a244b3e1fd",
+    "checkpoint_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V24a-cq08-liquid-known-gate-course-rd-peak-drift-mean-seed43-formal\\best_model.pt",
+    "checkpoint_sha256": "29de556a77447233351138640872730918e6a7876f571649007eb5932c8924e1"
+  },
+  "treatment_minus_control": {
+    "parent_final": {
+      "accuracy": 0.0,
+      "macro_precision": 0.0,
+      "macro_recall": 0.0,
+      "macro_f1": 0.0
+    },
+    "eligible_prefix": {
+      "accuracy": 0.0007987220447284171,
+      "macro_precision": 0.0063555907986794224,
+      "macro_recall": 0.0004144791378832835,
+      "macro_f1": 0.004013205810669551
+    },
+    "parent_balanced_eligible_prefix": {
+      "accuracy": 0.0008081896551723755,
+      "macro_precision": 0.005878117716492159,
+      "macro_recall": 0.000420403587443996,
+      "macro_f1": 0.0037957167010427284
+    },
+    "window": {
+      "accuracy": 0.0006738544474392816,
+      "macro_precision": 0.005086946382215296,
+      "macro_recall": 0.00034981343283579935,
+      "macro_f1": 0.0032820432353616313
+    }
+  },
+  "paired_protocol": {
+    "seed": 43,
+    "initial_shared_state_exact": true,
+    "new_drift_fusion_column_initially_zero": true,
+    "initial_logits_exactly_equal": true,
+    "all_20_epoch_parent_order_hashes_equal": true,
+    "full_parameter_training": true,
+    "control_checkpoint_is_not_a_finetune_source": true
+  },
+  "paired_parent_bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 24043,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "control": {
+      "accuracy": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      }
+    },
+    "treatment": {
+      "accuracy": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      }
+    },
+    "treatment_minus_control": {
+      "accuracy": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_target_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      }
+    }
+  },
+  "clutter_parent_wilson_intervals": {
+    "control": {
+      "method": "Wilson score interval, two-sided 95 percent",
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          223,
+          0
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "clutter_precision": {
+        "support": 9,
+        "successes": 9,
+        "estimate": 1.0,
+        "lower_95": 0.7008549515804559,
+        "upper_95": 1.0,
+        "status": "defined"
+      },
+      "clutter_recall": {
+        "support": 9,
+        "successes": 9,
+        "estimate": 1.0,
+        "lower_95": 0.7008549515804559,
+        "upper_95": 1.0,
+        "status": "defined"
+      },
+      "warning": "Only nine validation Clutter parents; development-only uncertainty remains wide."
+    },
+    "treatment": {
+      "method": "Wilson score interval, two-sided 95 percent",
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          223,
+          0
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "clutter_precision": {
+        "support": 9,
+        "successes": 9,
+        "estimate": 1.0,
+        "lower_95": 0.7008549515804559,
+        "upper_95": 1.0,
+        "status": "defined"
+      },
+      "clutter_recall": {
+        "support": 9,
+        "successes": 9,
+        "estimate": 1.0,
+        "lower_95": 0.7008549515804559,
+        "upper_95": 1.0,
+        "status": "defined"
+      },
+      "warning": "Only nine validation Clutter parents; development-only uncertainty remains wide."
+    },
+    "validation_parent_support": 9
+  },
+  "error_direction_audit": {
+    "parent_final_control": {
+      "support": 232,
+      "KnownTarget_to_Clutter": 0,
+      "Clutter_to_KnownTarget": 0,
+      "BirdTarget_to_Clutter": 0
+    },
+    "parent_final_treatment": {
+      "support": 232,
+      "KnownTarget_to_Clutter": 0,
+      "Clutter_to_KnownTarget": 0,
+      "BirdTarget_to_Clutter": 0
+    },
+    "high_course_bird_by_scope": {
+      "parent_final": {
+        "control": {
+          "support": 14,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 14,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "BirdTarget_to_Clutter_delta": 0
+      },
+      "eligible_prefix": {
+        "control": {
+          "support": 133,
+          "KnownTarget_to_Clutter": 6,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 6
+        },
+        "treatment": {
+          "support": 133,
+          "KnownTarget_to_Clutter": 6,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 6
+        },
+        "BirdTarget_to_Clutter_delta": 0
+      },
+      "window": {
+        "control": {
+          "support": 147,
+          "KnownTarget_to_Clutter": 6,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 6
+        },
+        "treatment": {
+          "support": 147,
+          "KnownTarget_to_Clutter": 6,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 6
+        },
+        "BirdTarget_to_Clutter_delta": 0
+      }
+    },
+    "KnownTarget_to_Clutter_delta": 0,
+    "Clutter_to_KnownTarget_delta": 0
+  },
+  "eligible_prefix_safety": {
+    "by_scope": {
+      "parent_final": {
+        "known_target_recall_delta": 0.0,
+        "clutter_precision_delta": 0.0,
+        "clutter_recall_delta": 0.0,
+        "macro_f1_delta": 0.0
+      },
+      "eligible_prefix": {
+        "known_target_recall_delta": 0.000828958275766789,
+        "clutter_precision_delta": 0.012706294727617862,
+        "clutter_recall_delta": 0.0,
+        "macro_f1_delta": 0.004013205810669551
+      },
+      "parent_balanced_eligible_prefix": {
+        "known_target_recall_delta": 0.000840807174887992,
+        "clutter_precision_delta": 0.011751299131547488,
+        "clutter_recall_delta": 0.0,
+        "macro_f1_delta": 0.0037957167010427284
+      },
+      "window": {
+        "known_target_recall_delta": 0.0006996268656715987,
+        "clutter_precision_delta": 0.010169739537606026,
+        "clutter_recall_delta": 0.0,
+        "macro_f1_delta": 0.0032820432353616313
+      }
+    },
+    "eligible_prefix_known_target_recall_not_lower": true,
+    "eligible_prefix_clutter_recall_not_lower": true,
+    "parent_balanced_eligible_prefix_known_target_recall_not_lower": true,
+    "parent_balanced_eligible_prefix_clutter_recall_not_lower": true
+  },
+  "course_incoherence_strata_by_scope": {
+    "parent_final": {
+      "valid_high": {
+        "control": {
+          "support": 71,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 71,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      },
+      "valid_low": {
+        "control": {
+          "support": 161,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 161,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      }
+    },
+    "eligible_prefix": {
+      "invalid": {
+        "control": {
+          "support": 232,
+          "KnownTarget_to_Clutter": 7,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 5
+        },
+        "treatment": {
+          "support": 232,
+          "KnownTarget_to_Clutter": 7,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 5
+        },
+        "prediction_changed_count": 0
+      },
+      "valid_high": {
+        "control": {
+          "support": 739,
+          "KnownTarget_to_Clutter": 23,
+          "Clutter_to_KnownTarget": 17,
+          "BirdTarget_to_Clutter": 6
+        },
+        "treatment": {
+          "support": 739,
+          "KnownTarget_to_Clutter": 23,
+          "Clutter_to_KnownTarget": 17,
+          "BirdTarget_to_Clutter": 6
+        },
+        "prediction_changed_count": 0
+      },
+      "valid_low": {
+        "control": {
+          "support": 2785,
+          "KnownTarget_to_Clutter": 21,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 20
+        },
+        "treatment": {
+          "support": 2785,
+          "KnownTarget_to_Clutter": 18,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 17
+        },
+        "prediction_changed_count": 3
+      }
+    },
+    "window": {
+      "invalid": {
+        "control": {
+          "support": 696,
+          "KnownTarget_to_Clutter": 21,
+          "Clutter_to_KnownTarget": 6,
+          "BirdTarget_to_Clutter": 15
+        },
+        "treatment": {
+          "support": 696,
+          "KnownTarget_to_Clutter": 21,
+          "Clutter_to_KnownTarget": 6,
+          "BirdTarget_to_Clutter": 15
+        },
+        "prediction_changed_count": 0
+      },
+      "valid_high": {
+        "control": {
+          "support": 810,
+          "KnownTarget_to_Clutter": 23,
+          "Clutter_to_KnownTarget": 17,
+          "BirdTarget_to_Clutter": 6
+        },
+        "treatment": {
+          "support": 810,
+          "KnownTarget_to_Clutter": 23,
+          "Clutter_to_KnownTarget": 17,
+          "BirdTarget_to_Clutter": 6
+        },
+        "prediction_changed_count": 0
+      },
+      "valid_low": {
+        "control": {
+          "support": 2946,
+          "KnownTarget_to_Clutter": 21,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 20
+        },
+        "treatment": {
+          "support": 2946,
+          "KnownTarget_to_Clutter": 18,
+          "Clutter_to_KnownTarget": 2,
+          "BirdTarget_to_Clutter": 17
+        },
+        "prediction_changed_count": 3
+      }
+    }
+  },
+  "rd_drift_validity_strata_by_scope": {
+    "parent_final": {
+      "invalid": {
+        "control": {
+          "support": 3,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 3,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      },
+      "valid": {
+        "control": {
+          "support": 229,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 229,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      }
+    },
+    "eligible_prefix": {
+      "invalid": {
+        "control": {
+          "support": 57,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 57,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      },
+      "valid": {
+        "control": {
+          "support": 3699,
+          "KnownTarget_to_Clutter": 51,
+          "Clutter_to_KnownTarget": 21,
+          "BirdTarget_to_Clutter": 31
+        },
+        "treatment": {
+          "support": 3699,
+          "KnownTarget_to_Clutter": 48,
+          "Clutter_to_KnownTarget": 21,
+          "BirdTarget_to_Clutter": 28
+        },
+        "prediction_changed_count": 3
+      }
+    },
+    "window": {
+      "invalid": {
+        "control": {
+          "support": 69,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "treatment": {
+          "support": 69,
+          "KnownTarget_to_Clutter": 0,
+          "Clutter_to_KnownTarget": 0,
+          "BirdTarget_to_Clutter": 0
+        },
+        "prediction_changed_count": 0
+      },
+      "valid": {
+        "control": {
+          "support": 4383,
+          "KnownTarget_to_Clutter": 65,
+          "Clutter_to_KnownTarget": 25,
+          "BirdTarget_to_Clutter": 41
+        },
+        "treatment": {
+          "support": 4383,
+          "KnownTarget_to_Clutter": 62,
+          "Clutter_to_KnownTarget": 25,
+          "BirdTarget_to_Clutter": 38
+        },
+        "prediction_changed_count": 3
+      }
+    }
+  },
+  "course_incoherence_parent_strata": {
+    "valid_high": {
+      "control": {
+        "support": 71,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 71,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "prediction_changed_count": 0
+    },
+    "valid_low": {
+      "control": {
+        "support": 161,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 161,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "prediction_changed_count": 0
+    }
+  },
+  "rd_drift_validity_parent_strata": {
+    "invalid": {
+      "control": {
+        "support": 3,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 3,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "prediction_changed_count": 0
+    },
+    "valid": {
+      "control": {
+        "support": 229,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 229,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "prediction_changed_count": 0
+    }
+  },
+  "capture_parent_strata": [
+    {
+      "capture_id": "20250615100310",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615123235",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615123352",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615123710",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615123804",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615124422",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615140821",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615140908",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615141230",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615141406",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615143136",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615145132",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615150714",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615151005",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615151838",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615153441",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615153917",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615154131",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615154622",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615155059",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615155258",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615171152",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615171300",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615171603",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615171620",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615171734",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615173702",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615173739",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615173835",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615174821",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175004",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175038",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175153",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175305",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175647",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250615175657",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616085827",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616085952",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616090520",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616091236",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616092237",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616092358",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616092407",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616092425",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616092947",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616093627",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616093752",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094045",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094058",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094124",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094139",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094159",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094210",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616094412",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616103607",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616103609",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120346",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120357",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120522",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120535",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120717",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120847",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120851",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120916",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616120924",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121107",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121215",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121241",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121345",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121457",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616121641",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122213",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122219",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122241",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122312",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122321",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122328",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122337",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122342",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122654",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122744",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616122956",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616123003",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616123050",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616125725",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616125742",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130212",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130259",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130319",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130331",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130400",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130449",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130702",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616130759",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616131053",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616131100",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616131714",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616131808",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616132001",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616132018",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616132106",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616134454",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616134529",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616134725",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616150800",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151050",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151117",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151200",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151237",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151336",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151352",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151505",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151530",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151542",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151546",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151617",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151625",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151632",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151733",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151754",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151911",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616151955",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152123",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152127",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152235",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152237",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152252",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152345",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616152512",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153056",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153103",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153131",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153437",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153455",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153612",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153633",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153641",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153710",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153738",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153835",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153839",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153850",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616153853",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616154046",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616154149",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616154312",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616154337",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616155418",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616155529",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616155753",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616155907",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616160016",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616161830",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616161933",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616162134",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616163149",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616163741",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616163902",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616163919",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616164005",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616170230",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616170917",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616171107",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616171224",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616171253",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616171519",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616171922",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616172127",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616173410",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616174327",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616182525",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616182956",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183245",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183317",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183326",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183337",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183539",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183626",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183704",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183739",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616183836",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616184744",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616184806",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616184929",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616185045",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616185113",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616185335",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616185753",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616190658",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616190731",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616190809",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616190939",
+      "control": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 2,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616190951",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191154",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191159",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191223",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191231",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191235",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616191259",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192635",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192658",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192701",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192741",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192745",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192748",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616192805",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193010",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193120",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193151",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193230",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193328",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193359",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193802",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    },
+    {
+      "capture_id": "20250616193847",
+      "control": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "treatment": {
+        "support": 1,
+        "KnownTarget_to_Clutter": 0,
+        "Clutter_to_KnownTarget": 0,
+        "BirdTarget_to_Clutter": 0
+      },
+      "parent_prediction_changed_count": 0
+    }
+  ],
+  "per_parent_changes": {
+    "changed_parent_count": 0,
+    "rescued_parent_count": 0,
+    "harmed_parent_count": 0,
+    "changes": []
+  },
+  "frozen_decision": {
+    "high_course_bird_to_clutter_not_increased": true,
+    "high_course_bird_eligible_prefix_to_clutter_not_increased": true,
+    "high_course_bird_window_to_clutter_not_increased": true,
+    "overall_known_to_clutter_not_increased": true,
+    "clutter_to_known_not_increased": true,
+    "parent_final_known_target_recall_not_lower": true,
+    "eligible_prefix_safety_passed": true,
+    "development_only_no_release_claim": true
+  },
+  "experiment_contract_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V24a-cq08-known-gate-course-rd-peak-drift-mean-contract.json",
+  "experiment_contract_sha256": "7fd73ddeebc08fe06fcec2f22236523e8b964829ec409cb03ea4a7690f8efef2",
+  "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-training-readiness.json",
+  "readiness_sha256": "ef0028065579af9a900ab689de87daa670c3ccafd3827a40bd50488e0527ee7e",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

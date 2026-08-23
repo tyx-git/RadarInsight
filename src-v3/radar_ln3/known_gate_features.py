@@ -45,6 +45,10 @@ V22A_RD_TEMPORAL_RESIDUAL_VARIANT = "v22a_rd_temporal_residual"
 # series.  It must remain a distinct variant so its checkpoints and reports
 # cannot be mistaken for the historical V21e run.
 V24_COURSE_REASON_AWARE_BASELINE_VARIANT = "v24_course_reason_aware_baseline"
+# V24a appends one independent, current-event-only RD counter-evidence
+# feature to the V24 course baseline.  It intentionally does not reuse V21a's
+# optional preceding-event frame bridge: a one-frame current event is invalid.
+V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT = "v24a_course_rd_peak_drift_mean"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -69,6 +73,10 @@ D_RANGE_PREFIX_FEATURE_NAMES = (
 )
 COURSE_PREFIX_FEATURE_NAMES = (
     "causal_prefix_course_circular_incoherence",
+)
+COURSE_RD_PEAK_DRIFT_MEAN_FEATURE_NAMES = (
+    *COURSE_PREFIX_FEATURE_NAMES,
+    "current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
 )
 COURSE_INTERFRAME_FEATURE_NAMES = (
     *COURSE_PREFIX_FEATURE_NAMES,
@@ -105,6 +113,9 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     # internal model branch, deliberately not an external feature-cache field.
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V24_COURSE_REASON_AWARE_BASELINE_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT: (
+        COURSE_RD_PEAK_DRIFT_MEAN_FEATURE_NAMES
+    ),
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
@@ -119,6 +130,7 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V21I_COURSE_D_RANGE_VARIANT,
         V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
         V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
+        V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
@@ -333,6 +345,54 @@ def extract_interframe_spectral_temporal_consistency(
     return np.clip(values, 0.0, 1.0), np.ones((6,), dtype=np.bool_)
 
 
+def extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction(
+    amplitude_db: np.ndarray,
+    velocity_mps: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return only current-event adjacent RD peak-drift evidence.
+
+    This narrow V24a extractor deliberately does *not* accept an optional
+    preceding-event bridge.  An event must itself contain at least two ordered
+    canonical RD frames to contribute one adjacent-frame velocity comparison.
+    The invalid representation is the repository-wide zero sentinel paired
+    with ``valid=False``.  The cache retains that distinction for alignment
+    and audit: a physically zero drift with two or more frames has
+    ``valid=True``.  The current KnownGate contract deliberately uses a
+    gating-only validity mask, however, so validity is *not* an additional
+    learned input and both cases contribute numeric zero at fusion.  V24a
+    therefore tests drift magnitude, not RD-frame-availability as a second
+    experimental factor.
+    """
+
+    amplitude = np.asarray(amplitude_db)
+    if amplitude.ndim != 3 or amplitude.shape[1:] != (21, 384):
+        raise ValueError(
+            "V24a current-event RD peak drift requires amplitude [frames,21,384]"
+        )
+    if not np.isfinite(amplitude).all():
+        raise ValueError("V24a current-event RD peak drift received non-finite amplitude")
+    if amplitude.shape[0] < 2:
+        return np.zeros((1,), dtype=np.float32), np.zeros((1,), dtype=np.bool_)
+    velocity = validate_velocity_axis(velocity_mps)
+    if velocity.shape != (384,):
+        raise ValueError("V24a current-event velocity axis must contain 384 bins")
+    velocity_span = float(velocity[-1] - velocity[0])
+    if not math.isfinite(velocity_span) or velocity_span <= 0.0:
+        raise ValueError("V24a current-event velocity span must be finite and positive")
+    selected = amplitude.astype(np.float64, copy=False)
+    frame_maximum = selected.max(axis=(1, 2), keepdims=True)
+    relative_power = np.power(10.0, (selected - frame_maximum) / 10.0)
+    profiles = relative_power.sum(axis=1, dtype=np.float64)
+    if not np.isfinite(profiles).all() or np.any(
+        profiles.sum(axis=1, dtype=np.float64) <= np.finfo(np.float64).tiny
+    ):
+        raise ValueError("V24a current-event RD velocity profile is not positive")
+    peak_velocity = velocity[np.argmax(profiles, axis=1)]
+    drift = np.abs(np.diff(peak_velocity)) / velocity_span
+    value = np.asarray([np.clip(np.mean(drift), 0.0, 1.0)], dtype=np.float32)
+    return value, np.ones((1,), dtype=np.bool_)
+
+
 def extract_canonical_known_gate_features(
     amplitude_db: np.ndarray,
     velocity_mps: np.ndarray,
@@ -462,6 +522,7 @@ def feature_contract() -> dict[str, Any]:
                 V21D_PREFIX_VARIANT,
                 V21E_COURSE_PREFIX_VARIANT,
                 V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
+                V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
                 V21F_COURSE_INTERFRAME_VARIANT,
                 V21H_COURSE_ISO_VARIANT,
                 V21I_COURSE_D_RANGE_VARIANT,
@@ -520,6 +581,7 @@ def load_known_gate_feature_cache(
         V21I_COURSE_D_RANGE_VARIANT,
         V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
         V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
+        V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     }:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
@@ -599,6 +661,7 @@ __all__ = [
     "BASELINE_VARIANT",
     "COURSE_PREFIX_FEATURE_NAMES",
     "COURSE_PREFIX_FEATURE_SCHEMA",
+    "COURSE_RD_PEAK_DRIFT_MEAN_FEATURE_NAMES",
     "COURSE_INTERFRAME_FEATURE_NAMES",
     "COURSE_ISO_FEATURE_NAMES",
     "COURSE_D_RANGE_FEATURE_NAMES",
@@ -633,8 +696,10 @@ __all__ = [
     "V21I_COURSE_D_RANGE_VARIANT",
     "V22A_RD_TEMPORAL_RESIDUAL_VARIANT",
     "V24_COURSE_REASON_AWARE_BASELINE_VARIANT",
+    "V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
+    "extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction",
     "extract_interframe_spectral_temporal_consistency",
     "extract_known_gate_feature_event",
     "extract_spectral_temporal_consistency",
