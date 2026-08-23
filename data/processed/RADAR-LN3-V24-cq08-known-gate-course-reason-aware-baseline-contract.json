@@ -1,0 +1,106 @@
+{
+  "schema_version": "RADAR-LN3-V24-known-gate-course-reason-aware-baseline-experiment-contract-v1",
+  "experiment_name": "V24 course-reason-aware fresh KnownGate baseline",
+  "internal_variant": "v24_course_reason_aware_baseline",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence"
+  ],
+  "experiment_document": "src-v3/docs/radar_ln3_v24_course_reason_aware_baseline_experiment.md",
+  "experiment_document_sha256": "ea05dbcdb2701253d8f2089bae3211500993cac47f522524f941182854e7db84",
+  "scope": "development-only KnownGate L1 baseline; no product action claim",
+  "fresh_training_not_finetune": true,
+  "architecture": {
+    "encoder": "self-developed CfCLiquidCausalEncoder",
+    "liquid_hidden_dim": 48,
+    "state_normalization": "recurrent",
+    "learnable_per_dimension_tau": true,
+    "rd_frame_aggregation": "masked_mean",
+    "dt_reason_mode": "v3_reason_aware_dynamics_only",
+    "zero_dt_mode": "bounded_observation",
+    "zero_dt_observation_gain": 0.25
+  },
+  "data_reuse": {
+    "index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+    "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "train_parent_count": 986,
+    "validation_parent_count": 232,
+    "validation_clutter_parent_support": 9,
+    "unknown_training_exposure": 0
+  },
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "course_cache_reuse": {
+    "source_v21e_manifest": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-feature-cache-manifest.json",
+    "source_v21e_manifest_sha256": "737d14c15b49c972d7e1d26d28fbcb877c04643ef9906f46c216e76462d84662",
+    "source_v21e_contract": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-contract.json",
+    "source_v21e_contract_sha256": "37f6a8a9dc1b658fa7ff1c5a2ef1090fe0e79e3ab3eefebde69ab0404e911cc0",
+    "train_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+    "train_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz",
+    "validation_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "cache_values_rebuilt": false,
+    "raw_echo_payload_access_count": 0,
+    "mat_payload_access_count": 0,
+    "rd_tensor_payload_access_count": 0,
+    "test_payload_access_count": 0
+  },
+  "initialization_protocol": {
+    "source_config": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "source_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "source_summary": "artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal/training-summary.json",
+    "source_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "source_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "v21e_treatment_summary": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/training-summary.json",
+    "v21e_treatment_summary_sha256": "9b461b722f3ecd455b6b0ed32d5648dd3da7dbab82d808debf23360645fce84c",
+    "v21e_treatment_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "trained_v21e_checkpoint_loaded": false,
+    "trained_v21_baseline_checkpoint_loaded": false,
+    "fresh_seed43_baseline_reconstructed": true,
+    "shared_parameters_and_buffers_copied": true,
+    "new_course_fusion_column_exactly_zero": true,
+    "full_parameter_training": true
+  },
+  "training": {
+    "seed": 43,
+    "dataloader_seed": 43,
+    "epochs": 20,
+    "batch_size": 2,
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "checkpoint_selection": "parent_min_precision_recall",
+    "class_weight_normalization": "batch_weight_sum"
+  },
+  "evaluation": {
+    "primary": "establish clean V24 baseline metrics for V24a-c paired controls",
+    "primary_hypothesis_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": [],
+    "required_reports": [
+      "parent_final",
+      "eligible_prefix",
+      "parent_balanced_eligible_prefix",
+      "window",
+      "clutter_wilson_intervals",
+      "parent_stratified_bootstrap",
+      "KnownTarget_to_Clutter_and_Clutter_to_Known_parent_audit"
+    ],
+    "clutter_validation_support": 9,
+    "development_metrics_are_not_release_evidence": true
+  },
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

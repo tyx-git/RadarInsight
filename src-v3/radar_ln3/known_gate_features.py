@@ -40,6 +40,11 @@ V21F_COURSE_INTERFRAME_VARIANT = "v21f_course_interframe"
 V21H_COURSE_ISO_VARIANT = "v21h_course_iso"
 V21I_COURSE_D_RANGE_VARIANT = "v21i_course_d_range"
 V22A_RD_TEMPORAL_RESIDUAL_VARIANT = "v22a_rd_temporal_residual"
+# V24 deliberately keeps the only adopted V21e auxiliary input while creating
+# a fresh, independently trained control for the next RD counter-evidence
+# series.  It must remain a distinct variant so its checkpoints and reports
+# cannot be mistaken for the historical V21e run.
+V24_COURSE_REASON_AWARE_BASELINE_VARIANT = "v24_course_reason_aware_baseline"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -99,6 +104,7 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     # V22a reuses the frozen V21e course cache.  Its new RD evidence is an
     # internal model branch, deliberately not an external feature-cache field.
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V24_COURSE_REASON_AWARE_BASELINE_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
     variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
@@ -112,6 +118,7 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V21H_COURSE_ISO_VARIANT,
         V21I_COURSE_D_RANGE_VARIANT,
         V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
+        V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
     }
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
@@ -454,6 +461,7 @@ def feature_contract() -> dict[str, Any]:
                 V21D_VARIANT,
                 V21D_PREFIX_VARIANT,
                 V21E_COURSE_PREFIX_VARIANT,
+                V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                 V21F_COURSE_INTERFRAME_VARIANT,
                 V21H_COURSE_ISO_VARIANT,
                 V21I_COURSE_D_RANGE_VARIANT,
@@ -511,6 +519,7 @@ def load_known_gate_feature_cache(
         V21H_COURSE_ISO_VARIANT,
         V21I_COURSE_D_RANGE_VARIANT,
         V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
+        V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
     }:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
@@ -623,6 +632,7 @@ __all__ = [
     "V21H_COURSE_ISO_VARIANT",
     "V21I_COURSE_D_RANGE_VARIANT",
     "V22A_RD_TEMPORAL_RESIDUAL_VARIANT",
+    "V24_COURSE_REASON_AWARE_BASELINE_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_interframe_spectral_temporal_consistency",

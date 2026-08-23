@@ -33,7 +33,11 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V22A_EXPERIMENT_SCHEMA,
     KNOWN_GATE_V22A_MANIFEST_SCHEMA,
     KNOWN_GATE_V22A_READINESS_SCHEMA,
+    KNOWN_GATE_V24_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V24_MANIFEST_SCHEMA,
+    KNOWN_GATE_V24_READINESS_SCHEMA,
     V22A_SCHEMA_VERSION,
+    V24_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -59,6 +63,7 @@ from radar_ln3.known_gate_features import (
     V21D_VARIANT,
     V21E_COURSE_PREFIX_VARIANT,
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
+    V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -124,6 +129,10 @@ V21E_MULTISEED_READINESS_RELATIVE = Path(
 V22A_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V22a-known-gate-rd-temporal-residual-training-readiness.json"
+)
+V24_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness.json"
 )
 
 
@@ -339,9 +348,9 @@ def _verify_contract(
                 if experiment_path.is_file()
                 else {}
             )
-            experiment_document_path = Path(
-                str(experiment.get("experiment_document", ""))
-            ).resolve()
+            experiment_document_path = _resolve(
+                root, str(experiment.get("experiment_document", ""))
+            )
             manifest_caches = dict(manifest.get("cache_files") or {})
             manifest_train = dict(manifest_caches.get("train") or {})
             manifest_validation = dict(manifest_caches.get("val") or {})
@@ -384,7 +393,10 @@ def _verify_contract(
                 raise ValueError(
                     "V21d causal-prefix d-range manifest/experiment contract is stale"
                 )
-        elif config.variant == V21E_COURSE_PREFIX_VARIANT:
+        elif config.variant in {
+            V21E_COURSE_PREFIX_VARIANT,
+            V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
+        }:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
             )
@@ -396,22 +408,45 @@ def _verify_contract(
                 if experiment_path.is_file()
                 else {}
             )
-            experiment_document_path = Path(
-                str(experiment.get("experiment_document", ""))
-            ).resolve()
+            experiment_document_path = _resolve(
+                root, str(experiment.get("experiment_document", ""))
+            )
             manifest_caches = dict(manifest.get("cache_files") or {})
             manifest_train = dict(manifest_caches.get("train") or {})
             manifest_validation = dict(manifest_caches.get("val") or {})
+            is_v24 = config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+            expected_manifest_schema = (
+                KNOWN_GATE_V24_MANIFEST_SCHEMA
+                if is_v24
+                else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+            )
+            expected_experiment_schema = (
+                KNOWN_GATE_V24_EXPERIMENT_SCHEMA
+                if is_v24
+                else (
+                    "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+                    "experiment-contract-v1"
+                )
+            )
+            expected_variant = (
+                V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+                if is_v24
+                else V21E_COURSE_PREFIX_VARIANT
+            )
+            expected_not_executed = "not_executed" if is_v24 else "未执行"
             if (
                 not experiment_path.is_file()
                 or sha256_file(experiment_path) != experiment_expected
-                or manifest.get("schema_version") != KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                or manifest.get("schema_version") != expected_manifest_schema
                 or manifest.get("feature_schema") != COURSE_PREFIX_FEATURE_SCHEMA
+                or manifest.get("feature_names") != list(config.feature_names)
                 or manifest.get("core_data_contract_sha256") != expected["contract"]
                 or manifest.get("experiment_contract_sha256") != experiment_expected
                 or manifest.get("test_excluded") is not True
                 or int(manifest.get("test_payload_access_count", -1)) != 0
                 or manifest.get("valid_mask_is_model_input") is not False
+                or manifest.get("sample_id_is_model_input") is not False
+                or manifest.get("unknown_excluded") is not True
                 or manifest.get("validation_label_values_used_for_readiness_gate")
                 is not False
                 or _resolve(root, str(manifest_train.get("path", "")))
@@ -420,13 +455,8 @@ def _verify_contract(
                 or _resolve(root, str(manifest_validation.get("path", "")))
                 != cache_paths["validation"]
                 or manifest_validation.get("sha256") != cache_expected["validation"]
-                or experiment.get("schema_version")
-                != (
-                    "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
-                    "experiment-contract-v1"
-                )
-                or experiment.get("internal_variant")
-                != V21E_COURSE_PREFIX_VARIANT
+                or experiment.get("schema_version") != expected_experiment_schema
+                or experiment.get("internal_variant") != expected_variant
                 or experiment.get("feature_names") != list(config.feature_names)
                 or dict(experiment.get("evaluation") or {}).get(
                     "primary_hypothesis_labels"
@@ -443,8 +473,15 @@ def _verify_contract(
                 or not experiment_document_path.is_file()
                 or sha256_file(experiment_document_path)
                 != experiment.get("experiment_document_sha256")
-                or experiment.get("post_hoc_feature_discovery") is not True
-                or experiment.get("test") != "未执行"
+                or (
+                    not is_v24
+                    and experiment.get("post_hoc_feature_discovery") is not True
+                )
+                or (
+                    is_v24
+                    and experiment.get("fresh_training_not_finetune") is not True
+                )
+                or experiment.get("test") != expected_not_executed
                 or int(experiment.get("test_payload_access_count", -1)) != 0
             ):
                 raise ValueError(
@@ -701,6 +738,7 @@ def _verify_contract(
                     V21D_PREFIX_VARIANT,
                     V21E_COURSE_PREFIX_VARIANT,
                     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
+                    V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -731,6 +769,7 @@ def _verify_contract(
                             V21D_PREFIX_VARIANT,
                             V21E_COURSE_PREFIX_VARIANT,
                             V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
+                            V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -830,6 +869,118 @@ def _verify_readiness(
                 control_summary.get("initial_model_state_sha256", "")
             ),
             "test": "未执行",
+        }
+    if config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT:
+        path = (root / V24_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V24 formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        source = dict(report.get("initialization_source") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        experiment_contract_path = _resolve(
+            root, config.data.feature_experiment_contract_path or ""
+        )
+        source_config_path = _resolve(
+            root, config.train.paired_baseline_config_path or ""
+        )
+        source_summary_path = _resolve(root, str(source.get("summary_path", "")))
+        source_summary = (
+            json.loads(source_summary_path.read_text(encoding="utf-8"))
+            if source_summary_path.is_file()
+            else {}
+        )
+        actual_required = {
+            "index_sha256": contract_evidence["hashes"]["index_sha256"],
+            "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+            "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+            "feature_manifest_sha256": cache_hashes.get("manifest"),
+            "train_feature_cache_sha256": cache_hashes.get("train"),
+            "validation_feature_cache_sha256": cache_hashes.get("validation"),
+            "experiment_contract_sha256": contract_evidence["hashes"].get(
+                "feature_experiment_contract_sha256"
+            ),
+        }
+        expected_hashes = dict(report.get("contract_hashes") or {})
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V24_READINESS_SCHEMA
+            or not checks
+            or not all(value is True for value in checks.values())
+            or _resolve(root, str(binding.get("path", ""))) != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or any(expected_hashes.get(key) != value for key, value in actual_required.items())
+            or _resolve(root, str(report.get("feature_manifest_path", "")))
+            != _resolve(root, str(cache_paths.get("manifest", "")))
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or _resolve(root, str(report.get("contract_path", "")))
+            != experiment_contract_path
+            or report.get("contract_sha256")
+            != actual_required["experiment_contract_sha256"]
+            or source_config_path != _resolve(root, str(source.get("config_path", "")))
+            or not source_config_path.is_file()
+            or source.get("config_sha256") != sha256_file(source_config_path)
+            or not source_summary_path.is_file()
+            or source.get("summary_sha256") != sha256_file(source_summary_path)
+            or source_summary.get("status") != "completed"
+            or source_summary.get("variant") != BASELINE_VARIANT
+            or int(source_summary.get("seed", -1)) != 43
+            or source.get("initial_model_state_sha256")
+            != source_summary.get("initial_model_state_sha256")
+            or not str(source.get("initial_model_state_sha256", ""))
+            or report.get("initial_model_state_sha256")
+            != report.get("v21e_treatment_initial_model_state_sha256")
+            or not str(report.get("initial_model_state_sha256", ""))
+            or dict(report.get("paired_initialization") or {}).get(
+                "fresh_v21_seed43_baseline_initial_model_state_sha256"
+            )
+            != source.get("initial_model_state_sha256")
+            or dict(report.get("paired_initialization") or {}).get(
+                "v24_initial_model_state_sha256"
+            )
+            != report.get("initial_model_state_sha256")
+            or source.get("trained_checkpoint_loaded") is not False
+            or source.get("trained_checkpoint_accessed") is not False
+            or source.get("fresh_random_initialization_reconstructed") is not True
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_parent_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or int(report.get("test_payload_access_count", -1)) != 0
+            or report.get("formal_training") != "not_executed"
+            or report.get("OOF") != "not_executed"
+            or report.get("test") != "not_executed"
+            or report.get("formal_rejection") != "not_executed"
+            or report.get("full_cascade") != "not_executed"
+            or report.get("stable") != "not_executed"
+            or report.get("P95") != "not_executed"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError(
+                "V24 readiness is missing, stale, failed or outside the sealed contract"
+            )
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V24_READINESS_SCHEMA,
+            "status": "passed",
+            "selected_baseline_seed": 43,
+            "fresh_training_not_finetune": True,
+            "initial_model_state_sha256": str(
+                report.get("initial_model_state_sha256", "")
+            ),
+            "v21e_treatment_initial_model_state_sha256": str(
+                report.get("v21e_treatment_initial_model_state_sha256", "")
+            ),
+            "paired_seed43_baseline_initial_model_state_sha256": str(
+                source.get("initial_model_state_sha256", "")
+            ),
+            "validation_used_for_readiness_gate": False,
+            "test": "not_executed",
         }
     if config.variant == V21A_VARIANT:
         raise PermissionError(
@@ -1710,6 +1861,31 @@ def train_known_gate(
         model, baseline_reference, paired_initialization = build_known_gate_model_for_config(root, config)
         initial_state_sha256 = _state_dict_sha256(model.state_dict())
         if baseline_reference is not None:
+            if config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT:
+                baseline_initial_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if (
+                    initial_state_sha256
+                    != readiness.get("initial_model_state_sha256")
+                    or initial_state_sha256
+                    != readiness.get(
+                        "v21e_treatment_initial_model_state_sha256"
+                    )
+                    or baseline_initial_state
+                    != readiness.get(
+                        "paired_seed43_baseline_initial_model_state_sha256"
+                    )
+                ):
+                    raise AssertionError(
+                        "V24 current model initialization differs from the sealed fresh baseline protocol"
+                    )
+                paired_initialization[
+                    "sealed_v24_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "sealed_v24_initial_model_state_sha256"
+                ] = initial_state_sha256
             if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
                 reproduced_control_state = _state_dict_sha256(
                     baseline_reference.state_dict()

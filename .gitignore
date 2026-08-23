@@ -66,6 +66,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v23f_prefix_weight_contract_test.py
 !src-v3/smoke/known_gate_v23j_prefix_ramp_contract_test.py
 !src-v3/smoke/known_gate_v23k_observation_intensity_contract_test.py
+!src-v3/smoke/known_gate_v24_contract_test.py
 !src-v3/processed/
 !src-v3/processed/report/
 !src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-01-05.json
@@ -96,4 +97,7 @@ docs/*
 !docs/radar_ln3_v22b_rd_temporal_late_readout_protocol.md
 !docs/radar_ln3_v21e_rd_modality_read_only_ablation.md
 !docs/radar_ln3_v23_official_cfc_oof_protocol.md
+!src-v3/docs/
+!src-v3/docs/radar_ln3_v24_course_reason_aware_baseline_experiment.md
+!docs/radar_ln3_v24_course_reason_aware_baseline_experiment.md
 v2r/

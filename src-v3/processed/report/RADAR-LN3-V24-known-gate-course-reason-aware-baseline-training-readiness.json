@@ -1,0 +1,88 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness-v1",
+  "variant": "v24_course_reason_aware_baseline",
+  "checks": {
+    "v21_seed43_baseline_initial_state_reconstructs_exactly": true,
+    "v24_is_fresh_training_not_checkpoint_finetune": true,
+    "v24_variant_is_distinct_from_v21e": true,
+    "course_cache_is_reused_byte_for_byte": true,
+    "course_cache_contains_one_causal_course_feature": true,
+    "shared_initialization_is_exact_and_new_column_is_zero": true,
+    "v24_initial_state_exactly_reproduces_v21e_treatment_initial_state": true,
+    "v16_index_v21_normalization_and_v21_contract_are_sha_bound": true,
+    "raw_mat_rd_and_test_payload_access_are_zero": true,
+    "validation_values_are_not_a_readiness_gate": true,
+    "unknown_is_excluded_from_training": true,
+    "full_20_epoch_training_is_required": true
+  },
+  "config": {
+    "path": "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-config.json",
+    "sha256": "46352be271ac7f92e8c3ab4f3fbb1aa44d1b508ca802cc815241ca48c000cf8a"
+  },
+  "feature_manifest_path": "data/processed/RADAR-LN3-V24-cq08-known-gate-course-reason-aware-baseline-feature-cache-manifest.json",
+  "feature_manifest_sha256": "4fa564f9740dc3b5e8174a381aef94897de978549cc26189b0fca52130503b7d",
+  "contract_path": "data/processed/RADAR-LN3-V24-cq08-known-gate-course-reason-aware-baseline-contract.json",
+  "contract_sha256": "1e3a6810eecf61e97544ca853d78981c9b1c146dfe7a12e3c798e5149dd39eb0",
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "experiment_contract_sha256": "1e3a6810eecf61e97544ca853d78981c9b1c146dfe7a12e3c798e5149dd39eb0",
+    "feature_manifest_sha256": "4fa564f9740dc3b5e8174a381aef94897de978549cc26189b0fca52130503b7d",
+    "train_feature_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_feature_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc"
+  },
+  "initialization_source": {
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "summary_path": "artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "fresh_random_initialization_reconstructed": true,
+    "trained_checkpoint_loaded": false,
+    "trained_checkpoint_accessed": false
+  },
+  "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+  "v21e_treatment_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+  "paired_initialization": {
+    "fresh_v21_seed43_baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "v24_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "fresh_random_initialization_reconstructed": true,
+    "shared_parameters_and_buffers_exactly_equal": true,
+    "course_fusion_column_exactly_zero": true,
+    "course_fusion_column_count": 1,
+    "trained_checkpoint_loaded": false,
+    "trained_checkpoint_accessed": false
+  },
+  "cache_statistics": {
+    "train": {
+      "event_count": 18923,
+      "feature_width": 1,
+      "valid_value_count": 15965,
+      "invalid_value_count": 2958,
+      "valid_value_fraction": 0.8436822913914285
+    },
+    "val": {
+      "event_count": 4452,
+      "feature_width": 1,
+      "valid_value_count": 3756,
+      "invalid_value_count": 696,
+      "valid_value_fraction": 0.8436657681940701
+    }
+  },
+  "known_train_parent_count": 986,
+  "known_validation_parent_count": 232,
+  "validation_clutter_parent_support": 9,
+  "unknown_training_exposure": 0,
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "not_executed",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}
