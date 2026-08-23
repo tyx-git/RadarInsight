@@ -1,0 +1,265 @@
+{
+  "schema_version": "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-experiment-contract-v1",
+  "experiment_name": "V24c strict same-second recurrent-state-skip diagnostic",
+  "internal_variant": "v24c_course_strict_same_second_skip",
+  "scope": "development-only KnownGate L1 dynamics diagnostic; no product action claim",
+  "fresh_training_not_finetune": true,
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence"
+  ],
+  "experiment_document": "src-v3/docs/radar_ln3_v24c_strict_same_second_skip_experiment.md",
+  "experiment_document_sha256": "2e2d7c49d99b7275a4697063159fa2b8545bb320a818e66a51404b569eb225c5",
+  "control": {
+    "config": "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-config.json",
+    "config_sha256": "46352be271ac7f92e8c3ab4f3fbb1aa44d1b508ca802cc815241ca48c000cf8a",
+    "summary": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "a783a613bc1fbdb74d6d3963f3a6ff3f5e2d342209634e7dc8433eb3b381bc7e",
+    "checkpoint": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/best_model.pt",
+    "checkpoint_sha256": "e74665c0782819fade1802b13e320846953f6c580699f335dab0ca49eae83db1",
+    "readiness": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness.json",
+    "readiness_sha256": "947b989e1752f35a037bd2e56d6a21ddccda850644cba159d5d68afbf8c29bf7",
+    "report": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-development.json",
+    "report_sha256": "c7373d6d9277f7d7cd80ff939ebd79ff5777f168c9c4fe5923c808a375f243ce",
+    "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "trained_checkpoint_loaded_for_initialization": false
+  },
+  "dynamics_variable": {
+    "only_changed_model_field": "liquid_invalid_dt_update_mode",
+    "control_mode": "bounded_observation",
+    "control_zero_delta_update": "alpha=0.25 then recurrent LayerNorm",
+    "treatment_mode": "strict_skip",
+    "treatment_zero_delta_update": "compute candidate only transiently, then restore exact incoming recurrent state after recurrent LayerNorm",
+    "zero_delta_event_feature_visibility": "current fusion event is constructed but cannot change the recurrent state or that event's recurrent readout",
+    "first_event": "unchanged alpha=1 initialization",
+    "positive_delta": "unchanged continuous-time update",
+    "padding": "unchanged no-update",
+    "legacy_v20_skip_is_not_reused": true
+  },
+  "data_reuse": {
+    "index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "known_train_parent_count": 986,
+    "known_validation_parent_count": 232,
+    "validation_clutter_parent_support": 9,
+    "unknown_training_exposure": 0
+  },
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "course_cache_reuse": {
+    "train_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+    "train_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz",
+    "validation_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "cache_values_rebuilt": false,
+    "course_feature_count": 1,
+    "raw_echo_payload_access_count": 0,
+    "mat_payload_access_count": 0,
+    "rd_tensor_payload_access_count": 0,
+    "test_payload_access_count": 0
+  },
+  "same_second_support_diagnostic": {
+    "train": {
+      "split": "train",
+      "descriptive_only_not_a_readiness_performance_gate": true,
+      "parent_count": 986,
+      "event_count": 18923,
+      "by_base_label": {
+        "DroneTarget": {
+          "parent_support": 476,
+          "parents_with_same_second_followup": 217,
+          "parents_without_same_second_followup": 259,
+          "event_support": 9095,
+          "same_second_event_count": 3318,
+          "same_second_event_fraction": 0.36481583287520614,
+          "maximum_same_second_ordinal": 8
+        },
+        "BirdTarget": {
+          "parent_support": 239,
+          "parents_with_same_second_followup": 144,
+          "parents_without_same_second_followup": 95,
+          "event_support": 4620,
+          "same_second_event_count": 2009,
+          "same_second_event_fraction": 0.4348484848484849,
+          "maximum_same_second_ordinal": 8
+        },
+        "BalloonTarget": {
+          "parent_support": 238,
+          "parents_with_same_second_followup": 75,
+          "parents_without_same_second_followup": 163,
+          "event_support": 4551,
+          "same_second_event_count": 1206,
+          "same_second_event_fraction": 0.26499670402109426,
+          "maximum_same_second_ordinal": 8
+        },
+        "ClutterTarget": {
+          "parent_support": 33,
+          "parents_with_same_second_followup": 0,
+          "parents_without_same_second_followup": 33,
+          "event_support": 657,
+          "same_second_event_count": 0,
+          "same_second_event_fraction": 0.0,
+          "maximum_same_second_ordinal": 0
+        }
+      },
+      "parent_label_by_has_same_second_followup_contingency_rows_no_yes": {
+        "DroneTarget": [
+          259,
+          217
+        ],
+        "BirdTarget": [
+          95,
+          144
+        ],
+        "BalloonTarget": [
+          163,
+          75
+        ],
+        "ClutterTarget": [
+          33,
+          0
+        ]
+      },
+      "label_association": {
+        "method": "Cramers_V on base_label x parent_has_same_second_followup",
+        "cramers_v": 0.2606842588379757,
+        "chi_square": 67.00489484662204,
+        "parent_support": 986,
+        "interpretation": "descriptive sampling/measurement association only; not a model input or readiness pass/fail criterion"
+      },
+      "reason2_present_implies_known_target": {
+        "same_second_parent_count": 436,
+        "known_target_parent_count": 436,
+        "precision": 1.0
+      },
+      "absence_is_not_sufficient_for_clutter": {
+        "known_target_parent_count_without_same_second": 517,
+        "clutter_parent_count_without_same_second": 33,
+        "holds": true
+      }
+    },
+    "val": {
+      "split": "val",
+      "descriptive_only_not_a_readiness_performance_gate": true,
+      "parent_count": 232,
+      "event_count": 4452,
+      "by_base_label": {
+        "DroneTarget": {
+          "parent_support": 113,
+          "parents_with_same_second_followup": 52,
+          "parents_without_same_second_followup": 61,
+          "event_support": 2164,
+          "same_second_event_count": 733,
+          "same_second_event_fraction": 0.338724584103512,
+          "maximum_same_second_ordinal": 8
+        },
+        "BirdTarget": {
+          "parent_support": 56,
+          "parents_with_same_second_followup": 33,
+          "parents_without_same_second_followup": 23,
+          "event_support": 1073,
+          "same_second_event_count": 474,
+          "same_second_event_fraction": 0.44175209692451073,
+          "maximum_same_second_ordinal": 8
+        },
+        "BalloonTarget": {
+          "parent_support": 54,
+          "parents_with_same_second_followup": 27,
+          "parents_without_same_second_followup": 27,
+          "event_support": 1051,
+          "same_second_event_count": 427,
+          "same_second_event_fraction": 0.40627973358705993,
+          "maximum_same_second_ordinal": 8
+        },
+        "ClutterTarget": {
+          "parent_support": 9,
+          "parents_with_same_second_followup": 0,
+          "parents_without_same_second_followup": 9,
+          "event_support": 164,
+          "same_second_event_count": 0,
+          "same_second_event_fraction": 0.0,
+          "maximum_same_second_ordinal": 0
+        }
+      },
+      "parent_label_by_has_same_second_followup_contingency_rows_no_yes": {
+        "DroneTarget": [
+          61,
+          52
+        ],
+        "BirdTarget": [
+          23,
+          33
+        ],
+        "BalloonTarget": [
+          27,
+          27
+        ],
+        "ClutterTarget": [
+          9,
+          0
+        ]
+      },
+      "label_association": {
+        "method": "Cramers_V on base_label x parent_has_same_second_followup",
+        "cramers_v": 0.22010999851034416,
+        "chi_square": 11.2400314550599,
+        "parent_support": 232,
+        "interpretation": "descriptive sampling/measurement association only; not a model input or readiness pass/fail criterion"
+      },
+      "reason2_present_implies_known_target": {
+        "same_second_parent_count": 112,
+        "known_target_parent_count": 112,
+        "precision": 1.0
+      },
+      "absence_is_not_sufficient_for_clutter": {
+        "known_target_parent_count_without_same_second": 111,
+        "clutter_parent_count_without_same_second": 9,
+        "holds": true
+      }
+    }
+  },
+  "training": {
+    "seed": 43,
+    "dataloader_seed": 43,
+    "epochs": 20,
+    "batch_size": 2,
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "checkpoint_selection": "parent_min_precision_recall",
+    "class_weight_normalization": "batch_weight_sum",
+    "all_non_dynamics_training_hyperparameters_frozen_to_v24": true
+  },
+  "evaluation": {
+    "primary": "diagnose whether same-second recurrent-state accumulation carries useful or shortcut information under the frozen V24 KnownGate protocol",
+    "required_reports": [
+      "parent_final",
+      "eligible_prefix",
+      "parent_balanced_eligible_prefix",
+      "window",
+      "clutter_Wilson_intervals_with_support_9",
+      "paired_parent_bootstrap",
+      "same_second_parent_and_window_strata",
+      "track_length_and_capture_strata",
+      "per_parent_changes"
+    ],
+    "validation_used_for_readiness_gate": false,
+    "primary_hypothesis_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": []
+  },
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

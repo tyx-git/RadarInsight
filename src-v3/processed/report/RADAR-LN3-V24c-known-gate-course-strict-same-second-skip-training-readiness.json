@@ -1,0 +1,251 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-training-readiness-v1",
+  "variant": "v24c_course_strict_same_second_skip",
+  "checks": {
+    "completed_v24_control_is_sha_bound_and_not_loaded_as_training_initialization": true,
+    "only_liquid_invalid_dt_update_mode_differs_from_v24": true,
+    "strict_skip_restores_state_after_recurrent_layer_norm": true,
+    "first_positive_and_padding_dt_semantics_remain_frozen": true,
+    "v24_course_cache_is_reused_byte_for_byte_without_rebuild": true,
+    "v24_control_and_v24c_initial_state_dicts_are_exactly_equal": true,
+    "same_second_support_is_descriptive_not_a_readiness_performance_gate": true,
+    "same_second_parent_support_is_zero_for_clutter_in_train_and_validation": true,
+    "absence_of_same_second_followup_is_not_sufficient_for_clutter": true,
+    "unknown_is_excluded_and_test_payload_access_is_zero": true,
+    "validation_values_are_not_a_readiness_gate": true,
+    "full_20_epoch_training_is_required": true
+  },
+  "config": {
+    "path": "config/RADAR-LN3/RADAR-LN3-V24c-cq08-liquid-known-gate-course-strict-same-second-skip-seed43-config.json",
+    "sha256": "d974e56766a3fa334338d6536d0b1bc152bedf1025c37d6e609d306a2a313813"
+  },
+  "feature_manifest_path": "data/processed/RADAR-LN3-V24c-cq08-known-gate-course-strict-same-second-skip-feature-cache-manifest.json",
+  "feature_manifest_sha256": "c12e23a8979a93d065d501737b97f27d4ab48fbaa2d5b4c1ccfc24cf080be589",
+  "contract_path": "data/processed/RADAR-LN3-V24c-cq08-known-gate-course-strict-same-second-skip-contract.json",
+  "contract_sha256": "0385c133ce76c829115959739119bf89cbdefd4916ba1e7d488ac92820846c06",
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "feature_manifest_sha256": "c12e23a8979a93d065d501737b97f27d4ab48fbaa2d5b4c1ccfc24cf080be589",
+    "train_feature_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_feature_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "experiment_contract_sha256": "0385c133ce76c829115959739119bf89cbdefd4916ba1e7d488ac92820846c06"
+  },
+  "control": {
+    "config": "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-config.json",
+    "config_sha256": "46352be271ac7f92e8c3ab4f3fbb1aa44d1b508ca802cc815241ca48c000cf8a",
+    "summary": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "a783a613bc1fbdb74d6d3963f3a6ff3f5e2d342209634e7dc8433eb3b381bc7e",
+    "checkpoint": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/best_model.pt",
+    "checkpoint_sha256": "e74665c0782819fade1802b13e320846953f6c580699f335dab0ca49eae83db1",
+    "readiness": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness.json",
+    "readiness_sha256": "947b989e1752f35a037bd2e56d6a21ddccda850644cba159d5d68afbf8c29bf7",
+    "report": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-development.json",
+    "report_sha256": "c7373d6d9277f7d7cd80ff939ebd79ff5777f168c9c4fe5923c808a375f243ce",
+    "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "trained_checkpoint_loaded_for_initialization": false
+  },
+  "initialization": {
+    "v24_control_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "v24c_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "state_dicts_exactly_equal": true,
+    "only_dynamics_mode_differs": true,
+    "control_mode": "bounded_observation",
+    "treatment_mode": "strict_skip",
+    "new_fusion_columns": 0,
+    "trained_v24_checkpoint_loaded_for_initialization": false,
+    "full_parameter_training": true
+  },
+  "cache_statistics": {
+    "train": {
+      "event_count": 18923,
+      "feature_width": 1,
+      "valid_value_count": 15965,
+      "invalid_value_count": 2958,
+      "valid_value_fraction": 0.8436822913914285
+    },
+    "val": {
+      "event_count": 4452,
+      "feature_width": 1,
+      "valid_value_count": 3756,
+      "invalid_value_count": 696,
+      "valid_value_fraction": 0.8436657681940701
+    }
+  },
+  "same_second_support_diagnostic": {
+    "train": {
+      "split": "train",
+      "descriptive_only_not_a_readiness_performance_gate": true,
+      "parent_count": 986,
+      "event_count": 18923,
+      "by_base_label": {
+        "DroneTarget": {
+          "parent_support": 476,
+          "parents_with_same_second_followup": 217,
+          "parents_without_same_second_followup": 259,
+          "event_support": 9095,
+          "same_second_event_count": 3318,
+          "same_second_event_fraction": 0.36481583287520614,
+          "maximum_same_second_ordinal": 8
+        },
+        "BirdTarget": {
+          "parent_support": 239,
+          "parents_with_same_second_followup": 144,
+          "parents_without_same_second_followup": 95,
+          "event_support": 4620,
+          "same_second_event_count": 2009,
+          "same_second_event_fraction": 0.4348484848484849,
+          "maximum_same_second_ordinal": 8
+        },
+        "BalloonTarget": {
+          "parent_support": 238,
+          "parents_with_same_second_followup": 75,
+          "parents_without_same_second_followup": 163,
+          "event_support": 4551,
+          "same_second_event_count": 1206,
+          "same_second_event_fraction": 0.26499670402109426,
+          "maximum_same_second_ordinal": 8
+        },
+        "ClutterTarget": {
+          "parent_support": 33,
+          "parents_with_same_second_followup": 0,
+          "parents_without_same_second_followup": 33,
+          "event_support": 657,
+          "same_second_event_count": 0,
+          "same_second_event_fraction": 0.0,
+          "maximum_same_second_ordinal": 0
+        }
+      },
+      "parent_label_by_has_same_second_followup_contingency_rows_no_yes": {
+        "DroneTarget": [
+          259,
+          217
+        ],
+        "BirdTarget": [
+          95,
+          144
+        ],
+        "BalloonTarget": [
+          163,
+          75
+        ],
+        "ClutterTarget": [
+          33,
+          0
+        ]
+      },
+      "label_association": {
+        "method": "Cramers_V on base_label x parent_has_same_second_followup",
+        "cramers_v": 0.2606842588379757,
+        "chi_square": 67.00489484662204,
+        "parent_support": 986,
+        "interpretation": "descriptive sampling/measurement association only; not a model input or readiness pass/fail criterion"
+      },
+      "reason2_present_implies_known_target": {
+        "same_second_parent_count": 436,
+        "known_target_parent_count": 436,
+        "precision": 1.0
+      },
+      "absence_is_not_sufficient_for_clutter": {
+        "known_target_parent_count_without_same_second": 517,
+        "clutter_parent_count_without_same_second": 33,
+        "holds": true
+      }
+    },
+    "val": {
+      "split": "val",
+      "descriptive_only_not_a_readiness_performance_gate": true,
+      "parent_count": 232,
+      "event_count": 4452,
+      "by_base_label": {
+        "DroneTarget": {
+          "parent_support": 113,
+          "parents_with_same_second_followup": 52,
+          "parents_without_same_second_followup": 61,
+          "event_support": 2164,
+          "same_second_event_count": 733,
+          "same_second_event_fraction": 0.338724584103512,
+          "maximum_same_second_ordinal": 8
+        },
+        "BirdTarget": {
+          "parent_support": 56,
+          "parents_with_same_second_followup": 33,
+          "parents_without_same_second_followup": 23,
+          "event_support": 1073,
+          "same_second_event_count": 474,
+          "same_second_event_fraction": 0.44175209692451073,
+          "maximum_same_second_ordinal": 8
+        },
+        "BalloonTarget": {
+          "parent_support": 54,
+          "parents_with_same_second_followup": 27,
+          "parents_without_same_second_followup": 27,
+          "event_support": 1051,
+          "same_second_event_count": 427,
+          "same_second_event_fraction": 0.40627973358705993,
+          "maximum_same_second_ordinal": 8
+        },
+        "ClutterTarget": {
+          "parent_support": 9,
+          "parents_with_same_second_followup": 0,
+          "parents_without_same_second_followup": 9,
+          "event_support": 164,
+          "same_second_event_count": 0,
+          "same_second_event_fraction": 0.0,
+          "maximum_same_second_ordinal": 0
+        }
+      },
+      "parent_label_by_has_same_second_followup_contingency_rows_no_yes": {
+        "DroneTarget": [
+          61,
+          52
+        ],
+        "BirdTarget": [
+          23,
+          33
+        ],
+        "BalloonTarget": [
+          27,
+          27
+        ],
+        "ClutterTarget": [
+          9,
+          0
+        ]
+      },
+      "label_association": {
+        "method": "Cramers_V on base_label x parent_has_same_second_followup",
+        "cramers_v": 0.22010999851034416,
+        "chi_square": 11.2400314550599,
+        "parent_support": 232,
+        "interpretation": "descriptive sampling/measurement association only; not a model input or readiness pass/fail criterion"
+      },
+      "reason2_present_implies_known_target": {
+        "same_second_parent_count": 112,
+        "known_target_parent_count": 112,
+        "precision": 1.0
+      },
+      "absence_is_not_sufficient_for_clutter": {
+        "known_target_parent_count_without_same_second": 111,
+        "clutter_parent_count_without_same_second": 9,
+        "holds": true
+      }
+    }
+  },
+  "known_train_parent_count": 986,
+  "known_validation_parent_count": 232,
+  "validation_clutter_parent_support": 9,
+  "unknown_training_exposure": 0,
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "not_executed",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

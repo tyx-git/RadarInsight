@@ -141,9 +141,10 @@ class CfCLiquidCausalEncoder(nn.Module):
     Each event uses the caller-provided TR wall-clock dt. The update is an
     exponential interpolation toward a learned nonlinear candidate, so no
     future event or sequence-wide attention is used. Invalid or zero dt uses
-    the configured floor mode, bounded observation gain, skip diagnostic, or
-    density-weighted gain; the explicit validity mask remains available to
-    the model and callers in all modes.
+    the configured floor mode, bounded observation gain, legacy skip
+    diagnostic, strict same-second skip, or density-weighted gain; the
+    explicit validity mask remains available to the model and callers in all
+    modes.
     """
 
     def __init__(
@@ -172,11 +173,12 @@ class CfCLiquidCausalEncoder(nn.Module):
             "floor",
             "bounded_observation",
             "skip",
+            "strict_skip",
             "density_weighted",
         }:
             raise ValueError(
                 "invalid_dt_update_mode must be floor, bounded_observation, "
-                "skip, or density_weighted"
+                "skip, strict_skip, or density_weighted"
             )
         self.invalid_dt_observation_gain = float(invalid_dt_observation_gain)
         if not 0.0 < self.invalid_dt_observation_gain <= 1.0:
@@ -228,6 +230,10 @@ class CfCLiquidCausalEncoder(nn.Module):
             raise ValueError(
                 "density_weighted online liquid step requires an explicit causal zero_ordinal"
             )
+        if self.invalid_dt_update_mode == "strict_skip" and dt_reason is None:
+            raise ValueError(
+                "strict_skip liquid updates require an explicit reason-aware dt sequence"
+            )
         raw_dt = dt_seconds
         if dt_reason is not None:
             if dt_reason.shape != dt_seconds.shape or dt_reason.dtype not in (torch.int64, torch.long):
@@ -271,8 +277,12 @@ class CfCLiquidCausalEncoder(nn.Module):
         if dt_reason is not None:
             # The first event initializes evidence without pretending elapsed
             # time; positive intervals preserve the continuous-time update.
-            # V20 skip sets same-second gain to zero. V20 density_weighted
-            # uses the causal same-second ordinal supplied by forward/online.
+            # The legacy V20 ``skip`` sets the same-second interpolation gain
+            # to zero, but recurrent LayerNorm may still transform the state.
+            # V24c ``strict_skip`` is intentionally different: it restores the
+            # exact incoming state after normalization below.  V20
+            # ``density_weighted`` uses the causal same-second ordinal supplied
+            # by forward/online.
             first_gain = torch.ones_like(alpha)
             if self.invalid_dt_update_mode == "skip":
                 zero_gain = torch.zeros_like(alpha)
@@ -293,9 +303,20 @@ class CfCLiquidCausalEncoder(nn.Module):
             alpha = torch.where((dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1), zero_gain, alpha)
         next_state = (1.0 - alpha) * state + alpha * candidate
         if self.state_normalization_mode == "recurrent":
-            # In V20 skip mode alpha=0 removes event information, while this
-            # deterministic affine normalization may still transform state.
+            # In legacy V20 skip mode alpha=0 removes event information, while
+            # this deterministic affine normalization may still transform
+            # state.  V24c's strict_skip override below deliberately bypasses
+            # that transformation for each same-second element.
             next_state = self.output_norm(next_state)
+        if self.invalid_dt_update_mode == "strict_skip":
+            # This is a deliberately narrow, reason-aware diagnostic: a
+            # zero_delta event is neither visible in that event's recurrent
+            # readout nor carried into any later state.  It is applied after
+            # recurrent normalization so the state is bitwise the state that
+            # entered this step.  First-event initialization and positive-dt
+            # continuous updates remain unchanged.
+            strict_skip_mask = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
+            next_state = torch.where(strict_skip_mask, state, next_state)
         return next_state, clamped_mask, zero_mask
 
     def readout(self, state: torch.Tensor) -> torch.Tensor:

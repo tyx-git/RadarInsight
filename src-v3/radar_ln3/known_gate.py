@@ -46,6 +46,7 @@ from .known_gate_features import (
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
+    V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -57,6 +58,7 @@ V22_SCHEMA_VERSION = "RADAR-LN3-V22"
 V22A_SCHEMA_VERSION = "RADAR-LN3-V22a"
 V24_SCHEMA_VERSION = "RADAR-LN3-V24"
 V24A_SCHEMA_VERSION = "RADAR-LN3-V24a"
+V24C_SCHEMA_VERSION = "RADAR-LN3-V24c"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -135,6 +137,16 @@ KNOWN_GATE_V24A_READINESS_SCHEMA = (
 )
 KNOWN_GATE_V24A_EXPERIMENT_SCHEMA = (
     "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-experiment-contract-v1"
+)
+KNOWN_GATE_V24C_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-"
+    "feature-cache-manifest-v1"
+)
+KNOWN_GATE_V24C_READINESS_SCHEMA = (
+    "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-training-readiness-v1"
+)
+KNOWN_GATE_V24C_EXPERIMENT_SCHEMA = (
+    "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-experiment-contract-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
 KNOWN_GATE_V21E_MULTISEED_SEEDS = KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -434,6 +446,82 @@ def _validate_v24a_config(
     return True
 
 
+def _validate_v24c_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize V24c's sealed strict same-second-state-skip namespace."""
+
+    expected_name = (
+        "RADAR-LN3-V24c-cq08-liquid-known-gate-course-strict-same-second-skip-seed43"
+    )
+    artifact = (
+        "artifacts/RADAR-LN3-V24c-cq08-liquid-known-gate-course-strict-same-second-"
+        "skip-seed43-formal"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        "RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-"
+        "seed43-config.json"
+    )
+    if (
+        config_name != expected_name
+        and variant != V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+    ):
+        return False
+    if (
+        config_path.name != f"{expected_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or config_name != expected_name
+        or variant != V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/best_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            "RADAR-LN3-V24c-v24c_course_strict_same_second_skip-seed43-"
+            "known-gate-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.class_weight_normalization
+        != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+        or data.feature_cache_manifest_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24c-cq08-known-gate-course-strict-same-second-skip-"
+            "feature-cache-manifest.json"
+        )
+        or data.train_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-"
+            "cache.npz"
+        )
+        or data.validation_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-"
+            "cache.npz"
+        )
+        or data.feature_experiment_contract_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V24c-cq08-known-gate-course-strict-same-second-skip-"
+            "contract.json"
+        )
+    ):
+        raise ValueError("V24c config differs from its sealed namespace")
+    return True
+
+
 def _validate_v21e_oof_support_config(
     config_path: Path,
     *,
@@ -704,10 +792,11 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         V22A_SCHEMA_VERSION,
         V24_SCHEMA_VERSION,
         V24A_SCHEMA_VERSION,
+        V24C_SCHEMA_VERSION,
     }:
         raise ValueError(
             "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22, "
-            "RADAR-LN3-V22a, RADAR-LN3-V24 or RADAR-LN3-V24a"
+            "RADAR-LN3-V22a, RADAR-LN3-V24, RADAR-LN3-V24a or RADAR-LN3-V24c"
         )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
@@ -830,8 +919,16 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             )
     elif model.rd_temporal_residual_dim != 0:
         raise ValueError("only V22a may enable an RD temporal residual branch")
-    if model.liquid_invalid_dt_update_mode != "bounded_observation":
-        raise ValueError("V21 KnownGate baseline freezes bounded_observation dynamics")
+    v24c_mode_candidate = (
+        schema_version == V24C_SCHEMA_VERSION
+        and variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+    )
+    required_update_mode = "strict_skip" if v24c_mode_candidate else "bounded_observation"
+    if model.liquid_invalid_dt_update_mode != required_update_mode:
+        raise ValueError(
+            "V21 KnownGate must use bounded_observation dynamics except for the "
+            "sealed V24c strict_skip diagnostic"
+        )
     if model.dt_reason_mode != "v3_reason_aware_dynamics_only":
         raise ValueError("V21 KnownGate must use reason-aware dynamics-only dt semantics")
     if model.liquid_state_normalization != "recurrent" or model.rd_frame_aggregation != "masked_mean":
@@ -919,6 +1016,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
+    is_v24c = _validate_v24c_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
     is_oof_support = (
         is_v21e_oof_support
         or is_v21f_oof_support
@@ -937,6 +1041,8 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("RADAR-LN3-V24 schema is reserved for the V24 fresh baseline")
     if (schema_version == V24A_SCHEMA_VERSION) != is_v24a:
         raise ValueError("RADAR-LN3-V24a schema is reserved for the V24a RD-drift experiment")
+    if (schema_version == V24C_SCHEMA_VERSION) != is_v24c:
+        raise ValueError("RADAR-LN3-V24c schema is reserved for the V24c strict-skip experiment")
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -966,6 +1072,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         and not is_v22a_support
         and not is_v24_baseline
         and not is_v24a
+        and not is_v24c
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -999,6 +1106,10 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         f"{V24A_SCHEMA_VERSION}-{variant}-"
     ):
         raise ValueError("V24a checkpoint schema must bind the RD-drift variant")
+    if is_v24c and not train.checkpoint_schema.startswith(
+        f"{V24C_SCHEMA_VERSION}-{variant}-"
+    ):
+        raise ValueError("V24c checkpoint schema must bind the strict-skip variant")
 
     cache_fields = (
         data.feature_cache_manifest_path,
@@ -1609,6 +1720,14 @@ def build_known_gate_model_for_config(
         and config.model.evidence_dim == baseline_config.model.evidence_dim
         and tuple(config.feature_names) == tuple(baseline_config.feature_names)
     )
+    dynamics_only_pair = (
+        config.schema_version == V24C_SCHEMA_VERSION
+        and config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+        and baseline_config.schema_version == V24_SCHEMA_VERSION
+        and baseline_config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+        and config.model.evidence_dim == baseline_config.model.evidence_dim
+        and tuple(config.feature_names) == tuple(baseline_config.feature_names)
+    )
     if (
         baseline_config.variant != BASELINE_VARIANT
         and tuple(config.feature_names[: len(baseline_config.feature_names)])
@@ -1620,6 +1739,7 @@ def build_known_gate_model_for_config(
     if (
         not loss_only_pair
         and not rd_temporal_pair
+        and not dynamics_only_pair
         and config.model.evidence_dim <= baseline_config.model.evidence_dim
     ):
         raise ValueError("V21 Treatment must append at least one evidence column")
@@ -1645,6 +1765,10 @@ def build_known_gate_model_for_config(
     base_model_fields["evidence_dim"] = baseline_config.model.evidence_dim
     if rd_temporal_pair:
         base_model_fields["rd_temporal_residual_dim"] = 0
+    if dynamics_only_pair:
+        base_model_fields["liquid_invalid_dt_update_mode"] = (
+            baseline_config.model.liquid_invalid_dt_update_mode
+        )
     if base_model_fields != asdict(baseline_config.model):
         raise ValueError("V21 Treatment model differs beyond appended evidence_dim")
     excluded_train = {
@@ -1754,6 +1878,7 @@ def build_known_gate_model_for_config(
         "seed": config.train.seed,
         "shared_parameters_and_buffers_exactly_equal": True,
         "loss_only_pair": loss_only_pair,
+        "dynamics_only_pair": dynamics_only_pair,
         "baseline_fusion_input_dim": baseline.fusion_input_dim,
         "treatment_fusion_input_dim": treatment.fusion_input_dim,
         "baseline_evidence_dim": baseline_config.model.evidence_dim,
@@ -2133,6 +2258,7 @@ __all__ = [
     "KNOWN_GATE_V22A_MANIFEST_SCHEMA",
     "KNOWN_GATE_V24_MANIFEST_SCHEMA",
     "KNOWN_GATE_V24A_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V24C_MANIFEST_SCHEMA",
     "KNOWN_GATE_V21E_READINESS_SCHEMA",
     "KNOWN_GATE_V22A_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V22A_READINESS_SCHEMA",
@@ -2140,6 +2266,8 @@ __all__ = [
     "KNOWN_GATE_V24_READINESS_SCHEMA",
     "KNOWN_GATE_V24A_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V24A_READINESS_SCHEMA",
+    "KNOWN_GATE_V24C_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V24C_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
     "KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION",
     "KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION",
@@ -2152,6 +2280,7 @@ __all__ = [
     "V22A_SCHEMA_VERSION",
     "V24_SCHEMA_VERSION",
     "V24A_SCHEMA_VERSION",
+    "V24C_SCHEMA_VERSION",
     "KnownGateClassifier",
     "KnownGateConfig",
     "KnownGateDataset",

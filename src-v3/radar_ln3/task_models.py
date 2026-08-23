@@ -766,6 +766,7 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         "floor",
         "bounded_observation",
         "skip",
+        "strict_skip",
         "density_weighted",
     }:
         raise ValueError(

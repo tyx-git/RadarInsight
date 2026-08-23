@@ -39,9 +39,13 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V24A_EXPERIMENT_SCHEMA,
     KNOWN_GATE_V24A_MANIFEST_SCHEMA,
     KNOWN_GATE_V24A_READINESS_SCHEMA,
+    KNOWN_GATE_V24C_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V24C_MANIFEST_SCHEMA,
+    KNOWN_GATE_V24C_READINESS_SCHEMA,
     V22A_SCHEMA_VERSION,
     V24_SCHEMA_VERSION,
     V24A_SCHEMA_VERSION,
+    V24C_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -69,6 +73,7 @@ from radar_ln3.known_gate_features import (
     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
+    V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -142,6 +147,10 @@ V24_READINESS_RELATIVE = Path(
 V24A_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V24a-known-gate-course-rd-peak-drift-mean-training-readiness.json"
+)
+V24C_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-training-readiness.json"
 )
 
 
@@ -406,6 +415,7 @@ def _verify_contract(
             V21E_COURSE_PREFIX_VARIANT,
             V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
+            V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
         }:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
@@ -426,13 +436,20 @@ def _verify_contract(
             manifest_validation = dict(manifest_caches.get("val") or {})
             is_v24 = config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT
             is_v24a = config.variant == V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT
+            is_v24c = (
+                config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+            )
             expected_manifest_schema = (
                 KNOWN_GATE_V24A_MANIFEST_SCHEMA
                 if is_v24a
                 else (
-                    KNOWN_GATE_V24_MANIFEST_SCHEMA
-                    if is_v24
-                    else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                    KNOWN_GATE_V24C_MANIFEST_SCHEMA
+                    if is_v24c
+                    else (
+                        KNOWN_GATE_V24_MANIFEST_SCHEMA
+                        if is_v24
+                        else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                    )
                 )
             )
             expected_feature_schema = (
@@ -444,11 +461,15 @@ def _verify_contract(
                 KNOWN_GATE_V24A_EXPERIMENT_SCHEMA
                 if is_v24a
                 else (
-                    KNOWN_GATE_V24_EXPERIMENT_SCHEMA
-                    if is_v24
+                    KNOWN_GATE_V24C_EXPERIMENT_SCHEMA
+                    if is_v24c
                     else (
-                        "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
-                        "experiment-contract-v1"
+                        KNOWN_GATE_V24_EXPERIMENT_SCHEMA
+                        if is_v24
+                        else (
+                            "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+                            "experiment-contract-v1"
+                        )
                     )
                 )
             )
@@ -456,12 +477,18 @@ def _verify_contract(
                 V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT
                 if is_v24a
                 else (
-                    V24_COURSE_REASON_AWARE_BASELINE_VARIANT
-                    if is_v24
-                    else V21E_COURSE_PREFIX_VARIANT
+                    V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
+                    if is_v24c
+                    else (
+                        V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+                        if is_v24
+                        else V21E_COURSE_PREFIX_VARIANT
+                    )
                 )
             )
-            expected_not_executed = "not_executed" if (is_v24 or is_v24a) else "未执行"
+            expected_not_executed = (
+                "not_executed" if (is_v24 or is_v24a or is_v24c) else "未执行"
+            )
             if (
                 not experiment_path.is_file()
                 or sha256_file(experiment_path) != experiment_expected
@@ -504,10 +531,11 @@ def _verify_contract(
                 or (
                     not is_v24
                     and not is_v24a
+                    and not is_v24c
                     and experiment.get("post_hoc_feature_discovery") is not True
                 )
                 or (
-                    (is_v24 or is_v24a)
+                    (is_v24 or is_v24a or is_v24c)
                     and experiment.get("fresh_training_not_finetune") is not True
                 )
                 or experiment.get("test") != expected_not_executed
@@ -769,6 +797,7 @@ def _verify_contract(
                     V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
                     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
+                    V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -801,6 +830,7 @@ def _verify_contract(
                             V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
                             V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
+                            V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -1031,9 +1061,6 @@ def _verify_readiness(
             root, config.train.paired_baseline_config_path or ""
         )
         control_summary_path = _resolve(root, str(control.get("summary", "")))
-        control_checkpoint_path = _resolve(
-            root, str(control.get("checkpoint", ""))
-        )
         control_summary = (
             json.loads(control_summary_path.read_text(encoding="utf-8"))
             if control_summary_path.is_file()
@@ -1079,8 +1106,6 @@ def _verify_readiness(
             or control_summary.get("variant")
             != V24_COURSE_REASON_AWARE_BASELINE_VARIANT
             or int(control_summary.get("seed", -1)) != config.train.seed
-            or not control_checkpoint_path.is_file()
-            or control.get("checkpoint_sha256") != sha256_file(control_checkpoint_path)
             or control.get("initial_model_state_sha256")
             != control_summary.get("initial_model_state_sha256")
             or not str(control.get("initial_model_state_sha256", ""))
@@ -1106,6 +1131,109 @@ def _verify_readiness(
             "path": str(path),
             "sha256": sha256_file(path),
             "schema_version": KNOWN_GATE_V24A_READINESS_SCHEMA,
+            "status": "passed",
+            "control_initial_model_state_sha256": str(
+                control.get("initial_model_state_sha256", "")
+            ),
+            "validation_used_for_readiness_gate": False,
+            "test": "not_executed",
+        }
+    if config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT:
+        path = (root / V24C_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V24c formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        control = dict(report.get("control") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        experiment_contract_path = _resolve(
+            root, config.data.feature_experiment_contract_path or ""
+        )
+        control_config_path = _resolve(
+            root, config.train.paired_baseline_config_path or ""
+        )
+        control_summary_path = _resolve(root, str(control.get("summary", "")))
+        control_summary = (
+            json.loads(control_summary_path.read_text(encoding="utf-8"))
+            if control_summary_path.is_file()
+            else {}
+        )
+        actual_required = {
+            "index_sha256": contract_evidence["hashes"]["index_sha256"],
+            "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+            "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+            "feature_manifest_sha256": cache_hashes.get("manifest"),
+            "train_feature_cache_sha256": cache_hashes.get("train"),
+            "validation_feature_cache_sha256": cache_hashes.get("validation"),
+            "experiment_contract_sha256": contract_evidence["hashes"].get(
+                "feature_experiment_contract_sha256"
+            ),
+        }
+        expected_hashes = dict(report.get("contract_hashes") or {})
+        initialization = dict(report.get("initialization") or {})
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V24C_READINESS_SCHEMA
+            or not checks
+            or not all(value is True for value in checks.values())
+            or _resolve(root, str(binding.get("path", ""))) != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or any(
+                expected_hashes.get(key) != value
+                for key, value in actual_required.items()
+            )
+            or _resolve(root, str(report.get("feature_manifest_path", "")))
+            != _resolve(root, str(cache_paths.get("manifest", "")))
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or _resolve(root, str(report.get("contract_path", "")))
+            != experiment_contract_path
+            or report.get("contract_sha256")
+            != actual_required["experiment_contract_sha256"]
+            or control_config_path
+            != _resolve(root, str(control.get("config", "")))
+            or not control_config_path.is_file()
+            or control.get("config_sha256") != sha256_file(control_config_path)
+            or not control_summary_path.is_file()
+            or control.get("summary_sha256") != sha256_file(control_summary_path)
+            or control_summary.get("status") != "completed"
+            or control_summary.get("variant")
+            != V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+            or int(control_summary.get("seed", -1)) != config.train.seed
+            or control.get("initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or not str(control.get("initial_model_state_sha256", ""))
+            or initialization.get("v24_control_initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or initialization.get("v24c_initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or initialization.get("only_dynamics_mode_differs") is not True
+            or initialization.get("trained_v24_checkpoint_loaded_for_initialization")
+            is not False
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_parent_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or int(report.get("test_payload_access_count", -1)) != 0
+            or report.get("formal_training") != "not_executed"
+            or report.get("OOF") != "not_executed"
+            or report.get("test") != "not_executed"
+            or report.get("formal_rejection") != "not_executed"
+            or report.get("full_cascade") != "not_executed"
+            or report.get("stable") != "not_executed"
+            or report.get("P95") != "not_executed"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError(
+                "V24c readiness is missing, stale, failed or outside the sealed contract"
+            )
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V24C_READINESS_SCHEMA,
             "status": "passed",
             "control_initial_model_state_sha256": str(
                 control.get("initial_model_state_sha256", "")
@@ -2012,6 +2140,31 @@ def train_known_gate(
                 paired_initialization[
                     "sealed_v24_control_initial_model_state_sha256"
                 ] = reproduced_control_state
+            if config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT:
+                reproduced_control_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if (
+                    initial_state_sha256 != reproduced_control_state
+                    or reproduced_control_state
+                    != readiness.get("control_initial_model_state_sha256")
+                    or paired_initialization.get("dynamics_only_pair") is not True
+                    or int(paired_initialization.get("new_fusion_columns", -1)) != 0
+                    or paired_initialization.get("new_fusion_columns_exactly_zero")
+                    is not True
+                    or model.liquid.invalid_dt_update_mode != "strict_skip"
+                    or baseline_reference.liquid.invalid_dt_update_mode
+                    != "bounded_observation"
+                ):
+                    raise AssertionError(
+                        "V24c strict-skip initialization differs beyond the sealed dynamics variable"
+                    )
+                paired_initialization[
+                    "sealed_v24_control_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "sealed_v24_control_initial_model_state_sha256"
+                ] = reproduced_control_state
             if config.variant == V24_COURSE_REASON_AWARE_BASELINE_VARIANT:
                 baseline_initial_state = _state_dict_sha256(
                     baseline_reference.state_dict()
@@ -2053,12 +2206,24 @@ def train_known_gate(
                 paired_initialization[
                     "frozen_v21e_initial_model_state_sha256"
                 ] = reproduced_control_state
-            probe_loader = build_known_gate_dataloader(
+            audit_loader = build_known_gate_dataloader(
                 train_dataset,
                 batch_size=min(config.train.batch_size, len(train_dataset)),
                 shuffle=False,
             )
-            probe = next(iter(probe_loader))
+            probe = next(iter(audit_loader))
+            same_second_probe: Mapping[str, Any] | None = None
+            if config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT:
+                same_second_probe = probe
+                if not bool((same_second_probe["tr_dt_reason"] == 2).any()):
+                    for candidate in audit_loader:
+                        if bool((candidate["tr_dt_reason"] == 2).any()):
+                            same_second_probe = candidate
+                            break
+                if not bool((same_second_probe["tr_dt_reason"] == 2).any()):
+                    raise AssertionError(
+                        "V24c train population unexpectedly lacks a same-second event"
+                    )
             model.eval()
             baseline_reference.eval()
             with torch.inference_mode():
@@ -2077,12 +2242,88 @@ def train_known_gate(
                     baseline_inputs["known_gate_features"] = None
                     baseline_inputs["known_gate_feature_valid"] = None
                 baseline_logits = baseline_reference(**baseline_inputs)["sequence_logits"]
-            if not torch.equal(treatment_logits, baseline_logits):
-                raise AssertionError("V21 Treatment initial logits differ from the paired Baseline")
-            paired_initialization["initial_logits_exactly_equal"] = True
-            paired_initialization["initial_logits_sha256"] = hashlib.sha256(
-                treatment_logits.detach().cpu().contiguous().numpy().tobytes(order="C")
-            ).hexdigest()
+            if config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT:
+                if same_second_probe is None:
+                    raise RuntimeError("V24c same-second audit probe was not selected")
+                audit_probe = same_second_probe
+                with torch.inference_mode():
+                    strict_audit_output = model(**_model_inputs(audit_probe))
+                    bounded_audit_output = baseline_reference(
+                        **_model_inputs(audit_probe)
+                    )
+                zero_delta = audit_probe["tr_dt_reason"] == 2
+                if not bool(zero_delta.any()):
+                    raise AssertionError(
+                        "V24c real training probe lacks a same-second event for dynamics audit"
+                    )
+                no_zero_probe = {
+                    key: value.clone() if isinstance(value, torch.Tensor) else value
+                    for key, value in audit_probe.items()
+                }
+                no_zero_probe["tr_dt_seconds"] = no_zero_probe["tr_dt_seconds"].clone()
+                no_zero_probe["tr_dt_valid"] = no_zero_probe["tr_dt_valid"].clone()
+                no_zero_probe["tr_dt_reason"] = no_zero_probe["tr_dt_reason"].clone()
+                no_zero_probe["tr_dt_seconds"][zero_delta] = 1.0
+                no_zero_probe["tr_dt_valid"][zero_delta] = True
+                no_zero_probe["tr_dt_reason"][zero_delta] = 3
+                with torch.inference_mode():
+                    strict_no_zero_logits = model(**_model_inputs(no_zero_probe))["sequence_logits"]
+                    control_no_zero_logits = baseline_reference(**_model_inputs(no_zero_probe))["sequence_logits"]
+                if not torch.equal(strict_no_zero_logits, control_no_zero_logits):
+                    raise AssertionError(
+                        "V24c/control initial logits differ when no same-second dynamics are present"
+                    )
+                strict_state = strict_audit_output["liquid_sequence"]
+                previous_state = torch.cat(
+                    [
+                        torch.zeros_like(strict_state[:, :1]),
+                        strict_state[:, :-1],
+                    ],
+                    dim=1,
+                )
+                if not torch.equal(
+                    strict_state.masked_select(zero_delta.unsqueeze(-1)),
+                    previous_state.masked_select(zero_delta.unsqueeze(-1)),
+                ):
+                    raise AssertionError(
+                        "V24c strict-skip state changed at a same-second event"
+                    )
+                paired_initialization.update(
+                    {
+                        "initial_logits_exactly_equal_without_zero_delta": True,
+                        "initial_logits_without_zero_delta_sha256": hashlib.sha256(
+                            strict_no_zero_logits.detach()
+                            .cpu()
+                            .contiguous()
+                            .numpy()
+                            .tobytes(order="C")
+                        ).hexdigest(),
+                        "real_training_probe_same_second_event_count": int(
+                            zero_delta.sum().item()
+                        ),
+                        "strict_skip_state_unchanged_at_every_probe_same_second_event": True,
+                        "strict_skip_and_bounded_logits_are_allowed_to_differ_with_same_second_events": (
+                            not torch.equal(
+                                strict_audit_output["sequence_logits"],
+                                bounded_audit_output["sequence_logits"],
+                            )
+                        ),
+                    }
+                )
+                del (
+                    strict_no_zero_logits,
+                    control_no_zero_logits,
+                    strict_audit_output,
+                    bounded_audit_output,
+                    no_zero_probe,
+                )
+            else:
+                if not torch.equal(treatment_logits, baseline_logits):
+                    raise AssertionError("V21 Treatment initial logits differ from the paired Baseline")
+                paired_initialization["initial_logits_exactly_equal"] = True
+                paired_initialization["initial_logits_sha256"] = hashlib.sha256(
+                    treatment_logits.detach().cpu().contiguous().numpy().tobytes(order="C")
+                ).hexdigest()
             if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
                 residual = treatment_output["rd_temporal_residual"]
                 active = ~probe["tr_padding_mask"]
@@ -2207,7 +2448,7 @@ def train_known_gate(
                 )
                 model.zero_grad(set_to_none=True)
                 del gradient_output, gradient_objective, drift_gradient
-            del baseline_reference, probe_loader, probe
+            del baseline_reference, audit_loader, probe
             del treatment_output, treatment_logits, baseline_logits
         trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
         if not trainable or any(not parameter.requires_grad for parameter in model.parameters()):

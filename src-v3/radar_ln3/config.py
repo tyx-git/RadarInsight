@@ -159,11 +159,12 @@ def load_config(path: str | Path) -> V3Config:
         "floor",
         "bounded_observation",
         "skip",
+        "strict_skip",
         "density_weighted",
     }:
         raise ValueError(
             "model.liquid_invalid_dt_update_mode must be floor, bounded_observation, "
-            "skip, or density_weighted"
+            "skip, strict_skip, or density_weighted"
         )
     if not 0.0 < model.liquid_invalid_dt_observation_gain <= 1.0:
         raise ValueError("model.liquid_invalid_dt_observation_gain must be in (0, 1]")
