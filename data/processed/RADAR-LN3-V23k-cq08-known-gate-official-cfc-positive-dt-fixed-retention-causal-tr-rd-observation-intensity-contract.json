@@ -1,0 +1,189 @@
+{
+  "schema_version": "RADAR-LN3-V23k-known-gate-official-cfc-observation-intensity-contract-v1",
+  "experiment": "V23k V23a official-CfC with two causal TR/RD decayed observation-intensity fusion inputs only",
+  "source": {
+    "v21_config_path": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+    "v21_config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+    "v21_config_identity_sha256": "92e8ad1564461fc9b0428444ad3d0469341d85e73a580035e37bc3e5c2ad3cb9",
+    "v21_summary_path": "artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal/training-summary.json",
+    "v21_summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+    "v23_summary_path": "artifacts/RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal/training-summary.json",
+    "v23_summary_sha256": "bf81cb289909396713e34d2d6951b079d5afc669478085a0c072aaad6cb17a82",
+    "v23_checkpoint_path": "artifacts/RADAR-LN3-V23-cq08-known-gate-official-cfc-baseline-seed43-formal/best_model.pt",
+    "v23_checkpoint_sha256": "f04480f55bd784383d08eafc300b8c01dd2aa8399a24efbebcb48054df563e84",
+    "v23a_control": {
+      "variant": "official_cfc_positive_dt_fixed_retention",
+      "config_path": "config/RADAR-LN3/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-config.json",
+      "config_sha256": "06112cbc6ebc5a66bebbd3cd3e475ebab1e8f15d2f827900322c141ba229af8a",
+      "config_identity_sha256": "f176cec2579f1f72077fab30d8959e6c5178de3884fbd6965158314873f8d1a7",
+      "readiness_path": "src-v3/processed/report/RADAR-LN3-V23a-known-gate-official-cfc-training-readiness.json",
+      "readiness_sha256": "e278d65ab4e0f0826e1c92643c35a1ae43b8aba4d726761db672abf9b610ba1f",
+      "summary_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/training-summary.json",
+      "summary_sha256": "12e161b2f8ad42f8e0cac5dc4c14a9c4225da97c32547c398937a76d5232a2b3",
+      "legacy_best_checkpoint_path": "artifacts/RADAR-LN3-V23a-cq08-known-gate-official-cfc-positive-dt-fixed-retention-seed43-formal/best_model.pt",
+      "legacy_best_checkpoint_sha256": "64f5ebe3b05064df89421c33d586122904c4c829cd534a8517161323afe8baef",
+      "legacy_best_epoch": 14,
+      "v23e_selector_rule_schema": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "state_path": "official CfC raw dt plus V23a positive-dt fixed retention; unchanged in V23k"
+    },
+    "v23_parent_order_sha256_by_epoch": [
+      "f58bea134b1853980d914201d231070798a09aff5383e58f2065c0ede06e34df",
+      "bad92c072248c53c1a1e07909602c44bfaf6f9f1c182c309a1fa81e09e6a1244",
+      "d7a3bde89f78a13c42060bcda7f510dd08c248a7e52a2e6b38a40e26a0e210cb",
+      "8ecf28f4936f29aadfe006d6c80ed34bec27405993d7ddd9e73bd8cb637c34d6",
+      "76ae1baf46f894931e3639cdc8901a358d3868656802b7018559c465987bd4ce",
+      "a2857b54a4a95a71db1d893cdf7183872dd6803e498543a6458d67be70c299b4",
+      "2ac24c2573be9cae46ff29e4d9c74734fc651d6f3f589885b6d3bfd928205dfa",
+      "57d4f2039d1e19b3be1cbd7e89c463094eb632ad1d2f4bb6429b85281ea150b1",
+      "3cba1398bb5889697e5a865806609583eea6dc9469787c937796f5f7a68cdef4",
+      "a7f02091c961590190077ff937258a952e2abfdbc97a4dbe02f4f9184a9bc245",
+      "cc35fa312b78d3a302858335879ad27ce31344fca47ec0e2bc73d930f646e906",
+      "aead5c7e054a722692ed8cc8f5186677d3a42ee1b1c36189ff9a5582ff10e8e4",
+      "ddb22fefe7b7a2edee1adaa5c678466e90b0bf64ba02c7b0cab235bad447f2a6",
+      "65ec976ebf33267aa99ead5f7abd09894acc1553b2cd40b6293939cbb695c3c4",
+      "7fd61261386f92607a2381aac8ab2b8f1169dc67243c778a2ae0d8de62a0e294",
+      "0e32e970dbb6b5e28eaa97a569ce683c17a7f60d6a9ce2c5f0f9bd3ba853cef1",
+      "a174fa2170a5c79f8a1d93bc4235ff95956e30df0f05712962e04d8e014ddfcf",
+      "d850b866b32c4967e29370f4667f5de2a4a778e2acc9879b08d1d5738a9d8190",
+      "98f38f438e107c30ea2902df3dcf94247ab6316b465cb5d31efb43bc8bd23dcc",
+      "dad57d0015afb9dc5f8af0afd0cc6aab966b50729514833b08e405e48588fac0"
+    ]
+  },
+  "official_runtime": {
+    "distribution": "ncps",
+    "distribution_version": "1.0.1",
+    "direct_url": "https://github.com/mlech26l/ncps.git",
+    "git_commit": "695ec22d7d1831f2ced67346ef7d2f08c525bd47",
+    "class_path": "ncps.torch.CfC",
+    "class_module": "ncps.torch.cfc"
+  },
+  "official_runtime_report": {
+    "path": "src-v3/processed/report/RADAR-LN3-V23-official-cfc-runtime-compatibility.json",
+    "sha256": "e0c39029afa5494b787829d80aeb0166e68072d41857275fed4cfc69a9ad8df7",
+    "schema_version": "RADAR-LN3-V23-official-cfc-runtime-compatibility-v1"
+  },
+  "adapter": {
+    "kind": "positive_dt_fixed_retention",
+    "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+    "applies_to": "positive_delta_at_second_precision only",
+    "formula": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+    "fixed_tau_seconds": 15.025,
+    "trainable_parameter_count": 0,
+    "first_and_zero_delta_behavior": "h=h_official"
+  },
+  "observation_intensity": {
+    "schema_version": "RADAR-LN3-V23k-causal-observation-intensity-v1",
+    "feature_names": [
+      "causal_log1p_decayed_tr_observation_intensity",
+      "causal_log1p_decayed_rd_observation_intensity"
+    ],
+    "feature_dim": 2,
+    "kappa_per_second": 0.06655574043261231,
+    "kappa_origin": "1 / V23a fixed_tau_seconds=15.025; fixed before development evaluation",
+    "raw_state_formula": {
+      "c_TR": "c_TR[t]=exp(-kappa*raw_nonnegative_dt_seconds[t])*c_TR[t-1]+1",
+      "c_RD": "c_RD[t]=exp(-kappa*raw_nonnegative_dt_seconds[t])*c_RD[t-1]+sum(current_rd_frame_mask[t])"
+    },
+    "encoding": "feature[t]=log1p([c_TR[t],c_RD[t]]) without fitted normalization or clipping",
+    "causal_scope": "current and earlier dt reasons plus current rd_quality.rd_present only; no labels, future events, parent-final aggregate, identifiers or model outputs",
+    "first_and_zero_delta": "raw dt=0, so the previous intensity is retained before the current increment",
+    "positive_delta": "uses the same raw positive second-precision duration supplied to the frozen V23a official-CfC path",
+    "padding": "does not update intensity state and emits zero feature values",
+    "state_effect": "input evidence only; does not alter official CfC timespan, official CfC hidden state equation, or V23a external positive-dt retention adapter",
+    "rd_increment": "number of current RD frames visible to the frozen model after its existing max-frame cap; rd_quality.rd_present is checked for exact availability consistency but existing frame-count/duration quality inputs remain unchanged"
+  },
+  "readiness_train_only_intensity_exposure": {
+    "train_parent_count": 986,
+    "active_event_count": 18923,
+    "rd_missing_event_count": 153,
+    "maximum_raw_c_TR": 23.07749366760254,
+    "maximum_raw_c_RD": 69.23249053955078,
+    "by_base_label": {
+      "BalloonTarget": {
+        "event_support": 4551,
+        "log1p_c_TR_minimum": 0.6931471824645996,
+        "log1p_c_TR_maximum": 3.178772211074829,
+        "log1p_c_TR_standard_deviation": 0.5457019209861755,
+        "log1p_c_RD_minimum": 0.6931471824645996,
+        "log1p_c_RD_maximum": 4.249234199523926,
+        "log1p_c_RD_standard_deviation": 0.660968005657196
+      },
+      "BirdTarget": {
+        "event_support": 4620,
+        "log1p_c_TR_minimum": 0.6931471824645996,
+        "log1p_c_TR_maximum": 3.1661288738250732,
+        "log1p_c_TR_standard_deviation": 0.5861565470695496,
+        "log1p_c_RD_minimum": 0.0,
+        "log1p_c_RD_maximum": 4.236227512359619,
+        "log1p_c_RD_standard_deviation": 0.7684864401817322
+      },
+      "ClutterTarget": {
+        "event_support": 657,
+        "log1p_c_TR_minimum": 0.6931471824645996,
+        "log1p_c_TR_maximum": 2.1316158771514893,
+        "log1p_c_TR_standard_deviation": 0.34501180052757263,
+        "log1p_c_RD_minimum": 1.0986123085021973,
+        "log1p_c_RD_maximum": 3.352431535720825,
+        "log1p_c_RD_standard_deviation": 0.47424012422561646
+      },
+      "DroneTarget": {
+        "event_support": 9095,
+        "log1p_c_TR_minimum": 0.6931471824645996,
+        "log1p_c_TR_maximum": 3.1812775135040283,
+        "log1p_c_TR_standard_deviation": 0.5860218405723572,
+        "log1p_c_RD_minimum": 0.0,
+        "log1p_c_RD_maximum": 4.2518110275268555,
+        "log1p_c_RD_standard_deviation": 0.6815898418426514
+      }
+    },
+    "validation_dataset_access_count": 0,
+    "unknown_dataset_access_count": 0,
+    "test_dataset_access_count": 0
+  },
+  "selector": {
+    "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+    "name": "V23e_parent_final_and_parent_balanced_eligible_prefix_selector",
+    "source_v23a_legacy_reference_epoch": 14
+  },
+  "single_factor": {
+    "changed_component": "append exactly two zero-initialized causal input features log1p(c_TR), log1p(c_RD) to existing fusion only",
+    "frozen": [
+      "official dense 48x1 default lecun_tanh CfC",
+      "V23a positive-dt fixed-retention external state adapter",
+      "raw first/zero/positive dt supplied unchanged to official CfC and adapter",
+      "official CfC hidden-state equation and all state-update gains",
+      "V16 index and V21 train-only normalization",
+      "TR/RD front ends, existing RD quality, classifier, loss and V23e checkpoint selector",
+      "batch size, seed, initial shared state, parent order, optimizer, learning rate, 20 epochs and gradient clipping"
+    ],
+    "not_executed": [
+      "Unknown training or threshold fitting",
+      "OOF",
+      "test",
+      "L3",
+      "full cascade",
+      "formal rejection",
+      "stable",
+      "P95"
+    ]
+  },
+  "formal_protocol": {
+    "training_split": "V21 train known-only",
+    "development_validation_split": "V21 validation known-only",
+    "train_parent_count": 986,
+    "validation_parent_count": 232,
+    "validation_clutter_parent_support": 9,
+    "epochs": 20,
+    "checkpoint_selection": "V23e_parent_final_and_parent_balanced_eligible_prefix_selector",
+    "parent_order_pairing": "each treatment epoch must exactly match the frozen V23 epoch parent-order SHA256",
+    "full_parameter_training": true
+  },
+  "unknown_training_exposure": 0,
+  "OOF": "未执行",
+  "test": "未执行",
+  "formal_rejection": "未执行",
+  "full_cascade": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}
