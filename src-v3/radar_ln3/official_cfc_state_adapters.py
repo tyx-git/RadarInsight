@@ -26,6 +26,9 @@ ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION = "zero_delta_bounded_observation"
 ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY = (
     "zero_delta_density_weighted_multiplicity"
 )
+ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY = (
+    "positive_dt_fixed_retention_zero_delta_density_weighted_multiplicity"
+)
 
 ADAPTER_KINDS = (
     ADAPTER_NONE,
@@ -35,6 +38,7 @@ ADAPTER_KINDS = (
     ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY,
     ADAPTER_ZERO_DELTA_BOUNDED_OBSERVATION,
     ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
+    ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
 )
 
 
@@ -79,6 +83,22 @@ class ExternalStateAdapterSpec:
                 raise ValueError("zero-delta observation adapter requires gain in (0, 1]")
             if self.fixed_tau_seconds is not None or self.layer_norm_eps is not None:
                 raise ValueError("zero-delta observation adapter must not carry unrelated adapter fields")
+        elif (
+            self.kind
+            == ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY
+        ):
+            if self.fixed_tau_seconds is None or self.fixed_tau_seconds <= 0.0:
+                raise ValueError(
+                    "combined fixed-retention/density adapter requires positive fixed_tau_seconds"
+                )
+            if self.zero_delta_gain is None or not 0.0 < self.zero_delta_gain <= 1.0:
+                raise ValueError(
+                    "combined fixed-retention/density adapter requires zero_delta_gain in (0, 1]"
+                )
+            if self.layer_norm_eps is not None:
+                raise ValueError(
+                    "combined fixed-retention/density adapter must not carry LayerNorm fields"
+                )
         elif any(value is not None for value in (
             self.fixed_tau_seconds,
             self.zero_delta_gain,
@@ -107,6 +127,15 @@ class ExternalStateAdapterSpec:
         if self.kind == ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION:
             return ("log_tau_ratio",)
         return ()
+
+    @property
+    def requires_causal_zero_ordinal(self) -> bool:
+        """Whether the online adapter needs an externally retained ordinal."""
+
+        return self.kind in (
+            ADAPTER_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
+            ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         if self.kind == ADAPTER_POSITIVE_DT_FIXED_RETENTION:
@@ -174,6 +203,36 @@ class ExternalStateAdapterSpec:
                 "gain_schedule": "0.25, 0.50, 0.75 for k=1,2,>=3 when zero_delta_gain=0.25",
                 "trainable_parameter_count": self.trainable_parameter_count,
                 "first_and_positive_delta_behavior": "h=h_official",
+            }
+        if (
+            self.kind
+            == ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY
+        ):
+            return {
+                "kind": self.kind,
+                "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+                "applies_to": {
+                    "positive_delta_at_second_precision": (
+                        "h=(1-alpha)*h_previous+alpha*h_official; "
+                        "alpha=1-exp(-dt/fixed_tau_seconds)"
+                    ),
+                    "zero_delta_at_second_precision": (
+                        "h=(1-alpha_k)*h_previous+alpha_k*h_official; "
+                        "alpha_k=min(zero_delta_gain*k,3*zero_delta_gain)"
+                    ),
+                    "first_event_no_predecessor": "h=h_official",
+                },
+                "fixed_tau_seconds": self.fixed_tau_seconds,
+                "zero_delta_gain": self.zero_delta_gain,
+                "causal_same_second_ordinal": (
+                    "first/positive set k=1; each zero_delta increments k; "
+                    "padding does not advance k"
+                ),
+                "gain_schedule": (
+                    "0.25, 0.50, 0.75 for k=1,2,>=3 when zero_delta_gain=0.25"
+                ),
+                "trainable_parameter_count": self.trainable_parameter_count,
+                "composition": "reason-disjoint fixed positive-dt retention plus zero-delta density weighting",
             }
         return {
             "kind": self.kind,
@@ -317,6 +376,38 @@ class ExternalOfficialCfCStateAdapter(nn.Module):
             weighted = (1.0 - gain) * previous_state + gain * official_state
             applies = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
             return torch.where(applies, weighted, official_state)
+        if (
+            self.spec.kind
+            == ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY
+        ):
+            tau = torch.as_tensor(
+                self.spec.fixed_tau_seconds,
+                dtype=official_state.dtype,
+                device=official_state.device,
+            )
+            positive_alpha = 1.0 - torch.exp(-dt_seconds.unsqueeze(-1) / tau)
+            retained = (
+                (1.0 - positive_alpha) * previous_state
+                + positive_alpha * official_state
+            )
+            ordinal = (
+                torch.ones_like(dt_seconds, dtype=torch.long)
+                if zero_ordinal is None
+                else zero_ordinal
+            )
+            zero_gain = torch.clamp(
+                torch.as_tensor(
+                    self.spec.zero_delta_gain,
+                    dtype=official_state.dtype,
+                    device=official_state.device,
+                )
+                * ordinal.to(dtype=official_state.dtype),
+                max=3.0 * float(self.spec.zero_delta_gain),
+            ).unsqueeze(-1)
+            weighted = (1.0 - zero_gain) * previous_state + zero_gain * official_state
+            positive = (dt_reason == DT_REASON_POSITIVE_DELTA).unsqueeze(-1)
+            zero = (dt_reason == DT_REASON_ZERO_DELTA).unsqueeze(-1)
+            return torch.where(positive, retained, torch.where(zero, weighted, official_state))
         raise RuntimeError(f"unhandled external state adapter: {self.spec.kind}")
 
 
@@ -324,6 +415,7 @@ __all__ = [
     "ADAPTER_KINDS",
     "ADAPTER_NONE",
     "ADAPTER_POSITIVE_DT_FIXED_RETENTION",
+    "ADAPTER_POSITIVE_DT_FIXED_RETENTION_ZERO_DELTA_DENSITY_WEIGHTED_MULTIPLICITY",
     "ADAPTER_POSITIVE_DT_PER_DIMENSION_RETENTION",
     "ADAPTER_RECURRENT_LAYER_NORM",
     "ADAPTER_RECURRENT_LAYER_NORM_SCALE_ONLY",

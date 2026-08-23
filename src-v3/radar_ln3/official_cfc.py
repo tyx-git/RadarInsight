@@ -571,8 +571,7 @@ class OfficialCfCCausalEncoder(nn.Module):
             raise ValueError("an external official-CfC state adapter requires online dt_reason")
         if (
             state_adapter is not None
-            and state_adapter.spec.kind
-            == "zero_delta_density_weighted_multiplicity"
+            and state_adapter.spec.requires_causal_zero_ordinal
             and zero_ordinal is None
         ):
             raise ValueError(

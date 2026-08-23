@@ -1,0 +1,214 @@
+{
+  "schema_version": "RADAR-LN3-V23l-known-gate-official-cfc-full-temporal-adapter-contract-v1",
+  "experiment": "V23l official CfC full temporal adapter versus completed self-developed V23g density KnownGate",
+  "arms": {
+    "self_developed_v23g": {
+      "architecture": "CfCLiquidCausalEncoder",
+      "positive_delta": "learned tau/candidate/gate update",
+      "zero_delta": "alpha_k=min(0.25*k,0.75)",
+      "source": {
+        "variant": "v23g_course_prefix_density_weighted",
+        "config_path": "config/RADAR-LN3/RADAR-LN3-V23g-cq08-liquid-known-gate-causal-course-consistency-density-weighted-seed43-config.json",
+        "config_sha256": "9206f4a8b076ff4935009ff64251625a6b18cc2cfe80c34b79fd5d75b7773eed",
+        "config_identity_sha256": "48f86ae21792c131b5d0c546071a694137697f67bea3e922f3b197d52a7ad09d",
+        "readiness_path": "src-v3/processed/report/RADAR-LN3-V23g-known-gate-density-weighted-training-readiness.json",
+        "readiness_sha256": "b6a007a2d0cc85c090cadfba9f9bf413ce8dcf2a43a312d60980d6fbc7cd5f77",
+        "summary_path": "artifacts/RADAR-LN3-V23g-cq08-liquid-known-gate-causal-course-consistency-density-weighted-seed43-formal/training-summary.json",
+        "summary_sha256": "c2a8c7c52987a43c8269fa8e7d7dc085ea87ba88ec32e3abcdc19e9d8a3b2bb3",
+        "last_checkpoint_path": "artifacts/RADAR-LN3-V23g-cq08-liquid-known-gate-causal-course-consistency-density-weighted-seed43-formal/last_model.pt",
+        "last_checkpoint_sha256": "f55abafb101aed0baba23e62e3bad583bbe7b604cbc147db92b78e83fd6d6d3a",
+        "epoch20_checkpoint_path": "artifacts/RADAR-LN3-V23g-cq08-liquid-known-gate-causal-course-consistency-density-weighted-seed43-formal/epochs/epoch-020.pt",
+        "epoch20_checkpoint_sha256": "cef736eab69f7b607c6dce32f441f50a5b9eb6d66bf00b1442b4a27f52c9e674",
+        "legacy_best_detail_path": "artifacts/RADAR-LN3-V23g-cq08-liquid-known-gate-causal-course-consistency-density-weighted-seed43-formal/sample_detail_information.json",
+        "legacy_best_detail_sha256": "1a143d270da1632f6d6d3a139c019f407866dff5ef49d7cc686bd7f25a4b9869",
+        "legacy_best_epoch": 19,
+        "legacy_best_checkpoint_is_not_v23e_feasible": true,
+        "parent_order_sha256_by_epoch": [
+          "f58bea134b1853980d914201d231070798a09aff5383e58f2065c0ede06e34df",
+          "bad92c072248c53c1a1e07909602c44bfaf6f9f1c182c309a1fa81e09e6a1244",
+          "d7a3bde89f78a13c42060bcda7f510dd08c248a7e52a2e6b38a40e26a0e210cb",
+          "8ecf28f4936f29aadfe006d6c80ed34bec27405993d7ddd9e73bd8cb637c34d6",
+          "76ae1baf46f894931e3639cdc8901a358d3868656802b7018559c465987bd4ce",
+          "a2857b54a4a95a71db1d893cdf7183872dd6803e498543a6458d67be70c299b4",
+          "2ac24c2573be9cae46ff29e4d9c74734fc651d6f3f589885b6d3bfd928205dfa",
+          "57d4f2039d1e19b3be1cbd7e89c463094eb632ad1d2f4bb6429b85281ea150b1",
+          "3cba1398bb5889697e5a865806609583eea6dc9469787c937796f5f7a68cdef4",
+          "a7f02091c961590190077ff937258a952e2abfdbc97a4dbe02f4f9184a9bc245",
+          "cc35fa312b78d3a302858335879ad27ce31344fca47ec0e2bc73d930f646e906",
+          "aead5c7e054a722692ed8cc8f5186677d3a42ee1b1c36189ff9a5582ff10e8e4",
+          "ddb22fefe7b7a2edee1adaa5c678466e90b0bf64ba02c7b0cab235bad447f2a6",
+          "65ec976ebf33267aa99ead5f7abd09894acc1553b2cd40b6293939cbb695c3c4",
+          "7fd61261386f92607a2381aac8ab2b8f1169dc67243c778a2ae0d8de62a0e294",
+          "0e32e970dbb6b5e28eaa97a569ce683c17a7f60d6a9ce2c5f0f9bd3ba853cef1",
+          "a174fa2170a5c79f8a1d93bc4235ff95956e30df0f05712962e04d8e014ddfcf",
+          "d850b866b32c4967e29370f4667f5de2a4a778e2acc9879b08d1d5738a9d8190",
+          "98f38f438e107c30ea2902df3dcf94247ab6316b465cb5d31efb43bc8bd23dcc",
+          "dad57d0015afb9dc5f8af0afd0cc6aab966b50729514833b08e405e48588fac0"
+        ],
+        "dynamics": {
+          "positive_delta": "self-developed learned tau/candidate/gate continuous-time update",
+          "zero_delta": "alpha_k=min(0.25*k,0.75)",
+          "causal_same_second_ordinal": "first/positive set k=1; zero_delta increments k"
+        },
+        "course_feature_cache": "V21e frozen causal-course consistency evidence_dim=1",
+        "source_v21e_control": {
+          "variant": "v21e_course_prefix",
+          "config_path": "config/RADAR-LN3/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-config.json",
+          "config_sha256": "2b74d2c33343692f76ffbbc3ee6a679c46f1b6ba12b5b0ce532d9b9ef9622f80",
+          "config_identity_sha256": "e535d333ea6c2c66033aad92962000f41d2a8c4706cdd6eafeedb59017c9e2f7",
+          "summary_path": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/training-summary.json",
+          "summary_sha256": "9b461b722f3ecd455b6b0ed32d5648dd3da7dbab82d808debf23360645fce84c",
+          "checkpoint_path": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/best_model.pt",
+          "checkpoint_sha256": "2b9992bb891bc05c5008a411b06da542c12fb64555bca60af735da75a4c71365",
+          "detail_path": "artifacts/RADAR-LN3-V21e-cq08-liquid-known-gate-causal-course-consistency-seed43-formal/sample_detail_information.json",
+          "detail_sha256": "f4ce99973e38e6b8f7ce2d84f9d30aeda6a806a954215712276cd1ea50357341",
+          "report_path": "src-v3/processed/report/RADAR-LN3-V21e-known-gate-causal-course-consistency-paired-validation.json",
+          "report_sha256": "98994154e7be7d17308a0a6a82b628b0bdc5446e8ad2f4798270048be11d98e7",
+          "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+          "parent_order_sha256_by_epoch": [
+            "f58bea134b1853980d914201d231070798a09aff5383e58f2065c0ede06e34df",
+            "bad92c072248c53c1a1e07909602c44bfaf6f9f1c182c309a1fa81e09e6a1244",
+            "d7a3bde89f78a13c42060bcda7f510dd08c248a7e52a2e6b38a40e26a0e210cb",
+            "8ecf28f4936f29aadfe006d6c80ed34bec27405993d7ddd9e73bd8cb637c34d6",
+            "76ae1baf46f894931e3639cdc8901a358d3868656802b7018559c465987bd4ce",
+            "a2857b54a4a95a71db1d893cdf7183872dd6803e498543a6458d67be70c299b4",
+            "2ac24c2573be9cae46ff29e4d9c74734fc651d6f3f589885b6d3bfd928205dfa",
+            "57d4f2039d1e19b3be1cbd7e89c463094eb632ad1d2f4bb6429b85281ea150b1",
+            "3cba1398bb5889697e5a865806609583eea6dc9469787c937796f5f7a68cdef4",
+            "a7f02091c961590190077ff937258a952e2abfdbc97a4dbe02f4f9184a9bc245",
+            "cc35fa312b78d3a302858335879ad27ce31344fca47ec0e2bc73d930f646e906",
+            "aead5c7e054a722692ed8cc8f5186677d3a42ee1b1c36189ff9a5582ff10e8e4",
+            "ddb22fefe7b7a2edee1adaa5c678466e90b0bf64ba02c7b0cab235bad447f2a6",
+            "65ec976ebf33267aa99ead5f7abd09894acc1553b2cd40b6293939cbb695c3c4",
+            "7fd61261386f92607a2381aac8ab2b8f1169dc67243c778a2ae0d8de62a0e294",
+            "0e32e970dbb6b5e28eaa97a569ce683c17a7f60d6a9ce2c5f0f9bd3ba853cef1",
+            "a174fa2170a5c79f8a1d93bc4235ff95956e30df0f05712962e04d8e014ddfcf",
+            "d850b866b32c4967e29370f4667f5de2a4a778e2acc9879b08d1d5738a9d8190",
+            "98f38f438e107c30ea2902df3dcf94247ab6316b465cb5d31efb43bc8bd23dcc",
+            "dad57d0015afb9dc5f8af0afd0cc6aab966b50729514833b08e405e48588fac0"
+          ],
+          "fixed_zero_delta_gain": 0.25,
+          "control_mode": "bounded_observation"
+        }
+      }
+    },
+    "official_v23l": {
+      "architecture": "unmodified ncps.torch.CfC dense/default/lecun_tanh/48x1",
+      "external_post_state_adapter": {
+        "kind": "positive_dt_fixed_retention_zero_delta_density_weighted_multiplicity",
+        "state_equation_owner": "official ncps.torch.CfC plus external post-state adapter",
+        "applies_to": {
+          "positive_delta_at_second_precision": "h=(1-alpha)*h_previous+alpha*h_official; alpha=1-exp(-dt/fixed_tau_seconds)",
+          "zero_delta_at_second_precision": "h=(1-alpha_k)*h_previous+alpha_k*h_official; alpha_k=min(zero_delta_gain*k,3*zero_delta_gain)",
+          "first_event_no_predecessor": "h=h_official"
+        },
+        "fixed_tau_seconds": 15.025,
+        "zero_delta_gain": 0.25,
+        "causal_same_second_ordinal": "first/positive set k=1; each zero_delta increments k; padding does not advance k",
+        "gain_schedule": "0.25, 0.50, 0.75 for k=1,2,>=3 when zero_delta_gain=0.25",
+        "trainable_parameter_count": 0,
+        "composition": "reason-disjoint fixed positive-dt retention plus zero-delta density weighting"
+      },
+      "positive_delta": "fixed tau=15.025 retention",
+      "zero_delta": "alpha_k=min(0.25*k,0.75)",
+      "first_event": "official state without external interpolation"
+    }
+  },
+  "shared_protocol": {
+    "source_feature_cache": "V21e causal-prefix course circular incoherence; evidence_dim=1",
+    "source_data_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+    "source_normalization": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json",
+    "training_split": "V21 known-only train",
+    "development_split": "V21 known-only validation",
+    "train_parent_count": 986,
+    "development_parent_count": 232,
+    "development_clutter_parent_support": 9,
+    "batch_size": 2,
+    "optimizer": "AdamW unchanged from V21e/V23g",
+    "learning_rate": 0.0001,
+    "class_weights": [
+      0.5173137460650578,
+      14.93939393939394
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "seed": 43,
+    "epochs": 20,
+    "checkpoint_selector": {
+      "schema_version": "RADAR-LN3-V23e-parent-balanced-checkpoint-selector-v1",
+      "name": "V23e_parent_final_and_parent_balanced_eligible_prefix_selector",
+      "source_v23a_legacy_reference_epoch": 14
+    },
+    "parent_order": "each V23l epoch exactly equals completed V23g density arm"
+  },
+  "only_architecture_difference_between_arms": [
+    "self-developed recurrent state equation versus official ncps.torch.CfC state equation",
+    "official arm represents matching positive-dt fixed retention externally because official CfC has no project learned tau"
+  ],
+  "explicitly_not_added": [
+    "weight decay change",
+    "optimizer change",
+    "learning-rate warmup",
+    "gradient-clip change",
+    "OOD objective",
+    "attention",
+    "new loss",
+    "new feature",
+    "data rebuild",
+    "dt cap",
+    "recurrent LayerNorm",
+    "per-dimension tau",
+    "custom candidate/gate inside official CfC"
+  ],
+  "train_same_second_exposure": {
+    "train": {
+      "labels": {
+        "DroneTarget": {
+          "parent_count": 476,
+          "zero_delta_event_count": 3318,
+          "density_exposed_parent_count": 217,
+          "maximum_causal_same_second_ordinal": 8
+        },
+        "BirdTarget": {
+          "parent_count": 239,
+          "zero_delta_event_count": 2009,
+          "density_exposed_parent_count": 144,
+          "maximum_causal_same_second_ordinal": 8
+        },
+        "ClutterTarget": {
+          "parent_count": 33,
+          "zero_delta_event_count": 0,
+          "density_exposed_parent_count": 0,
+          "maximum_causal_same_second_ordinal": 1
+        },
+        "BalloonTarget": {
+          "parent_count": 238,
+          "zero_delta_event_count": 1206,
+          "density_exposed_parent_count": 75,
+          "maximum_causal_same_second_ordinal": 8
+        }
+      },
+      "total": {
+        "parent_count": 986,
+        "zero_delta_event_count": 6533,
+        "density_exposed_parent_count": 436,
+        "maximum_causal_same_second_ordinal": 8
+      }
+    }
+  },
+  "interpretation_boundary": {
+    "development_same_second_effect": "deferred to post-training evaluation",
+    "comparison_is_development_known_gate_only": true,
+    "not_final_product_performance": true
+  },
+  "unknown_training_exposure": 0,
+  "OOF": "未执行",
+  "test": "未执行",
+  "L3": "未执行",
+  "full_cascade": "未执行",
+  "formal_rejection": "未执行",
+  "stable": "未执行",
+  "P95": "未执行",
+  "deployment_eligible": false
+}

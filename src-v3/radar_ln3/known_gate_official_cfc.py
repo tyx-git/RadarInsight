@@ -251,8 +251,12 @@ class OfficialCfCKnownGateClassifier(nn.Module):
 
     V23 deliberately reuses V21's ordinary TR/RD front end and output heads,
     but replaces the complete project-local recurrent core with dense official
-    ``ncps.torch.CfC``.  V23k may append only its registered two-dimensional
-    causal observation-intensity input to the ordinary fusion input.
+    ``ncps.torch.CfC``.  A registered experiment may retain the frozen
+    KnownGate evidence-cache columns and/or append V23k's two causal
+    observation-intensity columns.  The input regions are ordered as
+    ``base, observation_intensity, legacy_evidence`` so both V23k (base plus
+    two new zero-initialized columns) and V23l (base plus the already-frozen
+    V21e course column) preserve their respective source fusion layouts.
     """
 
     def __init__(
@@ -268,11 +272,11 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         model = config.model
         if model.rd_temporal_residual_dim != 0:
             raise ValueError("V23 official CfC excludes the rejected V22a residual branch")
-        if model.evidence_dim != 0:
-            raise ValueError("V23 official CfC baseline forbids legacy feature-cache evidence")
+        if model.evidence_dim < 0:
+            raise ValueError("V23 official CfC legacy evidence dimension is invalid")
         self.task_name = "known_gate"
         self.class_names = KNOWN_GATE_CLASS_NAMES
-        self.evidence_dim = 0
+        self.evidence_dim = int(model.evidence_dim)
         self.rd_temporal_residual_dim = 0
         self.observation_intensity_spec = observation_intensity_spec
         self.observation_intensity_dim = (
@@ -289,7 +293,11 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             model.rd_embedding_dim, aggregation_mode=model.rd_frame_aggregation
         )
         self.base_fusion_input_dim = model.hidden_dim + model.rd_embedding_dim + model.rd_quality_dim
-        self.fusion_input_dim = self.base_fusion_input_dim + self.observation_intensity_dim
+        self.fusion_input_dim = (
+            self.base_fusion_input_dim
+            + self.observation_intensity_dim
+            + self.evidence_dim
+        )
         self.fusion = nn.Sequential(
             KnownGateFusionLinear(
                 self.fusion_input_dim,
@@ -334,7 +342,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             else self.observation_intensity_spec.as_dict()
         )
 
-    def _evidence_input(
+    def _legacy_evidence_input(
         self,
         features: torch.Tensor | None,
         valid: torch.Tensor | None,
@@ -342,20 +350,38 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         leading_shape: tuple[int, ...],
         dtype: torch.dtype,
     ) -> torch.Tensor | None:
-        if self.observation_intensity_dim == 0:
+        if self.evidence_dim == 0:
             if features is not None or valid is not None:
-                raise ValueError("V23 baseline-shaped input must not include evidence")
+                raise ValueError("V23 baseline-shaped input must not include legacy evidence")
+            return None
+        expected = (*leading_shape, self.evidence_dim)
+        if features is None or valid is None or features.shape != expected or valid.shape != expected:
+            raise ValueError("V23 official CfC legacy evidence value/valid shape is invalid")
+        if valid.dtype != torch.bool or not torch.isfinite(features).all():
+            raise ValueError("V23 official CfC legacy evidence must be finite with boolean validity")
+        if bool((features < 0.0).any()) or bool((features > 1.0).any()):
+            raise ValueError("V23 official CfC legacy evidence must be bounded to [0,1]")
+        if bool((features.masked_select(~valid) != 0).any()):
+            raise ValueError("V23 invalid legacy evidence must be exactly zero")
+        return features * valid.to(dtype=dtype)
+
+    def _observation_intensity_input(
+        self,
+        features: torch.Tensor | None,
+        *,
+        leading_shape: tuple[int, ...],
+        dtype: torch.dtype,
+    ) -> torch.Tensor | None:
+        if self.observation_intensity_dim == 0:
+            if features is not None:
+                raise ValueError("V23 baseline-shaped input must not include observation intensity")
             return None
         expected = (*leading_shape, self.observation_intensity_dim)
-        if features is None or valid is None or features.shape != expected or valid.shape != expected:
-            raise ValueError("V23 official CfC evidence value/valid shape is invalid")
-        if valid.dtype != torch.bool or not torch.isfinite(features).all():
-            raise ValueError("V23 official CfC evidence must be finite with boolean validity")
-        if bool((features < 0.0).any()):
-            raise ValueError("V23 official CfC observation-intensity evidence must be non-negative")
-        if bool((features.masked_select(~valid) != 0).any()):
-            raise ValueError("V23 invalid evidence must be exactly zero")
-        return features * valid.to(dtype=dtype)
+        if features is None or features.shape != expected:
+            raise ValueError("V23 official CfC observation-intensity shape is invalid")
+        if not torch.isfinite(features).all() or bool((features < 0.0).any()):
+            raise ValueError("V23 official CfC observation intensity must be finite and non-negative")
+        return features.to(dtype=dtype)
 
     def _point_events(
         self,
@@ -367,6 +393,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         rd_quality: torch.Tensor,
         known_gate_features: torch.Tensor | None,
         known_gate_feature_valid: torch.Tensor | None,
+        observation_intensity_features: torch.Tensor | None = None,
         leading_shape: tuple[int, ...],
     ) -> torch.Tensor:
         tr_embedding = self.tr_encoder(torch.cat([tr_features, tr_missing_mask], dim=-1))
@@ -379,7 +406,14 @@ class OfficialCfCKnownGateClassifier(nn.Module):
         else:
             raise ValueError("V23 official CfC TR features must be rank 2 or 3")
         inputs = [tr_embedding, rd_embedding, rd_quality]
-        evidence = self._evidence_input(
+        observation_intensity = self._observation_intensity_input(
+            observation_intensity_features,
+            leading_shape=leading_shape,
+            dtype=tr_features.dtype,
+        )
+        if observation_intensity is not None:
+            inputs.append(observation_intensity)
+        evidence = self._legacy_evidence_input(
             known_gate_features,
             known_gate_feature_valid,
             leading_shape=leading_shape,
@@ -424,9 +458,13 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             for value in (tr_features, tr_missing_mask, tr_dt_seconds, rd_frames, rd_quality)
         ):
             raise ValueError("V23 official CfC model received a non-finite base input")
+        observation_intensity_features: torch.Tensor | None = None
+        if known_gate_feature_valid is not None and bool(
+            known_gate_feature_valid.masked_select(tr_padding_mask.unsqueeze(-1)).any()
+        ):
+            raise ValueError("V23 padded events contain valid legacy evidence")
         if self.observation_intensity_spec is None:
-            if known_gate_features is not None or known_gate_feature_valid is not None:
-                raise ValueError("V23 without intensity spec must not receive observation intensity")
+            observation_intensity_features = None
         else:
             expected_features, _final_intensity = causal_observation_intensity_sequence(
                 spec=self.observation_intensity_spec,
@@ -437,24 +475,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
                 rd_frame_mask=rd_frame_mask,
                 padding_mask=tr_padding_mask,
             )
-            expected_valid = (~tr_padding_mask).unsqueeze(-1).expand_as(expected_features)
-            if known_gate_features is None and known_gate_feature_valid is None:
-                known_gate_features = expected_features
-                known_gate_feature_valid = expected_valid
-            elif (
-                known_gate_features is None
-                or known_gate_feature_valid is None
-                or known_gate_features.shape != expected_features.shape
-                or known_gate_feature_valid.shape != expected_valid.shape
-                or known_gate_feature_valid.dtype != torch.bool
-                or not torch.equal(known_gate_feature_valid, expected_valid)
-                or not torch.allclose(known_gate_features, expected_features, atol=1.0e-6, rtol=1.0e-6)
-            ):
-                raise ValueError("V23k supplied observation-intensity input differs from the causal contract")
-        if known_gate_feature_valid is not None and bool(
-            known_gate_feature_valid.masked_select(tr_padding_mask.unsqueeze(-1)).any()
-        ):
-            raise ValueError("V23 padded events contain valid observation-intensity evidence")
+            observation_intensity_features = expected_features
         point_events = self._point_events(
             tr_features=tr_features,
             tr_missing_mask=tr_missing_mask,
@@ -463,6 +484,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             rd_quality=rd_quality,
             known_gate_features=known_gate_features,
             known_gate_feature_valid=known_gate_feature_valid,
+            observation_intensity_features=observation_intensity_features,
             leading_shape=tuple(tr_features.shape[:2]),
         )
         state = self.liquid(
@@ -525,8 +547,9 @@ class OfficialCfCKnownGateClassifier(nn.Module):
     ) -> dict[str, torch.Tensor]:
         if tr_features.ndim != 2 or tr_missing_mask.ndim != 2 or rd_quality.ndim != 2:
             raise ValueError("V23 online TR/RD-quality tensors must be rank 2")
+        observation_intensity_features: torch.Tensor | None = None
         if self.observation_intensity_spec is None:
-            if known_gate_features is not None or known_gate_feature_valid is not None or observation_intensity_state is not None:
+            if observation_intensity_state is not None:
                 raise ValueError("V23 without intensity spec must not receive observation intensity state")
             next_observation_intensity_state = None
         else:
@@ -555,20 +578,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
                 rd_frame_mask=rd_frame_mask,
                 previous_state=observation_intensity_state,
             )
-            expected_valid = torch.ones_like(expected_features, dtype=torch.bool)
-            if known_gate_features is None and known_gate_feature_valid is None:
-                known_gate_features = expected_features
-                known_gate_feature_valid = expected_valid
-            elif (
-                known_gate_features is None
-                or known_gate_feature_valid is None
-                or known_gate_features.shape != expected_features.shape
-                or known_gate_feature_valid.shape != expected_valid.shape
-                or known_gate_feature_valid.dtype != torch.bool
-                or not torch.equal(known_gate_feature_valid, expected_valid)
-                or not torch.allclose(known_gate_features, expected_features, atol=1.0e-6, rtol=1.0e-6)
-            ):
-                raise ValueError("V23k online observation-intensity input differs from the causal contract")
+            observation_intensity_features = expected_features
         point_event = self._point_events(
             tr_features=tr_features,
             tr_missing_mask=tr_missing_mask,
@@ -577,6 +587,7 @@ class OfficialCfCKnownGateClassifier(nn.Module):
             rd_quality=rd_quality,
             known_gate_features=known_gate_features,
             known_gate_feature_valid=known_gate_feature_valid,
+            observation_intensity_features=observation_intensity_features,
             leading_shape=(tr_features.shape[0],),
         )
         state, dt_clamped, dt_zero = self.liquid.step(
