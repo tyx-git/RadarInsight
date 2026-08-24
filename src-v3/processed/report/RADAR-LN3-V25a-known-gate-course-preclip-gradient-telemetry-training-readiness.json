@@ -1,0 +1,138 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-training-readiness-v1",
+  "variant": "v25a_course_preclip_gradient_telemetry",
+  "checks": {
+    "v24_initial_model_state_reconstructs_exactly": true,
+    "v25a_initial_model_state_exactly_matches_v24": true,
+    "v25a_is_fresh_training_not_checkpoint_finetune": true,
+    "v24_course_cache_is_reused_byte_for_byte": true,
+    "model_loss_optimizer_dt_and_checkpoint_rule_are_frozen_to_v24": true,
+    "adamw_default_weight_decay_and_global_clip_are_frozen_to_v24": true,
+    "all_twenty_v24_parent_order_hashes_are_bound": true,
+    "telemetry_is_preclip_read_only_and_uses_no_raw_parent_ids": true,
+    "raw_mat_rd_and_test_payload_access_are_zero": true,
+    "validation_values_are_not_a_readiness_gate": true,
+    "unknown_is_excluded_from_training": true,
+    "full_20_epoch_training_is_required": true
+  },
+  "config": {
+    "path": "config/RADAR-LN3/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-config.json",
+    "sha256": "d6b4907fae0948f1336596630ba44f50a8f0e80927559d50757b1259460cd454"
+  },
+  "feature_manifest_path": "data/processed/RADAR-LN3-V25a-cq08-known-gate-course-preclip-gradient-telemetry-feature-cache-manifest.json",
+  "feature_manifest_sha256": "b294e2366feef15409a6cb97f23d7e28a2d8e2c3c27b0958a6abe124d73f8d89",
+  "contract_path": "data/processed/RADAR-LN3-V25a-cq08-known-gate-course-preclip-gradient-telemetry-contract.json",
+  "contract_sha256": "b9291af45656861b956943f7babb835e4f7b154e16d1459f72e240ff43b4cf68",
+  "contract_hashes": {
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "feature_manifest_sha256": "b294e2366feef15409a6cb97f23d7e28a2d8e2c3c27b0958a6abe124d73f8d89",
+    "train_feature_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_feature_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "experiment_contract_sha256": "b9291af45656861b956943f7babb835e4f7b154e16d1459f72e240ff43b4cf68"
+  },
+  "source_v24": {
+    "config": "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-config.json",
+    "config_sha256": "46352be271ac7f92e8c3ab4f3fbb1aa44d1b508ca802cc815241ca48c000cf8a",
+    "readiness": "src-v3/processed/report/RADAR-LN3-V24-known-gate-course-reason-aware-baseline-training-readiness.json",
+    "readiness_sha256": "947b989e1752f35a037bd2e56d6a21ddccda850644cba159d5d68afbf8c29bf7",
+    "feature_manifest": "data/processed/RADAR-LN3-V24-cq08-known-gate-course-reason-aware-baseline-feature-cache-manifest.json",
+    "feature_manifest_sha256": "4fa564f9740dc3b5e8174a381aef94897de978549cc26189b0fca52130503b7d",
+    "summary": "artifacts/RADAR-LN3-V24-cq08-liquid-known-gate-course-reason-aware-baseline-seed43-formal/training-summary.json",
+    "summary_sha256": "a783a613bc1fbdb74d6d3963f3a6ff3f5e2d342209634e7dc8433eb3b381bc7e",
+    "trained_checkpoint_loaded": false,
+    "trained_checkpoint_accessed": false,
+    "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "epoch_parent_order_hashes": {
+      "1": "f58bea134b1853980d914201d231070798a09aff5383e58f2065c0ede06e34df",
+      "2": "bad92c072248c53c1a1e07909602c44bfaf6f9f1c182c309a1fa81e09e6a1244",
+      "3": "d7a3bde89f78a13c42060bcda7f510dd08c248a7e52a2e6b38a40e26a0e210cb",
+      "4": "8ecf28f4936f29aadfe006d6c80ed34bec27405993d7ddd9e73bd8cb637c34d6",
+      "5": "76ae1baf46f894931e3639cdc8901a358d3868656802b7018559c465987bd4ce",
+      "6": "a2857b54a4a95a71db1d893cdf7183872dd6803e498543a6458d67be70c299b4",
+      "7": "2ac24c2573be9cae46ff29e4d9c74734fc651d6f3f589885b6d3bfd928205dfa",
+      "8": "57d4f2039d1e19b3be1cbd7e89c463094eb632ad1d2f4bb6429b85281ea150b1",
+      "9": "3cba1398bb5889697e5a865806609583eea6dc9469787c937796f5f7a68cdef4",
+      "10": "a7f02091c961590190077ff937258a952e2abfdbc97a4dbe02f4f9184a9bc245",
+      "11": "cc35fa312b78d3a302858335879ad27ce31344fca47ec0e2bc73d930f646e906",
+      "12": "aead5c7e054a722692ed8cc8f5186677d3a42ee1b1c36189ff9a5582ff10e8e4",
+      "13": "ddb22fefe7b7a2edee1adaa5c678466e90b0bf64ba02c7b0cab235bad447f2a6",
+      "14": "65ec976ebf33267aa99ead5f7abd09894acc1553b2cd40b6293939cbb695c3c4",
+      "15": "7fd61261386f92607a2381aac8ab2b8f1169dc67243c778a2ae0d8de62a0e294",
+      "16": "0e32e970dbb6b5e28eaa97a569ce683c17a7f60d6a9ce2c5f0f9bd3ba853cef1",
+      "17": "a174fa2170a5c79f8a1d93bc4235ff95956e30df0f05712962e04d8e014ddfcf",
+      "18": "d850b866b32c4967e29370f4667f5de2a4a778e2acc9879b08d1d5738a9d8190",
+      "19": "98f38f438e107c30ea2902df3dcf94247ab6316b465cb5d31efb43bc8bd23dcc",
+      "20": "dad57d0015afb9dc5f8af0afd0cc6aab966b50729514833b08e405e48588fac0"
+    },
+    "fresh_initialization_reference": {
+      "config": "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json",
+      "config_sha256": "c07061dc728511691f82098325ffa8897a2e36ebaf8bfcd4e0f1cd210c7f4dab",
+      "summary": "artifacts/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-formal/training-summary.json",
+      "summary_sha256": "94fa0756e13f33fd2e61063758e10cd103b11051e515c68f69334b7a07d7ac31",
+      "initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128"
+    }
+  },
+  "initialization": {
+    "v24_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "v25a_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+    "paired_v21_seed43_baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+    "initial_model_state_exactly_matches_v24": true,
+    "paired_baseline_state_exactly_matches_v21_seed43_baseline": true,
+    "course_fusion_column_exactly_zero": true,
+    "fresh_training_not_finetune": true,
+    "trained_v24_checkpoint_loaded": false,
+    "trained_v24_checkpoint_accessed": false
+  },
+  "source_v24_initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877",
+  "paired_v21_seed43_baseline_initial_model_state_sha256": "f82054b69fe896c9bedb65a8e356a3144186afd1dbfe1e491f937abb82c10128",
+  "telemetry_schema": {
+    "schema_version": "RADAR-LN3-V25a-known-gate-preclip-gradient-batch-telemetry-v1",
+    "capture_timing": "after_loss_backward_before_existing_global_norm_clip",
+    "module_partition": [
+      "tr_encoder",
+      "rd_encoder",
+      "fusion",
+      "liquid",
+      "classifier"
+    ],
+    "raw_parent_sample_ids_stored": false,
+    "changes_gradients": false,
+    "changes_optimizer": false,
+    "changes_loss": false,
+    "changes_data_order": false,
+    "epoch_boundary_resume_only": true
+  },
+  "cache_statistics": {
+    "train": {
+      "event_count": 18923,
+      "feature_width": 1,
+      "valid_value_count": 15965,
+      "invalid_value_count": 2958,
+      "valid_value_fraction": 0.8436822913914285
+    },
+    "val": {
+      "event_count": 4452,
+      "feature_width": 1,
+      "valid_value_count": 3756,
+      "invalid_value_count": 696,
+      "valid_value_fraction": 0.8436657681940701
+    }
+  },
+  "known_train_parent_count": 986,
+  "known_validation_parent_count": 232,
+  "validation_clutter_parent_support": 9,
+  "unknown_training_exposure": 0,
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "not_executed",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

@@ -52,6 +52,10 @@ V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT = "v24a_course_rd_peak_drift_mean"
 # V24c deliberately reuses V24's only adopted causal-course input.  Its sole
 # variable is the reason-aware liquid update at same-second observations.
 V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT = "v24c_course_strict_same_second_skip"
+# V25a is a fresh V24 replication whose only added behavior is read-only
+# pre-clip gradient telemetry in the trainer.  It intentionally keeps the
+# one adopted causal-course column and does not introduce a model feature.
+V25A_GRADIENT_TELEMETRY_VARIANT = "v25a_course_preclip_gradient_telemetry"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -120,12 +124,15 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
         COURSE_RD_PEAK_DRIFT_MEAN_FEATURE_NAMES
     ),
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V25A_GRADIENT_TELEMETRY_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
-FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
-    variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
-    for variant, names in FEATURE_NAMES_BY_VARIANT.items()
-    if variant
-    not in {
+# These variants store an already-selected feature matrix rather than the
+# original canonical KnownGate feature matrix.  They must therefore use
+# cache-local column positions (0..width-1), not canonical feature indices.
+# Keep this set shared by index construction and cache loading: a mismatch
+# silently turns a reuse-only variant into a KeyError at Dataset construction.
+SELECTED_CACHE_VARIANTS = frozenset(
+    {
         V21A_INTERFRAME_VARIANT,
         V21D_PREFIX_VARIANT,
         V21E_COURSE_PREFIX_VARIANT,
@@ -136,7 +143,13 @@ FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
         V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
         V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
         V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
+        V25A_GRADIENT_TELEMETRY_VARIANT,
     }
+)
+FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
+    variant: tuple(KNOWN_GATE_FEATURE_NAMES.index(name) for name in names)
+    for variant, names in FEATURE_NAMES_BY_VARIANT.items()
+    if variant not in SELECTED_CACHE_VARIANTS
 }
 MODAL_DEVIATION_CLIP_MPS = 85.0
 D_RANGE_STD_CLIP_M = 75.0
@@ -578,18 +591,7 @@ def load_known_gate_feature_cache(
         raise ValueError(f"unsupported KnownGate feature variant: {variant!r}") from exc
     if not feature_names:
         raise ValueError("baseline KnownGate does not load a feature cache")
-    if variant_name in {
-        V21A_INTERFRAME_VARIANT,
-        V21D_PREFIX_VARIANT,
-        V21E_COURSE_PREFIX_VARIANT,
-        V21F_COURSE_INTERFRAME_VARIANT,
-        V21H_COURSE_ISO_VARIANT,
-        V21I_COURSE_D_RANGE_VARIANT,
-        V22A_RD_TEMPORAL_RESIDUAL_VARIANT,
-        V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
-        V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
-        V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
-    }:
+    if variant_name in SELECTED_CACHE_VARIANTS:
         cache_width = len(feature_names)
         indices = tuple(range(cache_width))
     else:
@@ -690,6 +692,7 @@ __all__ = [
     "MODAL_FEATURE_NAMES",
     "SPECTRAL_FEATURE_NAMES",
     "SPECTRAL_TEMPORAL_CONSISTENCY",
+    "SELECTED_CACHE_VARIANTS",
     "TARGET_ROW_ISO",
     "V21A_VARIANT",
     "V21A_INTERFRAME_VARIANT",
@@ -705,6 +708,7 @@ __all__ = [
     "V24_COURSE_REASON_AWARE_BASELINE_VARIANT",
     "V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT",
     "V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT",
+    "V25A_GRADIENT_TELEMETRY_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction",

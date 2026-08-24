@@ -42,10 +42,14 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V24C_EXPERIMENT_SCHEMA,
     KNOWN_GATE_V24C_MANIFEST_SCHEMA,
     KNOWN_GATE_V24C_READINESS_SCHEMA,
+    KNOWN_GATE_V25A_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V25A_MANIFEST_SCHEMA,
+    KNOWN_GATE_V25A_READINESS_SCHEMA,
     V22A_SCHEMA_VERSION,
     V24_SCHEMA_VERSION,
     V24A_SCHEMA_VERSION,
     V24C_SCHEMA_VERSION,
+    V25A_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -74,6 +78,7 @@ from radar_ln3.known_gate_features import (
     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
+    V25A_GRADIENT_TELEMETRY_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -151,6 +156,10 @@ V24A_READINESS_RELATIVE = Path(
 V24C_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-training-readiness.json"
+)
+V25A_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-training-readiness.json"
 )
 
 
@@ -416,6 +425,7 @@ def _verify_contract(
             V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
+            V25A_GRADIENT_TELEMETRY_VARIANT,
         }:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
@@ -439,6 +449,7 @@ def _verify_contract(
             is_v24c = (
                 config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
             )
+            is_v25a = config.variant == V25A_GRADIENT_TELEMETRY_VARIANT
             expected_manifest_schema = (
                 KNOWN_GATE_V24A_MANIFEST_SCHEMA
                 if is_v24a
@@ -446,9 +457,13 @@ def _verify_contract(
                     KNOWN_GATE_V24C_MANIFEST_SCHEMA
                     if is_v24c
                     else (
-                        KNOWN_GATE_V24_MANIFEST_SCHEMA
-                        if is_v24
-                        else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                        KNOWN_GATE_V25A_MANIFEST_SCHEMA
+                        if is_v25a
+                        else (
+                            KNOWN_GATE_V24_MANIFEST_SCHEMA
+                            if is_v24
+                            else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                        )
                     )
                 )
             )
@@ -464,11 +479,15 @@ def _verify_contract(
                     KNOWN_GATE_V24C_EXPERIMENT_SCHEMA
                     if is_v24c
                     else (
-                        KNOWN_GATE_V24_EXPERIMENT_SCHEMA
-                        if is_v24
+                        KNOWN_GATE_V25A_EXPERIMENT_SCHEMA
+                        if is_v25a
                         else (
-                            "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
-                            "experiment-contract-v1"
+                            KNOWN_GATE_V24_EXPERIMENT_SCHEMA
+                            if is_v24
+                            else (
+                                "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+                                "experiment-contract-v1"
+                            )
                         )
                     )
                 )
@@ -480,14 +499,20 @@ def _verify_contract(
                     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
                     if is_v24c
                     else (
-                        V24_COURSE_REASON_AWARE_BASELINE_VARIANT
-                        if is_v24
-                        else V21E_COURSE_PREFIX_VARIANT
+                        V25A_GRADIENT_TELEMETRY_VARIANT
+                        if is_v25a
+                        else (
+                            V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+                            if is_v24
+                            else V21E_COURSE_PREFIX_VARIANT
+                        )
                     )
                 )
             )
             expected_not_executed = (
-                "not_executed" if (is_v24 or is_v24a or is_v24c) else "未执行"
+                "not_executed"
+                if (is_v24 or is_v24a or is_v24c or is_v25a)
+                else "未执行"
             )
             if (
                 not experiment_path.is_file()
@@ -532,10 +557,11 @@ def _verify_contract(
                     not is_v24
                     and not is_v24a
                     and not is_v24c
+                    and not is_v25a
                     and experiment.get("post_hoc_feature_discovery") is not True
                 )
                 or (
-                    (is_v24 or is_v24a or is_v24c)
+                    (is_v24 or is_v24a or is_v24c or is_v25a)
                     and experiment.get("fresh_training_not_finetune") is not True
                 )
                 or experiment.get("test") != expected_not_executed
@@ -798,6 +824,7 @@ def _verify_contract(
                     V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
                     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
+                    V25A_GRADIENT_TELEMETRY_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -831,6 +858,7 @@ def _verify_contract(
                             V24_COURSE_REASON_AWARE_BASELINE_VARIANT,
                             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
                             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
+                            V25A_GRADIENT_TELEMETRY_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -1040,6 +1068,176 @@ def _verify_readiness(
             "paired_seed43_baseline_initial_model_state_sha256": str(
                 source.get("initial_model_state_sha256", "")
             ),
+            "validation_used_for_readiness_gate": False,
+            "test": "not_executed",
+        }
+    if config.variant == V25A_GRADIENT_TELEMETRY_VARIANT:
+        path = (root / V25A_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V25a formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        source = dict(report.get("source_v24") or {})
+        source_reference = dict(source.get("fresh_initialization_reference") or {})
+        telemetry_schema = dict(report.get("telemetry_schema") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        experiment_contract_path = _resolve(
+            root, config.data.feature_experiment_contract_path or ""
+        )
+        source_config_path = _resolve(
+            root, config.train.paired_baseline_config_path or ""
+        )
+        sealed_v24_config_path = _resolve(root, str(source.get("config", "")))
+        sealed_v24_readiness_path = _resolve(root, str(source.get("readiness", "")))
+        sealed_v24_manifest_path = _resolve(
+            root, str(source.get("feature_manifest", ""))
+        )
+        source_reference_summary_path = _resolve(
+            root, str(source_reference.get("summary", ""))
+        )
+        source_reference_summary = (
+            json.loads(source_reference_summary_path.read_text(encoding="utf-8"))
+            if source_reference_summary_path.is_file()
+            else {}
+        )
+        source_summary_path = _resolve(root, str(source.get("summary", "")))
+        source_summary = (
+            json.loads(source_summary_path.read_text(encoding="utf-8"))
+            if source_summary_path.is_file()
+            else {}
+        )
+        source_orders = list(
+            dict(source_summary.get("dataloader_contract") or {}).get(
+                "epoch_parent_order_hashes"
+            )
+            or ()
+        )
+        expected_orders = {
+            str(index): str(row.get("sha256", ""))
+            for index, row in enumerate(source_orders, start=1)
+        }
+        actual_required = {
+            "index_sha256": contract_evidence["hashes"]["index_sha256"],
+            "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+            "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+            "feature_manifest_sha256": cache_hashes.get("manifest"),
+            "train_feature_cache_sha256": cache_hashes.get("train"),
+            "validation_feature_cache_sha256": cache_hashes.get("validation"),
+            "experiment_contract_sha256": contract_evidence["hashes"].get(
+                "feature_experiment_contract_sha256"
+            ),
+        }
+        expected_hashes = dict(report.get("contract_hashes") or {})
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V25A_READINESS_SCHEMA
+            or not checks
+            or not all(value is True for value in checks.values())
+            or _resolve(root, str(binding.get("path", ""))) != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or any(
+                expected_hashes.get(key) != value
+                for key, value in actual_required.items()
+            )
+            or _resolve(root, str(report.get("feature_manifest_path", "")))
+            != _resolve(root, str(cache_paths.get("manifest", "")))
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or _resolve(root, str(report.get("contract_path", "")))
+            != experiment_contract_path
+            or report.get("contract_sha256")
+            != actual_required["experiment_contract_sha256"]
+            or source_config_path != _resolve(
+                root, "config/RADAR-LN3/RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json"
+            )
+            or not source_config_path.is_file()
+            or sealed_v24_config_path
+            != _resolve(
+                root,
+                "config/RADAR-LN3/RADAR-LN3-V24-cq08-liquid-known-gate-course-"
+                "reason-aware-baseline-seed43-config.json",
+            )
+            or not sealed_v24_config_path.is_file()
+            or source.get("config_sha256") != sha256_file(sealed_v24_config_path)
+            or not sealed_v24_readiness_path.is_file()
+            or source.get("readiness_sha256") != sha256_file(sealed_v24_readiness_path)
+            or not sealed_v24_manifest_path.is_file()
+            or source.get("feature_manifest_sha256")
+            != sha256_file(sealed_v24_manifest_path)
+            or _resolve(root, str(source_reference.get("config", "")))
+            != source_config_path
+            or source_reference.get("config_sha256") != sha256_file(source_config_path)
+            or not source_reference_summary_path.is_file()
+            or source_reference.get("summary_sha256")
+            != sha256_file(source_reference_summary_path)
+            or source_reference_summary.get("status") != "completed"
+            or source_reference_summary.get("variant") != BASELINE_VARIANT
+            or int(source_reference_summary.get("seed", -1)) != 43
+            or len(list(source_reference_summary.get("history") or ())) != 20
+            or source_reference.get("initial_model_state_sha256")
+            != source_reference_summary.get("initial_model_state_sha256")
+            or not str(source_reference.get("initial_model_state_sha256", ""))
+            or not source_summary_path.is_file()
+            or source.get("summary_sha256") != sha256_file(source_summary_path)
+            or source_summary.get("status") != "completed"
+            or source_summary.get("variant")
+            != V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+            or int(source_summary.get("seed", -1)) != 43
+            or len(list(source_summary.get("history") or ())) != 20
+            or len(source_orders) != 20
+            or source.get("initial_model_state_sha256")
+            != source_summary.get("initial_model_state_sha256")
+            or not str(source.get("initial_model_state_sha256", ""))
+            or dict(source.get("epoch_parent_order_hashes") or {}) != expected_orders
+            or any(not value for value in expected_orders.values())
+            or source.get("trained_checkpoint_loaded") is not False
+            or source.get("trained_checkpoint_accessed") is not False
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_parent_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or telemetry_schema.get("schema_version")
+            != "RADAR-LN3-V25a-known-gate-preclip-gradient-batch-telemetry-v1"
+            or telemetry_schema.get("capture_timing")
+            != "after_loss_backward_before_existing_global_norm_clip"
+            or telemetry_schema.get("module_partition")
+            != ["tr_encoder", "rd_encoder", "fusion", "liquid", "classifier"]
+            or telemetry_schema.get("raw_parent_sample_ids_stored") is not False
+            or telemetry_schema.get("changes_gradients") is not False
+            or telemetry_schema.get("changes_optimizer") is not False
+            or telemetry_schema.get("changes_loss") is not False
+            or telemetry_schema.get("changes_data_order") is not False
+            or telemetry_schema.get("epoch_boundary_resume_only") is not True
+            or int(report.get("test_payload_access_count", -1)) != 0
+            or report.get("formal_training") != "not_executed"
+            or report.get("OOF") != "not_executed"
+            or report.get("test") != "not_executed"
+            or report.get("formal_rejection") != "not_executed"
+            or report.get("full_cascade") != "not_executed"
+            or report.get("stable") != "not_executed"
+            or report.get("P95") != "not_executed"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError(
+                "V25a readiness is missing, stale, failed or outside the sealed contract"
+            )
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V25A_READINESS_SCHEMA,
+            "status": "passed",
+            "source_v24_summary_path": str(source_summary_path),
+            "source_v24_summary_sha256": str(source.get("summary_sha256", "")),
+            "source_v24_initial_model_state_sha256": str(
+                source.get("initial_model_state_sha256", "")
+            ),
+            "paired_v21_seed43_baseline_initial_model_state_sha256": str(
+                source_reference.get("initial_model_state_sha256", "")
+            ),
+            "source_v24_epoch_parent_order_hashes": expected_orders,
             "validation_used_for_readiness_gate": False,
             "test": "not_executed",
         }
@@ -2183,6 +2381,27 @@ def train_known_gate(
                 ):
                     raise AssertionError(
                         "V24 current model initialization differs from the sealed fresh baseline protocol"
+                    )
+                paired_initialization[
+                    "sealed_v24_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "sealed_v24_initial_model_state_sha256"
+                ] = initial_state_sha256
+            if config.variant == V25A_GRADIENT_TELEMETRY_VARIANT:
+                baseline_initial_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if (
+                    initial_state_sha256
+                    != readiness.get("source_v24_initial_model_state_sha256")
+                    or baseline_initial_state
+                    != readiness.get(
+                        "paired_v21_seed43_baseline_initial_model_state_sha256"
+                    )
+                ):
+                    raise AssertionError(
+                        "V25a current model initialization differs from the frozen V24 protocol"
                     )
                 paired_initialization[
                     "sealed_v24_initial_model_state_reproduced"
