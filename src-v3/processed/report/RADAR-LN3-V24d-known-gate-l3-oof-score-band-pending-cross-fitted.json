@@ -1,0 +1,4237 @@
+{
+  "status": "completed_cross_fitted_oof_gate_failed",
+  "schema_version": "RADAR-LN3-V24d-known-gate-l3-oof-score-band-report-v1",
+  "experiment": "V24d L3 cross-fitted OOF score-band Pending calibration",
+  "scope": "known train provenance-grouped V21e treatment OOF only; no L1 retraining, validation, test, Unknown, full cascade, stable, rejection, or deployment",
+  "source_l1": {
+    "variant": "V21e causal-course treatment OOF; V24d reuses scores only",
+    "source_oof": {
+      "fold_contract": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-contract.json",
+      "fold_contract_sha256": "fa12369173643dab232885247a5e8ae1aaa0bf8fb4a799776a9d4695babbc4d5",
+      "assignment": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json",
+      "assignment_sha256": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7",
+      "treatment_report": "src-v3/processed/report/RADAR-LN3-V21e-known-gate-capture-content-grouped-oof-treatment.json",
+      "treatment_report_sha256": "04454cbd0237d64f5858184a16d37c2d8999a34b0d4ae07206a6683507f59104",
+      "folds": [
+        {
+          "fold_id": 0,
+          "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-00/treatment/held-out-predictions.json",
+          "prediction_sha256": "ed08f1d25f1d8cef0a5a7978002cfee1622e891d9fa7477dda8ad6546ed68d52",
+          "held_out_parent_count": 197,
+          "held_out_label_parent_counts": {
+            "DroneTarget": 95,
+            "BirdTarget": 48,
+            "BalloonTarget": 48,
+            "ClutterTarget": 6
+          }
+        },
+        {
+          "fold_id": 1,
+          "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-01/treatment/held-out-predictions.json",
+          "prediction_sha256": "ce4d6464efcdb5ca0e0fa00026ff04232f62069946d8a663b9676d227b3cf7c7",
+          "held_out_parent_count": 197,
+          "held_out_label_parent_counts": {
+            "DroneTarget": 95,
+            "BirdTarget": 48,
+            "BalloonTarget": 48,
+            "ClutterTarget": 6
+          }
+        },
+        {
+          "fold_id": 2,
+          "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-02/treatment/held-out-predictions.json",
+          "prediction_sha256": "4c75be662ca6cb40988b27bdae26d49718b867848777f070896dd69ba8f83a61",
+          "held_out_parent_count": 198,
+          "held_out_label_parent_counts": {
+            "DroneTarget": 95,
+            "BirdTarget": 48,
+            "BalloonTarget": 48,
+            "ClutterTarget": 7
+          }
+        },
+        {
+          "fold_id": 3,
+          "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-03/treatment/held-out-predictions.json",
+          "prediction_sha256": "cc5ced29a355d256e1c505674658ed8577f09030f9a421e90b2630ba3c47e1d4",
+          "held_out_parent_count": 197,
+          "held_out_label_parent_counts": {
+            "DroneTarget": 96,
+            "BirdTarget": 47,
+            "BalloonTarget": 47,
+            "ClutterTarget": 7
+          }
+        },
+        {
+          "fold_id": 4,
+          "prediction_path": "artifacts/RADAR-LN3-V21e-cq08-known-gate-causal-course-paired-oof/fold-04/treatment/held-out-predictions.json",
+          "prediction_sha256": "923e283d4a81e1ab3177c9286e686f1404798e015b6fdab2b6a74728802358f9",
+          "held_out_parent_count": 197,
+          "held_out_label_parent_counts": {
+            "DroneTarget": 95,
+            "BirdTarget": 48,
+            "BalloonTarget": 47,
+            "ClutterTarget": 7
+          }
+        }
+      ],
+      "parent_count": 986,
+      "label_parent_support": {
+        "DroneTarget": 476,
+        "BirdTarget": 239,
+        "BalloonTarget": 238,
+        "ClutterTarget": 33
+      },
+      "provenance_component_count": 975,
+      "raw_echo_payload_access_count": 0,
+      "mat_payload_access_count": 0,
+      "rd_tensor_payload_access_count": 0,
+      "validation_payload_access_count": 0,
+      "test_payload_access_count": 0,
+      "unknown_oof_prediction_count": 0
+    },
+    "source_binary_metrics_by_scope": {
+      "parent": {
+        "scope": "oof_treatment_parent",
+        "support": 986,
+        "accuracy": 0.9787018255578094,
+        "macro_precision": 0.8182506053268765,
+        "macro_recall": 0.9012210245158829,
+        "macro_f1": 0.8544649446494466,
+        "balanced_accuracy": 0.9012210245158829,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9936440677966102,
+            "recall": 0.9842602308499475,
+            "f1": 0.9889298892988929,
+            "support": 953,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 15
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6428571428571429,
+            "recall": 0.8181818181818182,
+            "f1": 0.7200000000000001,
+            "support": 33,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 6
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            938,
+            15
+          ],
+          [
+            6,
+            27
+          ]
+        ]
+      },
+      "window": {
+        "scope": "oof_treatment_window",
+        "support": 18923,
+        "accuracy": 0.9673941763990911,
+        "macro_precision": 0.7559227011022633,
+        "macro_recall": 0.8173031429170914,
+        "macro_f1": 0.782930151645219,
+        "balanced_accuracy": 0.8173031429170914,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9875145019612176,
+            "recall": 0.9785941092740611,
+            "f1": 0.9830340693485854,
+            "support": 18266,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 391
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.524330900243309,
+            "recall": 0.6560121765601218,
+            "f1": 0.5828262339418525,
+            "support": 657,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 226
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            17875,
+            391
+          ],
+          [
+            226,
+            431
+          ]
+        ]
+      },
+      "eligible_prefix": {
+        "scope": "oof_treatment_eligible_prefix",
+        "support": 15965,
+        "accuracy": 0.9679298465393047,
+        "macro_precision": 0.7604473540643754,
+        "macro_recall": 0.8192993083951738,
+        "macro_f1": 0.7865281406119683,
+        "balanced_accuracy": 0.8192993083951738,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9875613747954174,
+            "recall": 0.9791004089050431,
+            "f1": 0.9833126914803468,
+            "support": 15407,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 322
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5333333333333333,
+            "recall": 0.6594982078853047,
+            "f1": 0.5897435897435898,
+            "support": 558,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 190
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            15085,
+            322
+          ],
+          [
+            190,
+            368
+          ]
+        ]
+      }
+    }
+  },
+  "implementation_files_sha256": {
+    "src-v3/build/known_gate_v24d.py": "2b31786e3ad1ae73ebb03fd3bb45cb138a0fbf15e1fe9fbe817461c3ad2987f7",
+    "src-v3/report/known_gate_v24d.py": "2b62f89a9515abc836ee22f2d6d9b275a94a70fdecf67db289217662929db966",
+    "src-v3/smoke/known_gate_v24d_contract_test.py": "5289dd04cee32589a5341f0b22bc4e34cc7682e82ef3e231e831a5919b406969"
+  },
+  "l3_action_semantics": {
+    "raw_argmax_before_minimum_evidence": "PENDING_ABSTAIN",
+    "score_band_after_minimum_evidence": true,
+    "minimum_evidence_events": 3,
+    "actions": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE",
+      "PENDING_ABSTAIN"
+    ],
+    "unknown_action_present": false,
+    "pending_counts_as_unknown_rejection": false
+  },
+  "cross_fit_protocol": {
+    "fit_unit": "parent_final_OOF_only",
+    "outer_protocol": "leave_one_outer_fold_out",
+    "held_out_fold_labels_used_for_threshold_selection": false,
+    "prefix_or_window_labels_used_for_threshold_selection": false,
+    "candidate_space": {
+      "method": "all score decision-equivalence breakpoints",
+      "threshold_values": "unique parent-final OOF scores union {0.0, 1.0}",
+      "pair_rule": "strict t_target < t_clutter plus the single raw-argmax baseline (0.5, 0.5)",
+      "uses_approximation_grid": false
+    },
+    "selection_requirements": {
+      "known_clutter_action_precision": 0.9,
+      "known_clutter_acceptance_recall": 0.88,
+      "known_target_acceptance_recall": 0.98,
+      "overall_action_coverage": 0.95
+    },
+    "selection_direction_requirements": {
+      "known_target_to_clutter_rate_not_higher_than_raw": true,
+      "clutter_to_known_target_rate_not_higher_than_raw": true
+    },
+    "fold_thresholds": [
+      {
+        "fit_fold_ids": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              747.0,
+              15.0,
+              0.0
+            ],
+            [
+              3.0,
+              24.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9771863117870723,
+          "selective_accuracy": 0.9771863117870723,
+          "selective_risk": 0.022813688212927757,
+          "incorrect_accepted_action_rate": 0.022813688212927757,
+          "known_target_to_clutter_weight": 15.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.01968503937007874,
+          "clutter_to_known_target_rate": 0.1111111111111111,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 750.0,
+              "action_precision": 0.996,
+              "acceptance_recall": 0.9803149606299213,
+              "action_f1": 0.9880952380952381,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 39.0,
+              "action_precision": 0.6153846153846154,
+              "acceptance_recall": 0.8888888888888888,
+              "action_f1": 0.7272727272727274,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.996,
+          "known_target_acceptance_recall": 0.9803149606299213,
+          "known_target_action_f1": 0.9880952380952381,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6153846153846154,
+          "known_clutter_acceptance_recall": 0.8888888888888888,
+          "known_clutter_action_f1": 0.7272727272727274,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.8057971596717834,
+        "score_band_width": 0.21441811323165894,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.1503703703703705,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              751.0,
+              5.0,
+              6.0
+            ],
+            [
+              3.0,
+              22.0,
+              2.0
+            ]
+          ],
+          "overall_action_coverage": 0.9898605830164765,
+          "pending_abstain_rate": 0.010139416983523447,
+          "accepted_action_accuracy": 0.9797211660329531,
+          "selective_accuracy": 0.9897567221510883,
+          "selective_risk": 0.010243277848911651,
+          "incorrect_accepted_action_rate": 0.010139416983523447,
+          "known_target_to_clutter_weight": 5.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.006561679790026247,
+          "clutter_to_known_target_rate": 0.1111111111111111,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 754.0,
+              "action_precision": 0.9960212201591512,
+              "acceptance_recall": 0.9855643044619422,
+              "action_f1": 0.9907651715039578,
+              "pending_abstain_rate": 0.007874015748031496
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 27.0,
+              "action_precision": 0.8148148148148148,
+              "acceptance_recall": 0.8148148148148148,
+              "action_f1": 0.8148148148148148,
+              "pending_abstain_rate": 0.07407407407407407
+            }
+          ],
+          "known_target_action_precision": 0.9960212201591512,
+          "known_target_acceptance_recall": 0.9855643044619422,
+          "known_target_action_f1": 0.9907651715039578,
+          "known_target_pending_rate": 0.007874015748031496,
+          "known_clutter_action_precision": 0.8148148148148148,
+          "known_clutter_acceptance_recall": 0.8148148148148148,
+          "known_clutter_action_f1": 0.8148148148148148,
+          "known_clutter_pending_rate": 0.07407407407407407
+        },
+        "held_out_fold_id": 0,
+        "held_out_parent_support": 197
+      },
+      {
+        "fit_fold_ids": [
+          0,
+          2,
+          3,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              749.0,
+              13.0,
+              0.0
+            ],
+            [
+              6.0,
+              21.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9759188846641318,
+          "selective_accuracy": 0.9759188846641318,
+          "selective_risk": 0.024081115335868188,
+          "incorrect_accepted_action_rate": 0.024081115335868188,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.01706036745406824,
+          "clutter_to_known_target_rate": 0.2222222222222222,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 755.0,
+              "action_precision": 0.9920529801324504,
+              "acceptance_recall": 0.9829396325459318,
+              "action_f1": 0.9874752801582071,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 34.0,
+              "action_precision": 0.6176470588235294,
+              "acceptance_recall": 0.7777777777777778,
+              "action_f1": 0.6885245901639345,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9920529801324504,
+          "known_target_acceptance_recall": 0.9829396325459318,
+          "known_target_action_f1": 0.9874752801582071,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6176470588235294,
+          "known_clutter_acceptance_recall": 0.7777777777777778,
+          "known_clutter_action_f1": 0.6885245901639345,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.7023914456367493,
+        "score_band_width": 0.11101239919662476,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.2985185185185186,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              753.0,
+              7.0,
+              2.0
+            ],
+            [
+              6.0,
+              20.0,
+              1.0
+            ]
+          ],
+          "overall_action_coverage": 0.9961977186311787,
+          "pending_abstain_rate": 0.0038022813688212928,
+          "accepted_action_accuracy": 0.9797211660329531,
+          "selective_accuracy": 0.9834605597964376,
+          "selective_risk": 0.01653944020356234,
+          "incorrect_accepted_action_rate": 0.016476552598225603,
+          "known_target_to_clutter_weight": 7.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.009186351706036745,
+          "clutter_to_known_target_rate": 0.2222222222222222,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 759.0,
+              "action_precision": 0.9920948616600791,
+              "acceptance_recall": 0.9881889763779528,
+              "action_f1": 0.990138067061144,
+              "pending_abstain_rate": 0.0026246719160104987
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 27.0,
+              "action_precision": 0.7407407407407407,
+              "acceptance_recall": 0.7407407407407407,
+              "action_f1": 0.7407407407407407,
+              "pending_abstain_rate": 0.037037037037037035
+            }
+          ],
+          "known_target_action_precision": 0.9920948616600791,
+          "known_target_acceptance_recall": 0.9881889763779528,
+          "known_target_action_f1": 0.990138067061144,
+          "known_target_pending_rate": 0.0026246719160104987,
+          "known_clutter_action_precision": 0.7407407407407407,
+          "known_clutter_acceptance_recall": 0.7407407407407407,
+          "known_clutter_action_f1": 0.7407407407407407,
+          "known_clutter_pending_rate": 0.037037037037037035
+        },
+        "held_out_fold_id": 1,
+        "held_out_parent_support": 197
+      },
+      {
+        "fit_fold_ids": [
+          0,
+          1,
+          3,
+          4
+        ],
+        "fit_parent_support": 788,
+        "candidate_count": 311656,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 788,
+          "parent_support": 788,
+          "weighted_support": 788.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              749.0,
+              13.0,
+              0.0
+            ],
+            [
+              4.0,
+              22.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9784263959390863,
+          "selective_accuracy": 0.9784263959390863,
+          "selective_risk": 0.021573604060913704,
+          "incorrect_accepted_action_rate": 0.021573604060913704,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 4.0,
+          "known_target_to_clutter_rate": 0.01706036745406824,
+          "clutter_to_known_target_rate": 0.15384615384615385,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 753.0,
+              "action_precision": 0.9946879150066401,
+              "acceptance_recall": 0.9829396325459318,
+              "action_f1": 0.9887788778877888,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 35.0,
+              "action_precision": 0.6285714285714286,
+              "acceptance_recall": 0.8461538461538461,
+              "action_f1": 0.721311475409836,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9946879150066401,
+          "known_target_acceptance_recall": 0.9829396325459318,
+          "known_target_action_f1": 0.9887788778877888,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6285714285714286,
+          "known_clutter_acceptance_recall": 0.8461538461538461,
+          "known_clutter_action_f1": 0.721311475409836,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5341225862503052,
+        "clutter_threshold": 0.8988269567489624,
+        "score_band_width": 0.3647043704986572,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.22314381270903016,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 788,
+          "parent_support": 788,
+          "weighted_support": 788.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              752.0,
+              4.0,
+              6.0
+            ],
+            [
+              4.0,
+              19.0,
+              3.0
+            ]
+          ],
+          "overall_action_coverage": 0.9885786802030457,
+          "pending_abstain_rate": 0.011421319796954314,
+          "accepted_action_accuracy": 0.9784263959390863,
+          "selective_accuracy": 0.9897304236200257,
+          "selective_risk": 0.010269576379974325,
+          "incorrect_accepted_action_rate": 0.01015228426395939,
+          "known_target_to_clutter_weight": 4.0,
+          "clutter_to_known_target_weight": 4.0,
+          "known_target_to_clutter_rate": 0.005249343832020997,
+          "clutter_to_known_target_rate": 0.15384615384615385,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 756.0,
+              "action_precision": 0.9947089947089947,
+              "acceptance_recall": 0.9868766404199475,
+              "action_f1": 0.9907773386034255,
+              "pending_abstain_rate": 0.007874015748031496
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 23.0,
+              "action_precision": 0.8260869565217391,
+              "acceptance_recall": 0.7307692307692307,
+              "action_f1": 0.7755102040816326,
+              "pending_abstain_rate": 0.11538461538461539
+            }
+          ],
+          "known_target_action_precision": 0.9947089947089947,
+          "known_target_acceptance_recall": 0.9868766404199475,
+          "known_target_action_f1": 0.9907773386034255,
+          "known_target_pending_rate": 0.007874015748031496,
+          "known_clutter_action_precision": 0.8260869565217391,
+          "known_clutter_acceptance_recall": 0.7307692307692307,
+          "known_clutter_action_f1": 0.7755102040816326,
+          "known_clutter_pending_rate": 0.11538461538461539
+        },
+        "held_out_fold_id": 2,
+        "held_out_parent_support": 198
+      },
+      {
+        "fit_fold_ids": [
+          0,
+          1,
+          2,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              750.0,
+              13.0,
+              0.0
+            ],
+            [
+              5.0,
+              21.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9771863117870723,
+          "selective_accuracy": 0.9771863117870723,
+          "selective_risk": 0.022813688212927757,
+          "incorrect_accepted_action_rate": 0.022813688212927757,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 5.0,
+          "known_target_to_clutter_rate": 0.01703800786369594,
+          "clutter_to_known_target_rate": 0.19230769230769232,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 755.0,
+              "action_precision": 0.9933774834437086,
+              "acceptance_recall": 0.9829619921363041,
+              "action_f1": 0.9881422924901186,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 34.0,
+              "action_precision": 0.6176470588235294,
+              "acceptance_recall": 0.8076923076923077,
+              "action_f1": 0.7,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9933774834437086,
+          "known_target_acceptance_recall": 0.9829619921363041,
+          "known_target_action_f1": 0.9881422924901186,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6176470588235294,
+          "known_clutter_acceptance_recall": 0.8076923076923077,
+          "known_clutter_action_f1": 0.7,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.7230936288833618,
+        "clutter_threshold": 0.8057971596717834,
+        "score_band_width": 0.08270353078842163,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.2107692307692307,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              755.0,
+              5.0,
+              3.0
+            ],
+            [
+              5.0,
+              20.0,
+              1.0
+            ]
+          ],
+          "overall_action_coverage": 0.9949302915082383,
+          "pending_abstain_rate": 0.005069708491761723,
+          "accepted_action_accuracy": 0.982256020278834,
+          "selective_accuracy": 0.9872611464968153,
+          "selective_risk": 0.012738853503184714,
+          "incorrect_accepted_action_rate": 0.012674271229404309,
+          "known_target_to_clutter_weight": 5.0,
+          "clutter_to_known_target_weight": 5.0,
+          "known_target_to_clutter_rate": 0.00655307994757536,
+          "clutter_to_known_target_rate": 0.19230769230769232,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 760.0,
+              "action_precision": 0.993421052631579,
+              "acceptance_recall": 0.9895150720838795,
+              "action_f1": 0.9914642153644124,
+              "pending_abstain_rate": 0.003931847968545216
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 25.0,
+              "action_precision": 0.8,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.7843137254901961,
+              "pending_abstain_rate": 0.038461538461538464
+            }
+          ],
+          "known_target_action_precision": 0.993421052631579,
+          "known_target_acceptance_recall": 0.9895150720838795,
+          "known_target_action_f1": 0.9914642153644124,
+          "known_target_pending_rate": 0.003931847968545216,
+          "known_clutter_action_precision": 0.8,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.7843137254901961,
+          "known_clutter_pending_rate": 0.038461538461538464
+        },
+        "held_out_fold_id": 3,
+        "held_out_parent_support": 197
+      },
+      {
+        "fit_fold_ids": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              757.0,
+              6.0,
+              0.0
+            ],
+            [
+              6.0,
+              20.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9847908745247148,
+          "selective_accuracy": 0.9847908745247148,
+          "selective_risk": 0.015209125475285171,
+          "incorrect_accepted_action_rate": 0.015209125475285171,
+          "known_target_to_clutter_weight": 6.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.007863695937090432,
+          "clutter_to_known_target_rate": 0.23076923076923078,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 763.0,
+              "action_precision": 0.9921363040629095,
+              "acceptance_recall": 0.9921363040629095,
+              "action_f1": 0.9921363040629095,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 26.0,
+              "action_precision": 0.7692307692307693,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.7692307692307693,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9921363040629095,
+          "known_target_acceptance_recall": 0.9921363040629095,
+          "known_target_action_f1": 0.9921363040629095,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.7692307692307693,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.7692307692307693,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.6037395000457764,
+        "score_band_width": 0.012360453605651855,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.14120401337792643,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              760.0,
+              3.0,
+              0.0
+            ],
+            [
+              6.0,
+              20.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9885931558935361,
+          "selective_accuracy": 0.9885931558935361,
+          "selective_risk": 0.011406844106463879,
+          "incorrect_accepted_action_rate": 0.011406844106463879,
+          "known_target_to_clutter_weight": 3.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.003931847968545216,
+          "clutter_to_known_target_rate": 0.23076923076923078,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 766.0,
+              "action_precision": 0.9921671018276762,
+              "acceptance_recall": 0.9960681520314548,
+              "action_f1": 0.9941137998691956,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 23.0,
+              "action_precision": 0.8695652173913043,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.8163265306122449,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9921671018276762,
+          "known_target_acceptance_recall": 0.9960681520314548,
+          "known_target_action_f1": 0.9941137998691956,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.8695652173913043,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.8163265306122449,
+          "known_clutter_pending_rate": 0.0
+        },
+        "held_out_fold_id": 4,
+        "held_out_parent_support": 197
+      }
+    ]
+  },
+  "pooled_oof_oracle_diagnostic": {
+    "uses_all_oof_parent_labels": true,
+    "not_cross_fitted": true,
+    "not_an_adoption_or_threshold_selection_result": true,
+    "purpose": "distinguish complete score-band infeasibility from outer-fold threshold instability only",
+    "selection": {
+      "fit_fold_ids": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "fit_parent_support": 986,
+      "candidate_count": 487579,
+      "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+      "feasible_candidate_count": 0,
+      "selection_mode": "minimum_requirement_violation",
+      "fit_raw_argmax_metrics": {
+        "scope": "threshold_fit_parent_final_raw_argmax",
+        "aggregation": "each parent-final OOF record weight one",
+        "event_support": 986,
+        "parent_support": 986,
+        "weighted_support": 986.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            938.0,
+            15.0,
+            0.0
+          ],
+          [
+            6.0,
+            27.0,
+            0.0
+          ]
+        ],
+        "overall_action_coverage": 1.0,
+        "pending_abstain_rate": 0.0,
+        "accepted_action_accuracy": 0.9787018255578094,
+        "selective_accuracy": 0.9787018255578094,
+        "selective_risk": 0.02129817444219067,
+        "incorrect_accepted_action_rate": 0.02129817444219067,
+        "known_target_to_clutter_weight": 15.0,
+        "clutter_to_known_target_weight": 6.0,
+        "known_target_to_clutter_rate": 0.015739769150052464,
+        "clutter_to_known_target_rate": 0.18181818181818182,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 953.0,
+            "accepted_as_class_support": 944.0,
+            "action_precision": 0.9936440677966102,
+            "acceptance_recall": 0.9842602308499475,
+            "action_f1": 0.9889298892988929,
+            "pending_abstain_rate": 0.0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 33.0,
+            "accepted_as_class_support": 42.0,
+            "action_precision": 0.6428571428571429,
+            "acceptance_recall": 0.8181818181818182,
+            "action_f1": 0.7200000000000001,
+            "pending_abstain_rate": 0.0
+          }
+        ],
+        "known_target_action_precision": 0.9936440677966102,
+        "known_target_acceptance_recall": 0.9842602308499475,
+        "known_target_action_f1": 0.9889298892988929,
+        "known_target_pending_rate": 0.0,
+        "known_clutter_action_precision": 0.6428571428571429,
+        "known_clutter_acceptance_recall": 0.8181818181818182,
+        "known_clutter_action_f1": 0.7200000000000001,
+        "known_clutter_pending_rate": 0.0
+      },
+      "target_threshold": 0.5913790464401245,
+      "clutter_threshold": 0.8057971596717834,
+      "score_band_width": 0.21441811323165894,
+      "decision_mode": "strict_score_band",
+      "fit_feasible": false,
+      "total_requirement_violation": 0.22514106583072102,
+      "direction_requirement_checks": {
+        "known_target_to_clutter_rate_not_higher_than_raw": true,
+        "clutter_to_known_target_rate_not_higher_than_raw": true
+      },
+      "metrics": {
+        "scope": "threshold_fit_parent_final",
+        "aggregation": "each parent-final OOF record weight one",
+        "event_support": 986,
+        "parent_support": 986,
+        "weighted_support": 986.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            942.0,
+            5.0,
+            6.0
+          ],
+          [
+            6.0,
+            24.0,
+            3.0
+          ]
+        ],
+        "overall_action_coverage": 0.9908722109533469,
+        "pending_abstain_rate": 0.009127789046653144,
+        "accepted_action_accuracy": 0.9797160243407708,
+        "selective_accuracy": 0.9887410440122825,
+        "selective_risk": 0.011258955987717503,
+        "incorrect_accepted_action_rate": 0.011156186612576065,
+        "known_target_to_clutter_weight": 5.0,
+        "clutter_to_known_target_weight": 6.0,
+        "known_target_to_clutter_rate": 0.005246589716684155,
+        "clutter_to_known_target_rate": 0.18181818181818182,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 953.0,
+            "accepted_as_class_support": 948.0,
+            "action_precision": 0.9936708860759493,
+            "acceptance_recall": 0.9884575026232949,
+            "action_f1": 0.99105733824303,
+            "pending_abstain_rate": 0.0062959076600209865
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 33.0,
+            "accepted_as_class_support": 29.0,
+            "action_precision": 0.8275862068965517,
+            "acceptance_recall": 0.7272727272727273,
+            "action_f1": 0.7741935483870968,
+            "pending_abstain_rate": 0.09090909090909091
+          }
+        ],
+        "known_target_action_precision": 0.9936708860759493,
+        "known_target_acceptance_recall": 0.9884575026232949,
+        "known_target_action_f1": 0.99105733824303,
+        "known_target_pending_rate": 0.0062959076600209865,
+        "known_clutter_action_precision": 0.8275862068965517,
+        "known_clutter_acceptance_recall": 0.7272727272727273,
+        "known_clutter_action_f1": 0.7741935483870968,
+        "known_clutter_pending_rate": 0.09090909090909091
+      }
+    }
+  },
+  "raw_argmax": {
+    "metrics": {
+      "parent_final": {
+        "scope": "parent_final",
+        "aggregation": "each record weight one",
+        "event_support": 986,
+        "parent_support": 986,
+        "weighted_support": 986.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            938.0,
+            15.0,
+            0.0
+          ],
+          [
+            6.0,
+            27.0,
+            0.0
+          ]
+        ],
+        "overall_action_coverage": 1.0,
+        "pending_abstain_rate": 0.0,
+        "accepted_action_accuracy": 0.9787018255578094,
+        "selective_accuracy": 0.9787018255578094,
+        "selective_risk": 0.02129817444219067,
+        "incorrect_accepted_action_rate": 0.02129817444219067,
+        "known_target_to_clutter_weight": 15.0,
+        "clutter_to_known_target_weight": 6.0,
+        "known_target_to_clutter_rate": 0.015739769150052464,
+        "clutter_to_known_target_rate": 0.18181818181818182,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 953.0,
+            "accepted_as_class_support": 944.0,
+            "action_precision": 0.9936440677966102,
+            "acceptance_recall": 0.9842602308499475,
+            "action_f1": 0.9889298892988929,
+            "pending_abstain_rate": 0.0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 33.0,
+            "accepted_as_class_support": 42.0,
+            "action_precision": 0.6428571428571429,
+            "acceptance_recall": 0.8181818181818182,
+            "action_f1": 0.7200000000000001,
+            "pending_abstain_rate": 0.0
+          }
+        ],
+        "known_target_action_precision": 0.9936440677966102,
+        "known_target_acceptance_recall": 0.9842602308499475,
+        "known_target_action_f1": 0.9889298892988929,
+        "known_target_pending_rate": 0.0,
+        "known_clutter_action_precision": 0.6428571428571429,
+        "known_clutter_acceptance_recall": 0.8181818181818182,
+        "known_clutter_action_f1": 0.7200000000000001,
+        "known_clutter_pending_rate": 0.0
+      },
+      "eligible_prefix": {
+        "scope": "eligible_prefix",
+        "aggregation": "each record weight one",
+        "event_support": 15965,
+        "parent_support": 986,
+        "weighted_support": 15965.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            15085.0,
+            322.0,
+            0.0
+          ],
+          [
+            190.0,
+            368.0,
+            0.0
+          ]
+        ],
+        "overall_action_coverage": 1.0,
+        "pending_abstain_rate": 0.0,
+        "accepted_action_accuracy": 0.9679298465393047,
+        "selective_accuracy": 0.9679298465393047,
+        "selective_risk": 0.03207015346069527,
+        "incorrect_accepted_action_rate": 0.03207015346069527,
+        "known_target_to_clutter_weight": 322.0,
+        "clutter_to_known_target_weight": 190.0,
+        "known_target_to_clutter_rate": 0.020899591094956836,
+        "clutter_to_known_target_rate": 0.34050179211469533,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 15407.0,
+            "accepted_as_class_support": 15275.0,
+            "action_precision": 0.9875613747954174,
+            "acceptance_recall": 0.9791004089050431,
+            "action_f1": 0.9833126914803468,
+            "pending_abstain_rate": 0.0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 558.0,
+            "accepted_as_class_support": 690.0,
+            "action_precision": 0.5333333333333333,
+            "acceptance_recall": 0.6594982078853047,
+            "action_f1": 0.5897435897435898,
+            "pending_abstain_rate": 0.0
+          }
+        ],
+        "known_target_action_precision": 0.9875613747954174,
+        "known_target_acceptance_recall": 0.9791004089050431,
+        "known_target_action_f1": 0.9833126914803468,
+        "known_target_pending_rate": 0.0,
+        "known_clutter_action_precision": 0.5333333333333333,
+        "known_clutter_acceptance_recall": 0.6594982078853047,
+        "known_clutter_action_f1": 0.5897435897435898,
+        "known_clutter_pending_rate": 0.0
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_prefix",
+        "aggregation": "each eligible parent has total weight one",
+        "event_support": 15965,
+        "parent_support": 986,
+        "weighted_support": 985.999999999975,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            934.4948248528864,
+            18.505175147088636,
+            0.0
+          ],
+          [
+            11.657152496626178,
+            21.34284750337387,
+            0.0
+          ]
+        ],
+        "overall_action_coverage": 1.0,
+        "pending_abstain_rate": 0.0,
+        "accepted_action_accuracy": 0.9694094040124589,
+        "selective_accuracy": 0.9694094040124589,
+        "selective_risk": 0.030590595987541117,
+        "incorrect_accepted_action_rate": 0.030590595987541117,
+        "known_target_to_clutter_weight": 18.505175147088636,
+        "clutter_to_known_target_weight": 11.657152496626178,
+        "known_target_to_clutter_rate": 0.0194178123264314,
+        "clutter_to_known_target_rate": 0.3532470453523079,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 952.999999999975,
+            "accepted_as_class_support": 946.1519773495125,
+            "action_precision": 0.9876794079855101,
+            "acceptance_recall": 0.9805821876735686,
+            "action_f1": 0.9841180021380858,
+            "pending_abstain_rate": 0.0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 33.00000000000005,
+            "accepted_as_class_support": 39.84802265046251,
+            "action_precision": 0.5356061878048081,
+            "acceptance_recall": 0.6467529546476921,
+            "action_f1": 0.5859554378237705,
+            "pending_abstain_rate": 0.0
+          }
+        ],
+        "known_target_action_precision": 0.9876794079855101,
+        "known_target_acceptance_recall": 0.9805821876735686,
+        "known_target_action_f1": 0.9841180021380858,
+        "known_target_pending_rate": 0.0,
+        "known_clutter_action_precision": 0.5356061878048081,
+        "known_clutter_acceptance_recall": 0.6467529546476921,
+        "known_clutter_action_f1": 0.5859554378237705,
+        "known_clutter_pending_rate": 0.0
+      },
+      "window": {
+        "scope": "window",
+        "aggregation": "each record weight one",
+        "event_support": 18923,
+        "parent_support": 986,
+        "weighted_support": 18923.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            16023.0,
+            337.0,
+            1906.0
+          ],
+          [
+            196.0,
+            395.0,
+            66.0
+          ]
+        ],
+        "overall_action_coverage": 0.8957881942609522,
+        "pending_abstain_rate": 0.10421180573904772,
+        "accepted_action_accuracy": 0.8676214130951752,
+        "selective_accuracy": 0.9685564273494189,
+        "selective_risk": 0.031443572650581085,
+        "incorrect_accepted_action_rate": 0.028166781165777095,
+        "known_target_to_clutter_weight": 337.0,
+        "clutter_to_known_target_weight": 196.0,
+        "known_target_to_clutter_rate": 0.01844957845176831,
+        "clutter_to_known_target_rate": 0.2983257229832572,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 18266.0,
+            "accepted_as_class_support": 16219.0,
+            "action_precision": 0.9879154078549849,
+            "acceptance_recall": 0.877203547574729,
+            "action_f1": 0.929273597216181,
+            "pending_abstain_rate": 0.10434687397350269
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 657.0,
+            "accepted_as_class_support": 732.0,
+            "action_precision": 0.5396174863387978,
+            "acceptance_recall": 0.6012176560121766,
+            "action_f1": 0.5687544996400288,
+            "pending_abstain_rate": 0.1004566210045662
+          }
+        ],
+        "known_target_action_precision": 0.9879154078549849,
+        "known_target_acceptance_recall": 0.877203547574729,
+        "known_target_action_f1": 0.929273597216181,
+        "known_target_pending_rate": 0.10434687397350269,
+        "known_clutter_action_precision": 0.5396174863387978,
+        "known_clutter_acceptance_recall": 0.6012176560121766,
+        "known_clutter_action_f1": 0.5687544996400288,
+        "known_clutter_pending_rate": 0.1004566210045662
+      }
+    }
+  },
+  "score_band": {
+    "metrics": {
+      "parent_final": {
+        "scope": "parent_final",
+        "aggregation": "each record weight one",
+        "event_support": 986,
+        "parent_support": 986,
+        "weighted_support": 986.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            941.0,
+            10.0,
+            2.0
+          ],
+          [
+            8.0,
+            22.0,
+            3.0
+          ]
+        ],
+        "overall_action_coverage": 0.9949290060851927,
+        "pending_abstain_rate": 0.005070993914807302,
+        "accepted_action_accuracy": 0.9766734279918864,
+        "selective_accuracy": 0.981651376146789,
+        "selective_risk": 0.01834862385321101,
+        "incorrect_accepted_action_rate": 0.018255578093306288,
+        "known_target_to_clutter_weight": 10.0,
+        "clutter_to_known_target_weight": 8.0,
+        "known_target_to_clutter_rate": 0.01049317943336831,
+        "clutter_to_known_target_rate": 0.24242424242424243,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 953.0,
+            "accepted_as_class_support": 949.0,
+            "action_precision": 0.9915700737618546,
+            "acceptance_recall": 0.9874081846799581,
+            "action_f1": 0.989484752891693,
+            "pending_abstain_rate": 0.002098635886673662
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 33.0,
+            "accepted_as_class_support": 32.0,
+            "action_precision": 0.6875,
+            "acceptance_recall": 0.6666666666666666,
+            "action_f1": 0.676923076923077,
+            "pending_abstain_rate": 0.09090909090909091
+          }
+        ],
+        "known_target_action_precision": 0.9915700737618546,
+        "known_target_acceptance_recall": 0.9874081846799581,
+        "known_target_action_f1": 0.989484752891693,
+        "known_target_pending_rate": 0.002098635886673662,
+        "known_clutter_action_precision": 0.6875,
+        "known_clutter_acceptance_recall": 0.6666666666666666,
+        "known_clutter_action_f1": 0.676923076923077,
+        "known_clutter_pending_rate": 0.09090909090909091
+      },
+      "eligible_prefix": {
+        "scope": "eligible_prefix",
+        "aggregation": "each record weight one",
+        "event_support": 15965,
+        "parent_support": 986,
+        "weighted_support": 15965.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            15154.0,
+            183.0,
+            70.0
+          ],
+          [
+            222.0,
+            264.0,
+            72.0
+          ]
+        ],
+        "overall_action_coverage": 0.9911055433761353,
+        "pending_abstain_rate": 0.008894456623864703,
+        "accepted_action_accuracy": 0.9657375508925775,
+        "selective_accuracy": 0.9744043481008658,
+        "selective_risk": 0.02559565189913417,
+        "incorrect_accepted_action_rate": 0.025367992483557783,
+        "known_target_to_clutter_weight": 183.0,
+        "clutter_to_known_target_weight": 222.0,
+        "known_target_to_clutter_rate": 0.01187771792042578,
+        "clutter_to_known_target_rate": 0.3978494623655914,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 15407.0,
+            "accepted_as_class_support": 15376.0,
+            "action_precision": 0.9855619146722164,
+            "acceptance_recall": 0.9835788927111053,
+            "action_f1": 0.9845694051911769,
+            "pending_abstain_rate": 0.004543389368468878
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 558.0,
+            "accepted_as_class_support": 447.0,
+            "action_precision": 0.5906040268456376,
+            "acceptance_recall": 0.4731182795698925,
+            "action_f1": 0.5253731343283582,
+            "pending_abstain_rate": 0.12903225806451613
+          }
+        ],
+        "known_target_action_precision": 0.9855619146722164,
+        "known_target_acceptance_recall": 0.9835788927111053,
+        "known_target_action_f1": 0.9845694051911769,
+        "known_target_pending_rate": 0.004543389368468878,
+        "known_clutter_action_precision": 0.5906040268456376,
+        "known_clutter_acceptance_recall": 0.4731182795698925,
+        "known_clutter_action_f1": 0.5253731343283582,
+        "known_clutter_pending_rate": 0.12903225806451613
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_prefix",
+        "aggregation": "each eligible parent has total weight one",
+        "event_support": 15965,
+        "parent_support": 986,
+        "weighted_support": 985.9999999999746,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            938.2956752629269,
+            11.047663460363681,
+            3.6566612766841557
+          ],
+          [
+            13.724759721702448,
+            15.433893570309936,
+            3.8413467079875714
+          ]
+        ],
+        "overall_action_coverage": 0.9923955294273105,
+        "pending_abstain_rate": 0.007604470572689573,
+        "accepted_action_accuracy": 0.9672713679850521,
+        "selective_accuracy": 0.9746833185990299,
+        "selective_risk": 0.025316681400970154,
+        "incorrect_accepted_action_rate": 0.025124161442258316,
+        "known_target_to_clutter_weight": 11.047663460363681,
+        "clutter_to_known_target_weight": 13.724759721702448,
+        "known_target_to_clutter_rate": 0.011592511500906583,
+        "clutter_to_known_target_rate": 0.41590180974855967,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 952.9999999999748,
+            "accepted_as_class_support": 952.0204349846293,
+            "action_precision": 0.9855835450402659,
+            "acceptance_recall": 0.9845704882087637,
+            "action_f1": 0.9850767561666708,
+            "pending_abstain_rate": 0.003837000290329751
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 32.99999999999995,
+            "accepted_as_class_support": 26.481557030673617,
+            "action_precision": 0.5828166958775437,
+            "acceptance_recall": 0.46769374455484725,
+            "action_f1": 0.5189471944169503,
+            "pending_abstain_rate": 0.11640444569659325
+          }
+        ],
+        "known_target_action_precision": 0.9855835450402659,
+        "known_target_acceptance_recall": 0.9845704882087637,
+        "known_target_action_f1": 0.9850767561666708,
+        "known_target_pending_rate": 0.003837000290329751,
+        "known_clutter_action_precision": 0.5828166958775437,
+        "known_clutter_acceptance_recall": 0.46769374455484725,
+        "known_clutter_action_f1": 0.5189471944169503,
+        "known_clutter_pending_rate": 0.11640444569659325
+      },
+      "window": {
+        "scope": "window",
+        "aggregation": "each record weight one",
+        "event_support": 18923,
+        "parent_support": 986,
+        "weighted_support": 18923.0,
+        "action_names": [
+          "KNOWN_TARGET_EVIDENCE",
+          "KNOWN_CLUTTER_EVIDENCE",
+          "PENDING_ABSTAIN"
+        ],
+        "action_confusion_rows_true_columns_action": [
+          [
+            16095.0,
+            193.0,
+            1978.0
+          ],
+          [
+            230.0,
+            286.0,
+            141.0
+          ]
+        ],
+        "overall_action_coverage": 0.8880198699994716,
+        "pending_abstain_rate": 0.11198013000052846,
+        "accepted_action_accuracy": 0.8656661205939862,
+        "selective_accuracy": 0.9748274220423708,
+        "selective_risk": 0.025172577957629137,
+        "incorrect_accepted_action_rate": 0.022353749405485387,
+        "known_target_to_clutter_weight": 193.0,
+        "clutter_to_known_target_weight": 230.0,
+        "known_target_to_clutter_rate": 0.010566079053980073,
+        "clutter_to_known_target_rate": 0.350076103500761,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "true_support": 18266.0,
+            "accepted_as_class_support": 16325.0,
+            "action_precision": 0.9859111791730475,
+            "acceptance_recall": 0.8811452972736231,
+            "action_f1": 0.9305888815009685,
+            "pending_abstain_rate": 0.1082886236723968
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "true_support": 657.0,
+            "accepted_as_class_support": 479.0,
+            "action_precision": 0.5970772442588727,
+            "acceptance_recall": 0.4353120243531202,
+            "action_f1": 0.5035211267605634,
+            "pending_abstain_rate": 0.2146118721461187
+          }
+        ],
+        "known_target_action_precision": 0.9859111791730475,
+        "known_target_acceptance_recall": 0.8811452972736231,
+        "known_target_action_f1": 0.9305888815009685,
+        "known_target_pending_rate": 0.1082886236723968,
+        "known_clutter_action_precision": 0.5970772442588727,
+        "known_clutter_acceptance_recall": 0.4353120243531202,
+        "known_clutter_action_f1": 0.5035211267605634,
+        "known_clutter_pending_rate": 0.2146118721461187
+      }
+    }
+  },
+  "score_band_minus_raw_argmax": {
+    "parent_final": {
+      "accepted_action_accuracy": -0.0020283975659229903,
+      "selective_accuracy": 0.0029495505889796103,
+      "selective_risk": -0.002949550588979659,
+      "overall_action_coverage": -0.005070993914807254,
+      "pending_abstain_rate": 0.005070993914807302,
+      "incorrect_accepted_action_rate": -0.0030425963488843813,
+      "known_target_action_precision": -0.0020739940347556107,
+      "known_target_acceptance_recall": 0.0031479538300105414,
+      "known_target_action_f1": 0.0005548635928001033,
+      "known_clutter_action_precision": 0.044642857142857095,
+      "known_clutter_acceptance_recall": -0.1515151515151516,
+      "known_clutter_action_f1": -0.043076923076923124,
+      "known_target_to_clutter_rate": -0.005246589716684154,
+      "clutter_to_known_target_rate": 0.06060606060606061
+    },
+    "eligible_prefix": {
+      "accepted_action_accuracy": -0.0021922956467271826,
+      "selective_accuracy": 0.006474501561561152,
+      "selective_risk": -0.0064745015615611,
+      "overall_action_coverage": -0.008894456623864677,
+      "pending_abstain_rate": 0.008894456623864703,
+      "incorrect_accepted_action_rate": -0.006702160977137488,
+      "known_target_action_precision": -0.001999460123200958,
+      "known_target_acceptance_recall": 0.0044784838060621945,
+      "known_target_action_f1": 0.0012567137108300264,
+      "known_clutter_action_precision": 0.057270693512304294,
+      "known_clutter_acceptance_recall": -0.18637992831541217,
+      "known_clutter_action_f1": -0.06437045541523156,
+      "known_target_to_clutter_rate": -0.009021873174531056,
+      "clutter_to_known_target_rate": 0.05734767025089604
+    },
+    "parent_balanced_eligible_prefix": {
+      "accepted_action_accuracy": -0.002138036027406809,
+      "selective_accuracy": 0.005273914586571005,
+      "selective_risk": -0.005273914586570963,
+      "overall_action_coverage": -0.007604470572689537,
+      "pending_abstain_rate": 0.007604470572689573,
+      "incorrect_accepted_action_rate": -0.005466434545282801,
+      "known_target_action_precision": -0.00209586294524422,
+      "known_target_acceptance_recall": 0.003988300535195055,
+      "known_target_action_f1": 0.0009587540285850293,
+      "known_clutter_action_precision": 0.047210508072735635,
+      "known_clutter_acceptance_recall": -0.17905921009284487,
+      "known_clutter_action_f1": -0.06700824340682021,
+      "known_target_to_clutter_rate": -0.007825300825524815,
+      "clutter_to_known_target_rate": 0.06265476439625178
+    },
+    "window": {
+      "accepted_action_accuracy": -0.0019552925011889766,
+      "selective_accuracy": 0.006270994692951892,
+      "selective_risk": -0.006270994692951948,
+      "overall_action_coverage": -0.007768324261480664,
+      "pending_abstain_rate": 0.007768324261480747,
+      "incorrect_accepted_action_rate": -0.005813031760291708,
+      "known_target_action_precision": -0.0020042286819373922,
+      "known_target_acceptance_recall": 0.003941749698894159,
+      "known_target_action_f1": 0.0013152842847875545,
+      "known_clutter_action_precision": 0.05745975792007485,
+      "known_clutter_acceptance_recall": -0.16590563165905636,
+      "known_clutter_action_f1": -0.0652333728794654,
+      "known_target_to_clutter_rate": -0.007883499397788239,
+      "clutter_to_known_target_rate": 0.0517503805175038
+    }
+  },
+  "fold_evaluations": [
+    {
+      "fold_id": 0,
+      "threshold_fit": {
+        "fit_fold_ids": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              747.0,
+              15.0,
+              0.0
+            ],
+            [
+              3.0,
+              24.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9771863117870723,
+          "selective_accuracy": 0.9771863117870723,
+          "selective_risk": 0.022813688212927757,
+          "incorrect_accepted_action_rate": 0.022813688212927757,
+          "known_target_to_clutter_weight": 15.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.01968503937007874,
+          "clutter_to_known_target_rate": 0.1111111111111111,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 750.0,
+              "action_precision": 0.996,
+              "acceptance_recall": 0.9803149606299213,
+              "action_f1": 0.9880952380952381,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 39.0,
+              "action_precision": 0.6153846153846154,
+              "acceptance_recall": 0.8888888888888888,
+              "action_f1": 0.7272727272727274,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.996,
+          "known_target_acceptance_recall": 0.9803149606299213,
+          "known_target_action_f1": 0.9880952380952381,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6153846153846154,
+          "known_clutter_acceptance_recall": 0.8888888888888888,
+          "known_clutter_action_f1": 0.7272727272727274,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.8057971596717834,
+        "score_band_width": 0.21441811323165894,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.1503703703703705,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              751.0,
+              5.0,
+              6.0
+            ],
+            [
+              3.0,
+              22.0,
+              2.0
+            ]
+          ],
+          "overall_action_coverage": 0.9898605830164765,
+          "pending_abstain_rate": 0.010139416983523447,
+          "accepted_action_accuracy": 0.9797211660329531,
+          "selective_accuracy": 0.9897567221510883,
+          "selective_risk": 0.010243277848911651,
+          "incorrect_accepted_action_rate": 0.010139416983523447,
+          "known_target_to_clutter_weight": 5.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.006561679790026247,
+          "clutter_to_known_target_rate": 0.1111111111111111,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 754.0,
+              "action_precision": 0.9960212201591512,
+              "acceptance_recall": 0.9855643044619422,
+              "action_f1": 0.9907651715039578,
+              "pending_abstain_rate": 0.007874015748031496
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 27.0,
+              "action_precision": 0.8148148148148148,
+              "acceptance_recall": 0.8148148148148148,
+              "action_f1": 0.8148148148148148,
+              "pending_abstain_rate": 0.07407407407407407
+            }
+          ],
+          "known_target_action_precision": 0.9960212201591512,
+          "known_target_acceptance_recall": 0.9855643044619422,
+          "known_target_action_f1": 0.9907651715039578,
+          "known_target_pending_rate": 0.007874015748031496,
+          "known_clutter_action_precision": 0.8148148148148148,
+          "known_clutter_acceptance_recall": 0.8148148148148148,
+          "known_clutter_action_f1": 0.8148148148148148,
+          "known_clutter_pending_rate": 0.07407407407407407
+        },
+        "held_out_fold_id": 0,
+        "held_out_parent_support": 197
+      },
+      "held_out_parent_final": {
+        "raw_argmax": {
+          "scope": "held_out_parent_final_raw",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              191.0,
+              0.0,
+              0.0
+            ],
+            [
+              3.0,
+              3.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9847715736040609,
+          "selective_accuracy": 0.9847715736040609,
+          "selective_risk": 0.015228426395939087,
+          "incorrect_accepted_action_rate": 0.015228426395939087,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 194.0,
+              "action_precision": 0.9845360824742269,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.9922077922077922,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0,
+              "accepted_as_class_support": 3.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.5,
+              "action_f1": 0.6666666666666666,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9845360824742269,
+          "known_target_acceptance_recall": 1.0,
+          "known_target_action_f1": 0.9922077922077922,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.5,
+          "known_clutter_action_f1": 0.6666666666666666,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_final_score_band",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              191.0,
+              0.0,
+              0.0
+            ],
+            [
+              3.0,
+              2.0,
+              1.0
+            ]
+          ],
+          "overall_action_coverage": 0.9949238578680203,
+          "pending_abstain_rate": 0.005076142131979695,
+          "accepted_action_accuracy": 0.9796954314720813,
+          "selective_accuracy": 0.9846938775510204,
+          "selective_risk": 0.015306122448979591,
+          "incorrect_accepted_action_rate": 0.015228426395939087,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 194.0,
+              "action_precision": 0.9845360824742269,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.9922077922077922,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0,
+              "accepted_as_class_support": 2.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.3333333333333333,
+              "action_f1": 0.5,
+              "pending_abstain_rate": 0.16666666666666666
+            }
+          ],
+          "known_target_action_precision": 0.9845360824742269,
+          "known_target_acceptance_recall": 1.0,
+          "known_target_action_f1": 0.9922077922077922,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.3333333333333333,
+          "known_clutter_action_f1": 0.5,
+          "known_clutter_pending_rate": 0.16666666666666666
+        }
+      },
+      "held_out_parent_balanced_eligible_prefix": {
+        "raw_argmax": {
+          "scope": "held_out_parent_balanced_eligible_prefix_raw",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3141,
+          "parent_support": 197,
+          "weighted_support": 196.99999999999847,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.56643356643204,
+              1.4335664335664329,
+              0.0
+            ],
+            [
+              4.294871794871797,
+              1.705128205128206,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9709216333581814,
+          "selective_accuracy": 0.9709216333581814,
+          "selective_risk": 0.02907836664181861,
+          "incorrect_accepted_action_rate": 0.02907836664181861,
+          "known_target_to_clutter_weight": 1.4335664335664329,
+          "clutter_to_known_target_weight": 4.294871794871797,
+          "known_target_to_clutter_rate": 0.007505583421813845,
+          "clutter_to_known_target_rate": 0.7158119658119658,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.99999999999847,
+              "accepted_as_class_support": 193.86130536130383,
+              "action_precision": 0.9778456469852643,
+              "acceptance_recall": 0.9924944165781862,
+              "action_f1": 0.9851155776155245,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0000000000000036,
+              "accepted_as_class_support": 3.1386946386946386,
+              "action_precision": 0.5432603044931306,
+              "acceptance_recall": 0.2841880341880342,
+              "action_f1": 0.3731666879224589,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9778456469852643,
+          "known_target_acceptance_recall": 0.9924944165781862,
+          "known_target_action_f1": 0.9851155776155245,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.5432603044931306,
+          "known_clutter_acceptance_recall": 0.2841880341880342,
+          "known_clutter_action_f1": 0.3731666879224589,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_balanced_eligible_prefix_score_band",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3141,
+          "parent_support": 197,
+          "weighted_support": 196.99999999999838,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.98551448551288,
+              0.13636363636363635,
+              0.8781218781218778
+            ],
+            [
+              4.41666666666667,
+              1.3076923076923082,
+              0.27564102564102566
+            ]
+          ],
+          "overall_action_coverage": 0.9941433355138939,
+          "pending_abstain_rate": 0.005856664486106158,
+          "accepted_action_accuracy": 0.9710315065645014,
+          "selective_accuracy": 0.9767520154048556,
+          "selective_risk": 0.023247984595144416,
+          "incorrect_accepted_action_rate": 0.02311182894939249,
+          "known_target_to_clutter_weight": 0.13636363636363635,
+          "clutter_to_known_target_weight": 4.41666666666667,
+          "known_target_to_clutter_rate": 0.0007139457401237566,
+          "clutter_to_known_target_rate": 0.7361111111111112,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.99999999999838,
+              "accepted_as_class_support": 194.40218115217954,
+              "action_precision": 0.9772807761698452,
+              "acceptance_recall": 0.9946885575157827,
+              "action_f1": 0.9859078322678001,
+              "pending_abstain_rate": 0.00459749674409364
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0000000000000036,
+              "accepted_as_class_support": 1.4440559440559446,
+              "action_precision": 0.9055690072639225,
+              "acceptance_recall": 0.2179487179487179,
+              "action_f1": 0.35133865664631275,
+              "pending_abstain_rate": 0.045940170940170916
+            }
+          ],
+          "known_target_action_precision": 0.9772807761698452,
+          "known_target_acceptance_recall": 0.9946885575157827,
+          "known_target_action_f1": 0.9859078322678001,
+          "known_target_pending_rate": 0.00459749674409364,
+          "known_clutter_action_precision": 0.9055690072639225,
+          "known_clutter_acceptance_recall": 0.2179487179487179,
+          "known_clutter_action_f1": 0.35133865664631275,
+          "known_clutter_pending_rate": 0.045940170940170916
+        }
+      }
+    },
+    {
+      "fold_id": 1,
+      "threshold_fit": {
+        "fit_fold_ids": [
+          0,
+          2,
+          3,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              749.0,
+              13.0,
+              0.0
+            ],
+            [
+              6.0,
+              21.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9759188846641318,
+          "selective_accuracy": 0.9759188846641318,
+          "selective_risk": 0.024081115335868188,
+          "incorrect_accepted_action_rate": 0.024081115335868188,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.01706036745406824,
+          "clutter_to_known_target_rate": 0.2222222222222222,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 755.0,
+              "action_precision": 0.9920529801324504,
+              "acceptance_recall": 0.9829396325459318,
+              "action_f1": 0.9874752801582071,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 34.0,
+              "action_precision": 0.6176470588235294,
+              "acceptance_recall": 0.7777777777777778,
+              "action_f1": 0.6885245901639345,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9920529801324504,
+          "known_target_acceptance_recall": 0.9829396325459318,
+          "known_target_action_f1": 0.9874752801582071,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6176470588235294,
+          "known_clutter_acceptance_recall": 0.7777777777777778,
+          "known_clutter_action_f1": 0.6885245901639345,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.7023914456367493,
+        "score_band_width": 0.11101239919662476,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.2985185185185186,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              753.0,
+              7.0,
+              2.0
+            ],
+            [
+              6.0,
+              20.0,
+              1.0
+            ]
+          ],
+          "overall_action_coverage": 0.9961977186311787,
+          "pending_abstain_rate": 0.0038022813688212928,
+          "accepted_action_accuracy": 0.9797211660329531,
+          "selective_accuracy": 0.9834605597964376,
+          "selective_risk": 0.01653944020356234,
+          "incorrect_accepted_action_rate": 0.016476552598225603,
+          "known_target_to_clutter_weight": 7.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.009186351706036745,
+          "clutter_to_known_target_rate": 0.2222222222222222,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 759.0,
+              "action_precision": 0.9920948616600791,
+              "acceptance_recall": 0.9881889763779528,
+              "action_f1": 0.990138067061144,
+              "pending_abstain_rate": 0.0026246719160104987
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 27.0,
+              "accepted_as_class_support": 27.0,
+              "action_precision": 0.7407407407407407,
+              "acceptance_recall": 0.7407407407407407,
+              "action_f1": 0.7407407407407407,
+              "pending_abstain_rate": 0.037037037037037035
+            }
+          ],
+          "known_target_action_precision": 0.9920948616600791,
+          "known_target_acceptance_recall": 0.9881889763779528,
+          "known_target_action_f1": 0.990138067061144,
+          "known_target_pending_rate": 0.0026246719160104987,
+          "known_clutter_action_precision": 0.7407407407407407,
+          "known_clutter_acceptance_recall": 0.7407407407407407,
+          "known_clutter_action_f1": 0.7407407407407407,
+          "known_clutter_pending_rate": 0.037037037037037035
+        },
+        "held_out_fold_id": 1,
+        "held_out_parent_support": 197
+      },
+      "held_out_parent_final": {
+        "raw_argmax": {
+          "scope": "held_out_parent_final_raw",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.0,
+              2.0,
+              0.0
+            ],
+            [
+              0.0,
+              6.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9898477157360406,
+          "selective_accuracy": 0.9898477157360406,
+          "selective_risk": 0.01015228426395939,
+          "incorrect_accepted_action_rate": 0.01015228426395939,
+          "known_target_to_clutter_weight": 2.0,
+          "clutter_to_known_target_weight": 0.0,
+          "known_target_to_clutter_rate": 0.010471204188481676,
+          "clutter_to_known_target_rate": 0.0,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 189.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.9895287958115183,
+              "action_f1": 0.9947368421052631,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0,
+              "accepted_as_class_support": 8.0,
+              "action_precision": 0.75,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.8571428571428571,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 1.0,
+          "known_target_acceptance_recall": 0.9895287958115183,
+          "known_target_action_f1": 0.9947368421052631,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.75,
+          "known_clutter_acceptance_recall": 1.0,
+          "known_clutter_action_f1": 0.8571428571428571,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_final_score_band",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.0,
+              2.0,
+              0.0
+            ],
+            [
+              0.0,
+              6.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9898477157360406,
+          "selective_accuracy": 0.9898477157360406,
+          "selective_risk": 0.01015228426395939,
+          "incorrect_accepted_action_rate": 0.01015228426395939,
+          "known_target_to_clutter_weight": 2.0,
+          "clutter_to_known_target_weight": 0.0,
+          "known_target_to_clutter_rate": 0.010471204188481676,
+          "clutter_to_known_target_rate": 0.0,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 189.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.9895287958115183,
+              "action_f1": 0.9947368421052631,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.0,
+              "accepted_as_class_support": 8.0,
+              "action_precision": 0.75,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.8571428571428571,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 1.0,
+          "known_target_acceptance_recall": 0.9895287958115183,
+          "known_target_action_f1": 0.9947368421052631,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.75,
+          "known_clutter_acceptance_recall": 1.0,
+          "known_clutter_action_f1": 0.8571428571428571,
+          "known_clutter_pending_rate": 0.0
+        }
+      },
+      "held_out_parent_balanced_eligible_prefix": {
+        "raw_argmax": {
+          "scope": "held_out_parent_balanced_eligible_prefix_raw",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3200,
+          "parent_support": 197,
+          "weighted_support": 197.0000000000003,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.5311004784692,
+              1.4688995215311003,
+              0.0
+            ],
+            [
+              0.8000000000000002,
+              5.200000000000002,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9884827435455273,
+          "selective_accuracy": 0.9884827435455273,
+          "selective_risk": 0.011517256454472699,
+          "incorrect_accepted_action_rate": 0.011517256454472699,
+          "known_target_to_clutter_weight": 1.4688995215311003,
+          "clutter_to_known_target_weight": 0.8000000000000002,
+          "known_target_to_clutter_rate": 0.00769057341115758,
+          "clutter_to_known_target_rate": 0.13333333333333333,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0000000000003,
+              "accepted_as_class_support": 190.3311004784692,
+              "action_precision": 0.9957967983267637,
+              "acceptance_recall": 0.9923094265888424,
+              "action_f1": 0.9940500538280663,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.000000000000002,
+              "accepted_as_class_support": 6.668899521531102,
+              "action_precision": 0.7797388434495625,
+              "acceptance_recall": 0.8666666666666667,
+              "action_f1": 0.8209079235591813,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9957967983267637,
+          "known_target_acceptance_recall": 0.9923094265888424,
+          "known_target_action_f1": 0.9940500538280663,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.7797388434495625,
+          "known_clutter_acceptance_recall": 0.8666666666666667,
+          "known_clutter_action_f1": 0.8209079235591813,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_balanced_eligible_prefix_score_band",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3200,
+          "parent_support": 197,
+          "weighted_support": 197.0000000000003,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.77918660287114,
+              0.7272727272727271,
+              0.49354066985645934
+            ],
+            [
+              1.0875000000000004,
+              4.100378787878785,
+              0.8121212121212122
+            ]
+          ],
+          "overall_action_coverage": 0.9933722747107733,
+          "pending_abstain_rate": 0.0066277252892267486,
+          "accepted_action_accuracy": 0.9841602304098965,
+          "selective_accuracy": 0.9907264934452102,
+          "selective_risk": 0.009273506554789753,
+          "incorrect_accepted_action_rate": 0.009212044300876764,
+          "known_target_to_clutter_weight": 0.7272727272727271,
+          "clutter_to_known_target_weight": 1.0875000000000004,
+          "known_target_to_clutter_rate": 0.003807710613993329,
+          "clutter_to_known_target_rate": 0.1812500000000001,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0000000000003,
+              "accepted_as_class_support": 190.86668660287114,
+              "action_precision": 0.9943023058693174,
+              "acceptance_recall": 0.9936083068213132,
+              "action_f1": 0.993955185204386,
+              "pending_abstain_rate": 0.0025839825646935
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 5.999999999999998,
+              "accepted_as_class_support": 4.827651515151512,
+              "action_precision": 0.8493526873283641,
+              "acceptance_recall": 0.6833964646464644,
+              "action_f1": 0.7573902396361727,
+              "pending_abstain_rate": 0.13535353535353542
+            }
+          ],
+          "known_target_action_precision": 0.9943023058693174,
+          "known_target_acceptance_recall": 0.9936083068213132,
+          "known_target_action_f1": 0.993955185204386,
+          "known_target_pending_rate": 0.0025839825646935,
+          "known_clutter_action_precision": 0.8493526873283641,
+          "known_clutter_acceptance_recall": 0.6833964646464644,
+          "known_clutter_action_f1": 0.7573902396361727,
+          "known_clutter_pending_rate": 0.13535353535353542
+        }
+      }
+    },
+    {
+      "fold_id": 2,
+      "threshold_fit": {
+        "fit_fold_ids": [
+          0,
+          1,
+          3,
+          4
+        ],
+        "fit_parent_support": 788,
+        "candidate_count": 311656,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 788,
+          "parent_support": 788,
+          "weighted_support": 788.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              749.0,
+              13.0,
+              0.0
+            ],
+            [
+              4.0,
+              22.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9784263959390863,
+          "selective_accuracy": 0.9784263959390863,
+          "selective_risk": 0.021573604060913704,
+          "incorrect_accepted_action_rate": 0.021573604060913704,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 4.0,
+          "known_target_to_clutter_rate": 0.01706036745406824,
+          "clutter_to_known_target_rate": 0.15384615384615385,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 753.0,
+              "action_precision": 0.9946879150066401,
+              "acceptance_recall": 0.9829396325459318,
+              "action_f1": 0.9887788778877888,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 35.0,
+              "action_precision": 0.6285714285714286,
+              "acceptance_recall": 0.8461538461538461,
+              "action_f1": 0.721311475409836,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9946879150066401,
+          "known_target_acceptance_recall": 0.9829396325459318,
+          "known_target_action_f1": 0.9887788778877888,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6285714285714286,
+          "known_clutter_acceptance_recall": 0.8461538461538461,
+          "known_clutter_action_f1": 0.721311475409836,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5341225862503052,
+        "clutter_threshold": 0.8988269567489624,
+        "score_band_width": 0.3647043704986572,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.22314381270903016,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 788,
+          "parent_support": 788,
+          "weighted_support": 788.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              752.0,
+              4.0,
+              6.0
+            ],
+            [
+              4.0,
+              19.0,
+              3.0
+            ]
+          ],
+          "overall_action_coverage": 0.9885786802030457,
+          "pending_abstain_rate": 0.011421319796954314,
+          "accepted_action_accuracy": 0.9784263959390863,
+          "selective_accuracy": 0.9897304236200257,
+          "selective_risk": 0.010269576379974325,
+          "incorrect_accepted_action_rate": 0.01015228426395939,
+          "known_target_to_clutter_weight": 4.0,
+          "clutter_to_known_target_weight": 4.0,
+          "known_target_to_clutter_rate": 0.005249343832020997,
+          "clutter_to_known_target_rate": 0.15384615384615385,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 762.0,
+              "accepted_as_class_support": 756.0,
+              "action_precision": 0.9947089947089947,
+              "acceptance_recall": 0.9868766404199475,
+              "action_f1": 0.9907773386034255,
+              "pending_abstain_rate": 0.007874015748031496
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 23.0,
+              "action_precision": 0.8260869565217391,
+              "acceptance_recall": 0.7307692307692307,
+              "action_f1": 0.7755102040816326,
+              "pending_abstain_rate": 0.11538461538461539
+            }
+          ],
+          "known_target_action_precision": 0.9947089947089947,
+          "known_target_acceptance_recall": 0.9868766404199475,
+          "known_target_action_f1": 0.9907773386034255,
+          "known_target_pending_rate": 0.007874015748031496,
+          "known_clutter_action_precision": 0.8260869565217391,
+          "known_clutter_acceptance_recall": 0.7307692307692307,
+          "known_clutter_action_f1": 0.7755102040816326,
+          "known_clutter_pending_rate": 0.11538461538461539
+        },
+        "held_out_fold_id": 2,
+        "held_out_parent_support": 198
+      },
+      "held_out_parent_final": {
+        "raw_argmax": {
+          "scope": "held_out_parent_final_raw",
+          "aggregation": "each record weight one",
+          "event_support": 198,
+          "parent_support": 198,
+          "weighted_support": 198.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.0,
+              2.0,
+              0.0
+            ],
+            [
+              2.0,
+              5.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9797979797979798,
+          "selective_accuracy": 0.9797979797979798,
+          "selective_risk": 0.020202020202020204,
+          "incorrect_accepted_action_rate": 0.020202020202020204,
+          "known_target_to_clutter_weight": 2.0,
+          "clutter_to_known_target_weight": 2.0,
+          "known_target_to_clutter_rate": 0.010471204188481676,
+          "clutter_to_known_target_rate": 0.2857142857142857,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 191.0,
+              "action_precision": 0.9895287958115183,
+              "acceptance_recall": 0.9895287958115183,
+              "action_f1": 0.9895287958115183,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 7.0,
+              "action_precision": 0.7142857142857143,
+              "acceptance_recall": 0.7142857142857143,
+              "action_f1": 0.7142857142857143,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9895287958115183,
+          "known_target_acceptance_recall": 0.9895287958115183,
+          "known_target_action_f1": 0.9895287958115183,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.7142857142857143,
+          "known_clutter_acceptance_recall": 0.7142857142857143,
+          "known_clutter_action_f1": 0.7142857142857143,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_final_score_band",
+          "aggregation": "each record weight one",
+          "event_support": 198,
+          "parent_support": 198,
+          "weighted_support": 198.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.0,
+              0.0,
+              2.0
+            ],
+            [
+              2.0,
+              3.0,
+              2.0
+            ]
+          ],
+          "overall_action_coverage": 0.9797979797979798,
+          "pending_abstain_rate": 0.020202020202020204,
+          "accepted_action_accuracy": 0.9696969696969697,
+          "selective_accuracy": 0.9896907216494846,
+          "selective_risk": 0.010309278350515464,
+          "incorrect_accepted_action_rate": 0.010101010101010102,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 2.0,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.2857142857142857,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 191.0,
+              "accepted_as_class_support": 191.0,
+              "action_precision": 0.9895287958115183,
+              "acceptance_recall": 0.9895287958115183,
+              "action_f1": 0.9895287958115183,
+              "pending_abstain_rate": 0.010471204188481676
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 3.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.42857142857142855,
+              "action_f1": 0.6,
+              "pending_abstain_rate": 0.2857142857142857
+            }
+          ],
+          "known_target_action_precision": 0.9895287958115183,
+          "known_target_acceptance_recall": 0.9895287958115183,
+          "known_target_action_f1": 0.9895287958115183,
+          "known_target_pending_rate": 0.010471204188481676,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.42857142857142855,
+          "known_clutter_action_f1": 0.6,
+          "known_clutter_pending_rate": 0.2857142857142857
+        }
+      },
+      "held_out_parent_balanced_eligible_prefix": {
+        "raw_argmax": {
+          "scope": "held_out_parent_balanced_eligible_prefix_raw",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3177,
+          "parent_support": 198,
+          "weighted_support": 197.99999999999827,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              188.87499999999827,
+              2.1250000000000004,
+              0.0
+            ],
+            [
+              2.6249999999999987,
+              4.374999999999991,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9760101010101008,
+          "selective_accuracy": 0.9760101010101008,
+          "selective_risk": 0.0239898989898992,
+          "incorrect_accepted_action_rate": 0.0239898989898992,
+          "known_target_to_clutter_weight": 2.1250000000000004,
+          "clutter_to_known_target_weight": 2.6249999999999987,
+          "known_target_to_clutter_rate": 0.011125654450261884,
+          "clutter_to_known_target_rate": 0.3750000000000004,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.99999999999827,
+              "accepted_as_class_support": 191.49999999999827,
+              "action_precision": 0.9862924281984333,
+              "acceptance_recall": 0.9888743455497381,
+              "action_f1": 0.987581699346405,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.999999999999989,
+              "accepted_as_class_support": 6.499999999999991,
+              "action_precision": 0.6730769230769227,
+              "acceptance_recall": 0.6249999999999997,
+              "action_f1": 0.6481481481481477,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9862924281984333,
+          "known_target_acceptance_recall": 0.9888743455497381,
+          "known_target_action_f1": 0.987581699346405,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6730769230769227,
+          "known_clutter_acceptance_recall": 0.6249999999999997,
+          "known_clutter_action_f1": 0.6481481481481477,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_balanced_eligible_prefix_score_band",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3177,
+          "parent_support": 198,
+          "weighted_support": 197.99999999999824,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              188.97222222222047,
+              0.0,
+              2.0277777777777786
+            ],
+            [
+              2.6249999999999987,
+              2.072681704260652,
+              2.3023182957393495
+            ]
+          ],
+          "overall_action_coverage": 0.9781308279115295,
+          "pending_abstain_rate": 0.021869172088470536,
+          "accepted_action_accuracy": 0.9648732521539536,
+          "selective_accuracy": 0.9864460096959801,
+          "selective_risk": 0.013553990304019948,
+          "incorrect_accepted_action_rate": 0.013257575757575876,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 2.6249999999999987,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.37499999999999983,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.99999999999824,
+              "accepted_as_class_support": 191.59722222222047,
+              "action_precision": 0.9862993838347226,
+              "acceptance_recall": 0.9893833624200116,
+              "action_f1": 0.9878389661306131,
+              "pending_abstain_rate": 0.010616637579988467
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 2.072681704260652,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.29609738632295024,
+              "action_f1": 0.4569060773480663,
+              "pending_abstain_rate": 0.3289026136770499
+            }
+          ],
+          "known_target_action_precision": 0.9862993838347226,
+          "known_target_acceptance_recall": 0.9893833624200116,
+          "known_target_action_f1": 0.9878389661306131,
+          "known_target_pending_rate": 0.010616637579988467,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.29609738632295024,
+          "known_clutter_action_f1": 0.4569060773480663,
+          "known_clutter_pending_rate": 0.3289026136770499
+        }
+      }
+    },
+    {
+      "fold_id": 3,
+      "threshold_fit": {
+        "fit_fold_ids": [
+          0,
+          1,
+          2,
+          4
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              750.0,
+              13.0,
+              0.0
+            ],
+            [
+              5.0,
+              21.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9771863117870723,
+          "selective_accuracy": 0.9771863117870723,
+          "selective_risk": 0.022813688212927757,
+          "incorrect_accepted_action_rate": 0.022813688212927757,
+          "known_target_to_clutter_weight": 13.0,
+          "clutter_to_known_target_weight": 5.0,
+          "known_target_to_clutter_rate": 0.01703800786369594,
+          "clutter_to_known_target_rate": 0.19230769230769232,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 755.0,
+              "action_precision": 0.9933774834437086,
+              "acceptance_recall": 0.9829619921363041,
+              "action_f1": 0.9881422924901186,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 34.0,
+              "action_precision": 0.6176470588235294,
+              "acceptance_recall": 0.8076923076923077,
+              "action_f1": 0.7,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9933774834437086,
+          "known_target_acceptance_recall": 0.9829619921363041,
+          "known_target_action_f1": 0.9881422924901186,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.6176470588235294,
+          "known_clutter_acceptance_recall": 0.8076923076923077,
+          "known_clutter_action_f1": 0.7,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.7230936288833618,
+        "clutter_threshold": 0.8057971596717834,
+        "score_band_width": 0.08270353078842163,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.2107692307692307,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              755.0,
+              5.0,
+              3.0
+            ],
+            [
+              5.0,
+              20.0,
+              1.0
+            ]
+          ],
+          "overall_action_coverage": 0.9949302915082383,
+          "pending_abstain_rate": 0.005069708491761723,
+          "accepted_action_accuracy": 0.982256020278834,
+          "selective_accuracy": 0.9872611464968153,
+          "selective_risk": 0.012738853503184714,
+          "incorrect_accepted_action_rate": 0.012674271229404309,
+          "known_target_to_clutter_weight": 5.0,
+          "clutter_to_known_target_weight": 5.0,
+          "known_target_to_clutter_rate": 0.00655307994757536,
+          "clutter_to_known_target_rate": 0.19230769230769232,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 760.0,
+              "action_precision": 0.993421052631579,
+              "acceptance_recall": 0.9895150720838795,
+              "action_f1": 0.9914642153644124,
+              "pending_abstain_rate": 0.003931847968545216
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 25.0,
+              "action_precision": 0.8,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.7843137254901961,
+              "pending_abstain_rate": 0.038461538461538464
+            }
+          ],
+          "known_target_action_precision": 0.993421052631579,
+          "known_target_acceptance_recall": 0.9895150720838795,
+          "known_target_action_f1": 0.9914642153644124,
+          "known_target_pending_rate": 0.003931847968545216,
+          "known_clutter_action_precision": 0.8,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.7843137254901961,
+          "known_clutter_pending_rate": 0.038461538461538464
+        },
+        "held_out_fold_id": 3,
+        "held_out_parent_support": 197
+      },
+      "held_out_parent_final": {
+        "raw_argmax": {
+          "scope": "held_out_parent_final_raw",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              188.0,
+              2.0,
+              0.0
+            ],
+            [
+              1.0,
+              6.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9847715736040609,
+          "selective_accuracy": 0.9847715736040609,
+          "selective_risk": 0.015228426395939087,
+          "incorrect_accepted_action_rate": 0.015228426395939087,
+          "known_target_to_clutter_weight": 2.0,
+          "clutter_to_known_target_weight": 1.0,
+          "known_target_to_clutter_rate": 0.010526315789473684,
+          "clutter_to_known_target_rate": 0.14285714285714285,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.0,
+              "accepted_as_class_support": 189.0,
+              "action_precision": 0.9947089947089947,
+              "acceptance_recall": 0.9894736842105263,
+              "action_f1": 0.992084432717678,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 8.0,
+              "action_precision": 0.75,
+              "acceptance_recall": 0.8571428571428571,
+              "action_f1": 0.7999999999999999,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9947089947089947,
+          "known_target_acceptance_recall": 0.9894736842105263,
+          "known_target_action_f1": 0.992084432717678,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.75,
+          "known_clutter_acceptance_recall": 0.8571428571428571,
+          "known_clutter_action_f1": 0.7999999999999999,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_final_score_band",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              190.0,
+              0.0,
+              0.0
+            ],
+            [
+              3.0,
+              4.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9847715736040609,
+          "selective_accuracy": 0.9847715736040609,
+          "selective_risk": 0.015228426395939087,
+          "incorrect_accepted_action_rate": 0.015228426395939087,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 3.0,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.42857142857142855,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.0,
+              "accepted_as_class_support": 193.0,
+              "action_precision": 0.9844559585492227,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.9921671018276762,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 4.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.5714285714285714,
+              "action_f1": 0.7272727272727273,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9844559585492227,
+          "known_target_acceptance_recall": 1.0,
+          "known_target_action_f1": 0.9921671018276762,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.5714285714285714,
+          "known_clutter_action_f1": 0.7272727272727273,
+          "known_clutter_pending_rate": 0.0
+        }
+      },
+      "held_out_parent_balanced_eligible_prefix": {
+        "raw_argmax": {
+          "scope": "held_out_parent_balanced_eligible_prefix_raw",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3206,
+          "parent_support": 197,
+          "weighted_support": 196.99999999999974,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              188.96845694799634,
+              1.03154305200341,
+              0.0
+            ],
+            [
+              3.437280701754388,
+              3.562719298245617,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9773156154631584,
+          "selective_accuracy": 0.9773156154631584,
+          "selective_risk": 0.022684384536841597,
+          "incorrect_accepted_action_rate": 0.022684384536841597,
+          "known_target_to_clutter_weight": 1.03154305200341,
+          "clutter_to_known_target_weight": 3.437280701754388,
+          "known_target_to_clutter_rate": 0.005429173957912691,
+          "clutter_to_known_target_rate": 0.49104010025062644,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 189.99999999999974,
+              "accepted_as_class_support": 192.40573764975073,
+              "action_precision": 0.9821352484403999,
+              "acceptance_recall": 0.9945708260420874,
+              "action_f1": 0.988313920755418,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.000000000000005,
+              "accepted_as_class_support": 4.594262350249027,
+              "action_precision": 0.7754714525722511,
+              "acceptance_recall": 0.5089598997493735,
+              "action_f1": 0.6145659276321437,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9821352484403999,
+          "known_target_acceptance_recall": 0.9945708260420874,
+          "known_target_action_f1": 0.988313920755418,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.7754714525722511,
+          "known_clutter_acceptance_recall": 0.5089598997493735,
+          "known_clutter_action_f1": 0.6145659276321437,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_balanced_eligible_prefix_score_band",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3206,
+          "parent_support": 197,
+          "weighted_support": 196.99999999999966,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              189.88888888888854,
+              0.0,
+              0.1111111111111111
+            ],
+            [
+              5.024164483607206,
+              1.5245693419068027,
+              0.4512661744859887
+            ]
+          ],
+          "overall_action_coverage": 0.9971452929665121,
+          "pending_abstain_rate": 0.0028547070334878216,
+          "accepted_action_accuracy": 0.9716419199532776,
+          "selective_accuracy": 0.9744236138974673,
+          "selective_risk": 0.025576386102532635,
+          "incorrect_accepted_action_rate": 0.02550337301323453,
+          "known_target_to_clutter_weight": 0.0,
+          "clutter_to_known_target_weight": 5.024164483607206,
+          "known_target_to_clutter_rate": 0.0,
+          "clutter_to_known_target_rate": 0.7177377833724582,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 189.99999999999966,
+              "accepted_as_class_support": 194.91305337249574,
+              "action_precision": 0.9742235607278411,
+              "acceptance_recall": 0.9994152046783625,
+              "action_f1": 0.9866586088735507,
+              "pending_abstain_rate": 0.0005847953216374279
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 6.999999999999997,
+              "accepted_as_class_support": 1.5245693419068027,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.21779562027240046,
+              "action_f1": 0.3576882962080012,
+              "pending_abstain_rate": 0.06446659635514126
+            }
+          ],
+          "known_target_action_precision": 0.9742235607278411,
+          "known_target_acceptance_recall": 0.9994152046783625,
+          "known_target_action_f1": 0.9866586088735507,
+          "known_target_pending_rate": 0.0005847953216374279,
+          "known_clutter_action_precision": 1.0,
+          "known_clutter_acceptance_recall": 0.21779562027240046,
+          "known_clutter_action_f1": 0.3576882962080012,
+          "known_clutter_pending_rate": 0.06446659635514126
+        }
+      }
+    },
+    {
+      "fold_id": 4,
+      "threshold_fit": {
+        "fit_fold_ids": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "fit_parent_support": 789,
+        "candidate_count": 312446,
+        "candidate_space": "all strict score decision-equivalence breakpoint pairs plus the single raw-argmax (0.5, 0.5) baseline",
+        "feasible_candidate_count": 0,
+        "selection_mode": "minimum_requirement_violation",
+        "fit_raw_argmax_metrics": {
+          "scope": "threshold_fit_parent_final_raw_argmax",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              757.0,
+              6.0,
+              0.0
+            ],
+            [
+              6.0,
+              20.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9847908745247148,
+          "selective_accuracy": 0.9847908745247148,
+          "selective_risk": 0.015209125475285171,
+          "incorrect_accepted_action_rate": 0.015209125475285171,
+          "known_target_to_clutter_weight": 6.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.007863695937090432,
+          "clutter_to_known_target_rate": 0.23076923076923078,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 763.0,
+              "action_precision": 0.9921363040629095,
+              "acceptance_recall": 0.9921363040629095,
+              "action_f1": 0.9921363040629095,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 26.0,
+              "action_precision": 0.7692307692307693,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.7692307692307693,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9921363040629095,
+          "known_target_acceptance_recall": 0.9921363040629095,
+          "known_target_action_f1": 0.9921363040629095,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.7692307692307693,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.7692307692307693,
+          "known_clutter_pending_rate": 0.0
+        },
+        "target_threshold": 0.5913790464401245,
+        "clutter_threshold": 0.6037395000457764,
+        "score_band_width": 0.012360453605651855,
+        "decision_mode": "strict_score_band",
+        "fit_feasible": false,
+        "total_requirement_violation": 0.14120401337792643,
+        "direction_requirement_checks": {
+          "known_target_to_clutter_rate_not_higher_than_raw": true,
+          "clutter_to_known_target_rate_not_higher_than_raw": true
+        },
+        "metrics": {
+          "scope": "threshold_fit_parent_final",
+          "aggregation": "each parent-final OOF record weight one",
+          "event_support": 789,
+          "parent_support": 789,
+          "weighted_support": 789.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              760.0,
+              3.0,
+              0.0
+            ],
+            [
+              6.0,
+              20.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9885931558935361,
+          "selective_accuracy": 0.9885931558935361,
+          "selective_risk": 0.011406844106463879,
+          "incorrect_accepted_action_rate": 0.011406844106463879,
+          "known_target_to_clutter_weight": 3.0,
+          "clutter_to_known_target_weight": 6.0,
+          "known_target_to_clutter_rate": 0.003931847968545216,
+          "clutter_to_known_target_rate": 0.23076923076923078,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 763.0,
+              "accepted_as_class_support": 766.0,
+              "action_precision": 0.9921671018276762,
+              "acceptance_recall": 0.9960681520314548,
+              "action_f1": 0.9941137998691956,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 26.0,
+              "accepted_as_class_support": 23.0,
+              "action_precision": 0.8695652173913043,
+              "acceptance_recall": 0.7692307692307693,
+              "action_f1": 0.8163265306122449,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9921671018276762,
+          "known_target_acceptance_recall": 0.9960681520314548,
+          "known_target_action_f1": 0.9941137998691956,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.8695652173913043,
+          "known_clutter_acceptance_recall": 0.7692307692307693,
+          "known_clutter_action_f1": 0.8163265306122449,
+          "known_clutter_pending_rate": 0.0
+        },
+        "held_out_fold_id": 4,
+        "held_out_parent_support": 197
+      },
+      "held_out_parent_final": {
+        "raw_argmax": {
+          "scope": "held_out_parent_final_raw",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              181.0,
+              9.0,
+              0.0
+            ],
+            [
+              0.0,
+              7.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9543147208121827,
+          "selective_accuracy": 0.9543147208121827,
+          "selective_risk": 0.04568527918781726,
+          "incorrect_accepted_action_rate": 0.04568527918781726,
+          "known_target_to_clutter_weight": 9.0,
+          "clutter_to_known_target_weight": 0.0,
+          "known_target_to_clutter_rate": 0.04736842105263158,
+          "clutter_to_known_target_rate": 0.0,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.0,
+              "accepted_as_class_support": 181.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.9526315789473684,
+              "action_f1": 0.9757412398921832,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 16.0,
+              "action_precision": 0.4375,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.6086956521739131,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 1.0,
+          "known_target_acceptance_recall": 0.9526315789473684,
+          "known_target_action_f1": 0.9757412398921832,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.4375,
+          "known_clutter_acceptance_recall": 1.0,
+          "known_clutter_action_f1": 0.6086956521739131,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_final_score_band",
+          "aggregation": "each record weight one",
+          "event_support": 197,
+          "parent_support": 197,
+          "weighted_support": 197.0,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              182.0,
+              8.0,
+              0.0
+            ],
+            [
+              0.0,
+              7.0,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9593908629441624,
+          "selective_accuracy": 0.9593908629441624,
+          "selective_risk": 0.04060913705583756,
+          "incorrect_accepted_action_rate": 0.04060913705583756,
+          "known_target_to_clutter_weight": 8.0,
+          "clutter_to_known_target_weight": 0.0,
+          "known_target_to_clutter_rate": 0.042105263157894736,
+          "clutter_to_known_target_rate": 0.0,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.0,
+              "accepted_as_class_support": 182.0,
+              "action_precision": 1.0,
+              "acceptance_recall": 0.9578947368421052,
+              "action_f1": 0.978494623655914,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.0,
+              "accepted_as_class_support": 15.0,
+              "action_precision": 0.4666666666666667,
+              "acceptance_recall": 1.0,
+              "action_f1": 0.6363636363636364,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 1.0,
+          "known_target_acceptance_recall": 0.9578947368421052,
+          "known_target_action_f1": 0.978494623655914,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.4666666666666667,
+          "known_clutter_acceptance_recall": 1.0,
+          "known_clutter_action_f1": 0.6363636363636364,
+          "known_clutter_pending_rate": 0.0
+        }
+      },
+      "held_out_parent_balanced_eligible_prefix": {
+        "raw_argmax": {
+          "scope": "held_out_parent_balanced_eligible_prefix_raw",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3241,
+          "parent_support": 197,
+          "weighted_support": 196.9999999999999,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              177.55383386001225,
+              12.44616613998764,
+              0.0
+            ],
+            [
+              0.4999999999999999,
+              6.500000000000007,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 1.0,
+          "pending_abstain_rate": 0.0,
+          "accepted_action_accuracy": 0.9342834206091998,
+          "selective_accuracy": 0.9342834206091998,
+          "selective_risk": 0.06571657939080024,
+          "incorrect_accepted_action_rate": 0.06571657939080024,
+          "known_target_to_clutter_weight": 12.44616613998764,
+          "clutter_to_known_target_weight": 0.4999999999999999,
+          "known_target_to_clutter_rate": 0.06550613757888236,
+          "clutter_to_known_target_rate": 0.07142857142857134,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 189.9999999999999,
+              "accepted_as_class_support": 178.05383386001225,
+              "action_precision": 0.9971918605224018,
+              "acceptance_recall": 0.9344938624211176,
+              "action_f1": 0.964825346324441,
+              "pending_abstain_rate": 0.0
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.000000000000007,
+              "accepted_as_class_support": 18.946166139987646,
+              "action_precision": 0.3430773250890666,
+              "acceptance_recall": 0.9285714285714286,
+              "action_f1": 0.5010374145398192,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9971918605224018,
+          "known_target_acceptance_recall": 0.9344938624211176,
+          "known_target_action_f1": 0.964825346324441,
+          "known_target_pending_rate": 0.0,
+          "known_clutter_action_precision": 0.3430773250890666,
+          "known_clutter_acceptance_recall": 0.9285714285714286,
+          "known_clutter_action_f1": 0.5010374145398192,
+          "known_clutter_pending_rate": 0.0
+        },
+        "score_band": {
+          "scope": "held_out_parent_balanced_eligible_prefix_score_band",
+          "aggregation": "each eligible parent has total weight one",
+          "event_support": 3241,
+          "parent_support": 197,
+          "weighted_support": 197.00000000000017,
+          "action_names": [
+            "KNOWN_TARGET_EVIDENCE",
+            "KNOWN_CLUTTER_EVIDENCE",
+            "PENDING_ABSTAIN"
+          ],
+          "action_confusion_rows_true_columns_action": [
+            [
+              179.6698630634559,
+              10.18402709672732,
+              0.14610983981693365
+            ],
+            [
+              0.5714285714285713,
+              6.428571428571436,
+              0.0
+            ]
+          ],
+          "overall_action_coverage": 0.9992583256862084,
+          "pending_abstain_rate": 0.0007416743137915407,
+          "accepted_action_accuracy": 0.9446621040204425,
+          "selective_accuracy": 0.9453632556643712,
+          "selective_risk": 0.054636744335628824,
+          "incorrect_accepted_action_rate": 0.05459622166576589,
+          "known_target_to_clutter_weight": 10.18402709672732,
+          "clutter_to_known_target_weight": 0.5714285714285713,
+          "known_target_to_clutter_rate": 0.05360014261435427,
+          "clutter_to_known_target_rate": 0.08163265306122439,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "true_support": 190.00000000000014,
+              "accepted_as_class_support": 180.24129163488448,
+              "action_precision": 0.9968296467127736,
+              "acceptance_recall": 0.9456308582287145,
+              "action_f1": 0.9705555113535972,
+              "pending_abstain_rate": 0.0007689991569312292
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "true_support": 7.000000000000007,
+              "accepted_as_class_support": 16.612598525298758,
+              "action_precision": 0.38696964949713225,
+              "acceptance_recall": 0.9183673469387756,
+              "action_f1": 0.5445035133836543,
+              "pending_abstain_rate": 0.0
+            }
+          ],
+          "known_target_action_precision": 0.9968296467127736,
+          "known_target_acceptance_recall": 0.9456308582287145,
+          "known_target_action_f1": 0.9705555113535972,
+          "known_target_pending_rate": 0.0007689991569312292,
+          "known_clutter_action_precision": 0.38696964949713225,
+          "known_clutter_acceptance_recall": 0.9183673469387756,
+          "known_clutter_action_f1": 0.5445035133836543,
+          "known_clutter_pending_rate": 0.0
+        }
+      }
+    }
+  ],
+  "parent_final_wilson_intervals": {
+    "raw_argmax": {
+      "method": "Wilson score interval, two-sided 95 percent",
+      "action_confusion_rows_true_columns_action": [
+        [
+          938,
+          15,
+          0
+        ],
+        [
+          6,
+          27,
+          0
+        ]
+      ],
+      "known_clutter_action_precision": {
+        "support": 42,
+        "successes": 27,
+        "estimate": 0.6428571428571429,
+        "lower_95": 0.4916636571945582,
+        "upper_95": 0.7701081168438123,
+        "status": "defined"
+      },
+      "known_clutter_acceptance_recall": {
+        "support": 33,
+        "successes": 27,
+        "estimate": 0.8181818181818182,
+        "lower_95": 0.6561176836533009,
+        "upper_95": 0.9138923179105933,
+        "status": "defined"
+      },
+      "known_target_action_precision": {
+        "support": 944,
+        "successes": 938,
+        "estimate": 0.9936440677966102,
+        "lower_95": 0.9862029457543595,
+        "upper_95": 0.9970838595723415,
+        "status": "defined"
+      },
+      "known_target_acceptance_recall": {
+        "support": 953,
+        "successes": 938,
+        "estimate": 0.9842602308499475,
+        "lower_95": 0.9741934899572748,
+        "upper_95": 0.9904386248944335,
+        "status": "defined"
+      },
+      "overall_action_coverage": {
+        "support": 986,
+        "successes": 986,
+        "estimate": 1.0,
+        "lower_95": 0.9961191170702519,
+        "upper_95": 1.0,
+        "status": "defined"
+      },
+      "clutter_parent_support": 33
+    },
+    "score_band": {
+      "method": "Wilson score interval, two-sided 95 percent",
+      "action_confusion_rows_true_columns_action": [
+        [
+          941,
+          10,
+          2
+        ],
+        [
+          8,
+          22,
+          3
+        ]
+      ],
+      "known_clutter_action_precision": {
+        "support": 32,
+        "successes": 22,
+        "estimate": 0.6875,
+        "lower_95": 0.5143332169904459,
+        "upper_95": 0.8204745836639026,
+        "status": "defined"
+      },
+      "known_clutter_acceptance_recall": {
+        "support": 33,
+        "successes": 22,
+        "estimate": 0.6666666666666666,
+        "lower_95": 0.4960789442780561,
+        "upper_95": 0.8024977232077931,
+        "status": "defined"
+      },
+      "known_target_action_precision": {
+        "support": 949,
+        "successes": 941,
+        "estimate": 0.9915700737618546,
+        "lower_95": 0.9834541838328905,
+        "upper_95": 0.995722353211109,
+        "status": "defined"
+      },
+      "known_target_acceptance_recall": {
+        "support": 953,
+        "successes": 941,
+        "estimate": 0.9874081846799581,
+        "lower_95": 0.9781202556385941,
+        "upper_95": 0.9927824905122588,
+        "status": "defined"
+      },
+      "overall_action_coverage": {
+        "support": 986,
+        "successes": 981,
+        "estimate": 0.9949290060851927,
+        "lower_95": 0.9881844015055721,
+        "upper_95": 0.9978320876025069,
+        "status": "defined"
+      },
+      "clutter_parent_support": 33
+    },
+    "clutter_parent_support": 33
+  },
+  "paired_component_bootstrap": {
+    "method": "paired capture/content provenance-component bootstrap stratified by component label signature",
+    "replicates": 5000,
+    "seed": 24044,
+    "component_count": 975,
+    "stratum_component_counts": {
+      "BalloonTarget:1": 228,
+      "BalloonTarget:1+ClutterTarget:1": 2,
+      "BalloonTarget:2": 4,
+      "BirdTarget:1": 236,
+      "BirdTarget:1+DroneTarget:1": 1,
+      "BirdTarget:2": 1,
+      "ClutterTarget:1": 31,
+      "DroneTarget:1": 469,
+      "DroneTarget:2": 3
+    },
+    "score_band_minus_raw_argmax": {
+      "accepted_action_accuracy": {
+        "median": -0.0020283975659228792,
+        "lower_95": -0.007099391480730244,
+        "upper_95": 0.0030425963488843744
+      },
+      "selective_accuracy": {
+        "median": 0.002944381380096006,
+        "lower_95": -0.002094523591454478,
+        "upper_95": 0.008030882921554183
+      },
+      "selective_risk": {
+        "median": -0.002944381380096065,
+        "lower_95": -0.008030882921554152,
+        "upper_95": 0.002094523591454482
+      },
+      "overall_action_coverage": {
+        "median": -0.005070993914807254,
+        "lower_95": -0.010141987829614618,
+        "upper_95": -0.0010141987829614951
+      },
+      "pending_abstain_rate": {
+        "median": 0.005070993914807302,
+        "lower_95": 0.0010141987829614604,
+        "upper_95": 0.010141987829614604
+      },
+      "incorrect_accepted_action_rate": {
+        "median": -0.0030425963488843813,
+        "lower_95": -0.008113590263691683,
+        "upper_95": 0.002028397565922921
+      },
+      "known_target_action_precision": {
+        "median": -0.0020688223066097633,
+        "lower_95": -0.005216493377011799,
+        "upper_95": 3.3737566518451934e-05
+      },
+      "known_target_acceptance_recall": {
+        "median": 0.0031479538300104304,
+        "lower_95": 0.0,
+        "upper_95": 0.007345225603357819
+      },
+      "known_target_action_f1": {
+        "median": 0.0005480814561174552,
+        "lower_95": -0.0015599317860336415,
+        "upper_95": 0.0027023945027833942
+      },
+      "known_clutter_action_precision": {
+        "median": 0.042548648247177634,
+        "lower_95": -0.03788143058491903,
+        "upper_95": 0.13729729729729723
+      },
+      "known_clutter_acceptance_recall": {
+        "median": -0.1515151515151515,
+        "lower_95": -0.2727272727272727,
+        "upper_95": -0.030303030303030276
+      },
+      "known_clutter_action_f1": {
+        "median": -0.04258064516129034,
+        "lower_95": -0.1438552339795069,
+        "upper_95": 0.03972137368144713
+      },
+      "known_target_to_clutter_rate": {
+        "median": -0.005246589716684154,
+        "lower_95": -0.01049317943336831,
+        "upper_95": -0.0010493179433368315
+      },
+      "clutter_to_known_target_rate": {
+        "median": 0.06060606060606061,
+        "lower_95": 0.0,
+        "upper_95": 0.15151515151515152
+      }
+    }
+  },
+  "parent_final_action_changes": {
+    "changed_parent_count": 10,
+    "rescued_parent_count": 3,
+    "harmed_parent_count": 5,
+    "abstained_from_raw_error_count": 2,
+    "abstained_from_raw_correct_count": 0,
+    "changes": [
+      {
+        "parent_sample_id": "cq08|track|2615",
+        "track_id": "2615",
+        "fold_id": 3,
+        "provenance_component_id": "v16-component-5345b8ae08c6f5ab4118d21cc84bc60b40c13357b1029b42629cb9b18d90e6bf",
+        "label_name": "BirdTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "KNOWN_TARGET_EVIDENCE",
+        "known_clutter_probability": 0.5271618962287903,
+        "threshold_target": 0.7230936288833618,
+        "threshold_clutter": 0.8057971596717834,
+        "raw_correct_action": false,
+        "calibrated_correct_action": true,
+        "change_type": "rescued"
+      },
+      {
+        "parent_sample_id": "cq08|track|3606",
+        "track_id": "3606",
+        "fold_id": 3,
+        "provenance_component_id": "v16-component-d9c11180727651b8fbe6e9113f3da5923351832805ef4cba491884b61261e8e6",
+        "label_name": "ClutterTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "KNOWN_TARGET_EVIDENCE",
+        "known_clutter_probability": 0.7023914456367493,
+        "threshold_target": 0.7230936288833618,
+        "threshold_clutter": 0.8057971596717834,
+        "raw_correct_action": true,
+        "calibrated_correct_action": false,
+        "change_type": "harmed"
+      },
+      {
+        "parent_sample_id": "cq08|track|3760",
+        "track_id": "3760",
+        "fold_id": 0,
+        "provenance_component_id": "v16-component-7d15ab72728308dac9f9e3c29b701ef41d2b19ab050801a39b281e24cac54338",
+        "label_name": "ClutterTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "PENDING_ABSTAIN",
+        "known_clutter_probability": 0.7575586438179016,
+        "threshold_target": 0.5913790464401245,
+        "threshold_clutter": 0.8057971596717834,
+        "raw_correct_action": true,
+        "calibrated_correct_action": false,
+        "change_type": "harmed"
+      },
+      {
+        "parent_sample_id": "cq08|track|3790",
+        "track_id": "3790",
+        "fold_id": 3,
+        "provenance_component_id": "v16-component-720245d7a9ae742b5e109ecf2e09b44132fee599e904c61a311e213d9103bb49",
+        "label_name": "ClutterTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "KNOWN_TARGET_EVIDENCE",
+        "known_clutter_probability": 0.6037395000457764,
+        "threshold_target": 0.7230936288833618,
+        "threshold_clutter": 0.8057971596717834,
+        "raw_correct_action": true,
+        "calibrated_correct_action": false,
+        "change_type": "harmed"
+      },
+      {
+        "parent_sample_id": "cq08|track|3817",
+        "track_id": "3817",
+        "fold_id": 2,
+        "provenance_component_id": "v16-component-153aed0692d7f999a4b7710bd01ca5843c6f57b04c9a9def56951047f519140c",
+        "label_name": "ClutterTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "PENDING_ABSTAIN",
+        "known_clutter_probability": 0.8057971596717834,
+        "threshold_target": 0.5341225862503052,
+        "threshold_clutter": 0.8988269567489624,
+        "raw_correct_action": true,
+        "calibrated_correct_action": false,
+        "change_type": "harmed"
+      },
+      {
+        "parent_sample_id": "cq08|track|389",
+        "track_id": "389",
+        "fold_id": 4,
+        "provenance_component_id": "v16-component-87f98535330d436f21d61360a79f6cd10cde98e7529b645345ca6aecd95ed9df",
+        "label_name": "BirdTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "KNOWN_TARGET_EVIDENCE",
+        "known_clutter_probability": 0.5341225862503052,
+        "threshold_target": 0.5913790464401245,
+        "threshold_clutter": 0.6037395000457764,
+        "raw_correct_action": false,
+        "calibrated_correct_action": true,
+        "change_type": "rescued"
+      },
+      {
+        "parent_sample_id": "cq08|track|411",
+        "track_id": "411",
+        "fold_id": 3,
+        "provenance_component_id": "v16-component-3a0d18bb106e5d7dfdb578a9e92cc1ea737d7de3bd73e6ce2e6703897e5d1513",
+        "label_name": "BirdTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "KNOWN_TARGET_EVIDENCE",
+        "known_clutter_probability": 0.5208702683448792,
+        "threshold_target": 0.7230936288833618,
+        "threshold_clutter": 0.8057971596717834,
+        "raw_correct_action": false,
+        "calibrated_correct_action": true,
+        "change_type": "rescued"
+      },
+      {
+        "parent_sample_id": "cq08|track|4167",
+        "track_id": "4167",
+        "fold_id": 2,
+        "provenance_component_id": "v16-component-b14f566023900465b411e9e22e30857050d96ec1263b7f5906ebef76fee4d1d5",
+        "label_name": "ClutterTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "PENDING_ABSTAIN",
+        "known_clutter_probability": 0.8645495176315308,
+        "threshold_target": 0.5341225862503052,
+        "threshold_clutter": 0.8988269567489624,
+        "raw_correct_action": true,
+        "calibrated_correct_action": false,
+        "change_type": "harmed"
+      },
+      {
+        "parent_sample_id": "cq08|track|520",
+        "track_id": "520",
+        "fold_id": 2,
+        "provenance_component_id": "v16-component-ac51b8292f58ad38821ee7d9b4796c544c213b325ed7a5e2ed12ce6fa705035c",
+        "label_name": "BirdTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "PENDING_ABSTAIN",
+        "known_clutter_probability": 0.5913790464401245,
+        "threshold_target": 0.5341225862503052,
+        "threshold_clutter": 0.8988269567489624,
+        "raw_correct_action": false,
+        "calibrated_correct_action": false,
+        "change_type": "abstained_from_raw_error"
+      },
+      {
+        "parent_sample_id": "cq08|track|599",
+        "track_id": "599",
+        "fold_id": 2,
+        "provenance_component_id": "v16-component-e1b996ecc36ef0ffc9d5fc591aac513f21fa9653d8ea1218a72371f93fd3e5eb",
+        "label_name": "BirdTarget",
+        "raw_action": "KNOWN_CLUTTER_EVIDENCE",
+        "calibrated_action": "PENDING_ABSTAIN",
+        "known_clutter_probability": 0.8631294369697571,
+        "threshold_target": 0.5341225862503052,
+        "threshold_clutter": 0.8988269567489624,
+        "raw_correct_action": false,
+        "calibrated_correct_action": false,
+        "change_type": "abstained_from_raw_error"
+      }
+    ]
+  },
+  "provenance_audit": {
+    "grouping": "capture_content_provenance_component",
+    "capture_count": 975,
+    "provenance_component_count": 975,
+    "parent_support_by_fold": {
+      "0": 197,
+      "1": 197,
+      "2": 198,
+      "3": 197,
+      "4": 197
+    },
+    "clutter_parent_support_by_fold": {
+      "0": 6,
+      "1": 6,
+      "2": 7,
+      "3": 7,
+      "4": 7
+    },
+    "captures_with_parent_action_change": 10,
+    "components_with_parent_action_change": 10,
+    "changed_parent_labels_by_capture": {
+      "20250616150841": {
+        "ClutterTarget": 1
+      },
+      "20250616151912": {
+        "ClutterTarget": 1
+      },
+      "20250616152358": {
+        "ClutterTarget": 1
+      },
+      "20250616153122": {
+        "ClutterTarget": 1
+      },
+      "20250616160105": {
+        "ClutterTarget": 1
+      },
+      "20250616172017": {
+        "BirdTarget": 1
+      },
+      "20250616183240": {
+        "BirdTarget": 1
+      },
+      "20250616183319": {
+        "BirdTarget": 1
+      },
+      "20250616184729": {
+        "BirdTarget": 1
+      },
+      "20250616185217": {
+        "BirdTarget": 1
+      }
+    },
+    "changed_parent_labels_by_component": {
+      "v16-component-153aed0692d7f999a4b7710bd01ca5843c6f57b04c9a9def56951047f519140c": {
+        "ClutterTarget": 1
+      },
+      "v16-component-3a0d18bb106e5d7dfdb578a9e92cc1ea737d7de3bd73e6ce2e6703897e5d1513": {
+        "BirdTarget": 1
+      },
+      "v16-component-5345b8ae08c6f5ab4118d21cc84bc60b40c13357b1029b42629cb9b18d90e6bf": {
+        "BirdTarget": 1
+      },
+      "v16-component-720245d7a9ae742b5e109ecf2e09b44132fee599e904c61a311e213d9103bb49": {
+        "ClutterTarget": 1
+      },
+      "v16-component-7d15ab72728308dac9f9e3c29b701ef41d2b19ab050801a39b281e24cac54338": {
+        "ClutterTarget": 1
+      },
+      "v16-component-87f98535330d436f21d61360a79f6cd10cde98e7529b645345ca6aecd95ed9df": {
+        "BirdTarget": 1
+      },
+      "v16-component-ac51b8292f58ad38821ee7d9b4796c544c213b325ed7a5e2ed12ce6fa705035c": {
+        "BirdTarget": 1
+      },
+      "v16-component-b14f566023900465b411e9e22e30857050d96ec1263b7f5906ebef76fee4d1d5": {
+        "ClutterTarget": 1
+      },
+      "v16-component-d9c11180727651b8fbe6e9113f3da5923351832805ef4cba491884b61261e8e6": {
+        "ClutterTarget": 1
+      },
+      "v16-component-e1b996ecc36ef0ffc9d5fc591aac513f21fa9653d8ea1218a72371f93fd3e5eb": {
+        "BirdTarget": 1
+      }
+    }
+  },
+  "frozen_decision": {
+    "all_parent_final_selection_requirements_passed": false,
+    "parent_final_requirement_checks": {
+      "known_clutter_action_precision": false,
+      "known_clutter_acceptance_recall": false,
+      "known_target_acceptance_recall": true,
+      "overall_action_coverage": true
+    },
+    "parent_final_wrong_direction_checks": {
+      "known_target_to_clutter_not_higher_than_raw": true,
+      "clutter_to_known_target_not_higher_than_raw": false
+    },
+    "parent_balanced_eligible_prefix_safety": {
+      "requirements": {
+        "parent_balanced_eligible_prefix_action_coverage": 0.8
+      },
+      "checks": {
+        "coverage_at_least_requirement": true,
+        "selective_risk_not_higher_than_raw": true,
+        "known_target_to_clutter_rate_not_higher_than_raw": true,
+        "clutter_to_known_target_rate_not_higher_than_raw": false
+      },
+      "passed": false
+    },
+    "cross_fitted_l3_calibration_candidate": false,
+    "pooled_oof_oracle_has_feasible_score_band": false,
+    "no_l1_model_change_or_retraining": true,
+    "pending_is_not_unknown_rejection": true,
+    "development_or_oof_only_no_release_claim": true
+  },
+  "protocol_path": "F:\\Project\\RadarInsight\\config\\RADAR-LN3\\RADAR-LN3-V24d-cq08-known-gate-l3-oof-score-band-pending-protocol.json",
+  "protocol_sha256": "09cc36f9eda0a40299ecba6f55d0b541d85a1bea48804eac43c41eb8df2da396",
+  "experiment_contract_path": "F:\\Project\\RadarInsight\\data\\processed\\RADAR-LN3-V24d-cq08-known-gate-l3-oof-score-band-pending-contract.json",
+  "experiment_contract_sha256": "8aaecbc398c13067a0c141a7cee48f087de7e624b6fb5732a05ba09e8240bbd0",
+  "readiness_path": "F:\\Project\\RadarInsight\\src-v3\\processed\\report\\RADAR-LN3-V24d-known-gate-l3-oof-score-band-pending-calibration-readiness.json",
+  "readiness_sha256": "0a590c6245693e8ab12ccc5b1f2dbe513bb12d455239df3e69b7fc85554a9c06",
+  "formal_training": "not_executed_not_applicable",
+  "OOF": "reused_completed_V21e_treatment_predictions_only",
+  "validation": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

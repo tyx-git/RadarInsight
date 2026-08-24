@@ -1,0 +1,59 @@
+{
+  "schema_version": "RADAR-LN3-V24d-known-gate-l3-oof-score-band-protocol-v1",
+  "experiment_name": "V24d L3 cross-fitted OOF score-band Pending calibration",
+  "scope": "known train provenance-grouped OOF L3 semantic-decision diagnostic only",
+  "source_prediction_variable": "known_clutter_probability",
+  "actions": [
+    "KNOWN_TARGET_EVIDENCE",
+    "KNOWN_CLUTTER_EVIDENCE",
+    "PENDING_ABSTAIN"
+  ],
+  "decision_rule": {
+    "target_if": "p_clutter <= t_target",
+    "clutter_if": "p_clutter >= t_clutter",
+    "pending_otherwise": true,
+    "constraints": "0.0 <= t_target < t_clutter <= 1.0; the sole zero-width raw-argmax baseline is t_target=t_clutter=0.5",
+    "minimum_evidence_events": 3,
+    "ineligible_prefix_action": "PENDING_ABSTAIN"
+  },
+  "threshold_fit": {
+    "unit": "parent_final OOF record",
+    "outer_protocol": "leave_one_outer_fold_out",
+    "held_out_fold_labels_used_for_threshold_selection": false,
+    "candidate_space": {
+      "method": "all score decision-equivalence breakpoints",
+      "threshold_values": "unique parent-final OOF scores union {0.0, 1.0}",
+      "pair_rule": "strict t_target < t_clutter plus the single raw-argmax baseline (0.5, 0.5)",
+      "uses_approximation_grid": false
+    },
+    "selection_requirements": {
+      "known_clutter_action_precision": 0.9,
+      "known_clutter_acceptance_recall": 0.88,
+      "known_target_acceptance_recall": 0.98,
+      "overall_action_coverage": 0.95
+    },
+    "selection_direction_requirements": {
+      "known_target_to_clutter_rate_not_higher_than_raw": true,
+      "clutter_to_known_target_rate_not_higher_than_raw": true
+    },
+    "selection_order": [
+      "all performance and error-direction requirements feasible",
+      "maximum coverage among feasible candidates",
+      "maximum minimum class acceptance recall among feasible candidates",
+      "minimum total requirement violation when no feasible candidate exists",
+      "maximum coverage when tied",
+      "narrower score band then lower thresholds when tied"
+    ],
+    "prefix_or_window_labels_used_for_threshold_selection": false
+  },
+  "prefix_safety_requirements": {
+    "parent_balanced_eligible_prefix_action_coverage": 0.8
+  },
+  "forbidden_changes": [
+    "no L1 model training or checkpoint loading",
+    "no feature/cache/dt/loss/normalization/data split change",
+    "no validation/test/Unknown score or label access",
+    "no UNKNOWN_REJECTED action"
+  ],
+  "deployment_eligible": false
+}

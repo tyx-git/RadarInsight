@@ -36,6 +36,11 @@ tmp/model_deletion_log.json
 todos.md
 *.md
 .*
+!/data/
+data/*
+!/data/processed/
+data/processed/*
+!/data/processed/RADAR-LN3-V24d-cq08-known-gate-l3-oof-score-band-pending-contract.json
 src-v3/smoke/
 !src-v3/smoke/
 src-v3/smoke/*
@@ -69,6 +74,7 @@ src-v3/smoke/*
 !src-v3/smoke/known_gate_v24_contract_test.py
 !src-v3/smoke/known_gate_v24a_contract_test.py
 !src-v3/smoke/known_gate_v24c_contract_test.py
+!src-v3/smoke/known_gate_v24d_contract_test.py
 !src-v3/processed/
 !src-v3/processed/report/
 !src-v3/processed/report/RADAR-LN3-V23e-known-gate-parent-balanced-checkpoint-selection-part-01-05.json
@@ -80,6 +86,8 @@ src-v3/smoke/*
 !src-v3/processed/report/RADAR-LN3-V23j-known-gate-official-cfc-prefix-ramp-training-readiness.json
 !src-v3/processed/report/RADAR-LN3-V23k-known-gate-official-cfc-observation-intensity-training-readiness.json
 !src-v3/processed/report/RADAR-LN3-V24c-known-gate-course-strict-same-second-skip-training-readiness.json
+!src-v3/processed/report/RADAR-LN3-V24d-known-gate-l3-oof-score-band-pending-calibration-readiness.json
+!src-v3/processed/report/RADAR-LN3-V24d-known-gate-l3-oof-score-band-pending-cross-fitted.json
 !src-v3/README.md
 !docs/
 docs/*
@@ -104,5 +112,6 @@ docs/*
 !src-v3/docs/radar_ln3_v24_course_reason_aware_baseline_experiment.md
 !src-v3/docs/radar_ln3_v24a_rd_peak_drift_counterevidence_experiment.md
 !src-v3/docs/radar_ln3_v24c_strict_same_second_skip_experiment.md
+!src-v3/docs/radar_ln3_v24d_l3_oof_score_band_pending_calibration.md
 !docs/radar_ln3_v24_course_reason_aware_baseline_experiment.md
 v2r/
