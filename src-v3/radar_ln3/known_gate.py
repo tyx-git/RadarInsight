@@ -1690,14 +1690,18 @@ def build_known_gate_dataloader(
     batch_size: int,
     shuffle: bool,
     generator: torch.Generator | None = None,
+    pin_memory: bool | None = None,
 ) -> DataLoader:
+    effective_pin_memory = (
+        torch.cuda.is_available() if pin_memory is None else bool(pin_memory)
+    )
     return DataLoader(
         dataset,
         batch_size=max(1, int(batch_size)),
         shuffle=bool(shuffle),
         num_workers=0,
         collate_fn=collate_known_gate_sequences,
-        pin_memory=torch.cuda.is_available(),
+        pin_memory=effective_pin_memory,
         generator=generator,
     )
 
@@ -2442,12 +2446,14 @@ def evaluate_known_gate(
     config: KnownGateConfig,
     device: torch.device,
     batch_size: int | None = None,
+    pin_memory: bool | None = None,
 ) -> dict[str, Any]:
     model.eval()
     loader = build_known_gate_dataloader(
         dataset,
         batch_size=batch_size or config.train.batch_size,
         shuffle=False,
+        pin_memory=pin_memory,
     )
     window_records: list[dict[str, Any]] = []
     eligible_prefix_records: list[dict[str, Any]] = []

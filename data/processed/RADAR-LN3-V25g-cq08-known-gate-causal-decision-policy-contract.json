@@ -1,0 +1,84 @@
+{
+  "schema_version": "RADAR-LN3-V25g-known-gate-causal-decision-policy-experiment-contract-v1",
+  "policy_schema": "RADAR-LN3-V25g-causal-accept-pending-policy-v1",
+  "experiment_name": "V25g frozen causal ACCEPT/PENDING decision policy",
+  "scope": "KnownGate development-only action-layer diagnostic",
+  "single_factor": {
+    "changed_component": "prefix local argmax action interpretation only",
+    "training_step_count": 0,
+    "optimizer_step_count": 0,
+    "frozen": [
+      "V25a epoch14 model weights",
+      "V25a features and normalization",
+      "V25a parent order, loss and prefix auxiliary semantics",
+      "V25a liquid dt and bounded_observation dynamics"
+    ]
+  },
+  "policy": {
+    "minimum_evidence_events": 3,
+    "events_before_minimum": "PENDING_ABSTAIN",
+    "confidence_rule": "accept local argmax only when max softmax probability >= threshold",
+    "pending_is_unknown": false,
+    "patience": 1,
+    "revocation": false,
+    "class_specific_thresholds": false,
+    "threshold_candidates": "0.5 plus deterministic quantile representatives of train-only eligible-prefix confidence values, capped at 256",
+    "selection": "maximize parent coverage subject to train-only clutter precision and class-recall floors"
+  },
+  "calibration": {
+    "protocol": "train_only_frozen_checkpoint_calibration",
+    "is_oof": false,
+    "oof_status": "not_executed",
+    "reason": "the repository has no exact V25a parent-grouped OOF prediction artifact",
+    "validation_or_test_used_for_threshold_fit": false,
+    "formal_adoption_requires_exact_oof": true
+  },
+  "source_v25a": {
+    "config": "config/RADAR-LN3/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-config.json",
+    "config_sha256": "d6b4907fae0948f1336596630ba44f50a8f0e80927559d50757b1259460cd454",
+    "config_identity_sha256": "d0d0bdf11e1eb4998d06db85f3871d70240a556a8735e3ae588f12d81a83d774",
+    "readiness": "src-v3/processed/report/RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-training-readiness.json",
+    "readiness_sha256": "c22ba1797f187b156a42ceb04c2b459ba834b41d6ce7a62ed974c49cbc0997d1",
+    "training_summary": "artifacts/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-formal/training-summary.json",
+    "training_summary_sha256": "3bd0ab1149bcd37434c4d625949f271fd742fe9d9028df0df60098faf4cdbb77",
+    "checkpoint": "artifacts/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-formal/epochs/epoch-014.pt",
+    "checkpoint_sha256": "851e050d11ce4cd76c6ca215955c0fc145443d511875212d3b34f028ddbcb7bd",
+    "checkpoint_epoch": 14,
+    "feature_manifest": "data/processed/RADAR-LN3-V25a-cq08-known-gate-course-preclip-gradient-telemetry-feature-cache-manifest.json",
+    "feature_manifest_sha256": "b294e2366feef15409a6cb97f23d7e28a2d8e2c3c27b0958a6abe124d73f8d89",
+    "feature_contract": "data/processed/RADAR-LN3-V25a-cq08-known-gate-course-preclip-gradient-telemetry-contract.json",
+    "feature_contract_sha256": "b9291af45656861b956943f7babb835e4f7b154e16d1459f72e240ff43b4cf68"
+  },
+  "evaluation": {
+    "calibration_split": "train",
+    "evaluation_split": "val",
+    "validation_parent_count": 232,
+    "validation_clutter_parent_support": 9,
+    "required": [
+      "parent-level first causal ACCEPT/PENDING action metrics",
+      "parent-balanced eligible-prefix action metrics",
+      "Pending coverage and first acceptance event",
+      "Clutter parent bootstrap and per-parent trajectories",
+      "source/capture and observation-strata metrics"
+    ]
+  },
+  "resource_safety": {
+    "json_max_bytes": 67108864,
+    "checkpoint_max_bytes": 67108864,
+    "checkpoint_max_declared_uncompressed_bytes": 67108864,
+    "checkpoint_max_zip_members": 512,
+    "checkpoint_validation_before_torch_load": true,
+    "new_feature_cache_created": false,
+    "checkpoint_mutation": false,
+    "max_threshold_candidates": 256,
+    "sequential_split_loading": true,
+    "max_train_calibration_records": 200000,
+    "max_validation_records": 50000
+  },
+  "training": "not_executed_by_contract",
+  "Unknown": "not_used",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "full_cascade": "not_executed",
+  "deployment_eligible": false
+}
