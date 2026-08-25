@@ -5,6 +5,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -201,8 +202,9 @@ class _TensorCache:
         if cached is not None:
             self._items.move_to_end(key)
             return cached
-        if not path.exists():
+        if not path.is_file():
             raise FileNotFoundError(f"RD tensor does not exist: {path}")
+        _preflight_rd_tensor_archive(path)
         with np.load(path, allow_pickle=False) as payload:
             required = {"amplitude", "phase", "time_seconds"}
             missing = sorted(required - set(payload.files))
@@ -222,6 +224,53 @@ class _TensorCache:
         while len(self._items) > self.max_size:
             self._items.popitem(last=False)
         return value
+
+
+# Canonical RD tensors are small enough for a single parent, but they are
+# still untrusted compressed archives.  Bound both the archive and its
+# declared uncompressed members before NumPy opens them; otherwise a malformed
+# or zip-bomb-like .npz can allocate memory before the shape checks below run.
+MAX_RD_TENSOR_ARCHIVE_BYTES = 16 * 1024 * 1024
+MAX_RD_TENSOR_MEMBER_BYTES = 8 * 1024 * 1024
+MAX_RD_TENSOR_DECLARED_UNCOMPRESSED_BYTES = 16 * 1024 * 1024
+MAX_RD_TENSOR_ARCHIVE_MEMBERS = 16
+
+
+def _preflight_rd_tensor_archive(path: Path) -> None:
+    if path.suffix.lower() != ".npz":
+        raise ValueError(f"RD tensor must be an .npz archive: {path}")
+    archive_size = path.stat().st_size
+    if archive_size > MAX_RD_TENSOR_ARCHIVE_BYTES:
+        raise ValueError(
+            "RD tensor archive exceeds the fail-closed size limit: "
+            f"{path.stat().st_size} > {MAX_RD_TENSOR_ARCHIVE_BYTES} bytes"
+        )
+    try:
+        with zipfile.ZipFile(path, mode="r") as archive:
+            members = archive.infolist()
+            if len(members) > MAX_RD_TENSOR_ARCHIVE_MEMBERS:
+                raise ValueError(
+                    "RD tensor archive contains too many members: "
+                    f"{len(members)} > {MAX_RD_TENSOR_ARCHIVE_MEMBERS}"
+                )
+            declared_uncompressed = 0
+            for member in members:
+                if member.is_dir() or member.filename.replace("\\", "/").endswith("/"):
+                    raise ValueError(f"RD tensor archive contains a directory member: {path}")
+                if member.file_size > MAX_RD_TENSOR_MEMBER_BYTES:
+                    raise ValueError(
+                        "RD tensor archive member exceeds the fail-closed size limit: "
+                        f"{member.filename}={member.file_size} bytes"
+                    )
+                declared_uncompressed += int(member.file_size)
+            if declared_uncompressed > MAX_RD_TENSOR_DECLARED_UNCOMPRESSED_BYTES:
+                raise ValueError(
+                    "RD tensor archive declared uncompressed size exceeds the "
+                    f"fail-closed limit: {declared_uncompressed} > "
+                    f"{MAX_RD_TENSOR_DECLARED_UNCOMPRESSED_BYTES} bytes"
+                )
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"RD tensor is not a valid .npz archive: {path}") from exc
 
 
 class CQ08PointSequenceDataset(Dataset[PointSequence]):
@@ -702,6 +751,10 @@ __all__ = [
     "PointSequence",
     "RD_QUALITY_NAMES",
     "RD_QUALITY_SCHEMA",
+    "MAX_RD_TENSOR_ARCHIVE_BYTES",
+    "MAX_RD_TENSOR_MEMBER_BYTES",
+    "MAX_RD_TENSOR_DECLARED_UNCOMPRESSED_BYTES",
+    "MAX_RD_TENSOR_ARCHIVE_MEMBERS",
     "REQUIRED_INDEX_COLUMNS",
     "build_point_dataloader",
     "collate_point_sequences",

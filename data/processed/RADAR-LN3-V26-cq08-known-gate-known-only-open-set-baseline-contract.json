@@ -1,0 +1,116 @@
+{
+  "schema_version": "RADAR-LN3-V26-known-gate-known-only-open-set-baseline-experiment-contract-v1",
+  "experiment_name": "V26 Known-only training with post-checkpoint open-set audit",
+  "internal_variant": "v26_known_only_open_set_baseline",
+  "feature_names": [
+    "causal_prefix_course_circular_incoherence"
+  ],
+  "experiment_document": "src-v3/docs/radar_ln3_v26_known_only_open_set_baseline_experiment.md",
+  "experiment_document_sha256": "cce391447ed96f528d54c3bff219bab53a3e1c1bceb39bd57694d59f49c2908f",
+  "scope": "KnownGate L1 development baseline; no L2/L3/full-cascade/deployment claim",
+  "core_data_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+  "fresh_training_not_finetune": true,
+  "training_population": {
+    "labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "unknown_label": "UnknownTarget",
+    "unknown_training_exposure": 0,
+    "normalization_population": "known_only_train",
+    "checkpoint_selection_population": "known_only_validation"
+  },
+  "architecture": {
+    "encoder": "self-developed CfCLiquidCausalEncoder",
+    "hidden_dim": 48,
+    "liquid_hidden_dim": 48,
+    "rd_embedding_dim": 24,
+    "course_feature_width": 1,
+    "zero_dt_mode": "bounded_observation",
+    "zero_dt_observation_gain": 0.25
+  },
+  "data_reuse": {
+    "index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "core_contract": "data/processed/RADAR-LN3-V21-cq08-known-gate-data-contract.json",
+    "core_contract_sha256": "74ec107ff33c3fbe7c2d88a38cef6010130c9aac7849683f2e61368cc6e04070",
+    "normalization": "data/processed/RADAR-LN3-V21-cq08-known-only-train-normalization-stats.json",
+    "normalization_sha256": "f389d8c6ac6282dc126138227ee43ea6ce1c1787953535c21e7bcb6a07b68588",
+    "known_train_parent_count": 986,
+    "known_validation_parent_count": 232,
+    "known_test_parent_count": 228,
+    "unknown_train_parent_count": 69,
+    "unknown_validation_parent_count": 15,
+    "unknown_test_parent_count": 16
+  },
+  "course_cache_reuse": {
+    "source_manifest": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-feature-cache-manifest.json",
+    "source_manifest_sha256": "737d14c15b49c972d7e1d26d28fbcb877c04643ef9906f46c216e76462d84662",
+    "source_contract": "data/processed/RADAR-LN3-V21e-cq08-known-gate-causal-course-consistency-contract.json",
+    "source_contract_sha256": "37f6a8a9dc1b658fa7ff1c5a2ef1090fe0e79e3ab3eefebde69ab0404e911cc0",
+    "train_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz",
+    "train_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "validation_known_only_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz",
+    "validation_known_only_cache_sha256": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "known_cache_values_rebuilt": false
+  },
+  "open_set_audit_contract": {
+    "audit_only": true,
+    "unknown_is_model_class": false,
+    "unknown_is_training_target": false,
+    "unknown_is_normalization_population": false,
+    "unknown_is_checkpoint_ranking_population": false,
+    "validation_mixed_cache": "data/processed/RADAR-LN3-V26-cq08-known-gate-val-mixed-open-set-course-cache.npz",
+    "validation_mixed_cache_sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd",
+    "test_mixed_cache": "data/processed/RADAR-LN3-V26-cq08-known-gate-test-mixed-open-set-course-cache.npz",
+    "test_mixed_cache_sha256": "materialized_after_checkpoint_frozen",
+    "test_access_stage": "after_known_only_checkpoint_frozen",
+    "rejection_head": "not_available_in_binary_known_gate",
+    "pending_abstain": "not_available_in_known_gate_only"
+  },
+  "training": {
+    "seed": 43,
+    "dataloader_seed": 43,
+    "epochs": 20,
+    "batch_size": 2,
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "checkpoint_selection": "parent_min_precision_recall",
+    "class_weight_normalization": "batch_weight_sum"
+  },
+  "evaluation": {
+    "primary_hypothesis_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget"
+    ],
+    "safety_labels": [],
+    "known_only_primary": [
+      "parent_final",
+      "eligible_prefix",
+      "window"
+    ],
+    "open_set_diagnostics": [
+      "Unknown_to_KnownTarget",
+      "Unknown_to_KnownClutter",
+      "Unknown_false_accept_rate",
+      "max_known_confidence"
+    ],
+    "clutter_validation_parent_support": 9,
+    "clutter_test_parent_support": 8,
+    "bootstrap_required": true
+  },
+  "validation_used_for_readiness_gate": false,
+  "test_payload_access_count": 0,
+  "formal_training": "not_executed",
+  "open_set_audit": "not_executed",
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

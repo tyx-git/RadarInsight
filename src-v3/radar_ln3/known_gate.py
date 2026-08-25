@@ -50,6 +50,7 @@ from .known_gate_features import (
     V25A_GRADIENT_TELEMETRY_VARIANT,
     V25D_PRESENT_CLASS_MEAN_VARIANT,
     V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
+    V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -65,6 +66,7 @@ V24C_SCHEMA_VERSION = "RADAR-LN3-V24c"
 V25A_SCHEMA_VERSION = "RADAR-LN3-V25a"
 V25D_SCHEMA_VERSION = "RADAR-LN3-V25d"
 V25E_SCHEMA_VERSION = "RADAR-LN3-V25e"
+V26_SCHEMA_VERSION = "RADAR-LN3-V26"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -188,6 +190,18 @@ KNOWN_GATE_V25E_READINESS_SCHEMA = (
 )
 KNOWN_GATE_V25E_EXPERIMENT_SCHEMA = (
     "RADAR-LN3-V25e-known-gate-shared-gradient-conflict-projection-"
+    "experiment-contract-v1"
+)
+KNOWN_GATE_V26_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V26-known-gate-known-only-open-set-baseline-"
+    "feature-cache-manifest-v1"
+)
+KNOWN_GATE_V26_READINESS_SCHEMA = (
+    "RADAR-LN3-V26-known-gate-known-only-open-set-baseline-"
+    "training-readiness-v1"
+)
+KNOWN_GATE_V26_EXPERIMENT_SCHEMA = (
+    "RADAR-LN3-V26-known-gate-known-only-open-set-baseline-"
     "experiment-contract-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
@@ -779,6 +793,85 @@ def _validate_v25e_config(
     return True
 
 
+def _validate_v26_baseline_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize V26's fresh Known-only baseline namespace.
+
+    V26 changes the evaluation scope, not the KnownGate training population:
+    UnknownTarget remains forbidden from the model and is audited only after
+    the known-only checkpoint has been frozen.  Keeping a dedicated namespace
+    prevents an existing V21--V25 checkpoint from being mistaken for the V26
+    baseline.
+    """
+
+    expected_name = (
+        "RADAR-LN3-V26-cq08-liquid-known-gate-known-only-open-set-baseline-seed43"
+    )
+    artifact = (
+        "artifacts/RADAR-LN3-V26-cq08-liquid-known-gate-known-only-open-set-"
+        "baseline-seed43-formal"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        "RADAR-LN3-V21-cq08-liquid-known-gate-baseline-seed43-config.json"
+    )
+    if config_name != expected_name and variant != V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT:
+        return False
+    if (
+        config_path.name != f"{expected_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or config_name != expected_name
+        or variant != V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/best_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            "RADAR-LN3-V26-v26_known_only_open_set_baseline-seed43-"
+            "known-gate-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.class_weight_normalization
+        != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+        or data.feature_cache_manifest_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V26-cq08-known-gate-known-only-open-set-baseline-"
+            "feature-cache-manifest.json"
+        )
+        or data.train_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-"
+            "cache.npz"
+        )
+        or data.validation_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-"
+            "cache.npz"
+        )
+        or data.feature_experiment_contract_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V26-cq08-known-gate-known-only-open-set-baseline-"
+            "contract.json"
+        )
+    ):
+        raise ValueError("V26 Known-only baseline config differs from its sealed namespace")
+    return True
+
+
 def _validate_v21e_oof_support_config(
     config_path: Path,
     *,
@@ -1053,11 +1146,12 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         V25A_SCHEMA_VERSION,
         V25D_SCHEMA_VERSION,
         V25E_SCHEMA_VERSION,
+        V26_SCHEMA_VERSION,
     }:
         raise ValueError(
             "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22, "
             "RADAR-LN3-V22a, RADAR-LN3-V24, RADAR-LN3-V24a, RADAR-LN3-V24c, "
-            "RADAR-LN3-V25a, RADAR-LN3-V25d or RADAR-LN3-V25e"
+            "RADAR-LN3-V25a, RADAR-LN3-V25d, RADAR-LN3-V25e or RADAR-LN3-V26"
         )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
@@ -1305,6 +1399,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
+    is_v26 = _validate_v26_baseline_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
     is_oof_support = (
         is_v21e_oof_support
         or is_v21f_oof_support
@@ -1331,6 +1432,8 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("RADAR-LN3-V25d schema is reserved for the V25d present-class-mean loss experiment")
     if (schema_version == V25E_SCHEMA_VERSION) != is_v25e:
         raise ValueError("RADAR-LN3-V25e schema is reserved for the V25e shared-gradient projection experiment")
+    if (schema_version == V26_SCHEMA_VERSION) != is_v26:
+        raise ValueError("RADAR-LN3-V26 schema is reserved for the V26 Known-only open-set baseline")
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -1342,6 +1445,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
             and not is_v22_oof_support
             and not is_v25d
+            and not is_v26
         )
         or train.checkpoint_selection_metric != KNOWN_GATE_SELECTION_METRIC
         or train.prefix_auxiliary_weight != 0.1
@@ -1365,6 +1469,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         and not is_v25a
         and not is_v25d
         and not is_v25e
+        and not is_v26
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -1414,6 +1519,10 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         f"{V25E_SCHEMA_VERSION}-{variant}-"
     ):
         raise ValueError("V25e checkpoint schema must bind the shared-gradient projection variant")
+    if is_v26 and not train.checkpoint_schema.startswith(
+        f"{V26_SCHEMA_VERSION}-{variant}-"
+    ):
+        raise ValueError("V26 checkpoint schema must bind the Known-only open-set baseline variant")
 
     cache_fields = (
         data.feature_cache_manifest_path,
@@ -1447,7 +1556,10 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         )
         if (
             any(value is None for value in required_cache_fields)
-            or train.paired_baseline_config_path is None
+            or (
+                train.paired_baseline_config_path is None
+                and not is_v26
+            )
         ):
             raise ValueError("V21 Treatment requires feature caches and an explicit Baseline config")
         if is_oof_support:
@@ -1609,6 +1721,14 @@ def build_known_gate_dataset(
 ) -> KnownGateDataset:
     if split_name not in {config.data.train_split_name, config.data.validation_split_name}:
         raise PermissionError("V21 local KnownGate Dataset keeps test sealed")
+    # V26 uses the same frozen RD inputs as the historical KnownGate, but its
+    # baseline also performs a post-checkpoint mixed open-set audit.  Keep only
+    # one canonical tensor archive resident per Dataset; one archive is enough
+    # for a parent sequence and bounds peak memory without changing any model
+    # input, ordering, or training semantics.
+    tensor_cache_size = (
+        1 if config.variant == V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT else 4
+    )
     base = CQ08PointSequenceDataset(
         project_root,
         index_path=_resolve(project_root, config.data.index_path),
@@ -1622,6 +1742,7 @@ def build_known_gate_dataset(
         expected_schema_version=config.data.index_schema_version,
         allowed_labels=KNOWN_LABELS,
         forbidden_labels={UNKNOWN_LABEL},
+        tensor_cache_size=tensor_cache_size,
     )
     if parent_limit is not None and parent_ids is not None:
         raise ValueError("KnownGate Dataset cannot combine parent_limit with parent_ids")
@@ -2009,6 +2130,11 @@ def build_known_gate_model_for_config(
             "initialization": "seeded_full_random_initialization",
             "seed": config.train.seed,
         }
+    # Treatment construction is part of the paired initialization contract.
+    # Reset the RNG before constructing the nested baseline and the treatment
+    # so callers receive the same initial state regardless of work performed
+    # earlier in the process (prepare, smoke, or Dataset construction).
+    seed_everything(config.train.seed)
     if config.train.paired_baseline_config_path is None:
         raise ValueError("V21 Treatment lacks paired_baseline_config_path")
     baseline_path = _resolve(project_root, config.train.paired_baseline_config_path)
@@ -2615,6 +2741,9 @@ __all__ = [
     "KNOWN_GATE_V25E_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V25E_MANIFEST_SCHEMA",
     "KNOWN_GATE_V25E_READINESS_SCHEMA",
+    "KNOWN_GATE_V26_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V26_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V26_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
     "KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION",
     "KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION",
@@ -2632,6 +2761,7 @@ __all__ = [
     "V25A_SCHEMA_VERSION",
     "V25D_SCHEMA_VERSION",
     "V25E_SCHEMA_VERSION",
+    "V26_SCHEMA_VERSION",
     "KnownGateClassifier",
     "KnownGateConfig",
     "KnownGateDataset",
