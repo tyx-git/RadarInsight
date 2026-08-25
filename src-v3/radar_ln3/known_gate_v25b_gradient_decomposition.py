@@ -323,8 +323,16 @@ def snapshot_parameter_gradients(parameters: Sequence[nn.Parameter]) -> Gradient
 def gradients_from_scalar(
     scalar: torch.Tensor,
     parameters: Sequence[nn.Parameter],
+    *,
+    retain_graph: bool = True,
 ) -> GradientTuple:
-    """Read a scalar's gradient contribution without mutating ``.grad``."""
+    """Read a scalar's gradient contribution without mutating ``.grad``.
+
+    ``retain_graph`` defaults to the historical diagnostic behavior. Training
+    interventions that read two scalar terms can retain for the first read and
+    release the graph on the final read, preventing a per-step autograd graph
+    from surviving until the next batch.
+    """
 
     if scalar.ndim != 0:
         raise ValueError("V25b scalar-gradient source must be zero-dimensional")
@@ -333,7 +341,7 @@ def gradients_from_scalar(
     values = torch.autograd.grad(
         scalar,
         tuple(parameters),
-        retain_graph=True,
+        retain_graph=bool(retain_graph),
         create_graph=False,
         allow_unused=True,
     )

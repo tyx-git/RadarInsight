@@ -1,0 +1,668 @@
+{
+  "status": "completed_development_paired_gradient_projection_experiment",
+  "schema_version": "RADAR-LN3-V25e-known-gate-course-shared-gradient-conflict-projection-paired-development-v1",
+  "scope": "V25e development KnownGate L1 gradient intervention; no OOF, Unknown, test, L3, cascade, rejection, stable or P95",
+  "control": {
+    "variant": "v25a_course_preclip_gradient_telemetry",
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-formal\\training-summary.json",
+    "summary_sha256": "3bd0ab1149bcd37434c4d625949f271fd742fe9d9028df0df60098faf4cdbb77",
+    "best_epoch": 14
+  },
+  "treatment": {
+    "variant": "v25e_shared_gradient_conflict_projection",
+    "summary_path": "F:\\Project\\RadarInsight\\artifacts\\RADAR-LN3-V25e-cq08-liquid-known-gate-course-shared-gradient-conflict-projection-seed43-formal\\training-summary.json",
+    "summary_sha256": "4f91b0445bdaeae746028986db6fa3923a15f48ec4d9bc18f36e7d8eae33b050",
+    "best_epoch": 18
+  },
+  "paired_integrity": {
+    "initial_model_state_exactly_equal": true,
+    "all_twenty_parent_orders_exactly_equal": true,
+    "projected_modules": [
+      "tr_encoder",
+      "fusion",
+      "liquid"
+    ],
+    "unchanged_modules": [
+      "rd_encoder",
+      "classifier"
+    ],
+    "new_fusion_columns": 0,
+    "validation_support": {
+      "known_target": 223,
+      "clutter": 9
+    }
+  },
+  "projection_telemetry": {
+    "schema_version": "RADAR-LN3-V25e-known-gate-shared-gradient-conflict-projection-telemetry-v1",
+    "projected_modules": [
+      "tr_encoder",
+      "fusion",
+      "liquid"
+    ],
+    "unchanged_modules": [
+      "rd_encoder",
+      "classifier"
+    ],
+    "by_scope": {
+      "batch_count": 9860,
+      "mixed_known_clutter_batch_count": 638,
+      "pure_batch_count": 9222,
+      "projection_batch_count": 638,
+      "projected_module_count": 1633,
+      "negative_conflict_count": {
+        "tr_encoder": 534,
+        "fusion": 576,
+        "liquid": 523
+      },
+      "projection_count": {
+        "tr_encoder": 534,
+        "fusion": 576,
+        "liquid": 523
+      },
+      "max_historical_loss_reconstruction_absolute_error": 9.5367431640625e-07,
+      "rd_and_classifier_gradients_exactly_unchanged": true,
+      "pure_batches_used_historical_backward": true
+    },
+    "expected_total_updates": 9860,
+    "expected_mixed_batch_count": 638,
+    "expected_pure_batch_count": 9222,
+    "projection_rule": "project the larger-norm parent gradient onto the orthogonal complement of the smaller-norm parent gradient only when dot<0",
+    "raw_parent_identifiers_stored": false,
+    "rd_and_classifier_gradients_exactly_unchanged": true
+  },
+  "metrics": {
+    "control": {
+      "parent_final": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "eligible_prefix": {
+        "scope": "eligible_causal_prefix",
+        "support": 3756,
+        "accuracy": 0.9808306709265175,
+        "macro_precision": 0.8443797832031674,
+        "macro_recall": 0.916311518889559,
+        "macro_f1": 0.8765844967579881,
+        "balanced_accuracy": 0.916311518889559,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941487879632209,
+            "recall": 0.9859077093119646,
+            "f1": 0.9900110987791342,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 51
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6946107784431138,
+            "recall": 0.8467153284671532,
+            "f1": 0.7631578947368421,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 21
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3568,
+            51
+          ],
+          [
+            21,
+            116
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_causal_prefix",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999764,
+        "accuracy": 0.9794881543265161,
+        "macro_precision": 0.841852195094233,
+        "macro_recall": 0.9208372473039885,
+        "macro_f1": 0.8767855612739162,
+        "balanced_accuracy": 0.9208372473039885,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941817935269849,
+            "recall": 0.9844214081882241,
+            "f1": 0.9892775270256511,
+            "support": 223,
+            "weighted_support": 222.99999999999764,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 3.4740259740259756
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6895225966614812,
+            "recall": 0.8572530864197531,
+            "f1": 0.7642935955221813,
+            "support": 9,
+            "weighted_support": 8.999999999999996,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 1.2847222222222223
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219.52597402597166,
+            3.4740259740259756
+          ],
+          [
+            1.2847222222222223,
+            7.715277777777774
+          ]
+        ]
+      },
+      "window": {
+        "scope": "causal_windows",
+        "support": 4452,
+        "accuracy": 0.9797843665768194,
+        "macro_precision": 0.8377437133045309,
+        "macro_recall": 0.9162011967601019,
+        "macro_f1": 0.8724456012387434,
+        "balanced_accuracy": 0.9162011967601019,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9941148775894538,
+            "recall": 0.9848414179104478,
+            "f1": 0.9894564198687911,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 65
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6813725490196079,
+            "recall": 0.8475609756097561,
+            "f1": 0.7554347826086957,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 25
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4223,
+            65
+          ],
+          [
+            25,
+            139
+          ]
+        ]
+      }
+    },
+    "treatment": {
+      "parent_final": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "eligible_prefix": {
+        "scope": "eligible_causal_prefix",
+        "support": 3756,
+        "accuracy": 0.983493077742279,
+        "macro_precision": 0.8905239130295395,
+        "macro_recall": 0.8685324614816772,
+        "macro_f1": 0.879180424148973,
+        "balanced_accuracy": 0.8685324614816772,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9903501516404742,
+            "recall": 0.9925393755180989,
+            "f1": 0.9914435550648634,
+            "support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 27
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7906976744186046,
+            "recall": 0.7445255474452555,
+            "f1": 0.7669172932330827,
+            "support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 35
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            3592,
+            27
+          ],
+          [
+            35,
+            102
+          ]
+        ]
+      },
+      "parent_balanced_eligible_prefix": {
+        "scope": "parent_balanced_eligible_causal_prefix",
+        "aggregation": "eligible causal-prefix hard actions; each eligible parent has total weight one and each of its prefixes has weight 1/n_parent",
+        "support": 232,
+        "event_support": 3756,
+        "weighted_support": 231.99999999999744,
+        "accuracy": 0.9824665171711315,
+        "macro_precision": 0.8929349845356298,
+        "macro_recall": 0.8642601115728259,
+        "macro_f1": 0.8780017595695655,
+        "balanced_accuracy": 0.8642601115728259,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9893822590246101,
+            "recall": 0.9924091120345405,
+            "f1": 0.9908933740251259,
+            "support": 223,
+            "weighted_support": 222.99999999999744,
+            "event_support": 3619,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_weight": 1.6927680162974286
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7964877100466494,
+            "recall": 0.7361111111111113,
+            "f1": 0.7651101451140052,
+            "support": 9,
+            "weighted_support": 8.999999999999998,
+            "event_support": 137,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_weight": 2.3749999999999987
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221.3072319837,
+            1.6927680162974286
+          ],
+          [
+            2.3749999999999987,
+            6.625
+          ]
+        ]
+      },
+      "window": {
+        "scope": "causal_windows",
+        "support": 4452,
+        "accuracy": 0.981581311769991,
+        "macro_precision": 0.8702192164179104,
+        "macro_recall": 0.8702192164179104,
+        "macro_f1": 0.8702192164179104,
+        "balanced_accuracy": 0.8702192164179104,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9904384328358209,
+            "recall": 0.9904384328358209,
+            "f1": 0.9904384328358209,
+            "support": 4288,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 41
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "support": 164,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 41
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            4247,
+            41
+          ],
+          [
+            41,
+            123
+          ]
+        ]
+      }
+    },
+    "delta": {
+      "parent_final": {
+        "accuracy_delta": 0.0,
+        "macro_precision_delta": 0.0,
+        "macro_recall_delta": 0.0,
+        "macro_f1_delta": 0.0,
+        "known_target_recall_delta": 0.0,
+        "known_target_precision_delta": 0.0,
+        "clutter_precision_delta": 0.0,
+        "clutter_recall_delta": 0.0,
+        "clutter_f1_delta": 0.0,
+        "clutter_support": 9
+      },
+      "eligible_prefix": {
+        "accuracy_delta": 0.0026624068157614644,
+        "macro_precision_delta": 0.04614412982637206,
+        "macro_recall_delta": -0.0477790574078818,
+        "macro_f1_delta": 0.002595927390984909,
+        "known_target_recall_delta": 0.006631666206134312,
+        "known_target_precision_delta": -0.0037986363227466846,
+        "clutter_precision_delta": 0.0960868959754908,
+        "clutter_recall_delta": -0.1021897810218978,
+        "clutter_f1_delta": 0.003759398496240518,
+        "clutter_support": 137
+      },
+      "parent_balanced_eligible_prefix": {
+        "accuracy_delta": 0.00297836284461539,
+        "macro_precision_delta": 0.05108278944139677,
+        "macro_recall_delta": -0.05657713573116263,
+        "macro_f1_delta": 0.00121619829564934,
+        "known_target_recall_delta": 0.007987703846316418,
+        "known_target_precision_delta": -0.004799534502374803,
+        "clutter_precision_delta": 0.10696511338516823,
+        "clutter_recall_delta": -0.12114197530864179,
+        "clutter_f1_delta": 0.0008165495918238674,
+        "clutter_support": 9
+      },
+      "window": {
+        "accuracy_delta": 0.0017969451931715286,
+        "macro_precision_delta": 0.032475503113379545,
+        "macro_recall_delta": -0.045981980342191475,
+        "macro_f1_delta": -0.0022263848208329273,
+        "known_target_recall_delta": 0.005597014925373123,
+        "known_target_precision_delta": -0.0036764447536329348,
+        "clutter_precision_delta": 0.06862745098039214,
+        "clutter_recall_delta": -0.09756097560975607,
+        "clutter_f1_delta": -0.005434782608695676,
+        "clutter_support": 164
+      }
+    }
+  },
+  "directional_changes": {
+    "parent_final": {
+      "known_to_clutter": 0,
+      "clutter_to_known": 0,
+      "rescued": 0,
+      "harmed": 0,
+      "prediction_changed": 0
+    },
+    "eligible_prefix": {
+      "known_to_clutter": 20,
+      "clutter_to_known": 58,
+      "rescued": 44,
+      "harmed": 34,
+      "prediction_changed": 78
+    },
+    "window": {
+      "known_to_clutter": 28,
+      "clutter_to_known": 68,
+      "rescued": 52,
+      "harmed": 44,
+      "prediction_changed": 96
+    }
+  },
+  "paired_parent_bootstrap": {
+    "method": "paired parent bootstrap stratified by original base label",
+    "replicates": 5000,
+    "seed": 24043,
+    "confidence_level": 0.95,
+    "stratum_support": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9
+    },
+    "control": {
+      "accuracy": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      }
+    },
+    "treatment": {
+      "accuracy": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "macro_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_target_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_precision": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_recall": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      },
+      "known_clutter_f1": {
+        "median": 1.0,
+        "lower_95": 1.0,
+        "upper_95": 1.0
+      }
+    },
+    "treatment_minus_control": {
+      "accuracy": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "macro_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_target_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_precision": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_recall": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      },
+      "known_clutter_f1": {
+        "median": 0.0,
+        "lower_95": 0.0,
+        "upper_95": 0.0
+      }
+    }
+  },
+  "eligible_prefix_safety": {
+    "by_scope": {
+      "parent_final": {
+        "known_target_recall_delta": 0.0,
+        "clutter_precision_delta": 0.0,
+        "clutter_recall_delta": 0.0,
+        "macro_f1_delta": 0.0
+      },
+      "eligible_prefix": {
+        "known_target_recall_delta": 0.006631666206134312,
+        "clutter_precision_delta": 0.0960868959754908,
+        "clutter_recall_delta": -0.1021897810218978,
+        "macro_f1_delta": 0.002595927390984909
+      },
+      "parent_balanced_eligible_prefix": {
+        "known_target_recall_delta": 0.007987703846316418,
+        "clutter_precision_delta": 0.10696511338516823,
+        "clutter_recall_delta": -0.12114197530864179,
+        "macro_f1_delta": 0.00121619829564934
+      },
+      "window": {
+        "known_target_recall_delta": 0.005597014925373123,
+        "clutter_precision_delta": 0.06862745098039214,
+        "clutter_recall_delta": -0.09756097560975607,
+        "macro_f1_delta": -0.0022263848208329273
+      }
+    },
+    "eligible_prefix_known_target_recall_not_lower": true,
+    "eligible_prefix_clutter_recall_not_lower": false,
+    "parent_balanced_eligible_prefix_known_target_recall_not_lower": true,
+    "parent_balanced_eligible_prefix_clutter_recall_not_lower": false
+  },
+  "pre_registered_acceptance": {
+    "parent_final_clutter_recall_is_9_of_9": true,
+    "parent_final_known_target_recall_is_223_of_223": true,
+    "parent_final_clutter_precision_at_least_0_90": true,
+    "parent_balanced_prefix_clutter_precision_not_lower": true,
+    "parent_balanced_prefix_clutter_recall_not_lower": false,
+    "parent_balanced_prefix_clutter_f1_improves_at_least_2pp": false,
+    "parent_balanced_prefix_known_target_recall_not_lower": true,
+    "parent_balanced_prefix_macro_f1_not_lower": true,
+    "projection_mechanism_proved": true
+  },
+  "passes_all_pre_registered_development_gates": false,
+  "validation_used_for_threshold_tuning": false,
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "formal_rejection": "not_executed",
+  "full_cascade": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}

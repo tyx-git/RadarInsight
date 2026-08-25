@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -14,6 +15,7 @@ from .rd_physical import validate_velocity_axis
 
 
 KNOWN_GATE_FEATURE_SCHEMA = "cq08-current-event-known-gate-evidence-v1"
+MAX_KNOWN_GATE_FEATURE_CACHE_BYTES = 64 * 1024 * 1024
 INTERFRAME_SPECTRAL_FEATURE_SCHEMA = (
     "cq08-current-event-interframe-spectral-consistency-v1"
 )
@@ -60,6 +62,10 @@ V25A_GRADIENT_TELEMETRY_VARIANT = "v25a_course_preclip_gradient_telemetry"
 # exact selected V21e causal-course cache; a distinct variant keeps its cache
 # identity explicit rather than relying on a fallback lookup.
 V25D_PRESENT_CLASS_MEAN_VARIANT = "v25d_course_present_class_mean"
+# V25e keeps the exact V25a causal-course cache.  Its sole variable is a
+# mixed-batch shared-gradient projection, so no new feature column or cache
+# schema is allowed.
+V25E_SHARED_GRADIENT_PROJECTION_VARIANT = "v25e_shared_gradient_conflict_projection"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -130,6 +136,7 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V25A_GRADIENT_TELEMETRY_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V25D_PRESENT_CLASS_MEAN_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V25E_SHARED_GRADIENT_PROJECTION_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 # These variants store an already-selected feature matrix rather than the
 # original canonical KnownGate feature matrix.  They must therefore use
@@ -150,6 +157,7 @@ SELECTED_CACHE_VARIANTS = frozenset(
         V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
         V25A_GRADIENT_TELEMETRY_VARIANT,
         V25D_PRESENT_CLASS_MEAN_VARIANT,
+        V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
     }
 )
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
@@ -604,6 +612,39 @@ def load_known_gate_feature_cache(
         cache_width = KNOWN_GATE_FEATURE_DIM
         indices = FEATURE_INDICES_BY_VARIANT[variant_name]
     cache_path = Path(path)
+    if not cache_path.is_file():
+        raise FileNotFoundError(f"KnownGate feature cache is missing: {cache_path}")
+    cache_size = cache_path.stat().st_size
+    if cache_size > MAX_KNOWN_GATE_FEATURE_CACHE_BYTES:
+        raise ValueError(
+            "KnownGate feature cache exceeds the fail-closed size limit: "
+            f"{cache_size} > {MAX_KNOWN_GATE_FEATURE_CACHE_BYTES} bytes"
+        )
+    if cache_path.suffix.lower() != ".npz":
+        raise ValueError(f"KnownGate feature cache must be an .npz archive: {cache_path}")
+    try:
+        with zipfile.ZipFile(cache_path, mode="r") as archive:
+            members = archive.infolist()
+            if len(members) > 16:
+                raise ValueError("KnownGate feature cache contains too many archive members")
+            declared_uncompressed = 0
+            for member in members:
+                if member.is_dir():
+                    raise ValueError("KnownGate feature cache must not contain directory members")
+                if member.file_size > MAX_KNOWN_GATE_FEATURE_CACHE_BYTES:
+                    raise ValueError(
+                        "KnownGate feature cache member exceeds the fail-closed size limit: "
+                        f"{member.filename}={member.file_size} bytes"
+                    )
+                declared_uncompressed += int(member.file_size)
+            if declared_uncompressed > MAX_KNOWN_GATE_FEATURE_CACHE_BYTES:
+                raise ValueError(
+                    "KnownGate feature cache declared uncompressed size exceeds the "
+                    f"fail-closed limit: {declared_uncompressed} > "
+                    f"{MAX_KNOWN_GATE_FEATURE_CACHE_BYTES} bytes"
+                )
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"KnownGate feature cache is not a valid .npz archive: {cache_path}") from exc
     with np.load(cache_path, allow_pickle=False) as payload:
         if set(payload.files) != {"sample_ids", "values", "valid"}:
             raise ValueError("KnownGate feature cache fields must be sample_ids/values/valid")
@@ -716,6 +757,7 @@ __all__ = [
     "V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT",
     "V25A_GRADIENT_TELEMETRY_VARIANT",
     "V25D_PRESENT_CLASS_MEAN_VARIANT",
+    "V25E_SHARED_GRADIENT_PROJECTION_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction",

@@ -48,12 +48,16 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V25D_EXPERIMENT_SCHEMA,
     KNOWN_GATE_V25D_MANIFEST_SCHEMA,
     KNOWN_GATE_V25D_READINESS_SCHEMA,
+    KNOWN_GATE_V25E_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V25E_MANIFEST_SCHEMA,
+    KNOWN_GATE_V25E_READINESS_SCHEMA,
     V22A_SCHEMA_VERSION,
     V24_SCHEMA_VERSION,
     V24A_SCHEMA_VERSION,
     V24C_SCHEMA_VERSION,
     V25A_SCHEMA_VERSION,
     V25D_SCHEMA_VERSION,
+    V25E_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -84,6 +88,7 @@ from radar_ln3.known_gate_features import (
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
     V25A_GRADIENT_TELEMETRY_VARIANT,
     V25D_PRESENT_CLASS_MEAN_VARIANT,
+    V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -92,6 +97,12 @@ from radar_ln3.logging_utils import (
     format_metric,
 )
 from radar_ln3.losses import parent_final_task_ce_with_prefix_auxiliary
+from radar_ln3.known_gate_v25b_gradient_decomposition import module_parameter_indices
+from radar_ln3.known_gate_v25e_gradient_projection import (
+    V25E_PROJECTED_MODULE_NAMES,
+    V25E_UNCHANGED_MODULE_NAMES,
+    apply_historical_mixed_batch_projection,
+)
 
 
 READINESS_RELATIVE = Path(
@@ -169,6 +180,11 @@ V25A_READINESS_RELATIVE = Path(
 V25D_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V25d-known-gate-course-present-class-mean-training-readiness.json"
+)
+V25E_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V25e-known-gate-course-shared-gradient-conflict-projection-"
+    "training-readiness.json"
 )
 
 
@@ -436,6 +452,7 @@ def _verify_contract(
             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
             V25A_GRADIENT_TELEMETRY_VARIANT,
             V25D_PRESENT_CLASS_MEAN_VARIANT,
+            V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
         }:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
@@ -461,6 +478,7 @@ def _verify_contract(
             )
             is_v25a = config.variant == V25A_GRADIENT_TELEMETRY_VARIANT
             is_v25d = config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT
+            is_v25e = config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT
             expected_manifest_schema = (
                 KNOWN_GATE_V24A_MANIFEST_SCHEMA
                 if is_v24a
@@ -474,9 +492,13 @@ def _verify_contract(
                             KNOWN_GATE_V25D_MANIFEST_SCHEMA
                             if is_v25d
                             else (
+                                KNOWN_GATE_V25E_MANIFEST_SCHEMA
+                                if is_v25e
+                                else (
                                 KNOWN_GATE_V24_MANIFEST_SCHEMA
                                 if is_v24
                                 else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                                )
                             )
                         )
                     )
@@ -500,11 +522,15 @@ def _verify_contract(
                             KNOWN_GATE_V25D_EXPERIMENT_SCHEMA
                             if is_v25d
                             else (
+                                KNOWN_GATE_V25E_EXPERIMENT_SCHEMA
+                                if is_v25e
+                                else (
                                 KNOWN_GATE_V24_EXPERIMENT_SCHEMA
                                 if is_v24
                                 else (
                                     "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
                                     "experiment-contract-v1"
+                                )
                                 )
                             )
                         )
@@ -524,9 +550,13 @@ def _verify_contract(
                             V25D_PRESENT_CLASS_MEAN_VARIANT
                             if is_v25d
                             else (
+                                V25E_SHARED_GRADIENT_PROJECTION_VARIANT
+                                if is_v25e
+                                else (
                                 V24_COURSE_REASON_AWARE_BASELINE_VARIANT
                                 if is_v24
                                 else V21E_COURSE_PREFIX_VARIANT
+                                )
                             )
                         )
                     )
@@ -534,7 +564,7 @@ def _verify_contract(
             )
             expected_not_executed = (
                 "not_executed"
-                if (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d)
+                if (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d or is_v25e)
                 else "未执行"
             )
             if (
@@ -582,10 +612,11 @@ def _verify_contract(
                     and not is_v24c
                     and not is_v25a
                     and not is_v25d
+                    and not is_v25e
                     and experiment.get("post_hoc_feature_discovery") is not True
                 )
                 or (
-                    (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d)
+                    (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d or is_v25e)
                     and experiment.get("fresh_training_not_finetune") is not True
                 )
                 or experiment.get("test") != expected_not_executed
@@ -850,6 +881,7 @@ def _verify_contract(
                     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                     V25A_GRADIENT_TELEMETRY_VARIANT,
                     V25D_PRESENT_CLASS_MEAN_VARIANT,
+                    V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -885,6 +917,7 @@ def _verify_contract(
                             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                             V25A_GRADIENT_TELEMETRY_VARIANT,
                             V25D_PRESENT_CLASS_MEAN_VARIANT,
+                            V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -1219,6 +1252,135 @@ def _verify_readiness(
             "path": str(path),
             "sha256": sha256_file(path),
             "schema_version": KNOWN_GATE_V25D_READINESS_SCHEMA,
+            "status": "passed",
+            "source_v25a_summary_path": str(control_summary_path),
+            "source_v25a_summary_sha256": str(source.get("summary_sha256", "")),
+            "source_v25a_initial_model_state_sha256": str(
+                control_summary.get("initial_model_state_sha256", "")
+            ),
+            "source_v25a_epoch_parent_order_hashes": expected_orders,
+            "validation_used_for_readiness_gate": False,
+            "test": "not_executed",
+        }
+    if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+        path = (root / V25E_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V25e formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        source = dict(report.get("source_v25a") or {})
+        mechanism = dict(report.get("projection_mechanism") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        experiment_contract_path = _resolve(
+            root, config.data.feature_experiment_contract_path or ""
+        )
+        control_config_path = _resolve(
+            root, config.train.paired_baseline_config_path or ""
+        )
+        control_summary_path = _resolve(root, str(source.get("summary", "")))
+        control_summary = (
+            json.loads(control_summary_path.read_text(encoding="utf-8"))
+            if control_summary_path.is_file()
+            else {}
+        )
+        source_orders = list(
+            dict(control_summary.get("dataloader_contract") or {}).get(
+                "epoch_parent_order_hashes"
+            )
+            or ()
+        )
+        expected_orders = {
+            str(index): str(row.get("sha256", ""))
+            for index, row in enumerate(source_orders, start=1)
+        }
+        actual_required = {
+            "index_sha256": contract_evidence["hashes"]["index_sha256"],
+            "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+            "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+            "feature_manifest_sha256": cache_hashes.get("manifest"),
+            "train_feature_cache_sha256": cache_hashes.get("train"),
+            "validation_feature_cache_sha256": cache_hashes.get("validation"),
+            "experiment_contract_sha256": contract_evidence["hashes"].get(
+                "feature_experiment_contract_sha256"
+            ),
+        }
+        expected_hashes = dict(report.get("contract_hashes") or {})
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V25E_READINESS_SCHEMA
+            or report.get("variant") != V25E_SHARED_GRADIENT_PROJECTION_VARIANT
+            or not checks
+            or not all(value is True for value in checks.values())
+            or _resolve(root, str(binding.get("path", ""))) != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or any(expected_hashes.get(key) != value for key, value in actual_required.items())
+            or _resolve(root, str(report.get("feature_manifest_path", "")))
+            != _resolve(root, str(cache_paths.get("manifest", "")))
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or _resolve(root, str(report.get("contract_path", "")))
+            != experiment_contract_path
+            or report.get("contract_sha256")
+            != actual_required["experiment_contract_sha256"]
+            or control_config_path
+            != _resolve(
+                root,
+                "config/RADAR-LN3/RADAR-LN3-V25a-cq08-liquid-known-gate-course-"
+                "preclip-gradient-telemetry-seed43-config.json",
+            )
+            or not control_config_path.is_file()
+            or source.get("config_sha256") != sha256_file(control_config_path)
+            or not control_summary_path.is_file()
+            or source.get("summary_sha256") != sha256_file(control_summary_path)
+            or control_summary.get("status") != "completed"
+            or control_summary.get("variant") != V25A_GRADIENT_TELEMETRY_VARIANT
+            or int(control_summary.get("seed", -1)) != config.train.seed
+            or int(control_summary.get("global_step", -1)) != 9860
+            or len(list(control_summary.get("history") or ())) != 20
+            or len(source_orders) != 20
+            or source.get("initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or report.get("source_v25a_initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or not str(control_summary.get("initial_model_state_sha256", ""))
+            or dict(source.get("epoch_parent_order_hashes") or {}) != expected_orders
+            or dict(report.get("source_v25a_epoch_parent_order_hashes") or {})
+            != expected_orders
+            or any(not value for value in expected_orders.values())
+            or source.get("trained_checkpoint_loaded") is not False
+            or source.get("trained_checkpoint_accessed") is not False
+            or mechanism.get("projected_modules") != list(V25E_PROJECTED_MODULE_NAMES)
+            or mechanism.get("unchanged_modules") != list(V25E_UNCHANGED_MODULE_NAMES)
+            or int(mechanism.get("expected_total_updates", -1)) != 9860
+            or int(mechanism.get("expected_mixed_batch_count", -1)) != 638
+            or int(mechanism.get("expected_pure_batch_count", -1)) != 9222
+            or mechanism.get("pure_batches_are_historical_equivalent") is not True
+            or mechanism.get("rd_and_classifier_are_unchanged") is not True
+            or mechanism.get("projection_is_only_on_negative_conflict") is not True
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_parent_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or int(report.get("test_payload_access_count", -1)) != 0
+            or report.get("formal_training") != "not_executed"
+            or report.get("OOF") != "not_executed"
+            or report.get("test") != "not_executed"
+            or report.get("formal_rejection") != "not_executed"
+            or report.get("full_cascade") != "not_executed"
+            or report.get("stable") != "not_executed"
+            or report.get("P95") != "not_executed"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError(
+                "V25e readiness is missing, stale, failed or outside the sealed contract"
+            )
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V25E_READINESS_SCHEMA,
             "status": "passed",
             "source_v25a_summary_path": str(control_summary_path),
             "source_v25a_summary_sha256": str(source.get("summary_sha256", "")),
@@ -2590,6 +2752,29 @@ def train_known_gate(
                 paired_initialization[
                     "sealed_v25a_initial_model_state_sha256"
                 ] = initial_state_sha256
+            if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+                baseline_initial_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if (
+                    initial_state_sha256
+                    != readiness.get("source_v25a_initial_model_state_sha256")
+                    or baseline_initial_state
+                    != readiness.get("source_v25a_initial_model_state_sha256")
+                    or paired_initialization.get("shared_gradient_projection_pair")
+                    is not True
+                    or paired_initialization.get("loss_only_pair") is not False
+                    or int(paired_initialization.get("new_fusion_columns", -1)) != 0
+                ):
+                    raise AssertionError(
+                        "V25e current model initialization differs from the frozen V25a projection control"
+                    )
+                paired_initialization[
+                    "sealed_v25a_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "sealed_v25a_initial_model_state_sha256"
+                ] = initial_state_sha256
             if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
                 reproduced_control_state = _state_dict_sha256(
                     baseline_reference.state_dict()
@@ -2854,6 +3039,20 @@ def train_known_gate(
         if not trainable or any(not parameter.requires_grad for parameter in model.parameters()):
             raise ValueError("V21 must train every model parameter")
         trainable_parameter_count = sum(parameter.numel() for parameter in trainable)
+        v25e_module_indices = (
+            module_parameter_indices(model, tuple(trainable))
+            if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT
+            else None
+        )
+        if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+            if tuple(v25e_module_indices or ()) != (
+                "tr_encoder",
+                "rd_encoder",
+                "fusion",
+                "liquid",
+                "classifier",
+            ):
+                raise AssertionError("V25e module partition does not match the sealed order")
         device = known_gate_device(config)
         model.to(device)
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.train.learning_rate)
@@ -2947,6 +3146,24 @@ def train_known_gate(
             else:
                 raise AssertionError("V25d contributing loss has no present class mass")
 
+        def _new_v25e_epoch_telemetry() -> dict[str, Any]:
+            return {
+                "batch_count": 0,
+                "mixed_known_clutter_batch_count": 0,
+                "pure_batch_count": 0,
+                "projection_batch_count": 0,
+                "projected_module_count": 0,
+                "negative_conflict_count": {
+                    module: 0 for module in V25E_PROJECTED_MODULE_NAMES
+                },
+                "projection_count": {
+                    module: 0 for module in V25E_PROJECTED_MODULE_NAMES
+                },
+                "max_historical_loss_reconstruction_absolute_error": 0.0,
+                "rd_and_classifier_gradients_exactly_unchanged": True,
+                "pure_batches_used_historical_backward": True,
+            }
+
         for epoch in range(start_epoch, config.train.epochs + 1):
             model.train()
             total_loss = 0.0
@@ -2954,6 +3171,7 @@ def train_known_gate(
             prefix_loss = 0.0
             gradient_max = 0.0
             epoch_loss_mass = _new_loss_mass_epoch()
+            epoch_v25e_telemetry = _new_v25e_epoch_telemetry()
             epoch_order: list[str] = []
             epoch_started = time.perf_counter()
             for step, batch in enumerate(train_loader, start=1):
@@ -2970,6 +3188,18 @@ def train_known_gate(
                     class_weight_normalization=config.train.class_weight_normalization,
                 )
                 loss = objective["loss"]
+                is_v25e_mixed = bool(
+                    config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT
+                    and tensors["labels"].shape == (2,)
+                    and sorted(int(value) for value in tensors["labels"].detach().cpu().tolist())
+                    == [0, 1]
+                )
+                if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+                    epoch_v25e_telemetry["batch_count"] += 1
+                    if is_v25e_mixed:
+                        epoch_v25e_telemetry["mixed_known_clutter_batch_count"] += 1
+                    else:
+                        epoch_v25e_telemetry["pure_batch_count"] += 1
                 _record_loss_mass(
                     epoch_loss_mass,
                     scope="final",
@@ -2985,17 +3215,73 @@ def train_known_gate(
                     ),
                 )
                 optimizer.zero_grad(set_to_none=True)
-                loss.backward()
+                loss.backward(retain_graph=is_v25e_mixed)
+                v25e_step_audit: dict[str, Any] | None = None
+                if is_v25e_mixed:
+                    if v25e_module_indices is None:
+                        raise AssertionError("V25e mixed batch has no module partition")
+                    v25e_step_audit = apply_historical_mixed_batch_projection(
+                        parameters=tuple(trainable),
+                        module_indices=v25e_module_indices,
+                        sequence_logits=output["sequence_logits"],
+                        labels=tensors["labels"],
+                        padding_mask=tensors["tr_padding_mask"],
+                        class_weights=class_weights,
+                        prefix_auxiliary_weight=config.train.prefix_auxiliary_weight,
+                        prefix_auxiliary_min_events=config.train.prefix_auxiliary_min_events,
+                        original_loss=loss,
+                    )
+                    epoch_v25e_telemetry["projection_batch_count"] += 1
+                    epoch_v25e_telemetry["projected_module_count"] += int(
+                        v25e_step_audit["projected_module_count"]
+                    )
+                    epoch_v25e_telemetry[
+                        "max_historical_loss_reconstruction_absolute_error"
+                    ] = max(
+                        float(
+                            epoch_v25e_telemetry[
+                                "max_historical_loss_reconstruction_absolute_error"
+                            ]
+                        ),
+                        float(
+                            v25e_step_audit[
+                                "historical_loss_reconstruction_absolute_error"
+                            ]
+                        ),
+                    )
+                    epoch_v25e_telemetry[
+                        "rd_and_classifier_gradients_exactly_unchanged"
+                    ] = bool(
+                        epoch_v25e_telemetry[
+                            "rd_and_classifier_gradients_exactly_unchanged"
+                        ]
+                        and v25e_step_audit[
+                            "rd_and_classifier_gradients_exactly_unchanged"
+                        ]
+                    )
+                    for module in V25E_PROJECTED_MODULE_NAMES:
+                        module_audit = dict(
+                            dict(v25e_step_audit["shared_module_projection"])[module]
+                        )
+                        if module_audit.get("pre_cosine") is not None and float(
+                            module_audit["pre_cosine"]
+                        ) < 0.0:
+                            epoch_v25e_telemetry["negative_conflict_count"][module] += 1
+                        if module_audit.get("projected") is True:
+                            epoch_v25e_telemetry["projection_count"][module] += 1
                 grad_norm = float(
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.gradient_clip_norm).item()
                 )
                 if not torch.isfinite(loss).item() or not np.isfinite(grad_norm):
                     raise ValueError("V21 training produced non-finite loss or gradient")
+                loss_value = float(loss.item())
+                final_value = float(objective["final_state_loss"].item())
+                prefix_value = float(objective["prefix_auxiliary_loss"].item())
                 optimizer.step()
                 global_step += 1
-                total_loss += float(loss.item())
-                final_loss += float(objective["final_state_loss"].item())
-                prefix_loss += float(objective["prefix_auxiliary_loss"].item())
+                total_loss += loss_value
+                final_loss += final_value
+                prefix_loss += prefix_value
                 gradient_max = max(gradient_max, grad_norm)
                 if step == 1 or step % max(1, min(50, steps_per_epoch // 10)) == 0:
                     logger.info(
@@ -3004,21 +3290,31 @@ def train_known_gate(
                         epoch,
                         step,
                         steps_per_epoch,
-                        float(loss.item()),
-                        float(objective["final_state_loss"].item()),
-                        float(objective["prefix_auxiliary_loss"].item()),
+                        loss_value,
+                        final_value,
+                        prefix_value,
                         grad_norm,
                     )
+                # V25e temporarily retains the forward graph to read the two
+                # historical parent gradients.  The final autograd.grad call
+                # releases that graph; drop the remaining Python references at
+                # the batch boundary so a long run cannot accumulate CUDA
+                # tensors through loop locals or telemetry intermediates.
+                if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+                    del output, objective, loss, tensors, v25e_step_audit
             if len(epoch_order) != len(train_dataset) or len(set(epoch_order)) != len(epoch_order):
                 raise ValueError("V21 full epoch did not consume each train parent exactly once")
             epoch_order_sha256 = _parent_order_sha256(epoch_order)
-            if config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT:
+            if config.variant in {
+                V25D_PRESENT_CLASS_MEAN_VARIANT,
+                V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
+            }:
                 expected_orders = dict(
                     readiness.get("source_v25a_epoch_parent_order_hashes") or {}
                 )
                 if epoch_order_sha256 != str(expected_orders.get(str(epoch), "")):
                     raise AssertionError(
-                        "V25d parent order differs from its frozen V25a control at "
+                        "V25d/V25e parent order differs from its frozen V25a control at "
                         f"epoch={epoch}"
                     )
             validation = evaluate_known_gate(
@@ -3050,6 +3346,13 @@ def train_known_gate(
                     {}
                     if config.variant != V25D_PRESENT_CLASS_MEAN_VARIANT
                     else {"loss_class_mass": epoch_loss_mass}
+                ),
+                **(
+                    {}
+                    if config.variant != V25E_SHARED_GRADIENT_PROJECTION_VARIANT
+                    else {
+                        "shared_gradient_projection": epoch_v25e_telemetry,
+                    }
                 ),
             }
             history.append(epoch_record)
@@ -3261,6 +3564,79 @@ def train_known_gate(
                 "expected_mixed_batch_mass": [0.5, 0.5],
                 "pure_batch_historical_equivalence_prepared": True,
             }
+        shared_gradient_projection_telemetry: dict[str, Any] | None = None
+        if config.variant == V25E_SHARED_GRADIENT_PROJECTION_VARIANT:
+            aggregate = _new_v25e_epoch_telemetry()
+            for row in history:
+                observed = dict(row.get("shared_gradient_projection") or {})
+                if set(observed) != set(aggregate):
+                    raise AssertionError("V25e history lacks projection telemetry")
+                for key in (
+                    "batch_count",
+                    "mixed_known_clutter_batch_count",
+                    "pure_batch_count",
+                    "projection_batch_count",
+                    "projected_module_count",
+                ):
+                    aggregate[key] += int(observed.get(key, -1))
+                for key in (
+                    "max_historical_loss_reconstruction_absolute_error",
+                ):
+                    aggregate[key] = max(
+                        float(aggregate[key]), float(observed.get(key, float("nan")))
+                    )
+                for key in ("negative_conflict_count", "projection_count"):
+                    for module in V25E_PROJECTED_MODULE_NAMES:
+                        aggregate[key][module] += int(
+                            dict(observed.get(key) or {}).get(module, -1)
+                        )
+                aggregate["rd_and_classifier_gradients_exactly_unchanged"] = bool(
+                    aggregate["rd_and_classifier_gradients_exactly_unchanged"]
+                    and observed.get("rd_and_classifier_gradients_exactly_unchanged")
+                    is True
+                )
+                aggregate["pure_batches_used_historical_backward"] = bool(
+                    aggregate["pure_batches_used_historical_backward"]
+                    and observed.get("pure_batches_used_historical_backward") is True
+                )
+            if (
+                aggregate["batch_count"] != global_step
+                or aggregate["batch_count"] != 9860
+                or aggregate["mixed_known_clutter_batch_count"] != 638
+                or aggregate["pure_batch_count"] != 9222
+                or aggregate["mixed_known_clutter_batch_count"]
+                + aggregate["pure_batch_count"]
+                != aggregate["batch_count"]
+                or aggregate["projection_batch_count"] != 638
+                or not aggregate["rd_and_classifier_gradients_exactly_unchanged"]
+                or not aggregate["pure_batches_used_historical_backward"]
+                or any(
+                    int(aggregate["projection_count"][module]) <= 0
+                    for module in V25E_PROJECTED_MODULE_NAMES
+                )
+                or not np.isfinite(
+                    float(aggregate["max_historical_loss_reconstruction_absolute_error"])
+                )
+            ):
+                raise AssertionError("V25e aggregate projection telemetry is incomplete")
+            shared_gradient_projection_telemetry = {
+                "schema_version": (
+                    "RADAR-LN3-V25e-known-gate-shared-gradient-conflict-"
+                    "projection-telemetry-v1"
+                ),
+                "projected_modules": list(V25E_PROJECTED_MODULE_NAMES),
+                "unchanged_modules": list(V25E_UNCHANGED_MODULE_NAMES),
+                "by_scope": aggregate,
+                "expected_total_updates": 9860,
+                "expected_mixed_batch_count": 638,
+                "expected_pure_batch_count": 9222,
+                "projection_rule": (
+                    "project the larger-norm parent gradient onto the orthogonal "
+                    "complement of the smaller-norm parent gradient only when dot<0"
+                ),
+                "raw_parent_identifiers_stored": False,
+                "rd_and_classifier_gradients_exactly_unchanged": True,
+            }
         result = {
             "status": "completed",
             **performance,
@@ -3304,6 +3680,15 @@ def train_known_gate(
                 else {
                     "present_class_mean_loss_mass_telemetry": (
                         present_class_mean_loss_mass_telemetry
+                    )
+                }
+            ),
+            **(
+                {}
+                if shared_gradient_projection_telemetry is None
+                else {
+                    "shared_gradient_projection_telemetry": (
+                        shared_gradient_projection_telemetry
                     )
                 }
             ),
