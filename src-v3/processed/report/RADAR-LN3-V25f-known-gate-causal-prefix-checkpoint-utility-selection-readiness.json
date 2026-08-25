@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V25f-known-gate-causal-prefix-checkpoint-utility-selection-readiness-v1",
+  "selector_schema": "RADAR-LN3-V25f-causal-prefix-checkpoint-utility-selector-v1",
+  "experiment_contract": {
+    "path": "data/processed/RADAR-LN3-V25f-cq08-known-gate-causal-prefix-checkpoint-utility-selection-contract.json",
+    "sha256": "791c2cb986195d08b55d77e93e75193205997da5b732bac995d453fe6dbce51a"
+  },
+  "source_v25a": {
+    "config_path": "config/RADAR-LN3/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-config.json",
+    "config_sha256": "d6b4907fae0948f1336596630ba44f50a8f0e80927559d50757b1259460cd454",
+    "readiness_path": "src-v3/processed/report/RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-training-readiness.json",
+    "readiness_sha256": "c22ba1797f187b156a42ceb04c2b459ba834b41d6ce7a62ed974c49cbc0997d1",
+    "summary_path": "artifacts/RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-telemetry-seed43-formal/training-summary.json",
+    "summary_sha256": "3bd0ab1149bcd37434c4d625949f271fd742fe9d9028df0df60098faf4cdbb77",
+    "legacy_best_epoch": 14,
+    "epoch_checkpoint_count": 20
+  },
+  "checks": {
+    "source_v25a_training_completed": true,
+    "source_v25a_has_all_twenty_epoch_checkpoints": true,
+    "source_v25a_parent_orders_are_sealed": true,
+    "source_v25a_test_not_executed": true,
+    "source_v25a_unknown_training_exposure_is_zero": true,
+    "no_v25f_training_or_optimizer_steps": true,
+    "product_safe_and_diagnostic_thresholds_are_distinct": true,
+    "fixed_two_pp_gate_is_not_used": true
+  },
+  "training": "not_executed",
+  "validation_used_for_epoch_scan": true,
+  "test_payload_access_count": 0,
+  "unknown_payload_access_count": 0,
+  "OOF": "not_executed",
+  "test": "not_executed",
+  "full_cascade": "not_executed",
+  "formal_rejection": "not_executed",
+  "stable": "not_executed",
+  "P95": "not_executed",
+  "deployment_eligible": false
+}
