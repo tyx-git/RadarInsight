@@ -45,11 +45,15 @@ from radar_ln3.known_gate import (
     KNOWN_GATE_V25A_EXPERIMENT_SCHEMA,
     KNOWN_GATE_V25A_MANIFEST_SCHEMA,
     KNOWN_GATE_V25A_READINESS_SCHEMA,
+    KNOWN_GATE_V25D_EXPERIMENT_SCHEMA,
+    KNOWN_GATE_V25D_MANIFEST_SCHEMA,
+    KNOWN_GATE_V25D_READINESS_SCHEMA,
     V22A_SCHEMA_VERSION,
     V24_SCHEMA_VERSION,
     V24A_SCHEMA_VERSION,
     V24C_SCHEMA_VERSION,
     V25A_SCHEMA_VERSION,
+    V25D_SCHEMA_VERSION,
     UNKNOWN_LABEL,
     KnownGateClassifier,
     KnownGateConfig,
@@ -79,6 +83,7 @@ from radar_ln3.known_gate_features import (
     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
     V25A_GRADIENT_TELEMETRY_VARIANT,
+    V25D_PRESENT_CLASS_MEAN_VARIANT,
 )
 from radar_ln3.logging_utils import (
     close_training_logger,
@@ -160,6 +165,10 @@ V24C_READINESS_RELATIVE = Path(
 V25A_READINESS_RELATIVE = Path(
     "src-v3/processed/report/"
     "RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-training-readiness.json"
+)
+V25D_READINESS_RELATIVE = Path(
+    "src-v3/processed/report/"
+    "RADAR-LN3-V25d-known-gate-course-present-class-mean-training-readiness.json"
 )
 
 
@@ -426,6 +435,7 @@ def _verify_contract(
             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
             V25A_GRADIENT_TELEMETRY_VARIANT,
+            V25D_PRESENT_CLASS_MEAN_VARIANT,
         }:
             experiment_path = _resolve(
                 root, config.data.feature_experiment_contract_path or ""
@@ -450,6 +460,7 @@ def _verify_contract(
                 config.variant == V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT
             )
             is_v25a = config.variant == V25A_GRADIENT_TELEMETRY_VARIANT
+            is_v25d = config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT
             expected_manifest_schema = (
                 KNOWN_GATE_V24A_MANIFEST_SCHEMA
                 if is_v24a
@@ -460,9 +471,13 @@ def _verify_contract(
                         KNOWN_GATE_V25A_MANIFEST_SCHEMA
                         if is_v25a
                         else (
-                            KNOWN_GATE_V24_MANIFEST_SCHEMA
-                            if is_v24
-                            else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                            KNOWN_GATE_V25D_MANIFEST_SCHEMA
+                            if is_v25d
+                            else (
+                                KNOWN_GATE_V24_MANIFEST_SCHEMA
+                                if is_v24
+                                else KNOWN_GATE_V21E_MANIFEST_SCHEMA
+                            )
                         )
                     )
                 )
@@ -482,11 +497,15 @@ def _verify_contract(
                         KNOWN_GATE_V25A_EXPERIMENT_SCHEMA
                         if is_v25a
                         else (
-                            KNOWN_GATE_V24_EXPERIMENT_SCHEMA
-                            if is_v24
+                            KNOWN_GATE_V25D_EXPERIMENT_SCHEMA
+                            if is_v25d
                             else (
-                                "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
-                                "experiment-contract-v1"
+                                KNOWN_GATE_V24_EXPERIMENT_SCHEMA
+                                if is_v24
+                                else (
+                                    "RADAR-LN3-V21e-known-gate-causal-course-consistency-"
+                                    "experiment-contract-v1"
+                                )
                             )
                         )
                     )
@@ -502,16 +521,20 @@ def _verify_contract(
                         V25A_GRADIENT_TELEMETRY_VARIANT
                         if is_v25a
                         else (
-                            V24_COURSE_REASON_AWARE_BASELINE_VARIANT
-                            if is_v24
-                            else V21E_COURSE_PREFIX_VARIANT
+                            V25D_PRESENT_CLASS_MEAN_VARIANT
+                            if is_v25d
+                            else (
+                                V24_COURSE_REASON_AWARE_BASELINE_VARIANT
+                                if is_v24
+                                else V21E_COURSE_PREFIX_VARIANT
+                            )
                         )
                     )
                 )
             )
             expected_not_executed = (
                 "not_executed"
-                if (is_v24 or is_v24a or is_v24c or is_v25a)
+                if (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d)
                 else "未执行"
             )
             if (
@@ -558,10 +581,11 @@ def _verify_contract(
                     and not is_v24a
                     and not is_v24c
                     and not is_v25a
+                    and not is_v25d
                     and experiment.get("post_hoc_feature_discovery") is not True
                 )
                 or (
-                    (is_v24 or is_v24a or is_v24c or is_v25a)
+                    (is_v24 or is_v24a or is_v24c or is_v25a or is_v25d)
                     and experiment.get("fresh_training_not_finetune") is not True
                 )
                 or experiment.get("test") != expected_not_executed
@@ -825,6 +849,7 @@ def _verify_contract(
                     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
                     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                     V25A_GRADIENT_TELEMETRY_VARIANT,
+                    V25D_PRESENT_CLASS_MEAN_VARIANT,
                 }
                 else {
                     "experiment_contract_path": str(experiment_path),
@@ -859,6 +884,7 @@ def _verify_contract(
                             V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
                             V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
                             V25A_GRADIENT_TELEMETRY_VARIANT,
+                            V25D_PRESENT_CLASS_MEAN_VARIANT,
                         }
                         else {
                             "feature_experiment_contract_sha256": cache_evidence[
@@ -1068,6 +1094,138 @@ def _verify_readiness(
             "paired_seed43_baseline_initial_model_state_sha256": str(
                 source.get("initial_model_state_sha256", "")
             ),
+            "validation_used_for_readiness_gate": False,
+            "test": "not_executed",
+        }
+    if config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT:
+        path = (root / V25D_READINESS_RELATIVE).resolve()
+        if not path.is_file():
+            raise PermissionError(f"V25d formal training requires readiness: {path}")
+        report = json.loads(path.read_text(encoding="utf-8"))
+        binding = dict(report.get("config") or {})
+        checks = dict(report.get("checks") or {})
+        source = dict(report.get("source_v25a") or {})
+        loss_semantics = dict(report.get("loss_semantics_audit") or {})
+        cache_evidence = dict(contract_evidence.get("feature_cache") or {})
+        cache_paths = dict(cache_evidence.get("paths") or {})
+        cache_hashes = dict(cache_evidence.get("hashes") or {})
+        experiment_contract_path = _resolve(
+            root, config.data.feature_experiment_contract_path or ""
+        )
+        control_config_path = _resolve(
+            root, config.train.paired_baseline_config_path or ""
+        )
+        control_summary_path = _resolve(root, str(source.get("summary", "")))
+        control_summary = (
+            json.loads(control_summary_path.read_text(encoding="utf-8"))
+            if control_summary_path.is_file()
+            else {}
+        )
+        source_orders = list(
+            dict(control_summary.get("dataloader_contract") or {}).get(
+                "epoch_parent_order_hashes"
+            )
+            or ()
+        )
+        expected_orders = {
+            str(index): str(row.get("sha256", ""))
+            for index, row in enumerate(source_orders, start=1)
+        }
+        actual_required = {
+            "index_sha256": contract_evidence["hashes"]["index_sha256"],
+            "core_contract_sha256": contract_evidence["hashes"]["contract_sha256"],
+            "normalization_sha256": contract_evidence["hashes"]["normalization_sha256"],
+            "feature_manifest_sha256": cache_hashes.get("manifest"),
+            "train_feature_cache_sha256": cache_hashes.get("train"),
+            "validation_feature_cache_sha256": cache_hashes.get("validation"),
+            "experiment_contract_sha256": contract_evidence["hashes"].get(
+                "feature_experiment_contract_sha256"
+            ),
+        }
+        expected_hashes = dict(report.get("contract_hashes") or {})
+        if (
+            report.get("status") != "passed"
+            or report.get("schema_version") != KNOWN_GATE_V25D_READINESS_SCHEMA
+            or report.get("variant") != V25D_PRESENT_CLASS_MEAN_VARIANT
+            or not checks
+            or not all(value is True for value in checks.values())
+            or _resolve(root, str(binding.get("path", ""))) != config_path.resolve()
+            or binding.get("sha256") != sha256_file(config_path)
+            or any(
+                expected_hashes.get(key) != value
+                for key, value in actual_required.items()
+            )
+            or _resolve(root, str(report.get("feature_manifest_path", "")))
+            != _resolve(root, str(cache_paths.get("manifest", "")))
+            or report.get("feature_manifest_sha256") != cache_hashes.get("manifest")
+            or _resolve(root, str(report.get("contract_path", "")))
+            != experiment_contract_path
+            or report.get("contract_sha256")
+            != actual_required["experiment_contract_sha256"]
+            or control_config_path
+            != _resolve(
+                root,
+                "config/RADAR-LN3/RADAR-LN3-V25a-cq08-liquid-known-gate-course-"
+                "preclip-gradient-telemetry-seed43-config.json",
+            )
+            or not control_config_path.is_file()
+            or source.get("config_sha256") != sha256_file(control_config_path)
+            or not control_summary_path.is_file()
+            or source.get("summary_sha256") != sha256_file(control_summary_path)
+            or control_summary.get("status") != "completed"
+            or control_summary.get("variant") != V25A_GRADIENT_TELEMETRY_VARIANT
+            or int(control_summary.get("seed", -1)) != config.train.seed
+            or len(list(control_summary.get("history") or ())) != 20
+            or len(source_orders) != 20
+            or source.get("initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or report.get("source_v25a_initial_model_state_sha256")
+            != control_summary.get("initial_model_state_sha256")
+            or not str(control_summary.get("initial_model_state_sha256", ""))
+            or dict(source.get("epoch_parent_order_hashes") or {}) != expected_orders
+            or dict(report.get("source_v25a_epoch_parent_order_hashes") or {})
+            != expected_orders
+            or any(not value for value in expected_orders.values())
+            or source.get("trained_checkpoint_loaded") is not False
+            or source.get("trained_checkpoint_accessed") is not False
+            or loss_semantics.get("mixed_final_effective_class_mass") != [0.5, 0.5]
+            or loss_semantics.get("mixed_prefix_effective_class_mass") != [0.5, 0.5]
+            or not all(
+                bool(value)
+                for value in dict(
+                    loss_semantics.get("pure_class_loss_equivalent_to_batch_weight_sum")
+                    or {}
+                ).values()
+            )
+            or int(report.get("known_train_parent_count", -1)) != 986
+            or int(report.get("known_validation_parent_count", -1)) != 232
+            or int(report.get("validation_clutter_parent_support", -1)) != 9
+            or int(report.get("unknown_training_exposure", -1)) != 0
+            or report.get("validation_used_for_readiness_gate") is not False
+            or int(report.get("test_payload_access_count", -1)) != 0
+            or report.get("formal_training") != "not_executed"
+            or report.get("OOF") != "not_executed"
+            or report.get("test") != "not_executed"
+            or report.get("formal_rejection") != "not_executed"
+            or report.get("full_cascade") != "not_executed"
+            or report.get("stable") != "not_executed"
+            or report.get("P95") != "not_executed"
+            or report.get("deployment_eligible") is not False
+        ):
+            raise PermissionError(
+                "V25d readiness is missing, stale, failed or outside the sealed contract"
+            )
+        return {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "schema_version": KNOWN_GATE_V25D_READINESS_SCHEMA,
+            "status": "passed",
+            "source_v25a_summary_path": str(control_summary_path),
+            "source_v25a_summary_sha256": str(source.get("summary_sha256", "")),
+            "source_v25a_initial_model_state_sha256": str(
+                control_summary.get("initial_model_state_sha256", "")
+            ),
+            "source_v25a_epoch_parent_order_hashes": expected_orders,
             "validation_used_for_readiness_gate": False,
             "test": "not_executed",
         }
@@ -2409,6 +2567,29 @@ def train_known_gate(
                 paired_initialization[
                     "sealed_v24_initial_model_state_sha256"
                 ] = initial_state_sha256
+            if config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT:
+                baseline_initial_state = _state_dict_sha256(
+                    baseline_reference.state_dict()
+                )
+                if (
+                    initial_state_sha256
+                    != readiness.get("source_v25a_initial_model_state_sha256")
+                    or baseline_initial_state
+                    != readiness.get("source_v25a_initial_model_state_sha256")
+                    or paired_initialization.get("loss_only_pair") is not True
+                    or paired_initialization.get("present_class_mean_loss_only_pair")
+                    is not True
+                    or int(paired_initialization.get("new_fusion_columns", -1)) != 0
+                ):
+                    raise AssertionError(
+                        "V25d current model initialization differs from the frozen V25a loss-only control"
+                    )
+                paired_initialization[
+                    "sealed_v25a_initial_model_state_reproduced"
+                ] = True
+                paired_initialization[
+                    "sealed_v25a_initial_model_state_sha256"
+                ] = initial_state_sha256
             if config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT:
                 reproduced_control_state = _state_dict_sha256(
                     baseline_reference.state_dict()
@@ -2717,12 +2898,62 @@ def train_known_gate(
             len(validation_dataset),
             planned_steps,
         )
+        def _new_loss_mass_epoch() -> dict[str, dict[str, Any]]:
+            return {
+                scope: {
+                    "contributing_batch_count": 0,
+                    "pure_batch_count": 0,
+                    "mixed_batch_count": 0,
+                    "effective_class_mass_sum": [0.0, 0.0],
+                    "mixed_batches_exactly_equal_class_mass": True,
+                    "pure_batches_have_single_class_mass": True,
+                }
+                for scope in ("final", "prefix")
+            }
+
+        def _record_loss_mass(
+            epoch_mass: dict[str, dict[str, Any]],
+            *,
+            scope: str,
+            mass: torch.Tensor,
+            contributing: bool,
+        ) -> None:
+            if config.variant != V25D_PRESENT_CLASS_MEAN_VARIANT or not contributing:
+                return
+            values = [float(value) for value in mass.detach().cpu().tolist()]
+            if len(values) != 2 or any(not np.isfinite(value) or value < 0.0 for value in values):
+                raise AssertionError("V25d loss mass is malformed")
+            target = epoch_mass[scope]
+            target["contributing_batch_count"] += 1
+            target["effective_class_mass_sum"] = [
+                float(before + observed)
+                for before, observed in zip(
+                    target["effective_class_mass_sum"], values, strict=True
+                )
+            ]
+            present = sum(value > 0.0 for value in values)
+            if present == 2:
+                target["mixed_batch_count"] += 1
+                target["mixed_batches_exactly_equal_class_mass"] = bool(
+                    target["mixed_batches_exactly_equal_class_mass"]
+                    and values == [0.5, 0.5]
+                )
+            elif present == 1:
+                target["pure_batch_count"] += 1
+                target["pure_batches_have_single_class_mass"] = bool(
+                    target["pure_batches_have_single_class_mass"]
+                    and values in ([1.0, 0.0], [0.0, 1.0])
+                )
+            else:
+                raise AssertionError("V25d contributing loss has no present class mass")
+
         for epoch in range(start_epoch, config.train.epochs + 1):
             model.train()
             total_loss = 0.0
             final_loss = 0.0
             prefix_loss = 0.0
             gradient_max = 0.0
+            epoch_loss_mass = _new_loss_mass_epoch()
             epoch_order: list[str] = []
             epoch_started = time.perf_counter()
             for step, batch in enumerate(train_loader, start=1):
@@ -2736,8 +2967,23 @@ def train_known_gate(
                     class_weights=class_weights,
                     prefix_auxiliary_weight=config.train.prefix_auxiliary_weight,
                     prefix_auxiliary_min_events=config.train.prefix_auxiliary_min_events,
+                    class_weight_normalization=config.train.class_weight_normalization,
                 )
                 loss = objective["loss"]
+                _record_loss_mass(
+                    epoch_loss_mass,
+                    scope="final",
+                    mass=objective["final_effective_class_mass"],
+                    contributing=True,
+                )
+                _record_loss_mass(
+                    epoch_loss_mass,
+                    scope="prefix",
+                    mass=objective["prefix_effective_class_mass"],
+                    contributing=bool(
+                        int(objective["eligible_prefix_parent_count"].item()) > 0
+                    ),
+                )
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 grad_norm = float(
@@ -2765,6 +3011,16 @@ def train_known_gate(
                     )
             if len(epoch_order) != len(train_dataset) or len(set(epoch_order)) != len(epoch_order):
                 raise ValueError("V21 full epoch did not consume each train parent exactly once")
+            epoch_order_sha256 = _parent_order_sha256(epoch_order)
+            if config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT:
+                expected_orders = dict(
+                    readiness.get("source_v25a_epoch_parent_order_hashes") or {}
+                )
+                if epoch_order_sha256 != str(expected_orders.get(str(epoch), "")):
+                    raise AssertionError(
+                        "V25d parent order differs from its frozen V25a control at "
+                        f"epoch={epoch}"
+                    )
             validation = evaluate_known_gate(
                 model,
                 validation_dataset,
@@ -2786,10 +3042,15 @@ def train_known_gate(
                 "selection_metric": KNOWN_GATE_SELECTION_METRIC,
                 "checkpoint_selection": selection,
                 "validation": {key: value for key, value in validation.items() if key != "records"},
-                "parent_order_sha256": _parent_order_sha256(epoch_order),
+                "parent_order_sha256": epoch_order_sha256,
                 "parent_order_count": len(epoch_order),
                 "parent_order_unique_count": len(set(epoch_order)),
                 "elapsed_seconds": time.perf_counter() - epoch_started,
+                **(
+                    {}
+                    if config.variant != V25D_PRESENT_CLASS_MEAN_VARIANT
+                    else {"loss_class_mass": epoch_loss_mass}
+                ),
             }
             history.append(epoch_record)
             training_state = _capture_training_state(
@@ -2924,6 +3185,82 @@ def train_known_gate(
                 ),
                 "feature_used_by_best_checkpoint": True,
             }
+        present_class_mean_loss_mass_telemetry: dict[str, Any] | None = None
+        if config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT:
+            aggregate: dict[str, dict[str, Any]] = {
+                scope: {
+                    "contributing_batch_count": 0,
+                    "pure_batch_count": 0,
+                    "mixed_batch_count": 0,
+                    "effective_class_mass_sum": [0.0, 0.0],
+                    "mixed_batches_exactly_equal_class_mass": True,
+                    "pure_batches_have_single_class_mass": True,
+                }
+                for scope in ("final", "prefix")
+            }
+            for row in history:
+                epoch_mass = dict(row.get("loss_class_mass") or {})
+                if set(epoch_mass) != {"final", "prefix"}:
+                    raise AssertionError("V25d history lacks exact loss-class-mass telemetry")
+                for scope, target in aggregate.items():
+                    observed = dict(epoch_mass[scope])
+                    for key in (
+                        "contributing_batch_count",
+                        "pure_batch_count",
+                        "mixed_batch_count",
+                    ):
+                        target[key] += int(observed.get(key, -1))
+                    observed_mass = [
+                        float(value)
+                        for value in list(observed.get("effective_class_mass_sum") or ())
+                    ]
+                    if len(observed_mass) != 2 or any(
+                        not np.isfinite(value) or value < 0.0
+                        for value in observed_mass
+                    ):
+                        raise AssertionError("V25d history loss mass is malformed")
+                    target["effective_class_mass_sum"] = [
+                        float(before + value)
+                        for before, value in zip(
+                            target["effective_class_mass_sum"],
+                            observed_mass,
+                            strict=True,
+                        )
+                    ]
+                    target["mixed_batches_exactly_equal_class_mass"] = bool(
+                        target["mixed_batches_exactly_equal_class_mass"]
+                        and observed.get("mixed_batches_exactly_equal_class_mass")
+                        is True
+                    )
+                    target["pure_batches_have_single_class_mass"] = bool(
+                        target["pure_batches_have_single_class_mass"]
+                        and observed.get("pure_batches_have_single_class_mass")
+                        is True
+                    )
+            final = aggregate["final"]
+            if (
+                final["contributing_batch_count"] != global_step
+                or final["contributing_batch_count"] != 9860
+                or not final["mixed_batches_exactly_equal_class_mass"]
+                or not final["pure_batches_have_single_class_mass"]
+                or final["mixed_batch_count"] <= 0
+            ):
+                raise AssertionError("V25d aggregate final loss-class-mass telemetry is incomplete")
+            for scope in ("final", "prefix"):
+                target = aggregate[scope]
+                count = int(target["contributing_batch_count"])
+                target["mean_effective_class_mass"] = (
+                    [float(value / count) for value in target["effective_class_mass_sum"]]
+                    if count
+                    else None
+                )
+            present_class_mean_loss_mass_telemetry = {
+                "normalization": config.train.class_weight_normalization,
+                "class_names": list(KNOWN_GATE_CLASS_NAMES),
+                "by_scope": aggregate,
+                "expected_mixed_batch_mass": [0.5, 0.5],
+                "pure_batch_historical_equivalence_prepared": True,
+            }
         result = {
             "status": "completed",
             **performance,
@@ -2958,6 +3295,15 @@ def train_known_gate(
                 else {
                     "rd_temporal_residual_training_audit": (
                         rd_temporal_residual_training_audit
+                    )
+                }
+            ),
+            **(
+                {}
+                if present_class_mean_loss_mass_telemetry is None
+                else {
+                    "present_class_mean_loss_mass_telemetry": (
+                        present_class_mean_loss_mass_telemetry
                     )
                 }
             ),

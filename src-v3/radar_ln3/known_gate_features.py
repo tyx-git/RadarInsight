@@ -56,6 +56,10 @@ V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT = "v24c_course_strict_same_second_sk
 # pre-clip gradient telemetry in the trainer.  It intentionally keeps the
 # one adopted causal-course column and does not introduce a model feature.
 V25A_GRADIENT_TELEMETRY_VARIANT = "v25a_course_preclip_gradient_telemetry"
+# V25d is a loss-only follow-up to the completed V25a audit.  It reuses the
+# exact selected V21e causal-course cache; a distinct variant keeps its cache
+# identity explicit rather than relying on a fallback lookup.
+V25D_PRESENT_CLASS_MEAN_VARIANT = "v25d_course_present_class_mean"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -125,6 +129,7 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     ),
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V25A_GRADIENT_TELEMETRY_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V25D_PRESENT_CLASS_MEAN_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 # These variants store an already-selected feature matrix rather than the
 # original canonical KnownGate feature matrix.  They must therefore use
@@ -144,6 +149,7 @@ SELECTED_CACHE_VARIANTS = frozenset(
         V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
         V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
         V25A_GRADIENT_TELEMETRY_VARIANT,
+        V25D_PRESENT_CLASS_MEAN_VARIANT,
     }
 )
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
@@ -709,6 +715,7 @@ __all__ = [
     "V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT",
     "V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT",
     "V25A_GRADIENT_TELEMETRY_VARIANT",
+    "V25D_PRESENT_CLASS_MEAN_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction",

@@ -48,6 +48,7 @@ from .known_gate_features import (
     V24A_COURSE_RD_PEAK_DRIFT_MEAN_VARIANT,
     V24C_COURSE_STRICT_SAME_SECOND_SKIP_VARIANT,
     V25A_GRADIENT_TELEMETRY_VARIANT,
+    V25D_PRESENT_CLASS_MEAN_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -61,6 +62,7 @@ V24_SCHEMA_VERSION = "RADAR-LN3-V24"
 V24A_SCHEMA_VERSION = "RADAR-LN3-V24a"
 V24C_SCHEMA_VERSION = "RADAR-LN3-V24c"
 V25A_SCHEMA_VERSION = "RADAR-LN3-V25a"
+V25D_SCHEMA_VERSION = "RADAR-LN3-V25d"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -76,6 +78,7 @@ KNOWN_GATE_LABEL_TO_ID = {
 KNOWN_GATE_LOSS_MODE = "parent_final_task_ce_with_prefix_auxiliary"
 KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION = "batch_weight_sum"
 KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION = "fixed_parent_count"
+KNOWN_GATE_PRESENT_CLASS_MEAN_NORMALIZATION = "present_class_mean"
 KNOWN_GATE_SELECTION_METRIC = "parent_min_precision_recall"
 KNOWN_GATE_CONTRACT_SCHEMA = "RADAR-LN3-V21-known-gate-data-contract-v1"
 KNOWN_GATE_MANIFEST_SCHEMA = "RADAR-LN3-V21-known-gate-feature-cache-manifest-v1"
@@ -160,6 +163,17 @@ KNOWN_GATE_V25A_READINESS_SCHEMA = (
 )
 KNOWN_GATE_V25A_EXPERIMENT_SCHEMA = (
     "RADAR-LN3-V25a-known-gate-course-preclip-gradient-telemetry-"
+    "experiment-contract-v1"
+)
+KNOWN_GATE_V25D_MANIFEST_SCHEMA = (
+    "RADAR-LN3-V25d-known-gate-course-present-class-mean-"
+    "feature-cache-manifest-v1"
+)
+KNOWN_GATE_V25D_READINESS_SCHEMA = (
+    "RADAR-LN3-V25d-known-gate-course-present-class-mean-training-readiness-v1"
+)
+KNOWN_GATE_V25D_EXPERIMENT_SCHEMA = (
+    "RADAR-LN3-V25d-known-gate-course-present-class-mean-"
     "experiment-contract-v1"
 )
 KNOWN_GATE_BASELINE_MULTISEED_SEEDS = (42, 43, 44)
@@ -607,6 +621,76 @@ def _validate_v25a_config(
     return True
 
 
+def _validate_v25d_config(
+    config_path: Path,
+    *,
+    config_name: str,
+    variant: str,
+    data: KnownGateDataConfig,
+    train: KnownGateTrainConfig,
+) -> bool:
+    """Recognize only V25d's sealed present-class-mean loss namespace."""
+
+    expected_name = (
+        "RADAR-LN3-V25d-cq08-liquid-known-gate-course-present-class-mean-seed43"
+    )
+    artifact = (
+        "artifacts/RADAR-LN3-V25d-cq08-liquid-known-gate-course-present-class-"
+        "mean-seed43-formal"
+    )
+    expected_pair = (
+        "config/RADAR-LN3/"
+        "RADAR-LN3-V25a-cq08-liquid-known-gate-course-preclip-gradient-"
+        "telemetry-seed43-config.json"
+    )
+    if config_name != expected_name and variant != V25D_PRESENT_CLASS_MEAN_VARIANT:
+        return False
+    if (
+        config_path.name != f"{expected_name}-config.json"
+        or config_path.parent.name != "RADAR-LN3"
+        or config_path.parent.parent.name != "config"
+        or config_name != expected_name
+        or variant != V25D_PRESENT_CLASS_MEAN_VARIANT
+        or train.seed != 43
+        or train.dataloader_seed != 43
+        or train.checkpoint_path != f"{artifact}/best_model.pt"
+        or train.last_checkpoint_path != f"{artifact}/last_model.pt"
+        or train.formal_artifact_dir != artifact
+        or train.epoch_checkpoint_dir != f"{artifact}/epochs"
+        or train.checkpoint_schema
+        != (
+            "RADAR-LN3-V25d-v25d_course_present_class_mean-seed43-"
+            "known-gate-checkpoint-v1"
+        )
+        or train.paired_baseline_config_path != expected_pair
+        or train.class_weight_normalization
+        != KNOWN_GATE_PRESENT_CLASS_MEAN_NORMALIZATION
+        or data.feature_cache_manifest_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V25d-cq08-known-gate-course-present-class-mean-"
+            "feature-cache-manifest.json"
+        )
+        or data.train_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz"
+        )
+        or data.validation_feature_cache_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz"
+        )
+        or data.feature_experiment_contract_path
+        != (
+            "data/processed/"
+            "RADAR-LN3-V25d-cq08-known-gate-course-present-class-mean-contract.json"
+        )
+    ):
+        raise ValueError("V25d present-class-mean config differs from its sealed namespace")
+    return True
+
+
 def _validate_v21e_oof_support_config(
     config_path: Path,
     *,
@@ -879,11 +963,12 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         V24A_SCHEMA_VERSION,
         V24C_SCHEMA_VERSION,
         V25A_SCHEMA_VERSION,
+        V25D_SCHEMA_VERSION,
     }:
         raise ValueError(
             "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22, "
-            "RADAR-LN3-V22a, RADAR-LN3-V24, RADAR-LN3-V24a, RADAR-LN3-V24c or "
-            "RADAR-LN3-V25a"
+            "RADAR-LN3-V22a, RADAR-LN3-V24, RADAR-LN3-V24a, RADAR-LN3-V24c, "
+            "RADAR-LN3-V25a or RADAR-LN3-V25d"
         )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
@@ -1117,6 +1202,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
+    is_v25d = _validate_v25d_config(
+        config_path,
+        config_name=config_name,
+        variant=variant,
+        data=data,
+        train=train,
+    )
     is_oof_support = (
         is_v21e_oof_support
         or is_v21f_oof_support
@@ -1139,6 +1231,8 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         raise ValueError("RADAR-LN3-V24c schema is reserved for the V24c strict-skip experiment")
     if (schema_version == V25A_SCHEMA_VERSION) != is_v25a:
         raise ValueError("RADAR-LN3-V25a schema is reserved for the V25a telemetry audit")
+    if (schema_version == V25D_SCHEMA_VERSION) != is_v25d:
+        raise ValueError("RADAR-LN3-V25d schema is reserved for the V25d present-class-mean loss experiment")
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
@@ -1149,6 +1243,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             train.class_weight_normalization
             != KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
             and not is_v22_oof_support
+            and not is_v25d
         )
         or train.checkpoint_selection_metric != KNOWN_GATE_SELECTION_METRIC
         or train.prefix_auxiliary_weight != 0.1
@@ -1170,6 +1265,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         and not is_v24a
         and not is_v24c
         and not is_v25a
+        and not is_v25d
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -1211,6 +1307,10 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         f"{V25A_SCHEMA_VERSION}-{variant}-"
     ):
         raise ValueError("V25a checkpoint schema must bind the telemetry variant")
+    if is_v25d and not train.checkpoint_schema.startswith(
+        f"{V25D_SCHEMA_VERSION}-{variant}-"
+    ):
+        raise ValueError("V25d checkpoint schema must bind the present-class-mean variant")
 
     cache_fields = (
         data.feature_cache_manifest_path,
@@ -1815,6 +1915,19 @@ def build_known_gate_model_for_config(
         and baseline_config.train.class_weight_normalization
         == KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
     )
+    present_class_mean_pair = (
+        config.schema_version == V25D_SCHEMA_VERSION
+        and config.variant == V25D_PRESENT_CLASS_MEAN_VARIANT
+        and baseline_config.schema_version == V25A_SCHEMA_VERSION
+        and baseline_config.variant == V25A_GRADIENT_TELEMETRY_VARIANT
+        and config.model.evidence_dim == baseline_config.model.evidence_dim
+        and tuple(config.feature_names) == tuple(baseline_config.feature_names)
+        and config.train.class_weight_normalization
+        == KNOWN_GATE_PRESENT_CLASS_MEAN_NORMALIZATION
+        and baseline_config.train.class_weight_normalization
+        == KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION
+    )
+    loss_only_pair = loss_only_pair or present_class_mean_pair
     rd_temporal_pair = (
         config.variant == V22A_RD_TEMPORAL_RESIDUAL_VARIANT
         and baseline_config.variant == V21E_COURSE_PREFIX_VARIANT
@@ -1979,6 +2092,7 @@ def build_known_gate_model_for_config(
         "seed": config.train.seed,
         "shared_parameters_and_buffers_exactly_equal": True,
         "loss_only_pair": loss_only_pair,
+        "present_class_mean_loss_only_pair": present_class_mean_pair,
         "dynamics_only_pair": dynamics_only_pair,
         "baseline_fusion_input_dim": baseline.fusion_input_dim,
         "treatment_fusion_input_dim": treatment.fusion_input_dim,
@@ -2369,9 +2483,16 @@ __all__ = [
     "KNOWN_GATE_V24A_READINESS_SCHEMA",
     "KNOWN_GATE_V24C_EXPERIMENT_SCHEMA",
     "KNOWN_GATE_V24C_READINESS_SCHEMA",
+    "KNOWN_GATE_V25A_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V25A_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V25A_READINESS_SCHEMA",
+    "KNOWN_GATE_V25D_EXPERIMENT_SCHEMA",
+    "KNOWN_GATE_V25D_MANIFEST_SCHEMA",
+    "KNOWN_GATE_V25D_READINESS_SCHEMA",
     "KNOWN_GATE_LABEL_TO_ID",
     "KNOWN_GATE_FIXED_CLASS_WEIGHT_NORMALIZATION",
     "KNOWN_GATE_HISTORICAL_CLASS_WEIGHT_NORMALIZATION",
+    "KNOWN_GATE_PRESENT_CLASS_MEAN_NORMALIZATION",
     "KNOWN_GATE_LOSS_MODE",
     "KNOWN_GATE_MANIFEST_SCHEMA",
     "KNOWN_GATE_READINESS_SCHEMA",
@@ -2382,6 +2503,8 @@ __all__ = [
     "V24_SCHEMA_VERSION",
     "V24A_SCHEMA_VERSION",
     "V24C_SCHEMA_VERSION",
+    "V25A_SCHEMA_VERSION",
+    "V25D_SCHEMA_VERSION",
     "KnownGateClassifier",
     "KnownGateConfig",
     "KnownGateDataset",
