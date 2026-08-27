@@ -2067,10 +2067,17 @@ def build_task_dataset(
     *,
     split_name: str,
     parent_limit: int | None = None,
+    parent_ids: Sequence[str] | None = None,
+    rd_physical_cache_path_override: str | Path | None = None,
+    micro_doppler_cache_path_override: str | Path | None = None,
 ) -> TaskSequenceDataset:
+    if parent_limit is not None and parent_ids is not None:
+        raise ValueError("task Dataset cannot combine parent_limit with parent_ids")
     rd_physical_cache_path: str | None = None
     if config.model.rd_physical_dim:
-        if split_name == config.data.train_split_name:
+        if rd_physical_cache_path_override is not None:
+            rd_physical_cache_path = str(rd_physical_cache_path_override)
+        elif split_name == config.data.train_split_name:
             rd_physical_cache_path = config.data.train_rd_physical_cache_path
         elif split_name == config.data.validation_split_name:
             rd_physical_cache_path = config.data.validation_rd_physical_cache_path
@@ -2083,7 +2090,9 @@ def build_task_dataset(
         is_micro_doppler_paired_schema(config.schema_version)
         or config.model.micro_doppler_dim
     ):
-        if split_name == config.data.train_split_name:
+        if micro_doppler_cache_path_override is not None:
+            micro_doppler_cache_path = str(micro_doppler_cache_path_override)
+        elif split_name == config.data.train_split_name:
             micro_doppler_cache_path = config.data.train_micro_doppler_cache_path
         elif split_name == config.data.validation_split_name:
             micro_doppler_cache_path = config.data.validation_micro_doppler_cache_path
@@ -2114,6 +2123,11 @@ def build_task_dataset(
         ),
         allowed_labels=config.task.allowed_base_labels if task_filtered_base else None,
         forbidden_labels={UNKNOWN_BASE_LABEL} if strict_open_set else None,
+        allowed_parent_ids=parent_ids,
+        # Every OOF parent sequence only needs its active RD archive.  This
+        # cap is deliberately local to Dataset construction and does not
+        # alter model inputs, cache values, order, or the trained state.
+        tensor_cache_size=1 if parent_ids is not None else 4,
     )
     view = TaskSequenceDataset(base, config.task)
     selected = _balanced_parent_ids(view, parent_limit)

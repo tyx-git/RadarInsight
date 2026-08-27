@@ -1648,6 +1648,7 @@ class KnownGateDataset(Dataset[KnownGateSequence]):
         config: KnownGateConfig,
         *,
         allow_feature_cache_superset: bool = False,
+        feature_cache_path: Path | None = None,
     ) -> None:
         self.base = base
         self.config = config
@@ -1659,17 +1660,21 @@ class KnownGateDataset(Dataset[KnownGateSequence]):
         if config.model.evidence_dim:
             if base.frame["split_name"].astype(str).nunique() != 1:
                 raise ValueError("KnownGate base Dataset must contain one split")
-            split = str(base.frame["split_name"].iloc[0])
-            if split == config.data.train_split_name:
-                cache_path = config.data.train_feature_cache_path
-            elif split == config.data.validation_split_name:
-                cache_path = config.data.validation_feature_cache_path
+            if feature_cache_path is None:
+                split = str(base.frame["split_name"].iloc[0])
+                if split == config.data.train_split_name:
+                    cache_path = config.data.train_feature_cache_path
+                elif split == config.data.validation_split_name:
+                    cache_path = config.data.validation_feature_cache_path
+                else:
+                    raise PermissionError("V21 feature cache is restricted to train/validation")
+                if cache_path is None:
+                    raise ValueError("V21 Treatment Dataset has no feature cache path")
+                resolved_cache_path = _resolve(base.project_root, cache_path)
             else:
-                raise PermissionError("V21 feature cache is restricted to train/validation")
-            if cache_path is None:
-                raise ValueError("V21 Treatment Dataset has no feature cache path")
+                resolved_cache_path = Path(feature_cache_path).resolve()
             values, valid, metadata = load_known_gate_feature_cache(
-                _resolve(base.project_root, cache_path),
+                resolved_cache_path,
                 expected_sample_ids=base.frame["sample_id"].astype(str).tolist(),
                 variant=config.variant,
                 allow_superset=allow_feature_cache_superset,
@@ -1773,6 +1778,56 @@ def build_known_gate_dataset(
         config,
         allow_feature_cache_superset=allow_feature_cache_superset,
     )
+
+
+def build_known_gate_oof_dataset(
+    project_root: Path,
+    config: KnownGateConfig,
+    *,
+    parent_ids: Sequence[str],
+    feature_cache_path: str | Path,
+) -> KnownGateDataset:
+    """Build one known-only train-fold view with an explicitly bound cache.
+
+    The historical ``build_known_gate_dataset`` resolves the cache from a
+    train/validation split name.  OOF folds instead use the same physical
+    ``train`` split for both optimizer and held-out parents, so selecting a
+    cache by split would silently make it impossible to prove the exact
+    fold-local feature population.  This narrow helper keeps the established
+    KnownGate sequence/collate behavior while binding an explicit selected
+    cache and a non-empty, unique known-parent set.
+    """
+
+    requested = tuple(str(value) for value in parent_ids)
+    if not requested or len(set(requested)) != len(requested):
+        raise ValueError("KnownGate OOF parent_ids must be non-empty and unique")
+    if config.model.evidence_dim != 1:
+        raise ValueError("KnownGate OOF currently requires the one-column course feature")
+    cache = _resolve(project_root, feature_cache_path)
+    if not cache.is_file():
+        raise FileNotFoundError(f"KnownGate OOF feature cache is missing: {cache}")
+    base = CQ08PointSequenceDataset(
+        project_root,
+        index_path=_resolve(project_root, config.data.index_path),
+        split_name=config.data.train_split_name,
+        max_sequence_length=config.data.max_sequence_length,
+        max_rd_frames_per_point=config.data.max_rd_frames_per_point,
+        rd_amplitude_center=config.data.rd_amplitude_center,
+        rd_amplitude_scale=config.data.rd_amplitude_scale,
+        exclude_anomalous_parents=False,
+        sample_limit=None,
+        expected_schema_version=config.data.index_schema_version,
+        allowed_labels=KNOWN_LABELS,
+        forbidden_labels={UNKNOWN_LABEL},
+        allowed_parent_ids=requested,
+        # Fold-wise OOF loading remains parent-local.  Keeping one archive
+        # resident bounds peak memory during ten independent train/eval runs.
+        tensor_cache_size=1,
+    )
+    dataset = KnownGateDataset(base, config, feature_cache_path=cache)
+    if sorted(dataset.parent_ids) != sorted(requested):
+        raise ValueError("KnownGate OOF Dataset parent coverage differs from request")
+    return dataset
 
 
 def collate_known_gate_sequences(items: list[KnownGateSequence]) -> dict[str, Any]:
@@ -2770,6 +2825,7 @@ __all__ = [
     "V22_SCHEMA_VERSION",
     "build_known_gate_dataloader",
     "build_known_gate_dataset",
+    "build_known_gate_oof_dataset",
     "build_known_gate_model_for_config",
     "evaluate_known_gate",
     "known_gate_config_identity_sha256",

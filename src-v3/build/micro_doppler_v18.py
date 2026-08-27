@@ -281,10 +281,26 @@ def _build_split(
     frame: pd.DataFrame,
     provenance_by_parent: dict[str, dict[str, Any]],
     canonical_frame_provenance: _CanonicalFrameProvenance,
+    *,
+    allowed_labels: Sequence[str] = DBB_LABELS,
+    include_evidence: bool = True,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    """Build label-free current-event evidence for one explicitly scoped split.
+
+    V18 itself keeps the historical three-DBB-label default.  A later
+    audit-only caller may pass a wider explicit label scope to reproduce the
+    *same* extraction for frozen-model routing diagnostics.  Labels select
+    rows only; no label value enters either physical or micro-Doppler tensor.
+    """
+
+    scoped_labels = tuple(str(value) for value in allowed_labels)
+    if not scoped_labels or len(set(scoped_labels)) != len(scoped_labels):
+        raise ValueError("V18 split evidence scope must contain unique labels")
+    if not isinstance(include_evidence, bool):
+        raise ValueError("V18 split include_evidence must be boolean")
     selected = frame[
         frame["split_name"].astype(str).eq(split)
-        & frame["label_name"].astype(str).isin(DBB_LABELS)
+        & frame["label_name"].astype(str).isin(scoped_labels)
     ].copy()
     selected = selected.sort_values(
         ["parent_sample_id", "causal_event_index"], kind="stable"
@@ -302,31 +318,35 @@ def _build_split(
     valid = np.zeros((len(selected),), dtype=np.bool_)
     event_offsets = [0]
 
-    ragged: dict[str, list[np.ndarray]] = {
-        name: []
-        for name in (
-            "raw_dat_frame_indices_zero_based",
-            "legacy_mat_list_ordinals_zero_based",
-            "canonical_tensor_frame_indices_zero_based",
-            "mat_acquisition_frame_numbers_one_based",
-            "frame_values",
-            "frame_feature_reliable",
-            "residual_doppler_profiles",
-            "envelope_modulation_profiles",
-            "target_range_indices",
-            "target_doppler_indices",
-            "target_doppler_mps",
-            "refined_body_doppler_mps",
-            "velocity_nyquist_mps",
-            "rayleigh_velocity_mps",
-            "residual_sideband_snr_db",
-            "envelope_modulation_snr_db",
-            "frame_prt_num",
-            "frame_prt_seconds",
-            "frame_frequency_hz",
-            "frame_cpi_count",
-        )
-    }
+    ragged: dict[str, list[np.ndarray]] = (
+        {
+            name: []
+            for name in (
+                "raw_dat_frame_indices_zero_based",
+                "legacy_mat_list_ordinals_zero_based",
+                "canonical_tensor_frame_indices_zero_based",
+                "mat_acquisition_frame_numbers_one_based",
+                "frame_values",
+                "frame_feature_reliable",
+                "residual_doppler_profiles",
+                "envelope_modulation_profiles",
+                "target_range_indices",
+                "target_doppler_indices",
+                "target_doppler_mps",
+                "refined_body_doppler_mps",
+                "velocity_nyquist_mps",
+                "rayleigh_velocity_mps",
+                "residual_sideband_snr_db",
+                "envelope_modulation_snr_db",
+                "frame_prt_num",
+                "frame_prt_seconds",
+                "frame_frequency_hz",
+                "frame_cpi_count",
+            )
+        }
+        if include_evidence
+        else {}
+    )
     raw_file_access_count = 0
     raw_frame_count = 0
     selected_raw_frame_count = 0
@@ -336,10 +356,10 @@ def _build_split(
     legacy_mismatch_track_ids: set[int] = set()
     parent_label_counts: Counter[str] = Counter()
     prt_parent_support: dict[int, dict[str, set[str]]] = defaultdict(
-        lambda: {label: set() for label in DBB_LABELS}
+        lambda: {label: set() for label in scoped_labels}
     )
     sampling_mode_parent_support: dict[str, dict[str, set[str]]] = defaultdict(
-        lambda: {label: set() for label in DBB_LABELS}
+        lambda: {label: set() for label in scoped_labels}
     )
     rd_cache = _CanonicalRD(root)
 
@@ -450,88 +470,95 @@ def _build_split(
                     raise ValueError(
                         f"V18 extractor returned different raw-DAT indices: {row.sample_id}"
                     )
-                ragged["raw_dat_frame_indices_zero_based"].append(
-                    event.raw_frame_indices[active]
-                )
-                ragged["legacy_mat_list_ordinals_zero_based"].append(
-                    np.asarray(
-                        [
-                            value["legacy_mat_list_ordinal_zero_based"]
-                            for value in resolved
-                        ],
-                        dtype=np.int32,
+                if include_evidence:
+                    ragged["raw_dat_frame_indices_zero_based"].append(
+                        event.raw_frame_indices[active]
                     )
-                )
-                ragged["canonical_tensor_frame_indices_zero_based"].append(
-                    np.asarray(tensor_indices, dtype=np.int32)
-                )
-                ragged["mat_acquisition_frame_numbers_one_based"].append(
-                    np.asarray(
-                        [
-                            value["mat_acquisition_frame_number_one_based"]
-                            for value in resolved
-                        ],
-                        dtype=np.int32,
+                    ragged["legacy_mat_list_ordinals_zero_based"].append(
+                        np.asarray(
+                            [
+                                value["legacy_mat_list_ordinal_zero_based"]
+                                for value in resolved
+                            ],
+                            dtype=np.int32,
+                        )
                     )
-                )
-                for name, value in (
-                    ("frame_values", event.frame_values[active]),
-                    ("frame_feature_reliable", event.frame_feature_reliable[active]),
-                    (
-                        "residual_doppler_profiles",
-                        event.residual_doppler_profiles[active].astype(np.float16),
-                    ),
-                    (
-                        "envelope_modulation_profiles",
-                        event.envelope_modulation_profiles[active].astype(np.float16),
-                    ),
-                    ("target_range_indices", event.target_range_indices[active]),
-                    ("target_doppler_indices", event.target_doppler_indices[active]),
-                    ("target_doppler_mps", event.target_doppler_mps[active]),
-                    (
-                        "refined_body_doppler_mps",
-                        event.refined_body_doppler_mps[active],
-                    ),
-                    ("velocity_nyquist_mps", event.velocity_nyquist_mps[active]),
-                    ("rayleigh_velocity_mps", event.rayleigh_velocity_mps[active]),
-                    (
-                        "residual_sideband_snr_db",
-                        event.residual_sideband_snr_db[active],
-                    ),
-                    (
-                        "envelope_modulation_snr_db",
-                        event.envelope_modulation_snr_db[active],
-                    ),
-                ):
-                    ragged[name].append(np.asarray(value))
-                selected_frames = [raw_frames[index] for index in raw_indices]
-                ragged["frame_prt_num"].append(
-                    np.asarray([value.prt_num for value in selected_frames], dtype=np.int32)
-                )
-                ragged["frame_prt_seconds"].append(
-                    np.asarray(
-                        [value.prt_seconds for value in selected_frames], dtype=np.float64
+                    ragged["canonical_tensor_frame_indices_zero_based"].append(
+                        np.asarray(tensor_indices, dtype=np.int32)
                     )
-                )
-                ragged["frame_frequency_hz"].append(
-                    np.asarray(
-                        [value.frequency_hz for value in selected_frames], dtype=np.float64
+                    ragged["mat_acquisition_frame_numbers_one_based"].append(
+                        np.asarray(
+                            [
+                                value["mat_acquisition_frame_number_one_based"]
+                                for value in resolved
+                            ],
+                            dtype=np.int32,
+                        )
                     )
-                )
-                ragged["frame_cpi_count"].append(
-                    np.asarray([value.cpi_count for value in selected_frames], dtype=np.int64)
-                )
-                for prt_num in {int(value.prt_num) for value in selected_frames}:
-                    prt_parent_support[prt_num][label].add(parent_id)
-                for mode in {
-                    broadband_sampling_mode(
-                        value.prt_num, value.prt_seconds, value.frequency_hz
+                    for name, value in (
+                        ("frame_values", event.frame_values[active]),
+                        ("frame_feature_reliable", event.frame_feature_reliable[active]),
+                        (
+                            "residual_doppler_profiles",
+                            event.residual_doppler_profiles[active].astype(np.float16),
+                        ),
+                        (
+                            "envelope_modulation_profiles",
+                            event.envelope_modulation_profiles[active].astype(np.float16),
+                        ),
+                        ("target_range_indices", event.target_range_indices[active]),
+                        ("target_doppler_indices", event.target_doppler_indices[active]),
+                        ("target_doppler_mps", event.target_doppler_mps[active]),
+                        (
+                            "refined_body_doppler_mps",
+                            event.refined_body_doppler_mps[active],
+                        ),
+                        ("velocity_nyquist_mps", event.velocity_nyquist_mps[active]),
+                        ("rayleigh_velocity_mps", event.rayleigh_velocity_mps[active]),
+                        (
+                            "residual_sideband_snr_db",
+                            event.residual_sideband_snr_db[active],
+                        ),
+                        (
+                            "envelope_modulation_snr_db",
+                            event.envelope_modulation_snr_db[active],
+                        ),
+                    ):
+                        ragged[name].append(np.asarray(value))
+                    selected_frames = [raw_frames[index] for index in raw_indices]
+                    ragged["frame_prt_num"].append(
+                        np.asarray(
+                            [value.prt_num for value in selected_frames], dtype=np.int32
+                        )
                     )
-                    for value in selected_frames
-                }:
-                    sampling_mode_parent_support[
-                        broadband_sampling_mode_name(mode)
-                    ][label].add(parent_id)
+                    ragged["frame_prt_seconds"].append(
+                        np.asarray(
+                            [value.prt_seconds for value in selected_frames],
+                            dtype=np.float64,
+                        )
+                    )
+                    ragged["frame_frequency_hz"].append(
+                        np.asarray(
+                            [value.frequency_hz for value in selected_frames],
+                            dtype=np.float64,
+                        )
+                    )
+                    ragged["frame_cpi_count"].append(
+                        np.asarray(
+                            [value.cpi_count for value in selected_frames], dtype=np.int64
+                        )
+                    )
+                    for prt_num in {int(value.prt_num) for value in selected_frames}:
+                        prt_parent_support[prt_num][label].add(parent_id)
+                    for mode in {
+                        broadband_sampling_mode(
+                            value.prt_num, value.prt_seconds, value.frequency_hz
+                        )
+                        for value in selected_frames
+                    }:
+                        sampling_mode_parent_support[
+                            broadband_sampling_mode_name(mode)
+                        ][label].add(parent_id)
                 selected_raw_frame_count += int(active.sum())
                 reliable_frame_count += int(event.frame_feature_reliable[active].sum())
                 if not bool(event.frame_feature_reliable[active].any()):
@@ -590,26 +617,28 @@ def _build_split(
         "frame_frequency_hz": (np.float64, ()),
         "frame_cpi_count": (np.int64, ()),
     }
-    flat = {
-        name: _concatenate(ragged[name], dtype=dtype, empty_shape=shape)
-        for name, (dtype, shape) in array_specs.items()
-    }
-    if any(len(value) != selected_raw_frame_count for value in flat.values()):
-        raise ValueError(f"V18 {split} ragged evidence arrays are not aligned")
-    if not np.array_equal(
-        flat["raw_dat_frame_indices_zero_based"] + 1,
-        flat["mat_acquisition_frame_numbers_one_based"],
-    ):
-        raise ValueError(f"V18 {split} MAT acquisition/raw-DAT mapping is invalid")
+    flat: dict[str, np.ndarray] = {}
+    if include_evidence:
+        flat = {
+            name: _concatenate(ragged[name], dtype=dtype, empty_shape=shape)
+            for name, (dtype, shape) in array_specs.items()
+        }
+        if any(len(value) != selected_raw_frame_count for value in flat.values()):
+            raise ValueError(f"V18 {split} ragged evidence arrays are not aligned")
+        if not np.array_equal(
+            flat["raw_dat_frame_indices_zero_based"] + 1,
+            flat["mat_acquisition_frame_numbers_one_based"],
+        ):
+            raise ValueError(f"V18 {split} MAT acquisition/raw-DAT mapping is invalid")
 
     support = {
         str(prt_num): {
-            label: len(labels[label]) for label in DBB_LABELS
+            label: len(labels[label]) for label in scoped_labels
         }
         for prt_num, labels in sorted(prt_parent_support.items())
     }
     mode_support = {
-        mode_name: {label: len(labels[label]) for label in DBB_LABELS}
+        mode_name: {label: len(labels[label]) for label in scoped_labels}
         for mode_name, labels in sorted(sampling_mode_parent_support.items())
     }
     arrays = {
@@ -635,6 +664,7 @@ def _build_split(
             "counts describe this stable8 prepare invocation; no reusable "
             "pruned21 evidence was used"
         ),
+        "complete_evidence_profiles_materialized": include_evidence,
         "selected_current_event_raw_frame_count": selected_raw_frame_count,
         "feature_reliable_frame_count": reliable_frame_count,
         "feature_reliable_frame_fraction": (
