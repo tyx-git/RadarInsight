@@ -1,0 +1,241 @@
+{
+  "schema_version": "RADAR-LN3-V26d-l1-epoch20-endpoint-diagnostic-contract-v1",
+  "status": "prepared_read_only_endpoint_diagnostic",
+  "implementation_sha256": {
+    "src-v3/build/known_gate_v26d_endpoint.py": "e6fdeb51c64af420fd5f944e75cc5d730b3721c81297e6de335276cbfc15eb8e",
+    "src-v3/report/known_gate_v26d_endpoint.py": "8f3e48a426ed292ac587b75d1a9ce44f8deb8c1d572bf997be5c4d7f59137164",
+    "src-v3/radar_ln3/known_gate_v26d_endpoint.py": "5365b996c57fca5b662f414b5272225e4fdbe024a31eda619a7f109adefa2487",
+    "src-v3/smoke/known_gate_v26d_endpoint_contract_test.py": "00fdfd02a09f036046a712af8142e5d5cffdce69b61388b1873bff8cf072584c",
+    "src-v3/scripts/v26d_known_gate_endpoint_diagnostic_pipeline.ps1": "47170c727b3d05b6dffd18ffa60ff6997c71e2c9816c994a8ebd5c12477e3b85",
+    "src-v3/build/known_gate_v26c_oof.py": "3c115d55d2f40ed1b26af35cb9b637809205051aa92bbace427f378ef5905595",
+    "src-v3/train/known_gate_v26c_oof.py": "6b10b5fae4db3f469b3aeaa15f227645d6513c94acc0a89cf18ede417ae9df34",
+    "src-v3/report/known_gate_v26c_oof.py": "b007f84d2fdee7d63b358f262aee8c4cea659d297874fbc795d2e0510dc63b75",
+    "src-v3/radar_ln3/known_gate_v26c_oof.py": "fb3a679cc03035b74ef8dabaffb3946f1af4459d3a61d0fa35d2646a242391af",
+    "src-v3/radar_ln3/known_gate.py": "8ebbd57eeaf2ba4648454953809cfeaab2136c3fe24b9e10e6292238ea1cd368",
+    "src-v3/radar_ln3/open_set_architecture.py": "8da7f9c5a17ee422d44e06d55160b531d4dec0f44322cf4db65ba5dbfaad5386"
+  },
+  "source_v26c": {
+    "paths": {
+      "contract": "data/processed/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration-contract.json",
+      "readiness": "src-v3/processed/report/RADAR-LN3-V26c-l1-l2-known-only-oof-calibration-readiness.json",
+      "report": "src-v3/processed/report/RADAR-LN3-V26c-l1-l2-known-only-cross-fitted-l3-calibration.json",
+      "assignment": "data/processed/RADAR-LN3-V21e-cq08-known-gate-capture-content-grouped-oof-assignment.json"
+    },
+    "sha256": {
+      "contract": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+      "readiness": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+      "report": "bafa186b1b124e55ae6e178df1d9805744f136301edacd125983a3ded043320c",
+      "assignment": "c1ca228dd67edee4b4b30e456cb443b0ef1e2c48eb40dd230d4a56b94c1c60c7"
+    },
+    "known_parent_count": 986,
+    "known_label_parent_support": {
+      "BalloonTarget": 238,
+      "BirdTarget": 239,
+      "ClutterTarget": 33,
+      "DroneTarget": 476
+    }
+  },
+  "checkpoint_protocol": {
+    "control_epoch": 14,
+    "treatment_epoch": 20,
+    "control": "V26c frozen upstream-validation-selected epoch-14 snapshot",
+    "treatment": "same V26c L1 trajectory fixed endpoint last_model.pt at epoch 20",
+    "outer_held_out_checkpoint_selection": false,
+    "per_fold_epoch_selection": false,
+    "checkpoint_scan": false,
+    "l2_checkpoint": "sealed V26c epoch-15 L2 outputs are reused unchanged"
+  },
+  "threshold_views": {
+    "frozen_control_thresholds": "apply V26c cross-fitted fold thresholds unchanged to epoch-20 L1 scores",
+    "same_protocol_recalibration": "fit each fold threshold from the other four epoch-20 parent-final OOF folds only",
+    "outer_fold_labels_used_for_threshold_fit": false
+  },
+  "scope": {
+    "training_executed": false,
+    "unknown_training_exposure": 0,
+    "unknown_normalization_exposure": 0,
+    "unknown_oof_prediction_count": 0,
+    "unknown_threshold_fit_exposure": 0,
+    "validation_access_count": 0,
+    "test_access_count": 0,
+    "full_cascade": "not_executed",
+    "deployment_eligible": false
+  },
+  "folds": [
+    {
+      "fold_id": 0,
+      "held_out_parent_count": 197,
+      "held_out_parent_ids_sha256": "b6dcebc99700f3f8011518998b6e8de7e1548446ef81962af5518d33fb0b8fdd",
+      "control_epoch": 14,
+      "treatment_epoch": 20,
+      "paths": {
+        "l1_config": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-seed43-config.json",
+        "control_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l1/epoch-14-model.pt",
+        "treatment_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l1/last_model.pt",
+        "control_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l1-held-out-predictions.json",
+        "l1_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l1/training-summary.json",
+        "l2_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2-held-out-predictions.json",
+        "l2_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2/training-summary.json"
+      },
+      "sha256": {
+        "l1_config": "39554e4c2652e704e176a71b48b24c595229f875077ef0bdbd884191a10b81c8",
+        "control_checkpoint": "0b305a5df7551ef6bdafd15b4a43bcb1f084631ca7cb456b3e7563dd2a86aea1",
+        "treatment_checkpoint": "e3685e4a233c9f464c8934d9a7f303f92a70d512862a7d753dc57c405dda1933",
+        "control_prediction": "45383708f757ac0b5929b1e94bed03971513251c10396d3c24f0476bcd1348ca",
+        "l1_summary": "5affaa76dd5fde0737f7020eec6e0b3bede6855037b1670e099174811297b02d",
+        "l2_prediction": "cf6c0a8c0555db766d3b34e8002446e56fc7a5c64aadc9bd7402c8936f3232a8",
+        "l2_summary": "5375cd98ca63fd2f8db0a9cafce36ee988a135bd3d5673e69914713c972cbfac"
+      },
+      "shared_checkpoint_lineage": {
+        "config_identity_sha256": "b4ca8224e396f70ca86b70ede022d85f971a32ebf78b08e719c10666f4a18e15",
+        "config_file_sha256": "39554e4c2652e704e176a71b48b24c595229f875077ef0bdbd884191a10b81c8",
+        "fold_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+        "readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+        "source_config_sha256": "5f7b8875a484a61fe450c20799c73f92d815e6be9a7fcba4140f8aa0bd8ce768",
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877"
+      },
+      "control_global_step": 5530,
+      "treatment_global_step": 7900
+    },
+    {
+      "fold_id": 1,
+      "held_out_parent_count": 197,
+      "held_out_parent_ids_sha256": "f94905c0b2c3f58aa415e66c58a2d6254cc840665878f20d6b10a01686295d97",
+      "control_epoch": 14,
+      "treatment_epoch": 20,
+      "paths": {
+        "l1_config": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-seed43-config.json",
+        "control_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l1/epoch-14-model.pt",
+        "treatment_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l1/last_model.pt",
+        "control_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l1-held-out-predictions.json",
+        "l1_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l1/training-summary.json",
+        "l2_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2-held-out-predictions.json",
+        "l2_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2/training-summary.json"
+      },
+      "sha256": {
+        "l1_config": "a7c9b406d379aae9b58a36dca50e1b24a9f90b15abbf1bd673666f79762d9286",
+        "control_checkpoint": "0caf7892bcf4923f8c614bbf1b740ff69737742f15ee008fd6f52e6aed3df93e",
+        "treatment_checkpoint": "2b987be3b7a948e6dd103ff01294a663feae0805f7fc2041eb3a74e415986666",
+        "control_prediction": "d174c9b2897e5de241a7ace119b86b532c5270009602d839e45aaeb16e7b154c",
+        "l1_summary": "3f4fa405be7468d107493e759f873755d131aa34b5e67d74dbcb1c3488592fc3",
+        "l2_prediction": "1fe4fc4aa9a69e60fadea0c08c47aaeb3f3152b0d992ebae68ad32d0de84664d",
+        "l2_summary": "92cf09ef8a9453787a356c34dc875a9975f45bf630a71aecf5e5c09cd050fa15"
+      },
+      "shared_checkpoint_lineage": {
+        "config_identity_sha256": "c5c45b27550039f6015fa04aed850742708893a5c642414355481e49513e3507",
+        "config_file_sha256": "a7c9b406d379aae9b58a36dca50e1b24a9f90b15abbf1bd673666f79762d9286",
+        "fold_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+        "readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+        "source_config_sha256": "5f7b8875a484a61fe450c20799c73f92d815e6be9a7fcba4140f8aa0bd8ce768",
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877"
+      },
+      "control_global_step": 5530,
+      "treatment_global_step": 7900
+    },
+    {
+      "fold_id": 2,
+      "held_out_parent_count": 198,
+      "held_out_parent_ids_sha256": "277d2302f5dfec09d9312fbe260ccc77a263588f69fad1a082247b33eef91c7d",
+      "control_epoch": 14,
+      "treatment_epoch": 20,
+      "paths": {
+        "l1_config": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-seed43-config.json",
+        "control_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l1/epoch-14-model.pt",
+        "treatment_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l1/last_model.pt",
+        "control_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l1-held-out-predictions.json",
+        "l1_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l1/training-summary.json",
+        "l2_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2-held-out-predictions.json",
+        "l2_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2/training-summary.json"
+      },
+      "sha256": {
+        "l1_config": "2075e3d41876fcc39385fa916c05dffbc4c452f2f0502da96d223e7bd4816c71",
+        "control_checkpoint": "09ae8d1444c38c5c4f5318c90a94e26ac0b5784e9863de1ce208ec235e0b1ff8",
+        "treatment_checkpoint": "2aa4a32ba2703624c61fabac725dfd3f80f3e673b2b2628c51d40266133fe9c3",
+        "control_prediction": "3686267921143d4cafdafda9173a298140207c9440d7cc95a60a9c6d7ae8a238",
+        "l1_summary": "93ed3f98056a6bee5a43e6f152de08e9a872389bcb551e5e2466986c7f558226",
+        "l2_prediction": "58ad11d1f49065e7eed510e47a15e7bc1a1a19aac1e5080b29334eda05bd96a4",
+        "l2_summary": "3b345444136e485c3a53d210617991283e3058820d6ff0314b05ff7ff1b6c412"
+      },
+      "shared_checkpoint_lineage": {
+        "config_identity_sha256": "fc2ce72a13b1d9026ad52e73f0c56ddb627460eb7cc0db0099aa89e6a613038b",
+        "config_file_sha256": "2075e3d41876fcc39385fa916c05dffbc4c452f2f0502da96d223e7bd4816c71",
+        "fold_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+        "readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+        "source_config_sha256": "5f7b8875a484a61fe450c20799c73f92d815e6be9a7fcba4140f8aa0bd8ce768",
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877"
+      },
+      "control_global_step": 5516,
+      "treatment_global_step": 7880
+    },
+    {
+      "fold_id": 3,
+      "held_out_parent_count": 197,
+      "held_out_parent_ids_sha256": "05276547254830f4ac944a0748f18f3c2c90bb007f5e5c4282677b27f7ddca8d",
+      "control_epoch": 14,
+      "treatment_epoch": 20,
+      "paths": {
+        "l1_config": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-seed43-config.json",
+        "control_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l1/epoch-14-model.pt",
+        "treatment_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l1/last_model.pt",
+        "control_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l1-held-out-predictions.json",
+        "l1_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l1/training-summary.json",
+        "l2_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2-held-out-predictions.json",
+        "l2_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2/training-summary.json"
+      },
+      "sha256": {
+        "l1_config": "1f9341b2fd9058b4a8563f5303d15e017d6b405b79663f911bfef49494a31b84",
+        "control_checkpoint": "1fccc9ce3978999da4873b1f073b0d488ff3958f28fbf2725c0655154013a06f",
+        "treatment_checkpoint": "72d8050618a5ae94990b0e9a1ae3798308994d2d4d914465654db2c06ef16f7b",
+        "control_prediction": "3592b48b9996f473dcd611f66665341d60c391d47a68c6eab2b7c43427ce8b49",
+        "l1_summary": "c96ebf7bae8b6eb2be180e04e9a39a2cd71fdefa33af17c6ffb5664a09b4cf60",
+        "l2_prediction": "73a22efbee185bce3afac7f905e2e8d994ce633b2c7875f9b71357dec14500fc",
+        "l2_summary": "3260a82c9e632cca78700ec706cb136a54205ea2fca81a8c2d093b9ff2b56700"
+      },
+      "shared_checkpoint_lineage": {
+        "config_identity_sha256": "e025a1400e658be456a122711b5acd938d452d685d6006b5fb313a1737e3f3a4",
+        "config_file_sha256": "1f9341b2fd9058b4a8563f5303d15e017d6b405b79663f911bfef49494a31b84",
+        "fold_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+        "readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+        "source_config_sha256": "5f7b8875a484a61fe450c20799c73f92d815e6be9a7fcba4140f8aa0bd8ce768",
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877"
+      },
+      "control_global_step": 5530,
+      "treatment_global_step": 7900
+    },
+    {
+      "fold_id": 4,
+      "held_out_parent_count": 197,
+      "held_out_parent_ids_sha256": "3501992ffe24c6154d49977525efc5c6f90126dc6ada2be4cf9623707d50f65a",
+      "control_epoch": 14,
+      "treatment_epoch": 20,
+      "paths": {
+        "l1_config": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-seed43-config.json",
+        "control_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l1/epoch-14-model.pt",
+        "treatment_checkpoint": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l1/last_model.pt",
+        "control_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l1-held-out-predictions.json",
+        "l1_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l1/training-summary.json",
+        "l2_prediction": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2-held-out-predictions.json",
+        "l2_summary": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2/training-summary.json"
+      },
+      "sha256": {
+        "l1_config": "2ad1fba5249f6db47cad8df8e3b45af2b5484359f05babdb59caf9530c5fe5e4",
+        "control_checkpoint": "69615cda370075e7d62a0ce8527924c62ffcc0edd5a7e2e8fc7c0d330c0c9c49",
+        "treatment_checkpoint": "0aeaab7b60ac9be772b1fa8f0f135ffe29ecac3c7c2d9e1e9a968761db4eee39",
+        "control_prediction": "cb819557bd891d573e7240073291b06276d443ad14f4973b2e59ca324868b038",
+        "l1_summary": "bf9265827109143aed01cd22fe43439e31f7fd2e622abd1e5b4c59aed13a60c5",
+        "l2_prediction": "5b57f6e2997bf38e38aee7c4e1276b131227de55594961c32f8e984ac368ac2f",
+        "l2_summary": "9b60441a8d03b474305758970632882e55bc2026e45a7a6617f0ed6ad6d9ee56"
+      },
+      "shared_checkpoint_lineage": {
+        "config_identity_sha256": "b5de0e6b78fc0710dbaa67241daa1b5d0b211648dc8748bf9f68b50ff343234e",
+        "config_file_sha256": "2ad1fba5249f6db47cad8df8e3b45af2b5484359f05babdb59caf9530c5fe5e4",
+        "fold_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+        "readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+        "source_config_sha256": "5f7b8875a484a61fe450c20799c73f92d815e6be9a7fcba4140f8aa0bd8ce768",
+        "initial_model_state_sha256": "fecd0ca1aa21c0a9cdb4b0425c64703620cb2ea0461d37e7fa5a2057cea8c877"
+      },
+      "control_global_step": 5530,
+      "treatment_global_step": 7900
+    }
+  ]
+}

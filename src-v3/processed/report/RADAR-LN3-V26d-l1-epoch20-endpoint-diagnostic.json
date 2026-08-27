@@ -1,0 +1,5384 @@
+{
+  "status": "completed_v26d_l1_epoch20_endpoint_diagnostic",
+  "schema_version": "RADAR-LN3-V26d-l1-epoch20-endpoint-diagnostic-report-v1",
+  "scope": "Known-only provenance-grouped OOF endpoint diagnostic; no training, Unknown, validation, test or deployment",
+  "contract_path": "data/processed/RADAR-LN3-V26d-cq08-l1-epoch20-endpoint-diagnostic-contract.json",
+  "contract_sha256": "525e05d3ebe41bd1e4fb3679ad290e74824e6a26c27ac49c82f46f617f10bf99",
+  "readiness_path": "src-v3/processed/report/RADAR-LN3-V26d-l1-epoch20-endpoint-diagnostic-readiness.json",
+  "readiness_sha256": "a7f43459befcc3ab8462e73d57bdcfdbd9258967ba7a0e76545a75ea7b748d2f",
+  "source_v26c_report_path": "src-v3/processed/report/RADAR-LN3-V26c-l1-l2-known-only-cross-fitted-l3-calibration.json",
+  "source_v26c_report_sha256": "bafa186b1b124e55ae6e178df1d9805744f136301edacd125983a3ded043320c",
+  "known_parent_count": 986,
+  "known_label_parent_support": {
+    "BalloonTarget": 238,
+    "BirdTarget": 239,
+    "ClutterTarget": 33,
+    "DroneTarget": 476
+  },
+  "checkpoint_protocol": {
+    "control_epoch": 14,
+    "treatment_epoch": 20,
+    "treatment_source": "V26c same-fold l1/last_model.pt after epoch 20",
+    "outer_held_out_checkpoint_selection": false,
+    "per_fold_epoch_selection": false,
+    "l2_endpoint_changed": false,
+    "l2_outputs_reused": true
+  },
+  "integrity": {
+    "control_reproduces_v26c_metrics": true,
+    "control_reproduces_v26c_thresholds": true,
+    "control_reproduction_mismatches": [],
+    "all_parent_ids_unique_and_paired": true,
+    "only_l1_probability_columns_replaced": true,
+    "l2_scores_and_metadata_reused": true
+  },
+  "raw_l1": {
+    "control_epoch14": {
+      "metrics": {
+        "parent": {
+          "scope": "parent_final_raw_l1",
+          "support": 986,
+          "accuracy": 0.9776876267748479,
+          "macro_precision": 0.8324269549062658,
+          "macro_recall": 0.812935228465134,
+          "macro_f1": 0.8223598008385744,
+          "balanced_accuracy": 0.812935228465134,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.987434554973822,
+              "recall": 0.9895068205666316,
+              "f1": 0.9884696016771488,
+              "support": 953,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 10
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6774193548387096,
+              "recall": 0.6363636363636364,
+              "f1": 0.65625,
+              "support": 33,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 12
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              943,
+              10
+            ],
+            [
+              12,
+              21
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "eligible_prefix_raw_l1",
+          "support": 15965,
+          "accuracy": 0.961415596617601,
+          "macro_precision": 0.7172644377802633,
+          "macro_recall": 0.7381998081680045,
+          "macro_f1": 0.7271877102036441,
+          "balanced_accuracy": 0.7381998081680045,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9817601459188326,
+              "recall": 0.9781917310313494,
+              "f1": 0.9799726900318616,
+              "support": 15407,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 336
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.4527687296416938,
+              "recall": 0.4982078853046595,
+              "f1": 0.47440273037542663,
+              "support": 558,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 280
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              15071,
+              336
+            ],
+            [
+              280,
+              278
+            ]
+          ]
+        },
+        "window": {
+          "scope": "window_raw_l1",
+          "support": 18923,
+          "accuracy": 0.9612640701791471,
+          "macro_precision": 0.7148051934325635,
+          "macro_recall": 0.737093361238228,
+          "macro_f1": 0.7253272251632895,
+          "balanced_accuracy": 0.737093361238228,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9818081890629293,
+              "recall": 0.9779918975145079,
+              "f1": 0.9798963275828968,
+              "support": 18266,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 402
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.4478021978021978,
+              "recall": 0.4961948249619482,
+              "f1": 0.4707581227436823,
+              "support": 657,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 331
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              17864,
+              402
+            ],
+            [
+              331,
+              326
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "eligible_prefix_parent_balanced_raw_l1",
+          "support": 986,
+          "accuracy": 0.9626048639164136,
+          "macro_precision": 0.713562017843003,
+          "macro_recall": 0.7283328178186839,
+          "macro_f1": 0.7206694399689504,
+          "balanced_accuracy": 0.7283328178186839,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9818534917085858,
+              "recall": 0.9794113367886425,
+              "f1": 0.9806308937704599,
+              "support": 953,
+              "weighted_support": 952.9999999999777,
+              "event_support": 15407,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 19.620996040423318
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.4452705439774202,
+              "recall": 0.4772542988487252,
+              "f1": 0.4607079861674408,
+              "support": 33,
+              "weighted_support": 32.99999999999997,
+              "event_support": 558,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 17.250608137992053
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              933.3790039595544,
+              19.620996040423318
+            ],
+            [
+              17.250608137992053,
+              15.749391862007919
+            ]
+          ]
+        }
+      },
+      "fold_parent_metrics": [
+        {
+          "fold_id": 0,
+          "support": 197,
+          "known_target": {
+            "precision": 0.9743589743589743,
+            "recall": 0.9947643979057592,
+            "f1": 0.9844559585492229,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 0.5,
+            "recall": 0.16666666666666666,
+            "f1": 0.25,
+            "support": 6
+          }
+        },
+        {
+          "fold_id": 1,
+          "support": 197,
+          "known_target": {
+            "precision": 1.0,
+            "recall": 0.9947643979057592,
+            "f1": 0.9973753280839895,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 0.8571428571428571,
+            "recall": 1.0,
+            "f1": 0.923076923076923,
+            "support": 6
+          }
+        },
+        {
+          "fold_id": 2,
+          "support": 198,
+          "known_target": {
+            "precision": 0.9841269841269841,
+            "recall": 0.9738219895287958,
+            "f1": 0.9789473684210526,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 0.4444444444444444,
+            "recall": 0.5714285714285714,
+            "f1": 0.5,
+            "support": 7
+          }
+        },
+        {
+          "fold_id": 3,
+          "support": 197,
+          "known_target": {
+            "precision": 0.979381443298969,
+            "recall": 1.0,
+            "f1": 0.9895833333333333,
+            "support": 190
+          },
+          "known_clutter": {
+            "precision": 1.0,
+            "recall": 0.42857142857142855,
+            "f1": 0.6,
+            "support": 7
+          }
+        },
+        {
+          "fold_id": 4,
+          "support": 197,
+          "known_target": {
+            "precision": 1.0,
+            "recall": 0.9842105263157894,
+            "f1": 0.9920424403183024,
+            "support": 190
+          },
+          "known_clutter": {
+            "precision": 0.7,
+            "recall": 1.0,
+            "f1": 0.8235294117647058,
+            "support": 7
+          }
+        }
+      ]
+    },
+    "treatment_epoch20": {
+      "metrics": {
+        "parent": {
+          "scope": "parent_final_raw_l1",
+          "support": 986,
+          "accuracy": 0.9787018255578094,
+          "macro_precision": 0.8182506053268765,
+          "macro_recall": 0.9012210245158829,
+          "macro_f1": 0.8544649446494466,
+          "balanced_accuracy": 0.9012210245158829,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9936440677966102,
+              "recall": 0.9842602308499475,
+              "f1": 0.9889298892988929,
+              "support": 953,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 15
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6428571428571429,
+              "recall": 0.8181818181818182,
+              "f1": 0.7200000000000001,
+              "support": 33,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 6
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              938,
+              15
+            ],
+            [
+              6,
+              27
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "eligible_prefix_raw_l1",
+          "support": 15965,
+          "accuracy": 0.9679298465393047,
+          "macro_precision": 0.7604473540643754,
+          "macro_recall": 0.8192993083951738,
+          "macro_f1": 0.7865281406119683,
+          "balanced_accuracy": 0.8192993083951738,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9875613747954174,
+              "recall": 0.9791004089050431,
+              "f1": 0.9833126914803468,
+              "support": 15407,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 322
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5333333333333333,
+              "recall": 0.6594982078853047,
+              "f1": 0.5897435897435898,
+              "support": 558,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 190
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              15085,
+              322
+            ],
+            [
+              190,
+              368
+            ]
+          ]
+        },
+        "window": {
+          "scope": "window_raw_l1",
+          "support": 18923,
+          "accuracy": 0.9673941763990911,
+          "macro_precision": 0.7559227011022633,
+          "macro_recall": 0.8173031429170914,
+          "macro_f1": 0.782930151645219,
+          "balanced_accuracy": 0.8173031429170914,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9875145019612176,
+              "recall": 0.9785941092740611,
+              "f1": 0.9830340693485854,
+              "support": 18266,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 391
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.524330900243309,
+              "recall": 0.6560121765601218,
+              "f1": 0.5828262339418525,
+              "support": 657,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 226
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              17875,
+              391
+            ],
+            [
+              226,
+              431
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "eligible_prefix_parent_balanced_raw_l1",
+          "support": 986,
+          "accuracy": 0.9694094040124589,
+          "macro_precision": 0.7616427978951591,
+          "macro_recall": 0.8136675711606304,
+          "macro_f1": 0.785036719980928,
+          "balanced_accuracy": 0.8136675711606304,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9876794079855101,
+              "recall": 0.9805821876735686,
+              "f1": 0.9841180021380858,
+              "support": 953,
+              "weighted_support": 952.999999999975,
+              "event_support": 15407,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_weight": 18.505175147088636
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5356061878048081,
+              "recall": 0.6467529546476921,
+              "f1": 0.5859554378237705,
+              "support": 33,
+              "weighted_support": 33.00000000000005,
+              "event_support": 558,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_weight": 11.657152496626178
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              934.4948248528864,
+              18.505175147088636
+            ],
+            [
+              11.657152496626178,
+              21.34284750337387
+            ]
+          ]
+        }
+      },
+      "fold_parent_metrics": [
+        {
+          "fold_id": 0,
+          "support": 197,
+          "known_target": {
+            "precision": 0.9845360824742269,
+            "recall": 1.0,
+            "f1": 0.9922077922077922,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 6
+          }
+        },
+        {
+          "fold_id": 1,
+          "support": 197,
+          "known_target": {
+            "precision": 1.0,
+            "recall": 0.9895287958115183,
+            "f1": 0.9947368421052631,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "support": 6
+          }
+        },
+        {
+          "fold_id": 2,
+          "support": 198,
+          "known_target": {
+            "precision": 0.9895287958115183,
+            "recall": 0.9895287958115183,
+            "f1": 0.9895287958115183,
+            "support": 191
+          },
+          "known_clutter": {
+            "precision": 0.7142857142857143,
+            "recall": 0.7142857142857143,
+            "f1": 0.7142857142857143,
+            "support": 7
+          }
+        },
+        {
+          "fold_id": 3,
+          "support": 197,
+          "known_target": {
+            "precision": 0.9947089947089947,
+            "recall": 0.9894736842105263,
+            "f1": 0.992084432717678,
+            "support": 190
+          },
+          "known_clutter": {
+            "precision": 0.75,
+            "recall": 0.8571428571428571,
+            "f1": 0.7999999999999999,
+            "support": 7
+          }
+        },
+        {
+          "fold_id": 4,
+          "support": 197,
+          "known_target": {
+            "precision": 1.0,
+            "recall": 0.9526315789473684,
+            "f1": 0.9757412398921832,
+            "support": 190
+          },
+          "known_clutter": {
+            "precision": 0.4375,
+            "recall": 1.0,
+            "f1": 0.6086956521739131,
+            "support": 7
+          }
+        }
+      ]
+    },
+    "delta_treatment_minus_control": {
+      "parent": {
+        "accuracy": 0.0010141987829614951,
+        "macro_precision": -0.014176349579389291,
+        "macro_recall": 0.08828579605074893,
+        "macro_f1": 0.03210514381087215,
+        "balanced_accuracy": 0.08828579605074893
+      },
+      "eligible_prefix": {
+        "accuracy": 0.006514249921703685,
+        "macro_precision": 0.04318291628411208,
+        "macro_recall": 0.08109950022716939,
+        "macro_f1": 0.05934043040832415,
+        "balanced_accuracy": 0.08109950022716939
+      },
+      "window": {
+        "accuracy": 0.0061301062199440315,
+        "macro_precision": 0.04111750766969979,
+        "macro_recall": 0.08020978167886339,
+        "macro_f1": 0.05760292648192944,
+        "balanced_accuracy": 0.08020978167886339
+      }
+    },
+    "paired_parent_transition": {
+      "parent_count": 986,
+      "changed_parent_count": 21,
+      "unchanged_parent_count": 965,
+      "transition_counts": [
+        {
+          "label_name": "BalloonTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 0,
+          "count": 238
+        },
+        {
+          "label_name": "BirdTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 0,
+          "count": 220
+        },
+        {
+          "label_name": "BirdTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 1,
+          "count": 9
+        },
+        {
+          "label_name": "BirdTarget",
+          "control_pred_id": 1,
+          "treatment_pred_id": 0,
+          "count": 5
+        },
+        {
+          "label_name": "BirdTarget",
+          "control_pred_id": 1,
+          "treatment_pred_id": 1,
+          "count": 5
+        },
+        {
+          "label_name": "ClutterTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 0,
+          "count": 6
+        },
+        {
+          "label_name": "ClutterTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 1,
+          "count": 6
+        },
+        {
+          "label_name": "ClutterTarget",
+          "control_pred_id": 1,
+          "treatment_pred_id": 1,
+          "count": 21
+        },
+        {
+          "label_name": "DroneTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 0,
+          "count": 475
+        },
+        {
+          "label_name": "DroneTarget",
+          "control_pred_id": 0,
+          "treatment_pred_id": 1,
+          "count": 1
+        }
+      ]
+    }
+  },
+  "l3_action_views": {
+    "control_epoch14_cross_fitted": {
+      "metrics": {
+        "parent": {
+          "scope": "parent_final",
+          "event_support": 986,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 476,
+              "accepted_as_class": 467,
+              "precision": 0.9807280513918629,
+              "recall": 0.9621848739495799,
+              "f1": 0.9713679745493107,
+              "unknown_rejected": 3,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 239,
+              "accepted_as_class": 232,
+              "precision": 0.9181034482758621,
+              "recall": 0.891213389121339,
+              "f1": 0.9044585987261147,
+              "unknown_rejected": 5,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238,
+              "accepted_as_class": 231,
+              "precision": 0.9653679653679653,
+              "recall": 0.9369747899159664,
+              "f1": 0.950959488272921,
+              "unknown_rejected": 6,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 33,
+              "accepted_as_class": 26,
+              "precision": 0.6538461538461539,
+              "recall": 0.5151515151515151,
+              "f1": 0.576271186440678,
+              "unknown_rejected": 16,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.938090241343127,
+          "clutter_precision": 0.6538461538461539,
+          "clutter_recall": 0.5151515151515151,
+          "known_to_clutter_error_rate": 0.00944386149003148,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 30,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.9239350912778904,
+          "selective_accuracy": 0.952928870292887,
+          "action_coverage": 0.9695740365111561,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              458.0,
+              13.0,
+              2.0,
+              0.0,
+              3.0,
+              0.0
+            ],
+            [
+              6.0,
+              213.0,
+              6.0,
+              9.0,
+              5.0,
+              0.0
+            ],
+            [
+              3.0,
+              6.0,
+              223.0,
+              0.0,
+              6.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              17.0,
+              16.0,
+              0.0
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "eligible_prefix",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 7667,
+              "accepted_as_class": 7496,
+              "precision": 0.9823906083244397,
+              "recall": 0.9604799791313421,
+              "f1": 0.9713117456967617,
+              "unknown_rejected": 91,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 3903,
+              "accepted_as_class": 3472,
+              "precision": 0.932315668202765,
+              "recall": 0.8293620292083013,
+              "f1": 0.8778305084745762,
+              "unknown_rejected": 180,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 3837,
+              "accepted_as_class": 3788,
+              "precision": 0.9398099260823654,
+              "recall": 0.9278081834766745,
+              "f1": 0.9337704918032786,
+              "unknown_rejected": 151,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 558,
+              "accepted_as_class": 473,
+              "precision": 0.5158562367864693,
+              "recall": 0.43727598566308246,
+              "f1": 0.47332686711930166,
+              "unknown_rejected": 314,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.919127669241254,
+          "clutter_precision": 0.5158562367864693,
+          "clutter_recall": 0.43727598566308246,
+          "known_to_clutter_error_rate": 0.0148633737911339,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 736,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.902286251174444,
+          "selective_accuracy": 0.9458927047081227,
+          "action_coverage": 0.9538991544002505,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7364.0,
+              155.0,
+              57.0,
+              0.0,
+              91.0,
+              0.0
+            ],
+            [
+              86.0,
+              3237.0,
+              171.0,
+              229.0,
+              180.0,
+              0.0
+            ],
+            [
+              46.0,
+              80.0,
+              3560.0,
+              0.0,
+              151.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              244.0,
+              314.0,
+              0.0
+            ]
+          ]
+        },
+        "window": {
+          "scope": "window",
+          "event_support": 18923,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 9095,
+              "accepted_as_class": 7963,
+              "precision": 0.9822931056134623,
+              "recall": 0.8600329851566795,
+              "f1": 0.9171063430648376,
+              "unknown_rejected": 94,
+              "pending_abstain": 952
+            },
+            {
+              "class": "BirdTarget",
+              "support": 4620,
+              "accepted_as_class": 3704,
+              "precision": 0.9314254859611231,
+              "recall": 0.7467532467532467,
+              "f1": 0.8289283998077847,
+              "unknown_rejected": 185,
+              "pending_abstain": 478
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 4551,
+              "accepted_as_class": 4019,
+              "precision": 0.9412789251057477,
+              "recall": 0.8312458800263678,
+              "f1": 0.8828471411901985,
+              "unknown_rejected": 157,
+              "pending_abstain": 476
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 657,
+              "accepted_as_class": 499,
+              "precision": 0.5230460921843687,
+              "recall": 0.3972602739726027,
+              "f1": 0.4515570934256055,
+              "unknown_rejected": 330,
+              "pending_abstain": 66
+            }
+          ],
+          "known_target_recall": 0.8242089127340414,
+          "clutter_precision": 0.5230460921843687,
+          "clutter_recall": 0.3972602739726027,
+          "known_to_clutter_error_rate": 0.013029672615788898,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 766,
+          "pending_known_count": 1972,
+          "accepted_action_accuracy": 0.8093854040057074,
+          "selective_accuracy": 0.9463083101637318,
+          "action_coverage": 0.8553083549120118,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7822.0,
+              168.0,
+              59.0,
+              0.0,
+              94.0,
+              952.0
+            ],
+            [
+              92.0,
+              3450.0,
+              177.0,
+              238.0,
+              185.0,
+              478.0
+            ],
+            [
+              49.0,
+              86.0,
+              3783.0,
+              0.0,
+              157.0,
+              476.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              261.0,
+              330.0,
+              66.0
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "eligible_prefix_parent_balanced",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "parent_balanced",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 475.9999999999918,
+              "accepted_as_class": 463.5802600177518,
+              "precision": 0.9828554367996649,
+              "recall": 0.9572108801501209,
+              "f1": 0.9698636685765307,
+              "unknown_rejected": 6.016697526759442,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 238.99999999999972,
+              "accepted_as_class": 214.21129596734733,
+              "precision": 0.9296073012757596,
+              "recall": 0.833189894338866,
+              "f1": 0.8787617895619964,
+              "unknown_rejected": 11.098846220895949,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238.00000000000077,
+              "accepted_as_class": 235.2255221001692,
+              "precision": 0.9410362068978413,
+              "recall": 0.9300661053895246,
+              "f1": 0.935518997793412,
+              "unknown_rejected": 9.27532774243299,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 33.00000000000002,
+              "accepted_as_class": 27.486535106620224,
+              "precision": 0.5055014983914111,
+              "recall": 0.4210449903631709,
+              "f1": 0.4594240571886849,
+              "unknown_rejected": 19.10551531801537,
+              "pending_abstain": 0.0
+            }
+          ],
+          "known_target_recall": 0.9193289577976421,
+          "clutter_precision": 0.5055014983914111,
+          "clutter_recall": 0.4210449903631709,
+          "known_to_clutter_error_rate": 0.014262382397309216,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 45.49638680810375,
+          "pending_known_count": 0.0,
+          "accepted_action_accuracy": 0.9026521110173809,
+          "selective_accuracy": 0.94631745054396,
+          "action_coverage": 0.9538576198700769,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              455.6323789514497,
+              10.485504626951991,
+              3.8654188948306523,
+              0.0,
+              6.016697526759442,
+              0.0
+            ],
+            [
+              5.172348484848479,
+              199.13238474698875,
+              10.004370122630982,
+              13.592050424635573,
+              11.098846220895949,
+              0.0
+            ],
+            [
+              2.7755325814536307,
+              4.593406593406588,
+              221.35573308270756,
+              0.0,
+              9.27532774243299,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              13.894484681984649,
+              19.10551531801537,
+              0.0
+            ]
+          ]
+        }
+      },
+      "fold_parent_metrics": [
+        {
+          "fold_id": 0,
+          "metrics": {
+            "scope": "control_fold_0_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.8913043478260869,
+                "recall": 0.8541666666666666,
+                "f1": 0.8723404255319149,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9318181818181818,
+                "recall": 0.8541666666666666,
+                "f1": 0.8913043478260869,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 2,
+                "precision": 0.5,
+                "recall": 0.16666666666666666,
+                "f1": 0.25,
+                "unknown_rejected": 5,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9109947643979057,
+            "clutter_precision": 0.5,
+            "clutter_recall": 0.16666666666666666,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 12,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.8883248730964467,
+            "selective_accuracy": 0.9459459459459459,
+            "action_coverage": 0.9390862944162437,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                41.0,
+                3.0,
+                1.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                3.0,
+                41.0,
+                0.0,
+                4.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                5.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 1,
+          "metrics": {
+            "scope": "control_fold_1_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 95,
+                "precision": 0.9789473684210527,
+                "recall": 0.9789473684210527,
+                "f1": 0.9789473684210527,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9166666666666666,
+                "f1": 0.946236559139785,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 50,
+                "precision": 0.96,
+                "recall": 1.0,
+                "f1": 0.9795918367346939,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 7,
+                "precision": 0.8571428571428571,
+                "recall": 1.0,
+                "f1": 0.923076923076923,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9685863874345549,
+            "clutter_precision": 0.8571428571428571,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 0,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9695431472081218,
+            "selective_accuracy": 0.9695431472081218,
+            "action_coverage": 1.0,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                93.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                44.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                48.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 2,
+          "metrics": {
+            "scope": "control_fold_2_parent_final",
+            "event_support": 198,
+            "parent_support": 198,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9130434782608695,
+                "recall": 0.875,
+                "f1": 0.8936170212765957,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9375,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 9,
+                "precision": 0.4444444444444444,
+                "recall": 0.5714285714285714,
+                "f1": 0.5,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.93717277486911,
+            "clutter_precision": 0.4444444444444444,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.02617801047120419,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 4,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9242424242424242,
+            "selective_accuracy": 0.9432989690721649,
+            "action_coverage": 0.9797979797979798,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                42.0,
+                1.0,
+                5.0,
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 3,
+          "metrics": {
+            "scope": "control_fold_3_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 96,
+                "accepted_as_class": 94,
+                "precision": 0.9787234042553191,
+                "recall": 0.9583333333333334,
+                "f1": 0.968421052631579,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 47,
+                "accepted_as_class": 49,
+                "precision": 0.9183673469387755,
+                "recall": 0.9574468085106383,
+                "f1": 0.9375000000000001,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9574468085106383,
+                "f1": 0.967741935483871,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 1,
+                "precision": 1.0,
+                "recall": 0.14285714285714285,
+                "f1": 0.25,
+                "unknown_rejected": 6,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9578947368421052,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.14285714285714285,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 7,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9289340101522843,
+            "selective_accuracy": 0.9631578947368421,
+            "action_coverage": 0.9644670050761421,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                45.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                6.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 4,
+          "metrics": {
+            "scope": "control_fold_4_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 92,
+                "precision": 0.967391304347826,
+                "recall": 0.9368421052631579,
+                "f1": 0.9518716577540107,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.8913043478260869,
+                "recall": 0.8541666666666666,
+                "f1": 0.8723404255319149,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9361702127659575,
+                "f1": 0.9565217391304347,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 7,
+                "precision": 0.7142857142857143,
+                "recall": 0.7142857142857143,
+                "f1": 0.7142857142857143,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9157894736842105,
+            "clutter_precision": 0.7142857142857143,
+            "clutter_recall": 0.7142857142857143,
+            "known_to_clutter_error_rate": 0.010526315789473684,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 7,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9086294416243654,
+            "selective_accuracy": 0.9421052631578948,
+            "action_coverage": 0.9644670050761421,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                89.0,
+                4.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                1.0,
+                41.0,
+                1.0,
+                2.0,
+                3.0,
+                0.0
+              ],
+              [
+                2.0,
+                1.0,
+                44.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                2.0,
+                0.0
+              ]
+            ]
+          }
+        }
+      ],
+      "cross_fit": [
+        {
+          "fold_id": 0,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.58,
+            "l2_subclass_acceptance": 0.64
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 27,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.3355526392534268,
+                0.7037037037037037,
+                0.9396325459317585,
+                0.76,
+                0.7037037037037037,
+                -0.007874015748031496,
+                -0.25925925925925924,
+                -1.08
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.76,
+                "clutter_recall": 0.7037037037037037,
+                "known_target_final_action_recall": 0.9396325459317585,
+                "known_to_clutter_error_rate": 0.007874015748031496,
+                "clutter_to_target_l1_route_rate": 0.25925925925925924,
+                "known_target_final_action_coverage": 0.9711286089238845
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.64,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9666221628838452,
+                0.9829396325459318,
+                0.9501312335958005,
+                -0.64
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9501312335958005,
+                "dbb_selective_accuracy": 0.9666221628838452,
+                "dbb_subclass_action_coverage": 0.9829396325459318,
+                "dbb_wrong_subclass_accepted_count": 25,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 13
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "control_outer_fold_0_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.8913043478260869,
+                "recall": 0.8541666666666666,
+                "f1": 0.8723404255319149,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9318181818181818,
+                "recall": 0.8541666666666666,
+                "f1": 0.8913043478260869,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 2,
+                "precision": 0.5,
+                "recall": 0.16666666666666666,
+                "f1": 0.25,
+                "unknown_rejected": 5,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9109947643979057,
+            "clutter_precision": 0.5,
+            "clutter_recall": 0.16666666666666666,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 12,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.8883248730964467,
+            "selective_accuracy": 0.9459459459459459,
+            "action_coverage": 0.9390862944162437,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                41.0,
+                3.0,
+                1.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                3.0,
+                41.0,
+                0.0,
+                4.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                5.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 1,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.58,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 27,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.5820501603966173,
+                0.5185185185185185,
+                0.9383202099737533,
+                0.7,
+                0.5185185185185185,
+                -0.007874015748031496,
+                -0.4444444444444444,
+                -1.08
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7,
+                "clutter_recall": 0.5185185185185185,
+                "known_target_final_action_recall": 0.9383202099737533,
+                "known_to_clutter_error_rate": 0.007874015748031496,
+                "clutter_to_target_l1_route_rate": 0.4444444444444444,
+                "known_target_final_action_coverage": 0.9803149606299213
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9576719576719577,
+                0.9921259842519685,
+                0.9501312335958005,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9501312335958005,
+                "dbb_selective_accuracy": 0.9576719576719577,
+                "dbb_subclass_action_coverage": 0.9921259842519685,
+                "dbb_wrong_subclass_accepted_count": 32,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 6
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "control_outer_fold_1_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 95,
+                "precision": 0.9789473684210527,
+                "recall": 0.9789473684210527,
+                "f1": 0.9789473684210527,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9166666666666666,
+                "f1": 0.946236559139785,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 50,
+                "precision": 0.96,
+                "recall": 1.0,
+                "f1": 0.9795918367346939,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 7,
+                "precision": 0.8571428571428571,
+                "recall": 1.0,
+                "f1": 0.923076923076923,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9685863874345549,
+            "clutter_precision": 0.8571428571428571,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 0,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9695431472081218,
+            "selective_accuracy": 0.9695431472081218,
+            "action_coverage": 1.0,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                93.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                44.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                48.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 2,
+          "fit_parent_count": 788,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 198,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.51,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 788,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 26,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.3661212365936777,
+                0.6538461538461539,
+                0.9461942257217848,
+                0.7727272727272727,
+                0.6538461538461539,
+                -0.006561679790026247,
+                -0.34615384615384615,
+                -1.01
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7727272727272727,
+                "clutter_recall": 0.6538461538461539,
+                "known_target_final_action_recall": 0.9461942257217848,
+                "known_to_clutter_error_rate": 0.006561679790026247,
+                "clutter_to_target_l1_route_rate": 0.34615384615384615,
+                "known_target_final_action_coverage": 0.9868766404199475
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9577278731836195,
+                0.9934383202099738,
+                0.9514435695538058,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9514435695538058,
+                "dbb_selective_accuracy": 0.9577278731836195,
+                "dbb_subclass_action_coverage": 0.9934383202099738,
+                "dbb_wrong_subclass_accepted_count": 32,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "control_outer_fold_2_parent",
+            "event_support": 198,
+            "parent_support": 198,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9130434782608695,
+                "recall": 0.875,
+                "f1": 0.8936170212765957,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9375,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 9,
+                "precision": 0.4444444444444444,
+                "recall": 0.5714285714285714,
+                "f1": 0.5,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.93717277486911,
+            "clutter_precision": 0.4444444444444444,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.02617801047120419,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 4,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9242424242424242,
+            "selective_accuracy": 0.9432989690721649,
+            "action_coverage": 0.9797979797979798,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                42.0,
+                1.0,
+                5.0,
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 3,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 763,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.65,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 192,
+                "ClutterTarget": 26,
+                "DroneTarget": 380
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.3712931818436407,
+                0.6538461538461539,
+                0.9410222804718218,
+                0.7727272727272727,
+                0.6538461538461539,
+                -0.00655307994757536,
+                -0.3076923076923077,
+                -1.15
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7727272727272727,
+                "clutter_recall": 0.6538461538461539,
+                "known_target_final_action_recall": 0.9410222804718218,
+                "known_to_clutter_error_rate": 0.00655307994757536,
+                "clutter_to_target_l1_route_rate": 0.3076923076923077,
+                "known_target_final_action_coverage": 0.9803407601572739
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 763,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 192,
+                "DroneTarget": 380
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9591029023746702,
+                0.9934469200524246,
+                0.9528178243774574,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9528178243774574,
+                "dbb_selective_accuracy": 0.9591029023746702,
+                "dbb_subclass_action_coverage": 0.9934469200524246,
+                "dbb_wrong_subclass_accepted_count": 31,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "control_outer_fold_3_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 96,
+                "accepted_as_class": 94,
+                "precision": 0.9787234042553191,
+                "recall": 0.9583333333333334,
+                "f1": 0.968421052631579,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 47,
+                "accepted_as_class": 49,
+                "precision": 0.9183673469387755,
+                "recall": 0.9574468085106383,
+                "f1": 0.9375000000000001,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9574468085106383,
+                "f1": 0.967741935483871,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 1,
+                "precision": 1.0,
+                "recall": 0.14285714285714285,
+                "f1": 0.25,
+                "unknown_rejected": 6,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9578947368421052,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.14285714285714285,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 7,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9289340101522843,
+            "selective_accuracy": 0.9631578947368421,
+            "action_coverage": 0.9644670050761421,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                45.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                1.0,
+                6.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 4,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 763,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.55,
+            "l1_known_clutter_acceptance": 0.68,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 191,
+                "ClutterTarget": 26,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.4726322097881732,
+                0.46153846153846156,
+                0.9475753604193972,
+                0.8571428571428571,
+                0.46153846153846156,
+                -0.002621231979030144,
+                -0.4230769230769231,
+                -1.23
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.8571428571428571,
+                "clutter_recall": 0.46153846153846156,
+                "known_target_final_action_recall": 0.9475753604193972,
+                "known_to_clutter_error_rate": 0.002621231979030144,
+                "clutter_to_target_l1_route_rate": 0.4230769230769231,
+                "known_target_final_action_coverage": 0.9842726081258192
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 763,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9617414248021108,
+                0.9934469200524246,
+                0.9554390563564875,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9554390563564875,
+                "dbb_selective_accuracy": 0.9617414248021108,
+                "dbb_subclass_action_coverage": 0.9934469200524246,
+                "dbb_wrong_subclass_accepted_count": 29,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "control_outer_fold_4_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 92,
+                "precision": 0.967391304347826,
+                "recall": 0.9368421052631579,
+                "f1": 0.9518716577540107,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.8913043478260869,
+                "recall": 0.8541666666666666,
+                "f1": 0.8723404255319149,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9361702127659575,
+                "f1": 0.9565217391304347,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 7,
+                "precision": 0.7142857142857143,
+                "recall": 0.7142857142857143,
+                "f1": 0.7142857142857143,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9157894736842105,
+            "clutter_precision": 0.7142857142857143,
+            "clutter_recall": 0.7142857142857143,
+            "known_to_clutter_error_rate": 0.010526315789473684,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 7,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9086294416243654,
+            "selective_accuracy": 0.9421052631578948,
+            "action_coverage": 0.9644670050761421,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                89.0,
+                4.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                1.0,
+                41.0,
+                1.0,
+                2.0,
+                3.0,
+                0.0
+              ],
+              [
+                2.0,
+                1.0,
+                44.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                2.0,
+                0.0
+              ]
+            ]
+          }
+        }
+      ],
+      "thresholds_by_fold": {
+        "0": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.58,
+          "l2_subclass_acceptance": 0.64
+        },
+        "1": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.58,
+          "l2_subclass_acceptance": 0.55
+        },
+        "2": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.51,
+          "l2_subclass_acceptance": 0.55
+        },
+        "3": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.65,
+          "l2_subclass_acceptance": 0.55
+        },
+        "4": {
+          "l1_known_target_acceptance": 0.55,
+          "l1_known_clutter_acceptance": 0.68,
+          "l2_subclass_acceptance": 0.55
+        }
+      },
+      "true_clutter_parent_outcomes": {
+        "ClutterTarget": 17,
+        "UNKNOWN_REJECTED": 16
+      }
+    },
+    "treatment_epoch20_frozen_control_thresholds": {
+      "metrics": {
+        "parent": {
+          "scope": "parent_final",
+          "event_support": 986,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 476,
+              "accepted_as_class": 468,
+              "precision": 0.9807692307692307,
+              "recall": 0.9642857142857143,
+              "f1": 0.972457627118644,
+              "unknown_rejected": 2,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 239,
+              "accepted_as_class": 228,
+              "precision": 0.9254385964912281,
+              "recall": 0.8828451882845189,
+              "f1": 0.9036402569593148,
+              "unknown_rejected": 7,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238,
+              "accepted_as_class": 231,
+              "precision": 0.9653679653679653,
+              "recall": 0.9369747899159664,
+              "f1": 0.950959488272921,
+              "unknown_rejected": 7,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 33,
+              "accepted_as_class": 36,
+              "precision": 0.7222222222222222,
+              "recall": 0.7878787878787878,
+              "f1": 0.7536231884057971,
+              "unknown_rejected": 7,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.9370409233997902,
+          "clutter_precision": 0.7222222222222222,
+          "clutter_recall": 0.7878787878787878,
+          "known_to_clutter_error_rate": 0.01049317943336831,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 23,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.9320486815415822,
+          "selective_accuracy": 0.9543094496365524,
+          "action_coverage": 0.9766734279918864,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              459.0,
+              12.0,
+              2.0,
+              1.0,
+              2.0,
+              0.0
+            ],
+            [
+              6.0,
+              211.0,
+              6.0,
+              9.0,
+              7.0,
+              0.0
+            ],
+            [
+              3.0,
+              5.0,
+              223.0,
+              0.0,
+              7.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              26.0,
+              7.0,
+              0.0
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "eligible_prefix",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 7667,
+              "accepted_as_class": 7515,
+              "precision": 0.9824351297405189,
+              "recall": 0.9629581322551194,
+              "f1": 0.9725991305493348,
+              "unknown_rejected": 65,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 3903,
+              "accepted_as_class": 3484,
+              "precision": 0.937715269804822,
+              "recall": 0.8370484242890085,
+              "f1": 0.8845268715310681,
+              "unknown_rejected": 179,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 3837,
+              "accepted_as_class": 3775,
+              "precision": 0.9414569536423841,
+              "recall": 0.9262444618191296,
+              "f1": 0.9337887545980031,
+              "unknown_rejected": 159,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 558,
+              "accepted_as_class": 573,
+              "precision": 0.5986038394415357,
+              "recall": 0.6146953405017921,
+              "f1": 0.6065428824049512,
+              "unknown_rejected": 215,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.921918608424742,
+          "clutter_precision": 0.5986038394415357,
+          "clutter_recall": 0.6146953405017921,
+          "known_to_clutter_error_rate": 0.014928279353540599,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 618,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.9111807077983088,
+          "selective_accuracy": 0.947872548380791,
+          "action_coverage": 0.9612903225806452,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7383.0,
+              149.0,
+              57.0,
+              13.0,
+              65.0,
+              0.0
+            ],
+            [
+              86.0,
+              3267.0,
+              164.0,
+              207.0,
+              179.0,
+              0.0
+            ],
+            [
+              46.0,
+              68.0,
+              3554.0,
+              10.0,
+              159.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              343.0,
+              215.0,
+              0.0
+            ]
+          ]
+        },
+        "window": {
+          "scope": "window",
+          "event_support": 18923,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 9095,
+              "accepted_as_class": 7983,
+              "precision": 0.9823374671176249,
+              "recall": 0.8622319956019792,
+              "f1": 0.9183745169223563,
+              "unknown_rejected": 67,
+              "pending_abstain": 952
+            },
+            {
+              "class": "BirdTarget",
+              "support": 4620,
+              "accepted_as_class": 3712,
+              "precision": 0.9369612068965517,
+              "recall": 0.7528138528138528,
+              "f1": 0.8348535765722515,
+              "unknown_rejected": 186,
+              "pending_abstain": 478
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 4551,
+              "accepted_as_class": 4006,
+              "precision": 0.9428357463804293,
+              "recall": 0.8299274884640738,
+              "f1": 0.8827860231389505,
+              "unknown_rejected": 166,
+              "pending_abstain": 476
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 657,
+              "accepted_as_class": 609,
+              "precision": 0.6059113300492611,
+              "recall": 0.5616438356164384,
+              "f1": 0.5829383886255924,
+              "unknown_rejected": 222,
+              "pending_abstain": 66
+            }
+          ],
+          "known_target_recall": 0.826508266725063,
+          "clutter_precision": 0.6059113300492611,
+          "clutter_recall": 0.5616438356164384,
+          "known_to_clutter_error_rate": 0.013139165662980401,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 641,
+          "pending_known_count": 1972,
+          "accepted_action_accuracy": 0.8173122654970142,
+          "selective_accuracy": 0.9482526057633354,
+          "action_coverage": 0.8619140728214343,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7842.0,
+              161.0,
+              59.0,
+              14.0,
+              67.0,
+              952.0
+            ],
+            [
+              92.0,
+              3478.0,
+              170.0,
+              216.0,
+              186.0,
+              478.0
+            ],
+            [
+              49.0,
+              73.0,
+              3777.0,
+              10.0,
+              166.0,
+              476.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              369.0,
+              222.0,
+              66.0
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "eligible_prefix_parent_balanced",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "parent_balanced",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 475.9999999999913,
+              "accepted_as_class": 464.5802600177513,
+              "precision": 0.982892340139466,
+              "recall": 0.9593117204862553,
+              "f1": 0.9709588822177397,
+              "unknown_rejected": 4.478235988297911,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 238.99999999999926,
+              "accepted_as_class": 215.62163101675182,
+              "precision": 0.936845980180151,
+              "recall": 0.8452061014976248,
+              "f1": 0.8886698057290133,
+              "unknown_rejected": 10.664847530126494,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238.00000000000074,
+              "accepted_as_class": 234.22552210016914,
+              "precision": 0.9429191622775254,
+              "recall": 0.9279652650533899,
+              "f1": 0.9353824507429266,
+              "unknown_rejected": 9.941994409099662,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 33.00000000000005,
+              "accepted_as_class": 33.231893797001874,
+              "precision": 0.594139623213053,
+              "recall": 0.5983146927032381,
+              "f1": 0.5962198489966973,
+              "unknown_rejected": 13.255615140793163,
+              "pending_abstain": 0.0
+            }
+          ],
+          "known_target_recall": 0.9228671251753374,
+          "clutter_precision": 0.594139623213053,
+          "clutter_recall": 0.5983146927032381,
+          "known_to_clutter_error_rate": 0.014152685139344288,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 38.34069306831723,
+          "pending_known_count": 0.0,
+          "accepted_action_accuracy": 0.9120048226686644,
+          "selective_accuracy": 0.9489029955953674,
+          "action_coverage": 0.9611149157522134,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              456.6323789514492,
+              10.023966165413531,
+              3.8654188948306523,
+              0.9999999999999998,
+              4.478235988297911,
+              0.0
+            ],
+            [
+              5.172348484848479,
+              202.0042582579317,
+              9.504370122630988,
+              11.654175604461647,
+              10.664847530126494,
+              0.0
+            ],
+            [
+              2.7755325814536307,
+              3.593406593406589,
+              220.8557330827075,
+              0.8333333333333334,
+              9.941994409099662,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              19.74438485920689,
+              13.255615140793163,
+              0.0
+            ]
+          ]
+        }
+      },
+      "fold_parent_metrics": [
+        {
+          "fold_id": 0,
+          "metrics": {
+            "scope": "treatment_frozen_fold_0_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 47,
+                "precision": 0.8936170212765957,
+                "recall": 0.875,
+                "f1": 0.8842105263157894,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9318181818181818,
+                "recall": 0.8541666666666666,
+                "f1": 0.8913043478260869,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 3,
+                "precision": 1.0,
+                "recall": 0.5,
+                "f1": 0.6666666666666666,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9162303664921466,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.5,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 10,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9035532994923858,
+            "selective_accuracy": 0.9518716577540107,
+            "action_coverage": 0.949238578680203,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                42.0,
+                3.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                3.0,
+                41.0,
+                0.0,
+                4.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                3.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 1,
+          "metrics": {
+            "scope": "treatment_frozen_fold_1_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 95,
+                "precision": 0.9789473684210527,
+                "recall": 0.9789473684210527,
+                "f1": 0.9789473684210527,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9772727272727273,
+                "recall": 0.8958333333333334,
+                "f1": 0.9347826086956522,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 50,
+                "precision": 0.96,
+                "recall": 1.0,
+                "f1": 0.9795918367346939,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 8,
+                "precision": 0.75,
+                "recall": 1.0,
+                "f1": 0.8571428571428571,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9633507853403142,
+            "clutter_precision": 0.75,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.010471204188481676,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 0,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9644670050761421,
+            "selective_accuracy": 0.9644670050761421,
+            "action_coverage": 1.0,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                93.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                1.0,
+                2.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                48.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 2,
+          "metrics": {
+            "scope": "treatment_frozen_fold_2_parent_final",
+            "event_support": 198,
+            "parent_support": 198,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 49,
+                "precision": 0.9183673469387755,
+                "recall": 0.9375,
+                "f1": 0.9278350515463918,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9375,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 7,
+                "precision": 0.7142857142857143,
+                "recall": 0.7142857142857143,
+                "f1": 0.7142857142857143,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9528795811518325,
+            "clutter_precision": 0.7142857142857143,
+            "clutter_recall": 0.7142857142857143,
+            "known_to_clutter_error_rate": 0.010471204188481676,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 3,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9444444444444444,
+            "selective_accuracy": 0.958974358974359,
+            "action_coverage": 0.9848484848484849,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                45.0,
+                1.0,
+                2.0,
+                0.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                2.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 3,
+          "metrics": {
+            "scope": "treatment_frozen_fold_3_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 96,
+                "accepted_as_class": 94,
+                "precision": 0.9787234042553191,
+                "recall": 0.9583333333333334,
+                "f1": 0.968421052631579,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 47,
+                "accepted_as_class": 47,
+                "precision": 0.9148936170212766,
+                "recall": 0.9148936170212766,
+                "f1": 0.9148936170212766,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9574468085106383,
+                "f1": 0.967741935483871,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 5,
+                "precision": 1.0,
+                "recall": 0.7142857142857143,
+                "f1": 0.8333333333333333,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9473684210526315,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.7142857142857143,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 5,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9390862944162437,
+            "selective_accuracy": 0.9635416666666666,
+            "action_coverage": 0.9746192893401016,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                5.0,
+                2.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 4,
+          "metrics": {
+            "scope": "treatment_frozen_fold_4_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.967741935483871,
+                "recall": 0.9473684210526315,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 41,
+                "precision": 0.926829268292683,
+                "recall": 0.7916666666666666,
+                "f1": 0.8539325842696629,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9361702127659575,
+                "f1": 0.9565217391304347,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 13,
+                "precision": 0.5384615384615384,
+                "recall": 1.0,
+                "f1": 0.7000000000000001,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9052631578947369,
+            "clutter_precision": 0.5384615384615384,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.031578947368421054,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 5,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9086294416243654,
+            "selective_accuracy": 0.9322916666666666,
+            "action_coverage": 0.9746192893401016,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                90.0,
+                3.0,
+                0.0,
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                38.0,
+                1.0,
+                5.0,
+                3.0,
+                0.0
+              ],
+              [
+                2.0,
+                0.0,
+                44.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                7.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        }
+      ],
+      "thresholds_by_fold": {
+        "0": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.58,
+          "l2_subclass_acceptance": 0.64
+        },
+        "1": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.58,
+          "l2_subclass_acceptance": 0.55
+        },
+        "2": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.51,
+          "l2_subclass_acceptance": 0.55
+        },
+        "3": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.65,
+          "l2_subclass_acceptance": 0.55
+        },
+        "4": {
+          "l1_known_target_acceptance": 0.55,
+          "l1_known_clutter_acceptance": 0.68,
+          "l2_subclass_acceptance": 0.55
+        }
+      },
+      "delta_vs_control_parent": {
+        "known_target_recall": -0.0010493179433368471,
+        "clutter_precision": 0.06837606837606836,
+        "clutter_recall": 0.2727272727272727,
+        "clutter_to_known_error_rate": 0.0,
+        "known_to_clutter_error_rate": 0.0010493179433368298,
+        "accepted_action_accuracy": 0.008113590263691739,
+        "action_coverage": 0.007099391480730244
+      },
+      "true_clutter_parent_outcomes": {
+        "ClutterTarget": 26,
+        "UNKNOWN_REJECTED": 7
+      },
+      "paired_parent_transition": {
+        "parent_count": 986,
+        "changed_parent_count": 25,
+        "unchanged_parent_count": 961,
+        "transition_counts": [
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 223
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 5
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 1
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 3
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 206
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 3
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 4
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "BirdTarget",
+            "count": 4
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 5
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "BirdTarget",
+            "count": 1
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "ClutterTarget",
+            "count": 1
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 3
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 17
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "ClutterTarget",
+            "count": 9
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 7
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 2
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 12
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 1
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 458
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "DroneTarget",
+            "count": 1
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 2
+          }
+        ]
+      }
+    },
+    "treatment_epoch20_recalibrated_cross_fitted": {
+      "metrics": {
+        "parent": {
+          "scope": "parent_final",
+          "event_support": 986,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 476,
+              "accepted_as_class": 468,
+              "precision": 0.9807692307692307,
+              "recall": 0.9642857142857143,
+              "f1": 0.972457627118644,
+              "unknown_rejected": 2,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 239,
+              "accepted_as_class": 229,
+              "precision": 0.9213973799126638,
+              "recall": 0.8828451882845189,
+              "f1": 0.9017094017094017,
+              "unknown_rejected": 6,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238,
+              "accepted_as_class": 231,
+              "precision": 0.9653679653679653,
+              "recall": 0.9369747899159664,
+              "f1": 0.950959488272921,
+              "unknown_rejected": 6,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 33,
+              "accepted_as_class": 34,
+              "precision": 0.6764705882352942,
+              "recall": 0.696969696969697,
+              "f1": 0.6865671641791046,
+              "unknown_rejected": 10,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.9370409233997902,
+          "clutter_precision": 0.6764705882352942,
+          "clutter_recall": 0.696969696969697,
+          "known_to_clutter_error_rate": 0.011542497376705142,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 24,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.9290060851926978,
+          "selective_accuracy": 0.9521829521829522,
+          "action_coverage": 0.9756592292089249,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              459.0,
+              12.0,
+              2.0,
+              1.0,
+              2.0,
+              0.0
+            ],
+            [
+              6.0,
+              211.0,
+              6.0,
+              10.0,
+              6.0,
+              0.0
+            ],
+            [
+              3.0,
+              6.0,
+              223.0,
+              0.0,
+              6.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              23.0,
+              10.0,
+              0.0
+            ]
+          ]
+        },
+        "eligible_prefix": {
+          "scope": "eligible_prefix",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 7667,
+              "accepted_as_class": 7515,
+              "precision": 0.9824351297405189,
+              "recall": 0.9629581322551194,
+              "f1": 0.9725991305493348,
+              "unknown_rejected": 65,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 3903,
+              "accepted_as_class": 3497,
+              "precision": 0.9379468115527595,
+              "recall": 0.8403791954906482,
+              "f1": 0.8864864864864865,
+              "unknown_rejected": 206,
+              "pending_abstain": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 3837,
+              "accepted_as_class": 3776,
+              "precision": 0.9414724576271186,
+              "recall": 0.9265050820953871,
+              "f1": 0.9339288059897545,
+              "unknown_rejected": 156,
+              "pending_abstain": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 558,
+              "accepted_as_class": 468,
+              "precision": 0.5897435897435898,
+              "recall": 0.4946236559139785,
+              "f1": 0.5380116959064327,
+              "unknown_rejected": 282,
+              "pending_abstain": 0
+            }
+          ],
+          "known_target_recall": 0.9228272862984358,
+          "clutter_precision": 0.5897435897435898,
+          "clutter_recall": 0.4946236559139785,
+          "known_to_clutter_error_rate": 0.012461867982086065,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 709,
+          "pending_known_count": 0,
+          "accepted_action_accuracy": 0.907860945818979,
+          "selective_accuracy": 0.9500524383848977,
+          "action_coverage": 0.9555903538991544,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7383.0,
+              149.0,
+              57.0,
+              13.0,
+              65.0,
+              0.0
+            ],
+            [
+              86.0,
+              3280.0,
+              164.0,
+              167.0,
+              206.0,
+              0.0
+            ],
+            [
+              46.0,
+              68.0,
+              3555.0,
+              12.0,
+              156.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              276.0,
+              282.0,
+              0.0
+            ]
+          ]
+        },
+        "window": {
+          "scope": "window",
+          "event_support": 18923,
+          "parent_support": 986,
+          "aggregation": "event",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 9095,
+              "accepted_as_class": 7983,
+              "precision": 0.9823374671176249,
+              "recall": 0.8622319956019792,
+              "f1": 0.9183745169223563,
+              "unknown_rejected": 67,
+              "pending_abstain": 952
+            },
+            {
+              "class": "BirdTarget",
+              "support": 4620,
+              "accepted_as_class": 3726,
+              "precision": 0.936929683306495,
+              "recall": 0.7556277056277056,
+              "f1": 0.8365684160076684,
+              "unknown_rejected": 212,
+              "pending_abstain": 478
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 4551,
+              "accepted_as_class": 4007,
+              "precision": 0.9428500124781632,
+              "recall": 0.8301472203911229,
+              "f1": 0.8829165692918907,
+              "unknown_rejected": 162,
+              "pending_abstain": 476
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 657,
+              "accepted_as_class": 502,
+              "precision": 0.5956175298804781,
+              "recall": 0.4550989345509893,
+              "f1": 0.5159620362381363,
+              "unknown_rejected": 292,
+              "pending_abstain": 66
+            }
+          ],
+          "known_target_recall": 0.8272747180554035,
+          "clutter_precision": 0.5956175298804781,
+          "clutter_recall": 0.4550989345509893,
+          "known_to_clutter_error_rate": 0.011113544289937589,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 733,
+          "pending_known_count": 1972,
+          "accepted_action_accuracy": 0.8143529038735929,
+          "selective_accuracy": 0.9501788136638303,
+          "action_coverage": 0.8570522644400993,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              7842.0,
+              161.0,
+              59.0,
+              14.0,
+              67.0,
+              952.0
+            ],
+            [
+              92.0,
+              3491.0,
+              170.0,
+              177.0,
+              212.0,
+              478.0
+            ],
+            [
+              49.0,
+              74.0,
+              3778.0,
+              12.0,
+              162.0,
+              476.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              299.0,
+              292.0,
+              66.0
+            ]
+          ]
+        },
+        "eligible_prefix_parent_balanced": {
+          "scope": "eligible_prefix_parent_balanced",
+          "event_support": 15965,
+          "parent_support": 986,
+          "aggregation": "parent_balanced",
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "support": 475.9999999999913,
+              "accepted_as_class": 464.5802600177513,
+              "precision": 0.982892340139466,
+              "recall": 0.9593117204862553,
+              "f1": 0.9709588822177397,
+              "unknown_rejected": 4.478235988297911,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BirdTarget",
+              "support": 238.99999999999926,
+              "accepted_as_class": 216.30053116567478,
+              "precision": 0.9370442010223732,
+              "recall": 0.848046687894792,
+              "f1": 0.8903269139086624,
+              "unknown_rejected": 12.15760699542601,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "BalloonTarget",
+              "support": 238.00000000000074,
+              "accepted_as_class": 234.3088554335025,
+              "precision": 0.942939463415816,
+              "recall": 0.9283154051094125,
+              "f1": 0.9355702899673751,
+              "unknown_rejected": 9.69199440909966,
+              "pending_abstain": 0.0
+            },
+            {
+              "class": "ClutterTarget",
+              "support": 32.999999999999964,
+              "accepted_as_class": 27.554912066814694,
+              "precision": 0.5832860594003537,
+              "recall": 0.4870423053507763,
+              "f1": 0.5308370709494796,
+              "unknown_rejected": 16.927603923424364,
+              "pending_abstain": 0.0
+            }
+          ],
+          "known_target_recall": 0.923666950445281,
+          "clutter_precision": 0.5832860594003537,
+          "clutter_recall": 0.4870423053507763,
+          "known_to_clutter_error_rate": 0.012048810063210074,
+          "clutter_to_known_error_rate": 0.0,
+          "unknown_rejected_known_count": 43.25544131624794,
+          "pending_known_count": 0.0,
+          "accepted_action_accuracy": 0.9090537523843086,
+          "selective_accuracy": 0.9507633765633917,
+          "action_coverage": 0.9561303840606001,
+          "confusion_rows_true_known_label_columns_semantic_action": [
+            [
+              456.6323789514492,
+              10.023966165413531,
+              3.8654188948306523,
+              0.9999999999999998,
+              4.478235988297911,
+              0.0
+            ],
+            [
+              5.172348484848479,
+              202.68315840685466,
+              9.504370122630988,
+              9.482515990239094,
+              12.15760699542601,
+              0.0
+            ],
+            [
+              2.7755325814536307,
+              3.593406593406589,
+              220.93906641604084,
+              1.0,
+              9.69199440909966,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              16.0723960765756,
+              16.927603923424364,
+              0.0
+            ]
+          ]
+        }
+      },
+      "fold_parent_metrics": [
+        {
+          "fold_id": 0,
+          "metrics": {
+            "scope": "treatment_refit_fold_0_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 47,
+                "precision": 0.8936170212765957,
+                "recall": 0.875,
+                "f1": 0.8842105263157894,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9318181818181818,
+                "recall": 0.8541666666666666,
+                "f1": 0.8913043478260869,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 2,
+                "precision": 1.0,
+                "recall": 0.3333333333333333,
+                "f1": 0.5,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9162303664921466,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.3333333333333333,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 11,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.8984771573604061,
+            "selective_accuracy": 0.9516129032258065,
+            "action_coverage": 0.9441624365482234,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                42.0,
+                3.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                3.0,
+                41.0,
+                0.0,
+                4.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                4.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 1,
+          "metrics": {
+            "scope": "treatment_refit_fold_1_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 95,
+                "precision": 0.9789473684210527,
+                "recall": 0.9789473684210527,
+                "f1": 0.9789473684210527,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9772727272727273,
+                "recall": 0.8958333333333334,
+                "f1": 0.9347826086956522,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 50,
+                "precision": 0.96,
+                "recall": 1.0,
+                "f1": 0.9795918367346939,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 8,
+                "precision": 0.75,
+                "recall": 1.0,
+                "f1": 0.8571428571428571,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9633507853403142,
+            "clutter_precision": 0.75,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.010471204188481676,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 0,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9644670050761421,
+            "selective_accuracy": 0.9644670050761421,
+            "action_coverage": 1.0,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                93.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                1.0,
+                2.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                48.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 2,
+          "metrics": {
+            "scope": "treatment_refit_fold_2_parent_final",
+            "event_support": 198,
+            "parent_support": 198,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 49,
+                "precision": 0.9183673469387755,
+                "recall": 0.9375,
+                "f1": 0.9278350515463918,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9375,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 5,
+                "precision": 0.8,
+                "recall": 0.5714285714285714,
+                "f1": 0.6666666666666666,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9528795811518325,
+            "clutter_precision": 0.8,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 5,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9393939393939394,
+            "selective_accuracy": 0.9637305699481865,
+            "action_coverage": 0.9747474747474747,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                45.0,
+                1.0,
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 3,
+          "metrics": {
+            "scope": "treatment_refit_fold_3_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 96,
+                "accepted_as_class": 94,
+                "precision": 0.9787234042553191,
+                "recall": 0.9583333333333334,
+                "f1": 0.968421052631579,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 47,
+                "accepted_as_class": 47,
+                "precision": 0.9148936170212766,
+                "recall": 0.9148936170212766,
+                "f1": 0.9148936170212766,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9574468085106383,
+                "f1": 0.967741935483871,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 4,
+                "precision": 1.0,
+                "recall": 0.5714285714285714,
+                "f1": 0.7272727272727273,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9473684210526315,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 6,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.934010152284264,
+            "selective_accuracy": 0.9633507853403142,
+            "action_coverage": 0.9695431472081218,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 4,
+          "metrics": {
+            "scope": "treatment_refit_fold_4_parent_final",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.967741935483871,
+                "recall": 0.9473684210526315,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 42,
+                "precision": 0.9047619047619048,
+                "recall": 0.7916666666666666,
+                "f1": 0.8444444444444444,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9361702127659575,
+                "f1": 0.9565217391304347,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 15,
+                "precision": 0.4666666666666667,
+                "recall": 1.0,
+                "f1": 0.6363636363636364,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9052631578947369,
+            "clutter_precision": 0.4666666666666667,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.042105263157894736,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 2,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9086294416243654,
+            "selective_accuracy": 0.9179487179487179,
+            "action_coverage": 0.9898477157360406,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                90.0,
+                3.0,
+                0.0,
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                38.0,
+                1.0,
+                7.0,
+                1.0,
+                0.0
+              ],
+              [
+                2.0,
+                1.0,
+                44.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                7.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        }
+      ],
+      "cross_fit": [
+        {
+          "fold_id": 0,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.8,
+            "l2_subclass_acceptance": 0.64
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 27,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.20528892221805628,
+                0.7857142857142857,
+                0.9330708661417323,
+                0.7857142857142857,
+                0.8148148148148148,
+                -0.007874015748031496,
+                -0.1111111111111111,
+                -1.3
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7857142857142857,
+                "clutter_recall": 0.8148148148148148,
+                "known_target_final_action_recall": 0.9330708661417323,
+                "known_to_clutter_error_rate": 0.007874015748031496,
+                "clutter_to_target_l1_route_rate": 0.1111111111111111,
+                "known_target_final_action_coverage": 0.963254593175853
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.64,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9666221628838452,
+                0.9829396325459318,
+                0.9501312335958005,
+                -0.64
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9501312335958005,
+                "dbb_selective_accuracy": 0.9666221628838452,
+                "dbb_subclass_action_coverage": 0.9829396325459318,
+                "dbb_wrong_subclass_accepted_count": 25,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 13
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "treatment_epoch20_outer_fold_0_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 47,
+                "precision": 0.8936170212765957,
+                "recall": 0.875,
+                "f1": 0.8842105263157894,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9318181818181818,
+                "recall": 0.8541666666666666,
+                "f1": 0.8913043478260869,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 2,
+                "precision": 1.0,
+                "recall": 0.3333333333333333,
+                "f1": 0.5,
+                "unknown_rejected": 4,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9162303664921466,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.3333333333333333,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 11,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.8984771573604061,
+            "selective_accuracy": 0.9516129032258065,
+            "action_coverage": 0.9441624365482234,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                2.0,
+                0.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                42.0,
+                3.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                3.0,
+                41.0,
+                0.0,
+                4.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                2.0,
+                4.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 1,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.68,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 27,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.32302420530767006,
+                0.7407407407407407,
+                0.9343832020997376,
+                0.7407407407407407,
+                0.7407407407407407,
+                -0.009186351706036745,
+                -0.2222222222222222,
+                -1.1800000000000002
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7407407407407407,
+                "clutter_recall": 0.7407407407407407,
+                "known_target_final_action_recall": 0.9343832020997376,
+                "known_to_clutter_error_rate": 0.009186351706036745,
+                "clutter_to_target_l1_route_rate": 0.2222222222222222,
+                "known_target_final_action_coverage": 0.9750656167979003
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9576719576719577,
+                0.9921259842519685,
+                0.9501312335958005,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9501312335958005,
+                "dbb_selective_accuracy": 0.9576719576719577,
+                "dbb_subclass_action_coverage": 0.9921259842519685,
+                "dbb_wrong_subclass_accepted_count": 32,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 6
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "treatment_epoch20_outer_fold_1_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 95,
+                "precision": 0.9789473684210527,
+                "recall": 0.9789473684210527,
+                "f1": 0.9789473684210527,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 44,
+                "precision": 0.9772727272727273,
+                "recall": 0.8958333333333334,
+                "f1": 0.9347826086956522,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 50,
+                "precision": 0.96,
+                "recall": 1.0,
+                "f1": 0.9795918367346939,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 6,
+                "accepted_as_class": 8,
+                "precision": 0.75,
+                "recall": 1.0,
+                "f1": 0.8571428571428571,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9633507853403142,
+            "clutter_precision": 0.75,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.010471204188481676,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 0,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9644670050761421,
+            "selective_accuracy": 0.9644670050761421,
+            "action_coverage": 1.0,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                93.0,
+                1.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                1.0,
+                2.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                48.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                6.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 2,
+          "fit_parent_count": 788,
+          "fit_dbb_parent_count": 762,
+          "held_out_parent_count": 198,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.81,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 788,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "ClutterTarget": 26,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.24502482758217115,
+                0.7307692307692307,
+                0.937007874015748,
+                0.8260869565217391,
+                0.7307692307692307,
+                -0.005249343832020997,
+                -0.15384615384615385,
+                -1.31
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.8260869565217391,
+                "clutter_recall": 0.7307692307692307,
+                "known_target_final_action_recall": 0.937007874015748,
+                "known_to_clutter_error_rate": 0.005249343832020997,
+                "clutter_to_target_l1_route_rate": 0.15384615384615385,
+                "known_target_final_action_coverage": 0.9763779527559056
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 762,
+              "fit_label_parent_support": {
+                "BalloonTarget": 190,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9577278731836195,
+                0.9934383202099738,
+                0.9514435695538058,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9514435695538058,
+                "dbb_selective_accuracy": 0.9577278731836195,
+                "dbb_subclass_action_coverage": 0.9934383202099738,
+                "dbb_wrong_subclass_accepted_count": 32,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "treatment_epoch20_outer_fold_2_parent",
+            "event_support": 198,
+            "parent_support": 198,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.989247311827957,
+                "recall": 0.968421052631579,
+                "f1": 0.9787234042553192,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 49,
+                "precision": 0.9183673469387755,
+                "recall": 0.9375,
+                "f1": 0.9278350515463918,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 48,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9375,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 5,
+                "precision": 0.8,
+                "recall": 0.5714285714285714,
+                "f1": 0.6666666666666666,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9528795811518325,
+            "clutter_precision": 0.8,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.005235602094240838,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 5,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9393939393939394,
+            "selective_accuracy": 0.9637305699481865,
+            "action_coverage": 0.9747474747474747,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                45.0,
+                1.0,
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 3,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 763,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.8,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 192,
+                "ClutterTarget": 26,
+                "DroneTarget": 380
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.2620263019345589,
+                0.7692307692307693,
+                0.9384010484927916,
+                0.7692307692307693,
+                0.7692307692307693,
+                -0.007863695937090432,
+                -0.19230769230769232,
+                -1.3
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.7692307692307693,
+                "clutter_recall": 0.7692307692307693,
+                "known_target_final_action_recall": 0.9384010484927916,
+                "known_to_clutter_error_rate": 0.007863695937090432,
+                "clutter_to_target_l1_route_rate": 0.19230769230769232,
+                "known_target_final_action_coverage": 0.9764089121887287
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 763,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 192,
+                "DroneTarget": 380
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9591029023746702,
+                0.9934469200524246,
+                0.9528178243774574,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9528178243774574,
+                "dbb_selective_accuracy": 0.9591029023746702,
+                "dbb_subclass_action_coverage": 0.9934469200524246,
+                "dbb_wrong_subclass_accepted_count": 31,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "treatment_epoch20_outer_fold_3_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 96,
+                "accepted_as_class": 94,
+                "precision": 0.9787234042553191,
+                "recall": 0.9583333333333334,
+                "f1": 0.968421052631579,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 47,
+                "accepted_as_class": 47,
+                "precision": 0.9148936170212766,
+                "recall": 0.9148936170212766,
+                "f1": 0.9148936170212766,
+                "unknown_rejected": 2,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 46,
+                "precision": 0.9782608695652174,
+                "recall": 0.9574468085106383,
+                "f1": 0.967741935483871,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 4,
+                "precision": 1.0,
+                "recall": 0.5714285714285714,
+                "f1": 0.7272727272727273,
+                "unknown_rejected": 3,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9473684210526315,
+            "clutter_precision": 1.0,
+            "clutter_recall": 0.5714285714285714,
+            "known_to_clutter_error_rate": 0.0,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 6,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.934010152284264,
+            "selective_accuracy": 0.9633507853403142,
+            "action_coverage": 0.9695431472081218,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                92.0,
+                3.0,
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                2.0,
+                43.0,
+                0.0,
+                0.0,
+                2.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                45.0,
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                4.0,
+                3.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        {
+          "fold_id": 4,
+          "fit_parent_count": 789,
+          "fit_dbb_parent_count": 763,
+          "held_out_parent_count": 197,
+          "thresholds": {
+            "l1_known_target_acceptance": 0.5,
+            "l1_known_clutter_acceptance": 0.6,
+            "l2_subclass_acceptance": 0.55
+          },
+          "fit": {
+            "l1": {
+              "fit_parent_count": 789,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 191,
+                "ClutterTarget": 26,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L1 score grid with target+clutter>1",
+              "candidate_count": 2499,
+              "selection_key": [
+                0.0,
+                -0.1512069258579033,
+                0.7692307692307693,
+                0.9488859764089121,
+                0.8695652173913043,
+                0.7692307692307693,
+                -0.003931847968545216,
+                -0.23076923076923078,
+                -1.1
+              ],
+              "fit_l1_route_metrics": {
+                "clutter_precision": 0.8695652173913043,
+                "clutter_recall": 0.7692307692307693,
+                "known_target_final_action_recall": 0.9488859764089121,
+                "known_to_clutter_error_rate": 0.003931847968545216,
+                "clutter_to_target_l1_route_rate": 0.23076923076923078,
+                "known_target_final_action_coverage": 0.9855832241153342
+              },
+              "feasible_under_l1_clutter_and_final_known_target_safety": false,
+              "fixed_dbb_subclass_threshold": 0.55,
+              "l2_inference_only_clutter_rows_used": false
+            },
+            "l2": {
+              "fit_parent_count": 763,
+              "fit_label_parent_support": {
+                "BalloonTarget": 191,
+                "BirdTarget": 191,
+                "DroneTarget": 381
+              },
+              "candidate_space": "pre-registered 0.50..0.99 L2 top-subclass probability grid",
+              "candidate_count": 50,
+              "selection_key": [
+                1.0,
+                -0.0,
+                0.9617414248021108,
+                0.9934469200524246,
+                0.9554390563564875,
+                -0.55
+              ],
+              "fit_l2_subclass_metrics": {
+                "dbb_correct_action_recall": 0.9554390563564875,
+                "dbb_selective_accuracy": 0.9617414248021108,
+                "dbb_subclass_action_coverage": 0.9934469200524246,
+                "dbb_wrong_subclass_accepted_count": 29,
+                "dbb_unknown_due_to_low_subclass_evidence_count": 5
+              },
+              "feasible_under_dbb_correct_action_recall": true,
+              "inference_only_clutter_rows_excluded": true
+            },
+            "feasible": false
+          },
+          "held_out_metrics": {
+            "scope": "treatment_epoch20_outer_fold_4_parent",
+            "event_support": 197,
+            "parent_support": 197,
+            "aggregation": "event",
+            "per_class": [
+              {
+                "class": "DroneTarget",
+                "support": 95,
+                "accepted_as_class": 93,
+                "precision": 0.967741935483871,
+                "recall": 0.9473684210526315,
+                "f1": 0.9574468085106383,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BirdTarget",
+                "support": 48,
+                "accepted_as_class": 42,
+                "precision": 0.9047619047619048,
+                "recall": 0.7916666666666666,
+                "f1": 0.8444444444444444,
+                "unknown_rejected": 1,
+                "pending_abstain": 0
+              },
+              {
+                "class": "BalloonTarget",
+                "support": 47,
+                "accepted_as_class": 45,
+                "precision": 0.9777777777777777,
+                "recall": 0.9361702127659575,
+                "f1": 0.9565217391304347,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              },
+              {
+                "class": "ClutterTarget",
+                "support": 7,
+                "accepted_as_class": 15,
+                "precision": 0.4666666666666667,
+                "recall": 1.0,
+                "f1": 0.6363636363636364,
+                "unknown_rejected": 0,
+                "pending_abstain": 0
+              }
+            ],
+            "known_target_recall": 0.9052631578947369,
+            "clutter_precision": 0.4666666666666667,
+            "clutter_recall": 1.0,
+            "known_to_clutter_error_rate": 0.042105263157894736,
+            "clutter_to_known_error_rate": 0.0,
+            "unknown_rejected_known_count": 2,
+            "pending_known_count": 0,
+            "accepted_action_accuracy": 0.9086294416243654,
+            "selective_accuracy": 0.9179487179487179,
+            "action_coverage": 0.9898477157360406,
+            "confusion_rows_true_known_label_columns_semantic_action": [
+              [
+                90.0,
+                3.0,
+                0.0,
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                38.0,
+                1.0,
+                7.0,
+                1.0,
+                0.0
+              ],
+              [
+                2.0,
+                1.0,
+                44.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                0.0,
+                7.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        }
+      ],
+      "thresholds_by_fold": {
+        "0": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.8,
+          "l2_subclass_acceptance": 0.64
+        },
+        "1": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.68,
+          "l2_subclass_acceptance": 0.55
+        },
+        "2": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.81,
+          "l2_subclass_acceptance": 0.55
+        },
+        "3": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.8,
+          "l2_subclass_acceptance": 0.55
+        },
+        "4": {
+          "l1_known_target_acceptance": 0.5,
+          "l1_known_clutter_acceptance": 0.6,
+          "l2_subclass_acceptance": 0.55
+        }
+      },
+      "delta_vs_control_parent": {
+        "known_target_recall": -0.0010493179433368471,
+        "clutter_precision": 0.022624434389140302,
+        "clutter_recall": 0.18181818181818188,
+        "clutter_to_known_error_rate": 0.0,
+        "known_to_clutter_error_rate": 0.0020986358866736613,
+        "accepted_action_accuracy": 0.005070993914807365,
+        "action_coverage": 0.006085192697768749
+      },
+      "true_clutter_parent_outcomes": {
+        "ClutterTarget": 23,
+        "UNKNOWN_REJECTED": 10
+      },
+      "paired_parent_transition": {
+        "parent_count": 986,
+        "changed_parent_count": 23,
+        "unchanged_parent_count": 963,
+        "transition_counts": [
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 223
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 6
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 3
+          },
+          {
+            "label_name": "BalloonTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 206
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 4
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 3
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "BirdTarget",
+            "count": 4
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 4
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 1
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 6
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "BirdTarget",
+            "count": 1
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "ClutterTarget",
+            "count": 2
+          },
+          {
+            "label_name": "BirdTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 2
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "ClutterTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 17
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "ClutterTarget",
+            "count": 6
+          },
+          {
+            "label_name": "ClutterTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 10
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BalloonTarget",
+            "treatment_action": "BalloonTarget",
+            "count": 2
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "BirdTarget",
+            "count": 12
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "BirdTarget",
+            "treatment_action": "ClutterTarget",
+            "count": 1
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "DroneTarget",
+            "treatment_action": "DroneTarget",
+            "count": 458
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "DroneTarget",
+            "count": 1
+          },
+          {
+            "label_name": "DroneTarget",
+            "control_action": "UNKNOWN_REJECTED",
+            "treatment_action": "UNKNOWN_REJECTED",
+            "count": 2
+          }
+        ]
+      }
+    }
+  },
+  "paired_component_bootstrap": {
+    "frozen_control_threshold_delta": {
+      "method": "paired provenance-component bootstrap; cross-fitted actions fixed before resampling",
+      "replicates": 2000,
+      "seed": 26064,
+      "confidence_level": 0.95,
+      "component_count": 975,
+      "stratum_component_counts": {
+        "BalloonTarget:1": 228,
+        "BalloonTarget:1+ClutterTarget:1": 2,
+        "BalloonTarget:2": 4,
+        "BirdTarget:1": 236,
+        "BirdTarget:1+DroneTarget:1": 1,
+        "BirdTarget:2": 1,
+        "ClutterTarget:1": 31,
+        "DroneTarget:1": 469,
+        "DroneTarget:2": 3
+      },
+      "delta_metrics": {
+        "accepted_action_accuracy": {
+          "median": 0.008113590263691739,
+          "lower_95": 0.0,
+          "upper_95": 0.017241379310344862,
+          "finite_replicates": 2000
+        },
+        "action_coverage": {
+          "median": 0.007099391480730244,
+          "lower_95": -0.001014198782961384,
+          "upper_95": 0.015212981744421872,
+          "finite_replicates": 2000
+        },
+        "clutter_precision": {
+          "median": 0.06868872549019611,
+          "lower_95": -0.08325717643108946,
+          "upper_95": 0.22549530228758163,
+          "finite_replicates": 2000
+        },
+        "clutter_recall": {
+          "median": 0.2727272727272727,
+          "lower_95": 0.12121212121212122,
+          "upper_95": 0.42424242424242425,
+          "finite_replicates": 2000
+        },
+        "clutter_to_known_error_rate": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0,
+          "finite_replicates": 2000
+        },
+        "known_target_recall": {
+          "median": -0.0010493179433368471,
+          "lower_95": -0.008394543546694666,
+          "upper_95": 0.006295907660020972,
+          "finite_replicates": 2000
+        },
+        "known_to_clutter_error_rate": {
+          "median": 0.0010493179433368315,
+          "lower_95": -0.005246589716684155,
+          "upper_95": 0.007345225603357817,
+          "finite_replicates": 2000
+        }
+      }
+    },
+    "recalibrated_threshold_delta": {
+      "method": "paired provenance-component bootstrap; cross-fitted actions fixed before resampling",
+      "replicates": 2000,
+      "seed": 26064,
+      "confidence_level": 0.95,
+      "component_count": 975,
+      "stratum_component_counts": {
+        "BalloonTarget:1": 228,
+        "BalloonTarget:1+ClutterTarget:1": 2,
+        "BalloonTarget:2": 4,
+        "BirdTarget:1": 236,
+        "BirdTarget:1+DroneTarget:1": 1,
+        "BirdTarget:2": 1,
+        "ClutterTarget:1": 31,
+        "DroneTarget:1": 469,
+        "DroneTarget:2": 3
+      },
+      "delta_metrics": {
+        "accepted_action_accuracy": {
+          "median": 0.005070993914807365,
+          "lower_95": -0.0030425963488843744,
+          "upper_95": 0.014198782961460377,
+          "finite_replicates": 2000
+        },
+        "action_coverage": {
+          "median": 0.006085192697768749,
+          "lower_95": -0.001014198782961384,
+          "upper_95": 0.013184584178498993,
+          "finite_replicates": 2000
+        },
+        "clutter_precision": {
+          "median": 0.02612907024671729,
+          "lower_95": -0.1403017028017028,
+          "upper_95": 0.18909011880614313,
+          "finite_replicates": 2000
+        },
+        "clutter_recall": {
+          "median": 0.18181818181818182,
+          "lower_95": 0.06060606060606055,
+          "upper_95": 0.3333333333333333,
+          "finite_replicates": 2000
+        },
+        "clutter_to_known_error_rate": {
+          "median": 0.0,
+          "lower_95": 0.0,
+          "upper_95": 0.0,
+          "finite_replicates": 2000
+        },
+        "known_target_recall": {
+          "median": -0.0010493179433368471,
+          "lower_95": -0.008394543546694666,
+          "upper_95": 0.006295907660020972,
+          "finite_replicates": 2000
+        },
+        "known_to_clutter_error_rate": {
+          "median": 0.002098635886673662,
+          "lower_95": -0.005246589716684155,
+          "upper_95": 0.009443861490031479,
+          "finite_replicates": 2000
+        }
+      }
+    }
+  },
+  "parent_detail_csv": "src-v3/processed/report/RADAR-LN3-V26d-l1-epoch20-endpoint-parent-actions.csv",
+  "parent_detail_csv_sha256": "49d71aba6daaf78a3c5860db227483741a6c99ab303a0cced7469d57ba4d7e12",
+  "parent_detail_csv_write": "immutable_verified",
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_oof_prediction_count": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "validation_access_count": 0,
+  "test_access_count": 0,
+  "training_executed": false,
+  "mixed_unknown_audit": "not_executed",
+  "full_cascade": "not_executed",
+  "deployment_eligible": false
+}
