@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V26e-l1-epoch32-known-only-oof-calibration-readiness-v1",
+  "contract_path": "data/processed/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration-contract.json",
+  "contract_sha256": "8627f206d2a43354e5c0ce5787974577d613240f77e03c3db74e1dbf5b3c39ba",
+  "checks": {
+    "v26c_source_contract_and_readiness_are_frozen": true,
+    "v26c_provenance_assignment_is_reused_byte_for_byte": true,
+    "each_known_train_parent_is_held_out_once_for_l1": true,
+    "no_provenance_component_crosses_a_fold": true,
+    "l1_normalization_is_reused_from_v26c_fold_train_only": true,
+    "l1_feature_caches_are_reused_from_v26c_without_value_rebuild": true,
+    "unknown_is_excluded_from_training_normalization_cache_and_calibration": true,
+    "l1_train_epoch_limit_is_32": true,
+    "l1_fixed_endpoint_is_epoch_32": true,
+    "l1_checkpoint_selection_is_not_data_driven": true,
+    "v26c_l2_epoch15_outputs_are_reused_read_only": true,
+    "validation_and_test_are_unread_during_prepare": true,
+    "l3_thresholds_are_not_fitted_during_prepare": true
+  },
+  "fold_count": 5,
+  "l1_train_epoch_limit": 32,
+  "l1_fixed_snapshot_epoch": 32,
+  "l2_reused_fixed_snapshot_epoch": 15,
+  "known_train_parent_count": 986,
+  "unknown_training_exposure": 0,
+  "unknown_oof_prediction_count": 0,
+  "validation_access_count": 0,
+  "test_access_count": 0,
+  "l3_calibration": "not_executed",
+  "mixed_unknown_audit": "not_executed",
+  "deployment_eligible": false
+}

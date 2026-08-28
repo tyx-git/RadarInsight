@@ -1,0 +1,111 @@
+{
+  "schema_version": "RADAR-LN3-V26e-OOF-L1",
+  "config_name": "RADAR-LN3-V26e-cq08-known-gate-oof-fold-00-seed43-epoch32",
+  "variant": "v26_known_only_open_set_baseline",
+  "task": {
+    "name": "known_gate",
+    "class_names": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE"
+    ],
+    "label_to_id": {
+      "DroneTarget": 0,
+      "BirdTarget": 0,
+      "BalloonTarget": 0,
+      "ClutterTarget": 1
+    },
+    "forbidden_training_labels": [
+      "UnknownTarget"
+    ],
+    "feature_names": [
+      "causal_prefix_course_circular_incoherence"
+    ]
+  },
+  "data": {
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "contract_path": "data/processed/RADAR-LN3-V26e-cq08-known-gate-oof-fold-00-data-contract.json",
+    "normalization_stats_path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-normalization-stats.json",
+    "train_split_name": "train",
+    "validation_split_name": "val",
+    "test_split_name": "test",
+    "index_schema_version": "RADAR-LN3-V16",
+    "contract_schema_version": "RADAR-LN3-V21-known-gate-data-contract-v1",
+    "expected_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "expected_contract_sha256": "8945745f5e44448410f92ec6903ce9bb68ead2c413960f4cfa695aaa8c797b56",
+    "expected_stats_sha256": "72232edcc0bdd7a9b2bca12116593e4e1de96660ca8783f3f0061d7c806336fb",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "rd_amplitude_center": 55.90625,
+    "rd_amplitude_scale": 6.963808423568587,
+    "feature_cache_manifest_path": null,
+    "expected_feature_cache_manifest_sha256": null,
+    "train_feature_cache_path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-course-cache.npz",
+    "validation_feature_cache_path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-held-out-course-cache.npz",
+    "expected_train_feature_cache_sha256": "becc51ac6797dc796a92e55b6572ebd6af32a3eb61d45bb113d87d4d0136c4c3",
+    "expected_validation_feature_cache_sha256": "427c412a6b8b40d9bbc2327e115ba7c3d782d0f6088271dcd16ed0edac0cdb47",
+    "feature_experiment_contract_path": null,
+    "expected_feature_experiment_contract_sha256": null
+  },
+  "model": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "hidden_dim": 48,
+    "rd_embedding_dim": 24,
+    "liquid_hidden_dim": 48,
+    "rd_height": 21,
+    "rd_width": 384,
+    "liquid_tau_min_seconds": 0.05,
+    "liquid_tau_max_seconds": 30.0,
+    "liquid_zero_dt_event_floor_seconds": 0.001,
+    "liquid_dt_max_seconds": 120.0,
+    "liquid_invalid_dt_update_mode": "bounded_observation",
+    "liquid_invalid_dt_observation_gain": 0.25,
+    "liquid_state_normalization": "recurrent",
+    "rd_frame_aggregation": "masked_mean",
+    "dt_reason_mode": "v3_reason_aware_dynamics_only",
+    "evidence_dim": 1
+  },
+  "train": {
+    "batch_size": 2,
+    "learning_rate": 0.0001,
+    "seed": 43,
+    "dataloader_seed": 43,
+    "device": "cuda",
+    "epochs": 32,
+    "early_stopping_patience": 0,
+    "gradient_clip_norm": 100.0,
+    "checkpoint_selection_metric": "parent_min_precision_recall",
+    "task_min_precision_recall_target": 0.9,
+    "checkpoint_path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-00/l1/epoch-32-model.pt",
+    "last_checkpoint_path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-00/l1/last_model.pt",
+    "formal_artifact_dir": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-00/l1",
+    "epoch_checkpoint_dir": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-00/l1/epochs",
+    "class_weights": [
+      0.5177165354330708,
+      14.61111111111111
+    ],
+    "loss_mode": "parent_final_task_ce_with_prefix_auxiliary",
+    "prefix_auxiliary_weight": 0.1,
+    "prefix_auxiliary_min_events": 3,
+    "checkpoint_schema": "RADAR-LN3-V26e-l1-epoch32-known-only-oof-checkpoint-v1",
+    "record_parent_order_hash": true,
+    "save_every_epoch": false,
+    "cuda_deterministic_algorithms": false,
+    "full_parameter_training": true,
+    "paired_baseline_config_path": null,
+    "class_weight_normalization": "batch_weight_sum"
+  },
+  "v26e_oof": {
+    "fold_id": 0,
+    "role": "fresh L1 OOF support only; not a deployment checkpoint",
+    "train_epoch_limit": 32,
+    "fixed_snapshot_epoch": 32,
+    "checkpoint_selection": "fixed endpoint; no held-out selection",
+    "source_v26c_l1_config_path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-seed43-config.json",
+    "source_v26c_l1_config_sha256": "39554e4c2652e704e176a71b48b24c595229f875077ef0bdbd884191a10b81c8",
+    "source_v26c_l1_training_epochs": 20,
+    "unknown_training_exposure": 0,
+    "held_out_checkpoint_selection": false
+  }
+}
