@@ -1,0 +1,193 @@
+{
+  "schema_version": "RADAR-LN3-V26i-l1-train-only-bimodal-clutter-mahalanobis-diagnostic-contract-v1",
+  "experiment": "V26i frozen L1 train-only fixed-bimodal-Clutter Mahalanobis geometry diagnostic",
+  "scope": "read-only V26h-derived per-fold scoring after V26e L1 epoch-32 freeze; only train-Known Clutter reference geometry changes from one to fixed two components",
+  "direct_source_experiment": "V26h frozen L1 train-only Mahalanobis OOD ranking diagnostic",
+  "source_v26h": {
+    "v26h_contract_sha256": "23fe012c7ffa9adcd4f8ffad4b1d9d6cc66e0661478f09f96a11044c221f6058",
+    "v26h_readiness_sha256": "ecbf77f4b5fb007e03a8407603d0d73774be2cc745bb8d65959f634759463d13",
+    "v26h_report_sha256": "69523010aa0fdaf468e37778d9dab134e744ef7d4e9a4a12aee213c66aeada5f",
+    "v26h_parent_detail_sha256": "33fc95e4176491e7f91137d3278332befd0cbde20a105067f724f83ee82f6945",
+    "v26h_contract_schema": "RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-contract-v1",
+    "v26h_readiness_schema": "RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-readiness-v1",
+    "v26h_report_schema": "RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-v1",
+    "v26h_score_policy": {
+      "score_name": "minimum_class_conditional_pooled_diagonal_mahalanobis_distance",
+      "score_orientation": "higher_means_less_like_train_known",
+      "representation": "classifier_layer_norm_liquid_final_state",
+      "representation_dimension": 48,
+      "reference_fit": "per_fold_train_known_only_parent_final_states",
+      "class_conditional_references": [
+        "KNOWN_TARGET_EVIDENCE",
+        "KNOWN_CLUTTER_EVIDENCE"
+      ],
+      "covariance": "pooled_diagonal_within_class_variance",
+      "variance_floor_multiplier_of_median_positive_variance": 1e-06,
+      "variance_floor_absolute": 1e-10,
+      "unknown_in_reference_fit": false,
+      "unknown_in_normalization": false,
+      "unknown_in_threshold_fit": false,
+      "unknown_in_model_or_checkpoint_selection": false,
+      "threshold_fitting": "not_executed",
+      "semantic_action_mutation": false,
+      "score_fusion_with_msp_or_energy": false,
+      "cross_fold_state_pooling": false
+    },
+    "fixed_epoch": 32,
+    "fold_count": 5,
+    "mixed_parent_counts": {
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    }
+  },
+  "source_bindings": [
+    {
+      "name": "v26h_contract",
+      "path": "data/processed/RADAR-LN3-V26h-cq08-l1-train-only-mahalanobis-ood-diagnostic-contract.json",
+      "sha256": "23fe012c7ffa9adcd4f8ffad4b1d9d6cc66e0661478f09f96a11044c221f6058",
+      "size_bytes": 13442
+    },
+    {
+      "name": "v26h_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-readiness.json",
+      "sha256": "ecbf77f4b5fb007e03a8407603d0d73774be2cc745bb8d65959f634759463d13",
+      "size_bytes": 1565
+    },
+    {
+      "name": "v26h_report",
+      "path": "src-v3/processed/report/RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic.json",
+      "sha256": "69523010aa0fdaf468e37778d9dab134e744ef7d4e9a4a12aee213c66aeada5f",
+      "size_bytes": 3216320
+    },
+    {
+      "name": "v26h_parent_detail",
+      "path": "src-v3/processed/report/RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-parent-details.csv",
+      "sha256": "33fc95e4176491e7f91137d3278332befd0cbde20a105067f724f83ee82f6945",
+      "size_bytes": 684229
+    },
+    {
+      "name": "document",
+      "path": "src-v3/docs/radar_ln3_v26i_bimodal_clutter_mahalanobis_diagnostic.md",
+      "sha256": "3cdab05354497dcf2c8fd412646f867ea86ac3a5993bbbc719206c4989d2ced2",
+      "size_bytes": 4525
+    }
+  ],
+  "implementation_sha256": {
+    "src-v3/radar_ln3/known_gate_v26i.py": "f570706b684f0b4de4c54417d8d0f897cf10af20f7d035267aec3eccdd56cb33",
+    "src-v3/build/known_gate_v26i.py": "42cf86b6fa0b4865fd57141988a0b4da8b7d34122ed1abea572d9bc0f9669ff0",
+    "src-v3/report/known_gate_v26i.py": "c067e809c6fed13bcf196de2f72a6957a52c9d23c11afb0ca03dd0da13ce5e7c",
+    "src-v3/smoke/known_gate_v26i_contract_test.py": "f3ae12839b6c182e1a8a203ed0dc08d273fb600ce0b2ae5a53b7b50795cdbd5e",
+    "src-v3/scripts/v26i_known_gate_bimodal_clutter_mahalanobis_diagnostic_pipeline.ps1": "b51bba8ba640aea90dc63ed07406e289c830ddbca191430a6064dd80e0972579"
+  },
+  "fold_count": 5,
+  "data": {
+    "source": "CQ08",
+    "index": "V16 capture-content-provenance grouped index through V26h bindings",
+    "known_reference_population": "V26e per-fold train KnownTarget/Clutter parents only",
+    "mixed_evaluation_population": "V26f frozen mixed validation/test parents only after checkpoint freeze",
+    "validation_parent_counts": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "test_parent_counts": {
+      "DroneTarget": 109,
+      "BirdTarget": 53,
+      "BalloonTarget": 58,
+      "ClutterTarget": 8,
+      "UnknownTarget": 16
+    }
+  },
+  "ood_score_policy": {
+    "score_name": "minimum_known_target_or_bimodal_clutter_pooled_diagonal_mahalanobis_distance",
+    "score_orientation": "higher_means_less_like_train_known",
+    "representation": "classifier_layer_norm_liquid_final_state",
+    "representation_dimension": 48,
+    "reference_fit": "per_fold_train_known_only_parent_final_states",
+    "known_target_reference": "one class-conditional centre, unchanged from V26h",
+    "known_clutter_reference": {
+      "component_count_fixed": 2,
+      "fit": "deterministic train-only two-means on LayerNorm readout states",
+      "initialization": "global farthest train-Clutter parent pair with parent-id tie break",
+      "distance_for_assignment": "unweighted squared Euclidean readout-state distance",
+      "minimum_component_parent_support": 5,
+      "component_count_selection": "not_executed_fixed_before_scoring"
+    },
+    "covariance": "one pooled diagonal within-reference variance across KnownTarget and both Clutter components",
+    "variance_floor_multiplier_of_median_positive_variance": 1e-06,
+    "variance_floor_absolute": 1e-10,
+    "unknown_in_reference_fit": false,
+    "unknown_in_normalization": false,
+    "unknown_in_threshold_fit": false,
+    "unknown_in_model_or_checkpoint_selection": false,
+    "threshold_fitting": "not_executed",
+    "semantic_action_mutation": false,
+    "score_fusion_with_msp_or_energy": false,
+    "cross_fold_state_pooling": false
+  },
+  "causal_variable": {
+    "control": "V26h one-centre KnownClutter diagonal reference",
+    "treatment": "V26i fixed K=2 deterministic train-only KnownClutter centres with one pooled diagonal variance",
+    "unchanged": [
+      "V26e L1 epoch-32 checkpoints",
+      "LayerNorm classifier readout representation",
+      "KnownTarget single centre",
+      "CQ08 data/index/splits/parent ordering",
+      "normalization/features/model/loss/dt",
+      "V26f mixed evaluation parents",
+      "no threshold/no semantic action/no L3 mutation"
+    ]
+  },
+  "ranking_protocol": {
+    "fit_one_reference_per_fold": true,
+    "readout_state_is_layer_norm_applied_to_liquid_final_state": true,
+    "train_reference_uses_parent_final_causal_state_only": true,
+    "mixed_evaluation_uses_parent_final_causal_state_only": true,
+    "known_vs_unknown_metrics_are_threshold_free": true,
+    "unknown_truth_used_only_for_final_ranking_report": true,
+    "fixed_component_count": 2,
+    "minimum_component_parent_support": 5,
+    "component_count_search": "not_executed",
+    "cross_fold_state_or_score_pooling": false,
+    "semantic_action_changed": false
+  },
+  "future_action_gate": {
+    "known_target_recall_minimum": 0.95,
+    "definition": "future parent-final mixed semantic KnownTarget Recall after a separately pre-registered threshold/action experiment; not evaluable in V26i because V26i emits no action",
+    "status_in_v26i": "not_evaluable_no_threshold_or_semantic_action_replay"
+  },
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_reference_fit_exposure": 0,
+  "unknown_checkpoint_selection_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "new_training": false,
+  "new_threshold_fit": false,
+  "semantic_action_mutation": false,
+  "deployment_eligible": false,
+  "not_executed": {
+    "training": true,
+    "oof_retraining": true,
+    "normalization": true,
+    "checkpoint_selection": true,
+    "threshold_fitting": true,
+    "l3_registry_mutation": true,
+    "feature_cache_rebuild": true,
+    "semantic_action_replay": true,
+    "deployment_registry": true
+  }
+}
