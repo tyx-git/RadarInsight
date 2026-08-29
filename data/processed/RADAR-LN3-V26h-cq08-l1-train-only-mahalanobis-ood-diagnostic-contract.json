@@ -1,0 +1,294 @@
+{
+  "schema_version": "RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-contract-v1",
+  "experiment": "V26h frozen L1 train-only Mahalanobis OOD ranking diagnostic",
+  "scope": "read-only per-fold representation scoring after V26e L1 epoch-32 freeze; train Known parents fit references, mixed CQ08 val/test only evaluates frozen rankings",
+  "direct_source_experiment": "V26e for L1 checkpoints; V26f for frozen mixed evaluation population",
+  "source_v26e": {
+    "v26e_contract_sha256": "8627f206d2a43354e5c0ce5787974577d613240f77e03c3db74e1dbf5b3c39ba",
+    "v26e_readiness_sha256": "5f742a0aa356bf364bb3c98f6c8e26643b10c2637d19e07be4445787372ada00",
+    "v26e_contract_schema": "RADAR-LN3-V26e-l1-epoch32-known-only-oof-calibration-contract-v1",
+    "v26e_readiness_schema": "RADAR-LN3-V26e-l1-epoch32-known-only-oof-calibration-readiness-v1",
+    "fixed_epoch": 32,
+    "folds": [
+      {
+        "fold_id": 0,
+        "train_parent_count": 789,
+        "held_out_parent_count": 197,
+        "config": {
+          "path": "config/RADAR-LN3/RADAR-LN3-V26e-cq08-known-gate-oof-fold-00-seed43-config.json",
+          "sha256": "838a5cbb59c9434b85195830e4ffdf6744a7fc53b9c75dbdfbced3152530248c",
+          "size_bytes": 4916
+        },
+        "checkpoint": {
+          "path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-00/l1/epoch-32-model.pt",
+          "sha256": "511ab816928e6937b6b4525a7c135a9e38c9a45d024d6d8ade3a7f4bdeb0ffe9",
+          "size_bytes": 407346
+        },
+        "train_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-course-cache.npz",
+          "sha256": "becc51ac6797dc796a92e55b6572ebd6af32a3eb61d45bb113d87d4d0136c4c3",
+          "size_bytes": 91551
+        },
+        "held_out_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-held-out-course-cache.npz",
+          "sha256": "427c412a6b8b40d9bbc2327e115ba7c3d782d0f6088271dcd16ed0edac0cdb47",
+          "size_bytes": 22620
+        }
+      },
+      {
+        "fold_id": 1,
+        "train_parent_count": 789,
+        "held_out_parent_count": 197,
+        "config": {
+          "path": "config/RADAR-LN3/RADAR-LN3-V26e-cq08-known-gate-oof-fold-01-seed43-config.json",
+          "sha256": "df7bc6a2bf5a2a965afb6d21ed74b1132f5356192fa983c0e52c064727f257d1",
+          "size_bytes": 4916
+        },
+        "checkpoint": {
+          "path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-01/l1/epoch-32-model.pt",
+          "sha256": "e3788d45c3e66aa2ae6e86cf4a271147df85984c183a3fad9504dd2b31ebab72",
+          "size_bytes": 406514
+        },
+        "train_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-train-course-cache.npz",
+          "sha256": "9a488d0afa011093fe5a030f9a8342a39ab7d007a9bcc51ccf3db93f045a577b",
+          "size_bytes": 91187
+        },
+        "held_out_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-held-out-course-cache.npz",
+          "sha256": "6d5e170daa0c7c59f4059fdabb6a93e9f007d23827d2cbc0fecee32514b8c04f",
+          "size_bytes": 23122
+        }
+      },
+      {
+        "fold_id": 2,
+        "train_parent_count": 788,
+        "held_out_parent_count": 198,
+        "config": {
+          "path": "config/RADAR-LN3/RADAR-LN3-V26e-cq08-known-gate-oof-fold-02-seed43-config.json",
+          "sha256": "0fd64ca7eb3ccd1da53e8b0c601d1210f6a9c06ad6d9b87d781d4fc7db668273",
+          "size_bytes": 4913
+        },
+        "checkpoint": {
+          "path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-02/l1/epoch-32-model.pt",
+          "sha256": "0ccfa987c27f3a48a7c380d6f5575d35f7f673aac5f1a78eabe06895bd869967",
+          "size_bytes": 406514
+        },
+        "train_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-train-course-cache.npz",
+          "sha256": "6da2080d5cb0625f35e09c5b9d2dcd7b7330bb7e9405b9b48a42286d38515090",
+          "size_bytes": 91651
+        },
+        "held_out_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-held-out-course-cache.npz",
+          "sha256": "8a0e1db0646d69b7683a341ef545a9982d830ef4e8be0beafa279393bd9a4ea6",
+          "size_bytes": 22984
+        }
+      },
+      {
+        "fold_id": 3,
+        "train_parent_count": 789,
+        "held_out_parent_count": 197,
+        "config": {
+          "path": "config/RADAR-LN3/RADAR-LN3-V26e-cq08-known-gate-oof-fold-03-seed43-config.json",
+          "sha256": "b786620648283e83f4922cb4126cd15fe3074eae2eac51bd92f81d07a7bba591",
+          "size_bytes": 4917
+        },
+        "checkpoint": {
+          "path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-03/l1/epoch-32-model.pt",
+          "sha256": "06ac9608724b984e8676288d13011a93c106dbd62c2a1ad331b78b9a90a748cc",
+          "size_bytes": 406514
+        },
+        "train_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-train-course-cache.npz",
+          "sha256": "6239ac7668ddb4ddb725d49849531f7e2bd6dcabcd75f6a903947fcd7e9b3674",
+          "size_bytes": 91344
+        },
+        "held_out_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-held-out-course-cache.npz",
+          "sha256": "2076333aab8f1f3cc31c8e8fe3868ef668930062aefa9c98950f763e1f214816",
+          "size_bytes": 23110
+        }
+      },
+      {
+        "fold_id": 4,
+        "train_parent_count": 789,
+        "held_out_parent_count": 197,
+        "config": {
+          "path": "config/RADAR-LN3/RADAR-LN3-V26e-cq08-known-gate-oof-fold-04-seed43-config.json",
+          "sha256": "36f04bf7bb8de1bac12a33c8464dbba46cb672abcb943ab23f485a4fc49da8ff",
+          "size_bytes": 4916
+        },
+        "checkpoint": {
+          "path": "artifacts/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration/fold-04/l1/epoch-32-model.pt",
+          "sha256": "db0201bec2e968e2e04a2603672f24da4381b87389b2761c52ba92ae5a8385f2",
+          "size_bytes": 406514
+        },
+        "train_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-train-course-cache.npz",
+          "sha256": "2196ef6b8df1f3f9650b0c44c02e1dbd65343313392332bc607fe4b355946615",
+          "size_bytes": 91010
+        },
+        "held_out_cache": {
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-held-out-course-cache.npz",
+          "sha256": "dafa968ad78df01155829dc3a0bea78da621ab2ff0f9c79c83606582d560a329",
+          "size_bytes": 23321
+        }
+      }
+    ]
+  },
+  "source_v26f": {
+    "v26f_contract_sha256": "44a7d87ad4bd2d4e424c7f4f5ae6191619cc390014bd0978191686ce8f4ffdc5",
+    "v26f_readiness_sha256": "286a370d7a20365b792400496e640f3d46a7505e6e05410a528122a5ba2056f2",
+    "v26f_report_sha256": "0ac64556eb880471721d843dfa9cdc37b2d1a39472513df8db0ca11c2aefae28",
+    "v26f_parent_detail_sha256": "6d4a14fa54a93bcf61815389b4bc1252cc84cab772606b6400decf8bc51bcecd",
+    "v26f_contract_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-contract-v1",
+    "v26f_readiness_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-readiness-v1",
+    "v26f_report_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-v1",
+    "mixed_parent_counts": {
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    },
+    "mixed_caches": {
+      "val": "data/processed/RADAR-LN3-V26-cq08-known-gate-val-mixed-open-set-course-cache.npz",
+      "test": "data/processed/RADAR-LN3-V26-cq08-known-gate-test-mixed-open-set-course-cache.npz"
+    }
+  },
+  "source_bindings": [
+    {
+      "name": "v26e_contract",
+      "path": "data/processed/RADAR-LN3-V26e-cq08-l1-epoch32-known-only-oof-calibration-contract.json",
+      "sha256": "8627f206d2a43354e5c0ce5787974577d613240f77e03c3db74e1dbf5b3c39ba",
+      "size_bytes": 552098
+    },
+    {
+      "name": "v26e_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26e-l1-epoch32-known-only-oof-calibration-readiness.json",
+      "sha256": "5f742a0aa356bf364bb3c98f6c8e26643b10c2637d19e07be4445787372ada00",
+      "size_bytes": 1530
+    },
+    {
+      "name": "v26f_contract",
+      "path": "data/processed/RADAR-LN3-V26f-cq08-frozen-mixed-open-set-audit-contract.json",
+      "sha256": "44a7d87ad4bd2d4e424c7f4f5ae6191619cc390014bd0978191686ce8f4ffdc5",
+      "size_bytes": 41169
+    },
+    {
+      "name": "v26f_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit-readiness.json",
+      "sha256": "286a370d7a20365b792400496e640f3d46a7505e6e05410a528122a5ba2056f2",
+      "size_bytes": 1422
+    },
+    {
+      "name": "v26f_report",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit.json",
+      "sha256": "0ac64556eb880471721d843dfa9cdc37b2d1a39472513df8db0ca11c2aefae28",
+      "size_bytes": 1018799
+    },
+    {
+      "name": "v26f_parent_detail",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit-parent-details.csv",
+      "sha256": "6d4a14fa54a93bcf61815389b4bc1252cc84cab772606b6400decf8bc51bcecd",
+      "size_bytes": 766061
+    },
+    {
+      "name": "document",
+      "path": "src-v3/docs/radar_ln3_v26h_train_only_mahalanobis_ood_diagnostic.md",
+      "sha256": "ca6dbf17fe6b6283f5d10de01258772064889608d4b32b60bc14b698fe4719d8",
+      "size_bytes": 5136
+    }
+  ],
+  "implementation_sha256": {
+    "src-v3/radar_ln3/known_gate_v26h.py": "58d4aef4e2d55a2bacefea52174157db6c29b2f5bc6d1ba85d9ded0d30bfecde",
+    "src-v3/build/known_gate_v26h.py": "cb3fbc82673efbb242a9247c3e516e990475cbb512f7b28cd5d0da7408884fa4",
+    "src-v3/report/known_gate_v26h.py": "e4a0a32f1945408557718d5a6d093bcb06081304c4dfa2ca116a8b0b0604adbd",
+    "src-v3/smoke/known_gate_v26h_contract_test.py": "b83ba27a89f0d5568fa867c08a71438cd419a9909351e175c3231744b997a985",
+    "src-v3/scripts/v26h_known_gate_train_only_mahalanobis_ood_diagnostic_pipeline.ps1": "fc883e6dc6293d5f13f8bed47e75748ce6cab42a5ddd7564a442b373d5eb0dca"
+  },
+  "fold_count": 5,
+  "data": {
+    "source": "CQ08",
+    "index": "V16 capture-content-provenance grouped index via V26e/V26f bindings",
+    "known_reference_population": "V26e per-fold train KnownTarget/Clutter parents only",
+    "mixed_evaluation_population": "V26f frozen mixed validation/test parents only after checkpoint freeze",
+    "validation_parent_counts": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "test_parent_counts": {
+      "DroneTarget": 109,
+      "BirdTarget": 53,
+      "BalloonTarget": 58,
+      "ClutterTarget": 8,
+      "UnknownTarget": 16
+    }
+  },
+  "ood_score_policy": {
+    "score_name": "minimum_class_conditional_pooled_diagonal_mahalanobis_distance",
+    "score_orientation": "higher_means_less_like_train_known",
+    "representation": "classifier_layer_norm_liquid_final_state",
+    "representation_dimension": 48,
+    "reference_fit": "per_fold_train_known_only_parent_final_states",
+    "class_conditional_references": [
+      "KNOWN_TARGET_EVIDENCE",
+      "KNOWN_CLUTTER_EVIDENCE"
+    ],
+    "covariance": "pooled_diagonal_within_class_variance",
+    "variance_floor_multiplier_of_median_positive_variance": 1e-06,
+    "variance_floor_absolute": 1e-10,
+    "unknown_in_reference_fit": false,
+    "unknown_in_normalization": false,
+    "unknown_in_threshold_fit": false,
+    "unknown_in_model_or_checkpoint_selection": false,
+    "threshold_fitting": "not_executed",
+    "semantic_action_mutation": false,
+    "score_fusion_with_msp_or_energy": false,
+    "cross_fold_state_pooling": false
+  },
+  "ranking_protocol": {
+    "fit_one_reference_per_fold": true,
+    "readout_state_is_layer_norm_applied_to_liquid_final_state": true,
+    "train_reference_uses_parent_final_causal_state_only": true,
+    "mixed_evaluation_uses_parent_final_causal_state_only": true,
+    "known_vs_unknown_metrics_are_threshold_free": true,
+    "unknown_truth_used_only_for_final_ranking_report": true,
+    "msp_comparator_source": "V26a frozen max-known-confidence diagnostic; no threshold reused",
+    "cross_fold_state_or_score_pooling": false,
+    "semantic_action_changed": false
+  },
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_reference_fit_exposure": 0,
+  "unknown_checkpoint_selection_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "new_training": false,
+  "new_threshold_fit": false,
+  "semantic_action_mutation": false,
+  "deployment_eligible": false,
+  "not_executed": {
+    "training": true,
+    "oof_retraining": true,
+    "normalization": true,
+    "checkpoint_selection": true,
+    "threshold_fitting": true,
+    "l3_registry_mutation": true,
+    "feature_cache_rebuild": true,
+    "semantic_action_replay": true,
+    "deployment_registry": true
+  }
+}

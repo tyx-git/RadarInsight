@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V26h-l1-train-only-mahalanobis-ood-diagnostic-readiness-v1",
+  "contract_path": "data/processed/RADAR-LN3-V26h-cq08-l1-train-only-mahalanobis-ood-diagnostic-contract.json",
+  "contract_sha256": "23fe012c7ffa9adcd4f8ffad4b1d9d6cc66e0661478f09f96a11044c221f6058",
+  "checks": {
+    "v26e_five_fixed_epoch32_l1_checkpoints_and_train_caches_are_hash_bound": true,
+    "v26e_train_and_held_out_parent_sets_are_disjoint_per_fold": true,
+    "v26f_frozen_mixed_val_test_caches_and_report_are_hash_bound": true,
+    "representation_is_the_actual_l1_classifier_layer_norm_input_space": true,
+    "reference_fit_is_train_known_only_per_fold": true,
+    "unknown_is_excluded_from_model_normalization_reference_and_threshold_fits": true,
+    "unknown_truth_is_report_only_after_score_freeze": true,
+    "msp_threshold_oracle_is_not_reused": true,
+    "no_cross_fold_state_pooling_or_action_mutation_is_present": true,
+    "no_training_or_threshold_fitting_is_present": true
+  },
+  "fold_count": 5,
+  "validation_parent_counts": {
+    "DroneTarget": 113,
+    "BirdTarget": 56,
+    "BalloonTarget": 54,
+    "ClutterTarget": 9,
+    "UnknownTarget": 15
+  },
+  "test_parent_counts": {
+    "DroneTarget": 109,
+    "BirdTarget": 53,
+    "BalloonTarget": 58,
+    "ClutterTarget": 8,
+    "UnknownTarget": 16
+  },
+  "unknown_reference_fit_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "training": "not_executed",
+  "threshold_fitting": "not_executed",
+  "deployment_eligible": false
+}
