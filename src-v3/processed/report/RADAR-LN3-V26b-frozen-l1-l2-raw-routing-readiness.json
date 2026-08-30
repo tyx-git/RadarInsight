@@ -1,0 +1,56 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V26b-frozen-l1-l2-raw-routing-readiness-v1",
+  "checks": {
+    "v26_known_gate_checkpoint_is_frozen_and_strict_open_set": true,
+    "v18r_dbb_checkpoint_is_frozen_and_hash_bound": true,
+    "validation_l2_mixed_cache_uses_label_free_frozen_v18_extraction": true,
+    "validation_known_dbb_values_exactly_match_frozen_v18_caches": true,
+    "test_l2_cache_is_not_materialized_during_prepare": true,
+    "l3_registry_is_unfitted_and_final_actions_are_disabled": true,
+    "unknown_is_not_a_model_class_or_training_target": true,
+    "pending_is_not_unknown_rejection_success": true,
+    "full_product_open_set_claim_is_deferred_until_cross_fitted_l3": true
+  },
+  "contract_path": "data/processed/RADAR-LN3-V26b-cq08-frozen-l1-l2-raw-routing-contract.json",
+  "contract_sha256": "100240b44854cbfba9ada6ad049b077b2f225042e47ae536d9ee304b08e1bc9f",
+  "l3_registry_path": "data/processed/RADAR-LN3-V26b-cq08-semantic-decision-layer-unfitted-registry.json",
+  "l3_registry_sha256": "2978b62875d70d64b732d3cc2c2fabffb44f1f6ec1bc45863f9dfe0bc6a094d7",
+  "validation_l2_cache": {
+    "split": "val",
+    "physical_cache": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-rd-physical4-cache.npz",
+    "physical_cache_sha256": "0cc1ed6b96d6924f10cbf778fd6bba0009a4e0a108ef0184fd03452804c438b3",
+    "micro_doppler_cache": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-micro-doppler8-cache.npz",
+    "micro_doppler_cache_sha256": "967067ef3c00dd7eabef45044afd7789ba6047a2097e837af187c340466f10b4",
+    "event_count": 4725,
+    "parent_label_counts": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "valid_event_count": 4670,
+    "invalid_event_count": 55,
+    "raw_file_count": 247,
+    "rd_tensor_count": 247,
+    "complete_evidence_profiles_materialized": false,
+    "label_free_extraction": true,
+    "frozen_v18_known_subset_exact_match": {
+      "known_dbb_event_count": 4288,
+      "mixed_event_count": 4725
+    }
+  },
+  "cache_manifest_path": "data/processed/RADAR-LN3-V26b-cq08-l2-mixed-open-set-feature-cache-manifest.json",
+  "cache_manifest_sha256": "a2a6986c039d4f04a956fc35fec8d3f42cf2949b30ab04e2fbc2801f8b35c3ca",
+  "validation_parent_count": 247,
+  "validation_unknown_parent_count": 15,
+  "planned_test_parent_count": 244,
+  "planned_test_unknown_parent_count": 16,
+  "test_raw_payload_access_count": 0,
+  "training": "not_executed",
+  "OOF": "not_executed",
+  "L3_calibration": "not_executed",
+  "test": "not_executed",
+  "deployment_eligible": false
+}

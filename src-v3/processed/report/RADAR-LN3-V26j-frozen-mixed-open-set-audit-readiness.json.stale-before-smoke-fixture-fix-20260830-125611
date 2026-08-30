@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V26j-frozen-mixed-open-set-audit-readiness-v1",
+  "contract_path": "data/processed/RADAR-LN3-V26j-cq08-frozen-mixed-open-set-audit-contract.json",
+  "contract_sha256": "5d86a64b3316818c2bad6443a87101cb03cd996eea0ddd00174998448d75c38a",
+  "checks": {
+    "frozen_v26j_causal_gru_source_is_sealed": true,
+    "frozen_v26c_l2_source_is_sealed": true,
+    "all_mixed_caches_are_hash_and_order_valid": true,
+    "all_five_causal_gru_fold_sources_are_present": true,
+    "unknown_excluded_from_training_normalization_checkpoint_and_threshold_fit": true,
+    "true_labels_do_not_control_routing": true,
+    "pending_is_not_counted_as_unknown_rejection": true,
+    "folds_not_pooled_for_deployment": true
+  },
+  "fold_count": 5,
+  "validation_parent_counts": {
+    "DroneTarget": 113,
+    "BirdTarget": 56,
+    "BalloonTarget": 54,
+    "ClutterTarget": 9,
+    "UnknownTarget": 15
+  },
+  "test_parent_counts": {
+    "DroneTarget": 109,
+    "BirdTarget": 53,
+    "BalloonTarget": 58,
+    "ClutterTarget": 8,
+    "UnknownTarget": 16
+  },
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_checkpoint_selection_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "unknown_oof_prediction_count": 0,
+  "validation_access_count": 0,
+  "test_access_count": 0,
+  "threshold_fitting": "not_executed",
+  "deployment_eligible": false
+}

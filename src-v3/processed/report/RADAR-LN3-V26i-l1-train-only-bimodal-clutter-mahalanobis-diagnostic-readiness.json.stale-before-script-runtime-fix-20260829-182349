@@ -1,0 +1,42 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V26i-l1-train-only-bimodal-clutter-mahalanobis-diagnostic-readiness-v1",
+  "contract_path": "data/processed/RADAR-LN3-V26i-cq08-l1-train-only-bimodal-clutter-mahalanobis-diagnostic-contract.json",
+  "contract_sha256": "282c3438a931c8844c75d4f30b8584d3b08f33e336d99bcf8a2ece08c5bf67f6",
+  "checks": {
+    "v26h_completed_source_chain_and_five_fixed_l1_checkpoints_are_hash_bound": true,
+    "v26h_train_and_mixed_parent_population_bindings_are_reused_without_change": true,
+    "representation_is_the_actual_l1_classifier_layer_norm_input_space": true,
+    "only_clutter_reference_geometry_changes_from_one_to_fixed_two_centres": true,
+    "component_count_is_fixed_before_scoring_and_not_selected_from_unknown_or_held_out_labels": true,
+    "each_component_has_a_pre_registered_minimum_train_parent_support_or_fold_is_infeasible": true,
+    "unknown_is_excluded_from_model_normalization_reference_and_threshold_fits": true,
+    "unknown_truth_is_report_only_after_score_freeze": true,
+    "known_target_recall_minimum_is_recorded_for_future_action_experiment_not_claimed_here": true,
+    "no_cross_fold_state_pooling_action_mutation_training_or_threshold_fitting_is_present": true
+  },
+  "fold_count": 5,
+  "validation_parent_counts": {
+    "DroneTarget": 113,
+    "BirdTarget": 56,
+    "BalloonTarget": 54,
+    "ClutterTarget": 9,
+    "UnknownTarget": 15
+  },
+  "test_parent_counts": {
+    "DroneTarget": 109,
+    "BirdTarget": 53,
+    "BalloonTarget": 58,
+    "ClutterTarget": 8,
+    "UnknownTarget": 16
+  },
+  "fixed_clutter_component_count": 2,
+  "minimum_component_parent_support": 5,
+  "known_target_recall_minimum_for_future_action_gate": 0.95,
+  "known_target_recall_status_in_v26i": "not_evaluable_no_action_replay",
+  "unknown_reference_fit_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "training": "not_executed",
+  "threshold_fitting": "not_executed",
+  "deployment_eligible": false
+}
