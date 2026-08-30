@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from .config import V3Config, resolve_project_path
 from .data import RD_QUALITY_NAMES, RD_QUALITY_SCHEMA, require_causal_rd_quality_schema
-
-
-def sha256_file(path: str | Path) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from .runtime import sha256_file
 
 
 def verify_formal_data_contract(project_root: Path, config: V3Config) -> dict[str, Any]:

@@ -25,6 +25,7 @@ from .features import (
 from .micro_doppler import MICRO_DOPPLER_VALUE_DIM, load_micro_doppler_cache
 from .micro_doppler_broadband import BROADBAND_MICRO_DOPPLER_VALUE_DIM
 from .rd_physical import RD_PHYSICAL_VALUE_DIM, load_rd_physical_cache
+from .runtime import parse_bool, resolve_project_path
 
 
 RD_QUALITY_SCHEMA = "causal-current-event-v1"
@@ -110,10 +111,9 @@ REQUIRED_INDEX_COLUMNS = {
 }
 
 
-def _as_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() in {"1", "true", "yes", "y"}
+# Compatibility name retained for historical callers.  New code should use
+# ``parse_bool`` directly so malformed configuration values fail closed.
+_as_bool = parse_bool
 
 
 def _parse_indices(value: Any) -> list[int]:
@@ -194,16 +194,16 @@ class _TensorCache:
     def load(self, relative_path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         if not relative_path:
             raise ValueError("present RD row has an empty tensor path")
-        path = Path(relative_path.replace("\\", "/"))
-        if not path.is_absolute():
-            path = self.project_root / path
-        key = str(path.resolve())
+        path = resolve_project_path(
+            self.project_root,
+            relative_path,
+            must_exist=True,
+        )
+        key = str(path)
         cached = self._items.get(key)
         if cached is not None:
             self._items.move_to_end(key)
             return cached
-        if not path.is_file():
-            raise FileNotFoundError(f"RD tensor does not exist: {path}")
         _preflight_rd_tensor_archive(path)
         with np.load(path, allow_pickle=False) as payload:
             required = {"amplitude", "phase", "time_seconds"}
@@ -300,8 +300,11 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         allowed_parent_ids: frozenset[str] | set[str] | tuple[str, ...] | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
-        path = Path(str(index_path).replace("\\", "/"))
-        self.index_path = path if path.is_absolute() else self.project_root / path
+        self.index_path = resolve_project_path(
+            self.project_root,
+            index_path,
+            must_exist=True,
+        )
         self.max_sequence_length = max(1, int(max_sequence_length))
         self.max_rd_frames_per_point = max(1, int(max_rd_frames_per_point))
         self.rd_amplitude_center = float(rd_amplitude_center)
@@ -433,8 +436,11 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
         self._rd_physical_valid: dict[str, bool] | None = None
         self.rd_physical_cache_metadata: dict[str, Any] | None = None
         if rd_physical_cache_path is not None:
-            cache_path = Path(str(rd_physical_cache_path).replace("\\", "/"))
-            self.rd_physical_cache_path = cache_path if cache_path.is_absolute() else self.project_root / cache_path
+            self.rd_physical_cache_path = resolve_project_path(
+                self.project_root,
+                rd_physical_cache_path,
+                must_exist=True,
+            )
             expected_ids = self.frame["sample_id"].astype(str).tolist()
             mapping, metadata = load_rd_physical_cache(
                 self.rd_physical_cache_path,
@@ -456,9 +462,10 @@ class CQ08PointSequenceDataset(Dataset[PointSequence]):
                 raise ValueError(
                     "Dataset micro-Doppler cache dimension does not match a registered contract"
                 )
-            cache_path = Path(str(micro_doppler_cache_path).replace("\\", "/"))
-            self.micro_doppler_cache_path = (
-                cache_path if cache_path.is_absolute() else self.project_root / cache_path
+            self.micro_doppler_cache_path = resolve_project_path(
+                self.project_root,
+                micro_doppler_cache_path,
+                must_exist=True,
             )
             expected_ids = self.frame["sample_id"].astype(str).tolist()
             mapping, metadata = load_micro_doppler_cache(

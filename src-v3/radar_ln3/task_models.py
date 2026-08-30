@@ -1,4 +1,4 @@
-"""Legacy V5-V20 liquid-model task contracts.
+"""Versioned task-model contracts used by historical experiments.
 
 The canonical V21 product architecture lives in ``open_set_architecture.py``
 and its L1 implementation lives in ``known_gate.py``.  The identifiers
@@ -53,7 +53,8 @@ from .features import (
     resolve_causal_tr_feature_contract,
 )
 from .losses import parent_final_task_ce_with_prefix_auxiliary
-from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
+from .liquid import build_cfc_liquid_encoder
+from .model import RDSpatialEncoder
 from .micro_doppler import (
     MICRO_DOPPLER_MASK_MODE,
     MICRO_DOPPLER_NAMES,
@@ -77,6 +78,13 @@ from .rd_physical import (
     RD_PHYSICAL_VALUE_DIM,
     extract_current_event_rd_physical,
     rd_physical_contract,
+)
+from .runtime import (
+    atomic_torch_save,
+    canonical_sha256,
+    parse_bool,
+    resolve_project_path,
+    sha256_file,
 )
 
 
@@ -531,13 +539,7 @@ def task_config_identity_sha256(config: LiquidTaskConfig) -> str:
         "model": model_identity,
         "train": train_identity,
     }
-    encoded = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return canonical_sha256(payload)
 
 
 def task_spec(name: str, *, schema_version: str | None = None) -> TaskSpec:
@@ -554,10 +556,9 @@ def _required(mapping: Mapping[str, Any], key: str) -> Any:
     return mapping[key]
 
 
-def _as_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() in {"1", "true", "yes", "y"}
+# Compatibility name retained for historical task callers.  New loaders use
+# the shared strict parser directly through this alias.
+_as_bool = parse_bool
 
 
 def load_task_config(path: str | Path) -> LiquidTaskConfig:
@@ -1437,19 +1438,6 @@ def load_task_config(path: str | Path) -> LiquidTaskConfig:
         model=model,
         train=train,
     )
-
-
-def resolve_project_path(project_root: Path, value: str | Path) -> Path:
-    candidate = Path(str(value).replace("\\", "/"))
-    return candidate if candidate.is_absolute() else project_root / candidate
-
-
-def sha256_file(path: str | Path) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def verify_task_data_contract(project_root: Path, config: LiquidTaskConfig) -> dict[str, Any]:
@@ -2351,7 +2339,7 @@ class LiquidTaskClassifier(nn.Module):
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.SiLU(),
         )
-        self.liquid = CfCLiquidCausalEncoder(
+        self.liquid = build_cfc_liquid_encoder(
             model.liquid_hidden_dim,
             model.liquid_hidden_dim,
             tau_min_seconds=model.liquid_tau_min_seconds,
@@ -3687,66 +3675,6 @@ def _probabilities(logits: torch.Tensor) -> torch.Tensor:
     return torch.softmax(logits, dim=-1)
 
 
-def compose_soft_cascade(
-    gate_logits: torch.Tensor,
-    dbb_logits: torch.Tensor,
-    cu_logits: torch.Tensor,
-) -> torch.Tensor:
-    """Compose P(DBB/CU) with conditional specialists into five probabilities.
-
-    Class order is Drone, Bird, Balloon, Clutter, Unknown.  No hard route is
-    applied, so uncertainty at the gate remains recoverable by the specialist
-    probabilities and can later be calibrated or rejected.
-    """
-
-    if gate_logits.shape[:-1] != dbb_logits.shape[:-1] or gate_logits.shape[:-1] != cu_logits.shape[:-1]:
-        raise ValueError("soft cascade batch/sequence shapes do not match")
-    if gate_logits.shape[-1] != 2 or dbb_logits.shape[-1] != 3 or cu_logits.shape[-1] != 2:
-        raise ValueError("soft cascade expects gate=2, dbb=3 and cu=2 logits")
-    gate = _probabilities(gate_logits)
-    dbb = _probabilities(dbb_logits)
-    cu = _probabilities(cu_logits)
-    return torch.cat([gate[..., 0:1] * dbb, gate[..., 1:2] * cu], dim=-1)
-
-
-def compose_strict_open_set_evidence(
-    gate_logits: torch.Tensor,
-    dbb_logits: torch.Tensor,
-    cu_logits: torch.Tensor,
-) -> torch.Tensor:
-    """Compose V14 known evidence without inventing an Unknown probability.
-
-    Output order is Drone, Bird, Balloon, Clutter and
-    ``UNRESOLVED_OPEN_SET_EVIDENCE``.  The final value is
-    ``P(route CU) * P(non-Clutter-known evidence | CU head)``.  It is a
-    rejection feature, not a learned Unknown class posterior.
-    """
-
-    if gate_logits.shape[:-1] != dbb_logits.shape[:-1] or gate_logits.shape[:-1] != cu_logits.shape[:-1]:
-        raise ValueError("strict open-set evidence batch/sequence shapes do not match")
-    if gate_logits.shape[-1] != 2 or dbb_logits.shape[-1] != 3 or cu_logits.shape[-1] != 2:
-        raise ValueError("strict open-set evidence expects gate=2, dbb=3 and cu=2 logits")
-    gate = _probabilities(gate_logits)
-    dbb = _probabilities(dbb_logits)
-    cu = _probabilities(cu_logits)
-    evidence = torch.cat(
-        [
-            gate[..., 0:1] * dbb,
-            gate[..., 1:2] * cu[..., 0:1],
-            gate[..., 1:2] * cu[..., 1:2],
-        ],
-        dim=-1,
-    )
-    if not torch.allclose(
-        evidence.sum(dim=-1),
-        torch.ones_like(evidence[..., 0]),
-        atol=1.0e-5,
-        rtol=1.0e-5,
-    ):
-        raise ValueError("strict open-set evidence does not form a normalized audit decomposition")
-    return evidence
-
-
 def save_task_checkpoint(
     path: str | Path,
     model: LiquidTaskClassifier,
@@ -3759,7 +3687,6 @@ def save_task_checkpoint(
     training_state: Mapping[str, Any] | None = None,
 ) -> None:
     target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
     model_contract: dict[str, Any] = {
         "class_names": list(config.task.class_names),
         "num_classes": config.task.num_classes,
@@ -3986,7 +3913,7 @@ def save_task_checkpoint(
         }
         if optimizer is None or training_state is None or set(training_state) != required_resume_fields:
             raise ValueError("formal paired checkpoints require optimizer and complete epoch-boundary recovery state")
-    torch.save(payload, target)
+    atomic_torch_save(target, payload)
 
 
 def load_task_checkpoint(
@@ -4600,8 +4527,6 @@ __all__ = [
     "build_v20_paired_model_for_config",
     "build_paired_model_for_config",
     "capture_training_state",
-    "compose_soft_cascade",
-    "compose_strict_open_set_evidence",
     "evaluate_task",
     "is_product_local_schema",
     "is_broadband_micro_doppler_schema",

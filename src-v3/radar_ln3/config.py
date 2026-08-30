@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .runtime import parse_bool, resolve_project_path
+
 
 @dataclass(frozen=True)
 class DataConfig:
@@ -111,7 +113,10 @@ def load_config(path: str | Path) -> V3Config:
         split_name=str(_require(data_payload, "split_name")),
         max_sequence_length=max(1, int(_require(data_payload, "max_sequence_length"))),
         max_rd_frames_per_point=max(1, int(_require(data_payload, "max_rd_frames_per_point"))),
-        exclude_anomalous_parents=bool(_require(data_payload, "exclude_anomalous_parents")),
+        exclude_anomalous_parents=parse_bool(
+            _require(data_payload, "exclude_anomalous_parents"),
+            field="data.exclude_anomalous_parents",
+        ),
         sample_limit=(None if data_payload.get("sample_limit") is None else max(1, int(data_payload["sample_limit"]))),
         rd_amplitude_center=float(_require(data_payload, "rd_amplitude_center")),
         rd_amplitude_scale=float(_require(data_payload, "rd_amplitude_scale")),
@@ -183,13 +188,19 @@ def load_config(path: str | Path) -> V3Config:
         seed=int(_require(train_payload, "seed")),
         device=str(_require(train_payload, "device")),
         checkpoint_path=str(_require(train_payload, "checkpoint_path")),
-        allow_parameter_updates=bool(train_payload.get("allow_parameter_updates", True)),
+        allow_parameter_updates=parse_bool(
+            train_payload.get("allow_parameter_updates", True),
+            field="train.allow_parameter_updates",
+        ),
         mode=str(train_payload.get("mode", "smoke")),
         epochs=max(1, int(train_payload.get("epochs", 1))),
         early_stopping_patience=max(0, int(train_payload.get("early_stopping_patience", 0))),
         gradient_clip_norm=float(train_payload.get("gradient_clip_norm", 100.0)),
         checkpoint_selection_metric=str(train_payload.get("checkpoint_selection_metric", "val_macro_f1")),
-        evaluate_test=bool(train_payload.get("evaluate_test", False)),
+        evaluate_test=parse_bool(
+            train_payload.get("evaluate_test", False),
+            field="train.evaluate_test",
+        ),
         max_train_steps=(None if train_payload.get("max_train_steps") is None else max(1, int(train_payload["max_train_steps"]))),
         class_weights=tuple(float(value) for value in train_payload.get("class_weights", [1.0] * 5)),
         last_checkpoint_path=(None if train_payload.get("last_checkpoint_path") is None else str(train_payload["last_checkpoint_path"])),
@@ -251,11 +262,5 @@ def load_config(path: str | Path) -> V3Config:
         train=train,
         evaluation=evaluation,
     )
-
-
-def resolve_project_path(project_root: Path, value: str | Path) -> Path:
-    candidate = Path(str(value).replace("\\", "/"))
-    return candidate if candidate.is_absolute() else project_root / candidate
-
 
 __all__ = ["DataConfig", "EvaluationConfig", "ModelConfig", "TrainConfig", "V3Config", "load_config", "resolve_project_path"]

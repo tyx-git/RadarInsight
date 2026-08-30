@@ -1,8 +1,8 @@
-"""Canonical RADAR-LN3 V21 strict-open-set action semantics.
+"""Canonical strict-open-set action semantics for the current product.
 
-Legacy V5-V20 cascade modules remain importable only to reproduce historical
-artifacts.  New product code must use the identifiers and mutually exclusive
-actions defined here; Unknown is never a learned L1/L2 class.
+Historical experiment modules are no longer product entry points.  The
+current topology is L1 KnownGate, L2 DBB specialist, and L3 semantic decision;
+Unknown is an action rather than a learned L1/L2 class.
 """
 
 from __future__ import annotations

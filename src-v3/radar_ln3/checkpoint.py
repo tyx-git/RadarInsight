@@ -5,6 +5,8 @@ from typing import Any
 
 import torch
 
+from .runtime import atomic_torch_save
+
 
 CHECKPOINT_SCHEMA = "RADAR-LN3-V0-checkpoint-v1"
 FORMAL_CHECKPOINT_SCHEMA = "RADAR-LN3-V2-formal-checkpoint-v1"
@@ -13,7 +15,6 @@ FORMAL_CHECKPOINT_SCHEMA_V3 = "RADAR-LN3-V3-formal-checkpoint-v1"
 
 def save_checkpoint(path: str | Path, model: torch.nn.Module, optimizer: torch.optim.Optimizer | None, *, config_name: str, step: int) -> None:
     target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "checkpoint_schema": CHECKPOINT_SCHEMA,
         "config_name": str(config_name),
@@ -22,7 +23,7 @@ def save_checkpoint(path: str | Path, model: torch.nn.Module, optimizer: torch.o
     }
     if optimizer is not None:
         payload["optimizer_state"] = optimizer.state_dict()
-    torch.save(payload, target)
+    atomic_torch_save(target, payload)
 
 
 def load_checkpoint(path: str | Path, model: torch.nn.Module, optimizer: torch.optim.Optimizer | None = None, *, map_location: str | torch.device = "cpu") -> dict[str, Any]:
@@ -48,7 +49,6 @@ def save_formal_checkpoint(
     checkpoint_schema: str = FORMAL_CHECKPOINT_SCHEMA,
 ) -> None:
     target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "checkpoint_schema": str(checkpoint_schema),
         "config_name": str(config_name),
@@ -60,7 +60,7 @@ def save_formal_checkpoint(
     }
     if optimizer is not None:
         payload["optimizer_state"] = optimizer.state_dict()
-    torch.save(payload, target)
+    atomic_torch_save(target, payload)
 
 
 def load_formal_checkpoint(

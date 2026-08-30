@@ -54,8 +54,16 @@ from .known_gate_features import (
     V26J_RD_CAUSAL_GRU_VARIANT,
     load_known_gate_feature_cache,
 )
-from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
+from .liquid import build_cfc_liquid_encoder
+from .model import RDSpatialEncoder
 from .open_set_architecture import KNOWN_GATE_TASK_NAME, KnownGateClass
+from .runtime import (
+    canonical_sha256,
+    parse_bool,
+    resolve_project_path,
+    sha256_file,
+    atomic_torch_save,
+)
 
 
 V21_SCHEMA_VERSION = "RADAR-LN3-V21"
@@ -216,23 +224,13 @@ def _require(mapping: Mapping[str, Any], key: str) -> Any:
     return mapping[key]
 
 
-def _as_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value).strip().lower() in {"1", "true", "yes", "y"}
-
-
 def _resolve(root: Path, value: str | Path) -> Path:
-    path = Path(str(value).replace("\\", "/"))
-    return path.resolve() if path.is_absolute() else (root / path).resolve()
+    return resolve_project_path(root, value)
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+# Compatibility alias retained for V21-V26 callers.  New configuration code
+# should pass a field name to the shared parser for useful error messages.
+_as_bool = parse_bool
 
 
 @dataclass(frozen=True)
@@ -1720,7 +1718,11 @@ class KnownGateDataset(Dataset[KnownGateSequence]):
                     raise ValueError("V21 Treatment Dataset has no feature cache path")
                 resolved_cache_path = _resolve(base.project_root, cache_path)
             else:
-                resolved_cache_path = Path(feature_cache_path).resolve()
+                resolved_cache_path = resolve_project_path(
+                    base.project_root,
+                    feature_cache_path,
+                    must_exist=True,
+                )
             values, valid, metadata = load_known_gate_feature_cache(
                 resolved_cache_path,
                 expected_sample_ids=base.frame["sample_id"].astype(str).tolist(),
@@ -2019,7 +2021,7 @@ class KnownGateClassifier(nn.Module):
             nn.LayerNorm(model.liquid_hidden_dim),
             nn.SiLU(),
         )
-        self.liquid = CfCLiquidCausalEncoder(
+        self.liquid = build_cfc_liquid_encoder(
             model.liquid_hidden_dim,
             model.liquid_hidden_dim,
             tau_min_seconds=model.liquid_tau_min_seconds,

@@ -10,6 +10,7 @@ thresholds and action rules that are fitted after model training.
 from __future__ import annotations
 
 import string
+from pathlib import Path
 from typing import Any, Mapping
 
 from .open_set_architecture import (
@@ -18,6 +19,7 @@ from .open_set_architecture import (
     KNOWN_GATE_TASK_NAME,
     SEMANTIC_DECISION_LAYER_NAME,
 )
+from .runtime import resolve_project_path, verify_file_hash
 
 
 SEMANTIC_DECISION_REGISTRY_SCHEMA = (
@@ -27,7 +29,12 @@ UNFITTED_CALIBRATION_STATUS = "unfitted_raw_routing_audit_only"
 FITTED_CALIBRATION_STATUS = "fitted_cross_validated"
 
 
-def validate_semantic_decision_registry(payload: Mapping[str, Any]) -> dict[str, Any]:
+def validate_semantic_decision_registry(
+    payload: Mapping[str, Any],
+    *,
+    project_root: str | Path | None = None,
+    verify_artifact_hashes: bool = False,
+) -> dict[str, Any]:
     """Validate a minimal immutable L3 registry without loading model weights.
 
     The validator intentionally permits an *unfitted* registry.  It is useful
@@ -83,6 +90,40 @@ def validate_semantic_decision_registry(payload: Mapping[str, Any]) -> dict[str,
                 raise ValueError(
                     f"semantic-decision registry {key} has an invalid {field}"
                 )
+        if verify_artifact_hashes:
+            if project_root is None:
+                raise ValueError("project_root is required for artifact hash verification")
+            for path_field, hash_field in (
+                ("config_path", "config_sha256"),
+                ("checkpoint_path", "checkpoint_sha256"),
+                ("training_summary_path", "training_summary_sha256"),
+            ):
+                artifact_path = resolve_project_path(
+                    project_root,
+                    binding[path_field],
+                    must_exist=True,
+                )
+                verify_file_hash(
+                    artifact_path,
+                    binding[hash_field],
+                    field=f"{key}.{hash_field}",
+                )
+            optional_readiness_path = binding.get("training_readiness_path")
+            optional_readiness_hash = binding.get("training_readiness_sha256")
+            if (optional_readiness_path is None) != (optional_readiness_hash is None):
+                raise ValueError(
+                    f"semantic-decision registry {key} readiness path/hash must be paired"
+                )
+            if optional_readiness_path is not None:
+                verify_file_hash(
+                    resolve_project_path(
+                        project_root,
+                        optional_readiness_path,
+                        must_exist=True,
+                    ),
+                    optional_readiness_hash,
+                    field=f"{key}.training_readiness_sha256",
+                )
 
     calibration = dict(value.get("calibration") or {})
     status = calibration.get("status")
@@ -118,9 +159,23 @@ def validate_semantic_decision_registry(payload: Mapping[str, Any]) -> dict[str,
     return value
 
 
+def verify_semantic_decision_registry_artifacts(
+    payload: Mapping[str, Any],
+    project_root: str | Path,
+) -> dict[str, Any]:
+    """Validate structure and recompute every registry-bound artifact hash."""
+
+    return validate_semantic_decision_registry(
+        payload,
+        project_root=project_root,
+        verify_artifact_hashes=True,
+    )
+
+
 __all__ = [
     "FITTED_CALIBRATION_STATUS",
     "SEMANTIC_DECISION_REGISTRY_SCHEMA",
     "UNFITTED_CALIBRATION_STATUS",
+    "verify_semantic_decision_registry_artifacts",
     "validate_semantic_decision_registry",
 ]
