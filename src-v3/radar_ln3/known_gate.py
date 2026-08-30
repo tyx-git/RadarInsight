@@ -51,6 +51,7 @@ from .known_gate_features import (
     V25D_PRESENT_CLASS_MEAN_VARIANT,
     V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
     V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
+    V26J_RD_CAUSAL_GRU_VARIANT,
     load_known_gate_feature_cache,
 )
 from .model import CfCLiquidCausalEncoder, RDSpatialEncoder
@@ -67,6 +68,7 @@ V25A_SCHEMA_VERSION = "RADAR-LN3-V25a"
 V25D_SCHEMA_VERSION = "RADAR-LN3-V25d"
 V25E_SCHEMA_VERSION = "RADAR-LN3-V25e"
 V26_SCHEMA_VERSION = "RADAR-LN3-V26"
+V26J_SCHEMA_VERSION = "RADAR-LN3-V26j-OOF-L1"
 KNOWN_TARGET_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
 KNOWN_CLUTTER_LABEL = "ClutterTarget"
 UNKNOWN_LABEL = "UnknownTarget"
@@ -1147,11 +1149,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         V25D_SCHEMA_VERSION,
         V25E_SCHEMA_VERSION,
         V26_SCHEMA_VERSION,
+        V26J_SCHEMA_VERSION,
     }:
         raise ValueError(
             "KnownGate config must use RADAR-LN3-V21, RADAR-LN3-V22, "
             "RADAR-LN3-V22a, RADAR-LN3-V24, RADAR-LN3-V24a, RADAR-LN3-V24c, "
-            "RADAR-LN3-V25a, RADAR-LN3-V25d, RADAR-LN3-V25e or RADAR-LN3-V26"
+            "RADAR-LN3-V25a, RADAR-LN3-V25d, RADAR-LN3-V25e, RADAR-LN3-V26 "
+            "or RADAR-LN3-V26j-OOF-L1"
         )
     config_name = str(_require(payload, "config_name"))
     variant = str(_require(payload, "variant"))
@@ -1286,8 +1290,19 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         )
     if model.dt_reason_mode != "v3_reason_aware_dynamics_only":
         raise ValueError("V21 KnownGate must use reason-aware dynamics-only dt semantics")
-    if model.liquid_state_normalization != "recurrent" or model.rd_frame_aggregation != "masked_mean":
-        raise ValueError("V21 KnownGate freezes recurrent normalization and masked_mean RD aggregation")
+    is_v26j_causal_gru = (
+        schema_version == V26J_SCHEMA_VERSION
+        and variant == V26J_RD_CAUSAL_GRU_VARIANT
+    )
+    if model.liquid_state_normalization != "recurrent" or (
+        model.rd_frame_aggregation != "causal_gru"
+        if is_v26j_causal_gru
+        else model.rd_frame_aggregation != "masked_mean"
+    ):
+        raise ValueError(
+            "V21 KnownGate freezes recurrent normalization and masked_mean RD "
+            "aggregation except for the sealed V26j causal-GRU OOF experiment"
+        )
 
     train_payload = dict(_require(payload, "train"))
     class_weights = tuple(float(value) for value in _require(train_payload, "class_weights"))
@@ -1406,6 +1421,22 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         data=data,
         train=train,
     )
+    if schema_version == V26J_SCHEMA_VERSION:
+        if not is_v26j_causal_gru:
+            raise ValueError("V26j schema is reserved for the causal-GRU RD OOF experiment")
+        if not re.fullmatch(
+            r"RADAR-LN3-V26j-cq08-known-gate-oof-fold-0[0-4]-seed43-epoch32-rd-causal-gru",
+            config_name,
+        ):
+            raise ValueError("V26j config_name differs from its sealed fold namespace")
+        if train.paired_baseline_config_path is not None:
+            raise ValueError("V26j L1 config must not claim a paired baseline")
+        if train.epochs != 32 or train.save_every_epoch:
+            raise ValueError("V26j must use its fixed epoch-32 OOF endpoint")
+        if not train.checkpoint_schema.startswith("RADAR-LN3-V26j-l1-epoch32-rd-causal-gru-oof-checkpoint-v1"):
+            raise ValueError("V26j checkpoint schema differs from its sealed namespace")
+    elif schema_version == V26J_SCHEMA_VERSION or variant == V26J_RD_CAUSAL_GRU_VARIANT:
+        raise ValueError("V26j causal-GRU variant/schema pairing is invalid")
     is_oof_support = (
         is_v21e_oof_support
         or is_v21f_oof_support
@@ -1437,7 +1468,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
     if (
         train.seed != train.dataloader_seed
         or train.seed not in KNOWN_GATE_BASELINE_MULTISEED_SEEDS
-        or train.epochs != 20
+        or (train.epochs != 20 and not is_v26j_causal_gru)
         or train.early_stopping_patience != 0
         or train.loss_mode != KNOWN_GATE_LOSS_MODE
         or (
@@ -1446,12 +1477,13 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             and not is_v22_oof_support
             and not is_v25d
             and not is_v26
+            and not is_v26j_causal_gru
         )
         or train.checkpoint_selection_metric != KNOWN_GATE_SELECTION_METRIC
         or train.prefix_auxiliary_weight != 0.1
         or train.prefix_auxiliary_min_events != 3
         or not train.record_parent_order_hash
-        or (not is_oof_support and not train.save_every_epoch)
+        or (not is_oof_support and not is_v26j_causal_gru and not train.save_every_epoch)
         or train.cuda_deterministic_algorithms
         or not train.full_parameter_training
     ):
@@ -1470,6 +1502,7 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         and not is_v25d
         and not is_v25e
         and not is_v26
+        and not is_v26j_causal_gru
         and not train.checkpoint_schema.startswith(f"{V21_SCHEMA_VERSION}-{variant}-")
     ):
         raise ValueError("V21 checkpoint schema must bind the experiment variant")
@@ -1482,10 +1515,11 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
         ("formal_artifact_dir", train.formal_artifact_dir),
         ("epoch_checkpoint_dir", train.epoch_checkpoint_dir),
     ):
-        if not is_oof_support and seed_token not in field_value:
+        if not is_oof_support and not is_v26j_causal_gru and seed_token not in field_value:
             raise ValueError(f"V21 {field_name} must bind the training seed")
     if (
         not is_oof_support
+        and not is_v26j_causal_gru
         and train.seed != 42
         and seed_token not in train.checkpoint_schema
     ):
@@ -1554,11 +1588,25 @@ def load_known_gate_config(path: str | Path) -> KnownGateConfig:
             data.validation_feature_cache_path,
             data.expected_validation_feature_cache_sha256,
         )
+        required_cache_fields_are_valid = (
+            # V26j binds the concrete V26c fold cache directly, exactly as
+            # V26e does; it intentionally has no obsolete V26 feature-manifest
+            # wrapper.  Both cache paths and their hashes remain mandatory.
+            all(value is not None for value in required_cache_fields)
+            or (
+                is_v26j_causal_gru
+                and data.feature_cache_manifest_path is None
+                and data.expected_feature_cache_manifest_sha256 is None
+                and data.train_feature_cache_path is not None
+                and data.expected_train_feature_cache_sha256 is not None
+            )
+        )
         if (
-            any(value is None for value in required_cache_fields)
+            not required_cache_fields_are_valid
             or (
                 train.paired_baseline_config_path is None
                 and not is_v26
+                and not is_v26j_causal_gru
             )
         ):
             raise ValueError("V21 Treatment requires feature caches and an explicit Baseline config")
@@ -1732,7 +1780,13 @@ def build_known_gate_dataset(
     # for a parent sequence and bounds peak memory without changing any model
     # input, ordering, or training semantics.
     tensor_cache_size = (
-        1 if config.variant == V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT else 4
+        1
+        if config.variant
+        in {
+            V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
+            V26J_RD_CAUSAL_GRU_VARIANT,
+        }
+        else 4
     )
     base = CQ08PointSequenceDataset(
         project_root,

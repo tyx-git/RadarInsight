@@ -1,0 +1,853 @@
+{
+  "schema_version": "RADAR-LN3-V26j-frozen-mixed-open-set-audit-contract-v1",
+  "experiment": "V26j frozen mixed Known/Unknown causal-GRU L1 -> V26c L2 -> semantic audit",
+  "scope": "inference-only mixed validation/test audit after V26j L1 and V26c L2 freeze",
+  "source_bindings": [
+    {
+      "name": "index",
+      "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+      "sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+      "size_bytes": 37607466
+    },
+    {
+      "name": "v26b_cache_manifest",
+      "path": "data/processed/RADAR-LN3-V26b-cq08-l2-mixed-open-set-feature-cache-manifest.json",
+      "sha256": "a2a6986c039d4f04a956fc35fec8d3f42cf2949b30ab04e2fbc2801f8b35c3ca",
+      "size_bytes": 1973
+    },
+    {
+      "name": "v26j_contract",
+      "path": "data/processed/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration-contract.json",
+      "sha256": "ece080d4f79af68254c24340f8966d96819a54b62c89cf3a779cbc8732172416",
+      "size_bytes": 553558
+    },
+    {
+      "name": "v26j_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26j-l1-rd-causal-gru-epoch32-known-only-oof-calibration-readiness.json",
+      "sha256": "e8f0a35bbccc3d1328083e0c2b634463f4c117d80c7752ee7972811cdc0f5bde",
+      "size_bytes": 1598
+    },
+    {
+      "name": "v26j_report",
+      "path": "src-v3/processed/report/RADAR-LN3-V26j-l1-rd-causal-gru-epoch32-known-only-cross-fitted-l3-calibration.json",
+      "sha256": "18c7f8e786cc9d3bdabed920338d3e499a9c7df9c390d428c6465712f4885ba0",
+      "size_bytes": 79781
+    },
+    {
+      "name": "v26c_contract",
+      "path": "data/processed/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration-contract.json",
+      "sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+      "size_bytes": 350010
+    },
+    {
+      "name": "v26c_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26c-l1-l2-known-only-oof-calibration-readiness.json",
+      "sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+      "size_bytes": 1561
+    },
+    {
+      "name": "document",
+      "path": "src-v3/docs/radar_ln3_v26j_rd_causal_gru_oof.md",
+      "sha256": "ab54e632e1d5d556ce92d6b7c5880d689e101aec305df6cacce668a4b8686132",
+      "size_bytes": 2942
+    }
+  ],
+  "implementation_sha256": {
+    "src-v3/radar_ln3/known_gate_v26j_audit.py": "7d39f8cf2ceb4c2dc44041b675ad7ee62ffba48ca13d732fa472a6ef25153a32",
+    "src-v3/report/known_gate_v26j_audit.py": "149f3e9fd76b40be8db70b29832e412413070710f45fa7f425babc4c29a62d01",
+    "src-v3/build/known_gate_v26j_audit.py": "a9a1ff68757efe8f81ebee57f196d305a2ecc775aaed1192c2dcae689a43eda8",
+    "src-v3/smoke/known_gate_v26j_audit_contract_test.py": "72304a0a61d859301496e65dc15a2323e890078fd372125b71b229b7bcaed02f",
+    "src-v3/scripts/v26j_known_gate_rd_causal_gru_oof_pipeline.ps1": "737c1e359def53b6bddd5d07c4daa57eb7921a937db0c69a169f5eb0ea9a16e9"
+  },
+  "fold_count": 5,
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_checkpoint_selection_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "unknown_oof_prediction_count": 0,
+  "validation_access_count": 0,
+  "test_access_count": 0,
+  "data": {
+    "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "mixed_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget",
+      "ClutterTarget",
+      "UnknownTarget"
+    ],
+    "split_parent_counts": {
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    },
+    "cache_bindings": [
+      {
+        "split": "val",
+        "parent_counts": {
+          "DroneTarget": 113,
+          "BirdTarget": 56,
+          "BalloonTarget": 54,
+          "ClutterTarget": 9,
+          "UnknownTarget": 15
+        },
+        "l1_course": {
+          "path": "data/processed/RADAR-LN3-V26-cq08-known-gate-val-mixed-open-set-course-cache.npz",
+          "sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd",
+          "size_bytes": 28591,
+          "event_count": 4725,
+          "feature_width": 1,
+          "valid_event_count": 3984,
+          "invalid_event_count": 741,
+          "selected_sample_ids_sha256": "19d6163af5a008dac7ff6b51a0e163c76c07d75d19e519071475af65219278a1"
+        },
+        "l2_rd_physical4": {
+          "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-rd-physical4-cache.npz",
+          "sha256": "0cc1ed6b96d6924f10cbf778fd6bba0009a4e0a108ef0184fd03452804c438b3",
+          "size_bytes": 79237,
+          "event_count": 4725,
+          "feature_width": 4,
+          "valid_event_count": 4670,
+          "invalid_event_count": 55,
+          "selected_sample_ids_sha256": "19d6163af5a008dac7ff6b51a0e163c76c07d75d19e519071475af65219278a1"
+        },
+        "l2_micro_doppler8": {
+          "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-micro-doppler8-cache.npz",
+          "sha256": "967067ef3c00dd7eabef45044afd7789ba6047a2097e837af187c340466f10b4",
+          "size_bytes": 148884,
+          "event_count": 4725,
+          "feature_width": 8,
+          "valid_event_count": 4670,
+          "invalid_event_count": 55,
+          "selected_sample_ids_sha256": "19d6163af5a008dac7ff6b51a0e163c76c07d75d19e519071475af65219278a1"
+        }
+      },
+      {
+        "split": "test",
+        "parent_counts": {
+          "DroneTarget": 109,
+          "BirdTarget": 53,
+          "BalloonTarget": 58,
+          "ClutterTarget": 8,
+          "UnknownTarget": 16
+        },
+        "l1_course": {
+          "path": "data/processed/RADAR-LN3-V26-cq08-known-gate-test-mixed-open-set-course-cache.npz",
+          "sha256": "4a5ef217d91e42ccd994be691aebd73d53510fc4e25606f6521294ca399e46cb",
+          "size_bytes": 28620,
+          "event_count": 4727,
+          "feature_width": 1,
+          "valid_event_count": 3995,
+          "invalid_event_count": 732,
+          "selected_sample_ids_sha256": "927cc5fc9216ba7137710758644fc86a927911e8ec32084ba53bd7f828737d95"
+        },
+        "l2_rd_physical4": {
+          "path": "data/processed/RADAR-LN3-V26b-cq08-l2-test-mixed-open-set-rd-physical4-cache.npz",
+          "sha256": "83a6e8643773f15db1b6a98333b4431427038ba51451e73e3232f62380655d50",
+          "size_bytes": 79288,
+          "event_count": 4727,
+          "feature_width": 4,
+          "valid_event_count": 4658,
+          "invalid_event_count": 69,
+          "selected_sample_ids_sha256": "927cc5fc9216ba7137710758644fc86a927911e8ec32084ba53bd7f828737d95"
+        },
+        "l2_micro_doppler8": {
+          "path": "data/processed/RADAR-LN3-V26b-cq08-l2-test-mixed-open-set-micro-doppler8-cache.npz",
+          "sha256": "3eedfc1b85f46578c26f873a77708cf7e6af73073e0c543f242952a1bdac5b19",
+          "size_bytes": 148547,
+          "event_count": 4727,
+          "feature_width": 8,
+          "valid_event_count": 4658,
+          "invalid_event_count": 69,
+          "selected_sample_ids_sha256": "927cc5fc9216ba7137710758644fc86a927911e8ec32084ba53bd7f828737d95"
+        }
+      }
+    ]
+  },
+  "folds": [
+    {
+      "fold_id": 0,
+      "source_v26j_fold_contract": {
+        "train_parent_ids_sha256": "64f2f1dd797f55ec46d5294ea23a50c224bdb4beeb3329a410b1a2eb414b488f",
+        "held_out_parent_ids_sha256": "b6dcebc99700f3f8011518998b6e8de7e1548446ef81962af5518d33fb0b8fdd",
+        "component_overlap_count": 0
+      },
+      "rd_runtime": {
+        "rd_frame_aggregation_config": "causal_gru",
+        "rd_frame_aggregation_runtime": "causal_gru",
+        "rd_temporal_module": "GRUCell",
+        "rd_temporal_parameter_count": 3600,
+        "rd_temporal_state_keys": [
+          "rd_encoder.temporal.bias_hh",
+          "rd_encoder.temporal.bias_ih",
+          "rd_encoder.temporal.weight_hh",
+          "rd_encoder.temporal.weight_ih"
+        ]
+      },
+      "source_files": [
+        {
+          "name": "l1_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26j-cq08-known-gate-oof-fold-00-seed43-epoch32-rd-causal-gru-config.json",
+          "sha256": "a4b7e74674f57705e819f3b65f1eebd0612a942dac97e8b2ce93f487584efbba",
+          "size_bytes": 5139
+        },
+        {
+          "name": "l1_data_contract",
+          "path": "data/processed/RADAR-LN3-V26j-cq08-known-gate-oof-fold-00-rd-causal-gru-data-contract.json",
+          "sha256": "2bccffc309c4af75937d4361fb7ff754f0eaaf60de0c7875d66d7696cac64c20",
+          "size_bytes": 4357
+        },
+        {
+          "name": "l1_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-normalization-stats.json",
+          "sha256": "72232edcc0bdd7a9b2bca12116593e4e1de96660ca8783f3f0061d7c806336fb",
+          "size_bytes": 2463
+        },
+        {
+          "name": "l1_train_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-course-cache.npz",
+          "sha256": "becc51ac6797dc796a92e55b6572ebd6af32a3eb61d45bb113d87d4d0136c4c3",
+          "size_bytes": 91551
+        },
+        {
+          "name": "l1_held_out_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-held-out-course-cache.npz",
+          "sha256": "427c412a6b8b40d9bbc2327e115ba7c3d782d0f6088271dcd16ed0edac0cdb47",
+          "size_bytes": 22620
+        },
+        {
+          "name": "l1_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-00/l1/epoch-32-model.pt",
+          "sha256": "960cc5d8bf8a8fe4a0ad24ef260876d3bdfcb7776faa9b0b300818afbb837111",
+          "size_bytes": 456882
+        },
+        {
+          "name": "l1_prediction",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-00/l1-held-out-predictions.json",
+          "sha256": "80f3e187396daa1b3c28fadbf2311cb17f2bd04424b5c0879af1f71afd2c52b3",
+          "size_bytes": 6627793
+        },
+        {
+          "name": "l1_summary",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-00/l1/training-summary.json",
+          "sha256": "2893723bc68e3437bcdfa5c635c5f4647af7bfb792e558b1af8ac24d8027d6a6",
+          "size_bytes": 3286
+        },
+        {
+          "name": "l2_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-seed42-config.json",
+          "sha256": "4581b113220d760e24b01e41b846373c413661fd608182eacd00c59c10da3abe",
+          "size_bytes": 7490
+        },
+        {
+          "name": "l2_data_contract",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-data-contract.json",
+          "sha256": "36427b52e646dd2f0a7856d6d40c5cc3553d847b69a2f923cda5a10238537b1f",
+          "size_bytes": 9596
+        },
+        {
+          "name": "l2_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-normalization-stats.json",
+          "sha256": "75e702388fe10bfc7c1ba91eba43745ac6c8703e5b3204499fcffbf21f8698e5",
+          "size_bytes": 2454
+        },
+        {
+          "name": "l2_train_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-rd-physical4-cache.npz",
+          "sha256": "e412f5a5df53a53a5f82f6738c1402263e8af44ddeb7a0f73cd0d6f471c69f13",
+          "size_bytes": 246683
+        },
+        {
+          "name": "l2_held_out_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-held-out-rd-physical4-cache.npz",
+          "sha256": "972335f0a176a86aac3d5de8ae9dc4ee2fe50f1fdf9fe332fa379b1d9dd46641",
+          "size_bytes": 61498
+        },
+        {
+          "name": "l2_train_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-micro-doppler8-cache.npz",
+          "sha256": "0ef957cffa0a926f8a6a43611ce27be2973a4c6babfae4b15e657e6ff85a4c09",
+          "size_bytes": 466872
+        },
+        {
+          "name": "l2_held_out_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-held-out-micro-doppler8-cache.npz",
+          "sha256": "f895432860c85a32e6a14c602414227a3b129ea5ec94ace6e5f7e778482fb80f",
+          "size_bytes": 115834
+        },
+        {
+          "name": "l2_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2/epoch-15-model.pt",
+          "sha256": "0bf9b88eed1e8b37bfe8280889ecb81fbdf61504f09aee7bde4e9e017cb0289a",
+          "size_bytes": 409650
+        },
+        {
+          "name": "l2_prediction",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2-held-out-predictions.json",
+          "sha256": "cf6c0a8c0555db766d3b34e8002446e56fc7a5c64aadc9bd7402c8936f3232a8",
+          "size_bytes": 6898268
+        },
+        {
+          "name": "l2_summary",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2/training-summary.json",
+          "sha256": "5375cd98ca63fd2f8db0a9cafce36ee988a135bd3d5673e69914713c972cbfac",
+          "size_bytes": 3566
+        }
+      ]
+    },
+    {
+      "fold_id": 1,
+      "source_v26j_fold_contract": {
+        "train_parent_ids_sha256": "58caa6ced3882cdcd857658c995e471e17d777bc6802c27cd9c4c697e9638e77",
+        "held_out_parent_ids_sha256": "f94905c0b2c3f58aa415e66c58a2d6254cc840665878f20d6b10a01686295d97",
+        "component_overlap_count": 0
+      },
+      "rd_runtime": {
+        "rd_frame_aggregation_config": "causal_gru",
+        "rd_frame_aggregation_runtime": "causal_gru",
+        "rd_temporal_module": "GRUCell",
+        "rd_temporal_parameter_count": 3600,
+        "rd_temporal_state_keys": [
+          "rd_encoder.temporal.bias_hh",
+          "rd_encoder.temporal.bias_ih",
+          "rd_encoder.temporal.weight_hh",
+          "rd_encoder.temporal.weight_ih"
+        ]
+      },
+      "source_files": [
+        {
+          "name": "l1_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26j-cq08-known-gate-oof-fold-01-seed43-epoch32-rd-causal-gru-config.json",
+          "sha256": "7e806e66d523de5754bfe836d9e2abf7ec010d080f7b8c31ff0eb4ced7588a89",
+          "size_bytes": 5139
+        },
+        {
+          "name": "l1_data_contract",
+          "path": "data/processed/RADAR-LN3-V26j-cq08-known-gate-oof-fold-01-rd-causal-gru-data-contract.json",
+          "sha256": "019cf24b073782005c98a27f5962be219cf15c69ef4c0b9df04ddd4c71774208",
+          "size_bytes": 4357
+        },
+        {
+          "name": "l1_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-train-normalization-stats.json",
+          "sha256": "4e4339e0a4a6a8b347d0c86353d0846d185b3b3a4799c493c5de39ca9f66e4ae",
+          "size_bytes": 2459
+        },
+        {
+          "name": "l1_train_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-train-course-cache.npz",
+          "sha256": "9a488d0afa011093fe5a030f9a8342a39ab7d007a9bcc51ccf3db93f045a577b",
+          "size_bytes": 91187
+        },
+        {
+          "name": "l1_held_out_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-01-held-out-course-cache.npz",
+          "sha256": "6d5e170daa0c7c59f4059fdabb6a93e9f007d23827d2cbc0fecee32514b8c04f",
+          "size_bytes": 23122
+        },
+        {
+          "name": "l1_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-01/l1/epoch-32-model.pt",
+          "sha256": "bbd1b61ec34726c9c591a3c859b72ba25c09c6fcacd16557cce46b8c86e707f2",
+          "size_bytes": 456882
+        },
+        {
+          "name": "l1_prediction",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-01/l1-held-out-predictions.json",
+          "sha256": "77e5094b1e9a391b6c331b94034eb62cb09204dfed9f50dee9b4a3c90e77ac2d",
+          "size_bytes": 6737622
+        },
+        {
+          "name": "l1_summary",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-01/l1/training-summary.json",
+          "sha256": "17db534dfa7a043a58c4341d91069a42defbab6842dbc7ec7fef68685f305be0",
+          "size_bytes": 3336
+        },
+        {
+          "name": "l2_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-seed42-config.json",
+          "sha256": "792e47327187776e9a6eec5cfe693fb59757df7f408f7148c0b0751bc6c8dc89",
+          "size_bytes": 7489
+        },
+        {
+          "name": "l2_data_contract",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-data-contract.json",
+          "sha256": "b0e2b1cc175d81fb6fa569901e9f6a47da7a112c7bf4494149b29b308fe2bbd7",
+          "size_bytes": 9596
+        },
+        {
+          "name": "l2_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-normalization-stats.json",
+          "sha256": "21c5b397460f1e8de156444a4af20838cd87d50599f6e671f85dd91bb9169ac0",
+          "size_bytes": 2452
+        },
+        {
+          "name": "l2_train_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-rd-physical4-cache.npz",
+          "sha256": "0c561b989dcf094d705844d251b79d42d07c089c5946879b1fc4e7d5e89d4ab2",
+          "size_bytes": 245852
+        },
+        {
+          "name": "l2_held_out_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-held-out-rd-physical4-cache.npz",
+          "sha256": "83cf4657f34490e079c1af2d99638cd01c73654cbcf98ee8cf50ae5a2ad26665",
+          "size_bytes": 62224
+        },
+        {
+          "name": "l2_train_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-micro-doppler8-cache.npz",
+          "sha256": "de646008912dfd9dbc917eb46a80b99572c9c211cd521ede92abd3a9bc7a8dd1",
+          "size_bytes": 464588
+        },
+        {
+          "name": "l2_held_out_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-held-out-micro-doppler8-cache.npz",
+          "sha256": "80665e6ca08820d62324f03889dbac7556d280fcda1dd109aa26017a294744b4",
+          "size_bytes": 117732
+        },
+        {
+          "name": "l2_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2/epoch-15-model.pt",
+          "sha256": "d3e45beb519354af298f6979d12bace11fb4a272f96e04810cf7cfdb29678cbd",
+          "size_bytes": 409650
+        },
+        {
+          "name": "l2_prediction",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2-held-out-predictions.json",
+          "sha256": "1fe4fc4aa9a69e60fadea0c08c47aaeb3f3152b0d992ebae68ad32d0de84664d",
+          "size_bytes": 6998487
+        },
+        {
+          "name": "l2_summary",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2/training-summary.json",
+          "sha256": "92cf09ef8a9453787a356c34dc875a9975f45bf630a71aecf5e5c09cd050fa15",
+          "size_bytes": 3541
+        }
+      ]
+    },
+    {
+      "fold_id": 2,
+      "source_v26j_fold_contract": {
+        "train_parent_ids_sha256": "e4014b129f1a0b281364a7379234aaf78bb4f07e16710ef719bd2362925b2a0a",
+        "held_out_parent_ids_sha256": "277d2302f5dfec09d9312fbe260ccc77a263588f69fad1a082247b33eef91c7d",
+        "component_overlap_count": 0
+      },
+      "rd_runtime": {
+        "rd_frame_aggregation_config": "causal_gru",
+        "rd_frame_aggregation_runtime": "causal_gru",
+        "rd_temporal_module": "GRUCell",
+        "rd_temporal_parameter_count": 3600,
+        "rd_temporal_state_keys": [
+          "rd_encoder.temporal.bias_hh",
+          "rd_encoder.temporal.bias_ih",
+          "rd_encoder.temporal.weight_hh",
+          "rd_encoder.temporal.weight_ih"
+        ]
+      },
+      "source_files": [
+        {
+          "name": "l1_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26j-cq08-known-gate-oof-fold-02-seed43-epoch32-rd-causal-gru-config.json",
+          "sha256": "61d583d683f3edcb13aa241d66002a4ad039ea6298e23dfc98064182d8c13611",
+          "size_bytes": 5136
+        },
+        {
+          "name": "l1_data_contract",
+          "path": "data/processed/RADAR-LN3-V26j-cq08-known-gate-oof-fold-02-rd-causal-gru-data-contract.json",
+          "sha256": "a0faef32a66b58484df18a462a297b0509023319ba4038e94e0146bf0c2e65de",
+          "size_bytes": 4357
+        },
+        {
+          "name": "l1_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-train-normalization-stats.json",
+          "sha256": "f48cd13980f860c33400fddbb1361de9119eecc8e02140c4573da2b053c0e211",
+          "size_bytes": 2451
+        },
+        {
+          "name": "l1_train_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-train-course-cache.npz",
+          "sha256": "6da2080d5cb0625f35e09c5b9d2dcd7b7330bb7e9405b9b48a42286d38515090",
+          "size_bytes": 91651
+        },
+        {
+          "name": "l1_held_out_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-02-held-out-course-cache.npz",
+          "sha256": "8a0e1db0646d69b7683a341ef545a9982d830ef4e8be0beafa279393bd9a4ea6",
+          "size_bytes": 22984
+        },
+        {
+          "name": "l1_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-02/l1/epoch-32-model.pt",
+          "sha256": "b9bd025f8107e9aeaada82bd836a357d23a565a02db00e3e055429c12aebe1af",
+          "size_bytes": 456882
+        },
+        {
+          "name": "l1_prediction",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-02/l1-held-out-predictions.json",
+          "sha256": "1c4ff0567472cf93bcdd35a2f762b053ae1e947aa26abd7158e123359c464358",
+          "size_bytes": 6699056
+        },
+        {
+          "name": "l1_summary",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-02/l1/training-summary.json",
+          "sha256": "30e451c0cf2d829532991d9e927f1a101d46907b402e13c02f8782125f2f9459",
+          "size_bytes": 3316
+        },
+        {
+          "name": "l2_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-seed42-config.json",
+          "sha256": "1d4be5897262e47b649aaedc8627ebdbb506c63372ee2cb73303fce896f644e2",
+          "size_bytes": 7488
+        },
+        {
+          "name": "l2_data_contract",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-data-contract.json",
+          "sha256": "0d510430218f0cf95b8faa34bfacf07e17bcf953cd7503a51a1f07f646769ac9",
+          "size_bytes": 9596
+        },
+        {
+          "name": "l2_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-normalization-stats.json",
+          "sha256": "7fb39a78807ede9d528be983be70c1b98ef6b2f41f605fb6de34344af0ac064d",
+          "size_bytes": 2449
+        },
+        {
+          "name": "l2_train_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-rd-physical4-cache.npz",
+          "sha256": "10b4dd6dfaef280b10e2901fd6f1327313c3e7fa3a75a879d76b28519dabc256",
+          "size_bytes": 247099
+        },
+        {
+          "name": "l2_held_out_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-held-out-rd-physical4-cache.npz",
+          "sha256": "3a588ee5a2c8deaed435032506cd0d2723b8dd53b6bb8dc61ac6ea980e5f0f10",
+          "size_bytes": 61299
+        },
+        {
+          "name": "l2_train_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-micro-doppler8-cache.npz",
+          "sha256": "dec150c2291beecb9a9d544a5e657c9a7ab361612e7a0e0392c30746501826a9",
+          "size_bytes": 467594
+        },
+        {
+          "name": "l2_held_out_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-held-out-micro-doppler8-cache.npz",
+          "sha256": "61b7d0567abe2576a0b7bb3876656bb401b918fa1e96d98f5521b2e262a2ecec",
+          "size_bytes": 114831
+        },
+        {
+          "name": "l2_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2/epoch-15-model.pt",
+          "sha256": "e1dfbaf72a667a56cfc36a300e222f5bab71e56129064d938ac17a87a0163c88",
+          "size_bytes": 409650
+        },
+        {
+          "name": "l2_prediction",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2-held-out-predictions.json",
+          "sha256": "58ad11d1f49065e7eed510e47a15e7bc1a1a19aac1e5080b29334eda05bd96a4",
+          "size_bytes": 6951182
+        },
+        {
+          "name": "l2_summary",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2/training-summary.json",
+          "sha256": "3b345444136e485c3a53d210617991283e3058820d6ff0314b05ff7ff1b6c412",
+          "size_bytes": 3588
+        }
+      ]
+    },
+    {
+      "fold_id": 3,
+      "source_v26j_fold_contract": {
+        "train_parent_ids_sha256": "0ed5eb99ee0fe00198e57d2f8d4c0d4d12a77bc15c41208ed3ff2298b0f2f734",
+        "held_out_parent_ids_sha256": "05276547254830f4ac944a0748f18f3c2c90bb007f5e5c4282677b27f7ddca8d",
+        "component_overlap_count": 0
+      },
+      "rd_runtime": {
+        "rd_frame_aggregation_config": "causal_gru",
+        "rd_frame_aggregation_runtime": "causal_gru",
+        "rd_temporal_module": "GRUCell",
+        "rd_temporal_parameter_count": 3600,
+        "rd_temporal_state_keys": [
+          "rd_encoder.temporal.bias_hh",
+          "rd_encoder.temporal.bias_ih",
+          "rd_encoder.temporal.weight_hh",
+          "rd_encoder.temporal.weight_ih"
+        ]
+      },
+      "source_files": [
+        {
+          "name": "l1_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26j-cq08-known-gate-oof-fold-03-seed43-epoch32-rd-causal-gru-config.json",
+          "sha256": "4aa43ed77901f24862d0966570e8ab1b3eba940bb91f12b53eeb1e51e31db781",
+          "size_bytes": 5140
+        },
+        {
+          "name": "l1_data_contract",
+          "path": "data/processed/RADAR-LN3-V26j-cq08-known-gate-oof-fold-03-rd-causal-gru-data-contract.json",
+          "sha256": "087a5bc7c6b9c662028e4e8b896cc9be028afed6a3893782d83f334973638f05",
+          "size_bytes": 4357
+        },
+        {
+          "name": "l1_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-train-normalization-stats.json",
+          "sha256": "43f995e68ff54d64c4f1b2fd93211cd978b2978151785062f33a84c5d437e78e",
+          "size_bytes": 2461
+        },
+        {
+          "name": "l1_train_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-train-course-cache.npz",
+          "sha256": "6239ac7668ddb4ddb725d49849531f7e2bd6dcabcd75f6a903947fcd7e9b3674",
+          "size_bytes": 91344
+        },
+        {
+          "name": "l1_held_out_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-03-held-out-course-cache.npz",
+          "sha256": "2076333aab8f1f3cc31c8e8fe3868ef668930062aefa9c98950f763e1f214816",
+          "size_bytes": 23110
+        },
+        {
+          "name": "l1_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-03/l1/epoch-32-model.pt",
+          "sha256": "be2d7d8d056df7a7274a4a43081263e549d8eabbbee3ec014f29a02dd1d995be",
+          "size_bytes": 456882
+        },
+        {
+          "name": "l1_prediction",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-03/l1-held-out-predictions.json",
+          "sha256": "c581ce4ea604aa818f564df661deee5392d6026263e0730ff666ee95f0b9d172",
+          "size_bytes": 6745709
+        },
+        {
+          "name": "l1_summary",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-03/l1/training-summary.json",
+          "sha256": "f6e964fb22807ed9d491180253c1e1e9b83a19473e2d26a81ec2b751bd3a7968",
+          "size_bytes": 3368
+        },
+        {
+          "name": "l2_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-seed42-config.json",
+          "sha256": "eb7680866f8c9a6239a9ff0059939d4a7a036145da25807db4a562594c362db9",
+          "size_bytes": 7487
+        },
+        {
+          "name": "l2_data_contract",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-data-contract.json",
+          "sha256": "cc63d449d447c4884907c5a00204670f315023ff26253a85fd401a602885cdb3",
+          "size_bytes": 9596
+        },
+        {
+          "name": "l2_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-normalization-stats.json",
+          "sha256": "2818f2a2ca04ff56559e79d888b1d5b1249d957d39b12b8cafc511bcaf199630",
+          "size_bytes": 2450
+        },
+        {
+          "name": "l2_train_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-rd-physical4-cache.npz",
+          "sha256": "445709129a0ec1daeb61d455fedfbf546d8f4fd609bf285e91105249c15cf2a4",
+          "size_bytes": 246517
+        },
+        {
+          "name": "l2_held_out_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-held-out-rd-physical4-cache.npz",
+          "sha256": "491bf8ec0b3b2c5459bbefc7df1c76cd28e8b815f3ab44cc74dfcb31a2ad7dd1",
+          "size_bytes": 61671
+        },
+        {
+          "name": "l2_train_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-micro-doppler8-cache.npz",
+          "sha256": "af0cd72539d1315903f449063323e1807a4f4ec6b624aea8d6ff861d0dcd6c57",
+          "size_bytes": 465795
+        },
+        {
+          "name": "l2_held_out_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-held-out-micro-doppler8-cache.npz",
+          "sha256": "6b25d611f8792070919d3d88f6018c645e6de50a2045f572091721c7400fbbd4",
+          "size_bytes": 116465
+        },
+        {
+          "name": "l2_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2/epoch-15-model.pt",
+          "sha256": "7a22548fd4a6060a0db828f5ca1796a82676d6e19ef4271b91635cebb2cdfd07",
+          "size_bytes": 409650
+        },
+        {
+          "name": "l2_prediction",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2-held-out-predictions.json",
+          "sha256": "73a22efbee185bce3afac7f905e2e8d994ce633b2c7875f9b71357dec14500fc",
+          "size_bytes": 7009146
+        },
+        {
+          "name": "l2_summary",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2/training-summary.json",
+          "sha256": "3260a82c9e632cca78700ec706cb136a54205ea2fca81a8c2d093b9ff2b56700",
+          "size_bytes": 3586
+        }
+      ]
+    },
+    {
+      "fold_id": 4,
+      "source_v26j_fold_contract": {
+        "train_parent_ids_sha256": "fd579d2bb935bf705fb491ccee24ed0df6c16b46b6b71933e24f11fe3cf4280a",
+        "held_out_parent_ids_sha256": "3501992ffe24c6154d49977525efc5c6f90126dc6ada2be4cf9623707d50f65a",
+        "component_overlap_count": 0
+      },
+      "rd_runtime": {
+        "rd_frame_aggregation_config": "causal_gru",
+        "rd_frame_aggregation_runtime": "causal_gru",
+        "rd_temporal_module": "GRUCell",
+        "rd_temporal_parameter_count": 3600,
+        "rd_temporal_state_keys": [
+          "rd_encoder.temporal.bias_hh",
+          "rd_encoder.temporal.bias_ih",
+          "rd_encoder.temporal.weight_hh",
+          "rd_encoder.temporal.weight_ih"
+        ]
+      },
+      "source_files": [
+        {
+          "name": "l1_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26j-cq08-known-gate-oof-fold-04-seed43-epoch32-rd-causal-gru-config.json",
+          "sha256": "618e4d0a6e2f302c228f0ae8134e9cc1fb4c62a0ff00a70b68de14a4f46c0dfd",
+          "size_bytes": 5139
+        },
+        {
+          "name": "l1_data_contract",
+          "path": "data/processed/RADAR-LN3-V26j-cq08-known-gate-oof-fold-04-rd-causal-gru-data-contract.json",
+          "sha256": "73c12c797754a4dc4c00a6ae6ba25e267866429a4876a55230f3750d9bd8264c",
+          "size_bytes": 4357
+        },
+        {
+          "name": "l1_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-train-normalization-stats.json",
+          "sha256": "c1445a5c4efbbe337b3e0000c4befcba2e6f2ad122905d23b22f23c45c81f152",
+          "size_bytes": 2456
+        },
+        {
+          "name": "l1_train_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-train-course-cache.npz",
+          "sha256": "2196ef6b8df1f3f9650b0c44c02e1dbd65343313392332bc607fe4b355946615",
+          "size_bytes": 91010
+        },
+        {
+          "name": "l1_held_out_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-04-held-out-course-cache.npz",
+          "sha256": "dafa968ad78df01155829dc3a0bea78da621ab2ff0f9c79c83606582d560a329",
+          "size_bytes": 23321
+        },
+        {
+          "name": "l1_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-04/l1/epoch-32-model.pt",
+          "sha256": "0b6470e5b6d412ef488ee4a909ced7d59232dcaf4703cde5d9947849e3b4546e",
+          "size_bytes": 456882
+        },
+        {
+          "name": "l1_prediction",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-04/l1-held-out-predictions.json",
+          "sha256": "16392ac2269078c243ecb6caf360579b616837f93d337eac760f92677c663215",
+          "size_bytes": 6812920
+        },
+        {
+          "name": "l1_summary",
+          "path": "artifacts/RADAR-LN3-V26j-cq08-l1-rd-causal-gru-epoch32-known-only-oof-calibration/fold-04/l1/training-summary.json",
+          "sha256": "e8b79daf6c059b2a148b3083cdeaef782465d076d991c231ce54a5ddf8764f3d",
+          "size_bytes": 3392
+        },
+        {
+          "name": "l2_config",
+          "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-seed42-config.json",
+          "sha256": "fcc2c73f9dcc685d26f56df1e850dd12aa732bf6461bcf04ec3a91749ea1f37e",
+          "size_bytes": 7484
+        },
+        {
+          "name": "l2_data_contract",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-data-contract.json",
+          "sha256": "66d1d41cfe2796a6d3c1d7b1235e04276ca51a3df7f3736c24a85e0180a2bced",
+          "size_bytes": 9596
+        },
+        {
+          "name": "l2_normalization",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-normalization-stats.json",
+          "sha256": "f82ba754fdac3016a1b658f64515d81a791dd7d774316da20a5259e113bcc8cd",
+          "size_bytes": 2448
+        },
+        {
+          "name": "l2_train_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-rd-physical4-cache.npz",
+          "sha256": "e5876b7ff7c349fa29fe976f2c2d95f5247c807e80fbb8ffadf912e7fc178d91",
+          "size_bytes": 245874
+        },
+        {
+          "name": "l2_held_out_physical_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-held-out-rd-physical4-cache.npz",
+          "sha256": "4a083b81d082bcaa73e8e61c196cb5f3df2ffe3e9b46ef5f52e259fddeefdb17",
+          "size_bytes": 62533
+        },
+        {
+          "name": "l2_train_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-micro-doppler8-cache.npz",
+          "sha256": "e158d83782d07aecd652d08f99d6929e436f469b8dd132479d5c12fe692dd42a",
+          "size_bytes": 463754
+        },
+        {
+          "name": "l2_held_out_micro_cache",
+          "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-held-out-micro-doppler8-cache.npz",
+          "sha256": "602843f38311caf2db24fd3dd6229c8f53d8e27317cef1210db4a6061951175f",
+          "size_bytes": 119123
+        },
+        {
+          "name": "l2_checkpoint",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2/epoch-15-model.pt",
+          "sha256": "f421a163f03f088761be1c856a8895bd0632245b4ed660b03722dc08b4347939",
+          "size_bytes": 409650
+        },
+        {
+          "name": "l2_prediction",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2-held-out-predictions.json",
+          "sha256": "5b57f6e2997bf38e38aee7c4e1276b131227de55594961c32f8e984ac368ac2f",
+          "size_bytes": 7075110
+        },
+        {
+          "name": "l2_summary",
+          "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2/training-summary.json",
+          "sha256": "9b60441a8d03b474305758970632882e55bc2026e45a7a6617f0ed6ad6d9ee56",
+          "size_bytes": 3591
+        }
+      ]
+    }
+  ],
+  "frozen_model_bindings": {
+    "l1": "V26j causal-GRU epoch-32 fold checkpoint/config/normalization",
+    "l2": "V26c epoch-15 fold checkpoint/config/normalization read-only",
+    "thresholds": "V26j Known-only outer-cross-fitted L3 thresholds read-only"
+  },
+  "audit_protocol": {
+    "validation_and_test_are_mixed_known_unknown": true,
+    "unknown_training_exposure": 0,
+    "unknown_normalization_exposure": 0,
+    "unknown_checkpoint_selection_exposure": 0,
+    "unknown_threshold_fit_exposure": 0,
+    "pending_is_not_unknown_rejection_success": true,
+    "true_label_never_controls_l1_or_l2_route": true,
+    "minimum_evidence_events": 3
+  },
+  "not_executed": {
+    "training": true,
+    "threshold_fitting": true,
+    "oof_retraining": true,
+    "deployment_registry": true
+  },
+  "deployment_eligible": false
+}

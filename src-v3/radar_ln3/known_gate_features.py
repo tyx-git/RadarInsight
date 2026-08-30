@@ -70,6 +70,11 @@ V25E_SHARED_GRADIENT_PROJECTION_VARIANT = "v25e_shared_gradient_conflict_project
 # baseline.  The variant is intentionally distinct because its mixed
 # validation/test open-set audit is a separate, post-checkpoint artifact.
 V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT = "v26_known_only_open_set_baseline"
+# V26j is the event-internal RD temporal aggregation ablation.  It consumes
+# exactly the same selected causal-course cache as V26/V26e; its sole model
+# change is represented separately so a causal-GRU checkpoint can never be
+# mistaken for the masked-mean baseline.
+V26J_RD_CAUSAL_GRU_VARIANT = "v26j_rd_causal_gru"
 
 SPECTRAL_FEATURE_NAMES = (
     "native_stft_adjacent_spectral_affinity_median",
@@ -142,6 +147,7 @@ FEATURE_NAMES_BY_VARIANT: Mapping[str, tuple[str, ...]] = {
     V25D_PRESENT_CLASS_MEAN_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V25E_SHARED_GRADIENT_PROJECTION_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
     V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
+    V26J_RD_CAUSAL_GRU_VARIANT: COURSE_PREFIX_FEATURE_NAMES,
 }
 # These variants store an already-selected feature matrix rather than the
 # original canonical KnownGate feature matrix.  They must therefore use
@@ -164,6 +170,7 @@ SELECTED_CACHE_VARIANTS = frozenset(
         V25D_PRESENT_CLASS_MEAN_VARIANT,
         V25E_SHARED_GRADIENT_PROJECTION_VARIANT,
         V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
+        V26J_RD_CAUSAL_GRU_VARIANT,
     }
 )
 FEATURE_INDICES_BY_VARIANT: Mapping[str, tuple[int, ...]] = {
@@ -772,6 +779,7 @@ __all__ = [
     "V25D_PRESENT_CLASS_MEAN_VARIANT",
     "V25E_SHARED_GRADIENT_PROJECTION_VARIANT",
     "V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT",
+    "V26J_RD_CAUSAL_GRU_VARIANT",
     "extract_canonical_known_gate_features",
     "extract_causal_course_circular_incoherence",
     "extract_current_event_adjacent_rd_peak_velocity_drift_mean_fraction",

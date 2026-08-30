@@ -26,6 +26,7 @@ from .known_gate import (
 )
 from .known_gate_features import (
     V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
+    V26J_RD_CAUSAL_GRU_VARIANT,
     load_known_gate_feature_cache,
 )
 
@@ -54,8 +55,21 @@ class V26OpenSetAuditDataset(Dataset[KnownGateSequence]):
             # freezing.
             tensor_cache_size=1,
         )
-        if config.model.evidence_dim != 1 or config.variant != V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT:
-            raise ValueError("V26 audit requires the one-column V26 course evidence contract")
+        # V26j changes the L1 RD aggregation only.  It deliberately reuses the
+        # same one-column causal-course cache, so the audit surface remains
+        # limited to the two strict-open-set KnownGate variants rather than
+        # becoming a generic mixed-data loader for arbitrary experiments.
+        if (
+            config.model.evidence_dim != 1
+            or config.variant
+            not in {
+                V26_KNOWN_ONLY_OPEN_SET_BASELINE_VARIANT,
+                V26J_RD_CAUSAL_GRU_VARIANT,
+            }
+        ):
+            raise ValueError(
+                "V26 mixed audit requires V26/V26j one-column causal-course evidence"
+            )
         values, valid, metadata = load_known_gate_feature_cache(
             cache_path,
             expected_sample_ids=self.base.frame["sample_id"].astype(str).tolist(),

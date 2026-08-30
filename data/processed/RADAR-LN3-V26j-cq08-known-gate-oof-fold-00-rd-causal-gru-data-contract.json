@@ -1,0 +1,85 @@
+{
+  "schema_version": "RADAR-LN3-V26j-known-gate-fold-data-contract-v1",
+  "experiment": "V26j RD causal-GRU aggregation only",
+  "task_name": "known_gate",
+  "fold_id": 0,
+  "fit_split": "train",
+  "fit_population": "known_fold_train_only",
+  "grouping": "capture_content_provenance_component",
+  "train_parent_count": 789,
+  "held_out_parent_count": 197,
+  "train_parent_ids_sha256": "64f2f1dd797f55ec46d5294ea23a50c224bdb4beeb3329a410b1a2eb414b488f",
+  "held_out_parent_ids_sha256": "b6dcebc99700f3f8011518998b6e8de7e1548446ef81962af5518d33fb0b8fdd",
+  "train_label_parent_counts": {
+    "DroneTarget": 381,
+    "BirdTarget": 191,
+    "BalloonTarget": 190,
+    "ClutterTarget": 27
+  },
+  "held_out_label_parent_counts": {
+    "DroneTarget": 95,
+    "BirdTarget": 48,
+    "BalloonTarget": 48,
+    "ClutterTarget": 6
+  },
+  "normalization": {
+    "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-normalization-stats.json",
+    "sha256": "72232edcc0bdd7a9b2bca12116593e4e1de96660ca8783f3f0061d7c806336fb",
+    "reused_from_v26c": true
+  },
+  "cache_reuse": {
+    "train": {
+      "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-train-course-cache.npz",
+      "sha256": "becc51ac6797dc796a92e55b6572ebd6af32a3eb61d45bb113d87d4d0136c4c3",
+      "event_count": 15191,
+      "feature_width": 1,
+      "valid_event_count": 12824,
+      "invalid_event_count": 2367,
+      "selected_sample_ids_sha256": "4345d452d8bcd6054399d19f0d57e05e355d3c92ce98a646abdacb07bcd7cbd4",
+      "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+      "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+      "cache_value_provenance": "disjoint slice of V26c's one-time label-free source-recomputed causal course cache",
+      "reused_prior_feature_cache_values": false,
+      "label_free_feature_value_extraction": true,
+      "source_rebuild_cache": "data/processed/RADAR-LN3-V26c-cq08-known-gate-all-known-train-course-source-cache.npz",
+      "source_rebuild_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+      "source_rebuild_cache_value_reuse": true,
+      "source_rebuild_cache_is_label_free_over_all_known_train_parents": true
+    },
+    "held_out": {
+      "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-oof-fold-00-held-out-course-cache.npz",
+      "sha256": "427c412a6b8b40d9bbc2327e115ba7c3d782d0f6088271dcd16ed0edac0cdb47",
+      "event_count": 3732,
+      "feature_width": 1,
+      "valid_event_count": 3141,
+      "invalid_event_count": 591,
+      "selected_sample_ids_sha256": "0cfb21e4a69f4b52045d42c0c756c58de05186e4a6624b49867726b747c9c77e",
+      "source_index": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+      "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+      "cache_value_provenance": "disjoint slice of V26c's one-time label-free source-recomputed causal course cache",
+      "reused_prior_feature_cache_values": false,
+      "label_free_feature_value_extraction": true,
+      "source_rebuild_cache": "data/processed/RADAR-LN3-V26c-cq08-known-gate-all-known-train-course-source-cache.npz",
+      "source_rebuild_cache_sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+      "source_rebuild_cache_value_reuse": true,
+      "source_rebuild_cache_is_label_free_over_all_known_train_parents": true
+    },
+    "reused_from_v26c": true,
+    "value_rebuild": false,
+    "isolation": "exact disjoint frozen V26c Known-only fold populations"
+  },
+  "rd_aggregation": {
+    "baseline": "masked_mean",
+    "treatment": "causal_gru",
+    "scope": "within a single RD event only; no cross-event RD state"
+  },
+  "source_v26c_contract": "data/processed/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration-contract.json",
+  "source_v26c_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_cache_selection_exposure": 0,
+  "validation_access_count": 0,
+  "test_access_count": 0,
+  "checkpoint_selection": "fixed epoch-32 endpoint; no held-out labels",
+  "l1_l2_fusion": "not_performed_in_fold_training"
+}
