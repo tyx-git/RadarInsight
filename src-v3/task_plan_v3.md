@@ -2178,3 +2178,23 @@
 是否需要Smoke：需要；每个适配机制必须证明padding隔离、first/zero/positive-dt语义、有限梯度及offline/online一致性。
 是否需要正式训练：需要；先单seed完整20 epoch，未通过不得开展多seed或OOF。
 阻塞条件：任何机制不止改变一个可训练或时序因素、破坏官方CfCCell所有权、通过validation选择time transform、或出现未封存范围访问。
+
+## Stage 095 - V26k L2 train-only严格open-set knownness诊断
+
+目标：在不训练、不修改L1/L2模型、不接入L3且不让Unknown参与任何拟合的前提下，验证冻结V26c DBB specialist的最终分类表征是否能够提供独立的L2严格open-set knownness排序。
+
+直接来源：V26c每折L2 DBB specialist epoch-15 checkpoint及其fold-train Known-only parent；V26f冻结的CQ08混合validation/test人口和已观测L1路由。数据仍为V16 CQ08 index，五折状态、分数和阈值不合并。
+
+唯一诊断变量：从L2真实分类器输入`LayerNorm(liquid_final_state)`取得48维embedding，按每折train-only Drone/Bird/Balloon parent拟合 pooled-diagonal class-conditional Mahalanobis距离；MSP仅作同一冻结输出上的比较基线。Unknown只在分数和95% train-known保留操作点冻结后进入审计。
+
+- [x] 完成V26k contract/readiness、数学边界Smoke、源码编译和依赖hash核验。
+- [x] 五折CPU短生命周期只读诊断完成；训练、optimizer、cache重建、checkpoint选择、产品阈值、L3 registry、语义动作、完整cascade、stable、P95和部署均未执行。
+- [x] validation主L1-target-route Mahalanobis AUROC=`0.614735±0.045193`，AP=`0.098285±0.022159`；同输出MSP AUROC=`0.697383±0.027700`，AP=`0.129251±0.034343`。
+- [x] test主L1-target-route Mahalanobis AUROC=`0.716119±0.057094`，AP=`0.132807±0.026005`；MSP AUROC=`0.760781±0.057353`，AP=`0.153311±0.051172`。
+- [x] train-only 95%保留操作点在validation/test的L2 DBB保留率为`0.914685/0.922469`，串联后的KnownTarget Recall为`0.913004/0.909091`，未达到要求的`>=0.95`；L1在L2前的损失明显较小。
+- [x] L1-target-route Unknown有效误接受率为validation=`0.885714`、test=`0.858333`；Unknown拒识率仅约`0.1212/0.1410`（总体按实际路由support计算），且fold间波动明显。
+- [x] V26k结论为`hypothesis_not_supported`：Mahalanobis虽在test存在弱到中等排序信号，但validation/test均弱于MSP，且不能同时保持KnownTarget Recall≥95%；当前L2 embedding不足以作为独立strict-open-set gate，禁止接入L3。
+
+后续边界：V26h的L1 Mahalanobis结果不能外推到L2；继续调阈值、扩大拒识或把Unknown加入参考拟合都不属于V26k验证。若继续L2 open-set研究，应先验证新的L2表征/训练目标，再另立单因素实验，并保持Unknown只用于冻结后的审计。
+
+产物：`data/processed/RADAR-LN3-V26k-cq08-l2-train-only-mahalanobis-knownness-diagnostic-contract.json`、`src-v3/processed/report/RADAR-LN3-V26k-l2-train-only-mahalanobis-knownness-diagnostic-readiness.json`、报告、逐parent CSV、实现模块、Smoke、脚本和协议文档；关键SHA见报告。

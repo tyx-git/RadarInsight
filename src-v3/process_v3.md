@@ -2443,3 +2443,13 @@ V23现收敛为单一的开发基座，而非V23a/V23b五折OOF实验：官方`n
 补强官方运行时兼容性合同：新增不访问Radar数据、checkpoint、validation、test或OOF的固定随机张量sidecar。实际`ncps==1.0.1`审计确认：`CfC(dt=0)`输出/状态有限但状态不是identity；`CfC.forward`不接受`padding_mask`；batch=2且每parent timespan不同会因上游squeeze/broadcast限制报`RuntimeError`；dense整数units实例没有wiring；`LTC(dt=0)`输出/状态含NaN。因此V23保留逐parent、移除右padding后调用未修改`CfC.forward`的薄适配，而不引入floor、skip、截断或手写cell；这描述兼容性和预期吞吐边界，不构成P95或性能结论。sidecar SHA现在被写入并由V23 checkpoint、training summary、development report和PowerShell流水线复核。
 
 报告收敛：V23完成训练后只发布紧凑development KnownGate报告，包括parent-final、eligible-prefix、window的Accuracy/Macro-F1、KnownTarget/Clutter P/R/F1/support和2×2混淆矩阵，以及best epoch、global step、elapsed、参数量和冻结选择规则。完整逐parent记录仍仅留在formal artifact；Clutter validation support=9必须随报告保留，不能外推成跨source、正式拒识、完整级联、stable、P95或test结论。
+
+## 2026-08-30 Stage 095结果 - V26k L2 train-only严格open-set knownness诊断
+
+本阶段为只读诊断。V26k通过V26c/V26f的合同、readiness和实现hash核验，逐fold在CPU短生命周期worker中加载V26c DBB specialist epoch-15 checkpoint；每折仅使用train-only Drone/Bird/Balloon parent-final的真实L2分类器输入`LayerNorm(liquid_final_state)`拟合48维 pooled-diagonal class-conditional Mahalanobis参考。Unknown未进入训练、归一化、参考中心、方差、阈值、选择或模型状态；只在分数和95% train-known保留操作点冻结后审计V26f混合validation/test。
+
+主L1-target-route结果：validation Mahalanobis AUROC=`0.614735±0.045193`、AP=`0.098285±0.022159`，MSP comparator为`0.697383±0.027700`、`0.129251±0.034343`；test Mahalanobis为`0.716119±0.057094`、`0.132807±0.026005`，MSP为`0.760781±0.057353`、`0.153311±0.051172`。Mahalanobis在test有排序信号，但两层split均落后于同一冻结输出上的MSP，不能称为增量有效。
+
+以每折train-known 95%保留为诊断操作点，validation/test L2 DBB保留率为`0.914685/0.922469`，L1→L2串联KnownTarget Recall为`0.913004/0.909091`；L1在L2前的已知目标召回明显更高，主要损失来自新增距离gate。L1-target-route Unknown support为validation=`66`、test=`78`，拒识率约`12.12%/14.10%`；报告fold-macro有效误接受率为`0.885714/0.858333`，不足以形成严格open-set边界。
+
+冻结裁决：`hypothesis_not_supported`，不接入L3、不拟合产品阈值、不改变L2模型。V26k只证明当前L2 embedding不能承担独立strict-open-set gate；不能据此否定L1 Mahalanobis，也不能把阈值继续搜索或Unknown入模当作本实验的补救。报告SHA=`be9b036848b42951e5d936b52842ff1d5b2b1fdd0338860a8698a0497a4ffa0c`，逐parent CSV SHA=`319e1892e282acab0bdf2e9591f6bedbe727b62c35024ffdc0df1005b251cb62`，contract SHA=`430982db29961456849921ef671f577b076f03427ed8e32dd4b4d3b72b26b3ae`。

@@ -1,0 +1,601 @@
+{
+  "schema_version": "RADAR-LN3-V26k-l2-train-only-mahalanobis-knownness-diagnostic-contract-v1",
+  "experiment": "V26k L2 train-only strict-open-set knownness diagnostic",
+  "scope": "inference-only per-fold L2 DBB embedding reference fitting and frozen mixed audit; no model, cache, L3 registry or semantic action is changed",
+  "direct_source_experiment": "V26c for fold-local L2 Known-only checkpoints and train parents; V26f for frozen mixed CQ08 validation/test routes",
+  "source_v26c": {
+    "v26c_contract_sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+    "v26c_readiness_sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+    "v26c_contract_schema": "RADAR-LN3-V26c-l1-l2-known-only-oof-calibration-contract-v1",
+    "v26c_readiness_schema": "RADAR-LN3-V26c-l1-l2-known-only-oof-calibration-readiness-v1",
+    "fixed_snapshot_epoch": 15,
+    "folds": [
+      {
+        "fold_id": 0,
+        "train_parent_count": 762,
+        "held_out_parent_count": 191,
+        "train_parent_ids_sha256": "04a4c9c7ade4ed019a7bd4403ccb494d834f77f5a3786cc94ba2b045772ddb49",
+        "held_out_parent_ids_sha256": "5e47a1746b3c882a93c0cff434f0d32cc30f87bf3e51590f1fd3d0c6679a97ba",
+        "train_label_parent_counts": {
+          "DroneTarget": 381,
+          "BirdTarget": 191,
+          "BalloonTarget": 190
+        },
+        "held_out_label_parent_counts": {
+          "DroneTarget": 95,
+          "BirdTarget": 48,
+          "BalloonTarget": 48
+        },
+        "fixed_snapshot_epoch": 15,
+        "files": {
+          "config": {
+            "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-seed42-config.json",
+            "sha256": "4581b113220d760e24b01e41b846373c413661fd608182eacd00c59c10da3abe",
+            "size_bytes": 7490
+          },
+          "data_contract": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-data-contract.json",
+            "sha256": "36427b52e646dd2f0a7856d6d40c5cc3553d847b69a2f923cda5a10238537b1f",
+            "size_bytes": 9596
+          },
+          "normalization": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-normalization-stats.json",
+            "sha256": "75e702388fe10bfc7c1ba91eba43745ac6c8703e5b3204499fcffbf21f8698e5",
+            "size_bytes": 2454
+          },
+          "checkpoint": {
+            "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-00/l2/epoch-15-model.pt",
+            "sha256": "0bf9b88eed1e8b37bfe8280889ecb81fbdf61504f09aee7bde4e9e017cb0289a",
+            "size_bytes": 409650
+          }
+        },
+        "caches": {
+          "train_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-rd-physical4-cache.npz",
+            "sha256": "e412f5a5df53a53a5f82f6738c1402263e8af44ddeb7a0f73cd0d6f471c69f13",
+            "size_bytes": 246683,
+            "event_count": 14647,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "b59ecf8c886761514570cb2687686fb1d9e6165de7de892dae2915d05f00ac0c"
+          },
+          "train_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-train-micro-doppler8-cache.npz",
+            "sha256": "0ef957cffa0a926f8a6a43611ce27be2973a4c6babfae4b15e657e6ff85a4c09",
+            "size_bytes": 466872,
+            "event_count": 14647,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "b59ecf8c886761514570cb2687686fb1d9e6165de7de892dae2915d05f00ac0c"
+          },
+          "held_out_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-held-out-rd-physical4-cache.npz",
+            "sha256": "972335f0a176a86aac3d5de8ae9dc4ee2fe50f1fdf9fe332fa379b1d9dd46641",
+            "size_bytes": 61498,
+            "event_count": 3619,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "e3428870c308a4663de7ad37500cf2f47bf3089123f1e88fc5ce45e68ba78ffc"
+          },
+          "held_out_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-00-held-out-micro-doppler8-cache.npz",
+            "sha256": "f895432860c85a32e6a14c602414227a3b129ea5ec94ace6e5f7e778482fb80f",
+            "size_bytes": 115834,
+            "event_count": 3619,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "e3428870c308a4663de7ad37500cf2f47bf3089123f1e88fc5ce45e68ba78ffc"
+          }
+        }
+      },
+      {
+        "fold_id": 1,
+        "train_parent_count": 762,
+        "held_out_parent_count": 191,
+        "train_parent_ids_sha256": "daacbd29d3ac20c1ecea74b13d0e82ca2644f1c1fe568bfd6514dc4fceb0b689",
+        "held_out_parent_ids_sha256": "b8cca640ddf53ae83a6309f687330d9a4ef229ef92af1a33d33b3f7dc0c5f1da",
+        "train_label_parent_counts": {
+          "DroneTarget": 381,
+          "BirdTarget": 191,
+          "BalloonTarget": 190
+        },
+        "held_out_label_parent_counts": {
+          "DroneTarget": 95,
+          "BirdTarget": 48,
+          "BalloonTarget": 48
+        },
+        "fixed_snapshot_epoch": 15,
+        "files": {
+          "config": {
+            "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-seed42-config.json",
+            "sha256": "792e47327187776e9a6eec5cfe693fb59757df7f408f7148c0b0751bc6c8dc89",
+            "size_bytes": 7489
+          },
+          "data_contract": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-data-contract.json",
+            "sha256": "b0e2b1cc175d81fb6fa569901e9f6a47da7a112c7bf4494149b29b308fe2bbd7",
+            "size_bytes": 9596
+          },
+          "normalization": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-normalization-stats.json",
+            "sha256": "21c5b397460f1e8de156444a4af20838cd87d50599f6e671f85dd91bb9169ac0",
+            "size_bytes": 2452
+          },
+          "checkpoint": {
+            "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-01/l2/epoch-15-model.pt",
+            "sha256": "d3e45beb519354af298f6979d12bace11fb4a272f96e04810cf7cfdb29678cbd",
+            "size_bytes": 409650
+          }
+        },
+        "caches": {
+          "train_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-rd-physical4-cache.npz",
+            "sha256": "0c561b989dcf094d705844d251b79d42d07c089c5946879b1fc4e7d5e89d4ab2",
+            "size_bytes": 245852,
+            "event_count": 14607,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "30c512f54df3a21e329d1e2988294b578ac62d46c0732be64542e9880d654274"
+          },
+          "train_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-train-micro-doppler8-cache.npz",
+            "sha256": "de646008912dfd9dbc917eb46a80b99572c9c211cd521ede92abd3a9bc7a8dd1",
+            "size_bytes": 464588,
+            "event_count": 14607,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "30c512f54df3a21e329d1e2988294b578ac62d46c0732be64542e9880d654274"
+          },
+          "held_out_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-held-out-rd-physical4-cache.npz",
+            "sha256": "83cf4657f34490e079c1af2d99638cd01c73654cbcf98ee8cf50ae5a2ad26665",
+            "size_bytes": 62224,
+            "event_count": 3659,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "1f5e0a76371f67561231443624037769b497519ad36e7ca19ab08a44d5ca3556"
+          },
+          "held_out_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-01-held-out-micro-doppler8-cache.npz",
+            "sha256": "80665e6ca08820d62324f03889dbac7556d280fcda1dd109aa26017a294744b4",
+            "size_bytes": 117732,
+            "event_count": 3659,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "1f5e0a76371f67561231443624037769b497519ad36e7ca19ab08a44d5ca3556"
+          }
+        }
+      },
+      {
+        "fold_id": 2,
+        "train_parent_count": 762,
+        "held_out_parent_count": 191,
+        "train_parent_ids_sha256": "1533508de5f505aead48f2d42a38852bd82e7f613face3c93424073f6dd5e684",
+        "held_out_parent_ids_sha256": "0ce6f3d0ad86c89dc7e5a674e36d317b9823e86298ecf9829c93b51432efbd32",
+        "train_label_parent_counts": {
+          "DroneTarget": 381,
+          "BirdTarget": 191,
+          "BalloonTarget": 190
+        },
+        "held_out_label_parent_counts": {
+          "DroneTarget": 95,
+          "BirdTarget": 48,
+          "BalloonTarget": 48
+        },
+        "fixed_snapshot_epoch": 15,
+        "files": {
+          "config": {
+            "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-seed42-config.json",
+            "sha256": "1d4be5897262e47b649aaedc8627ebdbb506c63372ee2cb73303fce896f644e2",
+            "size_bytes": 7488
+          },
+          "data_contract": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-data-contract.json",
+            "sha256": "0d510430218f0cf95b8faa34bfacf07e17bcf953cd7503a51a1f07f646769ac9",
+            "size_bytes": 9596
+          },
+          "normalization": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-normalization-stats.json",
+            "sha256": "7fb39a78807ede9d528be983be70c1b98ef6b2f41f605fb6de34344af0ac064d",
+            "size_bytes": 2449
+          },
+          "checkpoint": {
+            "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-02/l2/epoch-15-model.pt",
+            "sha256": "e1dfbaf72a667a56cfc36a300e222f5bab71e56129064d938ac17a87a0163c88",
+            "size_bytes": 409650
+          }
+        },
+        "caches": {
+          "train_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-rd-physical4-cache.npz",
+            "sha256": "10b4dd6dfaef280b10e2901fd6f1327313c3e7fa3a75a879d76b28519dabc256",
+            "size_bytes": 247099,
+            "event_count": 14640,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "98bbe9686bbb8c599b8d9f6d48a86dddb8f88903ee87069034d5f7f40d253bda"
+          },
+          "train_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-train-micro-doppler8-cache.npz",
+            "sha256": "dec150c2291beecb9a9d544a5e657c9a7ab361612e7a0e0392c30746501826a9",
+            "size_bytes": 467594,
+            "event_count": 14640,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "98bbe9686bbb8c599b8d9f6d48a86dddb8f88903ee87069034d5f7f40d253bda"
+          },
+          "held_out_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-held-out-rd-physical4-cache.npz",
+            "sha256": "3a588ee5a2c8deaed435032506cd0d2723b8dd53b6bb8dc61ac6ea980e5f0f10",
+            "size_bytes": 61299,
+            "event_count": 3626,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "56851dbeecbdb9d7cdf83fa0a0c015191d31fa75a86e783c3d3c9c16014c52a7"
+          },
+          "held_out_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-02-held-out-micro-doppler8-cache.npz",
+            "sha256": "61b7d0567abe2576a0b7bb3876656bb401b918fa1e96d98f5521b2e262a2ecec",
+            "size_bytes": 114831,
+            "event_count": 3626,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "56851dbeecbdb9d7cdf83fa0a0c015191d31fa75a86e783c3d3c9c16014c52a7"
+          }
+        }
+      },
+      {
+        "fold_id": 3,
+        "train_parent_count": 763,
+        "held_out_parent_count": 190,
+        "train_parent_ids_sha256": "fc79df56f5ca94007b9ee6305f7b18a80e54b48c7f50b1595e261eacc4e8e613",
+        "held_out_parent_ids_sha256": "42be3231d3e97f7c1aba211c039d223400f3e381ab02feb67c6072d7daee9894",
+        "train_label_parent_counts": {
+          "DroneTarget": 380,
+          "BirdTarget": 192,
+          "BalloonTarget": 191
+        },
+        "held_out_label_parent_counts": {
+          "DroneTarget": 96,
+          "BirdTarget": 47,
+          "BalloonTarget": 47
+        },
+        "fixed_snapshot_epoch": 15,
+        "files": {
+          "config": {
+            "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-seed42-config.json",
+            "sha256": "eb7680866f8c9a6239a9ff0059939d4a7a036145da25807db4a562594c362db9",
+            "size_bytes": 7487
+          },
+          "data_contract": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-data-contract.json",
+            "sha256": "cc63d449d447c4884907c5a00204670f315023ff26253a85fd401a602885cdb3",
+            "size_bytes": 9596
+          },
+          "normalization": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-normalization-stats.json",
+            "sha256": "2818f2a2ca04ff56559e79d888b1d5b1249d957d39b12b8cafc511bcaf199630",
+            "size_bytes": 2450
+          },
+          "checkpoint": {
+            "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-03/l2/epoch-15-model.pt",
+            "sha256": "7a22548fd4a6060a0db828f5ca1796a82676d6e19ef4271b91635cebb2cdfd07",
+            "size_bytes": 409650
+          }
+        },
+        "caches": {
+          "train_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-rd-physical4-cache.npz",
+            "sha256": "445709129a0ec1daeb61d455fedfbf546d8f4fd609bf285e91105249c15cf2a4",
+            "size_bytes": 246517,
+            "event_count": 14602,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "274f60837f5c0c4fbf217529122df82beceeaace41ca60db6e1e13efb6eaff20"
+          },
+          "train_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-train-micro-doppler8-cache.npz",
+            "sha256": "af0cd72539d1315903f449063323e1807a4f4ec6b624aea8d6ff861d0dcd6c57",
+            "size_bytes": 465795,
+            "event_count": 14602,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "274f60837f5c0c4fbf217529122df82beceeaace41ca60db6e1e13efb6eaff20"
+          },
+          "held_out_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-held-out-rd-physical4-cache.npz",
+            "sha256": "491bf8ec0b3b2c5459bbefc7df1c76cd28e8b815f3ab44cc74dfcb31a2ad7dd1",
+            "size_bytes": 61671,
+            "event_count": 3664,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "c2c7333a84667f2d899f4fe29fa0d0dd9a6fe9ba5c8676ecbf23c4378b7ba4db"
+          },
+          "held_out_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-03-held-out-micro-doppler8-cache.npz",
+            "sha256": "6b25d611f8792070919d3d88f6018c645e6de50a2045f572091721c7400fbbd4",
+            "size_bytes": 116465,
+            "event_count": 3664,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "c2c7333a84667f2d899f4fe29fa0d0dd9a6fe9ba5c8676ecbf23c4378b7ba4db"
+          }
+        }
+      },
+      {
+        "fold_id": 4,
+        "train_parent_count": 763,
+        "held_out_parent_count": 190,
+        "train_parent_ids_sha256": "7cd817ee0c855f7c22c64e65caff805e475cec754adaf21e3e812acab8dec221",
+        "held_out_parent_ids_sha256": "ec511bbd1eb372662d0684fc2acf94b3db54cb58248cb9320efa4a21bf28dd5e",
+        "train_label_parent_counts": {
+          "DroneTarget": 381,
+          "BirdTarget": 191,
+          "BalloonTarget": 191
+        },
+        "held_out_label_parent_counts": {
+          "DroneTarget": 95,
+          "BirdTarget": 48,
+          "BalloonTarget": 47
+        },
+        "fixed_snapshot_epoch": 15,
+        "files": {
+          "config": {
+            "path": "config/RADAR-LN3/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-seed42-config.json",
+            "sha256": "fcc2c73f9dcc685d26f56df1e850dd12aa732bf6461bcf04ec3a91749ea1f37e",
+            "size_bytes": 7484
+          },
+          "data_contract": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-data-contract.json",
+            "sha256": "66d1d41cfe2796a6d3c1d7b1235e04276ca51a3df7f3736c24a85e0180a2bced",
+            "size_bytes": 9596
+          },
+          "normalization": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-normalization-stats.json",
+            "sha256": "f82ba754fdac3016a1b658f64515d81a791dd7d774316da20a5259e113bcc8cd",
+            "size_bytes": 2448
+          },
+          "checkpoint": {
+            "path": "artifacts/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration/fold-04/l2/epoch-15-model.pt",
+            "sha256": "f421a163f03f088761be1c856a8895bd0632245b4ed660b03722dc08b4347939",
+            "size_bytes": 409650
+          }
+        },
+        "caches": {
+          "train_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-rd-physical4-cache.npz",
+            "sha256": "e5876b7ff7c349fa29fe976f2c2d95f5247c807e80fbb8ffadf912e7fc178d91",
+            "size_bytes": 245874,
+            "event_count": 14568,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "5b9330d4eb9ba3f920dc683b4437314e857fb01d9173c0f547ea5e533eb50cd5"
+          },
+          "train_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-train-micro-doppler8-cache.npz",
+            "sha256": "e158d83782d07aecd652d08f99d6929e436f469b8dd132479d5c12fe692dd42a",
+            "size_bytes": 463754,
+            "event_count": 14568,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "5b9330d4eb9ba3f920dc683b4437314e857fb01d9173c0f547ea5e533eb50cd5"
+          },
+          "held_out_rd_physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-held-out-rd-physical4-cache.npz",
+            "sha256": "4a083b81d082bcaa73e8e61c196cb5f3df2ffe3e9b46ef5f52e259fddeefdb17",
+            "size_bytes": 62533,
+            "event_count": 3698,
+            "feature_width": 4,
+            "selected_sample_ids_sha256": "d32808212ed3626733a3b78599b7b357c2984686c97364d8c40fa71f89afbf8e"
+          },
+          "held_out_micro_doppler": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-oof-fold-04-held-out-micro-doppler8-cache.npz",
+            "sha256": "602843f38311caf2db24fd3dd6229c8f53d8e27317cef1210db4a6061951175f",
+            "size_bytes": 119123,
+            "event_count": 3698,
+            "feature_width": 8,
+            "selected_sample_ids_sha256": "d32808212ed3626733a3b78599b7b357c2984686c97364d8c40fa71f89afbf8e"
+          }
+        }
+      }
+    ]
+  },
+  "source_v26f": {
+    "v26f_contract_sha256": "44a7d87ad4bd2d4e424c7f4f5ae6191619cc390014bd0978191686ce8f4ffdc5",
+    "v26f_readiness_sha256": "286a370d7a20365b792400496e640f3d46a7505e6e05410a528122a5ba2056f2",
+    "v26f_report_sha256": "0ac64556eb880471721d843dfa9cdc37b2d1a39472513df8db0ca11c2aefae28",
+    "v26f_parent_detail_sha256": "6d4a14fa54a93bcf61815389b4bc1252cc84cab772606b6400decf8bc51bcecd",
+    "v26f_contract_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-contract-v1",
+    "v26f_readiness_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-readiness-v1",
+    "v26f_report_schema": "RADAR-LN3-V26f-frozen-mixed-open-set-audit-v1",
+    "mixed_parent_counts": {
+      "val": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9,
+        "UnknownTarget": 15
+      },
+      "test": {
+        "DroneTarget": 109,
+        "BirdTarget": 53,
+        "BalloonTarget": 58,
+        "ClutterTarget": 8,
+        "UnknownTarget": 16
+      }
+    },
+    "route_row_count": 2455,
+    "route_key_sequence_sha256": "f418b85fd7c608084f280f304540e3ee9ab89de6362dcb689058b7fb2ab798af",
+    "mixed_cache_bindings": [
+      {
+        "split": "val",
+        "name": "l1_course",
+        "path": "data/processed/RADAR-LN3-V26-cq08-known-gate-val-mixed-open-set-course-cache.npz",
+        "sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd",
+        "size_bytes": 28591
+      },
+      {
+        "split": "val",
+        "name": "l2_rd_physical4",
+        "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-rd-physical4-cache.npz",
+        "sha256": "0cc1ed6b96d6924f10cbf778fd6bba0009a4e0a108ef0184fd03452804c438b3",
+        "size_bytes": 79237
+      },
+      {
+        "split": "val",
+        "name": "l2_micro_doppler8",
+        "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-micro-doppler8-cache.npz",
+        "sha256": "967067ef3c00dd7eabef45044afd7789ba6047a2097e837af187c340466f10b4",
+        "size_bytes": 148884
+      },
+      {
+        "split": "test",
+        "name": "l1_course",
+        "path": "data/processed/RADAR-LN3-V26-cq08-known-gate-test-mixed-open-set-course-cache.npz",
+        "sha256": "4a5ef217d91e42ccd994be691aebd73d53510fc4e25606f6521294ca399e46cb",
+        "size_bytes": 28620
+      },
+      {
+        "split": "test",
+        "name": "l2_rd_physical4",
+        "path": "data/processed/RADAR-LN3-V26b-cq08-l2-test-mixed-open-set-rd-physical4-cache.npz",
+        "sha256": "83a6e8643773f15db1b6a98333b4431427038ba51451e73e3232f62380655d50",
+        "size_bytes": 79288
+      },
+      {
+        "split": "test",
+        "name": "l2_micro_doppler8",
+        "path": "data/processed/RADAR-LN3-V26b-cq08-l2-test-mixed-open-set-micro-doppler8-cache.npz",
+        "sha256": "3eedfc1b85f46578c26f873a77708cf7e6af73073e0c543f242952a1bdac5b19",
+        "size_bytes": 148547
+      }
+    ]
+  },
+  "source_bindings": [
+    {
+      "name": "v26c_contract",
+      "path": "data/processed/RADAR-LN3-V26c-cq08-l1-l2-known-only-oof-calibration-contract.json",
+      "sha256": "d822973340a94fcff3a276645235a85b0d3a38528367c99d9a7eb1c020f2f148",
+      "size_bytes": 350010
+    },
+    {
+      "name": "v26c_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26c-l1-l2-known-only-oof-calibration-readiness.json",
+      "sha256": "a9c35c9801a305f862de78922db947deb6f88a8f4b7561ddf0405fca3e736899",
+      "size_bytes": 1561
+    },
+    {
+      "name": "v26f_contract",
+      "path": "data/processed/RADAR-LN3-V26f-cq08-frozen-mixed-open-set-audit-contract.json",
+      "sha256": "44a7d87ad4bd2d4e424c7f4f5ae6191619cc390014bd0978191686ce8f4ffdc5",
+      "size_bytes": 41169
+    },
+    {
+      "name": "v26f_readiness",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit-readiness.json",
+      "sha256": "286a370d7a20365b792400496e640f3d46a7505e6e05410a528122a5ba2056f2",
+      "size_bytes": 1422
+    },
+    {
+      "name": "v26f_report",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit.json",
+      "sha256": "0ac64556eb880471721d843dfa9cdc37b2d1a39472513df8db0ca11c2aefae28",
+      "size_bytes": 1018799
+    },
+    {
+      "name": "v26f_parent_detail",
+      "path": "src-v3/processed/report/RADAR-LN3-V26f-frozen-mixed-open-set-audit-parent-details.csv",
+      "sha256": "6d4a14fa54a93bcf61815389b4bc1252cc84cab772606b6400decf8bc51bcecd",
+      "size_bytes": 766061
+    },
+    {
+      "name": "document",
+      "path": "src-v3/docs/radar_ln3_v26k_l2_train_only_mahalanobis_knownness_diagnostic.md",
+      "sha256": "5ae61dd4fb1f21aba8f961623c0893cb426fa8d3ce0c2091f340b7f534bf4299",
+      "size_bytes": 4918
+    }
+  ],
+  "implementation_sha256": {
+    "src-v3/radar_ln3/known_gate_v26k.py": "746f68f0f0b1f9be831de00d03447327aad3c25420e83f3e7bb309195b0e5f59",
+    "src-v3/build/known_gate_v26k.py": "25ac12ef6ed5b2d1023203e7ab15f269f44c0d2b720a59d08e67befdd0982c01",
+    "src-v3/report/known_gate_v26k.py": "7b975eed0cc4bd30bcbc9d0669e40a9cfa82fa1679440084720ac1b9cb7de357",
+    "src-v3/smoke/known_gate_v26k_contract_test.py": "be7492a97e776e1ddf86e95b743334b3ea968e160f80030fa242969da20835ab",
+    "src-v3/scripts/v26k_known_gate_l2_train_only_mahalanobis_diagnostic_pipeline.ps1": "438a87a66480bdf8668d4193c791644c0175896f8661b73663e40863f0f4286b",
+    "src-v3/docs/radar_ln3_v26k_l2_train_only_mahalanobis_knownness_diagnostic.md": "5ae61dd4fb1f21aba8f961623c0893cb426fa8d3ce0c2091f340b7f534bf4299"
+  },
+  "fold_count": 5,
+  "fixed_l2_epoch": 15,
+  "data": {
+    "source": "CQ08",
+    "index": "V26c/V26f hash-bound RADAR-LN3-V16 CQ08 index",
+    "reference_population": "per-fold V26c train-only Drone/Bird/Balloon parents",
+    "primary_audit_population": "V26f frozen parent-final rows whose observed L1 route is KNOWN_TARGET_EVIDENCE",
+    "secondary_audit_population": "V26f frozen KNOWN_CLUTTER_EVIDENCE rows, reported separately",
+    "validation_parent_counts": {
+      "DroneTarget": 113,
+      "BirdTarget": 56,
+      "BalloonTarget": 54,
+      "ClutterTarget": 9,
+      "UnknownTarget": 15
+    },
+    "test_parent_counts": {
+      "DroneTarget": 109,
+      "BirdTarget": 53,
+      "BalloonTarget": 58,
+      "ClutterTarget": 8,
+      "UnknownTarget": 16
+    }
+  },
+  "representation": {
+    "name": "classifier_layer_norm_liquid_final_state",
+    "dimension": 48,
+    "verified_path": "L2 liquid_final_state -> classifier[0] LayerNorm -> classifier[1] Linear",
+    "classifier_input_is_used": true,
+    "raw_liquid_final_state_used_directly": false,
+    "angular_prototype_embedding": false,
+    "logit_reconstruction_required": true
+  },
+  "ood_score_policy": {
+    "score_name": "minimum_class_conditional_pooled_diagonal_mahalanobis_distance",
+    "score_orientation": "higher_means_less_like_train_known",
+    "representation": "classifier_layer_norm_liquid_final_state",
+    "representation_dimension": 48,
+    "reference_fit": "per_fold_train_known_only_parent_final_states",
+    "class_conditional_references": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "covariance": "pooled_diagonal_within_class_variance",
+    "variance_floor_multiplier_of_median_positive_variance": 1e-06,
+    "variance_floor_absolute": 1e-10,
+    "unknown_in_model": false,
+    "unknown_in_normalization": false,
+    "unknown_in_reference_fit": false,
+    "unknown_in_threshold_fit": false,
+    "unknown_in_checkpoint_or_model_selection": false,
+    "threshold_policy": "train_known_empirical_quantile_for_95_percent_retention",
+    "threshold_is_product_calibration": false,
+    "score_fusion_with_msp": false,
+    "cross_fold_state_or_score_pooling": false,
+    "semantic_action_mutation": false
+  },
+  "ranking_protocol": {
+    "unknown_truth_used_only_after_score_and_train_threshold_freeze": true,
+    "primary_known_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "primary_unknown_label": "UnknownTarget",
+    "primary_route": "KNOWN_TARGET_EVIDENCE",
+    "clutter_is_not_in_primary_l2_reference_or_primary_known_set": true,
+    "train_threshold_is_diagnostic_only": true,
+    "train_threshold_target_retention": 0.95,
+    "threshold_fitted_from": "per-fold train-only DBB parent-final distances",
+    "cross_fold_state_or_score_pooling": false,
+    "msp_is_recomputed_comparator_only": true
+  },
+  "unknown_training_exposure": 0,
+  "unknown_normalization_exposure": 0,
+  "unknown_reference_fit_exposure": 0,
+  "unknown_threshold_fit_exposure": 0,
+  "unknown_checkpoint_selection_exposure": 0,
+  "new_training": false,
+  "new_threshold_fit": false,
+  "product_threshold_mutation": false,
+  "semantic_action_mutation": false,
+  "deployment_eligible": false,
+  "not_executed": {
+    "training": true,
+    "oof_retraining": true,
+    "normalization_rebuild": true,
+    "checkpoint_selection": true,
+    "product_threshold_calibration": true,
+    "l3_registry_mutation": true,
+    "semantic_action_replay": true,
+    "deployment": true
+  }
+}

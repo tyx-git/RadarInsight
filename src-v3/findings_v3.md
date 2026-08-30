@@ -2589,3 +2589,11 @@
 - Evidence：`smoke/known_gate_v23_official_cfc_runtime_compatibility.py`只用固定随机张量运行官方`ncps==1.0.1`。`CfC(dt=0)`的output/state均有限、最大状态变化非零，故零间隔不是skip/identity；`CfC.forward(..., padding_mask=...)`报`TypeError`；batch=2的异步`[B,L]`timespans报broadcast `RuntimeError`；dense 48-unit CfC无wiring；同一输入下`LTC(dt=0)`产生96个NaN。审计报告的data/checkpoint/validation/test访问计数均为0。
 - Impact：直接替换为LTC、将零dt改为floor/skip、把异步batch强行传给官方CfC或把padding传给上游API，都会改变V23的冻结定义或失败。逐parent调用官方CfC是当前上游API限制下的必要适配，预计相对假设的向量化批处理更慢；这不是P95测量。
 - Action：运行时sidecar必须在prepare/smoke中重新生成并通过，checkpoint、summary和development report绑定其路径/SHA/schema/checks。开发报告只留三种评估范围的核心指标、2×2混淆矩阵和Clutter support=9警告；训练、多seed、OOF、test、完整L1/L2/L3、拒识、stable和P95仍未执行。
+
+## Finding F240
+
+- Severity：Critical
+- Status：已确认V26k诊断不支持把当前L2表征接入严格open-set gate
+- Evidence：V26k严格绑定V26c每折L2 DBB specialist epoch-15 checkpoint和train-only Drone/Bird/Balloon parent，以及V26f冻结混合CQ08 validation/test人口；48维embedding为真实L2 classifier输入`LayerNorm(liquid_final_state)`，Unknown的训练、归一化、参考拟合、阈值拟合和选择暴露均为0。validation/test主L1-target-route Mahalanobis AUROC=`0.614735±0.045193/0.716119±0.057094`、AP=`0.098285±0.022159/0.132807±0.026005`，同一冻结输出上的MSP comparator为`0.697383±0.027700/0.760781±0.057353`、AP=`0.129251±0.034343/0.153311±0.051172`。train-only 95%保留操作点的L2保留率=`0.914685/0.922469`，L1→L2 KnownTarget Recall=`0.913004/0.909091`；L1-target-route Unknown有效误接受率=`0.885714/0.858333`。
+- Impact：Mahalanobis在test存在一定排序信号，但validation/test均弱于MSP，且新增L2距离gate使KnownTarget Recall低于95%；当前L2 embedding不能同时提供可靠Unknown排序和已知目标安全，继续调阈值或把结果直接接入L3会把局部诊断误写成产品能力。V26h的L1距离结果不能外推到L2。
+- Action：冻结V26k为`hypothesis_not_supported`，不接入L3、不进行产品阈值校准、不修改L2模型。后续若继续L2 open-set，应先以单因素验证新的L2表征/训练目标，Unknown仍只能在冻结后审计；Pending/Abstain、完整语义动作、stable、P95和部署仍未执行。
