@@ -1,0 +1,230 @@
+{
+  "status": "completed_fixed_epoch_knownness_training",
+  "schema_version": "RADAR-LN3-V27b-r6-knownness-training-summary-v1",
+  "experiment_id": "V27b-r6",
+  "arm": "stable8_treatment",
+  "seed": 42,
+  "selected_epoch": 30,
+  "selection": "fixed_primary_epoch",
+  "dataloader_seed": 84,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.07916585852702458,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 9
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.07788612403803402,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 18
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.07788616708583301,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 27
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.07717773359682825,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 36
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.0758320718175835,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 45
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.07359091937541962,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 54
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.06893820977873272,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 63
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.06619648428426848,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 72
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.06296414095494482,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 81
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.05910006082720227,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 90
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.05753060720033116,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 99
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.058824796229600906,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 108
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.05248677192462815,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 117
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.05074649304151535,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 126
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.0496223991115888,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 135
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.047665849741962224,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 144
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.047199394553899765,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 153
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.042758103667034045,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 162
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.04110167423884074,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 171
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.04110470103720824,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 180
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.038740448446737394,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 189
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.0400756411254406,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 198
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.03910090525945028,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 207
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.03756564627918932,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 216
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.03586114777459039,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 225
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.03571247226662106,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 234
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.033559817613826856,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 243
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.03343475382361147,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 252
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.032478564211891756,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 261
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.0371932987537649,
+      "eligible_batches": 9,
+      "skipped_batches": 0,
+      "global_step": 270
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/v27b/r6/runs/V27b-r6-stable8_treatment-seed42/epochs/epoch-030.pt",
+  "checkpoint_sha256": "a560fd4540dbcd1860861fd5b8d5494015a6e44995f6895cdcd0e692a2f4cd90",
+  "checkpoint_state_sha256": "39fd480ce610f4718a1949bbc30247856b45672a7d32c197a6c03231e25a0b8a",
+  "training_log_path": "src-v3/v27/v27b/r6/runs/V27b-r6-stable8_treatment-seed42/training.log",
+  "feature_manifest_sha256": "17b4985d5c42df4048a5077944903cc1457cded47282ed0f38738b9f918d0616",
+  "unknown_is_classifier_class": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "bbd992b4ef8c22d198ad6a1ccda122e4b72e4e61a915c5c51a84389180225a92"
+}

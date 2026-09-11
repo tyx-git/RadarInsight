@@ -1,0 +1,363 @@
+{
+  "schema_version": "RADAR-LN3-V27b-r6-knownness-report-v1",
+  "experiment_id": "V27b-r6",
+  "status": "paired_knownness_ranking_diagnostic",
+  "seed": 43,
+  "role": "representation_development",
+  "r6_manifest_sha256": "b4a74c62f0cf8bb20ecc52ebff1e2d6a01f569f46854f6c47e0d73baedfc645d",
+  "feature_manifest_sha256": "17b4985d5c42df4048a5077944903cc1457cded47282ed0f38738b9f918d0616",
+  "arms": {
+    "control": {
+      "schema_version": "RADAR-LN3-V27b-r6-knownness-report-v1",
+      "experiment_id": "V27b-r6",
+      "status": "knownness_ranking_diagnostic",
+      "arm": "control",
+      "seed": 43,
+      "role": "representation_development",
+      "r6_manifest_sha256": "b4a74c62f0cf8bb20ecc52ebff1e2d6a01f569f46854f6c47e0d73baedfc645d",
+      "feature_manifest_sha256": "17b4985d5c42df4048a5077944903cc1457cded47282ed0f38738b9f918d0616",
+      "feature_cache_sha256": "4d9f683b954838e2ca1fa9f3348d2fe59a7f21ee26165aab11256d286a043f7e",
+      "checkpoint_state_sha256": "dd36ba3a569fbc69391455841c18aa4b6b2bbd9b5650ef2c45541d790af06b60",
+      "frozen_v27a_main_checkpoint_sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305",
+      "classifier_logits_input_to_knownness": false,
+      "classifier_logits_must_remain_bitwise_unchanged": true,
+      "unknown_is_classifier_class": false,
+      "knownness_score_direction": "higher_is_known",
+      "fit_population": {
+        "eligible_known": 449,
+        "eligible_unknown": 36,
+        "pending_low_quality_or_insufficient_reliable": 6,
+        "clutter_diagnostic_only": 14
+      },
+      "ranking": {
+        "known_positive_support": 449,
+        "unknown_negative_support": 36,
+        "auroc_higher_is_known": 0.9454342984409799,
+        "average_precision_known_positive": 0.9954207953985063,
+        "score_min": 0.12259912490844727,
+        "score_max": 0.9712368845939636,
+        "score_mean": 0.670557013968217
+      },
+      "operating_points": [
+        {
+          "known_recall_floor": 0.99,
+          "threshold_higher_is_known": 0.12763643264770508,
+          "known_acceptance": 0.9910913140311804,
+          "unknown_rejection": 0.25,
+          "unknown_acceptance": 0.75,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.9001760599775273
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.9649122807017544,
+              "score_mean": 0.21157692686507576
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.8269732130003405
+            }
+          }
+        },
+        {
+          "known_recall_floor": 0.97,
+          "threshold_higher_is_known": 0.13490062952041626,
+          "known_acceptance": 0.9710467706013363,
+          "unknown_rejection": 0.4722222222222222,
+          "unknown_acceptance": 0.5277777777777778,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.9001760599775273
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.8859649122807017,
+              "score_mean": 0.21157692686507576
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.8269732130003405
+            }
+          }
+        },
+        {
+          "known_recall_floor": 0.95,
+          "threshold_higher_is_known": 0.1411522477865219,
+          "known_acceptance": 0.9510022271714922,
+          "unknown_rejection": 0.6944444444444444,
+          "unknown_acceptance": 0.3055555555555556,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.9001760599775273
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.8070175438596491,
+              "score_mean": 0.21157692686507576
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.8269732130003405
+            }
+          }
+        }
+      ],
+      "score_groups": {
+        "eligible_known": {
+          "support": 449,
+          "score_mean": 0.7118223654334424,
+          "score_median": 0.9170413017272949,
+          "score_min": 0.12480317056179047,
+          "score_max": 0.9712368845939636
+        },
+        "eligible_unknown": {
+          "support": 36,
+          "score_mean": 0.15588638041582373,
+          "score_median": 0.13519610464572906,
+          "score_min": 0.12259912490844727,
+          "score_max": 0.33038514852523804
+        },
+        "pending_low_quality_or_insufficient_reliable": {
+          "support": 6,
+          "score_mean": 0.3104235405723254,
+          "score_median": 0.19059108197689056,
+          "score_min": 0.15738797187805176,
+          "score_max": 0.9090434908866882
+        },
+        "clutter_diagnostic_only": {
+          "support": 14,
+          "score_mean": 0.28551696985960007,
+          "score_median": 0.1401585265994072,
+          "score_min": 0.12636031210422516,
+          "score_max": 0.9054198265075684
+        }
+      },
+      "classification_endpoint_diagnostic": {
+        "available": false,
+        "source": "not_available_for_disjoint_representation_development",
+        "used_as_knownness_input": false,
+        "used_for_training": false
+      },
+      "scope": {
+        "calibration": "not_fitted",
+        "l3": "not_fitted",
+        "fixed_softmax_threshold": "not_used",
+        "single_distance_gate": "not_used",
+        "pending_counted_as_unknown_rejection": false,
+        "clutter_counted_as_unknown_rejection": false,
+        "test_payload_access_count": 0
+      }
+    },
+    "stable8_treatment": {
+      "schema_version": "RADAR-LN3-V27b-r6-knownness-report-v1",
+      "experiment_id": "V27b-r6",
+      "status": "knownness_ranking_diagnostic",
+      "arm": "stable8_treatment",
+      "seed": 43,
+      "role": "representation_development",
+      "r6_manifest_sha256": "b4a74c62f0cf8bb20ecc52ebff1e2d6a01f569f46854f6c47e0d73baedfc645d",
+      "feature_manifest_sha256": "17b4985d5c42df4048a5077944903cc1457cded47282ed0f38738b9f918d0616",
+      "feature_cache_sha256": "4d9f683b954838e2ca1fa9f3348d2fe59a7f21ee26165aab11256d286a043f7e",
+      "checkpoint_state_sha256": "32c35803b39f3c81a7057016fb45f3ea5cfad5649f1c26994e895df9163b0926",
+      "frozen_v27a_main_checkpoint_sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305",
+      "classifier_logits_input_to_knownness": false,
+      "classifier_logits_must_remain_bitwise_unchanged": true,
+      "unknown_is_classifier_class": false,
+      "knownness_score_direction": "higher_is_known",
+      "fit_population": {
+        "eligible_known": 449,
+        "eligible_unknown": 36,
+        "pending_low_quality_or_insufficient_reliable": 6,
+        "clutter_diagnostic_only": 14
+      },
+      "ranking": {
+        "known_positive_support": 449,
+        "unknown_negative_support": 36,
+        "auroc_higher_is_known": 0.94240287057659,
+        "average_precision_known_positive": 0.9950891621163156,
+        "score_min": 0.09457244724035263,
+        "score_max": 0.9828160405158997,
+        "score_mean": 0.6926979394917635
+      },
+      "operating_points": [
+        {
+          "known_recall_floor": 0.99,
+          "threshold_higher_is_known": 0.12215274572372437,
+          "known_acceptance": 0.9910913140311804,
+          "unknown_rejection": 0.4722222222222222,
+          "unknown_acceptance": 0.5277777777777778,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.932476069712848
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.9649122807017544,
+              "score_mean": 0.22661339504676953
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.84546459553478
+            }
+          }
+        },
+        {
+          "known_recall_floor": 0.97,
+          "threshold_higher_is_known": 0.13012968003749847,
+          "known_acceptance": 0.9710467706013363,
+          "unknown_rejection": 0.5277777777777778,
+          "unknown_acceptance": 0.4722222222222222,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.932476069712848
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.8859649122807017,
+              "score_mean": 0.22661339504676953
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.84546459553478
+            }
+          }
+        },
+        {
+          "known_recall_floor": 0.95,
+          "threshold_higher_is_known": 0.13808217644691467,
+          "known_acceptance": 0.9510022271714922,
+          "unknown_rejection": 0.6388888888888888,
+          "unknown_acceptance": 0.3611111111111111,
+          "known_support": 449,
+          "unknown_support": 36,
+          "per_known_class_coverage": {
+            "DroneTarget": {
+              "support": 228,
+              "known_acceptance": 1.0,
+              "score_mean": 0.932476069712848
+            },
+            "BirdTarget": {
+              "support": 114,
+              "known_acceptance": 0.8070175438596491,
+              "score_mean": 0.22661339504676953
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "known_acceptance": 1.0,
+              "score_mean": 0.84546459553478
+            }
+          }
+        }
+      ],
+      "score_groups": {
+        "eligible_known": {
+          "support": 449,
+          "score_mean": 0.7355936797198845,
+          "score_median": 0.9324899911880493,
+          "score_min": 0.10394836217164993,
+          "score_max": 0.9828160405158997
+        },
+        "eligible_unknown": {
+          "support": 36,
+          "score_mean": 0.15769273497992092,
+          "score_median": 0.12393279001116753,
+          "score_min": 0.09457244724035263,
+          "score_max": 0.39119964838027954
+        },
+        "pending_low_quality_or_insufficient_reliable": {
+          "support": 6,
+          "score_mean": 0.38515572249889374,
+          "score_median": 0.31674108654260635,
+          "score_min": 0.13401083648204803,
+          "score_max": 0.9456196427345276
+        },
+        "clutter_diagnostic_only": {
+          "support": 14,
+          "score_mean": 0.3481290468147823,
+          "score_median": 0.16882792115211487,
+          "score_min": 0.11818210035562515,
+          "score_max": 0.955053448677063
+        }
+      },
+      "classification_endpoint_diagnostic": {
+        "available": false,
+        "source": "not_available_for_disjoint_representation_development",
+        "used_as_knownness_input": false,
+        "used_for_training": false
+      },
+      "scope": {
+        "calibration": "not_fitted",
+        "l3": "not_fitted",
+        "fixed_softmax_threshold": "not_used",
+        "single_distance_gate": "not_used",
+        "pending_counted_as_unknown_rejection": false,
+        "clutter_counted_as_unknown_rejection": false,
+        "test_payload_access_count": 0
+      }
+    }
+  },
+  "paired": {
+    "method": "stratified_paired_known_unknown_bootstrap",
+    "seed": 27103,
+    "replicates": 1000,
+    "treatment_minus_control": {
+      "auroc": {
+        "lower_95": -0.01782046523137839,
+        "upper_95": 0.009966592427616916,
+        "mean": -0.002881217520415738,
+        "std": 0.006924582697958785
+      },
+      "unknown_rejection_at_known_recall_0.99": {
+        "lower_95": -0.02777777777777779,
+        "upper_95": 0.4166666666666667,
+        "mean": 0.19775,
+        "std": 0.11498112087711687
+      },
+      "unknown_rejection_at_known_recall_0.97": {
+        "lower_95": -0.2222222222222222,
+        "upper_95": 0.2777777777777778,
+        "mean": 0.03925,
+        "std": 0.12635415310867418
+      },
+      "unknown_rejection_at_known_recall_0.95": {
+        "lower_95": -0.2222222222222222,
+        "upper_95": 0.11111111111111116,
+        "mean": -0.05430555555555556,
+        "std": 0.0898190500499495
+      }
+    }
+  },
+  "scope": {
+    "classification_endpoint": "frozen_v27a_main_epoch_20",
+    "calibration": "not_fitted",
+    "l3": "not_fitted",
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "413238ec7e99ad419da234a49a3ba15546763f7436fb6ca8296ba3301f6c2ad6"
+}

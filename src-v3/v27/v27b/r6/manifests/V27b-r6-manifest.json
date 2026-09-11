@@ -1,0 +1,203 @@
+{
+  "schema_version": "RADAR-LN3-V27b-r6-manifest-v1",
+  "experiment_id": "V27b-r6",
+  "variant": "frozen-v27a-main-l2-knownness-raw-trajectory-plus-causal-stable8-summary-stability",
+  "objective": "Test whether an explicit, reliability-aware causal stable8 event-summary stability branch improves L2 knownness ranking over the frozen Liquid V2 raw-trajectory representation, without changing the V27a Main classification endpoint or fitting L3.",
+  "config": {
+    "path": "src-v3/v27/v27b/r6/config/V27b-r6-knownness-stable8-summary.json",
+    "sha256": "b6dd6e41e92aaa8f35a942523bea813ee683f6e5fb5d311695889a36b66788d4",
+    "identity_sha256": "8411d3d403abfc9b2cb2b7bbf73eea584a9cce84f5cbdacbc03d96c3c43ae8d7"
+  },
+  "code_hashes": {
+    "src-v3/v27/__init__.py": "20f05f6be0e2d877bb0dc318d4bb9fce302aeca729e6a124499250c581b2c961",
+    "src-v3/v27/v27b/r6/__init__.py": "d900ae13acbabe90a9e04518684ec2ab2c5ab1f59e7aa26237e60bd273fe1e74",
+    "src-v3/v27/v27b/r6/protocol.py": "34e5b31444b503ca789e03b1cfada542d075a8b550b2dd8e70c08d494daee98c",
+    "src-v3/v27/v27b/r6/features.py": "d5f8be260dd122b8058f8b0f2f846e1cc8a247236f52feb28c8625b46bb39d6d",
+    "src-v3/v27/v27b/r6/model.py": "74023284832766eb264e1349cc1947773405aecb0dbdb690b59db37eb38f9955",
+    "src-v3/v27/v27b/r6/training.py": "cd47e198dd43dbb9bdf7cd03673a8cd5bc02d1ff151473c1a13aa00da695da9e",
+    "src-v3/v27/v27b/r6/evaluation.py": "1cabdaab0fa20a5ede751586bb492b20da5f11031492160c51ef23b87b8cd237",
+    "src-v3/v27/v27b/r6/smoke.py": "fa8bb923961c47cb5f8888ecf22ea4d378b00376e779fc090666922e442535a9",
+    "src-v3/v27/v27b/r6/cli.py": "c748188829b87a40db82cdc745cdcedca1f0c34ddac19ff669b05c8953e571ab",
+    "src-v3/v27/v27_baseline/open_set.py": "92ab102a00fac8800003d12cea9df5e6e7f2041a5d4c993932a48b2161927675",
+    "src-v3/v27/v27_baseline/open_set_data.py": "e3e7962ef62fe57e9e4b2da94e68a3e3588608075ecec0f5a30c9d18244f59e7",
+    "src-v3/v27/v27_baseline/model.py": "be00848503e7b97fdf47d919f07e4daa7191ec190c59c598c004a34a9369e649",
+    "src-v3/v27/v27_baseline/runtime.py": "ebe52b88a3206f0c0a4ec59d112fa472ee1e4b01e0afd5a23c070f0e28a1a8dd",
+    "src-v3/v27/v27_baseline/logging_utils.py": "17257948148a5303a13b0e43be2a416221921181f839b1fc42a052497f056aa0",
+    "src-v3/v27/v27a/evidence.py": "e739409b5fd981f1b9da0bfafd7f23f5f85c845e6f7c62eb36b374d5da049a64",
+    "src-v3/v27/v27a/cache.py": "8961e9c954da723acf2dfcf0d4d613174a36f02af125bd82291efdc7299265cd",
+    "src-v3/v27/v27a/model.py": "d882be30f3aeed1256e3789c9ea3e2e7ea008e95883af1a139f310560aed801d",
+    "src-v3/v27/v27a/protocol.py": "569c47ebef4afa19819f40aff25fba160ff5ffd75e4bedbf3b46a9d35b122555",
+    "src-v3/build/micro_doppler_v17.py": "20340e8b97c9fa0b4d525b0fa7705b3b35d7ce611c382148e1372e262b98982c",
+    "src-v3/build/micro_doppler_v18.py": "bcfab8c315cfbb518ffe2f7c5feef6023e95cfad1bac1d66e8ca20c80ba2a9e5",
+    "src-v3/radar_ln3/runtime.py": "960e454d04fcf0f9580bd039adbd2c2b3a36763971107836b73874c93ac0d177"
+  },
+  "git_head": "f351338e5445267010a034998e312b9661236566",
+  "input_binding": {
+    "files": {
+      "v27_system_config": {
+        "path": "src-v3/v27/v27_baseline/config/V27-liquid-v2-dbb-baseline.json",
+        "sha256": "51531a0f403b736df616ddcc83978163a2ca0e2cd98eb74ada19cdac32671d0b"
+      },
+      "v27a_config": {
+        "path": "src-v3/v27/v27a/config/V27a-micro-doppler-evidence-decoupling.json",
+        "sha256": "c31daba180a22e4d5bd1864c01d407fb99eb41fef2056b2020d2932d04f6ce4f"
+      },
+      "v27a_manifest": {
+        "path": "src-v3/v27/v27a/manifests/V27a-r3-manifest.json",
+        "sha256": "0f4814a54c74a3fbc957072afe031724712dbc74d4d762093193ad6ec64cd126"
+      },
+      "v27a_main_checkpoint": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-main-seed42-epoch-020.pt",
+        "sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305"
+      },
+      "v27a_normalization": {
+        "path": "src-v3/v27/v27a/calibration/V27a-r3-stable8-frame-normalization.json",
+        "sha256": "6e7402296ac00496849b465c73ce513dedbfe9c72327f29d1b86dc30fd10d685"
+      },
+      "v27a_train_reference_cache": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-train-cache.pt",
+        "sha256": "972aad80643a5360288c7ebbf8d7d2d27db76c8912a4ace1ea3338998320e020"
+      },
+      "v27a_validation_reference_cache": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-validation-cache.pt",
+        "sha256": "179336ae559f4dc52284bd36df889425e312a921e06e18b70ff4a50583a72615"
+      },
+      "v27a_paired_report": {
+        "path": "artifacts/archive/v27/v27a-history/20260903/reports/V27a-r3-paired-validation.json",
+        "sha256": "1e741da0ff7e3f32d63df2f9e05e719589b79013d6c17ed63442d9594c820ea1"
+      },
+      "v16_provenance": {
+        "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+        "sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9"
+      },
+      "canonical_frame_index": {
+        "path": "data/processed/cq08_rd_physical_canonical_frame_index_v3_1.csv",
+        "sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59"
+      }
+    },
+    "v27": {
+      "system_manifest_sha256": "7488dd3e1d0beacd5185e8412efb99245c29c599edfa01f02b829a7b7a948e0b",
+      "pool_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+      "representation_cache_manifest_sha256": "997bfe826aa8c27b5a66f8bc57d7598fd6054203116c61d62185f827a18a8d61"
+    },
+    "v27a_main": {
+      "checkpoint_state_sha256": "2429d0fa3d68d7d7405192c4f9f2edfb8b27faf5e64921e4a542ff6780fb7be0",
+      "model_contract_sha256": "7bfd3488b064e8479c5b0e71192a2e2ac44dc88e08f3fa34912e6fdcec6909db",
+      "training_manifest_sha256": "be939ffbe1a5f8ab0edfe7404eb5aee1aa278e1c12d6ae66326fd083d02afe80",
+      "cache_payload_sha256s": {
+        "train": "38b5b9067c9dfffd7dbec752d1a30e6f1785ce00bf542af777bcc41dbd0b8326",
+        "val": "3fd22cd76049a697bd8cad454c6138998b8552b742131a647e2ae31628c39ebe"
+      },
+      "classification_metrics_reference": [
+        [
+          109,
+          4,
+          0
+        ],
+        [
+          1,
+          54,
+          1
+        ],
+        [
+          1,
+          1,
+          52
+        ]
+      ]
+    },
+    "unknown_is_classifier_class": false,
+    "test_payload_access_count": 0
+  },
+  "data": {
+    "task": "dbb_specialist",
+    "known_labels": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "negative_label": "UnknownTarget",
+    "diagnostic_label": "ClutterTarget",
+    "stable8_indices": [
+      1,
+      2,
+      3,
+      7,
+      11,
+      13,
+      14,
+      22
+    ],
+    "stable8_names": [
+      "residual_positive_8_30mps_energy_fraction",
+      "residual_negative_30_60mps_energy_fraction",
+      "residual_positive_30_60mps_energy_fraction",
+      "residual_rms_offset_mps_over_90",
+      "residual_top4_resolution_cell_concentration",
+      "residual_sideband_snr_db_over_30",
+      "pulse_envelope_rms_clipped_0_2_over_2",
+      "pulse_envelope_modulation_snr_db_over_30"
+    ],
+    "stable8_reliability": "frame_feature_reliable_not_rd_present"
+  },
+  "quality": {
+    "base_target": "v27_deterministic_causal_quality_facts_v1",
+    "minimum_reliable_event_count": 3,
+    "minimum_reliable_event_fraction": 0.5,
+    "low_quality_policy": "exclude_from_knownness_fit_and_report_as_pending_diagnostic"
+  },
+  "training": {
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "dataloader_seed": 42,
+    "batch_size": 64,
+    "epochs": 30,
+    "primary_epoch": 30,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 5.0,
+    "device": "cuda"
+  },
+  "evaluation": {
+    "known_recall_floors": [
+      0.99,
+      0.97,
+      0.95
+    ],
+    "paired_bootstrap_replicates": 1000,
+    "primary_role": "representation_development",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope"
+  },
+  "protocol": {
+    "classification_endpoint": "frozen_v27a_main_epoch_20",
+    "classifier_logits_input_to_knownness": false,
+    "classification_logits_must_remain_bitwise_unchanged": true,
+    "unknown_is_l2_classifier_class": false,
+    "unknown_used_only_as_knownness_negative": true,
+    "clutter_used_for_knownness_optimization": false,
+    "low_quality_used_for_knownness_optimization": false,
+    "stable8_reliability": "frame_feature_reliable_not_rd_present",
+    "selection": "fixed_primary_epoch; representation_development_diagnostic_only",
+    "calibration": "not_fitted",
+    "l3": "not_fitted",
+    "test": "sealed_and_not_used"
+  },
+  "dependencies": {
+    "torch": "2.5.1+cu121",
+    "numpy": "2.4.4",
+    "pandas": "2.3.3"
+  },
+  "scope": {
+    "classification_logits": "frozen_v27a_main_bitwise_unchanged",
+    "unknown": "knownness_negative_only_after_classifier_freeze",
+    "clutter": "diagnostic_only",
+    "calibration": "not_fitted",
+    "l3": "not_fitted",
+    "test": "sealed"
+  },
+  "payload_sha256": "9de4b270a7d7b2937ad7661c645f1a743ed628b37af3ef984a6f54ad03d79fcf"
+}

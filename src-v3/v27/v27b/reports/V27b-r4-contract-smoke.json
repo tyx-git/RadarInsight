@@ -1,0 +1,37 @@
+{
+  "schema_version": "RADAR-LN3-V27b-contract-smoke-v2",
+  "experiment_id": "V27b",
+  "status": "passed",
+  "source_checkpoint_file_sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305",
+  "source_checkpoint_state_sha256": "2429d0fa3d68d7d7405192c4f9f2edfb8b27faf5e64921e4a542ff6780fb7be0",
+  "manifest_sha256": "4a59b3eec837ca2537bcbcfc26a02a77758ce746c69d396fe011752083d703a9",
+  "config_identity_sha256": "b146327ed16cb36a76fb45b12362fb500c6d2260dc04b124f9740cdac6e35ac0",
+  "model": {
+    "parameter_count": 3456,
+    "output_shape": [
+      3,
+      6,
+      3
+    ],
+    "zero_initialised_equals_control": true,
+    "finite": true,
+    "balloon_correction_exact_zero": true,
+    "correction_zero_sum": true
+  },
+  "tests": {
+    "zero_initialised_control_equivalence": true,
+    "no_reliable_event_preserves_delta": true,
+    "no_reliable_event_zero_increment": true,
+    "padding_no_state_update": true,
+    "future_perturbation_causality": true,
+    "offline_chunk_continuation_equivalence": true,
+    "balloon_correction_exact_zero": true,
+    "correction_zero_sum_and_bound": true
+  },
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "knownness": "not_in_scope",
+  "quality": "not_in_scope",
+  "l3": "not_in_scope",
+  "payload_sha256": "2270036997ed3e3c4bac9d5a3254744004712a7a3ce02c13da77ebeca642c807"
+}
