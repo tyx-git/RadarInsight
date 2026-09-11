@@ -1,0 +1,111 @@
+{
+  "schema_version": "RADAR-LN3-V27-representation-cache-manifest-v1",
+  "experiment_id": "V27",
+  "status": "prepared",
+  "system_manifest_sha256": "7488dd3e1d0beacd5185e8412efb99245c29c599edfa01f02b829a7b7a948e0b",
+  "frozen_base_binding_sha256": "0e176a67277da0fae62def273605bfbeb85477682b8f72ef266df55105fdefaa",
+  "pool_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+  "open_set_feature_cache_manifest_sha256": "861e102e47b0ed3cfcf0a0bbb60acc70cf571819391f28439e15d4b30ff45d79",
+  "tasks": {
+    "known_gate:representation_fit": {
+      "task": "known_gate",
+      "role": "representation_fit",
+      "parent_count": 550,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "ClutterTarget": 19,
+        "BalloonTarget": 127
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_fit-known_gate-representation-cache.pt",
+      "sha256": "051227ce4b33dcbc27f4c8e6663db4ca035788ce198a641b014f8d29596b8986",
+      "cache_sha256": "1c2ceee716389b6d0398c887b053c110e41c16b6dd5d5e43b7e9c2baf43efc3a",
+      "checkpoint_sha256": "0f9ed58ddbf7a457d774c95780a83f6a7235ec107b62f403c725371fcd69e6f6"
+    },
+    "known_gate:representation_development": {
+      "task": "known_gate",
+      "role": "representation_development",
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_development-known_gate-representation-cache.pt",
+      "sha256": "69856e4a0d1f0a2bbce4c4445505bcff19836656f9e7f4a4353bf883133b4f93",
+      "cache_sha256": "cd1080b81864a87823ebb60b373bef3583ac5c999317b113bebb08c0ef94b8cf",
+      "checkpoint_sha256": "0f9ed58ddbf7a457d774c95780a83f6a7235ec107b62f403c725371fcd69e6f6"
+    },
+    "known_gate:calibration": {
+      "task": "known_gate",
+      "role": "calibration",
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-calibration-known_gate-representation-cache.pt",
+      "sha256": "5c53b5acde6d37bebd4126f4de00fdba972e7c8e01c7d67574accfedb8a7fe87",
+      "cache_sha256": "9ed4ed0c4be9e47db89cfaf3d7f9a53dbae78a76d4f2cec6ba22ff823bdb0a41",
+      "checkpoint_sha256": "0f9ed58ddbf7a457d774c95780a83f6a7235ec107b62f403c725371fcd69e6f6"
+    },
+    "dbb_specialist:representation_fit": {
+      "task": "dbb_specialist",
+      "role": "representation_fit",
+      "parent_count": 550,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "ClutterTarget": 19,
+        "BalloonTarget": 127
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_fit-dbb_specialist-representation-cache.pt",
+      "sha256": "8c1bdc61014b313e84fbb462081ea0c2f01fe90624a380958defc327f8c0c2ac",
+      "cache_sha256": "d3db17b8a41767f9b6a7cf4d832903f32f29951c5611ed49ec824b98450fea3b",
+      "checkpoint_sha256": "0653d3837ee3eafc3146ad49909c223cf8c74e6270cd4bbffcec60cca3b0137e"
+    },
+    "dbb_specialist:representation_development": {
+      "task": "dbb_specialist",
+      "role": "representation_development",
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_development-dbb_specialist-representation-cache.pt",
+      "sha256": "af282dff11a7f7d9f270ae221301893883332ea426794f6d43a66674ce740583",
+      "cache_sha256": "1f038060d5383c8a2ffd683439624d4ce2c56f58a4f17c4c1ca5fd8f2b94e8ef",
+      "checkpoint_sha256": "0653d3837ee3eafc3146ad49909c223cf8c74e6270cd4bbffcec60cca3b0137e"
+    },
+    "dbb_specialist:calibration": {
+      "task": "dbb_specialist",
+      "role": "calibration",
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "path": "src-v3/v27/v27_baseline/calibration/features/V27-calibration-dbb_specialist-representation-cache.pt",
+      "sha256": "599d6df3b7752158d00982d4be8f04ce6d5d4f330108fe3411eba11a9d00fd62",
+      "cache_sha256": "c9bb5f24fb31def1db1c29574ba984b330f82dcc75d6d049b82847ca87705d28",
+      "checkpoint_sha256": "0653d3837ee3eafc3146ad49909c223cf8c74e6270cd4bbffcec60cca3b0137e"
+    }
+  },
+  "test_payload_access_count": 0,
+  "unknown_classifier_training_exposure": 0,
+  "representation_cache_manifest_sha256": "997bfe826aa8c27b5a66f8bc57d7598fd6054203116c61d62185f827a18a8d61",
+  "payload_sha256": "f7eb52504a37e64f80f4436a100bec0b5783040df3981822232a7da4f9a4e24b"
+}

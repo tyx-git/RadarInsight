@@ -1,0 +1,30 @@
+{
+  "status": "not_ready_pending_head_training",
+  "schema_version": "RADAR-LN3-V27-open-set-audit-v1",
+  "experiment_id": "V27",
+  "seed": 42,
+  "system_manifest_sha256": "7488dd3e1d0beacd5185e8412efb99245c29c599edfa01f02b829a7b7a948e0b",
+  "frozen_base_binding_sha256": "0e176a67277da0fae62def273605bfbeb85477682b8f72ef266df55105fdefaa",
+  "representation_cache_manifest_sha256": "997bfe826aa8c27b5a66f8bc57d7598fd6054203116c61d62185f827a18a8d61",
+  "open_set_pool_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+  "l3_registry_sha256": "851f140f4bdcd1e0992e2ca532a1d226b635d21fcbc8560e72278f5e978b5d77",
+  "unknown_is_model_class": false,
+  "unknown_classifier_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "fixed_softmax_threshold_allowed": false,
+  "single_distance_gate_allowed": false,
+  "deployment_eligible": false,
+  "tasks": {},
+  "readiness": {
+    "l3_registry_status": "unfitted_fail_closed",
+    "final_heads_present": false,
+    "calibration_score_caches_present": false,
+    "next_required_stages": [
+      "train-knownness",
+      "train-quality",
+      "finalize-heads",
+      "calibrate"
+    ]
+  },
+  "payload_sha256": "4621c83c53a75e62e328d6bab2330619528ba7fa57b24418e77f400fc3b076a6"
+}

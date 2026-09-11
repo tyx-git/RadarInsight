@@ -8,6 +8,8 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from .runtime import preflight_npz_archive
+
 
 RD_PHYSICAL_SCHEMA = "current-event-rd-physical-spectrum-v1"
 RD_PHYSICAL_MASK_MODE = "gating_only"
@@ -163,6 +165,7 @@ def load_rd_physical_cache(
     expected_sample_ids: Iterable[str] | None = None,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     cache_path = Path(path)
+    preflight_npz_archive(cache_path)
     with np.load(cache_path, allow_pickle=False) as payload:
         required = {"sample_ids", "values", "valid"}
         if set(payload.files) != required:

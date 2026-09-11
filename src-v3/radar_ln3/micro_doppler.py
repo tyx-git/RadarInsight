@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import numpy as np
+
+from .runtime import preflight_npz_archive
 from scipy.signal.windows import taylor
 
 
@@ -606,6 +608,7 @@ def load_micro_doppler_cache(
     expected_value_dim: int = MICRO_DOPPLER_VALUE_DIM,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     cache_path = Path(path)
+    preflight_npz_archive(cache_path)
     with np.load(cache_path, allow_pickle=False) as payload:
         required = {"sample_ids", "values", "valid"}
         if set(payload.files) != required:

@@ -1,0 +1,47 @@
+{
+  "status": "passed",
+  "schema_version": "RADAR-LN3-V27-complete-contract-smoke-v3",
+  "experiment_id": "V27",
+  "tasks": [
+    "known_gate",
+    "dbb_specialist"
+  ],
+  "raw_memory_post_update_layer_norm": false,
+  "active_time_mode": "bounded_observation",
+  "liquid_v2_offline_chunked_online_equivalent": true,
+  "l1_l2_parameters_independent": true,
+  "knownness_quality_heads": "separate_output_only_no_classifier_feedback",
+  "training_log_path_contract": "project_root_resolved_task_scoped",
+  "training_logger_lifecycle": "append_reconfigure_close_verified",
+  "classification_training_step": {
+    "known_gate": {
+      "task": "known_gate",
+      "parent_count": 2,
+      "loss": 0.277793824672699,
+      "knownness_quality_heads_frozen": true
+    },
+    "dbb_specialist": {
+      "task": "dbb_specialist",
+      "parent_count": 2,
+      "loss": 1.1577234268188477,
+      "knownness_quality_heads_frozen": true
+    }
+  },
+  "l3_unfitted_fails_closed": true,
+  "l3_reason_code_paths": {
+    "low_quality": "LOW_QUALITY_OR_IMMATURE",
+    "unfitted": "CALIBRATION_NOT_FITTED",
+    "conflict": "L1_ROUTE_CONFLICT",
+    "clutter": "L1_CLUTTER_ACCEPTED",
+    "clutter_l2_immature": "L1_CLUTTER_ACCEPTED",
+    "target_l2_immature": "LOW_QUALITY_OR_IMMATURE",
+    "advisory_quality": "KNOWN_DBB_CLASS_ACCEPTED",
+    "dbb": "KNOWN_DBB_CLASS_ACCEPTED",
+    "ambiguous": "KNOWN_CLASS_AMBIGUOUS"
+  },
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "training": "not_executed",
+  "deployment_eligible": false,
+  "payload_sha256": "8e90e3312c65912d15e6e6dcd77aaf08d970e1f55012bd549b9b91318df694ce"
+}

@@ -1,0 +1,199 @@
+{
+  "schema_version": "RADAR-LN3-V27-open-set-feature-cache-manifest-v1",
+  "experiment_id": "V27",
+  "status": "prepared",
+  "pool_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+  "frozen_base_binding_sha256": "0e176a67277da0fae62def273605bfbeb85477682b8f72ef266df55105fdefaa",
+  "feature_extractor": {
+    "course": "V21e causal_prefix_course_circular_incoherence",
+    "l2": "V18 current-event RD physical4 plus stable8 micro-Doppler",
+    "unknown_label_used_for_feature_value": false,
+    "test_payload_access_count": 0
+  },
+  "roles": {
+    "representation_fit": {
+      "role_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+      "sample_ids_sha256": "38638ea18fda379e4d22dcb2e4498a48e4bc20888e461d2b079c5f97236e8917",
+      "course": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_fit-mixed-course-cache.npz",
+        "sha256": "8579ca704523a8df9bd55bc46d5b6976e68de5daca62d5d2a0ac121d0495e245",
+        "valid_value_count": 8969,
+        "invalid_value_count": 1650
+      },
+      "rd_physical": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_fit-mixed-rd-physical4-cache.npz",
+        "sha256": "114e6b352053fa7a29b4c8292d15c2d5f77efbb3bf4da73cd239e3a401edd0ec"
+      },
+      "micro_doppler": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_fit-mixed-micro-doppler8-cache.npz",
+        "sha256": "14f1ddef6b7b8bd8ff206e6559969730afa7ea4e3cd0225933d302b096f2a7e2"
+      },
+      "feature_provenance": {
+        "policy": "train_known_values_reused_unknown_course_generated",
+        "source_caches": {
+          "course": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-all-known-train-course-source-cache.npz",
+            "sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425"
+          },
+          "physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-rd-physical4-source-cache.npz",
+            "sha256": "08b98252a212d46acf0ad1a06ecac3778aac57eddc53d4bbb94f17347a591937"
+          },
+          "micro": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-micro-doppler8-source-cache.npz",
+            "sha256": "53e51558a196ddd79fe22bcbcbea7f069dd86ed8b15605030ebe7b017b11ea5c"
+          }
+        },
+        "unknown_feature_handling": {
+          "course": "causal value generated from processed TR only when absent from source cache",
+          "physical4": "train Unknown values use one validated label-free V18 materialization cache",
+          "stable8": "train Unknown values use one validated label-free V18 materialization cache",
+          "unknown_label_used_for_feature_value": false
+        },
+        "unknown_l2_extraction": {
+          "status": "label_free_values_materialized",
+          "physical_path": "src-v3/v27/v27_baseline/calibration/features/V27-train-unknown-all-rd-physical4-source-cache.npz",
+          "physical_sha256": "c9ae090a47d7944a40d861de3ffd2d363d5f231d6efa5d6c12e2a9b1d2d1ed25",
+          "micro_path": "src-v3/v27/v27_baseline/calibration/features/V27-train-unknown-all-micro-doppler8-source-cache.npz",
+          "micro_sha256": "5505fe5a37076c4460a6a50b7131970a9eff5732072bd6ce5822c0c8f431b495",
+          "v16_provenance_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+          "v16_provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+          "canonical_frame_index_path": "data/processed/cq08_rd_physical_canonical_frame_index_v3_1.csv",
+          "canonical_frame_index_sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+          "statistics": {
+            "status": "reused_existing_cache"
+          },
+          "unknown_label_used_for_feature_value": false
+        },
+        "unknown_event_count": 548,
+        "unknown_physical_valid_count": 535,
+        "unknown_micro_valid_count": 535
+      },
+      "frozen_l2_reference_match": {
+        "status": "exact_match",
+        "reference_physical_path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-rd-physical4-source-cache.npz",
+        "reference_micro_path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-micro-doppler8-source-cache.npz",
+        "known_event_count": 10071,
+        "source_known_event_count": 18923
+      }
+    },
+    "representation_development": {
+      "role_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+      "sample_ids_sha256": "99f1b2324a2ce9a6b64317920f90dc6d533e5ca6f1be9223cc58cc8fa5ec5987",
+      "course": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_development-mixed-course-cache.npz",
+        "sha256": "1ee93e6985721525aee1caa0a6614ac6a7fab7afdb944f4ea7a9592b649901d3",
+        "valid_value_count": 8077,
+        "invalid_value_count": 1515
+      },
+      "rd_physical": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_development-mixed-rd-physical4-cache.npz",
+        "sha256": "54b29fa92a2641b77a9ed49b769281472af6b8bc70c81e69ccee7f532b33780d"
+      },
+      "micro_doppler": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-representation_development-mixed-micro-doppler8-cache.npz",
+        "sha256": "493a44bc0e18dab348f3bbdcca0b61972a67b7185293daaaf2ed45cdd3660331"
+      },
+      "feature_provenance": {
+        "policy": "train_known_values_reused_unknown_course_generated",
+        "source_caches": {
+          "course": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-known-gate-all-known-train-course-source-cache.npz",
+            "sha256": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425"
+          },
+          "physical": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-rd-physical4-source-cache.npz",
+            "sha256": "08b98252a212d46acf0ad1a06ecac3778aac57eddc53d4bbb94f17347a591937"
+          },
+          "micro": {
+            "path": "data/processed/RADAR-LN3-V26c-cq08-dbb-specialist-all-known-inference-micro-doppler8-source-cache.npz",
+            "sha256": "53e51558a196ddd79fe22bcbcbea7f069dd86ed8b15605030ebe7b017b11ea5c"
+          }
+        },
+        "unknown_feature_handling": {
+          "course": "causal value generated from processed TR only when absent from source cache",
+          "physical4": "train Unknown values use one validated label-free V18 materialization cache",
+          "stable8": "train Unknown values use one validated label-free V18 materialization cache",
+          "unknown_label_used_for_feature_value": false
+        },
+        "unknown_l2_extraction": {
+          "status": "label_free_values_materialized",
+          "physical_path": "src-v3/v27/v27_baseline/calibration/features/V27-train-unknown-all-rd-physical4-source-cache.npz",
+          "physical_sha256": "c9ae090a47d7944a40d861de3ffd2d363d5f231d6efa5d6c12e2a9b1d2d1ed25",
+          "micro_path": "src-v3/v27/v27_baseline/calibration/features/V27-train-unknown-all-micro-doppler8-source-cache.npz",
+          "micro_sha256": "5505fe5a37076c4460a6a50b7131970a9eff5732072bd6ce5822c0c8f431b495",
+          "v16_provenance_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+          "v16_provenance_sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9",
+          "canonical_frame_index_path": "data/processed/cq08_rd_physical_canonical_frame_index_v3_1.csv",
+          "canonical_frame_index_sha256": "0a4176660c85ecd6298cd505070f681b7ee880b1b9ed9e73b05ff2606d656c59",
+          "statistics": {
+            "status": "reused_existing_cache"
+          },
+          "unknown_label_used_for_feature_value": false
+        },
+        "unknown_event_count": 740,
+        "unknown_physical_valid_count": 719,
+        "unknown_micro_valid_count": 719
+      },
+      "frozen_l2_reference_match": {
+        "status": "not_applicable_development_holdout"
+      }
+    },
+    "calibration": {
+      "role_registry_sha256": "216845086af59af85908419e4984c9737a465c7d4bafc38ef9ef3343ad00fd42",
+      "sample_ids_sha256": "6e34ac9f8ca0ac431ecfe172990ee601fa5a3d09aaff879cdc97da5db1adea8e",
+      "course": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-calibration-mixed-course-cache.npz",
+        "sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd",
+        "valid_value_count": 3984,
+        "invalid_value_count": 741
+      },
+      "rd_physical": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-calibration-mixed-rd-physical4-cache.npz",
+        "sha256": "0cc1ed6b96d6924f10cbf778fd6bba0009a4e0a108ef0184fd03452804c438b3"
+      },
+      "micro_doppler": {
+        "path": "src-v3/v27/v27_baseline/calibration/features/V27-calibration-mixed-micro-doppler8-cache.npz",
+        "sha256": "967067ef3c00dd7eabef45044afd7789ba6047a2097e837af187c340466f10b4"
+      },
+      "feature_provenance": {
+        "policy": "val_mixed_values_reused",
+        "source_caches": {
+          "course": {
+            "path": "data/processed/RADAR-LN3-V26-cq08-known-gate-val-mixed-open-set-course-cache.npz",
+            "sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd"
+          },
+          "physical": {
+            "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-rd-physical4-cache.npz",
+            "sha256": "0cc1ed6b96d6924f10cbf778fd6bba0009a4e0a108ef0184fd03452804c438b3"
+          },
+          "micro": {
+            "path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-micro-doppler8-cache.npz",
+            "sha256": "967067ef3c00dd7eabef45044afd7789ba6047a2097e837af187c340466f10b4"
+          }
+        },
+        "unknown_feature_handling": {
+          "course": "causal value generated from processed TR only when absent from source cache",
+          "physical4": "train Unknown values use one validated label-free V18 materialization cache",
+          "stable8": "train Unknown values use one validated label-free V18 materialization cache",
+          "unknown_label_used_for_feature_value": false
+        },
+        "unknown_l2_extraction": {
+          "status": "not_required_val_mixed_cache_already_covers_unknown"
+        },
+        "unknown_event_count": 273,
+        "unknown_physical_valid_count": 273,
+        "unknown_micro_valid_count": 273
+      },
+      "frozen_l2_reference_match": {
+        "status": "exact_match",
+        "reference_physical_path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-rd-physical4-cache.npz",
+        "reference_micro_path": "data/processed/RADAR-LN3-V26b-cq08-l2-val-mixed-open-set-micro-doppler8-cache.npz",
+        "known_event_count": 4725,
+        "source_known_event_count": 4725
+      }
+    }
+  },
+  "cache_manifest_sha256": "861e102e47b0ed3cfcf0a0bbb60acc70cf571819391f28439e15d4b30ff45d79",
+  "payload_sha256": "6bbf369289c8289602c2f675a9e024fdbcf5c9f7242f47230f89afb4ab3829ce"
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": "RADAR-LN3-V27-l3-calibrated-action-v3",
+  "status": "unfitted",
+  "system_manifest_sha256": "7488dd3e1d0beacd5185e8412efb99245c29c599edfa01f02b829a7b7a948e0b",
+  "l1_task": "known_gate",
+  "l2_task": "dbb_specialist",
+  "class_names": [
+    "DroneTarget",
+    "BirdTarget",
+    "BalloonTarget"
+  ],
+  "contract": {
+    "schema_version": "RADAR-LN3-V27-l3-calibrated-action-v3",
+    "raw_score_policy": "forbidden; resolver accepts calibrated booleans and conformal candidate set only",
+    "calibration_policy": "dynamic_registry_required; unfitted_registry_fails_closed",
+    "action_order": [
+      "LOW_QUALITY_OR_IMMATURE",
+      "CALIBRATION_NOT_FITTED",
+      "L1_ROUTE_CONFLICT",
+      "OOD_NONCONFORMING",
+      "L1_CLUTTER_ACCEPTED",
+      "KNOWN_DBB_CLASS_ACCEPTED",
+      "KNOWN_CLASS_AMBIGUOUS"
+    ],
+    "unknown_is_model_class": false,
+    "single_distance_gate_allowed": false,
+    "fixed_softmax_threshold_allowed": false,
+    "learned_quality_policy": "explicit_gate_status_required_for_fitted_none_verdict; inactive_gate_is_advisory_only"
+  },
+  "fitted_scores": null,
+  "registry_sha256": "851f140f4bdcd1e0992e2ca532a1d226b635d21fcbc8560e72278f5e978b5d77",
+  "payload_sha256": "10280734d71d101b1dabedc8e42cd5747062b06cc3ed7bb7cb6954ee13a549d7"
+}

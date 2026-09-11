@@ -1,0 +1,2079 @@
+{
+  "status": "completed_known_class_classification_only",
+  "schema_version": "RADAR-LN3-V27-task-training-summary-v2",
+  "experiment_id": "V27",
+  "task": "known_gate",
+  "seed": 42,
+  "epochs": 20,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 493,
+      "train_loss": 0.6867303357253693,
+      "gradient_norm_max": 238.369384765625,
+      "gradient_clipped_steps": 7,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9612068965517241,
+        "macro_precision": 0.48060344827586204,
+        "macro_recall": 0.5,
+        "macro_f1": 0.4901098901098901,
+        "balanced_accuracy": 0.5,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9612068965517241,
+            "recall": 1.0,
+            "f1": 0.9802197802197802,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 9
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9612068965517241,
+        "macro_precision": 0.48060344827586204,
+        "macro_recall": 0.5,
+        "macro_f1": 0.4901098901098901,
+        "balanced_accuracy": 0.5,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9612068965517241,
+            "recall": 1.0,
+            "f1": 0.9802197802197802,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 9
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            9,
+            0
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 1,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.0,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.4901098901098901,
+        "ranking_key": [
+          0.0,
+          0.4901098901098901,
+          -1.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 2,
+      "global_step": 986,
+      "train_loss": 0.464933417983066,
+      "gradient_norm_max": 199.73077392578125,
+      "gradient_clipped_steps": 13,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9482758620689655,
+        "macro_precision": 0.7012311901504789,
+        "macro_recall": 0.8664673642252118,
+        "macro_f1": 0.7555321390937828,
+        "balanced_accuracy": 0.8664673642252118,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9906976744186047,
+            "recall": 0.9551569506726457,
+            "f1": 0.9726027397260273,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 10
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.4117647058823529,
+            "recall": 0.7777777777777778,
+            "f1": 0.5384615384615384,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            213,
+            10
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9353448275862069,
+        "macro_precision": 0.6875,
+        "macro_recall": 0.9663677130044843,
+        "macro_f1": 0.7553258806159038,
+        "balanced_accuracy": 0.9663677130044843,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9327354260089686,
+            "f1": 0.9651972157772621,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 15
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.375,
+            "recall": 1.0,
+            "f1": 0.5454545454545454,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            208,
+            15
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 2,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.4117647058823529,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.7555321390937828,
+        "ranking_key": [
+          0.4117647058823529,
+          0.7555321390937828,
+          -2.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 3,
+      "global_step": 1479,
+      "train_loss": 0.2798181214930894,
+      "gradient_norm_max": 443.874755859375,
+      "gradient_clipped_steps": 10,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8454954954954954,
+        "macro_recall": 0.8821624314897858,
+        "macro_f1": 0.862803075103489,
+        "balanced_accuracy": 0.8821624314897858,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.990990990990991,
+            "recall": 0.9865470852017937,
+            "f1": 0.9887640449438202,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7,
+            "recall": 0.7777777777777778,
+            "f1": 0.7368421052631577,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 3,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.7,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.862803075103489,
+        "ranking_key": [
+          0.7,
+          0.862803075103489,
+          -3.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 4,
+      "global_step": 1972,
+      "train_loss": 0.1847960913448045,
+      "gradient_norm_max": 646.432861328125,
+      "gradient_clipped_steps": 11,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9094827586206896,
+        "macro_precision": 0.65,
+        "macro_recall": 0.952914798206278,
+        "macro_f1": 0.7060633484162896,
+        "balanced_accuracy": 0.952914798206278,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.905829596412556,
+            "f1": 0.9505882352941176,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 21
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.3,
+            "recall": 1.0,
+            "f1": 0.4615384615384615,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            202,
+            21
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9181034482758621,
+        "macro_precision": 0.6607142857142857,
+        "macro_recall": 0.9573991031390134,
+        "macro_f1": 0.7209949996835243,
+        "balanced_accuracy": 0.9573991031390134,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9147982062780269,
+            "f1": 0.955503512880562,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 19
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.32142857142857145,
+            "recall": 1.0,
+            "f1": 0.4864864864864865,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            204,
+            19
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 4,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.3,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.7060633484162896,
+        "ranking_key": [
+          0.3,
+          0.7060633484162896,
+          -4.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 5,
+      "global_step": 2465,
+      "train_loss": 0.1415477780253073,
+      "gradient_norm_max": 782.3297119140625,
+      "gradient_clipped_steps": 8,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9827586206896551,
+        "macro_precision": 0.8613739201974496,
+        "macro_recall": 0.9377179870453413,
+        "macro_f1": 0.8954954954954955,
+        "balanced_accuracy": 0.9377179870453413,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.995475113122172,
+            "recall": 0.9865470852017937,
+            "f1": 0.990990990990991,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7272727272727273,
+            "recall": 0.8888888888888888,
+            "f1": 0.7999999999999999,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 5,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.7272727272727273,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.8954954954954955,
+        "ranking_key": [
+          0.7272727272727273,
+          0.8954954954954955,
+          -5.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 6,
+      "global_step": 2958,
+      "train_loss": 0.14427504512815761,
+      "gradient_norm_max": 773.6859130859375,
+      "gradient_clipped_steps": 7,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.831060606060606,
+        "macro_recall": 0.9354758345789735,
+        "macro_f1": 0.8753090400945931,
+        "balanced_accuracy": 0.9354758345789735,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9954545454545455,
+            "recall": 0.9820627802690582,
+            "f1": 0.9887133182844242,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6666666666666666,
+            "recall": 0.8888888888888888,
+            "f1": 0.761904761904762,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219,
+            4
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9955555555555555,
+        "macro_recall": 0.8888888888888888,
+        "macro_f1": 0.9352678571428572,
+        "balanced_accuracy": 0.8888888888888888,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9911111111111112,
+            "recall": 1.0,
+            "f1": 0.9955357142857144,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.7777777777777778,
+            "f1": 0.8750000000000001,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 6,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.6666666666666666,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.8753090400945931,
+        "ranking_key": [
+          0.6666666666666666,
+          0.8753090400945931,
+          -6.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 7,
+      "global_step": 3451,
+      "train_loss": 0.13855385104417198,
+      "gradient_norm_max": 1518.332763671875,
+      "gradient_clipped_steps": 7,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9827586206896551,
+        "macro_precision": 0.8461538461538461,
+        "macro_recall": 0.9910313901345291,
+        "macro_f1": 0.9045660222130809,
+        "balanced_accuracy": 0.9910313901345291,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9820627802690582,
+            "f1": 0.9909502262443438,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6923076923076923,
+            "recall": 1.0,
+            "f1": 0.8181818181818181,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219,
+            4
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9955555555555555,
+        "macro_recall": 0.8888888888888888,
+        "macro_f1": 0.9352678571428572,
+        "balanced_accuracy": 0.8888888888888888,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9911111111111112,
+            "recall": 1.0,
+            "f1": 0.9955357142857144,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.7777777777777778,
+            "f1": 0.8750000000000001,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 7,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.6923076923076923,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9045660222130809,
+        "ranking_key": [
+          0.6923076923076923,
+          0.9045660222130809,
+          -7.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 8,
+      "global_step": 3944,
+      "train_loss": 0.12983521328942424,
+      "gradient_norm_max": 1953.4019775390625,
+      "gradient_clipped_steps": 6,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9870689655172413,
+        "macro_precision": 0.8977477477477478,
+        "macro_recall": 0.939960139511709,
+        "macro_f1": 0.9176818450620935,
+        "balanced_accuracy": 0.939960139511709,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9954954954954955,
+            "recall": 0.9910313901345291,
+            "f1": 0.9932584269662922,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8,
+            "recall": 0.8888888888888888,
+            "f1": 0.8421052631578948,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9870689655172413,
+        "macro_precision": 0.9330357142857143,
+        "macro_recall": 0.8866467364225212,
+        "macro_f1": 0.9084090011843664,
+        "balanced_accuracy": 0.8866467364225212,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9910714285714286,
+            "recall": 0.9955156950672646,
+            "f1": 0.9932885906040269,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.875,
+            "recall": 0.7777777777777778,
+            "f1": 0.823529411764706,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 8,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9176818450620935,
+        "ranking_key": [
+          0.8,
+          0.9176818450620935,
+          -8.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 9,
+      "global_step": 4437,
+      "train_loss": 0.18442506673268816,
+      "gradient_norm_max": 1385.2005615234375,
+      "gradient_clipped_steps": 6,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9090909090909092,
+        "macro_recall": 0.9955156950672646,
+        "macro_f1": 0.9477477477477477,
+        "balanced_accuracy": 0.9955156950672646,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9910313901345291,
+            "f1": 0.9954954954954954,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 1.0,
+            "f1": 0.9,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9827586206896551,
+        "macro_precision": 0.8461538461538461,
+        "macro_recall": 0.9910313901345291,
+        "macro_f1": 0.9045660222130809,
+        "balanced_accuracy": 0.9910313901345291,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9820627802690582,
+            "f1": 0.9909502262443438,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6923076923076923,
+            "recall": 1.0,
+            "f1": 0.8181818181818181,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219,
+            4
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 9,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8181818181818182,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9477477477477477,
+        "ranking_key": [
+          0.8181818181818182,
+          0.9477477477477477,
+          -9.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 10,
+      "global_step": 4930,
+      "train_loss": 0.12104034719896138,
+      "gradient_norm_max": 871.471435546875,
+      "gradient_clipped_steps": 8,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.831060606060606,
+        "macro_recall": 0.9354758345789735,
+        "macro_f1": 0.8753090400945931,
+        "balanced_accuracy": 0.9354758345789735,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9954545454545455,
+            "recall": 0.9820627802690582,
+            "f1": 0.9887133182844242,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6666666666666666,
+            "recall": 0.8888888888888888,
+            "f1": 0.761904761904762,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            219,
+            4
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9090909090909092,
+        "macro_recall": 0.9955156950672646,
+        "macro_f1": 0.9477477477477477,
+        "balanced_accuracy": 0.9955156950672646,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9910313901345291,
+            "f1": 0.9954954954954954,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 1.0,
+            "f1": 0.9,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 10,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.6666666666666666,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.8753090400945931,
+        "ranking_key": [
+          0.6666666666666666,
+          0.8753090400945931,
+          -10.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 11,
+      "global_step": 5423,
+      "train_loss": 0.10305153848601006,
+      "gradient_norm_max": 965.9066772460938,
+      "gradient_clipped_steps": 5,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9422022919780767,
+        "macro_recall": 0.9422022919780767,
+        "macro_f1": 0.9422022919780767,
+        "balanced_accuracy": 0.9422022919780767,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955156950672646,
+            "recall": 0.9955156950672646,
+            "f1": 0.9955156950672646,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8888888888888888,
+            "recall": 0.8888888888888888,
+            "f1": 0.8888888888888888,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9090909090909092,
+        "macro_recall": 0.9955156950672646,
+        "macro_f1": 0.9477477477477477,
+        "balanced_accuracy": 0.9955156950672646,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9910313901345291,
+            "f1": 0.9954954954954954,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 1.0,
+            "f1": 0.9,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 11,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9422022919780767,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9422022919780767,
+          -11.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 12,
+      "global_step": 5916,
+      "train_loss": 0.0927877473587295,
+      "gradient_norm_max": 1415.99462890625,
+      "gradient_clipped_steps": 4,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.8214285714285714,
+        "macro_recall": 0.9887892376681615,
+        "macro_f1": 0.8856354135857241,
+        "balanced_accuracy": 0.9887892376681615,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9775784753363229,
+            "f1": 0.9886621315192743,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 5
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6428571428571429,
+            "recall": 1.0,
+            "f1": 0.782608695652174,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            218,
+            5
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9870689655172413,
+        "macro_precision": 0.875,
+        "macro_recall": 0.9932735426008968,
+        "macro_f1": 0.9251854240567559,
+        "balanced_accuracy": 0.9932735426008968,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9865470852017937,
+            "f1": 0.9932279909706546,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            220,
+            3
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 12,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.6428571428571429,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.8856354135857241,
+        "ranking_key": [
+          0.6428571428571429,
+          0.8856354135857241,
+          -12.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 13,
+      "global_step": 6409,
+      "train_loss": 0.07281372878623986,
+      "gradient_norm_max": 943.1799926757812,
+      "gradient_clipped_steps": 3,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9090909090909092,
+        "macro_recall": 0.9955156950672646,
+        "macro_f1": 0.9477477477477477,
+        "balanced_accuracy": 0.9955156950672646,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9910313901345291,
+            "f1": 0.9954954954954954,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 1.0,
+            "f1": 0.9,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 13,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8181818181818182,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9477477477477477,
+        "ranking_key": [
+          0.8181818181818182,
+          0.9477477477477477,
+          -13.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 14,
+      "global_step": 6902,
+      "train_loss": 0.09278712384782932,
+      "gradient_norm_max": 1122.2939453125,
+      "gradient_clipped_steps": 3,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9827586206896551,
+        "macro_precision": 0.9911894273127753,
+        "macro_recall": 0.7777777777777778,
+        "macro_f1": 0.8526984126984127,
+        "balanced_accuracy": 0.7777777777777778,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9823788546255506,
+            "recall": 1.0,
+            "f1": 0.9911111111111112,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.5555555555555556,
+            "f1": 0.7142857142857143,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 4
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 14,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9694696670614554,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9694696670614554,
+          -14.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 15,
+      "global_step": 7395,
+      "train_loss": 0.11212132365334662,
+      "gradient_norm_max": 1540.776611328125,
+      "gradient_clipped_steps": 5,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9422022919780767,
+        "macro_recall": 0.9422022919780767,
+        "macro_f1": 0.9422022919780767,
+        "balanced_accuracy": 0.9422022919780767,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955156950672646,
+            "recall": 0.9955156950672646,
+            "f1": 0.9955156950672646,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8888888888888888,
+            "recall": 0.8888888888888888,
+            "f1": 0.8888888888888888,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9955555555555555,
+        "macro_recall": 0.8888888888888888,
+        "macro_f1": 0.9352678571428572,
+        "balanced_accuracy": 0.8888888888888888,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9911111111111112,
+            "recall": 1.0,
+            "f1": 0.9955357142857144,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.7777777777777778,
+            "f1": 0.8750000000000001,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 15,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9422022919780767,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9422022919780767,
+          -15.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 16,
+      "global_step": 7888,
+      "train_loss": 0.1086797414829366,
+      "gradient_norm_max": 1281.911376953125,
+      "gradient_clipped_steps": 5,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9955555555555555,
+        "macro_recall": 0.8888888888888888,
+        "macro_f1": 0.9352678571428572,
+        "balanced_accuracy": 0.8888888888888888,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9911111111111112,
+            "recall": 1.0,
+            "f1": 0.9955357142857144,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.7777777777777778,
+            "f1": 0.8750000000000001,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            2,
+            7
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 16,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9694696670614554,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9694696670614554,
+          -16.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 17,
+      "global_step": 8381,
+      "train_loss": 0.1182057428443861,
+      "gradient_norm_max": 920.2041625976562,
+      "gradient_clipped_steps": 3,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.978448275862069,
+        "macro_precision": 0.9890350877192983,
+        "macro_recall": 0.7222222222222222,
+        "macro_f1": 0.8021490704417533,
+        "balanced_accuracy": 0.7222222222222222,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9780701754385965,
+            "recall": 1.0,
+            "f1": 0.9889135254988913,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.4444444444444444,
+            "f1": 0.6153846153846153,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 5
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            5,
+            4
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 17,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9694696670614554,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9694696670614554,
+          -17.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 18,
+      "global_step": 8874,
+      "train_loss": 0.03960241639630541,
+      "gradient_norm_max": 572.8182983398438,
+      "gradient_clipped_steps": 2,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9422022919780767,
+        "macro_recall": 0.9422022919780767,
+        "macro_f1": 0.9422022919780767,
+        "balanced_accuracy": 0.9422022919780767,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955156950672646,
+            "recall": 0.9955156950672646,
+            "f1": 0.9955156950672646,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8888888888888888,
+            "recall": 0.8888888888888888,
+            "f1": 0.8888888888888888,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9090909090909092,
+        "macro_recall": 0.9955156950672646,
+        "macro_f1": 0.9477477477477477,
+        "balanced_accuracy": 0.9955156950672646,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9910313901345291,
+            "f1": 0.9954954954954954,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 1.0,
+            "f1": 0.9,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 18,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9422022919780767,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9422022919780767,
+          -18.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 19,
+      "global_step": 9367,
+      "train_loss": 0.10008484534828349,
+      "gradient_norm_max": 1559.679443359375,
+      "gradient_clipped_steps": 3,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9913793103448276,
+        "macro_precision": 0.9422022919780767,
+        "macro_recall": 0.9422022919780767,
+        "macro_f1": 0.9422022919780767,
+        "balanced_accuracy": 0.9422022919780767,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955156950672646,
+            "recall": 0.9955156950672646,
+            "f1": 0.9955156950672646,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8888888888888888,
+            "recall": 0.8888888888888888,
+            "f1": 0.8888888888888888,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.9977678571428572,
+        "macro_recall": 0.9444444444444444,
+        "macro_f1": 0.9694696670614554,
+        "balanced_accuracy": 0.9444444444444444,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9955357142857143,
+            "recall": 1.0,
+            "f1": 0.9977628635346756,
+            "support": 223,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.8888888888888888,
+            "f1": 0.9411764705882353,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            223,
+            0
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 19,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9422022919780767,
+        "ranking_key": [
+          0.8888888888888888,
+          0.9422022919780767,
+          -19.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    },
+    {
+      "epoch": 20,
+      "global_step": 9860,
+      "train_loss": 0.02991843067267088,
+      "gradient_norm_max": 362.61334228515625,
+      "gradient_clipped_steps": 3,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 232,
+        "accuracy": 0.9870689655172413,
+        "macro_precision": 0.8977477477477478,
+        "macro_recall": 0.939960139511709,
+        "macro_f1": 0.9176818450620935,
+        "balanced_accuracy": 0.939960139511709,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9954954954954955,
+            "recall": 0.9910313901345291,
+            "f1": 0.9932584269662922,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8,
+            "recall": 0.8888888888888888,
+            "f1": 0.8421052631578948,
+            "support": 9,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            221,
+            2
+          ],
+          [
+            1,
+            8
+          ]
+        ]
+      },
+      "validation_parent_balanced_eligible_prefix_metrics": {
+        "scope": "parent_balanced_eligible_prefix_diagnostic",
+        "support": 232,
+        "accuracy": 0.9956896551724138,
+        "macro_precision": 0.95,
+        "macro_recall": 0.9977578475336323,
+        "macro_f1": 0.9725606150206978,
+        "balanced_accuracy": 0.9977578475336323,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.9955156950672646,
+            "f1": 0.9977528089887641,
+            "support": 223,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9,
+            "recall": 1.0,
+            "f1": 0.9473684210526316,
+            "support": 9,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            222,
+            1
+          ],
+          [
+            0,
+            9
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+        "task": "known_gate",
+        "epoch": 20,
+        "feasible": true,
+        "minimum_per_class_precision_recall_f1": 0.8,
+        "bidirectional_drone_bird_errors": null,
+        "macro_f1": 0.9176818450620935,
+        "ranking_key": [
+          0.8,
+          0.9176818450620935,
+          -20.0
+        ]
+      },
+      "knownness_quality_training": "not_executed; heads are not included in classification objective",
+      "unknown_payload_access_count": 0,
+      "test_payload_access_count": 0
+    }
+  ],
+  "best_assessment": {
+    "schema_version": "RADAR-LN3-V27-task-checkpoint-selector-v2",
+    "task": "known_gate",
+    "epoch": 14,
+    "feasible": true,
+    "minimum_per_class_precision_recall_f1": 0.8888888888888888,
+    "bidirectional_drone_bird_errors": null,
+    "macro_f1": 0.9694696670614554,
+    "ranking_key": [
+      0.8888888888888888,
+      0.9694696670614554,
+      -14.0
+    ]
+  },
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "cuda_device_count": 1,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "knownness_training": "not_executed",
+  "quality_training": "deferred_unfitted_no_pseudo_labels",
+  "l3_calibration": "unfitted",
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "deployment_eligible": false,
+  "training_log_path": "F:\\Project\\RadarInsight\\src-v3\\v27\\runs\\V27-known_gate-seed42\\training.log",
+  "payload_sha256": "3ba546900141776ca9bb1b683a81b3c69810d8aa9c3704573933ac17927f6af7"
+}
