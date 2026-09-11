@@ -1,0 +1,264 @@
+{
+  "schema_version": "RADAR-LN3-V27c-r23-manifest-v1",
+  "experiment_id": "V27c-r23",
+  "variant": "2x2-tr-input-clipping-by-causal-motion-known-only-l2-retraining",
+  "objective": "Test whether train-only robust clipping of range/speed and causal TR motion produce independent or interacting effects on known-only DBB L2 classification, while L1 remains bound-only and Unknown, Clutter, knownness, quality, calibration, L3, and test remain out of scope.",
+  "config": {
+    "path": "src-v3/v27/v27c/r23/config/V27c-r23-tr-clipping-causal-motion.json",
+    "sha256": "9bee4c6b77ba5ad4edb6cbbd857ce11683e02de72b2e04685c30e79dde460725",
+    "identity_sha256": "bd5d05e49c1af56979957a5dcff54eaf7dbb151dca810ccf0a883f33957917bc"
+  },
+  "input_binding": {
+    "v27": {
+      "config_path": "src-v3/v27/v27_baseline/config/V27-liquid-v2-dbb-baseline.json",
+      "config_sha256": "51531a0f403b736df616ddcc83978163a2ca0e2cd98eb74ada19cdac32671d0b",
+      "data_registry_sha256": "e1624ec87d44fa452b85958b92ffbd2fa15c8deb55a8f54f1fd2a16d864b8597",
+      "l2_classifier_state_sha256": "b0e001f1fb89c1ab6ed511517cef707397b3119c2a37d78fe6690937b681b4b1"
+    },
+    "l1_binding_only": {
+      "checkpoint_path": "src-v3/v27/v27_baseline/runs/V27-known_gate-seed42/epochs/epoch-014.pt",
+      "checkpoint_sha256": "0f9ed58ddbf7a457d774c95780a83f6a7235ec107b62f403c725371fcd69e6f6",
+      "state_sha256_from_frozen_binding": "aabd637001e52fb4646badc87b42b0422c2c3dae0ed9a0129893a623fb78ac79",
+      "checkpoint_deserialized": false,
+      "model_loaded": false,
+      "forward_calls": 0,
+      "optimizer_parameter_count": 0
+    },
+    "l2_initialization": {
+      "checkpoint_path": "src-v3/v27/v27_baseline/runs/V27-dbb_specialist-seed42/epochs/epoch-011.pt",
+      "checkpoint_sha256": "0653d3837ee3eafc3146ad49909c223cf8c74e6270cd4bbffcec60cca3b0137e",
+      "model_state_sha256": "e5b7b8e05ec750b215c09bebab113120d53f824423cf09c4da8580382f179b5c",
+      "classifier_state_sha256": "b0e001f1fb89c1ab6ed511517cef707397b3119c2a37d78fe6690937b681b4b1",
+      "epoch": 11,
+      "class_weights": [
+        0.6673669467787114,
+        1.3291492329149233,
+        1.334733893557423
+      ]
+    },
+    "v27a_main": {
+      "config_path": "src-v3/v27/v27a/config/V27a-micro-doppler-evidence-decoupling.json",
+      "config_sha256": "c31daba180a22e4d5bd1864c01d407fb99eb41fef2056b2020d2932d04f6ce4f",
+      "manifest_path": "src-v3/v27/v27a/manifests/V27a-r3-manifest.json",
+      "manifest_file_sha256": "0f4814a54c74a3fbc957072afe031724712dbc74d4d762093193ad6ec64cd126",
+      "manifest_payload_sha256": "b331005e83173df70db6a2d4e9529b108ca35fc81a55bda87a1f8a2465958c50",
+      "evidence_audit_sha256": "fb6509bccd186a70137e2430de9413f0d6777e4e3a17bac4b8c447467eb2200b",
+      "checkpoint_path": "src-v3/v27/v27b/inputs/V27a-r3-main-seed42-epoch-020.pt",
+      "checkpoint_sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305",
+      "state_sha256": "2429d0fa3d68d7d7405192c4f9f2edfb8b27faf5e64921e4a542ff6780fb7be0",
+      "model_contract_sha256": "7bfd3488b064e8479c5b0e71192a2e2ac44dc88e08f3fa34912e6fdcec6909db",
+      "arm": "main",
+      "epoch": 20
+    },
+    "v27a_caches": {
+      "train": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-train-cache.pt",
+        "file_sha256": "972aad80643a5360288c7ebbf8d7d2d27db76c8912a4ace1ea3338998320e020",
+        "payload_sha256": "38b5b9067c9dfffd7dbec752d1a30e6f1785ce00bf542af777bcc41dbd0b8326",
+        "parent_count": 953
+      },
+      "val": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-validation-cache.pt",
+        "file_sha256": "179336ae559f4dc52284bd36df889425e312a921e06e18b70ff4a50583a72615",
+        "payload_sha256": "3fd22cd76049a697bd8cad454c6138998b8552b742131a647e2ae31628c39ebe",
+        "parent_count": 223
+      }
+    },
+    "arm_specs": {
+      "legacy_control": {
+        "input_mode": "legacy",
+        "motion_mode": "zero"
+      },
+      "legacy_motion": {
+        "input_mode": "legacy",
+        "motion_mode": "causal"
+      },
+      "robust_control": {
+        "input_mode": "robust",
+        "motion_mode": "zero"
+      },
+      "robust_motion": {
+        "input_mode": "robust",
+        "motion_mode": "causal"
+      }
+    },
+    "tr_clipping": {
+      "method": "known_train_only_one_sided_upper_quantile",
+      "quantile": 0.999,
+      "lower_bound_policy": "physical_nonnegative",
+      "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+      "split_name": "train",
+      "schema_version": "RADAR-LN3-V16",
+      "label_names": [
+        "BalloonTarget",
+        "BirdTarget",
+        "DroneTarget"
+      ],
+      "parent_count": 953,
+      "event_count": 18266,
+      "bounds": {
+        "range_m": {
+          "lower": 0.0,
+          "upper": 4843.660789968004,
+          "fit_count": 18265
+        },
+        "speed_mps": {
+          "lower": 0.0,
+          "upper": 51.11839758400121,
+          "fit_count": 18265
+        }
+      }
+    },
+    "tr_clipping_audits": {
+      "train": {
+        "split_name": "train",
+        "parent_count": 953,
+        "event_count": 18266,
+        "finite_counts": {
+          "range_m": 18265,
+          "speed_mps": 18265
+        },
+        "changed_counts": {
+          "range_m": 19,
+          "speed_mps": 19
+        },
+        "changed_fraction": {
+          "range_m": 0.0010402408978921435,
+          "speed_mps": 0.0010402408978921435
+        }
+      },
+      "val": {
+        "split_name": "val",
+        "parent_count": 223,
+        "event_count": 4288,
+        "finite_counts": {
+          "range_m": 4288,
+          "speed_mps": 4288
+        },
+        "changed_counts": {
+          "range_m": 0,
+          "speed_mps": 3
+        },
+        "changed_fraction": {
+          "range_m": 0.0,
+          "speed_mps": 0.0006996268656716418
+        }
+      }
+    },
+    "scope": {
+      "unknown_training_exposure": 0,
+      "clutter_training_exposure": 0,
+      "test_payload_access_count": 0,
+      "knownness": "not_in_scope",
+      "quality": "not_in_scope",
+      "calibration": "not_in_scope",
+      "l3": "not_in_scope"
+    },
+    "frozen_binding_payload_sha256": "0e176a67277da0fae62def273605bfbeb85477682b8f72ef266df55105fdefaa"
+  },
+  "code_hashes": {
+    "src-v3/v27/v27c/r23/__init__.py": "d970ebee756fc99914692f1f3636a4c076ed3b796c3ba854999c709093587b77",
+    "src-v3/v27/v27c/r23/protocol.py": "a6fd575dc2dbf43cc3a70e16e53b65a269693d1296389a4c5249577873fb5858",
+    "src-v3/v27/v27c/r23/preprocessing.py": "9589251fcc983a5d01844d9ee76e93f48f5912812470d22376b23cd339c78635",
+    "src-v3/v27/v27c/r23/data.py": "9cfaea555b7c40e401cee3b38630dadad57828626c5bdcc0f7beee057097acde",
+    "src-v3/v27/v27c/r23/model.py": "13d94db99fad2b4d657a11155b210026b8efc08ed37d9fa492d5a53dca340c8a",
+    "src-v3/v27/v27c/r23/training.py": "242164d609e94092f525a21e24feaf53f2d116ebdbcc168053528f5e6162a47f",
+    "src-v3/v27/v27c/r23/evaluation.py": "136e3912b8c7cf67b22854740dc3c6904776109cc2dfcb7e14f44a116b1034db",
+    "src-v3/v27/v27c/r23/smoke.py": "964bf021e9b52bd4f7e7932a428067951adfbc4b2486136ef0ee265cefc8ad45",
+    "src-v3/v27/v27c/r23/cli.py": "5840dbf50a7b012f323b450efb2f70279ac6ba36258efa1d26b48ff94bc23f8c",
+    "src-v3/v27/v27_baseline/base_binding.py": "22d316fe3cd36876a7beaafc5d1157111135d411cc7a7e2d9f524e7c89a88e03",
+    "src-v3/v27/v27_baseline/data.py": "e848cb2f8dd2ddba6d62acaf884aa9a7b75c6bc104db40b25e4cd3319cd7da66",
+    "src-v3/v27/v27_baseline/logging_utils.py": "17257948148a5303a13b0e43be2a416221921181f839b1fc42a052497f056aa0",
+    "src-v3/v27/v27_baseline/metrics.py": "32ec4beb87048a04453f49c4e946e90c9008fc409b3a48c2beb3f87bc0aa8620",
+    "src-v3/v27/v27_baseline/model.py": "be00848503e7b97fdf47d919f07e4daa7191ec190c59c598c004a34a9369e649",
+    "src-v3/v27/v27_baseline/protocol.py": "ad5084c3ae8c2dd9054a17e380c461a894ccb0c47f67cd7826e77b9b1d587026",
+    "src-v3/radar_ln3/data.py": "cb58f69f7077bbbe7491b1cde694a33d78f88b60bd687b34ab6a781757dcb751",
+    "src-v3/radar_ln3/features.py": "98a98388806ea3065825a2edfc443ff0a5e5c5b35a52749b48904e56be4831ac",
+    "src-v3/radar_ln3/liquid_v2.py": "e2c763f47b6180f552fb15054d725ac715ae77f34ca715a25fc3fb645871f4d0",
+    "src-v3/radar_ln3/losses.py": "3f814486a39e13b28c0dd7323c3f44f2dbecf2e6f6a03187c010581429bc89f2",
+    "src-v3/radar_ln3/runtime.py": "960e454d04fcf0f9580bd039adbd2c2b3a36763971107836b73874c93ac0d177",
+    "src-v3/v27/v27a/cache.py": "8961e9c954da723acf2dfcf0d4d613174a36f02af125bd82291efdc7299265cd",
+    "src-v3/v27/v27a/checkpoint.py": "648f25d55b2b3858f84bc4d0cf2d1399d612aeb5902720543322b9987d052bbd",
+    "src-v3/v27/v27a/model.py": "d882be30f3aeed1256e3789c9ea3e2e7ea008e95883af1a139f310560aed801d",
+    "src-v3/v27/v27a/protocol.py": "569c47ebef4afa19819f40aff25fba160ff5ffd75e4bedbf3b46a9d35b122555"
+  },
+  "model": {
+    "base": "V27 L2 epoch-11 state initialized in every arm",
+    "reference": "legacy V27 L2 input and frozen reference state",
+    "stable8": "V27a Main epoch-20 full reliable-frame residual",
+    "motion": "bias-free causal motion adapter before Liquid V2 recurrence",
+    "initial_logit_equation": "cached_v27a_logits + current_l2(reference_input_delta) + stable8_residual",
+    "trajectory_heads": "frozen_and_unused_by_classification"
+  },
+  "training": {
+    "arms": [
+      "legacy_control",
+      "legacy_motion",
+      "robust_control",
+      "robust_motion"
+    ],
+    "arm_specs": {
+      "legacy_control": {
+        "input_mode": "legacy",
+        "motion_mode": "zero"
+      },
+      "legacy_motion": {
+        "input_mode": "legacy",
+        "motion_mode": "causal"
+      },
+      "robust_control": {
+        "input_mode": "robust",
+        "motion_mode": "zero"
+      },
+      "robust_motion": {
+        "input_mode": "robust",
+        "motion_mode": "causal"
+      }
+    },
+    "seeds": [
+      42,
+      43
+    ],
+    "fixed_primary_epoch": 20,
+    "checkpoint_selection": "fixed_primary_epoch_without_validation_best_selection",
+    "class_weights": [
+      0.6673669467787114,
+      1.3291492329149233,
+      1.334733893557423
+    ]
+  },
+  "protocol": {
+    "l1": "frozen_checkpoint_bound_not_loaded_or_optimized",
+    "l2": "retrain_base_classifier_and_v27a_main_stable8_residual",
+    "arms": [
+      "legacy_control",
+      "legacy_motion",
+      "robust_control",
+      "robust_motion"
+    ],
+    "factorial_design": "2x2_input_clipping_by_causal_motion",
+    "legacy_input": "unclipped_tr_features_and_motion_from_unclipped_raw_values",
+    "robust_input": "train_only_fitted_range_speed_clipping_then_reencoded_tr_and_motion",
+    "reference_input": "legacy_unclipped_v27_l2_state_for_all_arms",
+    "motion_mask": "causal_validity_used_for_numeric_zeroing_only_not_model_input",
+    "stable8": "reuse_v27a_main_full_reliable_frame_path_and_retrain_it_with_l2",
+    "unknown_training_exposure": 0,
+    "clutter_training_exposure": 0,
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope",
+    "test": "sealed_and_not_used",
+    "checkpoint_selection": "fixed_primary_epoch_without_validation_best_selection"
+  },
+  "scope": {
+    "unknown_training_exposure": 0,
+    "clutter_training_exposure": 0,
+    "test_payload_access_count": 0,
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope"
+  },
+  "payload_sha256": "8d521e64b51b416d132a1a79fc3f43c1cb369c2d37adff0c44cab3e28f6a5cf0"
+}

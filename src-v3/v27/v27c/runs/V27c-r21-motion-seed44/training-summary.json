@@ -1,0 +1,188 @@
+{
+  "schema_version": "RADAR-LN3-V27c-motion-training-summary-v1",
+  "status": "completed_fixed_epoch_motion_training",
+  "experiment_id": "V27c",
+  "seed": 44,
+  "selected_epoch": 20,
+  "selection": "fixed_primary_epoch",
+  "dataloader_seed": 86,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 30,
+      "train_loss": 0.03394632196674744,
+      "gradient_norm_max": 0.01436965074390173,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 2,
+      "global_step": 60,
+      "train_loss": 0.034194549452513455,
+      "gradient_norm_max": 0.009411713108420372,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 3,
+      "global_step": 90,
+      "train_loss": 0.034514654086281855,
+      "gradient_norm_max": 0.009388082660734653,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 4,
+      "global_step": 120,
+      "train_loss": 0.033995710670327146,
+      "gradient_norm_max": 0.007292335852980614,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 5,
+      "global_step": 150,
+      "train_loss": 0.034224531954775254,
+      "gradient_norm_max": 0.01031822245568037,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 6,
+      "global_step": 180,
+      "train_loss": 0.03399841515347361,
+      "gradient_norm_max": 0.016839373856782913,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 7,
+      "global_step": 210,
+      "train_loss": 0.03401778514186541,
+      "gradient_norm_max": 0.01283660065382719,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 8,
+      "global_step": 240,
+      "train_loss": 0.03401611711209019,
+      "gradient_norm_max": 0.014458189718425274,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 9,
+      "global_step": 270,
+      "train_loss": 0.034240504664679365,
+      "gradient_norm_max": 0.011585867963731289,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 10,
+      "global_step": 300,
+      "train_loss": 0.0341521586291492,
+      "gradient_norm_max": 0.018101641908288002,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 11,
+      "global_step": 330,
+      "train_loss": 0.034051334206014874,
+      "gradient_norm_max": 0.013688184320926666,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 12,
+      "global_step": 360,
+      "train_loss": 0.0343824359588325,
+      "gradient_norm_max": 0.018022717908024788,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 13,
+      "global_step": 390,
+      "train_loss": 0.033825887553393844,
+      "gradient_norm_max": 0.01726178638637066,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 14,
+      "global_step": 420,
+      "train_loss": 0.03379516865437229,
+      "gradient_norm_max": 0.02878289483487606,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 15,
+      "global_step": 450,
+      "train_loss": 0.033883554736773173,
+      "gradient_norm_max": 0.017897987738251686,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 16,
+      "global_step": 480,
+      "train_loss": 0.033772132638841865,
+      "gradient_norm_max": 0.02895515412092209,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 17,
+      "global_step": 510,
+      "train_loss": 0.03373432758574684,
+      "gradient_norm_max": 0.04039277508854866,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 18,
+      "global_step": 540,
+      "train_loss": 0.0338884247156481,
+      "gradient_norm_max": 0.02982708252966404,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 19,
+      "global_step": 570,
+      "train_loss": 0.0335295085174342,
+      "gradient_norm_max": 0.026232443749904633,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    },
+    {
+      "epoch": 20,
+      "global_step": 600,
+      "train_loss": 0.03352677160874009,
+      "gradient_norm_max": 0.042966101318597794,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction": 0.5901127778386073
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/v27c/runs/V27c-r21-motion-seed44/epochs/epoch-020.pt",
+  "checkpoint_sha256": "1643bacc624fb0d07a793921bd0f8b69416807ef09af15413c104ada69edb264",
+  "checkpoint_state_sha256": "38ccff757ce6836cf57c2c8d3c52f194001bf67c2b2a3d975ccdb635a91e62a0",
+  "training_log_path": "src-v3/v27/v27c/runs/V27c-r21-motion-seed44/training.log",
+  "feature_manifest_sha256": "265712b003098cf51900703f4794209cbd1602cf3465b20a1d0b9a5698353a65",
+  "validation_cache_sha256": "0ef8bb9c47bdca36a27a1f3806dbb1123f82913fb2e9155c1e697bee815316f9",
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "cuda_device_count": 1,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "cublas_workspace_config": ":4096:8",
+  "unknown_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "payload_sha256": "760d916b4ef979794ca0f5f34f314a443841df1b95304b02fcd60806f89d7a01"
+}

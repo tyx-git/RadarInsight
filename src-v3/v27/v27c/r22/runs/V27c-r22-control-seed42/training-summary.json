@@ -1,0 +1,191 @@
+{
+  "schema_version": "RADAR-LN3-V27c-r22-integrated-l2-training-summary-v1",
+  "status": "completed_fixed_epoch_matched_l2_retraining",
+  "experiment_id": "V27c-r22",
+  "arm": "control",
+  "seed": 42,
+  "selected_epoch": 20,
+  "selection": "fixed_primary_epoch",
+  "dataloader_seed": 84,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 477,
+      "train_loss": 0.03406718249817865,
+      "gradient_norm_max": 169.13772583007812,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.594725692422135
+    },
+    {
+      "epoch": 2,
+      "global_step": 954,
+      "train_loss": 0.028540013013510092,
+      "gradient_norm_max": 118.561767578125,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5920297369454641
+    },
+    {
+      "epoch": 3,
+      "global_step": 1431,
+      "train_loss": 0.0309698514737222,
+      "gradient_norm_max": 141.92315673828125,
+      "gradient_clipped_steps": 5,
+      "motion_nonzero_event_fraction_observed": 0.5939403377488974
+    },
+    {
+      "epoch": 4,
+      "global_step": 1908,
+      "train_loss": 0.026669035600771662,
+      "gradient_norm_max": 141.96070861816406,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5914817492573267
+    },
+    {
+      "epoch": 5,
+      "global_step": 2385,
+      "train_loss": 0.024857132233126748,
+      "gradient_norm_max": 152.55020141601562,
+      "gradient_clipped_steps": 3,
+      "motion_nonzero_event_fraction_observed": 0.5923039454584101
+    },
+    {
+      "epoch": 6,
+      "global_step": 2862,
+      "train_loss": 0.023531249459343328,
+      "gradient_norm_max": 129.43099975585938,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5944333566934558
+    },
+    {
+      "epoch": 7,
+      "global_step": 3339,
+      "train_loss": 0.02248322786480204,
+      "gradient_norm_max": 135.56114196777344,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5925861951002784
+    },
+    {
+      "epoch": 8,
+      "global_step": 3816,
+      "train_loss": 0.020359519113243737,
+      "gradient_norm_max": 160.94793701171875,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5924479944838418
+    },
+    {
+      "epoch": 9,
+      "global_step": 4293,
+      "train_loss": 0.020130803070906783,
+      "gradient_norm_max": 136.46473693847656,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5937432725318323
+    },
+    {
+      "epoch": 10,
+      "global_step": 4770,
+      "train_loss": 0.017683220041812782,
+      "gradient_norm_max": 140.1337127685547,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5912642517211052
+    },
+    {
+      "epoch": 11,
+      "global_step": 5247,
+      "train_loss": 0.01682825218545677,
+      "gradient_norm_max": 247.39053344726562,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5929894315340484
+    },
+    {
+      "epoch": 12,
+      "global_step": 5724,
+      "train_loss": 0.015930747623073106,
+      "gradient_norm_max": 96.20732879638672,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction_observed": 0.5937845206954194
+    },
+    {
+      "epoch": 13,
+      "global_step": 6201,
+      "train_loss": 0.013729236436169693,
+      "gradient_norm_max": 93.84425354003906,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction_observed": 0.5944978296444351
+    },
+    {
+      "epoch": 14,
+      "global_step": 6678,
+      "train_loss": 0.013136502488714445,
+      "gradient_norm_max": 95.13423919677734,
+      "gradient_clipped_steps": 0,
+      "motion_nonzero_event_fraction_observed": 0.5923882345795881
+    },
+    {
+      "epoch": 15,
+      "global_step": 7155,
+      "train_loss": 0.012828952415572456,
+      "gradient_norm_max": 138.59561157226562,
+      "gradient_clipped_steps": 2,
+      "motion_nonzero_event_fraction_observed": 0.5942614743138509
+    },
+    {
+      "epoch": 16,
+      "global_step": 7632,
+      "train_loss": 0.01094565343420974,
+      "gradient_norm_max": 157.47242736816406,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5906110473398892
+    },
+    {
+      "epoch": 17,
+      "global_step": 8109,
+      "train_loss": 0.01038583812308234,
+      "gradient_norm_max": 107.06117248535156,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5929406900856979
+    },
+    {
+      "epoch": 18,
+      "global_step": 8586,
+      "train_loss": 0.009716177186918928,
+      "gradient_norm_max": 135.46612548828125,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5945662375328675
+    },
+    {
+      "epoch": 19,
+      "global_step": 9063,
+      "train_loss": 0.009433928398762984,
+      "gradient_norm_max": 104.10454559326172,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5892674565096572
+    },
+    {
+      "epoch": 20,
+      "global_step": 9540,
+      "train_loss": 0.007504047324272767,
+      "gradient_norm_max": 112.98294067382812,
+      "gradient_clipped_steps": 1,
+      "motion_nonzero_event_fraction_observed": 0.5935893722144063
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/v27c/r22/runs/V27c-r22-control-seed42/epochs/epoch-020.pt",
+  "checkpoint_sha256": "18c4bce967ccf3bf48b8b55ac6aa3cf1bac0e34d3a27cbd57444ff730e7ceb9d",
+  "checkpoint_state_sha256": "be001fb857b34ce8993b173d6ba89442cb866cb50af3a39560ae12ff4f8a0df2",
+  "training_log_path": "src-v3/v27/v27c/r22/runs/V27c-r22-control-seed42/training.log",
+  "l1_checkpoint_deserialized": false,
+  "l1_forward_calls": 0,
+  "l1_optimizer_parameter_count": 0,
+  "unknown_training_exposure": 0,
+  "clutter_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "cuda_device_count": 1,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "cublas_workspace_config": ":4096:8",
+  "payload_sha256": "5b994e140b4701020def96fafc632c5c09828c35499312a7727141584afe8ddd"
+}

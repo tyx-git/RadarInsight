@@ -1,0 +1,64 @@
+{
+  "schema_version": "RADAR-LN3-V27c-r22-contract-smoke-v1",
+  "experiment_id": "V27c-r22",
+  "status": "passed",
+  "manifest_sha256": "c971a22fbd84d1007e71ffd435ecf128570f29f0983c3fe26aeb72b3496219e6",
+  "sidecar_boundary": {
+    "raw_motion_values_removed_from_batch": true,
+    "motion_validity_mask_removed_from_batch": true,
+    "motion_numeric_dim": 9,
+    "stable8_dim": 8,
+    "sidecar_padding_zero": true
+  },
+  "initial_replay": {
+    "control_replays_v27a_main_within_fp32_tolerance": true,
+    "motion_treatment_replays_v27a_main_within_fp32_tolerance": true,
+    "max_abs_replay_delta": {
+      "control": 4.76837158203125e-07,
+      "motion_treatment": 4.76837158203125e-07
+    },
+    "replay_tolerance": 4e-06,
+    "initial_l2_delta_exact_zero": true,
+    "initial_motion_adapter_exact_zero": true,
+    "matched_arms_identical_at_initialization": true
+  },
+  "motion_boundary": {
+    "motion_injection_location": "post_fusion_pre_liquid_v2",
+    "nonzero_motion_changes_integrated_l2_output": true,
+    "future_motion_does_not_change_earlier_prefix": true,
+    "zero_motion_is_weight_independent_adapter_noop": true
+  },
+  "cached_reference": {
+    "v27a_main_cached_reference_confusion": [
+      [
+        109,
+        4,
+        0
+      ],
+      [
+        1,
+        54,
+        1
+      ],
+      [
+        1,
+        1,
+        52
+      ]
+    ],
+    "matches_archived_v27a_main": true
+  },
+  "scope": {
+    "l1_checkpoint_deserialized": false,
+    "l1_forward_calls": 0,
+    "l1_optimizer_parameter_count": 0,
+    "unknown_training_exposure": 0,
+    "clutter_training_exposure": 0,
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope",
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "fddc902bb2cdc99d608f591500eb227862fc615f12cf07938826ed03bf9efe58"
+}

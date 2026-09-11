@@ -1,0 +1,112 @@
+{
+  "schema_version": "RADAR-LN3-V27c-r23-contract-smoke-v1",
+  "experiment_id": "V27c-r23",
+  "status": "passed",
+  "manifest_sha256": "6d4be963291f46be3e079278461e37cc7be2eb0374c957e22411f32571358374",
+  "sidecar_boundary": {
+    "raw_motion_values_removed_from_batch": true,
+    "motion_validity_mask_removed_from_batch": true,
+    "motion_numeric_dim": 9,
+    "stable8_dim": 8,
+    "sidecar_padding_zero": true
+  },
+  "initial_replay": {
+    "legacy_control_replays_v27a_main_within_fp32_tolerance": true,
+    "legacy_motion_replays_v27a_main_within_fp32_tolerance": true,
+    "max_abs_replay_delta": {
+      "legacy_control": 0.0,
+      "legacy_motion": 0.0
+    },
+    "replay_tolerance": 4e-06,
+    "initial_l2_delta_exact_zero": true,
+    "initial_motion_adapter_exact_zero": true,
+    "matched_arms_identical_at_initialization": true
+  },
+  "motion_boundary": {
+    "motion_injection_location": "post_fusion_pre_liquid_v2",
+    "nonzero_motion_changes_integrated_l2_output": true,
+    "future_motion_does_not_change_earlier_prefix": true,
+    "zero_motion_is_weight_independent_adapter_noop": true
+  },
+  "factorial_inputs": {
+    "robust_input_differs_on_active_events": true,
+    "first_changed_validation_parent": "cq08|track|231",
+    "first_changed_validation_event_count": 1,
+    "missing_mask_semantics_preserved": true,
+    "robust_scaled_tr_max_abs": 1.016569972038269
+  },
+  "clipping": {
+    "fit_split": "train",
+    "quantile": 0.999,
+    "audits": {
+      "train": {
+        "split_name": "train",
+        "parent_count": 953,
+        "event_count": 18266,
+        "finite_counts": {
+          "range_m": 18265,
+          "speed_mps": 18265
+        },
+        "changed_counts": {
+          "range_m": 19,
+          "speed_mps": 19
+        },
+        "changed_fraction": {
+          "range_m": 0.0010402408978921435,
+          "speed_mps": 0.0010402408978921435
+        }
+      },
+      "val": {
+        "split_name": "val",
+        "parent_count": 223,
+        "event_count": 4288,
+        "finite_counts": {
+          "range_m": 4288,
+          "speed_mps": 4288
+        },
+        "changed_counts": {
+          "range_m": 0,
+          "speed_mps": 3
+        },
+        "changed_fraction": {
+          "range_m": 0.0,
+          "speed_mps": 0.0006996268656716418
+        }
+      }
+    },
+    "robust_arm_differs_from_legacy": true
+  },
+  "cached_reference": {
+    "v27a_main_cached_reference_confusion": [
+      [
+        109,
+        4,
+        0
+      ],
+      [
+        1,
+        54,
+        1
+      ],
+      [
+        1,
+        1,
+        52
+      ]
+    ],
+    "matches_archived_v27a_main": true
+  },
+  "scope": {
+    "l1_checkpoint_deserialized": false,
+    "l1_forward_calls": 0,
+    "l1_optimizer_parameter_count": 0,
+    "unknown_training_exposure": 0,
+    "clutter_training_exposure": 0,
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope",
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "fa29efc41a0c1be9af814734a4f42c86791f14a1d7f74494cc762ca4cf6f0f9e"
+}

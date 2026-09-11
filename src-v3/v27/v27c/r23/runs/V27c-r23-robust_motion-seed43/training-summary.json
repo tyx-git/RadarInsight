@@ -1,0 +1,280 @@
+{
+  "schema_version": "RADAR-LN3-V27c-r23-factorial-l2-training-summary-v1",
+  "status": "completed_fixed_epoch_matched_l2_retraining",
+  "experiment_id": "V27c-r23",
+  "arm": "robust_motion",
+  "seed": 43,
+  "selected_epoch": 20,
+  "selection": "fixed_primary_epoch",
+  "manifest_sha256": "6d4be963291f46be3e079278461e37cc7be2eb0374c957e22411f32571358374",
+  "input_binding_sha256": "e3d9180e62f606141b61675d0d42914eb0d5b50404986011c6a81b0a1e3ccec1",
+  "arm_spec": {
+    "input_mode": "robust",
+    "motion_mode": "causal"
+  },
+  "tr_clipping": {
+    "method": "known_train_only_one_sided_upper_quantile",
+    "quantile": 0.999,
+    "lower_bound_policy": "physical_nonnegative",
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "split_name": "train",
+    "schema_version": "RADAR-LN3-V16",
+    "label_names": [
+      "BalloonTarget",
+      "BirdTarget",
+      "DroneTarget"
+    ],
+    "parent_count": 953,
+    "event_count": 18266,
+    "bounds": {
+      "range_m": {
+        "lower": 0.0,
+        "upper": 4843.660789968004,
+        "fit_count": 18265
+      },
+      "speed_mps": {
+        "lower": 0.0,
+        "upper": 51.11839758400121,
+        "fit_count": 18265
+      }
+    }
+  },
+  "tr_clipping_audits": {
+    "train": {
+      "split_name": "train",
+      "parent_count": 953,
+      "event_count": 18266,
+      "finite_counts": {
+        "range_m": 18265,
+        "speed_mps": 18265
+      },
+      "changed_counts": {
+        "range_m": 19,
+        "speed_mps": 19
+      },
+      "changed_fraction": {
+        "range_m": 0.0010402408978921435,
+        "speed_mps": 0.0010402408978921435
+      }
+    },
+    "val": {
+      "split_name": "val",
+      "parent_count": 223,
+      "event_count": 4288,
+      "finite_counts": {
+        "range_m": 4288,
+        "speed_mps": 4288
+      },
+      "changed_counts": {
+        "range_m": 0,
+        "speed_mps": 3
+      },
+      "changed_fraction": {
+        "range_m": 0.0,
+        "speed_mps": 0.0006996268656716418
+      }
+    }
+  },
+  "dataloader_seed": 85,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 477,
+      "train_loss": 0.03421260162993223,
+      "gradient_norm_max": 204.9587860107422,
+      "gradient_clipped_steps": 3,
+      "source_motion_nonzero_event_fraction_observed": 0.594364301182439,
+      "effective_motion_nonzero_event_fraction_observed": 0.594364301182439
+    },
+    {
+      "epoch": 2,
+      "global_step": 954,
+      "train_loss": 0.0280333135503518,
+      "gradient_norm_max": 116.89179992675781,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.593352865310585,
+      "effective_motion_nonzero_event_fraction_observed": 0.593352865310585
+    },
+    {
+      "epoch": 3,
+      "global_step": 1431,
+      "train_loss": 0.02875813744324982,
+      "gradient_norm_max": 185.78805541992188,
+      "gradient_clipped_steps": 3,
+      "source_motion_nonzero_event_fraction_observed": 0.5923407025932016,
+      "effective_motion_nonzero_event_fraction_observed": 0.5923407025932016
+    },
+    {
+      "epoch": 4,
+      "global_step": 1908,
+      "train_loss": 0.02662440759843202,
+      "gradient_norm_max": 126.31112670898438,
+      "gradient_clipped_steps": 2,
+      "source_motion_nonzero_event_fraction_observed": 0.5933610485628465,
+      "effective_motion_nonzero_event_fraction_observed": 0.5933610485628465
+    },
+    {
+      "epoch": 5,
+      "global_step": 2385,
+      "train_loss": 0.025335270058902067,
+      "gradient_norm_max": 170.9292755126953,
+      "gradient_clipped_steps": 3,
+      "source_motion_nonzero_event_fraction_observed": 0.5923123131945448,
+      "effective_motion_nonzero_event_fraction_observed": 0.5923123131945448
+    },
+    {
+      "epoch": 6,
+      "global_step": 2862,
+      "train_loss": 0.02259645303181691,
+      "gradient_norm_max": 164.54637145996094,
+      "gradient_clipped_steps": 3,
+      "source_motion_nonzero_event_fraction_observed": 0.5946713341107158,
+      "effective_motion_nonzero_event_fraction_observed": 0.5946713341107158
+    },
+    {
+      "epoch": 7,
+      "global_step": 3339,
+      "train_loss": 0.022071102045345133,
+      "gradient_norm_max": 181.31187438964844,
+      "gradient_clipped_steps": 4,
+      "source_motion_nonzero_event_fraction_observed": 0.5934608980732144,
+      "effective_motion_nonzero_event_fraction_observed": 0.5934608980732144
+    },
+    {
+      "epoch": 8,
+      "global_step": 3816,
+      "train_loss": 0.02065293277031498,
+      "gradient_norm_max": 129.39842224121094,
+      "gradient_clipped_steps": 2,
+      "source_motion_nonzero_event_fraction_observed": 0.5940072404326133,
+      "effective_motion_nonzero_event_fraction_observed": 0.5940072404326133
+    },
+    {
+      "epoch": 9,
+      "global_step": 4293,
+      "train_loss": 0.01777861342229441,
+      "gradient_norm_max": 138.5816192626953,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5923629340791853,
+      "effective_motion_nonzero_event_fraction_observed": 0.5923629340791853
+    },
+    {
+      "epoch": 10,
+      "global_step": 4770,
+      "train_loss": 0.019625312424913065,
+      "gradient_norm_max": 227.5738067626953,
+      "gradient_clipped_steps": 4,
+      "source_motion_nonzero_event_fraction_observed": 0.5912492932201182,
+      "effective_motion_nonzero_event_fraction_observed": 0.5912492932201182
+    },
+    {
+      "epoch": 11,
+      "global_step": 5247,
+      "train_loss": 0.016711994707308598,
+      "gradient_norm_max": 131.2174530029297,
+      "gradient_clipped_steps": 2,
+      "source_motion_nonzero_event_fraction_observed": 0.5916402667011105,
+      "effective_motion_nonzero_event_fraction_observed": 0.5916402667011105
+    },
+    {
+      "epoch": 12,
+      "global_step": 5724,
+      "train_loss": 0.01541668837613024,
+      "gradient_norm_max": 97.95365905761719,
+      "gradient_clipped_steps": 0,
+      "source_motion_nonzero_event_fraction_observed": 0.5946739989194231,
+      "effective_motion_nonzero_event_fraction_observed": 0.5946739989194231
+    },
+    {
+      "epoch": 13,
+      "global_step": 6201,
+      "train_loss": 0.013768643015957548,
+      "gradient_norm_max": 170.09042358398438,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5928475688557205,
+      "effective_motion_nonzero_event_fraction_observed": 0.5928475688557205
+    },
+    {
+      "epoch": 14,
+      "global_step": 6678,
+      "train_loss": 0.013179734485007654,
+      "gradient_norm_max": 102.3028793334961,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5924443339214385,
+      "effective_motion_nonzero_event_fraction_observed": 0.5924443339214385
+    },
+    {
+      "epoch": 15,
+      "global_step": 7155,
+      "train_loss": 0.012525169686116552,
+      "gradient_norm_max": 181.79457092285156,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5904221030682388,
+      "effective_motion_nonzero_event_fraction_observed": 0.5904221030682388
+    },
+    {
+      "epoch": 16,
+      "global_step": 7632,
+      "train_loss": 0.01111743684675773,
+      "gradient_norm_max": 105.6191635131836,
+      "gradient_clipped_steps": 2,
+      "source_motion_nonzero_event_fraction_observed": 0.5933366639215492,
+      "effective_motion_nonzero_event_fraction_observed": 0.5933366639215492
+    },
+    {
+      "epoch": 17,
+      "global_step": 8109,
+      "train_loss": 0.010234654061088682,
+      "gradient_norm_max": 88.0013656616211,
+      "gradient_clipped_steps": 0,
+      "source_motion_nonzero_event_fraction_observed": 0.5910914989981012,
+      "effective_motion_nonzero_event_fraction_observed": 0.5910914989981012
+    },
+    {
+      "epoch": 18,
+      "global_step": 8586,
+      "train_loss": 0.010486798781027385,
+      "gradient_norm_max": 173.0521240234375,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5938666705471665,
+      "effective_motion_nonzero_event_fraction_observed": 0.5938666705471665
+    },
+    {
+      "epoch": 19,
+      "global_step": 9063,
+      "train_loss": 0.008759952887521268,
+      "gradient_norm_max": 67.55657958984375,
+      "gradient_clipped_steps": 0,
+      "source_motion_nonzero_event_fraction_observed": 0.5922869712707881,
+      "effective_motion_nonzero_event_fraction_observed": 0.5922869712707881
+    },
+    {
+      "epoch": 20,
+      "global_step": 9540,
+      "train_loss": 0.00826866542910708,
+      "gradient_norm_max": 164.96054077148438,
+      "gradient_clipped_steps": 1,
+      "source_motion_nonzero_event_fraction_observed": 0.5934707717013309,
+      "effective_motion_nonzero_event_fraction_observed": 0.5934707717013309
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/v27c/r23/runs/V27c-r23-robust_motion-seed43/epochs/epoch-020.pt",
+  "checkpoint_sha256": "e36c09563f03d5ccf9ab192bce96f8590c0d3b07943f20c2d4d6e939d6ad0c03",
+  "checkpoint_state_sha256": "d3dbd18b7be565435a58fdccf98a0f0b3a432065232e6800c12cfd95e13666a0",
+  "training_log_path": "src-v3/v27/v27c/r23/runs/V27c-r23-robust_motion-seed43/training.log",
+  "l1_checkpoint_deserialized": false,
+  "l1_forward_calls": 0,
+  "l1_optimizer_parameter_count": 0,
+  "unknown_training_exposure": 0,
+  "clutter_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "cuda_device_count": 1,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "cublas_workspace_config": ":4096:8",
+  "payload_sha256": "1fa90e35cc34662dd4b08ffcefcda9368e5ac09bd041eebc5a1e17451d4338e9"
+}

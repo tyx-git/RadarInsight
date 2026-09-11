@@ -1,0 +1,196 @@
+{
+  "schema_version": "RADAR-LN3-V27c-motion-manifest-v1",
+  "experiment_id": "V27c",
+  "variant": "frozen-v27a-main-causal-tr-motion-v1-numeric-only-late-residual",
+  "objective": "Test whether the V9 causal TR motion numeric values provide an independent, safe known-only L2 classification gain beyond the frozen V27a Main stable8 endpoint, without exposing masks, Unknown, Clutter, knownness, quality, calibration, L3, or test data.",
+  "config": {
+    "path": "src-v3/v27/v27c/config/V27c-causal-tr-motion-late-residual.json",
+    "sha256": "b7791fb051e06edde396b76e030205d806796acc3d268ec834d660a0f7be2f59",
+    "identity_sha256": "d9e1aed601c99bdbac17aa439117c6bbf79d4964b1cb5956b6b7c5c762e88cdb"
+  },
+  "input_binding": {
+    "files": {
+      "v27a_runtime_config": {
+        "path": "src-v3/v27/v27a/config/V27a-micro-doppler-evidence-decoupling.json",
+        "sha256": "c31daba180a22e4d5bd1864c01d407fb99eb41fef2056b2020d2932d04f6ce4f"
+      },
+      "v27a_runtime_manifest": {
+        "path": "src-v3/v27/v27a/manifests/V27a-r3-manifest.json",
+        "sha256": "0f4814a54c74a3fbc957072afe031724712dbc74d4d762093193ad6ec64cd126"
+      },
+      "v27a_evidence_audit": {
+        "path": "src-v3/v27/v27a/reports/V27a-r3-evidence-cache-audit.json",
+        "sha256": "fb6509bccd186a70137e2430de9413f0d6777e4e3a17bac4b8c447467eb2200b"
+      },
+      "v27a_main_checkpoint": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-main-seed42-epoch-020.pt",
+        "sha256": "5c416261810bdaf6f8e6e751c51612c98d1f77c8abc23b6060d7ac2898078305"
+      },
+      "v27a_train_cache": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-train-cache.pt",
+        "sha256": "972aad80643a5360288c7ebbf8d7d2d27db76c8912a4ace1ea3338998320e020"
+      },
+      "v27a_validation_cache": {
+        "path": "src-v3/v27/v27b/inputs/V27a-r3-validation-cache.pt",
+        "sha256": "179336ae559f4dc52284bd36df889425e312a921e06e18b70ff4a50583a72615"
+      },
+      "v27a_paired_report": {
+        "path": "artifacts/archive/v27/v27a-history/20260903/reports/V27a-r3-paired-validation.json",
+        "sha256": "1e741da0ff7e3f32d63df2f9e05e719589b79013d6c17ed63442d9594c820ea1"
+      },
+      "index": {
+        "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+        "sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c"
+      }
+    },
+    "archived_v27a_main": {
+      "checkpoint_epoch": 20,
+      "checkpoint_state_sha256": "2429d0fa3d68d7d7405192c4f9f2edfb8b27faf5e64921e4a542ff6780fb7be0",
+      "model_contract_sha256": "7bfd3488b064e8479c5b0e71192a2e2ac44dc88e08f3fa34912e6fdcec6909db",
+      "training_config_identity_sha256": "07bdd372cebe74f95f9031355f0db641ac3f5ec7b2bb567f8c2396585a9cc0fc",
+      "training_manifest_sha256": "be939ffbe1a5f8ab0edfe7404eb5aee1aa278e1c12d6ae66326fd083d02afe80",
+      "base_l2_checkpoint_sha256": "0653d3837ee3eafc3146ad49909c223cf8c74e6270cd4bbffcec60cca3b0137e",
+      "base_l2_classifier_state_sha256": "b0e001f1fb89c1ab6ed511517cef707397b3119c2a37d78fe6690937b681b4b1"
+    },
+    "reference_caches": {
+      "train_payload_sha256": "38b5b9067c9dfffd7dbec752d1a30e6f1785ce00bf542af777bcc41dbd0b8326",
+      "val_payload_sha256": "3fd22cd76049a697bd8cad454c6138998b8552b742131a647e2ae31628c39ebe",
+      "train_parent_count": 953,
+      "val_parent_count": 223
+    },
+    "v27a_evidence_order": {
+      "train_event_ids_order_sha256": "64af2eedce1c64ca4e88ce7b616e0143afafbc29ab42d9b86296f5afda0a6dd2",
+      "val_event_ids_order_sha256": "fce95c7c7d7c94f8774b0ee29f627e9439f979e980859da7b0e516b3086a4034"
+    },
+    "frozen_v27_l2_binding": {
+      "path": "src-v3/v27/v27_baseline/runs/V27-frozen-classification-bases-seed42.json",
+      "file_sha256": "a362c63ff64bb554f9967676cd5a9f47ef44e30fb36f87133916d3d597974128",
+      "payload_sha256": "0e176a67277da0fae62def273605bfbeb85477682b8f72ef266df55105fdefaa",
+      "class_weights": [
+        0.6673669467787114,
+        1.3291492329149233,
+        1.334733893557423
+      ]
+    },
+    "unknown_training_exposure": 0,
+    "test_payload_access_count": 0
+  },
+  "motion_contract": {
+    "schema": "causal-tr-motion-v1",
+    "value_dim": 9,
+    "value_names": [
+      "reported_speed_acceleration_scaled",
+      "radial_acceleration_scaled",
+      "course_turn_rate_scaled",
+      "geometric_speed_scaled",
+      "reported_geometric_speed_abs_error_scaled",
+      "range_rate_scaled",
+      "radial_range_rate_abs_error_scaled",
+      "radial_sign_flip",
+      "causal_path_straightness"
+    ],
+    "valid_mask_dim": 9,
+    "valid_mask_names": [
+      "reported_speed_acceleration_scaled_valid",
+      "radial_acceleration_scaled_valid",
+      "course_turn_rate_scaled_valid",
+      "geometric_speed_scaled_valid",
+      "reported_geometric_speed_abs_error_scaled_valid",
+      "range_rate_scaled_valid",
+      "radial_range_rate_abs_error_scaled_valid",
+      "radial_sign_flip_valid",
+      "causal_path_straightness_valid"
+    ],
+    "valid_mask_mode": "gating_only",
+    "scales": {
+      "reported_speed_acceleration_scaled": 10.0,
+      "radial_acceleration_scaled": 10.0,
+      "course_turn_rate_scaled": 45.0,
+      "geometric_speed_scaled": 100.0,
+      "reported_geometric_speed_abs_error_scaled": 100.0,
+      "range_rate_scaled": 100.0,
+      "radial_range_rate_abs_error_scaled": 100.0,
+      "radial_sign_flip": 1.0,
+      "causal_path_straightness": 1.0
+    },
+    "clip_absolute": 5.0
+  },
+  "model": {
+    "motion_projection_dim": 16,
+    "motion_hidden_dim": 16,
+    "class_count": 3,
+    "residual_bound": 3.0,
+    "token_activation": "silu",
+    "token_projection_bias": false,
+    "gru_bias": false,
+    "residual_projection_bias": false
+  },
+  "training": {
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "dataloader_seed": 42,
+    "batch_size": 32,
+    "epochs": 20,
+    "primary_epoch": 20,
+    "learning_rate": 0.0005,
+    "optimizer": "AdamW",
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 10.0,
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "device": "cuda",
+    "cuda_deterministic_algorithms": true,
+    "eligible_prefix_min_events": 3,
+    "bootstrap_replicates": 1000
+  },
+  "protocol": {
+    "frozen_endpoint": "V27a_main_epoch_20",
+    "trainable_component": "causal_tr_motion_late_residual_only",
+    "motion_mask": "numerical_gating_only_not_model_input",
+    "frozen_endpoint_logits_as_additive_output_anchor": true,
+    "frozen_endpoint_logits_input_to_motion_encoder": false,
+    "unknown_training_exposure": 0,
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope",
+    "test": "sealed_and_not_used"
+  },
+  "source_hashes": {
+    "src-v3/radar_ln3/data.py": "cb58f69f7077bbbe7491b1cde694a33d78f88b60bd687b34ab6a781757dcb751",
+    "src-v3/radar_ln3/features.py": "98a98388806ea3065825a2edfc443ff0a5e5c5b35a52749b48904e56be4831ac",
+    "src-v3/radar_ln3/losses.py": "3f814486a39e13b28c0dd7323c3f44f2dbecf2e6f6a03187c010581429bc89f2",
+    "src-v3/radar_ln3/runtime.py": "960e454d04fcf0f9580bd039adbd2c2b3a36763971107836b73874c93ac0d177",
+    "src-v3/v27/__init__.py": "20f05f6be0e2d877bb0dc318d4bb9fce302aeca729e6a124499250c581b2c961",
+    "src-v3/v27/v27_baseline/logging_utils.py": "17257948148a5303a13b0e43be2a416221921181f839b1fc42a052497f056aa0",
+    "src-v3/v27/v27_baseline/metrics.py": "32ec4beb87048a04453f49c4e946e90c9008fc409b3a48c2beb3f87bc0aa8620",
+    "src-v3/v27/v27_baseline/runtime.py": "ebe52b88a3206f0c0a4ec59d112fa472ee1e4b01e0afd5a23c070f0e28a1a8dd",
+    "src-v3/v27/v27_baseline/base_binding.py": "22d316fe3cd36876a7beaafc5d1157111135d411cc7a7e2d9f524e7c89a88e03",
+    "src-v3/v27/v27a/cache.py": "8961e9c954da723acf2dfcf0d4d613174a36f02af125bd82291efdc7299265cd",
+    "src-v3/v27/v27a/model.py": "d882be30f3aeed1256e3789c9ea3e2e7ea008e95883af1a139f310560aed801d",
+    "src-v3/v27/v27a/protocol.py": "569c47ebef4afa19819f40aff25fba160ff5ffd75e4bedbf3b46a9d35b122555",
+    "src-v3/v27/v27c/__init__.py": "b9edf3480018a66ea01fc575181f3b7e3fef055cf0044cd5c33def14af996f6c",
+    "src-v3/v27/v27c/protocol.py": "ce69fc237fccc08c0872341ae44d14f8ef653a1103c68dd0ad5ca93b699a42e3",
+    "src-v3/v27/v27c/features.py": "3b6fde02a3b06bdf14e3986660aa3eadb0575c3d5331afc6e75cf71d48f46912",
+    "src-v3/v27/v27c/model.py": "7eeb36f44dd196b05fe022788e35d38c163db9c70fd82acd710f96f902e1bec5",
+    "src-v3/v27/v27c/training.py": "288a5488a535bd130dbd9ba0cdd158eec1251de4a8f13aa4f239defe15de6370",
+    "src-v3/v27/v27c/evaluation.py": "2b1e0e68ebdc3a86acc766a64677b561c235c956069a4c5fbee7d5c310c9fc3b",
+    "src-v3/v27/v27c/smoke.py": "f06c6d39edfc9a324e1cd202846a6434685f58ffbcfba9cdb35e34cd65b0044b",
+    "src-v3/v27/v27c/cli.py": "4acc4b0dd9bd82c05cee3e716cba5696e6b098d2a061bf8b4cbb7d2c8d1b7a88"
+  },
+  "git_head": "f351338e5445267010a034998e312b9661236566",
+  "scope": {
+    "known_only_classification": true,
+    "unknown": "sealed_and_not_used",
+    "clutter": "sealed_and_not_used",
+    "knownness": "not_in_scope",
+    "quality": "not_in_scope",
+    "calibration": "not_in_scope",
+    "l3": "not_in_scope",
+    "test": "sealed_and_not_used"
+  },
+  "payload_sha256": "418105356f59bfa077072963f779164b07526cb36473ee02e0235649f5da2108"
+}
