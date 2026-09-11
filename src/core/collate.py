@@ -1,2 +1,0 @@
-from .data.collate import *
-

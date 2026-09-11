@@ -1,0 +1,1306 @@
+{
+  "schema_version": "radarinsight-docx-index-v1",
+  "root": "docx",
+  "generated_at_utc": "2026-09-11T11:29:21+00:00",
+  "excluded": {
+    "generated_file": "index.json",
+    "directory_names": [
+      ".git",
+      "__pycache__"
+    ],
+    "symlinks": true
+  },
+  "file_count": 215,
+  "files": [
+    {
+      "path": "architecture/current/data/Clutter标签语义与人工裁决协议.md",
+      "extension": ".md",
+      "size_bytes": 5210,
+      "sha256": "9d5792e65f825deaec3a2b390487de21279a827872fc72a3ec652dd80c7a99ac"
+    },
+    {
+      "path": "architecture/current/data/CQ08事件数据与特征构建说明.md",
+      "extension": ".md",
+      "size_bytes": 13904,
+      "sha256": "53ff8313297d20fa7edbaf05b80bbf828c9a0fdc1b577d77c6b4a3f1a6eda568"
+    },
+    {
+      "path": "architecture/current/data/README.md",
+      "extension": ".md",
+      "size_bytes": 126,
+      "sha256": "67f4167b32d6c3e58419ffc83a44cb16868e5cf6e125be74731f2c4a4f370065"
+    },
+    {
+      "path": "architecture/current/liquid/README.md",
+      "extension": ".md",
+      "size_bytes": 145,
+      "sha256": "e6f94b2b95415e037d252fb6e7822a4e804ad71aaa96751770ecb50018c43453"
+    },
+    {
+      "path": "architecture/current/liquid/连续时间液态主干与开放集模型说明.md",
+      "extension": ".md",
+      "size_bytes": 22127,
+      "sha256": "7271c08131335a425c2e5e22545d19aa3f3df211e23db253d30d27c2cb34e381"
+    },
+    {
+      "path": "architecture/current/open-set/README.md",
+      "extension": ".md",
+      "size_bytes": 145,
+      "sha256": "b02a43e10f0179173ab70cd59f97ff97dd986e44a6fb6cbbbccdfd8f0a8fb826"
+    },
+    {
+      "path": "architecture/current/open-set/严格开放集冻结协议.md",
+      "extension": ".md",
+      "size_bytes": 5273,
+      "sha256": "b8751f9006eb6ef94f24653124e079b4b2e13d4052bc68b961796c43205740a2"
+    },
+    {
+      "path": "architecture/current/README.md",
+      "extension": ".md",
+      "size_bytes": 161,
+      "sha256": "6aef4ec00c1c0d857eb00513959cce5d13cd78e26b9c5536f740527b0fc76916"
+    },
+    {
+      "path": "architecture/current/system/README.md",
+      "extension": ".md",
+      "size_bytes": 128,
+      "sha256": "dd858e27983f0aaee1b66278e343dcee579bcc44df24d69867dc4ed6ab1da5be"
+    },
+    {
+      "path": "architecture/current/system/V21严格开放集系统架构.md",
+      "extension": ".md",
+      "size_bytes": 4623,
+      "sha256": "c8664d4628982b8f13b64575b58db66ca9b1def7a149562f3508c712a7335d96"
+    },
+    {
+      "path": "architecture/current/system/V27完整L1_L2_L3系统基线与架构合同.md",
+      "extension": ".md",
+      "size_bytes": 12389,
+      "sha256": "7b7c48c02a618ca7e86e89074cb2d635c9881e28b41b0e043446879c201077b9"
+    },
+    {
+      "path": "architecture/current/模型架构说明.md",
+      "extension": ".md",
+      "size_bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "architecture/experiments/README.md",
+      "extension": ".md",
+      "size_bytes": 217,
+      "sha256": "56366437f8b378a4247736bd4328b1bb1a4d8cd21000dc2b26ca00715f782df2"
+    },
+    {
+      "path": "architecture/experiments/V21/01_严格开放集架构/V21最终两液态模型严格开放集架构契约.md",
+      "extension": ".md",
+      "size_bytes": 6812,
+      "sha256": "e39e0b78c674f36ba39b71ab982afd9480c1ec8237d431029b14e09a4ba83653"
+    },
+    {
+      "path": "architecture/experiments/V21/02_谱形时间一致性/V21a_谱形时间一致性单因素实验协议.md",
+      "extension": ".md",
+      "size_bytes": 4238,
+      "sha256": "e9f4d4cf4eb2153f9b850e6d611896bd3223506445cadb98641dd33d28947b1f"
+    },
+    {
+      "path": "architecture/experiments/V21/03_模态一致性/V21b_模态一致性单因素实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3793,
+      "sha256": "dc6b211c93a31ad531b2555e2e29120d1d24f4b356fac75aa3d222554911f6dc"
+    },
+    {
+      "path": "architecture/experiments/V21/04_目标行能量占比/V21c_目标行能量占比单因素实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3551,
+      "sha256": "6fcef399670e99c4b1fb33156fd71f1b86c9fb0aef66c6971bf96484d18915bf"
+    },
+    {
+      "path": "architecture/experiments/V21/05_因果距离稳定性/V21d_因果前缀距离稳定性实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3283,
+      "sha256": "8f9e8e3505576279c64e03e5d930e534c8f79e821e6cd70e81914104c68ca276"
+    },
+    {
+      "path": "architecture/experiments/V21/06_因果航迹一致性/V21e_KnownGate五折折外校准协议.md",
+      "extension": ".md",
+      "size_bytes": 3910,
+      "sha256": "2b899f7f8f52a08c9c6db21ed5ea0bc14e70e6f76b44e3fe23effe6cad6563bc"
+    },
+    {
+      "path": "architecture/experiments/V21/06_因果航迹一致性/V21e_因果航迹一致性单因素实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3549,
+      "sha256": "0d6cf571c0474907f254d2ebcec782093026bcf4314dfe482edd7dc53439e5ec"
+    },
+    {
+      "path": "architecture/experiments/V21/06_因果航迹一致性/V21e_多随机种子确认协议.md",
+      "extension": ".md",
+      "size_bytes": 4639,
+      "sha256": "8df812fbb8ed96f4c7726f1dd3e561f9295d060b3727abac9527a22215a22e50"
+    },
+    {
+      "path": "architecture/experiments/V21/07_RD模态只读消融/V21e_RD模态只读消融.md",
+      "extension": ".md",
+      "size_bytes": 2408,
+      "sha256": "7439d61e0a94b917a917202eeff6034f31fbbcb1daf3dd5d5c9cc91158c0891e"
+    },
+    {
+      "path": "architecture/experiments/V21/08_谱形时间一致性探索性折外/V21f_谱形时间一致性探索性折外协议.md",
+      "extension": ".md",
+      "size_bytes": 5907,
+      "sha256": "7764a57570665e7d7771272d7222bf51fe8c92fcaaef75a8ea3a2a729f66169e"
+    },
+    {
+      "path": "architecture/experiments/V21/09_模态一致性取消训练/V21g_模态一致性取消训练决策.md",
+      "extension": ".md",
+      "size_bytes": 1899,
+      "sha256": "d49eca5b6c691b4187ad519396511e05ae6f7bc624d87bebd97f7d97b36a31f9"
+    },
+    {
+      "path": "architecture/experiments/V21/10_目标行能量占比嵌套折外/V21h_目标行能量占比嵌套折外协议.md",
+      "extension": ".md",
+      "size_bytes": 2148,
+      "sha256": "296c2b2027c5b7f905733c7cdd43cd004d6a140623b5e73013634e87e4ec9e5b"
+    },
+    {
+      "path": "architecture/experiments/V21/11_因果距离稳定性嵌套折外/V21i_因果距离稳定性嵌套折外协议.md",
+      "extension": ".md",
+      "size_bytes": 2059,
+      "sha256": "62a60dd3639154c0dc83642b7e3b5f16f99438c3b50589e6f183e17c5a860012"
+    },
+    {
+      "path": "architecture/experiments/V21/README.md",
+      "extension": ".md",
+      "size_bytes": 136,
+      "sha256": "656320e377a9a2f868f406e51cb205f899235e9e773d847043e8868a49835c74"
+    },
+    {
+      "path": "architecture/experiments/V22/01_固定父航迹分母折外校准/V22_固定父航迹分母折外校准协议.md",
+      "extension": ".md",
+      "size_bytes": 4150,
+      "sha256": "e1be8e4bda2dc8b6e5c6b64a141964ef74dc1bb037cc999dc3b2ff174d43bc7a"
+    },
+    {
+      "path": "architecture/experiments/V22/02_RD帧时序残差/V22a_RD帧时序残差实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3466,
+      "sha256": "6660d432ef2cead9a2d41f1c933d57b9b91bc80662a55f3528dc6b15819c2763"
+    },
+    {
+      "path": "architecture/experiments/V22/03_RD时间残差后置读出/V22b_RD时间残差后置读出实验协议.md",
+      "extension": ".md",
+      "size_bytes": 1918,
+      "sha256": "48e037d862131478e5abdf1673e3c0f1911e995000a076a18b5e636638c5fc94"
+    },
+    {
+      "path": "architecture/experiments/V22/README.md",
+      "extension": ".md",
+      "size_bytes": 140,
+      "sha256": "95cff3cd35bb3aead4e6ea0e0b2f7715ef4dcac3838f90fb0fcf76194d1a751b"
+    },
+    {
+      "path": "architecture/experiments/V23/01_官方CfC基线/V23_官方CfC基线协议.md",
+      "extension": ".md",
+      "size_bytes": 3647,
+      "sha256": "05de5cc873244d8a88ba284f9400a728147a90cdb774d4ef8b27f2deaa902a76"
+    },
+    {
+      "path": "architecture/experiments/V23/01_官方CfC基线/V23官方CfC依赖说明.txt",
+      "extension": ".txt",
+      "size_bytes": 290,
+      "sha256": "66051ce7a2a6b7bea56ed4b2b874297f6f3f49ded6be547c058e9bf3f6375320"
+    },
+    {
+      "path": "architecture/experiments/V23/README.md",
+      "extension": ".md",
+      "size_bytes": 119,
+      "sha256": "e489846048a4f316deff4081eaca095061cf5fe1f605e7e4cebcfaabc9040bea"
+    },
+    {
+      "path": "architecture/experiments/V24/01_航向原因感知基线/V24_航向原因感知基线实验.md",
+      "extension": ".md",
+      "size_bytes": 1907,
+      "sha256": "58805a53ddd94e4ece5b8fadf7d25c99394e565f787b86187dda68419107674a"
+    },
+    {
+      "path": "architecture/experiments/V24/02_RD峰值漂移反证/V24a_RD峰值漂移反证实验.md",
+      "extension": ".md",
+      "size_bytes": 2229,
+      "sha256": "f12d850ed070385099af2cf2f5cd5d16fc2a31982180e23659e3a784b5eacd6f"
+    },
+    {
+      "path": "architecture/experiments/V24/03_同秒事件严格跳过/V24c_同秒事件严格跳过实验.md",
+      "extension": ".md",
+      "size_bytes": 1740,
+      "sha256": "4ce451d970c858c811c7c80e81c2b4c693ecd374564b52c803d70d611685ccd7"
+    },
+    {
+      "path": "architecture/experiments/V24/04_L3折外分数带待定校准/V24d_L3折外分数带待定校准.md",
+      "extension": ".md",
+      "size_bytes": 3551,
+      "sha256": "68b4420e63104b0427b9b67f4a05e36561fcf21aaf1faf874837eeb2af884d03"
+    },
+    {
+      "path": "architecture/experiments/V24/README.md",
+      "extension": ".md",
+      "size_bytes": 120,
+      "sha256": "3a6e313a0b75cbfa25924809f93f125210928b1de7cde1c7945e688af127de64"
+    },
+    {
+      "path": "architecture/experiments/V25/01_裁剪前梯度遥测/V25a_裁剪前梯度遥测实验.md",
+      "extension": ".md",
+      "size_bytes": 3372,
+      "sha256": "32006d69203520f5f7943e0b3760d1929e22306c4030aa4c214d51ca7dbdd357"
+    },
+    {
+      "path": "architecture/experiments/V25/02_父航迹梯度分解/V25b_精确回放父航迹梯度分解.md",
+      "extension": ".md",
+      "size_bytes": 6223,
+      "sha256": "d0be20fb2b232c40805e8157ab394745403396b797f6e99cf151be3badb73475"
+    },
+    {
+      "path": "architecture/experiments/V25/03_模块梯度冲突定位/V25c_模块梯度冲突定位.md",
+      "extension": ".md",
+      "size_bytes": 5999,
+      "sha256": "19b59fb55630b0193588b9dcca25a1a64781fb21912c89ff292b87e52d438cc5"
+    },
+    {
+      "path": "architecture/experiments/V25/04_现存类别均值损失/V25d_混合批次现存类别均值损失.md",
+      "extension": ".md",
+      "size_bytes": 3654,
+      "sha256": "3d3d6cb4992ab39f8ca161781e36f09e72c6d6bbf5c0086caa3bc05cc233a715"
+    },
+    {
+      "path": "architecture/experiments/V25/05_共享模块梯度冲突投影/V25e_共享模块梯度冲突投影.md",
+      "extension": ".md",
+      "size_bytes": 2428,
+      "sha256": "0a82acd9bfa8b2b0c496dea6683312978a04f99a6d7061135dee3ad1c6340d3c"
+    },
+    {
+      "path": "architecture/experiments/V25/06_因果前缀检查点效用选择/V25f_因果前缀检查点效用选择.md",
+      "extension": ".md",
+      "size_bytes": 2204,
+      "sha256": "2a21b2dedc79f85bef2f3f583334aab11867e3a04938af3de67afad1e2e1907b"
+    },
+    {
+      "path": "architecture/experiments/V25/07_冻结模型因果决策策略/V25g_冻结模型因果决策策略.md",
+      "extension": ".md",
+      "size_bytes": 2372,
+      "sha256": "d31321fb71db931690b0062aa365ee7191e770c2471bc70815f00ddc3a8eb893"
+    },
+    {
+      "path": "architecture/experiments/V25/README.md",
+      "extension": ".md",
+      "size_bytes": 143,
+      "sha256": "138c0a7f18b4acbecd1911aa2e20d43f2c8bd6df6b3167b432a1a0d0c17f2738"
+    },
+    {
+      "path": "architecture/experiments/V26/01_仅已知类严格开放集基线/V26_仅已知类严格开放集基线.md",
+      "extension": ".md",
+      "size_bytes": 1567,
+      "sha256": "0933a623d702c75346982336e4f4d0d40dd95343fc314abd286ae3d7db82bdda"
+    },
+    {
+      "path": "architecture/experiments/V26/02_冻结开放集拒识诊断/V26a_冻结开放集拒识诊断.md",
+      "extension": ".md",
+      "size_bytes": 1834,
+      "sha256": "79d6e509a128fa5ccc12fd0281cdc76679993bc072d74899db6ff15ff7dc2787"
+    },
+    {
+      "path": "architecture/experiments/V26/03_冻结L1到L2原始路由审计/V26b_冻结L1到L2原始路由审计.md",
+      "extension": ".md",
+      "size_bytes": 2173,
+      "sha256": "9ad22f639954a5f5fff50531caa2e84c635a7718fea5c414a8a1635f8eeffc40"
+    },
+    {
+      "path": "architecture/experiments/V26/04_L1L2折外L3校准/V26c_L1L2折外L3校准.md",
+      "extension": ".md",
+      "size_bytes": 1817,
+      "sha256": "58982aafc792ea8656d202a07ab17d72df8cc8dd912690b7b1a91ac733e55453"
+    },
+    {
+      "path": "architecture/experiments/V26/05_冻结混合开放集审计/V26f_冻结混合开放集审计.md",
+      "extension": ".md",
+      "size_bytes": 2493,
+      "sha256": "005934673acf38fabb560f24ec36982f1ff8b695d804d143dbd8942e342f0487"
+    },
+    {
+      "path": "architecture/experiments/V26/06_质量感知待定动作审计/V26g_质量感知待定动作审计.md",
+      "extension": ".md",
+      "size_bytes": 2731,
+      "sha256": "b1b93213f8bd00732e111cef93deebceb5158d778841c4d2a25e27e761340c30"
+    },
+    {
+      "path": "architecture/experiments/V26/07_仅训练集马氏距离OOD诊断/V26h_仅训练集马氏距离OOD诊断.md",
+      "extension": ".md",
+      "size_bytes": 5136,
+      "sha256": "ca6dbf17fe6b6283f5d10de01258772064889608d4b32b60bc14b698fe4719d8"
+    },
+    {
+      "path": "architecture/experiments/V26/08_双模态杂波马氏距离诊断/V26i_双模态杂波马氏距离诊断.md",
+      "extension": ".md",
+      "size_bytes": 4524,
+      "sha256": "83ceac9917c62e9ea9a7e8c593978b36d2945687d3a445e2972858c2613b6d9a"
+    },
+    {
+      "path": "architecture/experiments/V26/09_RD因果GRU事件聚合折外实验/V26j_RD因果GRU事件聚合折外实验.md",
+      "extension": ".md",
+      "size_bytes": 3107,
+      "sha256": "2f3cb9884e1d8866191e74997897544df576ecaf98f3ba4dacf9d8faa493bb13"
+    },
+    {
+      "path": "architecture/experiments/V26/10_L2仅训练集已知性诊断/V26k_L2仅训练集已知性诊断.md",
+      "extension": ".md",
+      "size_bytes": 4918,
+      "sha256": "5ae61dd4fb1f21aba8f961623c0893cb426fa8d3ce0c2091f340b7f534bf4299"
+    },
+    {
+      "path": "architecture/experiments/V26/README.md",
+      "extension": ".md",
+      "size_bytes": 149,
+      "sha256": "ab408901e5093766edbfb52f117163ca89614fadce8a5a4c26d5dad890ec479e"
+    },
+    {
+      "path": "architecture/experiments/V27/00_基线/V27基线设计选择与边界记录.md",
+      "extension": ".md",
+      "size_bytes": 30856,
+      "sha256": "8932dac6138fbdfd6f054091812a2aa02b60c5cfb41427bbc1006e9a48429e78"
+    },
+    {
+      "path": "architecture/experiments/V27/00_基线/V27完整L1_L2_L3系统基线与架构合同.md",
+      "extension": ".md",
+      "size_bytes": 12389,
+      "sha256": "7b7c48c02a618ca7e86e89074cb2d635c9881e28b41b0e043446879c201077b9"
+    },
+    {
+      "path": "architecture/experiments/V27/01_V27a/V27a_微多普勒逐帧证据解耦实验.md",
+      "extension": ".md",
+      "size_bytes": 21357,
+      "sha256": "500fa467801d6b8dbc702e875212788b29221d723fbf14d93037eecf10a133da"
+    },
+    {
+      "path": "architecture/experiments/V27/02_V27b/V27b-r6_冻结分类端点的L2已知性表征消融_实验协议.md",
+      "extension": ".md",
+      "size_bytes": 3737,
+      "sha256": "7b34d9a279c7312876bb319109eccfd5f9cb752868fd3b0dc3a5e2d9055ff7ce"
+    },
+    {
+      "path": "architecture/experiments/V27/02_V27b/V27b-r6_实验结果与归因.md",
+      "extension": ".md",
+      "size_bytes": 4107,
+      "sha256": "c10d6a625d3a35c8f5ec3521ae61e4e83d09c63d203d911b87b125040bf7af2b"
+    },
+    {
+      "path": "architecture/experiments/V27/03_V27c/V27c-r22_因果TR运动独立重训_实验协议.md",
+      "extension": ".md",
+      "size_bytes": 2653,
+      "sha256": "7d9fa354ace6e8b21ee09a7d946aa54fcb41072582c555cd2ed315c048da5ba9"
+    },
+    {
+      "path": "architecture/experiments/V27/03_V27c/V27c-r22e_冻结端点派生评估修订.md",
+      "extension": ".md",
+      "size_bytes": 1143,
+      "sha256": "f72cc31346419bf28ea613cd016c95412c5f3cc65847c2c6ee347c03546e28df"
+    },
+    {
+      "path": "architecture/experiments/V27/03_V27c/V27c-r23_TR稳健裁剪与因果运动二维重训.md",
+      "extension": ".md",
+      "size_bytes": 8140,
+      "sha256": "fd9574fb909f128deb896b55aadaed6c31aff7b7a94e025d46fb7d24997d69d2"
+    },
+    {
+      "path": "architecture/experiments/V27/03_V27c/V27c_因果TR运动增益验证_实验协议.md",
+      "extension": ".md",
+      "size_bytes": 12276,
+      "sha256": "1baf8d3f3d04df0a75d14105ffd24ea3f0a35cc6d507ac00c7c5f12a5466a77a"
+    },
+    {
+      "path": "architecture/experiments/V27/04_V27d/V27d-r1_冻结端点与校准人口修正.md",
+      "extension": ".md",
+      "size_bytes": 8984,
+      "sha256": "2cf358260d6c22fc0aad57f9cc8b2f55ece893cbe6ddfb39f87c89d42a2aba68"
+    },
+    {
+      "path": "architecture/experiments/V27/04_V27d/V27d-r5_实验记录.md",
+      "extension": ".md",
+      "size_bytes": 2615,
+      "sha256": "4fea250fae18ac9bcb479ce68532e94ca59c10858d05f9c492fd5f311fc29496"
+    },
+    {
+      "path": "architecture/experiments/V27/04_V27d/V27d_开放集优化思路与实验顺序.md",
+      "extension": ".md",
+      "size_bytes": 8206,
+      "sha256": "ae611624792380c6928d1c8b491ec82f0199e04606fbeeae3724abfaba191610"
+    },
+    {
+      "path": "architecture/experiments/V27/baseline/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 2233,
+      "sha256": "9a7e28ee7b877a5fb27ad5e6e347eb8d267dcaab8ded33b020a65e221a460719"
+    },
+    {
+      "path": "architecture/experiments/V27/README.md",
+      "extension": ".md",
+      "size_bytes": 222,
+      "sha256": "a02266efc04b3ba584e442798f46feffadf55a62e0965e388f04164c963963b5"
+    },
+    {
+      "path": "architecture/experiments/V27/V27_实验台账与结果归因.md",
+      "extension": ".md",
+      "size_bytes": 27598,
+      "sha256": "196a29efa49bc123bc092e2c860836f1cdbb3c3c7faf3d1d9843e0e68632e9f6"
+    },
+    {
+      "path": "architecture/experiments/V27/V27_逐实验归档总表.md",
+      "extension": ".md",
+      "size_bytes": 5541,
+      "sha256": "f463b0048b436eaf9b0b9b750491af753284c6bdc7ec710ba9c1219e23d667ec"
+    },
+    {
+      "path": "architecture/experiments/V27/V27a/r3/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1547,
+      "sha256": "56dd990067c1ea944d73ef9c3c58e73ed129fc399ae6828e4eb35695143f1483"
+    },
+    {
+      "path": "architecture/experiments/V27/V27a/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 244,
+      "sha256": "22197faca2d72129ca78fc0545e78a5f59691bb4b3aea18ab74ff02c4156f70d"
+    },
+    {
+      "path": "architecture/experiments/V27/V27a/实验系列归档.md",
+      "extension": ".md",
+      "size_bytes": 409,
+      "sha256": "203f7dcab432c03ee6659e471bbc7d8a182cd55fb2829badf25336647f56adf1"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r1/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 431,
+      "sha256": "f4851428f7b2862b75378e382af15aec5f91c9dc2edc6311b6a95c6fc95c2ca1"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r2/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 739,
+      "sha256": "bb8c1ce30fff6592b1b5e2285a5e9eb1ffb6ddb0dbd249c2f926f26621bc9889"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r3/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1085,
+      "sha256": "72a695481929be8afe221a610f53925e2a256ae0e9735b137298052abde4371e"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r4/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 951,
+      "sha256": "c78673eab1d4e3514d7739726469dbed00d95b7abf4a820e602e0768de5a14c1"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r5/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1006,
+      "sha256": "b581b3f0e286787e74214be12928d096e015de84e3642828b574f945c6396326"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/r6/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1223,
+      "sha256": "d7abefe140ec84b1a69b142ad4e6dece506e653799b7fa35e789bb448ffee185"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 202,
+      "sha256": "bc49060e82263308097a2f5d87301e1eadadf3d4348b4e3c1877f0835afad6d5"
+    },
+    {
+      "path": "architecture/experiments/V27/V27b/实验系列归档.md",
+      "extension": ".md",
+      "size_bytes": 760,
+      "sha256": "626117e27522a8a13a65ded8b245c14b9ffaa4314d3c9c8b2cabe39d2ae9ffef"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r1/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 634,
+      "sha256": "dee65f2e0f22234b061d638e59fee35f02ca253199b55a80c3f4da10c1b8d6b8"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r10/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 366,
+      "sha256": "7ebf13020fe4501197c40406398cb1ad294f53022fb6627f794d4d1cf0a6fb00"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r11/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 219,
+      "sha256": "a7c9c092c41815b28664f25bc812f37540967605dcf1a7f598ae983084876138"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r12/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 340,
+      "sha256": "f38d214108e057073490b2508aec455b192a9468c275bbf07a99f2ea76f14020"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r13/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 322,
+      "sha256": "09d7c111d8283633cb7ffeb3822c5e5e353853c9871f0a55899c36ea3dbf2e5a"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r14/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 317,
+      "sha256": "37ac3c62311f185da26be55cc9fbadcd95da69fa3f70a685398cf13a9bb04522"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r15/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 323,
+      "sha256": "051014a1a81d54c09f64eec3a2c4ccad5fb9a68e5e791c61b5d524f1d91d9d7a"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r16/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 293,
+      "sha256": "cf810e8c768b259ed473054f73d401d7c2966ddd9a1e7f26c79dc6661bb5079d"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r17/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 313,
+      "sha256": "2763bb67856e54f75606007ffdf12a90ae01f9f4e3ad2885b9fcae8b7d12e436"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r18/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 241,
+      "sha256": "3510406e2942cc2994be9bf10aaa42a0716cbae39b4e5c32f7cb800c371edc48"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r19/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 178,
+      "sha256": "f68633688298e87a4631d62d87bf9739026145d62be4c500f2899332514307ba"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r2/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 277,
+      "sha256": "15316fdfb02ce70401cce55632aad8d4cbdfacec6c6d0646e13d38d1fd119435"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r20/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 369,
+      "sha256": "379a4e10d2b5a5022b17fdc8a5b985fe689aebb829aee336bc80be01839f9b3d"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r21/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1439,
+      "sha256": "8ee572368880ed084e241a3f899f7221f2493f788a6ff4e8749558f1063b97b6"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r22/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1131,
+      "sha256": "1b51688e346aff979e19dff4b1004dc218c896e655b592b951359cae047a5cb1"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r22e/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 956,
+      "sha256": "21bb6ec46d3477e26b523160f8166e7b0e99588daa0c9ee38255585ce19aaa7f"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r23/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1395,
+      "sha256": "9b6212b41ffbf63ebfa3e270f36f49525b71407ae26a93e5f9d9ee430a713983"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r3/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 468,
+      "sha256": "9ddab18a67710218499765647cc27d2735911139c7a6cc93ae3bdfaa2896c3e8"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r4/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 385,
+      "sha256": "25b94dda3c34cc83fd942cadadd9f2c6daa6023e6789aff8988fb560cec5e79d"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r5/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 272,
+      "sha256": "e4466400eeacb3a65de28ecf88d863dcdd9810f4f8743edf431b0f02303ac848"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r6/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 335,
+      "sha256": "c31ad8c0b931da9194e94224a75000953530b6e20786e9a47ba1ae22440b9dde"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r7/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 344,
+      "sha256": "3c1e83884d16afb0ad02dac4ca74a5b915a04dd90f66acc00cf73c1d2d901ca9"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r8/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 300,
+      "sha256": "8504dd7d45f0c0784db15da4b2aca91dffd6db069e808240d59b9aa2b0901693"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/r9/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 335,
+      "sha256": "491d73e63d6916826a5aeb9c1868c11fa53d63fb3dd03c417b29fc131a0cd636"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 220,
+      "sha256": "841e62659a202139a9073ce510a3121aabdff47a7b5c4c2580eb25a080f4f2f7"
+    },
+    {
+      "path": "architecture/experiments/V27/V27c/实验系列归档.md",
+      "extension": ".md",
+      "size_bytes": 975,
+      "sha256": "2b919b62bf150e68d0919071d3650b79c96cb96393afb01441dde8dd56036489"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r1/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1877,
+      "sha256": "038c8d1c4a42c56be436234d5dfe241c34fa9449a7aa9db1f729daa692f4695f"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r10/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1038,
+      "sha256": "dd2d2108ad9a7ad55d401583e53738e586db194192212f295155fe107eced3a3"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r11/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1055,
+      "sha256": "db214eb95d796d58b45e4ab6eeffb696f6634b31c89173ce3363d0d39f5e44d2"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r12/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1073,
+      "sha256": "883fdde13714bc7c29ac918b7beb555b9cb8ae48f5dccf7f3677b8a5f81e4233"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r13/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1316,
+      "sha256": "97fbd1ffd8d1ace9feea3aa8f115161aaffc9bd1e0dc918c12b4e6cf00a3dfd8"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r2/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 334,
+      "sha256": "35f7ca2f588aefcfffa409d2144bbbdb7a144d9d230d548a1d6fb992bd8247c7"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r3/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 262,
+      "sha256": "023d705e1e6945ba255123e619828ed4a1c8b295fec4ca5f149b602e3799b688"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r4/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 271,
+      "sha256": "8848e872c1ae63dd00b4249cd21fde1bec3889457b1b0c07c4211e30aba4026c"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r5/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1240,
+      "sha256": "1384d1ac88958798e685abee65a5a00efaca380b2c7d8a61a58b7f202b950521"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r5_v2/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1306,
+      "sha256": "d75f8a4409952fef053e8f97ddc42b24257d8cf3e772202563eef92f57e2b4e4"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r6/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1323,
+      "sha256": "99abf2c61a68eeab4fc7697f387e8ceac37b2e27997c7366f22df53035679b11"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r7/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1070,
+      "sha256": "3049b2eb4a80b6b3b2b8d285d97a6e3ce23765aca46b20cba311b535273a1355"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r8/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1169,
+      "sha256": "ea74050b356c04e8c3d7832d70fa18f68dae88e66813d9e667367fb233a4761a"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/r9/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 1095,
+      "sha256": "983fb34ec5796d53d3294858f8acee0ae13287290a5e127abe1f6b82cf96074d"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/实验归档.md",
+      "extension": ".md",
+      "size_bytes": 290,
+      "sha256": "98fc8a0a0e2584f5f0d57412dab32cb37722635c97a8c83565f378892031a98c"
+    },
+    {
+      "path": "architecture/experiments/V27/V27d/实验系列归档.md",
+      "extension": ".md",
+      "size_bytes": 1185,
+      "sha256": "9ab8f3778fc508c23fd336960dd9309bdf78f10999955713e0949eda0b9cbc79"
+    },
+    {
+      "path": "architecture/experiments/候选实验/01_可靠性门控液态更新/可靠性门控液态更新预注册.md",
+      "extension": ".md",
+      "size_bytes": 10315,
+      "sha256": "c2aa80e386f9ef6bdffb5ab07184f049230ea9cf8a540c43ecaaab2b657c70ff"
+    },
+    {
+      "path": "architecture/experiments/候选实验/02_raw跨源完整系统/raw跨源完整系统预注册.md",
+      "extension": ".md",
+      "size_bytes": 7773,
+      "sha256": "33cf1bb9eb8e55f9a19ce8e44b3dcd9c17545aded03e760090896f9069f6131c"
+    },
+    {
+      "path": "architecture/experiments/候选实验/03_CQ08全RD不可用配对评估/CQ08全RD不可用配对评估预注册.md",
+      "extension": ".md",
+      "size_bytes": 6057,
+      "sha256": "af293ea7d52fad238edf069e0cd9c940de27d91fb05d71673c5799dff701d215"
+    },
+    {
+      "path": "architecture/experiments/候选实验/04_raw_TR-only跨源评估/raw_TR-only跨源评估预注册.md",
+      "extension": ".md",
+      "size_bytes": 5558,
+      "sha256": "8c5916d849d475baa7684c03e9140011df0386b4ed0fc9af96d18debe153c4e9"
+    },
+    {
+      "path": "architecture/experiments/候选实验/05_raw完整系统与TR-only归因/raw完整系统与TR-only归因预注册.md",
+      "extension": ".md",
+      "size_bytes": 5549,
+      "sha256": "41b7f274e6c3a5e03783925b5ae86034767e39cfc57e5ee1cb512a6b91ca55cc"
+    },
+    {
+      "path": "architecture/experiments/候选实验/候选实验登记簿.md",
+      "extension": ".md",
+      "size_bytes": 4134,
+      "sha256": "f014f75127f04096fff14321a937ee4a2169de0a6d7259f661c339500988bf82"
+    },
+    {
+      "path": "architecture/README.md",
+      "extension": ".md",
+      "size_bytes": 152,
+      "sha256": "51659c31e67a21717cfc69aa6dbce4d5be693e3bc21f9ca08b0a8bebd0c22a84"
+    },
+    {
+      "path": "archive/README.md",
+      "extension": ".md",
+      "size_bytes": 185,
+      "sha256": "dc950346e20c6b2c557c657397562c43874aadceb50a6dadb83352a98fc31222"
+    },
+    {
+      "path": "archive/其他历史材料/大写V2r不完整Transformer_CNN基线审计_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 11762,
+      "sha256": "46010ca54e1878c1e6ede7301273d7cd1e47dfdae08f8fc103f4d202ef34018c"
+    },
+    {
+      "path": "archive/历史架构与测试说明/CU专家测试说明.md",
+      "extension": ".md",
+      "size_bytes": 562,
+      "sha256": "70fa9dd6739f1f73450e693eb7d1a6e734665d977ef03e7eded335abd596f399"
+    },
+    {
+      "path": "archive/历史架构与测试说明/DBB_CU层级测试说明.md",
+      "extension": ".md",
+      "size_bytes": 652,
+      "sha256": "871de22c357358996ba3856f80a2a7fc03c226fefcea4f135d6733e6b84bb30e"
+    },
+    {
+      "path": "archive/历史架构与测试说明/V5烟雾测试产物完整性警告.md",
+      "extension": ".md",
+      "size_bytes": 457,
+      "sha256": "2f696541d069804a69c56e2dc8c0a590b0a096894d13174fb7af8638bbb00a15"
+    },
+    {
+      "path": "CreateIndex.py",
+      "extension": ".py",
+      "size_bytes": 3903,
+      "sha256": "d79e96e84579e982f145769f5da71b51ca4e5cd32f6e571c0aab963e0a2d356c"
+    },
+    {
+      "path": "engineering/governance/README.md",
+      "extension": ".md",
+      "size_bytes": 101,
+      "sha256": "62e41520e53e12915dd33fa5e1574b0ca19ba2e428717c655d3d929e95390ace"
+    },
+    {
+      "path": "engineering/plans/RD卷积编码器优化.md",
+      "extension": ".md",
+      "size_bytes": 6199,
+      "sha256": "be4a6908e2ab067c6454b4168ee6670c9cd0ac34d1ad754e6dd1a2f4bca8c2a7"
+    },
+    {
+      "path": "engineering/plans/README.md",
+      "extension": ".md",
+      "size_bytes": 71,
+      "sha256": "7bad45fe482e5f4d86850e11bf46f64fe432b680d531a00ab49862dfa074fb28"
+    },
+    {
+      "path": "engineering/README.md",
+      "extension": ".md",
+      "size_bytes": 95,
+      "sha256": "814950066dbb51f2de8a9c19983cc24a9937a841a2697f3bdc09ddfbc893599c"
+    },
+    {
+      "path": "engineering/realtime/Expert1实时因果输入与时延合同.md",
+      "extension": ".md",
+      "size_bytes": 6623,
+      "sha256": "7002dad9e011559db096b67fd42422acef6acd7c59bf983323523f319be013fd"
+    },
+    {
+      "path": "engineering/realtime/README.md",
+      "extension": ".md",
+      "size_bytes": 98,
+      "sha256": "aa84a1088556c3b8657e8530236a84e85c9275f48e53a19916e39efed485c08a"
+    },
+    {
+      "path": "manuscript/chapters/README.md",
+      "extension": ".md",
+      "size_bytes": 77,
+      "sha256": "029a93afa2888f3d7737b01e4f842e0f2197daa4b6666dc1cb71254a7568df92"
+    },
+    {
+      "path": "manuscript/chapters/第三章_连续时间液态网络与严格开放集决策模型.md",
+      "extension": ".md",
+      "size_bytes": 22127,
+      "sha256": "7271c08131335a425c2e5e22545d19aa3f3df211e23db253d30d27c2cb34e381"
+    },
+    {
+      "path": "manuscript/chapters/第二章_数据集处理与事件级特征构建.md",
+      "extension": ".md",
+      "size_bytes": 13904,
+      "sha256": "53ff8313297d20fa7edbaf05b80bbf828c9a0fdc1b577d77c6b4a3f1a6eda568"
+    },
+    {
+      "path": "manuscript/drafts/README.md",
+      "extension": ".md",
+      "size_bytes": 74,
+      "sha256": "966ea3a983063a61257e5a376a7052208f90279a388e2bfbb6ab7c5d16e5fcb3"
+    },
+    {
+      "path": "manuscript/drafts/引言初稿与排版说明_2026-08-18.md",
+      "extension": ".md",
+      "size_bytes": 10223,
+      "sha256": "1e09aa80eedd44fcaac90a2843b53bcf97452d16446f993458017985545779eb"
+    },
+    {
+      "path": "manuscript/drafts/摘要与引言综合修订稿_2026-08-18.md",
+      "extension": ".md",
+      "size_bytes": 20056,
+      "sha256": "794d993946937adc8233c1a9e41cedc616cb921b42a5fcd9857fd08975ff95d1"
+    },
+    {
+      "path": "manuscript/drafts/摘要草案_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 12864,
+      "sha256": "ecc891d6310ec151a2b512caa2dabfeb5150df969c7201db92faa416c08d36cc"
+    },
+    {
+      "path": "manuscript/presentation/README.md",
+      "extension": ".md",
+      "size_bytes": 77,
+      "sha256": "6e3d9edb8e5bc6024043d5bc379e27ca20299266f9fdacb83d108830a4bd4a70"
+    },
+    {
+      "path": "manuscript/presentation/论文选题与V3阶段进展会议口述稿_2026-08-09.md",
+      "extension": ".md",
+      "size_bytes": 14565,
+      "sha256": "b75c50846be2e15290cf3920ca0a5b1a936b2901bf73bf3c02238241212eab1f"
+    },
+    {
+      "path": "manuscript/README.md",
+      "extension": ".md",
+      "size_bytes": 113,
+      "sha256": "5d355b0c8317a7980e8d64abe680ea3a5e26aed9a854572788658c3b7b41ae86"
+    },
+    {
+      "path": "manuscript/submission/README.md",
+      "extension": ".md",
+      "size_bytes": 80,
+      "sha256": "970e2c90c630a7013d285b0f900377ea763e188573cfd328f1bbbe1bf88eca56"
+    },
+    {
+      "path": "manuscript/submission/论文选刊与分区核查_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 10504,
+      "sha256": "259a3f4f0437e3297eb7c2e77354b694895b3c1d46f90cb549e2a4faaf675939"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/IEEE_TRS_LaTeX_template.zip",
+      "extension": ".zip",
+      "size_bytes": 607664,
+      "sha256": "6c315c3b6729bd7b96a6a0e7d3bb6342023413a4cd4d113fb4a193019af1c603"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/IEEE_TRS_Word_template.zip",
+      "extension": ".zip",
+      "size_bytes": 200198,
+      "sha256": "978f65eb2aa8a33b0b3c2b67113fb770f68222372f8e4a3cf11e9c92d7408e99"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/bare_jrnl_new_sample4.pdf",
+      "extension": ".pdf",
+      "size_bytes": 235172,
+      "sha256": "30c9326f0f9e3a65f62d87c748add8c8c7600cc0cc13e44d4f05098c669f64c5"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/bare_jrnl_new_sample4.tex",
+      "extension": ".tex",
+      "size_bytes": 26316,
+      "sha256": "a1225c6ddb0c828596fad8285d4344a654e1597d62e757d0109b07e4f579e4fc"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/fig1.png",
+      "extension": ".png",
+      "size_bytes": 37986,
+      "sha256": "966fa8e10adb05f5bc7bc32e6debc68be14e2c4cb5c7a6784cac4324472d6c8e"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/IEEEtran.cls",
+      "extension": ".cls",
+      "size_bytes": 288451,
+      "sha256": "b0eb3567b81aec7fe98144a3ad283eeac2d31035bb19e0d9dcba7da190f18d9d"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/New_IEEEtran_how-to.pdf",
+      "extension": ".pdf",
+      "size_bytes": 252730,
+      "sha256": "3ad40a6f9f6b8ac10baa9dcd3cda9d6e83dae8577d950c09fa73a5d97146ff43"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/latex/New_IEEEtran_how-to.tex",
+      "extension": ".tex",
+      "size_bytes": 33827,
+      "sha256": "417b40378ec1c1124918f000eab2f9a27f9cc37d576ef17b77d78347e00c0cd3"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/word/templates.docx",
+      "extension": ".docx",
+      "size_bytes": 211040,
+      "sha256": "29be571d80f40ef6593040a86b591c38e9d73821f632a0ab416520fd6a1e198b"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/word/基于航迹与距离-多普勒图门控融合的低空目标识别.docx",
+      "extension": ".docx",
+      "size_bytes": 609056,
+      "sha256": "c09185e22c010d4cde09b6bb8faaa50cbe9978ffd282f5bd70974153a8a5c21c"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/word/基于连续时间液态网络的低空雷达目标识别.docx",
+      "extension": ".docx",
+      "size_bytes": 40434,
+      "sha256": "1bd3a9d48e87954f006d8efbd0721c115c256bdeb9c40de3c6f6db9c58e6233a"
+    },
+    {
+      "path": "manuscript/templates/IEEE雷达系统汇刊/模板来源与使用说明.md",
+      "extension": ".md",
+      "size_bytes": 1190,
+      "sha256": "8bf2f7797c928808d4b00075097caf24732728991bce83322c41fc7936ca8dfe"
+    },
+    {
+      "path": "manuscript/templates/README.md",
+      "extension": ".md",
+      "size_bytes": 107,
+      "sha256": "39ad4109b0dca4a5cedeedcfc4328f57c502178e6e794d9c930941c86bed94a7"
+    },
+    {
+      "path": "manuscript/templates/中文题名摘要关键词与IEEE_SCI格式指南_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 13934,
+      "sha256": "2833bad5c64b81710607aaef0b723c3817c65983b40369e93abb0779550cc6b4"
+    },
+    {
+      "path": "README.md",
+      "extension": ".md",
+      "size_bytes": 1315,
+      "sha256": "f112eccec7fabb4c50957ccd2ef23cabd24d3c96f0703836087934307236eb1d"
+    },
+    {
+      "path": "research/evidence/README.md",
+      "extension": ".md",
+      "size_bytes": 134,
+      "sha256": "beae7baf9461ae00efa01a45c7be9f5c310b0d1b4ceca636543b100f299f3202"
+    },
+    {
+      "path": "research/evidence/V3项目事实快照_2026-08-09.md",
+      "extension": ".md",
+      "size_bytes": 4132,
+      "sha256": "a6fb8e365827485f97ad74aa2dfc10be40bb9f6efa4c98f3d2b23117a420357b"
+    },
+    {
+      "path": "research/evidence/V3项目长期记忆.md",
+      "extension": ".md",
+      "size_bytes": 15821,
+      "sha256": "8939221a0ae20f643bca54d47399adecaec3a97e2a8e1bc45d8aad0014022306"
+    },
+    {
+      "path": "research/literature/extracted/README.md",
+      "extension": ".md",
+      "size_bytes": 125,
+      "sha256": "91332b20dd0cc1e123765496391838c4711765cc03ab5021f94a86caaa0fe73e"
+    },
+    {
+      "path": "research/literature/README.md",
+      "extension": ".md",
+      "size_bytes": 104,
+      "sha256": "31dc93bed007370df29b57d1f5cee59f227292b331b63fda02732b4397faa11a"
+    },
+    {
+      "path": "research/literature/screening/README.md",
+      "extension": ".md",
+      "size_bytes": 107,
+      "sha256": "5f31d9055593697e64de1f5c320712800428e80f3da9957ed89476953eafc8b4"
+    },
+    {
+      "path": "research/literature/screening/参考文献筛选台账_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 5624,
+      "sha256": "0472a00083b8fbeaca7d4ccbe85ac4968f0db6cb6e18bb66fbcba8c2d5b6d2b2"
+    },
+    {
+      "path": "research/literature/screening/文献来源核验摘要.md",
+      "extension": ".md",
+      "size_bytes": 15059,
+      "sha256": "a64d832188d891dc170fd091c61115b39b9b060f8056101fb249b81142330d08"
+    },
+    {
+      "path": "research/literature/search/LNN雷达目标分类识别专项检索关键词与检索式.md",
+      "extension": ".md",
+      "size_bytes": 24445,
+      "sha256": "8af41cb4c30b941069292e5e43efc211c352ab891cf6c1b29367f5015a1dfe4d"
+    },
+    {
+      "path": "research/literature/search/README.md",
+      "extension": ".md",
+      "size_bytes": 95,
+      "sha256": "b2b482cfcaed573d070f1dd2e4aebca9f119ac181edb93bcc7889e468ed228db"
+    },
+    {
+      "path": "research/literature/search/五数据库检索与访问审计_2026-08-09.md",
+      "extension": ".md",
+      "size_bytes": 18974,
+      "sha256": "7ff2558d0d9799e091cb72f0f06e387c93bcf9f5a97a8fe669d7647dd4d5ce2c"
+    },
+    {
+      "path": "research/literature/search/文献检索日志_2026-08-09.md",
+      "extension": ".md",
+      "size_bytes": 19016,
+      "sha256": "8ad0a389f481ea11769c0f12d072850eec10cdc9f2a1538ddc3ea3d50c7edea7"
+    },
+    {
+      "path": "research/literature/sources/README.md",
+      "extension": ".md",
+      "size_bytes": 93,
+      "sha256": "b70a4cbdb5fb014509b90d69fad0fb98955142f2caf908f92061775b08a1b4e0"
+    },
+    {
+      "path": "research/literature/synthesis/README.md",
+      "extension": ".md",
+      "size_bytes": 104,
+      "sha256": "1c5a26ffccad6be53c89a530e8968c83587ac55b5979bf9353240a19814d809a"
+    },
+    {
+      "path": "research/methodology/data-audits/CQ08数据规模与RD可用性审计_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 5564,
+      "sha256": "846b4b548ff04ae941dce8e87ea2555b046806eaecbf321186c9de081c75c269"
+    },
+    {
+      "path": "research/methodology/data-audits/README.md",
+      "extension": ".md",
+      "size_bytes": 110,
+      "sha256": "9abfea5f9c0fa613e1bd98610d88cb61da6728293deaf579f3ece7585ac35334"
+    },
+    {
+      "path": "research/methodology/data-audits/五折折外稳定性与RD缺失语义说明_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 4366,
+      "sha256": "78f820c1611ea41eb0996a518301d295b874c47ea2a2a82706a518b3d7f12df2"
+    },
+    {
+      "path": "research/methodology/data-audits/父航迹最小精确率召回率为零的训练状态诊断_2026-08-22.md",
+      "extension": ".md",
+      "size_bytes": 23472,
+      "sha256": "422232edf3146677ddf03e8ede3765f75d79fd626de7c2fb61e2da70538b05a0"
+    },
+    {
+      "path": "research/methodology/HRRP_TR_RD与TR_RD及液态系统比较审计_2026-08-17.md",
+      "extension": ".md",
+      "size_bytes": 25720,
+      "sha256": "54764226922731192d942bee8c99510f809b972ccee831cc440d45fe77a78bd1"
+    },
+    {
+      "path": "research/methodology/raw跨源实验数据合同.md",
+      "extension": ".md",
+      "size_bytes": 7084,
+      "sha256": "42d796295e56ca91af9183bd8b860d8be2155945c8d2a5c503bcc37bd446d325"
+    },
+    {
+      "path": "research/methodology/README.md",
+      "extension": ".md",
+      "size_bytes": 95,
+      "sha256": "7398191a6a0eaeacceedf5ea2c7fe5d25b9206735f290d885ff2a91d3796cc7c"
+    },
+    {
+      "path": "research/methodology/传统LSTM与Transformer基线比较合同_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 7834,
+      "sha256": "58635c6a7fdc607d2a6831925d1acc25ef7730db4057120b6b31a1e67a0be232"
+    },
+    {
+      "path": "research/methodology/小写v2r成功HRRP_RD_TR基线审计_2026-08-17.md",
+      "extension": ".md",
+      "size_bytes": 11035,
+      "sha256": "8e446ee98a31416b38997c8cff2f1bbac3030a7d5ebb72d61513c1cebae941c8"
+    },
+    {
+      "path": "research/methodology/研究设计反方检查点_1.md",
+      "extension": ".md",
+      "size_bytes": 3328,
+      "sha256": "ec1ef1fab3f661e7e63952e0c2d83206c12eb0ac875d463aa55f19977d305a07"
+    },
+    {
+      "path": "research/methodology/研究风险登记.md",
+      "extension": ".md",
+      "size_bytes": 4297,
+      "sha256": "25db1b184b2534c29077e2d87c67008142371040f0a657398fe1082131d7b0e4"
+    },
+    {
+      "path": "research/methodology/论文实验协议.md",
+      "extension": ".md",
+      "size_bytes": 9891,
+      "sha256": "e49a40c9472269b6b482ac0c9d0c228e50d36c22c9660e0a587bacda6bd69572"
+    },
+    {
+      "path": "research/novelty/README.md",
+      "extension": ".md",
+      "size_bytes": 113,
+      "sha256": "a5fc6d704dc7ee796bdb2a880b171d8be2720ea52466fcf763fd2f16d880b4ac"
+    },
+    {
+      "path": "research/novelty/V21e因果航迹一致性创新性审计_2026-08-23.md",
+      "extension": ".md",
+      "size_bytes": 29294,
+      "sha256": "60ec101e69ae39a108512477814ab815ef455204afa8cd6ff7000af34dcdff42"
+    },
+    {
+      "path": "research/novelty/V2与V3创新性审计_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 13007,
+      "sha256": "fa07d005257f5b2cb775acb8c469d2cbf8c06a5f5a486597afc49671b6e34cc1"
+    },
+    {
+      "path": "research/novelty/V3液态系统创新性与部署复杂度审计_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 11863,
+      "sha256": "e33d517c806d5fb7dc9dddaf71b5e1e91c862ec4d8d3d9a2d885e07dc6fee37d"
+    },
+    {
+      "path": "research/novelty/创新性与差异性矩阵.md",
+      "extension": ".md",
+      "size_bytes": 11016,
+      "sha256": "4344facff94966c4d55d8f5173a2e7a174051f7179480943e3526f56f11dbafb"
+    },
+    {
+      "path": "research/novelty/官方LNN与项目技术差异审计_2026-08-23.md",
+      "extension": ".md",
+      "size_bytes": 30392,
+      "sha256": "d6076c0c59e10c347aace3b6188dbe2b32217f246bb3ac05e69bbc5d513a1d29"
+    },
+    {
+      "path": "research/novelty/液态网络雷达应用边界与选题决策_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 5397,
+      "sha256": "1bdd0b68db7c1a9e9db88eaef41a62291ebe7d4e1301ab3aba377ad3ca4c6a55"
+    },
+    {
+      "path": "research/novelty/观测密度调制液态更新研究审计_2026-08-21.md",
+      "extension": ".md",
+      "size_bytes": 53329,
+      "sha256": "870eb624d91d91619e44cbd5438017a974c0b3250c0f611f37b5784ce229e634"
+    },
+    {
+      "path": "research/novelty/软级联与层级分类创新性核查_2026-08-10.md",
+      "extension": ".md",
+      "size_bytes": 7221,
+      "sha256": "5e6e6076588874ee6ef4712b7f11c8a00ebd9aca9d01ff38fce0d2fcd9e13d56"
+    },
+    {
+      "path": "research/questions/README.md",
+      "extension": ".md",
+      "size_bytes": 83,
+      "sha256": "2feb893ba891e9170fa0b1856513d2ef26b3b67d521348f2cb43117803f82552"
+    },
+    {
+      "path": "research/questions/研究问题简报.md",
+      "extension": ".md",
+      "size_bytes": 3989,
+      "sha256": "7c334e5428ccfd9e5390254863851cdb0ddf194c51e378c411864e20f0daaca1"
+    },
+    {
+      "path": "research/questions/论文标题候选与启用条件.md",
+      "extension": ".md",
+      "size_bytes": 7062,
+      "sha256": "6aa1c01b559d97b971ddde8d4814ca4e201efe8d07d7529d766f75f06dc4ace0"
+    },
+    {
+      "path": "research/questions/论文框架与选题边界.md",
+      "extension": ".md",
+      "size_bytes": 11810,
+      "sha256": "1def16d557398861a0c5f10bb8f2a2acbb67c9ab1b0ed229ef28ef69611d08e7"
+    },
+    {
+      "path": "research/questions/论文选题再收敛_2026-08-16.md",
+      "extension": ".md",
+      "size_bytes": 6512,
+      "sha256": "1fdfa21fcb5a32546d461e138863199e20f7e925c1165d6dc7ecd4b737317d4b"
+    },
+    {
+      "path": "research/README.md",
+      "extension": ".md",
+      "size_bytes": 179,
+      "sha256": "327749fa79ef99b353998312f94a374df86fe373aa298102f76f51592726b662"
+    },
+    {
+      "path": "research/README_ARS研究档案说明.md",
+      "extension": ".md",
+      "size_bytes": 5051,
+      "sha256": "1335d73e8649a274dfa2ba70994a05f6c21afca86f5daf8fe113d2adbb71a478"
+    }
+  ]
+}
