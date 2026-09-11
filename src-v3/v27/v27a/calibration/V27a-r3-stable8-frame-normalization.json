@@ -1,0 +1,86 @@
+{
+  "schema_version": "RADAR-LN3-V27a-stable8-parent-balanced-normalization-v1",
+  "experiment_id": "V27a",
+  "fit_split": "train",
+  "fit_scope": "known_dbB_train_parents_with_reliable_frames",
+  "feature_names": [
+    "residual_positive_8_30mps_energy_fraction",
+    "residual_negative_30_60mps_energy_fraction",
+    "residual_positive_30_60mps_energy_fraction",
+    "residual_rms_offset_mps_over_90",
+    "residual_top4_resolution_cell_concentration",
+    "residual_sideband_snr_db_over_30",
+    "pulse_envelope_rms_clipped_0_2_over_2",
+    "pulse_envelope_modulation_snr_db_over_30"
+  ],
+  "feature_indices_in_evidence_cache": [
+    1,
+    2,
+    3,
+    7,
+    11,
+    13,
+    14,
+    22
+  ],
+  "parent_equal_weighting": true,
+  "parent_count_total": 953,
+  "parent_count_used": 945,
+  "parent_ids_sha256": "2e8ea890aae7959753c91cef8c47b9ed8c61a9b5feb91cf4623ab5f0702b54f3",
+  "reliable_frame_count": 65368,
+  "median": [
+    0.0035029142163693905,
+    0.004402076825499535,
+    0.0021488298662006855,
+    0.5772135257720947,
+    0.3320268988609314,
+    0.03509014472365379,
+    0.13884085416793823,
+    0.16021232306957245
+  ],
+  "q25": [
+    0.0011696376604959369,
+    0.0011459789238870144,
+    0.000563174020498991,
+    0.41854244470596313,
+    0.24813877046108246,
+    0.033176861703395844,
+    0.0855914056301117,
+    0.0847681537270546
+  ],
+  "q75": [
+    0.01596701517701149,
+    0.016550801694393158,
+    0.015883639454841614,
+    0.6012082099914551,
+    0.43206074833869934,
+    0.055793799459934235,
+    0.20438966155052185,
+    0.3600907027721405
+  ],
+  "iqr": [
+    0.014797377516515553,
+    0.015404822770506144,
+    0.015320465434342623,
+    0.18266576528549194,
+    0.18392197787761688,
+    0.02261693775653839,
+    0.11879825592041016,
+    0.2753225490450859
+  ],
+  "scale_floor": 1e-06,
+  "scale": [
+    0.014797377516515553,
+    0.015404822770506144,
+    0.015320465434342623,
+    0.18266576528549194,
+    0.18392197787761688,
+    0.02261693775653839,
+    0.11879825592041016,
+    0.2753225490450859
+  ],
+  "source_evidence_sha256": "f689da7826390465424f696e650afb1941f76fa4a97ba140e8ef3809335b647f",
+  "source_index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "validation_not_used": true,
+  "payload_sha256": "0734945f66481c1f2d1691608e5df28aeecf747a42d05fc0ea11272f049b9167"
+}
