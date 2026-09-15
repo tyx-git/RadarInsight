@@ -1,0 +1,47 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r19-config-v1",
+  "experiment_id": "V27d-r19",
+  "variant": "r18-source-stratified-snr-channel-ablation-radial-speed-retained",
+  "objective": "Test whether the current explicit missing-SNR channel contributes to TR-only DBB classification while retaining radial speed and all radial-derived causal increments.",
+  "source": {
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "r18_config_path": "src-v3/v27/V27d/r18/config/V27d-r18-source-stratified-radial-speed.json",
+    "r18_config_sha256": "d51ef0c1fbdb8e7434fbdb4bd2b97d26266cf6b9cce1f8b5e9c84e6f013c799b",
+    "r18_manifest_path": "src-v3/v27/V27d/r18/manifests/V27d-r18-manifest-v3.json",
+    "r18_manifest_sha256": "028235f65a0c81ffdee1ebf8a9220443548e7b8d6d3a5d0dcb62b04e52cfc992"
+  },
+  "data": {
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "split_protocol": "r18 sealed source_suffix+label parent split",
+    "snr_value_index": 10,
+    "snr_missing_index": 7,
+    "radial_speed_value_index": 1,
+    "radial_speed_missing_index": 1,
+    "untrusted_noise_policy": "exclude Noise and derived SNR",
+    "radial_speed_policy": "retain raw radial_speed_mps and radial-derived observation increments",
+    "unknown_training_exposure": 0,
+    "test_created": false
+  },
+  "training": {
+    "seeds": [42],
+    "batch_size": 4,
+    "epochs": 20,
+    "gradient_clip_norm": 100.0,
+    "l2_learning_rate": 0.00001,
+    "weight_decay": 0.001,
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "optimizer": "AdamW",
+    "device": "cuda",
+    "checkpoint_selection": "validation_parent_macro_f1_then_min_recall",
+    "direct_initialization": "frozen V27c-r23 robust_control seed42 epoch1 L2 backbone"
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r19/manifests/V27d-r19-manifest.json",
+    "smoke_path": "src-v3/v27/V27d/r19/reports/V27d-r19-contract-smoke.json",
+    "comparison_report_path": "src-v3/v27/V27d/r19/reports/V27d-r19-trained-comparison.json",
+    "checkpoint_template": "src-v3/v27/V27d/r19/runs-v1/V27d-r19-{arm}-seed{seed}/checkpoint.pt",
+    "epoch_checkpoint_template": "src-v3/v27/V27d/r19/runs-v1/V27d-r19-{arm}-seed{seed}/epochs/epoch-{epoch:03d}.pt",
+    "training_summary_template": "src-v3/v27/V27d/r19/runs-v1/V27d-r19-{arm}-seed{seed}/training-summary.json"
+  }
+}
