@@ -1,0 +1,25 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r7-training-summary-v1",
+  "experiment_id": "V27d-r7-causal-stable8-dispersion",
+  "arm": "zero_control",
+  "seed": 44,
+  "selected_epoch": 2,
+  "selection": {
+    "feasible": true,
+    "threshold": 0.1607416570186615,
+    "accepted_bird": 105,
+    "bird_support": 108,
+    "rejected_bird": 3,
+    "accepted_false_positive": 20,
+    "rejected_false_positive": 12,
+    "false_positive_rejection": 0.375,
+    "bird_precision": 0.84
+  },
+  "checkpoint_path": "src-v3/v27/V27d/r7/checkpoints/V27d-r7-zero_control-seed44.pt",
+  "log_path": "src-v3/v27/V27d/r7/runs/V27d-r7-zero_control-seed44.log",
+  "r6_initial_checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed44.pt",
+  "frozen_liquid_core": true,
+  "use_stable8_branch": false,
+  "formal_l3_enabled": false,
+  "payload_sha256": "bf6938abf80618305dba8c8fb3ecf2c1459b1352d711390611384b223d9f662c"
+}

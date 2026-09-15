@@ -1,0 +1,39 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r9-two-seed-summary-v1",
+  "experiment_id": "V27d-r9",
+  "status": "completed_two_seed_known_class_evaluation",
+  "direct_baseline": "V27a-r3-main-epoch-020",
+  "manifest_sha256": "77102fe7f567023aa4ab501b08d731aed6835c0359cccaba65c1b9ce678251c5",
+  "seeds": [
+    42,
+    44
+  ],
+  "per_seed": {
+    "42": {
+      "bird_recall": 0.9107142857142857,
+      "total_correct_delta": -9,
+      "new_error_count": 9,
+      "drone_to_bird_delta": 3,
+      "passed": false
+    },
+    "44": {
+      "bird_recall": 0.8571428571428571,
+      "total_correct_delta": -13,
+      "new_error_count": 13,
+      "drone_to_bird_delta": 4,
+      "passed": false
+    }
+  },
+  "promotion_standard": {
+    "minimum_bird_recall": 0.96,
+    "maximum_new_errors": 0,
+    "minimum_drone_bird_corrections": 1,
+    "minimum_total_correct_gain": 1,
+    "require_all_seeds": true
+  },
+  "promotion_passed": false,
+  "formal_l3_enabled": false,
+  "unknown_support": 0,
+  "deployment_eligible": false,
+  "payload_sha256": "f15d5c9e18b6ce7a11869119136d03a7308301affa0dea7e40c77cbac61aec19"
+}

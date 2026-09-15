@@ -1,0 +1,106 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r15-v10-observation-increment-v1-config",
+  "experiment_id": "V27d-r15",
+  "variant": "v10_observation_increment_l1",
+  "objective": "Migrate the V10 causal per-observation TR observation-increment mechanism into the V27 L1 known-gate classifier and measure closed-set classification plus Bird/Unknown route errors.",
+  "source": {
+    "v27_config_path": "src-v3/v27/v27_baseline/config/V27-liquid-v2-dbb-baseline.json",
+    "v27_manifest_path": "src-v3/v27/v27_baseline/manifests/V27-manifest.json",
+    "v27_l1_checkpoint_path": "src-v3/v27/v27_baseline/runs/V27-known_gate-seed42/epochs/epoch-014.pt",
+    "v27d_endpoint_manifest_path": "src-v3/v27/V27d/cache/V27d-endpoint-manifest.json",
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "observation_increment_source": "src-v3/radar_ln3/features.py",
+    "expected_hashes": {
+      "v27_config": "51531a0f403b736df616ddcc83978163a2ca0e2cd98eb74ada19cdac32671d0b",
+      "v27_manifest": "7488dd3e1d0beacd5185e8412efb99245c29c599edfa01f02b829a7b7a948e0b",
+      "v27_l1_checkpoint": "0f9ed58ddbf7a457d774c95780a83f6a7235ec107b62f403c725371fcd69e6f6",
+      "v27d_endpoint_manifest": "356dbb05e552c8236295710d5d9b12b3fde35c62419f0254336678bc85412b5d",
+      "index": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+      "observation_increment_source": "98a98388806ea3065825a2edfc443ff0a5e5c5b35a52749b48904e56be4831ac"
+    },
+    "expected_endpoint_file_hashes": {
+      "representation_fit": "eed45d94abd1828724ff73c513e30f7635feb7d7abd7ce60e07adb8a0938ce85",
+      "representation_development": "e388065390eb59c9bc22aed290662bfde623553061515caccdc98eb342d767cc",
+      "calibration": "3aa36f972c3f051edde0bf1277bb08abcea30c6fc53e48a8e2328d98981135d4"
+    },
+    "expected_v27_l1_checkpoint_state_sha256": "aabd637001e52fb4646badc87b42b0422c2c3dae0ed9a0129893a623fb78ac79"
+  },
+  "data": {
+    "train_split_name": "train",
+    "validation_split_name": "val",
+    "index_schema_version": "RADAR-LN3-V16",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "observation_increment_schema": "causal-tr-observation-increment-v1",
+    "observation_increment_dim": 9,
+    "observation_increment_mask_mode": "gating_only",
+    "known_train_parent_count": 986,
+    "known_validation_parent_count": 232,
+    "role_names": ["representation_fit", "representation_development", "calibration"]
+  },
+  "model": {
+    "motion_projection_dim": 48,
+    "motion_hidden_dim": 48,
+    "motion_projection_bias": false,
+    "motion_output_bias": false,
+    "motion_output_zero_initialization": true,
+    "injection_boundary": "after_v27_l1_fusion_before_liquid_v2",
+    "trajectory_heads": "frozen_unused_by_classification"
+  },
+  "training": {
+    "seeds": [42, 44],
+    "dataloader_seed": 42,
+    "batch_size": 2,
+    "epochs": 20,
+    "primary_epoch": 20,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "gradient_clip_norm": 100.0,
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "class_weights": [0.5173137460650578, 14.93939393939394],
+    "device": "cuda",
+    "cuda_deterministic_algorithms": false,
+    "checkpoint_selection": "fixed_primary_epoch; validation is diagnostic only"
+  },
+  "evaluation": {
+    "closed_set_split": "val",
+    "open_set_roles": ["representation_development", "calibration"],
+    "formal_l3_enabled": false,
+    "unknown_classifier_class": false,
+    "unknown_training_exposure": 0,
+    "test_payload_access_count": 0,
+    "bird_error_definition": "BirdTarget predicted KNOWN_CLUTTER_EVIDENCE",
+    "unknown_error_definition": "UnknownTarget predicted KNOWN_TARGET_EVIDENCE",
+    "selection_uses_unknown": false,
+    "selection_uses_test": false
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r15/manifests/V27d-r15-manifest-v3.json",
+    "observation_cache_path": "src-v3/v27/V27d/r15/cache/V27d-r15-observation-increment-cache-v4.pt",
+    "observation_cache_manifest_path": "src-v3/v27/V27d/r15/cache/V27d-r15-observation-increment-manifest-v4.json",
+    "checkpoint_template": "src-v3/v27/V27d/r15/checkpoints/V27d-r15-{arm}-seed{seed}.pt",
+    "training_summary_template": "src-v3/v27/V27d/r15/runs/V27d-r15-{arm}-seed{seed}-training-summary.json",
+    "training_log_template": "src-v3/v27/V27d/r15/runs/V27d-r15-{arm}-seed{seed}.log",
+    "evaluation_template": "src-v3/v27/V27d/r15/reports/V27d-r15-seed{seed}-evaluation.json",
+    "summary_path": "src-v3/v27/V27d/r15/reports/V27d-r15-two-seed-summary.json",
+    "smoke_path": "src-v3/v27/V27d/r15/reports/V27d-r15-contract-smoke-v3.json",
+    "experiment_doc_path": "src-v3/v27/V27d/r15/experiment.md"
+  },
+  "protocol": {
+    "direct_baseline": "V27 L1 known_gate epoch-14",
+    "arms": ["control", "v10_observation_increment"],
+    "control_motion_input": "all_zero_after_same_validity_boundary",
+    "treatment_motion_input": "V10_causal_per_observation_numeric_values_after_validity_gating",
+    "v10_time_semantics": "values_are_changes_per_radar_report_not_physical_rates_per_second",
+    "same_second_policy": "same-second_events_are_valid_observations_and_increment_state_advances_without_dt",
+    "negative_dt_policy": "observation_increment_does_not_read_dt_or_dt_valid",
+    "invalid_value_policy": "invalid_components_are_zero_and_validity_is_gating_only",
+    "parent_state_reset": true,
+    "padding_policy": "suffix_padding_zero_and_no_state_update",
+    "unknown_is_classifier_class": false,
+    "unknown_training_exposure": 0,
+    "test_payload_access_count": 0,
+    "formal_l3_enabled": false
+  }
+}

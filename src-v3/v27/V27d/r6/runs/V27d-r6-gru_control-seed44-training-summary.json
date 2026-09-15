@@ -1,0 +1,594 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r6-training-summary-v1",
+  "experiment_id": "V27d-r6-bird-liquid-verifier",
+  "arm": "gru_control",
+  "seed": 44,
+  "selected_epoch": 29,
+  "selection": {
+    "feasible": true,
+    "threshold": 0.2084740251302719,
+    "higher_is_known": true,
+    "accepted_bird": 105,
+    "bird_support": 108,
+    "accepted_false_positive": 26,
+    "false_positive_rejection": 0.1875,
+    "bird_precision": 0.8015267175572519
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 0.7132593154907226,
+      "loss_components": {
+        "bird": 0.6979041755199432,
+        "false_positive": 0.728614455461502
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.42634260654449463,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 30,
+        "false_positive_rejection": 0.0625,
+        "bird_precision": 0.7777777777777778
+      },
+      "elapsed_seconds": 0.4878409999946598
+    },
+    {
+      "epoch": 2,
+      "loss": 0.6928930521011353,
+      "loss_components": {
+        "bird": 0.7613571524620056,
+        "false_positive": 0.6244289875030518
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.5365187525749207,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 29,
+        "false_positive_rejection": 0.09375,
+        "bird_precision": 0.7851851851851852
+      },
+      "elapsed_seconds": 0.6539321999880485
+    },
+    {
+      "epoch": 3,
+      "loss": 0.680620527267456,
+      "loss_components": {
+        "bird": 0.6431175708770752,
+        "false_positive": 0.7181235074996948
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.44511136412620544,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 0.8468647999980021
+    },
+    {
+      "epoch": 4,
+      "loss": 0.6700708150863648,
+      "loss_components": {
+        "bird": 0.6836555600166321,
+        "false_positive": 0.6564860701560974
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.5089501738548279,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7954545454545454
+      },
+      "elapsed_seconds": 1.0292436000017915
+    },
+    {
+      "epoch": 5,
+      "loss": 0.659214437007904,
+      "loss_components": {
+        "bird": 0.6526567816734314,
+        "false_positive": 0.6657720804214478
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.45278415083885193,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7954545454545454
+      },
+      "elapsed_seconds": 1.2252770999912173
+    },
+    {
+      "epoch": 6,
+      "loss": 0.6461962103843689,
+      "loss_components": {
+        "bird": 0.6365921020507812,
+        "false_positive": 0.6558003425598145
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.45736080408096313,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 1.3915177999879234
+    },
+    {
+      "epoch": 7,
+      "loss": 0.6463825225830078,
+      "loss_components": {
+        "bird": 0.6611239194869996,
+        "false_positive": 0.6316411256790161
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.4505462050437927,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 1.5661987999919802
+    },
+    {
+      "epoch": 8,
+      "loss": 0.614979362487793,
+      "loss_components": {
+        "bird": 0.6079941749572754,
+        "false_positive": 0.6219645738601685
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3935295045375824,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 1.7843534999992698
+    },
+    {
+      "epoch": 9,
+      "loss": 0.6057034254074096,
+      "loss_components": {
+        "bird": 0.6180132031440735,
+        "false_positive": 0.5933936595916748
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.4444532096385956,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 1.9634206999908201
+    },
+    {
+      "epoch": 10,
+      "loss": 0.5831230044364929,
+      "loss_components": {
+        "bird": 0.5986318707466125,
+        "false_positive": 0.5676141738891601
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.5008577704429626,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 2.1725388999911956
+    },
+    {
+      "epoch": 11,
+      "loss": 0.5813397884368896,
+      "loss_components": {
+        "bird": 0.6214403808116913,
+        "false_positive": 0.5412391901016236
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3118629455566406,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 29,
+        "false_positive_rejection": 0.09375,
+        "bird_precision": 0.7835820895522388
+      },
+      "elapsed_seconds": 2.365536500001326
+    },
+    {
+      "epoch": 12,
+      "loss": 0.5969942688941956,
+      "loss_components": {
+        "bird": 0.4604476273059845,
+        "false_positive": 0.7335408866405487
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.27045100927352905,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 29,
+        "false_positive_rejection": 0.09375,
+        "bird_precision": 0.7851851851851852
+      },
+      "elapsed_seconds": 2.5464902999956394
+    },
+    {
+      "epoch": 13,
+      "loss": 0.6644344568252564,
+      "loss_components": {
+        "bird": 0.9937414288520813,
+        "false_positive": 0.335127466917038
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3313428461551666,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 29,
+        "false_positive_rejection": 0.09375,
+        "bird_precision": 0.7851851851851852
+      },
+      "elapsed_seconds": 2.759583199993358
+    },
+    {
+      "epoch": 14,
+      "loss": 0.5912917494773865,
+      "loss_components": {
+        "bird": 0.39664109945297243,
+        "false_positive": 0.7859423995018006
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.35322844982147217,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 2.9431176999933086
+    },
+    {
+      "epoch": 15,
+      "loss": 0.5781491518020629,
+      "loss_components": {
+        "bird": 0.739955073595047,
+        "false_positive": 0.41634323000907897
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3941398561000824,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7894736842105263
+      },
+      "elapsed_seconds": 3.1239568999881158
+    },
+    {
+      "epoch": 16,
+      "loss": 0.5902805387973785,
+      "loss_components": {
+        "bird": 0.414699524641037,
+        "false_positive": 0.7658615648746491
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.22728469967842102,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 3.3163360999897122
+    },
+    {
+      "epoch": 17,
+      "loss": 0.5959479689598084,
+      "loss_components": {
+        "bird": 0.8923980116844177,
+        "false_positive": 0.2994979381561279
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3772817552089691,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 3.512907999989693
+    },
+    {
+      "epoch": 18,
+      "loss": 0.5651400089263916,
+      "loss_components": {
+        "bird": 0.4635362565517426,
+        "false_positive": 0.6667437553405762
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.24217933416366577,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 3.6984642999887
+    },
+    {
+      "epoch": 19,
+      "loss": 0.5477866947650909,
+      "loss_components": {
+        "bird": 0.6217856347560883,
+        "false_positive": 0.47378774285316466
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.41324934363365173,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 3.892599799990421
+    },
+    {
+      "epoch": 20,
+      "loss": 0.5671479403972626,
+      "loss_components": {
+        "bird": 0.5286676108837127,
+        "false_positive": 0.6056282877922058
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3061629831790924,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 4.08183489998919
+    },
+    {
+      "epoch": 21,
+      "loss": 0.5443217396736145,
+      "loss_components": {
+        "bird": 0.46613449454307554,
+        "false_positive": 0.6225089848041534
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.2342180609703064,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 4.2731563999986975
+    },
+    {
+      "epoch": 22,
+      "loss": 0.5497531354427337,
+      "loss_components": {
+        "bird": 0.651160603761673,
+        "false_positive": 0.4483456820249557
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.331529825925827,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 4.476848299993435
+    },
+    {
+      "epoch": 23,
+      "loss": 0.4906530141830444,
+      "loss_components": {
+        "bird": 0.47341848611831666,
+        "false_positive": 0.5078875303268433
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.21581576764583588,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 28,
+        "false_positive_rejection": 0.125,
+        "bird_precision": 0.7910447761194029
+      },
+      "elapsed_seconds": 4.661889099996188
+    },
+    {
+      "epoch": 24,
+      "loss": 0.5301452100276947,
+      "loss_components": {
+        "bird": 0.5979935526847839,
+        "false_positive": 0.4622968792915344
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.5163326859474182,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7954545454545454
+      },
+      "elapsed_seconds": 4.828553999992437
+    },
+    {
+      "epoch": 25,
+      "loss": 0.5331493973731994,
+      "loss_components": {
+        "bird": 0.4933498382568359,
+        "false_positive": 0.572948956489563
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.18232184648513794,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7954545454545454
+      },
+      "elapsed_seconds": 5.002521999995224
+    },
+    {
+      "epoch": 26,
+      "loss": 0.5398000240325928,
+      "loss_components": {
+        "bird": 0.6151269435882568,
+        "false_positive": 0.46447309851646423
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.36358240246772766,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7954545454545454
+      },
+      "elapsed_seconds": 5.146747399994638
+    },
+    {
+      "epoch": 27,
+      "loss": 0.48705258369445803,
+      "loss_components": {
+        "bird": 0.5106292068958282,
+        "false_positive": 0.46347596645355227
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.27486684918403625,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7969924812030075
+      },
+      "elapsed_seconds": 5.315160400001332
+    },
+    {
+      "epoch": 28,
+      "loss": 0.4857475578784943,
+      "loss_components": {
+        "bird": 0.4250189810991287,
+        "false_positive": 0.5464761555194855
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.3371104598045349,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7969924812030075
+      },
+      "elapsed_seconds": 5.510808699997142
+    },
+    {
+      "epoch": 29,
+      "loss": 0.5356267154216766,
+      "loss_components": {
+        "bird": 0.7286904573440551,
+        "false_positive": 0.3425629913806915
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.2084740251302719,
+        "higher_is_known": true,
+        "accepted_bird": 105,
+        "bird_support": 108,
+        "accepted_false_positive": 26,
+        "false_positive_rejection": 0.1875,
+        "bird_precision": 0.8015267175572519
+      },
+      "elapsed_seconds": 5.676504999995814
+    },
+    {
+      "epoch": 30,
+      "loss": 0.48805044293403627,
+      "loss_components": {
+        "bird": 0.4346620082855225,
+        "false_positive": 0.541438889503479
+      },
+      "selection": {
+        "feasible": true,
+        "threshold": 0.2995511293411255,
+        "higher_is_known": true,
+        "accepted_bird": 106,
+        "bird_support": 108,
+        "accepted_false_positive": 27,
+        "false_positive_rejection": 0.15625,
+        "bird_precision": 0.7969924812030075
+      },
+      "elapsed_seconds": 5.8201686999964295
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-gru_control-seed44.pt",
+  "log_path": "src-v3/v27/V27d/r6/runs/V27d-r6-gru_control-seed44.log",
+  "baseline_accepted_bird": 106,
+  "formal_l3_enabled": false,
+  "payload_sha256": "abfd5fd5860d34504a629a97b0cc7d2e9f52cf96c02d29a0faef883895e4e937"
+}

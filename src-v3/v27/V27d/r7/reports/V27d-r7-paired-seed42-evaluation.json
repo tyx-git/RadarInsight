@@ -1,0 +1,521 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r7-evaluation-v1",
+  "experiment_id": "V27d-r7-causal-stable8-dispersion",
+  "seed": 42,
+  "direct_baseline": "V27d-r6-liquid_treatment",
+  "arms": {
+    "zero_control": {
+      "arm": "zero_control",
+      "seed": 42,
+      "use_stable8_branch": false,
+      "evaluation_device": "cuda:0",
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/r7/checkpoints/V27d-r7-zero_control-seed42.pt",
+        "sha256": "ccef34db77aad26f3bbd309ff737b7774878a59e7265f7945ed3c4d44d07bb29",
+        "selected_epoch": 6
+      },
+      "threshold_source": "representation_development",
+      "threshold": 0.28842151165008545,
+      "development": {
+        "ranking": {
+          "support": 140,
+          "positive": 108,
+          "negative": 32,
+          "auroc_higher_is_known": 0.8434606481481481,
+          "score_mean_positive": 0.7909532189369202,
+          "score_mean_negative": 0.47233182191848755
+        },
+        "actions": {
+          "threshold": 0.28842151165008545,
+          "candidate_support": 140,
+          "bird_support": 108,
+          "false_positive_support": 32,
+          "accepted_bird": 104,
+          "rejected_bird": 4,
+          "accepted_false_positive": 20,
+          "rejected_false_positive": 12,
+          "bird_action_precision": 0.8387096774193549,
+          "bird_action_recall": 0.9629629629629629,
+          "false_positive_rejection": 0.375,
+          "unknown_rejection": 0.375,
+          "accepted_label_counts": {
+            "BirdTarget": 104,
+            "UnknownTarget": 20
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "BirdTarget": {
+              "support": 108,
+              "accepted": 104,
+              "rejected": 4
+            },
+            "ClutterTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 32,
+              "accepted": 20,
+              "rejected": 12
+            }
+          },
+          "pending_low_quality_excluded": 4
+        }
+      },
+      "calibration": {
+        "ranking": {
+          "support": 71,
+          "positive": 53,
+          "negative": 18,
+          "auroc_higher_is_known": 0.8144654088050315,
+          "score_mean_positive": 0.7676413059234619,
+          "score_mean_negative": 0.5251376032829285
+        },
+        "actions": {
+          "threshold": 0.28842151165008545,
+          "candidate_support": 71,
+          "bird_support": 53,
+          "false_positive_support": 18,
+          "accepted_bird": 51,
+          "rejected_bird": 2,
+          "accepted_false_positive": 15,
+          "rejected_false_positive": 3,
+          "bird_action_precision": 0.7727272727272727,
+          "bird_action_recall": 0.9622641509433962,
+          "false_positive_rejection": 0.16666666666666666,
+          "unknown_rejection": 0.16666666666666666,
+          "accepted_label_counts": {
+            "DroneTarget": 4,
+            "UnknownTarget": 10,
+            "BirdTarget": 51,
+            "ClutterTarget": 1
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 1,
+              "accepted": 0,
+              "rejected": 1
+            },
+            "BirdTarget": {
+              "support": 53,
+              "accepted": 51,
+              "rejected": 2
+            },
+            "ClutterTarget": {
+              "support": 1,
+              "accepted": 1,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 4,
+              "accepted": 4,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 12,
+              "accepted": 10,
+              "rejected": 2
+            }
+          },
+          "pending_low_quality_excluded": 3
+        }
+      },
+      "r6_liquid_baseline": {
+        "development": {
+          "threshold": 0.4139149785041809,
+          "candidate_support": 140,
+          "bird_support": 108,
+          "false_positive_support": 32,
+          "accepted_bird": 105,
+          "rejected_bird": 3,
+          "accepted_false_positive": 25,
+          "rejected_false_positive": 7,
+          "bird_action_precision": 0.8076923076923077,
+          "bird_action_recall": 0.9722222222222222,
+          "false_positive_rejection": 0.21875,
+          "unknown_rejection": 0.21875,
+          "accepted_label_counts": {
+            "BirdTarget": 105,
+            "UnknownTarget": 25
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "BirdTarget": {
+              "support": 108,
+              "accepted": 105,
+              "rejected": 3
+            },
+            "ClutterTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 32,
+              "accepted": 25,
+              "rejected": 7
+            }
+          },
+          "pending_low_quality_excluded": 4,
+          "threshold_source": "r6_liquid_development_selection",
+          "role": "representation_development",
+          "checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed42.pt"
+        },
+        "calibration": {
+          "threshold": 0.4139149785041809,
+          "candidate_support": 71,
+          "bird_support": 53,
+          "false_positive_support": 18,
+          "accepted_bird": 52,
+          "rejected_bird": 1,
+          "accepted_false_positive": 15,
+          "rejected_false_positive": 3,
+          "bird_action_precision": 0.7761194029850746,
+          "bird_action_recall": 0.9811320754716981,
+          "false_positive_rejection": 0.16666666666666666,
+          "unknown_rejection": 0.16666666666666666,
+          "accepted_label_counts": {
+            "DroneTarget": 4,
+            "UnknownTarget": 10,
+            "BirdTarget": 52,
+            "ClutterTarget": 1
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 1,
+              "accepted": 0,
+              "rejected": 1
+            },
+            "BirdTarget": {
+              "support": 53,
+              "accepted": 52,
+              "rejected": 1
+            },
+            "ClutterTarget": {
+              "support": 1,
+              "accepted": 1,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 4,
+              "accepted": 4,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 12,
+              "accepted": 10,
+              "rejected": 2
+            }
+          },
+          "pending_low_quality_excluded": 3,
+          "threshold_source": "r6_liquid_development_selection",
+          "role": "calibration",
+          "checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed42.pt"
+        }
+      },
+      "endpoint_contract": {
+        "classification_logits_changed": false,
+        "classification_logits_input_to_head": false,
+        "softmax_input_to_head": false,
+        "label_identity_input_to_head": false,
+        "formal_l3_enabled": false
+      },
+      "manifest_sha256": "622705b7a6b7cefb322cc8391cda6fa49be3a1dec44ce8549db898bb26aae37f",
+      "deployment_eligible": false
+    },
+    "stable8_treatment": {
+      "arm": "stable8_treatment",
+      "seed": 42,
+      "use_stable8_branch": true,
+      "evaluation_device": "cuda:0",
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/r7/checkpoints/V27d-r7-stable8_treatment-seed42.pt",
+        "sha256": "bd674f807abcf89c3fd0188309fb41f5d18fbe3ebb437fd538833e495d15e448",
+        "selected_epoch": 5
+      },
+      "threshold_source": "representation_development",
+      "threshold": 0.35922327637672424,
+      "development": {
+        "ranking": {
+          "support": 140,
+          "positive": 108,
+          "negative": 32,
+          "auroc_higher_is_known": 0.84375,
+          "score_mean_positive": 0.8292105197906494,
+          "score_mean_negative": 0.5388318300247192
+        },
+        "actions": {
+          "threshold": 0.35922327637672424,
+          "candidate_support": 140,
+          "bird_support": 108,
+          "false_positive_support": 32,
+          "accepted_bird": 104,
+          "rejected_bird": 4,
+          "accepted_false_positive": 20,
+          "rejected_false_positive": 12,
+          "bird_action_precision": 0.8387096774193549,
+          "bird_action_recall": 0.9629629629629629,
+          "false_positive_rejection": 0.375,
+          "unknown_rejection": 0.375,
+          "accepted_label_counts": {
+            "BirdTarget": 104,
+            "UnknownTarget": 20
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "BirdTarget": {
+              "support": 108,
+              "accepted": 104,
+              "rejected": 4
+            },
+            "ClutterTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 32,
+              "accepted": 20,
+              "rejected": 12
+            }
+          },
+          "pending_low_quality_excluded": 4
+        }
+      },
+      "calibration": {
+        "ranking": {
+          "support": 71,
+          "positive": 53,
+          "negative": 18,
+          "auroc_higher_is_known": 0.8165618448637316,
+          "score_mean_positive": 0.8128529191017151,
+          "score_mean_negative": 0.5938608646392822
+        },
+        "actions": {
+          "threshold": 0.35922327637672424,
+          "candidate_support": 71,
+          "bird_support": 53,
+          "false_positive_support": 18,
+          "accepted_bird": 51,
+          "rejected_bird": 2,
+          "accepted_false_positive": 15,
+          "rejected_false_positive": 3,
+          "bird_action_precision": 0.7727272727272727,
+          "bird_action_recall": 0.9622641509433962,
+          "false_positive_rejection": 0.16666666666666666,
+          "unknown_rejection": 0.16666666666666666,
+          "accepted_label_counts": {
+            "DroneTarget": 4,
+            "UnknownTarget": 10,
+            "BirdTarget": 51,
+            "ClutterTarget": 1
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 1,
+              "accepted": 0,
+              "rejected": 1
+            },
+            "BirdTarget": {
+              "support": 53,
+              "accepted": 51,
+              "rejected": 2
+            },
+            "ClutterTarget": {
+              "support": 1,
+              "accepted": 1,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 4,
+              "accepted": 4,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 12,
+              "accepted": 10,
+              "rejected": 2
+            }
+          },
+          "pending_low_quality_excluded": 3
+        }
+      },
+      "r6_liquid_baseline": {
+        "development": {
+          "threshold": 0.4139149785041809,
+          "candidate_support": 140,
+          "bird_support": 108,
+          "false_positive_support": 32,
+          "accepted_bird": 105,
+          "rejected_bird": 3,
+          "accepted_false_positive": 25,
+          "rejected_false_positive": 7,
+          "bird_action_precision": 0.8076923076923077,
+          "bird_action_recall": 0.9722222222222222,
+          "false_positive_rejection": 0.21875,
+          "unknown_rejection": 0.21875,
+          "accepted_label_counts": {
+            "BirdTarget": 105,
+            "UnknownTarget": 25
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "BirdTarget": {
+              "support": 108,
+              "accepted": 105,
+              "rejected": 3
+            },
+            "ClutterTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 0,
+              "accepted": 0,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 32,
+              "accepted": 25,
+              "rejected": 7
+            }
+          },
+          "pending_low_quality_excluded": 4,
+          "threshold_source": "r6_liquid_development_selection",
+          "role": "representation_development",
+          "checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed42.pt"
+        },
+        "calibration": {
+          "threshold": 0.4139149785041809,
+          "candidate_support": 71,
+          "bird_support": 53,
+          "false_positive_support": 18,
+          "accepted_bird": 52,
+          "rejected_bird": 1,
+          "accepted_false_positive": 15,
+          "rejected_false_positive": 3,
+          "bird_action_precision": 0.7761194029850746,
+          "bird_action_recall": 0.9811320754716981,
+          "false_positive_rejection": 0.16666666666666666,
+          "unknown_rejection": 0.16666666666666666,
+          "accepted_label_counts": {
+            "DroneTarget": 4,
+            "UnknownTarget": 10,
+            "BirdTarget": 52,
+            "ClutterTarget": 1
+          },
+          "by_label": {
+            "BalloonTarget": {
+              "support": 1,
+              "accepted": 0,
+              "rejected": 1
+            },
+            "BirdTarget": {
+              "support": 53,
+              "accepted": 52,
+              "rejected": 1
+            },
+            "ClutterTarget": {
+              "support": 1,
+              "accepted": 1,
+              "rejected": 0
+            },
+            "DroneTarget": {
+              "support": 4,
+              "accepted": 4,
+              "rejected": 0
+            },
+            "UnknownTarget": {
+              "support": 12,
+              "accepted": 10,
+              "rejected": 2
+            }
+          },
+          "pending_low_quality_excluded": 3,
+          "threshold_source": "r6_liquid_development_selection",
+          "role": "calibration",
+          "checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed42.pt"
+        }
+      },
+      "endpoint_contract": {
+        "classification_logits_changed": false,
+        "classification_logits_input_to_head": false,
+        "softmax_input_to_head": false,
+        "label_identity_input_to_head": false,
+        "formal_l3_enabled": false
+      },
+      "manifest_sha256": "622705b7a6b7cefb322cc8391cda6fa49be3a1dec44ce8549db898bb26aae37f",
+      "deployment_eligible": false
+    }
+  },
+  "paired": {
+    "treatment_minus_zero_control": {
+      "development_precision_delta": 0.0,
+      "calibration_precision_delta": 0.0,
+      "development_bird_recall_delta": 0.0,
+      "calibration_bird_recall_delta": 0.0,
+      "development_false_positive_rejection_delta": 0.0,
+      "calibration_false_positive_rejection_delta": 0.0
+    },
+    "treatment_minus_r6_liquid": {
+      "development_precision_delta": 0.03101736972704716,
+      "calibration_precision_delta": -0.0033921302578019397,
+      "development_false_positive_rejection_delta": 0.15625,
+      "calibration_false_positive_rejection_delta": 0.0
+    }
+  },
+  "population": {
+    "representation_fit": {
+      "positive": 118,
+      "negative": 31
+    },
+    "representation_development": {
+      "positive": 108,
+      "negative": 32
+    },
+    "calibration": {
+      "positive": 53,
+      "negative": 18
+    }
+  },
+  "formal_l3_enabled": false,
+  "formal_unknown_support": 12,
+  "formal_unknown_support_required": 100,
+  "deployment_eligible": false,
+  "test_payload_access_count": 0,
+  "evaluation_device": "cuda:0",
+  "payload_sha256": "f7bf37701780fb31f60c124b03c71a6a20fc9985f073d7cc8a0e40d41aba15e6"
+}

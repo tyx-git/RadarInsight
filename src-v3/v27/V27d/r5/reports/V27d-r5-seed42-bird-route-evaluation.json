@@ -1,0 +1,632 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-bird-route-evaluation-v1",
+  "experiment_id": "V27d-r5-bird-route",
+  "seed": 42,
+  "r5_manifest_sha256": "66550a60ffbd255c3e6daa6c8cb4aa85f5d050aa8903aabc2d8882702f00728e",
+  "r1_manifest_sha256": "37b0af2ccb57684027bf50ee5a9efa4a7a154c5dea97ca08622b040a52db11a5",
+  "arms": {
+    "control": {
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/r5/checkpoints/V27d-r5-control-seed42-bird-head.pt",
+        "sha256": "3aa31875f4e0db1f1a14e97977ff6e7443fb202baa04524419fc8a6eaadf0371",
+        "selected_epoch": 30
+      },
+      "population": {
+        "representation_fit": {
+          "parent_count": 550,
+          "positive": 123,
+          "negative": 26,
+          "quality_eligible": 546
+        },
+        "representation_development": {
+          "parent_count": 505,
+          "positive": 113,
+          "negative": 32,
+          "quality_eligible": 501
+        },
+        "calibration": {
+          "parent_count": 247,
+          "positive": 55,
+          "negative": 12,
+          "quality_eligible": 244
+        }
+      },
+      "development": {
+        "bird_knownness_probability": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.8130530973451328,
+            "score_min": 0.1610843688249588,
+            "score_max": 0.8124693632125854,
+            "score_mean_positive": 0.5683299899101257,
+            "score_mean_negative": 0.3894188106060028
+          },
+          "selection": {
+            "threshold": 0.21412961184978485,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "prototype_cosine": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.6225110619469026,
+            "score_min": 0.9655745029449463,
+            "score_max": 0.9999176859855652,
+            "score_mean_positive": 0.9979119300842285,
+            "score_mean_negative": 0.9952266216278076
+          },
+          "selection": {
+            "threshold": 0.9818803071975708,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "prototype_distance": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.39214601769911506,
+            "score_min": 0.14210914075374603,
+            "score_max": 2.8028628826141357,
+            "score_mean_positive": 0.5687471032142639,
+            "score_mean_negative": 0.8055985569953918
+          },
+          "selection": {
+            "threshold": 2.0040032863616943,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "mahalanobis_distance": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.32577433628318586,
+            "score_min": 1.8556873798370361,
+            "score_max": 7.118109226226807,
+            "score_mean_positive": 3.266758441925049,
+            "score_mean_negative": 3.7602853775024414
+          },
+          "selection": {
+            "threshold": 6.011743545532227,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        }
+      },
+      "calibration_transfer": {
+        "bird_knownness_probability": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.7484848484848485,
+            "score_min": 0.1679878979921341,
+            "score_max": 0.789574384689331,
+            "score_mean_positive": 0.5486648678779602,
+            "score_mean_negative": 0.426424503326416
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 0.21412961184978485,
+            "higher_is_known": true,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 0.21412961184978485,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 55,
+            "rejected_positive": 0,
+            "accepted_negative": 11,
+            "rejected_negative": 1,
+            "bird_recall": 1.0,
+            "unknown_rejection": 0.0833333358168602
+          }
+        },
+        "prototype_cosine": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.5303030303030303,
+            "score_min": 0.9671168327331543,
+            "score_max": 0.9999457001686096,
+            "score_mean_positive": 0.9988662600517273,
+            "score_mean_negative": 0.9958828091621399
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 0.9818803071975708,
+            "higher_is_known": true,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 0.9818803071975708,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 55,
+            "rejected_positive": 0,
+            "accepted_negative": 11,
+            "rejected_negative": 1,
+            "bird_recall": 1.0,
+            "unknown_rejection": 0.0833333358168602
+          }
+        },
+        "prototype_distance": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.48030303030303034,
+            "score_min": 0.11673088371753693,
+            "score_max": 2.7141847610473633,
+            "score_mean_positive": 0.4748494029045105,
+            "score_mean_negative": 0.6790099143981934
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 2.0040032863616943,
+            "higher_is_known": false,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 2.0040032863616943,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 55,
+            "rejected_positive": 0,
+            "accepted_negative": 11,
+            "rejected_negative": 1,
+            "bird_recall": 1.0,
+            "unknown_rejection": 0.0833333358168602
+          }
+        },
+        "mahalanobis_distance": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.3606060606060606,
+            "score_min": 1.9129538536071777,
+            "score_max": 6.494060039520264,
+            "score_mean_positive": 3.2433722019195557,
+            "score_mean_negative": 3.419570207595825
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 6.011743545532227,
+            "higher_is_known": false,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 6.011743545532227,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 54,
+            "rejected_positive": 1,
+            "accepted_negative": 12,
+            "rejected_negative": 0,
+            "bird_recall": 0.9818181991577148,
+            "unknown_rejection": 0.0
+          }
+        }
+      },
+      "scorer": {
+        "path": "src-v3/v27/V27d/r5/calibration/V27d-r5-control-seed42-bird-prototypes.pt",
+        "sha256": "286ae44b361cc7f3c4ac5f1dad22b580bc49b1a03b8065a8df3777f1914fc101",
+        "payload_sha256": "4505f5a74defc65baf170a25fc50ce29f71fc3eaa7a6036879eeed3a206c1113"
+      },
+      "classification_logits_changed": false,
+      "endpoint_logits_equal_to_frozen_r1_source": true,
+      "formal_l3_enabled": false,
+      "deployment_eligible": false,
+      "calibration_unknown_support": 12,
+      "formal_calibration_support_required": 100
+    },
+    "stable8_treatment": {
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/r5/checkpoints/V27d-r5-stable8_treatment-seed42-bird-head.pt",
+        "sha256": "d50f7dc92a282e731a48d39403042e13fd1f00d065f5cdde997bd1b5e330770c",
+        "selected_epoch": 6
+      },
+      "population": {
+        "representation_fit": {
+          "parent_count": 550,
+          "positive": 123,
+          "negative": 26,
+          "quality_eligible": 546
+        },
+        "representation_development": {
+          "parent_count": 505,
+          "positive": 113,
+          "negative": 32,
+          "quality_eligible": 501
+        },
+        "calibration": {
+          "parent_count": 247,
+          "positive": 55,
+          "negative": 12,
+          "quality_eligible": 244
+        }
+      },
+      "development": {
+        "bird_knownness_probability": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.7317477876106195,
+            "score_min": 0.3480103313922882,
+            "score_max": 0.7036572098731995,
+            "score_mean_positive": 0.4697725176811218,
+            "score_mean_negative": 0.4267617166042328
+          },
+          "selection": {
+            "threshold": 0.38188594579696655,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.21875,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "prototype_cosine": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.5904314159292036,
+            "score_min": 0.8850948214530945,
+            "score_max": 0.9999041557312012,
+            "score_mean_positive": 0.9935886263847351,
+            "score_mean_negative": 0.9940459132194519
+          },
+          "selection": {
+            "threshold": 0.898552417755127,
+            "higher_is_known": true,
+            "bird_recall": 0.991150438785553,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "prototype_distance": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.3465154867256637,
+            "score_min": 0.08899051696062088,
+            "score_max": 2.729274272918701,
+            "score_mean_positive": 0.49375027418136597,
+            "score_mean_negative": 0.583299994468689
+          },
+          "selection": {
+            "threshold": 2.4981753826141357,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        },
+        "mahalanobis_distance": {
+          "ranking": {
+            "support": 145,
+            "positive": 113,
+            "negative": 32,
+            "auroc_higher_is_known": 0.44192477876106195,
+            "score_min": 1.238259196281433,
+            "score_max": 18.797948837280273,
+            "score_mean_positive": 2.8989312648773193,
+            "score_mean_negative": 3.2532200813293457
+          },
+          "selection": {
+            "threshold": 6.885491371154785,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.0625,
+            "positive_support": 113,
+            "negative_support": 32,
+            "feasible": true
+          }
+        }
+      },
+      "calibration_transfer": {
+        "bird_knownness_probability": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.6303030303030304,
+            "score_min": 0.3571990132331848,
+            "score_max": 0.656014084815979,
+            "score_mean_positive": 0.4724055826663971,
+            "score_mean_negative": 0.4412124454975128
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 0.38188594579696655,
+            "higher_is_known": true,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 0.38188594579696655,
+            "higher_is_known": true,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.21875,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 53,
+            "rejected_positive": 2,
+            "accepted_negative": 11,
+            "rejected_negative": 1,
+            "bird_recall": 0.9636363387107849,
+            "unknown_rejection": 0.0833333358168602
+          }
+        },
+        "prototype_cosine": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.49696969696969695,
+            "score_min": 0.9101507663726807,
+            "score_max": 0.9997575283050537,
+            "score_mean_positive": 0.9931730628013611,
+            "score_mean_negative": 0.9971433281898499
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 0.898552417755127,
+            "higher_is_known": true,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 0.898552417755127,
+            "higher_is_known": true,
+            "bird_recall": 0.991150438785553,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 55,
+            "rejected_positive": 0,
+            "accepted_negative": 12,
+            "rejected_negative": 0,
+            "bird_recall": 1.0,
+            "unknown_rejection": 0.0
+          }
+        },
+        "prototype_distance": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.5060606060606061,
+            "score_min": 0.1318901777267456,
+            "score_max": 2.2031538486480713,
+            "score_mean_positive": 0.5344075560569763,
+            "score_mean_negative": 0.4706248939037323
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 2.4981753826141357,
+            "higher_is_known": false,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 2.4981753826141357,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.03125,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 55,
+            "rejected_positive": 0,
+            "accepted_negative": 12,
+            "rejected_negative": 0,
+            "bird_recall": 1.0,
+            "unknown_rejection": 0.0
+          }
+        },
+        "mahalanobis_distance": {
+          "ranking": {
+            "support": 67,
+            "positive": 55,
+            "negative": 12,
+            "auroc_higher_is_known": 0.44393939393939397,
+            "score_min": 1.2757816314697266,
+            "score_max": 8.275402069091797,
+            "score_mean_positive": 2.9621026515960693,
+            "score_mean_negative": 2.985589027404785
+          },
+          "selection": {
+            "feasible": true,
+            "threshold": 6.885491371154785,
+            "higher_is_known": false,
+            "source_pool": "representation_development"
+          },
+          "threshold_source": {
+            "pool": "representation_development",
+            "threshold": 6.885491371154785,
+            "higher_is_known": false,
+            "bird_recall": 0.982300877571106,
+            "unknown_rejection": 0.0625,
+            "positive_support": 113,
+            "negative_support": 32
+          },
+          "transfer_diagnostics": {
+            "positive_support": 55,
+            "negative_support": 12,
+            "bird_route_population_support": 67,
+            "low_quality_count": 3,
+            "clutter_count": 9,
+            "clutter_bird_route_count": 1,
+            "accepted_positive": 53,
+            "rejected_positive": 2,
+            "accepted_negative": 12,
+            "rejected_negative": 0,
+            "bird_recall": 0.9636363387107849,
+            "unknown_rejection": 0.0
+          }
+        }
+      },
+      "scorer": {
+        "path": "src-v3/v27/V27d/r5/calibration/V27d-r5-stable8_treatment-seed42-bird-prototypes.pt",
+        "sha256": "691042296293a30c2372238a548c99f70b30feb5d0fd2ce99561b0a21fa09b20",
+        "payload_sha256": "4a52296148d08a2effcad50d3d38a5afe21b42b0319f7fc260526bd8b5300a5b"
+      },
+      "classification_logits_changed": false,
+      "endpoint_logits_equal_to_frozen_r1_source": true,
+      "formal_l3_enabled": false,
+      "deployment_eligible": false,
+      "calibration_unknown_support": 12,
+      "formal_calibration_support_required": 100
+    }
+  },
+  "paired": {
+    "representation_development": {
+      "bird_knownness_probability": {
+        "unknown_rejection_delta_treatment_minus_control": 0.09375,
+        "bird_recall_delta_treatment_minus_control": 0.0
+      },
+      "prototype_cosine": {
+        "unknown_rejection_delta_treatment_minus_control": -0.09375,
+        "bird_recall_delta_treatment_minus_control": 0.008849561214447021
+      },
+      "prototype_distance": {
+        "unknown_rejection_delta_treatment_minus_control": -0.09375,
+        "bird_recall_delta_treatment_minus_control": 0.0
+      },
+      "mahalanobis_distance": {
+        "unknown_rejection_delta_treatment_minus_control": 0.03125,
+        "bird_recall_delta_treatment_minus_control": 0.0
+      }
+    },
+    "calibration": {
+      "bird_knownness_probability": {
+        "unknown_rejection_delta_treatment_minus_control": 0.0,
+        "bird_recall_delta_treatment_minus_control": -0.03636366128921509
+      },
+      "prototype_cosine": {
+        "unknown_rejection_delta_treatment_minus_control": -0.0833333358168602,
+        "bird_recall_delta_treatment_minus_control": 0.0
+      },
+      "prototype_distance": {
+        "unknown_rejection_delta_treatment_minus_control": -0.0833333358168602,
+        "bird_recall_delta_treatment_minus_control": 0.0
+      },
+      "mahalanobis_distance": {
+        "unknown_rejection_delta_treatment_minus_control": 0.0,
+        "bird_recall_delta_treatment_minus_control": -0.01818186044692993
+      }
+    }
+  },
+  "calibration_scope": "exploratory_threshold_transfer_only",
+  "formal_conformal_support": false,
+  "deployment_eligible": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "369b1ffd93694c4ec1cbde3e26d35948f3a41dc0c3d4aa20eab113c856df3613"
+}

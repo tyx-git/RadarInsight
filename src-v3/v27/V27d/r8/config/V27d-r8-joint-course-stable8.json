@@ -1,0 +1,88 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r8-joint-course-stable8-v1",
+  "experiment_id": "V27d-r8-joint-course-stable8",
+  "objective": "Paired attribution of V21e causal course and causal stable8 dispersion readout branches over a frozen Liquid V2 Bird-route verifier.",
+  "seeds": [42, 43, 44],
+  "source": {
+    "r6_config_path": "src-v3/v27/V27d/r6/config/V27d-r6-bird-liquid-verifier.json",
+    "r6_manifest_path": "src-v3/v27/V27d/r6/manifests/V27d-r6-manifest.json",
+    "r6_cache_template": "src-v3/v27/V27d/r6/cache/V27d-r6-{role}-population.pt",
+    "r6_liquid_checkpoint_template": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed{seed}.pt",
+    "r6_report_template": "src-v3/v27/V27d/r6/reports/V27d-r6-paired-seed{seed}-evaluation.json",
+    "course_cache_template": "src-v3/v27/v27_baseline/calibration/features/V27-{role}-mixed-course-cache.npz",
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "forensics_report_path": "src-v3/v27/V27d/r7/feature-forensics/V27d-r7-feature-forensics.json"
+  },
+  "model": {
+    "event_trajectory_dim": 355,
+    "task_fact_dim": 7,
+    "input_dim": 362,
+    "hidden_dim": 64,
+    "summary_dim": 672,
+    "projection_dim": 32,
+    "dispersion_dim": 3,
+    "course_dim": 1,
+    "dispersion_channel_index": 6,
+    "liquid_tau_min_seconds": 0.05,
+    "liquid_tau_max_seconds": 30.0,
+    "liquid_zero_dt_event_floor_seconds": 0.001,
+    "liquid_dt_max_seconds": 120.0,
+    "liquid_invalid_dt_update_mode": "bounded_observation",
+    "liquid_invalid_dt_observation_gain": 0.25
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs": 30,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 5.0,
+    "minimum_quality_events": 3,
+    "device": "cuda"
+  },
+  "selection": {
+    "max_additional_bird_rejections_per_pool": 1,
+    "min_development_unknown_rejection": 0.28125,
+    "min_calibration_unknown_rejection": 0.25,
+    "minimum_calibration_seed_wins": 2
+  },
+  "calibration": {
+    "formal_unknown_support_required": 100,
+    "formal_l3_enabled": false
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r8/manifests/V27d-r8-manifest.json",
+    "cache_template": "src-v3/v27/V27d/r8/cache/V27d-r8-{role}-population.pt",
+    "checkpoint_template": "src-v3/v27/V27d/r8/checkpoints/V27d-r8-{arm}-seed{seed}.pt",
+    "summary_template": "src-v3/v27/V27d/r8/runs/V27d-r8-{arm}-seed{seed}-training-summary.json",
+    "log_template": "src-v3/v27/V27d/r8/runs/V27d-r8-{arm}-seed{seed}.log",
+    "smoke_path": "src-v3/v27/V27d/r8/reports/V27d-r8-contract-smoke.json",
+    "evaluation_template": "src-v3/v27/V27d/r8/reports/V27d-r8-{arm}-seed{seed}-evaluation.json",
+    "summary_path": "src-v3/v27/V27d/r8/reports/V27d-r8-three-seed-summary.json",
+    "experiment_doc_path": "src-v3/v27/V27d/r8/experiment.md"
+  },
+  "protocol": {
+    "direct_baseline": "V27d-r6-liquid_treatment",
+    "unique_variable": "paired_causal_v21e_course_and_stable8_dispersion_readout_branches",
+    "arms": {
+      "zero_control": {"course": false, "stable8": false},
+      "stable8_treatment": {"course": false, "stable8": true},
+      "course_treatment": {"course": true, "stable8": false},
+      "joint_treatment": {"course": true, "stable8": true}
+    },
+    "course_source": "V21e causal_prefix_course_circular_incoherence, exact event-order aligned",
+    "stable8_source": "r6 event_frame_values channel 6 pulse_envelope_rms_clipped_0_2_over_2",
+    "course_valid_is_model_input": false,
+    "dispersion_valid_fraction_is_model_input": false,
+    "classification_logits_input_to_head": false,
+    "softmax_input_to_head": false,
+    "label_identity_input_to_head": false,
+    "unknown_is_classifier_class": false,
+    "l1_l2_endpoints_frozen": true,
+    "liquid_v2_core_frozen": true,
+    "r6_initialization": true,
+    "strict_parent_class_balanced_loss": true,
+    "route_matched_population": true,
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  }
+}

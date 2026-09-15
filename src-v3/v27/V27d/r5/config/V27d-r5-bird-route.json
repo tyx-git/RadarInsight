@@ -1,0 +1,61 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-bird-route-v1",
+  "experiment_id": "V27d-r5-bird-route",
+  "objective": "Train an independent Bird-route conditional knownness head over frozen V27a endpoints; compare raw causal control against stable8 causal treatment without enabling formal L3.",
+  "seed": 42,
+  "source": {
+    "v27d_config_path": "src-v3/v27/V27d/config/V27d-r1-frozen-endpoint-control.json"
+  },
+  "model": {
+    "hidden_dim": 48,
+    "projection_dim": 32,
+    "stable8_dim": 38,
+    "event_trajectory_dim": 355,
+    "summary_feature_dim": 672,
+    "task_fact_dim": 7
+  },
+  "training": {
+    "batch_size": 32,
+    "epochs": 30,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 5.0,
+    "minimum_quality_events": 3
+  },
+  "selection": {
+    "bird_recall_floor": 0.98,
+    "max_correct_bird_new_rejections": 2,
+    "prototype_count": 3,
+    "ridge": 0.001
+  },
+  "calibration": {
+    "formal_unknown_support": 100,
+    "scope": "exploratory_threshold_transfer_only",
+    "formal_l3_enabled": false
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r5/manifests/V27d-r5-manifest.json",
+    "cache_template": "src-v3/v27/V27d/r5/cache/V27d-r5-{arm}-{role}-population.pt",
+    "checkpoint_template": "src-v3/v27/V27d/r5/checkpoints/V27d-r5-{arm}-seed{seed}-bird-head.pt",
+    "summary_template": "src-v3/v27/V27d/r5/runs/V27d-r5-{arm}-seed{seed}-training-summary.json",
+    "log_template": "src-v3/v27/V27d/r5/runs/V27d-r5-{arm}-seed{seed}.log",
+    "scorer_template": "src-v3/v27/V27d/r5/calibration/V27d-r5-{arm}-seed{seed}-bird-prototypes.pt",
+    "report_path": "src-v3/v27/V27d/r5/reports/V27d-r5-seed{seed}-bird-route-evaluation.json",
+    "smoke_path": "src-v3/v27/V27d/r5/reports/V27d-r5-contract-smoke.json",
+    "experiment_doc_path": "src-v3/v27/V27d/r5/experiment.md"
+  },
+  "protocol": {
+    "positive_population": "quality_eligible_BirdTarget_all_predictions",
+    "negative_population": "quality_eligible_UnknownTarget_L1_Target_L2_predicted_Bird",
+    "clutter_training": "forbidden_diagnostic_only",
+    "classification_logits_input_to_head": false,
+    "softmax_input_to_head": false,
+    "raw_scale_enabled": false,
+    "control_stable8_zeroed": true,
+    "treatment_stable8_causal": true,
+    "threshold_source": "representation_development",
+    "threshold_transfer": "frozen_to_calibration",
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  }
+}

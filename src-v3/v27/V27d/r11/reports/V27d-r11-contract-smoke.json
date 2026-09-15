@@ -1,0 +1,40 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r11-full-stable8-causal-shape-v1-smoke",
+  "experiment_id": "V27d-r11",
+  "status": "passed",
+  "manifest_sha256": "cd4d0f3a480697e2c686525493f30ad193db9ad058ef18b8d116b41128b8cabb",
+  "roles": {
+    "representation_fit": {
+      "parent_count": 550,
+      "candidate": 149,
+      "bird_positive": 118,
+      "route_false_positive_negative": 31,
+      "shape_valid_events": 10381
+    },
+    "representation_development": {
+      "parent_count": 505,
+      "candidate": 140,
+      "bird_positive": 108,
+      "route_false_positive_negative": 32,
+      "shape_valid_events": 9486
+    },
+    "calibration": {
+      "parent_count": 247,
+      "candidate": 71,
+      "bird_positive": 53,
+      "route_false_positive_negative": 18,
+      "shape_valid_events": 4621
+    }
+  },
+  "r6_zero_initialization_output_exact_match": true,
+  "trainable_parameters": [
+    "shape_projection.weight"
+  ],
+  "frozen_liquid_v2_core": true,
+  "frozen_base_readout": true,
+  "frozen_verifier_head": true,
+  "formal_l3_enabled": false,
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "payload_sha256": "7dbe1cb39a5e8f15272ae2e372d7201209e1e66c32dc0f0487a8f6c29f269ca2"
+}

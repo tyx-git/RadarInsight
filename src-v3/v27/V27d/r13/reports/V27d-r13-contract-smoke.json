@@ -1,0 +1,23 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r13-raw-envelope-profile-shape-v1-smoke",
+  "experiment_id": "V27d-r13",
+  "status": "passed",
+  "manifest_sha256": "202cdace05f910d3253265c7756a74d2efc02a993fac9656d6e5f1119bb47f01",
+  "class_names": [
+    "DroneTarget",
+    "BirdTarget",
+    "BalloonTarget"
+  ],
+  "profile_source": "V18 envelope_modulation_profiles",
+  "profile_bins": 64,
+  "zero_branch_replays_frozen_v27a_main": true,
+  "causal_prefix_invariance": true,
+  "invalid_profile_zero_residual": true,
+  "chunked_continuation_matches_full_sequence": true,
+  "padding_zero_and_no_state_update": true,
+  "residual_doppler_profile_used": false,
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "formal_l3_enabled": false,
+  "payload_sha256": "27b0633eb2a32f3fdcf3ac0683f005b310de038f56671791c3d126879c3be955"
+}

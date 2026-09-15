@@ -1,0 +1,65 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r7-manifest-v1",
+  "experiment_id": "V27d-r7-causal-stable8-dispersion",
+  "config": {
+    "path": "src-v3/v27/V27d/r7/config/V27d-r7-causal-stable8-dispersion.json",
+    "sha256": "0bdaf18f49ca5f220dc9dce68db6a906fbcf9b46521e51109303d1e364e434bb",
+    "identity_sha256": "a8f8fb8333f216cc6c6bf277acbb2c6273a85f3610d567e391bcb120a1fae83f"
+  },
+  "source": {
+    "r6_config_path": "src-v3/v27/V27d/r6/config/V27d-r6-bird-liquid-verifier.json",
+    "r6_config_sha256": "e2f29f81b896b5b48cd82934670eb44e5033adc8638831b87ece1296c1042301",
+    "r6_manifest_path": "src-v3/v27/V27d/r6/manifests/V27d-r6-manifest.json",
+    "r6_manifest_sha256": "76851b6dda933bf86a3f629679920dcbc6835a5da834b4b918fa79b67debd1f7",
+    "forensics_report_path": "src-v3/v27/V27d/r7/feature-forensics/V27d-r7-feature-forensics.json",
+    "forensics_report_sha256": "52b86105aa760f9d36e99b9d612d8ecced7a090e50227ff89aa7bf63efbe0f17",
+    "r6_manifest_payload_sha256": "c4a7aedc3e88f6fd8665e922e7cf3982f43c9b9820ac9c6bc75271e7008126b1"
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d/r7/__init__.py": "2bbf133a74fb04721f79a92127016d39681f1e7dd289cbff86ee75ef815a77d5",
+    "src-v3/v27/V27d/r7/cli.py": "a006d790456438efd70e46776361ad72b87c14864ee55646bada9758ec376ae3",
+    "src-v3/v27/V27d/r7/evaluation.py": "b47a2460805838ee55e3943dec1d02131222ca6782cc4c99a8e585ec6a714157",
+    "src-v3/v27/V27d/r7/feature_forensics.py": "ae626253c7888890596e81e76a68056df0612bdbbf378f41dd222ef603c29a22",
+    "src-v3/v27/V27d/r7/features.py": "d0819cfe4572dfea551acae0ed59c9e7ef9fc786490232311cba6b2fa862e3b8",
+    "src-v3/v27/V27d/r7/model.py": "b93a497d0b83b188a61ae468e9f635c9d748985dbb22c67039cbb1cbe5b0a92a",
+    "src-v3/v27/V27d/r7/protocol.py": "4ea9b7ca1d4494bac67857f3efa8a46e004cd4a57a4f6eafca10c31f3c1ed6c9",
+    "src-v3/v27/V27d/r7/smoke.py": "51e08f6715dc94ce4bc78fce1c139c56857207b7dd282261921e48a2f3b14f6a",
+    "src-v3/v27/V27d/r7/summary.py": "708bd223f1125a48b74a19ddd2dd269609ca25b6efc41414e15f9673027e10e4",
+    "src-v3/v27/V27d/r7/training.py": "2725c7371b35d86e25ed429bc8c12871d782d3eb5d63d1a684f861a499cbd84c"
+  },
+  "arms": [
+    "zero_control",
+    "stable8_treatment"
+  ],
+  "roles": [
+    "representation_fit",
+    "representation_development",
+    "calibration"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "protocol": {
+    "direct_baseline": "V27d-r6-liquid_treatment",
+    "unique_variable": "causal_stable8_dispersion_readout_branch",
+    "dispersion_source": "r6 event_frame_values channel 6 pulse_envelope_rms_clipped_0_2_over_2",
+    "dispersion_statistics": [
+      "current_frame_std",
+      "causal_event_std",
+      "causal_adjacent_delta"
+    ],
+    "valid_fraction_policy": "recorded_for_quality_diagnostic_only_not_knownness_input",
+    "unknown_is_classifier_class": false,
+    "l1_l2_endpoints_frozen": true,
+    "liquid_v2_core_frozen": true,
+    "r6_checkpoint_initialization": true,
+    "zero_control_is_same_liquid_core": true,
+    "strict_parent_class_balanced_loss": true,
+    "route_matched_population": true,
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "101f9028aff5ecc5d25795a240ccab506e80bbf86823aa7ffc9781efc7602e09"
+}

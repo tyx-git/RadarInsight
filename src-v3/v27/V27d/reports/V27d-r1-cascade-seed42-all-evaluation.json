@@ -1,0 +1,619 @@
+{
+  "schema_version": "RADAR-LN3-V27d-evaluation-v1",
+  "experiment_id": "V27d",
+  "variant": "r1",
+  "seed": 42,
+  "calibration_registry_path": "src-v3/v27/V27d/calibration/V27d-r1-l3-registry.json",
+  "calibration_scope": "internal_exploratory",
+  "calibration_status": "unavailable",
+  "tasks": {
+    "known_gate:representation_development": {
+      "schema_version": "RADAR-LN3-V27d-task-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "task": "known_gate",
+      "role": "representation_development",
+      "seed": 42,
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "endpoint": {
+        "classification_endpoint": "v27_baseline_l1_epoch14",
+        "metrics": {
+          "support": 505,
+          "accuracy": 0.9935760171306209,
+          "by_class": {
+            "Target": {
+              "support": 453,
+              "tp": 450,
+              "fp": 36,
+              "fn": 3,
+              "precision": 0.9259259259259259,
+              "recall": 0.9933774834437086,
+              "f1": 0.9584664536741214
+            },
+            "Clutter": {
+              "support": 14,
+              "tp": 14,
+              "fp": 5,
+              "fn": 0,
+              "precision": 0.7368421052631579,
+              "recall": 1.0,
+              "f1": 0.8484848484848484
+            }
+          },
+          "evaluated_support": 467
+        }
+      },
+      "knownness": {
+        "population": "DBB, Clutter and Unknown; quality-eligible parents",
+        "eligible_parent_count": 501,
+        "metrics": {
+          "support": 501,
+          "positive": 465,
+          "negative": 36,
+          "accuracy": 0.9221556886227545,
+          "precision": 0.927710843373494,
+          "recall": 0.9935483870967742,
+          "f1": 0.9595015576323986,
+          "auroc": 0.8963560334528077,
+          "auprc": 0.9915315524463102,
+          "confusion": {
+            "tp": 462,
+            "fp": 36,
+            "fn": 3,
+            "tn": 0
+          }
+        }
+      },
+      "quality": {
+        "metrics": {
+          "support": 505,
+          "positive": 501,
+          "negative": 4,
+          "accuracy": 0.9841584158415841,
+          "precision": 0.9939879759519038,
+          "recall": 0.9900199600798403,
+          "f1": 0.9919999999999999,
+          "auroc": 0.7070858283433133,
+          "auprc": 0.9967700082817474,
+          "confusion": {
+            "tp": 496,
+            "fp": 3,
+            "fn": 5,
+            "tn": 1
+          }
+        },
+        "positive_count": 501
+      },
+      "classification_logits_changed": false,
+      "unknown_is_classifier_class": false,
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/checkpoints/V27d-r1-known_gate-seed42-heads.pt",
+        "head_state_sha256": "b2725f669904a2f49e7eac65c8738657546ae9afc4888cfd702414d5e8396fb8"
+      }
+    },
+    "known_gate:calibration": {
+      "schema_version": "RADAR-LN3-V27d-task-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "task": "known_gate",
+      "role": "calibration",
+      "seed": 42,
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "endpoint": {
+        "classification_endpoint": "v27_baseline_l1_epoch14",
+        "metrics": {
+          "support": 247,
+          "accuracy": 0.9956896551724138,
+          "by_class": {
+            "Target": {
+              "support": 223,
+              "tp": 223,
+              "fp": 14,
+              "fn": 0,
+              "precision": 0.9409282700421941,
+              "recall": 1.0,
+              "f1": 0.9695652173913044
+            },
+            "Clutter": {
+              "support": 9,
+              "tp": 8,
+              "fp": 2,
+              "fn": 1,
+              "precision": 0.8,
+              "recall": 0.8888888888888888,
+              "f1": 0.8421052631578948
+            }
+          },
+          "evaluated_support": 232
+        }
+      },
+      "knownness": {
+        "population": "DBB, Clutter and Unknown; quality-eligible parents",
+        "eligible_parent_count": 244,
+        "metrics": {
+          "support": 244,
+          "positive": 229,
+          "negative": 15,
+          "accuracy": 0.9426229508196722,
+          "precision": 0.9423868312757202,
+          "recall": 1.0,
+          "f1": 0.9703389830508474,
+          "auroc": 0.8844250363901018,
+          "auprc": 0.9914977539664067,
+          "confusion": {
+            "tp": 229,
+            "fp": 14,
+            "fn": 0,
+            "tn": 1
+          }
+        }
+      },
+      "quality": {
+        "metrics": {
+          "support": 247,
+          "positive": 244,
+          "negative": 3,
+          "accuracy": 0.9919028340080972,
+          "precision": 0.991869918699187,
+          "recall": 1.0,
+          "f1": 0.9959183673469388,
+          "auroc": 0.7117486338797814,
+          "auprc": 0.995350302516116,
+          "confusion": {
+            "tp": 244,
+            "fp": 2,
+            "fn": 0,
+            "tn": 1
+          }
+        },
+        "positive_count": 244
+      },
+      "classification_logits_changed": false,
+      "unknown_is_classifier_class": false,
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/checkpoints/V27d-r1-known_gate-seed42-heads.pt",
+        "head_state_sha256": "b2725f669904a2f49e7eac65c8738657546ae9afc4888cfd702414d5e8396fb8"
+      }
+    },
+    "dbb_specialist:representation_development": {
+      "schema_version": "RADAR-LN3-V27d-task-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "task": "dbb_specialist",
+      "role": "representation_development",
+      "seed": 42,
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "endpoint": {
+        "classification_endpoint": "v27a_main_l2_epoch20",
+        "metrics": {
+          "support": 505,
+          "accuracy": 0.9955849889624724,
+          "by_class": {
+            "DroneTarget": {
+              "support": 228,
+              "tp": 228,
+              "fp": 2,
+              "fn": 0,
+              "precision": 0.991304347826087,
+              "recall": 1.0,
+              "f1": 0.9956331877729258
+            },
+            "BirdTarget": {
+              "support": 114,
+              "tp": 112,
+              "fp": 48,
+              "fn": 2,
+              "precision": 0.7,
+              "recall": 0.9824561403508771,
+              "f1": 0.8175182481751825
+            },
+            "BalloonTarget": {
+              "support": 111,
+              "tp": 111,
+              "fp": 4,
+              "fn": 0,
+              "precision": 0.9652173913043478,
+              "recall": 1.0,
+              "f1": 0.9823008849557522
+            }
+          },
+          "evaluated_support": 453
+        }
+      },
+      "knownness": {
+        "population": "DBB and Unknown; quality-eligible parents",
+        "eligible_parent_count": 487,
+        "metrics": {
+          "support": 487,
+          "positive": 451,
+          "negative": 36,
+          "accuracy": 0.7494866529774127,
+          "precision": 0.9969788519637462,
+          "recall": 0.7317073170731707,
+          "f1": 0.8439897698209717,
+          "auroc": 0.9331731953683173,
+          "auprc": 0.9942955488141956,
+          "confusion": {
+            "tp": 330,
+            "fp": 1,
+            "fn": 121,
+            "tn": 35
+          }
+        }
+      },
+      "quality": {
+        "metrics": {
+          "support": 505,
+          "positive": 501,
+          "negative": 4,
+          "accuracy": 0.9920792079207921,
+          "precision": 0.9920792079207921,
+          "recall": 1.0,
+          "f1": 0.9960238568588469,
+          "auroc": 0.9955089820359282,
+          "auprc": 0.9999639265968341,
+          "confusion": {
+            "tp": 501,
+            "fp": 4,
+            "fn": 0,
+            "tn": 0
+          }
+        },
+        "positive_count": 501
+      },
+      "classification_logits_changed": false,
+      "unknown_is_classifier_class": false,
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/checkpoints/V27d-r1-dbb_specialist-seed42-heads.pt",
+        "head_state_sha256": "db964f24ad6ea35e68d79ab52f89d1bd6f62235efb4415c66a9d301645b3bd8f"
+      }
+    },
+    "dbb_specialist:calibration": {
+      "schema_version": "RADAR-LN3-V27d-task-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "task": "dbb_specialist",
+      "role": "calibration",
+      "seed": 42,
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "endpoint": {
+        "classification_endpoint": "v27a_main_l2_epoch20",
+        "metrics": {
+          "support": 247,
+          "accuracy": 0.9641255605381166,
+          "by_class": {
+            "DroneTarget": {
+              "support": 113,
+              "tp": 109,
+              "fp": 2,
+              "fn": 4,
+              "precision": 0.9819819819819819,
+              "recall": 0.9646017699115044,
+              "f1": 0.9732142857142857
+            },
+            "BirdTarget": {
+              "support": 56,
+              "tp": 54,
+              "fp": 28,
+              "fn": 2,
+              "precision": 0.6585365853658537,
+              "recall": 0.9642857142857143,
+              "f1": 0.782608695652174
+            },
+            "BalloonTarget": {
+              "support": 54,
+              "tp": 52,
+              "fp": 2,
+              "fn": 2,
+              "precision": 0.9629629629629629,
+              "recall": 0.9629629629629629,
+              "f1": 0.9629629629629629
+            }
+          },
+          "evaluated_support": 223
+        }
+      },
+      "knownness": {
+        "population": "DBB and Unknown; quality-eligible parents",
+        "eligible_parent_count": 235,
+        "metrics": {
+          "support": 235,
+          "positive": 220,
+          "negative": 15,
+          "accuracy": 0.7319148936170212,
+          "precision": 1.0,
+          "recall": 0.7136363636363636,
+          "f1": 0.8328912466843501,
+          "auroc": 0.9027272727272727,
+          "auprc": 0.9931333939037449,
+          "confusion": {
+            "tp": 157,
+            "fp": 0,
+            "fn": 63,
+            "tn": 15
+          }
+        }
+      },
+      "quality": {
+        "metrics": {
+          "support": 247,
+          "positive": 244,
+          "negative": 3,
+          "accuracy": 0.9878542510121457,
+          "precision": 0.9878542510121457,
+          "recall": 1.0,
+          "f1": 0.9938900203665988,
+          "auroc": 1.0,
+          "auprc": 1.0,
+          "confusion": {
+            "tp": 244,
+            "fp": 3,
+            "fn": 0,
+            "tn": 0
+          }
+        },
+        "positive_count": 244
+      },
+      "classification_logits_changed": false,
+      "unknown_is_classifier_class": false,
+      "checkpoint": {
+        "path": "src-v3/v27/V27d/checkpoints/V27d-r1-dbb_specialist-seed42-heads.pt",
+        "head_state_sha256": "db964f24ad6ea35e68d79ab52f89d1bd6f62235efb4415c66a9d301645b3bd8f"
+      }
+    }
+  },
+  "l3": {
+    "representation_development": {
+      "schema_version": "RADAR-LN3-V27d-l3-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "role": "representation_development",
+      "seed": 42,
+      "calibration_scope": "internal_exploratory",
+      "calibration_status": "unavailable",
+      "calibration_formal_status_reason": "post_selection_audit_pool_not_available",
+      "action_counts": {
+        "PENDING_ABSTAIN": 505
+      },
+      "reason_counts": {
+        "CALIBRATION_NOT_FITTED": 501,
+        "LOW_QUALITY_OR_IMMATURE": 4
+      },
+      "by_label": {
+        "BalloonTarget": {
+          "support": 111,
+          "action_counts": {
+            "PENDING_ABSTAIN": 111
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 111
+          }
+        },
+        "BirdTarget": {
+          "support": 114,
+          "action_counts": {
+            "PENDING_ABSTAIN": 114
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 113,
+            "LOW_QUALITY_OR_IMMATURE": 1
+          }
+        },
+        "ClutterTarget": {
+          "support": 14,
+          "action_counts": {
+            "PENDING_ABSTAIN": 14
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 14
+          }
+        },
+        "DroneTarget": {
+          "support": 228,
+          "action_counts": {
+            "PENDING_ABSTAIN": 228
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 227,
+            "LOW_QUALITY_OR_IMMATURE": 1
+          }
+        },
+        "UnknownTarget": {
+          "support": 38,
+          "action_counts": {
+            "PENDING_ABSTAIN": 38
+          },
+          "reason_counts": {
+            "LOW_QUALITY_OR_IMMATURE": 2,
+            "CALIBRATION_NOT_FITTED": 36
+          }
+        }
+      },
+      "quality_eligible_counts": {
+        "unknown": 36,
+        "known": 451,
+        "clutter": 14,
+        "l1": 501,
+        "l2": 501
+      },
+      "rates": {
+        "unknown_rejection": 0.0,
+        "known_dbb_acceptance": 0.0,
+        "clutter_acceptance": 0.0
+      },
+      "open_set": {
+        "known": {
+          "eligible_support": 451,
+          "dbb_route_accepted": 0,
+          "dbb_route_recall": 0.0,
+          "exact_class_accepted": 0,
+          "exact_class_acceptance_rate": 0.0,
+          "wrong_nonreject_accepted": 0,
+          "wrong_nonreject_acceptance_rate": 0.0,
+          "unknown_rejected": 0,
+          "pending": 451,
+          "not_accepted_rate": 1.0
+        },
+        "unknown": {
+          "eligible_support": 36,
+          "strictly_rejected": 0,
+          "strict_rejection_rate": 0.0,
+          "error_accepted": 0,
+          "error_acceptance_rate": 0.0,
+          "pending": 36,
+          "pending_rate": 1.0
+        },
+        "clutter": {
+          "eligible_support": 14,
+          "accepted": 0,
+          "recall": 0.0,
+          "nonclutter_action": 14
+        }
+      },
+      "low_quality_pending_count": 4,
+      "l1_low_quality_pending_count": 4,
+      "l2_low_quality_pending_count": 0
+    },
+    "calibration": {
+      "schema_version": "RADAR-LN3-V27d-l3-evaluation-v1",
+      "experiment_id": "V27d",
+      "variant": "r1",
+      "role": "calibration",
+      "seed": 42,
+      "calibration_scope": "internal_exploratory",
+      "calibration_status": "unavailable",
+      "calibration_formal_status_reason": "post_selection_audit_pool_not_available",
+      "action_counts": {
+        "PENDING_ABSTAIN": 247
+      },
+      "reason_counts": {
+        "CALIBRATION_NOT_FITTED": 244,
+        "LOW_QUALITY_OR_IMMATURE": 3
+      },
+      "by_label": {
+        "BalloonTarget": {
+          "support": 54,
+          "action_counts": {
+            "PENDING_ABSTAIN": 54
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 54
+          }
+        },
+        "BirdTarget": {
+          "support": 56,
+          "action_counts": {
+            "PENDING_ABSTAIN": 56
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 55,
+            "LOW_QUALITY_OR_IMMATURE": 1
+          }
+        },
+        "ClutterTarget": {
+          "support": 9,
+          "action_counts": {
+            "PENDING_ABSTAIN": 9
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 9
+          }
+        },
+        "DroneTarget": {
+          "support": 113,
+          "action_counts": {
+            "PENDING_ABSTAIN": 113
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 111,
+            "LOW_QUALITY_OR_IMMATURE": 2
+          }
+        },
+        "UnknownTarget": {
+          "support": 15,
+          "action_counts": {
+            "PENDING_ABSTAIN": 15
+          },
+          "reason_counts": {
+            "CALIBRATION_NOT_FITTED": 15
+          }
+        }
+      },
+      "quality_eligible_counts": {
+        "unknown": 15,
+        "known": 220,
+        "clutter": 9,
+        "l1": 244,
+        "l2": 244
+      },
+      "rates": {
+        "unknown_rejection": 0.0,
+        "known_dbb_acceptance": 0.0,
+        "clutter_acceptance": 0.0
+      },
+      "open_set": {
+        "known": {
+          "eligible_support": 220,
+          "dbb_route_accepted": 0,
+          "dbb_route_recall": 0.0,
+          "exact_class_accepted": 0,
+          "exact_class_acceptance_rate": 0.0,
+          "wrong_nonreject_accepted": 0,
+          "wrong_nonreject_acceptance_rate": 0.0,
+          "unknown_rejected": 0,
+          "pending": 220,
+          "not_accepted_rate": 1.0
+        },
+        "unknown": {
+          "eligible_support": 15,
+          "strictly_rejected": 0,
+          "strict_rejection_rate": 0.0,
+          "error_accepted": 0,
+          "error_acceptance_rate": 0.0,
+          "pending": 15,
+          "pending_rate": 1.0
+        },
+        "clutter": {
+          "eligible_support": 9,
+          "accepted": 0,
+          "recall": 0.0,
+          "nonclutter_action": 9
+        }
+      },
+      "low_quality_pending_count": 3,
+      "l1_low_quality_pending_count": 3,
+      "l2_low_quality_pending_count": 0
+    }
+  },
+  "deployment_eligible": false,
+  "formal_conformal_support": false,
+  "payload_sha256": "2dadd3f024d558a9256d054393509d9e7a60a5105c5fb0422811ae284eb181f1"
+}

@@ -1,0 +1,162 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r15-training-summary-v1",
+  "experiment_id": "V27d-r15",
+  "status": "completed_fixed_epoch_l1_training",
+  "arm": "control",
+  "seed": 42,
+  "epochs": 20,
+  "primary_epoch": 20,
+  "train_parent_count": 986,
+  "validation_parent_count": 232,
+  "history": [
+    {
+      "epoch": 1,
+      "global_step": 493,
+      "train_loss": 0.055209296316869036,
+      "gradient_norm_max": 933.437255859375,
+      "gradient_clipped_steps": 3
+    },
+    {
+      "epoch": 2,
+      "global_step": 986,
+      "train_loss": 0.024240792940952105,
+      "gradient_norm_max": 202.57940673828125,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 3,
+      "global_step": 1479,
+      "train_loss": 0.02698557652833184,
+      "gradient_norm_max": 233.80874633789062,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 4,
+      "global_step": 1972,
+      "train_loss": 0.025509737597947984,
+      "gradient_norm_max": 344.29376220703125,
+      "gradient_clipped_steps": 2
+    },
+    {
+      "epoch": 5,
+      "global_step": 2465,
+      "train_loss": 0.17546903006222409,
+      "gradient_norm_max": 616.8460693359375,
+      "gradient_clipped_steps": 3
+    },
+    {
+      "epoch": 6,
+      "global_step": 2958,
+      "train_loss": 0.06944726404771029,
+      "gradient_norm_max": 931.4244995117188,
+      "gradient_clipped_steps": 5
+    },
+    {
+      "epoch": 7,
+      "global_step": 3451,
+      "train_loss": 0.02276720562646341,
+      "gradient_norm_max": 728.5045166015625,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 8,
+      "global_step": 3944,
+      "train_loss": 0.027396894161968208,
+      "gradient_norm_max": 812.1688842773438,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 9,
+      "global_step": 4437,
+      "train_loss": 0.022751654767533804,
+      "gradient_norm_max": 559.06103515625,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 10,
+      "global_step": 4930,
+      "train_loss": 0.02401847124382387,
+      "gradient_norm_max": 101.58914184570312,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 11,
+      "global_step": 5423,
+      "train_loss": 0.0226664852509634,
+      "gradient_norm_max": 105.75851440429688,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 12,
+      "global_step": 5916,
+      "train_loss": 0.028417985481390698,
+      "gradient_norm_max": 243.08639526367188,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 13,
+      "global_step": 6409,
+      "train_loss": 0.015236706524086374,
+      "gradient_norm_max": 48.17568588256836,
+      "gradient_clipped_steps": 0
+    },
+    {
+      "epoch": 14,
+      "global_step": 6902,
+      "train_loss": 0.016641422292703108,
+      "gradient_norm_max": 269.8060302734375,
+      "gradient_clipped_steps": 2
+    },
+    {
+      "epoch": 15,
+      "global_step": 7395,
+      "train_loss": 0.01267523240671955,
+      "gradient_norm_max": 148.75526428222656,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 16,
+      "global_step": 7888,
+      "train_loss": 0.01358429614193754,
+      "gradient_norm_max": 26.04055404663086,
+      "gradient_clipped_steps": 0
+    },
+    {
+      "epoch": 17,
+      "global_step": 8381,
+      "train_loss": 0.034018474365594,
+      "gradient_norm_max": 1746.8416748046875,
+      "gradient_clipped_steps": 1
+    },
+    {
+      "epoch": 18,
+      "global_step": 8874,
+      "train_loss": 0.0924891599321277,
+      "gradient_norm_max": 707.527099609375,
+      "gradient_clipped_steps": 3
+    },
+    {
+      "epoch": 19,
+      "global_step": 9367,
+      "train_loss": 0.02669750020453663,
+      "gradient_norm_max": 466.9076232910156,
+      "gradient_clipped_steps": 2
+    },
+    {
+      "epoch": 20,
+      "global_step": 9860,
+      "train_loss": 0.025762192101907798,
+      "gradient_norm_max": 417.82452392578125,
+      "gradient_clipped_steps": 2
+    }
+  ],
+  "checkpoint_path": "F:\\Project\\RadarInsight\\src-v3\\v27\\V27d\\r15\\checkpoints\\v5\\V27d-r15-control-seed42.pt",
+  "checkpoint_state_sha256": "24ca3a3277b8c0eb78702cd59263909eac91f01fc185b2d7c550fc4e704369b6",
+  "manifest_sha256": "a3f5cd9aac08fbd8dd604a0524b4d847d2ff22e301ddf6fd34e2bdcfbcad55df",
+  "config_sha256": "e21c0c3569d009c4b6a2009bfd75eb68fb9e395e89ba97107325fa79bef4695a",
+  "unknown_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "deployment_eligible": false,
+  "elapsed_seconds": 2642.338144599984,
+  "payload_sha256": "5ca5992308555d6d609f99eba1114e73799cc9ed30c7d393fce8a71e5f78529d"
+}

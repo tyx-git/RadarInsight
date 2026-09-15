@@ -1,0 +1,20 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r9-causal-doppler-profile-shape-v1-smoke",
+  "experiment_id": "V27d-r9",
+  "status": "passed",
+  "manifest_sha256": "77102fe7f567023aa4ab501b08d731aed6835c0359cccaba65c1b9ce678251c5",
+  "zero_branch_replays_frozen_v27a_main": true,
+  "causal_prefix_invariance": true,
+  "invalid_profile_zero_residual": true,
+  "padding_zero_and_no_state_update": true,
+  "chunked_continuation_matches_full_sequence": true,
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "formal_l3_enabled": false,
+  "class_names": [
+    "DroneTarget",
+    "BirdTarget",
+    "BalloonTarget"
+  ],
+  "payload_sha256": "b6a57788a2cfb3e8f1e8acf70c5bf849b56e0ed9f2a43b5fc459a8b74535ce21"
+}

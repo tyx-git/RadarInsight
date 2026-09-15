@@ -1,0 +1,103 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r9-causal-doppler-profile-shape-v1-manifest",
+  "experiment_id": "V27d-r9",
+  "config": {
+    "path": "src-v3/v27/V27d/r9/config/V27d-r9-causal-doppler-profile-shape.json",
+    "sha256": "26a43f1f14dd557b5c83669db30650606b64e93cb77c98806a2114021ea3ac8a",
+    "identity_sha256": "402ae5971a80efcb0c9737f739da317ae1e332ad47e0c226491c8fab447aaf5f"
+  },
+  "source": {
+    "v27b_train_cache_path": "src-v3/v27/v27b/calibration/features/V27b-r5-train-direct-frame-features.pt",
+    "v27b_validation_cache_path": "src-v3/v27/v27b/calibration/features/V27b-r5-validation-direct-frame-features.pt",
+    "raw_train_evidence_path": "data/processed/RADAR-LN3-V18-cq08-dbb-train-broadband-multiscale-micro-doppler-evidence-cache.npz",
+    "raw_validation_evidence_path": "data/processed/RADAR-LN3-V18-cq08-dbb-val-broadband-multiscale-micro-doppler-evidence-cache.npz",
+    "v27b_train_cache_file_sha256": "551f97521bc46846ad00806f78bbd4f80ee7e72b2fc4fde04a7199d8ee5ce5c9",
+    "v27b_validation_cache_file_sha256": "ceab68e04bca8fcc1b05229466c3491954e2b15cdcb277d7fea109d8d2848800",
+    "raw_train_evidence_sha256": "f689da7826390465424f696e650afb1941f76fa4a97ba140e8ef3809335b647f",
+    "raw_validation_evidence_sha256": "5ce5ab654556a0044464b806a7a66854bede775e002df1b2cbb541964a281b86",
+    "v27b_train_cache_payload_sha256": "94f515c8356f47ad41cbb71804dc8606f96b4194f63e0a293323cec35d78587c",
+    "v27b_validation_cache_payload_sha256": "d936e46cfb28bb596d9e36ee29e45acd838c4ed0b9a5ad16d4df3e8de6a8df87"
+  },
+  "model": {
+    "class_names": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "profile_bins": 181,
+    "profile_projection_dim": 32,
+    "hidden_dim": 64,
+    "pairwise_delta_bound": 6.0,
+    "activation": "silu",
+    "residual_layout": [
+      "DroneTarget:+delta/2",
+      "BirdTarget:-delta/2",
+      "BalloonTarget:0"
+    ],
+    "zero_initialized_output": true
+  },
+  "training": {
+    "dataloader_seed": 42,
+    "batch_size": 32,
+    "epochs": 120,
+    "primary_epoch": 120,
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 10.0,
+    "bootstrap_replicates": 1000,
+    "device": "cuda",
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "class_weights": [
+      0.6673669467787114,
+      1.3291492329149233,
+      1.334733893557423
+    ]
+  },
+  "promotion": {
+    "minimum_bird_recall": 0.96,
+    "maximum_new_errors": 0,
+    "minimum_drone_bird_corrections": 1,
+    "minimum_total_correct_gain": 1,
+    "require_all_seeds": true
+  },
+  "protocol": {
+    "direct_baseline": "V27a-r3-main-epoch-020",
+    "liquid_v2_backbone": "frozen",
+    "l2_endpoint": "frozen_v27a_main_logits_plus_causal_profile_residual",
+    "unique_variable": "causal_doppler_profile_shape_branch",
+    "profile_source": "V18 residual_doppler_profiles_only",
+    "profile_bins": 181,
+    "profile_normalization": "per-frame-profile-mean-then-event-l1-shape",
+    "causal_inputs": [
+      "current_valid_event_shape",
+      "causal_running_mean_shape",
+      "causal_running_std_shape",
+      "delta_from_previous_valid_event_shape"
+    ],
+    "envelope_profile_used": false,
+    "classification_logits_input_to_branch": false,
+    "softmax_input_to_branch": false,
+    "label_identity_input_to_branch": false,
+    "unknown_training_exposure": 0,
+    "quality_training_exposure": 0,
+    "formal_l3_enabled": false,
+    "gru_used": false,
+    "liquid_v2_retrained": false,
+    "padding_policy": "suffix-masked-no-state-update",
+    "invalid_profile_policy": "zero-residual-and-preserve-causal-profile-state",
+    "checkpoint_selection": "fixed_primary_epoch; validation is diagnostic only"
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d/r9/__init__.py": "cdfb886eb81681073182e00ccc1b662dda3b011f6a43da89923040bf2d69d21b",
+    "src-v3/v27/V27d/r9/checkpoint.py": "9a6b9f6adc0f4ffb0e0a5ad50251b32cd0beb37ea5b94ed4e5cd384191630347",
+    "src-v3/v27/V27d/r9/cli.py": "d3365de427615b1aca9caf06fad86a80eb8d5ef738886a31c2e57cbc18a2d742",
+    "src-v3/v27/V27d/r9/evaluation.py": "1475a3fd33a456be717eb46beb842abe3695edbc41f86ea4635bf3b11016183d",
+    "src-v3/v27/V27d/r9/features.py": "8cceea300695302315b69993d87aaf289f3d87a58e7b12da2d0bed011cf9393c",
+    "src-v3/v27/V27d/r9/model.py": "27f9b943b58ee13bec3e0d6a3169f030d76d63ac1199495d061e1021a2640d68",
+    "src-v3/v27/V27d/r9/protocol.py": "276a1a005f8b1f59c0a59a9a1f77ef8f36dae86ba45d7bf0d7b77ec5001f32eb",
+    "src-v3/v27/V27d/r9/smoke.py": "7faabe9fe124b3093ced5e03ed18d4f865eddda437f3ca5018e1b0d6a847663c",
+    "src-v3/v27/V27d/r9/training.py": "282a40fd1a8f6630ba53901aaa0d6d76a2bda347ac8e1546b2a683a9fc08040f"
+  },
+  "payload_sha256": "b5d4328c365d5583dc466bc8f21041311b89a7bb312b7cc3bc9af37d40f79538"
+}

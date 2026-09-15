@@ -1,0 +1,35 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r8-contract-smoke-v1",
+  "experiment_id": "V27d-r8-joint-course-stable8",
+  "status": "passed",
+  "manifest_sha256": "ebb3d465995b609fdcc7b1477d4531a2f94e876348179d57c786f4f01811e5e7",
+  "arms": [
+    "zero_control",
+    "stable8_treatment",
+    "course_treatment",
+    "joint_treatment"
+  ],
+  "arm_flags": {
+    "zero_control": {
+      "course": false,
+      "stable8": false
+    },
+    "stable8_treatment": {
+      "course": false,
+      "stable8": true
+    },
+    "course_treatment": {
+      "course": true,
+      "stable8": false
+    },
+    "joint_treatment": {
+      "course": true,
+      "stable8": true
+    }
+  },
+  "zero_replays_r6_bitwise": true,
+  "course_and_dispersion_padding_zero": true,
+  "formal_l3_enabled": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "3085d71a328a7175470118e17f1ecfbaba69f3b79b12c88d675784045c35022a"
+}

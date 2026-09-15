@@ -1,0 +1,766 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r11-two-seed-summary-v1",
+  "experiment_id": "V27d-r11",
+  "manifest_sha256": "cd4d0f3a480697e2c686525493f30ad193db9ad058ef18b8d116b41128b8cabb",
+  "seeds": [
+    42,
+    44
+  ],
+  "direct_baseline": "V27d-r6-liquid_treatment",
+  "rows": [
+    {
+      "seed": 42,
+      "pools": {
+        "representation_development": {
+          "treatment": {
+            "threshold": 0.32925286889076233,
+            "ranking": {
+              "support": 140,
+              "positive": 108,
+              "negative": 32,
+              "auroc_higher_is_known": 0.8411458333333334,
+              "score_mean_positive": 0.807919442653656,
+              "score_mean_negative": 0.512161910533905
+            },
+            "actions": {
+              "threshold": 0.32925286889076233,
+              "candidate_support": 140,
+              "bird_support": 108,
+              "false_positive_support": 32,
+              "accepted_bird": 104,
+              "rejected_bird": 4,
+              "bird_action_precision": 0.832,
+              "bird_action_recall": 0.9629629629629629,
+              "accepted_false_positive": 21,
+              "rejected_false_positive": 11,
+              "false_positive_rejection": 0.34375,
+              "unknown_support": 32,
+              "unknown_rejection": 0.34375,
+              "pending_low_quality_excluded": 4,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "BirdTarget": {
+                  "support": 108,
+                  "accepted": 104,
+                  "rejected": 4
+                },
+                "ClutterTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 32,
+                  "accepted": 21,
+                  "rejected": 11
+                }
+              }
+            }
+          },
+          "direct_baseline": {
+            "threshold": 0.4139149785041809,
+            "ranking": {
+              "support": 140,
+              "positive": 108,
+              "negative": 32,
+              "auroc_higher_is_known": 0.8356481481481481,
+              "score_mean_positive": 0.8546814918518066,
+              "score_mean_negative": 0.6074367761611938
+            },
+            "actions": {
+              "threshold": 0.4139149785041809,
+              "candidate_support": 140,
+              "bird_support": 108,
+              "false_positive_support": 32,
+              "accepted_bird": 105,
+              "rejected_bird": 3,
+              "bird_action_precision": 0.8076923076923077,
+              "bird_action_recall": 0.9722222222222222,
+              "accepted_false_positive": 25,
+              "rejected_false_positive": 7,
+              "false_positive_rejection": 0.21875,
+              "unknown_support": 32,
+              "unknown_rejection": 0.21875,
+              "pending_low_quality_excluded": 4,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "BirdTarget": {
+                  "support": 108,
+                  "accepted": 105,
+                  "rejected": 3
+                },
+                "ClutterTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 32,
+                  "accepted": 25,
+                  "rejected": 7
+                }
+              }
+            }
+          },
+          "comparison": {
+            "threshold_delta": -0.08466210961341858,
+            "action_delta": {
+              "bird_action_precision": 0.024307692307692252,
+              "bird_action_recall": -0.0092592592592593,
+              "false_positive_rejection": 0.125,
+              "unknown_rejection": 0.125
+            },
+            "auroc_delta": 0.00549768518518523,
+            "accepted_bird_delta": -1,
+            "accepted_false_positive_delta": -4
+          }
+        },
+        "calibration": {
+          "treatment": {
+            "threshold": 0.32925286889076233,
+            "ranking": {
+              "support": 71,
+              "positive": 53,
+              "negative": 18,
+              "auroc_higher_is_known": 0.8165618448637316,
+              "score_mean_positive": 0.788415789604187,
+              "score_mean_negative": 0.5642628073692322
+            },
+            "actions": {
+              "threshold": 0.32925286889076233,
+              "candidate_support": 71,
+              "bird_support": 53,
+              "false_positive_support": 18,
+              "accepted_bird": 52,
+              "rejected_bird": 1,
+              "bird_action_precision": 0.7761194029850746,
+              "bird_action_recall": 0.9811320754716981,
+              "accepted_false_positive": 15,
+              "rejected_false_positive": 3,
+              "false_positive_rejection": 0.16666666666666666,
+              "unknown_support": 12,
+              "unknown_rejection": 0.16666666666666666,
+              "pending_low_quality_excluded": 3,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 1,
+                  "accepted": 0,
+                  "rejected": 1
+                },
+                "BirdTarget": {
+                  "support": 53,
+                  "accepted": 52,
+                  "rejected": 1
+                },
+                "ClutterTarget": {
+                  "support": 1,
+                  "accepted": 1,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 4,
+                  "accepted": 4,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 12,
+                  "accepted": 10,
+                  "rejected": 2
+                }
+              }
+            }
+          },
+          "direct_baseline": {
+            "threshold": 0.4139149785041809,
+            "ranking": {
+              "support": 71,
+              "positive": 53,
+              "negative": 18,
+              "auroc_higher_is_known": 0.8071278825995807,
+              "score_mean_positive": 0.8444872498512268,
+              "score_mean_negative": 0.6579086780548096
+            },
+            "actions": {
+              "threshold": 0.4139149785041809,
+              "candidate_support": 71,
+              "bird_support": 53,
+              "false_positive_support": 18,
+              "accepted_bird": 52,
+              "rejected_bird": 1,
+              "bird_action_precision": 0.7761194029850746,
+              "bird_action_recall": 0.9811320754716981,
+              "accepted_false_positive": 15,
+              "rejected_false_positive": 3,
+              "false_positive_rejection": 0.16666666666666666,
+              "unknown_support": 12,
+              "unknown_rejection": 0.16666666666666666,
+              "pending_low_quality_excluded": 3,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 1,
+                  "accepted": 0,
+                  "rejected": 1
+                },
+                "BirdTarget": {
+                  "support": 53,
+                  "accepted": 52,
+                  "rejected": 1
+                },
+                "ClutterTarget": {
+                  "support": 1,
+                  "accepted": 1,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 4,
+                  "accepted": 4,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 12,
+                  "accepted": 10,
+                  "rejected": 2
+                }
+              }
+            }
+          },
+          "comparison": {
+            "threshold_delta": -0.08466210961341858,
+            "action_delta": {
+              "bird_action_precision": 0.0,
+              "bird_action_recall": 0.0,
+              "false_positive_rejection": 0.0,
+              "unknown_rejection": 0.0
+            },
+            "auroc_delta": 0.009433962264150941,
+            "accepted_bird_delta": 0,
+            "accepted_false_positive_delta": 0
+          }
+        }
+      }
+    },
+    {
+      "seed": 44,
+      "pools": {
+        "representation_development": {
+          "treatment": {
+            "threshold": 0.29693204164505005,
+            "ranking": {
+              "support": 140,
+              "positive": 108,
+              "negative": 32,
+              "auroc_higher_is_known": 0.8556134259259259,
+              "score_mean_positive": 0.801770031452179,
+              "score_mean_negative": 0.4450613856315613
+            },
+            "actions": {
+              "threshold": 0.29693204164505005,
+              "candidate_support": 140,
+              "bird_support": 108,
+              "false_positive_support": 32,
+              "accepted_bird": 103,
+              "rejected_bird": 5,
+              "bird_action_precision": 0.8442622950819673,
+              "bird_action_recall": 0.9537037037037037,
+              "accepted_false_positive": 19,
+              "rejected_false_positive": 13,
+              "false_positive_rejection": 0.40625,
+              "unknown_support": 32,
+              "unknown_rejection": 0.40625,
+              "pending_low_quality_excluded": 4,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "BirdTarget": {
+                  "support": 108,
+                  "accepted": 103,
+                  "rejected": 5
+                },
+                "ClutterTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 32,
+                  "accepted": 19,
+                  "rejected": 13
+                }
+              }
+            }
+          },
+          "direct_baseline": {
+            "threshold": 0.28841838240623474,
+            "ranking": {
+              "support": 140,
+              "positive": 108,
+              "negative": 32,
+              "auroc_higher_is_known": 0.8553240740740741,
+              "score_mean_positive": 0.8056729435920715,
+              "score_mean_negative": 0.4572206139564514
+            },
+            "actions": {
+              "threshold": 0.28841838240623474,
+              "candidate_support": 140,
+              "bird_support": 108,
+              "false_positive_support": 32,
+              "accepted_bird": 105,
+              "rejected_bird": 3,
+              "bird_action_precision": 0.8333333333333334,
+              "bird_action_recall": 0.9722222222222222,
+              "accepted_false_positive": 21,
+              "rejected_false_positive": 11,
+              "false_positive_rejection": 0.34375,
+              "unknown_support": 32,
+              "unknown_rejection": 0.34375,
+              "pending_low_quality_excluded": 4,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "BirdTarget": {
+                  "support": 108,
+                  "accepted": 105,
+                  "rejected": 3
+                },
+                "ClutterTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 0,
+                  "accepted": 0,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 32,
+                  "accepted": 21,
+                  "rejected": 11
+                }
+              }
+            }
+          },
+          "comparison": {
+            "threshold_delta": 0.008513659238815308,
+            "action_delta": {
+              "bird_action_precision": 0.010928961748633892,
+              "bird_action_recall": -0.01851851851851849,
+              "false_positive_rejection": 0.0625,
+              "unknown_rejection": 0.0625
+            },
+            "auroc_delta": 0.0002893518518518601,
+            "accepted_bird_delta": -2,
+            "accepted_false_positive_delta": -2
+          }
+        },
+        "calibration": {
+          "treatment": {
+            "threshold": 0.29693204164505005,
+            "ranking": {
+              "support": 71,
+              "positive": 53,
+              "negative": 18,
+              "auroc_higher_is_known": 0.8207547169811321,
+              "score_mean_positive": 0.7665284872055054,
+              "score_mean_negative": 0.4900798201560974
+            },
+            "actions": {
+              "threshold": 0.29693204164505005,
+              "candidate_support": 71,
+              "bird_support": 53,
+              "false_positive_support": 18,
+              "accepted_bird": 51,
+              "rejected_bird": 2,
+              "bird_action_precision": 0.7727272727272727,
+              "bird_action_recall": 0.9622641509433962,
+              "accepted_false_positive": 15,
+              "rejected_false_positive": 3,
+              "false_positive_rejection": 0.16666666666666666,
+              "unknown_support": 12,
+              "unknown_rejection": 0.16666666666666666,
+              "pending_low_quality_excluded": 3,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 1,
+                  "accepted": 0,
+                  "rejected": 1
+                },
+                "BirdTarget": {
+                  "support": 53,
+                  "accepted": 51,
+                  "rejected": 2
+                },
+                "ClutterTarget": {
+                  "support": 1,
+                  "accepted": 1,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 4,
+                  "accepted": 4,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 12,
+                  "accepted": 10,
+                  "rejected": 2
+                }
+              }
+            }
+          },
+          "direct_baseline": {
+            "threshold": 0.28841838240623474,
+            "ranking": {
+              "support": 71,
+              "positive": 53,
+              "negative": 18,
+              "auroc_higher_is_known": 0.8249475890985325,
+              "score_mean_positive": 0.7721116542816162,
+              "score_mean_negative": 0.4992311894893646
+            },
+            "actions": {
+              "threshold": 0.28841838240623474,
+              "candidate_support": 71,
+              "bird_support": 53,
+              "false_positive_support": 18,
+              "accepted_bird": 52,
+              "rejected_bird": 1,
+              "bird_action_precision": 0.7761194029850746,
+              "bird_action_recall": 0.9811320754716981,
+              "accepted_false_positive": 15,
+              "rejected_false_positive": 3,
+              "false_positive_rejection": 0.16666666666666666,
+              "unknown_support": 12,
+              "unknown_rejection": 0.16666666666666666,
+              "pending_low_quality_excluded": 3,
+              "by_label": {
+                "BalloonTarget": {
+                  "support": 1,
+                  "accepted": 0,
+                  "rejected": 1
+                },
+                "BirdTarget": {
+                  "support": 53,
+                  "accepted": 52,
+                  "rejected": 1
+                },
+                "ClutterTarget": {
+                  "support": 1,
+                  "accepted": 1,
+                  "rejected": 0
+                },
+                "DroneTarget": {
+                  "support": 4,
+                  "accepted": 4,
+                  "rejected": 0
+                },
+                "UnknownTarget": {
+                  "support": 12,
+                  "accepted": 10,
+                  "rejected": 2
+                }
+              }
+            }
+          },
+          "comparison": {
+            "threshold_delta": 0.008513659238815308,
+            "action_delta": {
+              "bird_action_precision": -0.0033921302578019397,
+              "bird_action_recall": -0.018867924528301883,
+              "false_positive_rejection": 0.0,
+              "unknown_rejection": 0.0
+            },
+            "auroc_delta": -0.004192872117400381,
+            "accepted_bird_delta": -1,
+            "accepted_false_positive_delta": 0
+          }
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "representation_development_treatment_bird_action_precision": {
+      "mean": 0.8381311475409836,
+      "std": 0.00867075200536953,
+      "values": [
+        0.832,
+        0.8442622950819673
+      ]
+    },
+    "representation_development_treatment_bird_action_recall": {
+      "mean": 0.9583333333333333,
+      "std": 0.0065472850109865015,
+      "values": [
+        0.9629629629629629,
+        0.9537037037037037
+      ]
+    },
+    "representation_development_treatment_false_positive_rejection": {
+      "mean": 0.375,
+      "std": 0.04419417382415922,
+      "values": [
+        0.34375,
+        0.40625
+      ]
+    },
+    "representation_development_treatment_unknown_rejection": {
+      "mean": 0.375,
+      "std": 0.04419417382415922,
+      "values": [
+        0.34375,
+        0.40625
+      ]
+    },
+    "representation_development_treatment_auroc": {
+      "mean": 0.8483796296296297,
+      "std": 0.010230132829666463,
+      "values": [
+        0.8411458333333334,
+        0.8556134259259259
+      ]
+    },
+    "representation_development_direct_baseline_bird_action_precision": {
+      "mean": 0.8205128205128205,
+      "std": 0.018130943107347388,
+      "values": [
+        0.8076923076923077,
+        0.8333333333333334
+      ]
+    },
+    "representation_development_direct_baseline_bird_action_recall": {
+      "mean": 0.9722222222222222,
+      "std": 0.0,
+      "values": [
+        0.9722222222222222,
+        0.9722222222222222
+      ]
+    },
+    "representation_development_direct_baseline_false_positive_rejection": {
+      "mean": 0.28125,
+      "std": 0.08838834764831845,
+      "values": [
+        0.21875,
+        0.34375
+      ]
+    },
+    "representation_development_direct_baseline_unknown_rejection": {
+      "mean": 0.28125,
+      "std": 0.08838834764831845,
+      "values": [
+        0.21875,
+        0.34375
+      ]
+    },
+    "representation_development_direct_baseline_auroc": {
+      "mean": 0.8454861111111112,
+      "std": 0.013912980648346424,
+      "values": [
+        0.8356481481481481,
+        0.8553240740740741
+      ]
+    },
+    "representation_development_bird_action_precision_delta": {
+      "mean": 0.017618327028163072,
+      "std": 0.009460191101977856,
+      "values": [
+        0.024307692307692252,
+        0.010928961748633892
+      ]
+    },
+    "representation_development_bird_action_recall_delta": {
+      "mean": -0.013888888888888895,
+      "std": 0.0065472850109865015,
+      "values": [
+        -0.0092592592592593,
+        -0.01851851851851849
+      ]
+    },
+    "representation_development_false_positive_rejection_delta": {
+      "mean": 0.09375,
+      "std": 0.04419417382415922,
+      "values": [
+        0.125,
+        0.0625
+      ]
+    },
+    "representation_development_unknown_rejection_delta": {
+      "mean": 0.09375,
+      "std": 0.04419417382415922,
+      "values": [
+        0.125,
+        0.0625
+      ]
+    },
+    "representation_development_auroc_delta": {
+      "mean": 0.0028935185185185452,
+      "std": 0.003682847818679961,
+      "values": [
+        0.00549768518518523,
+        0.0002893518518518601
+      ]
+    },
+    "calibration_treatment_bird_action_precision": {
+      "mean": 0.7744233378561737,
+      "std": 0.002398598307959823,
+      "values": [
+        0.7761194029850746,
+        0.7727272727272727
+      ]
+    },
+    "calibration_treatment_bird_action_recall": {
+      "mean": 0.9716981132075472,
+      "std": 0.013341637380878252,
+      "values": [
+        0.9811320754716981,
+        0.9622641509433962
+      ]
+    },
+    "calibration_treatment_false_positive_rejection": {
+      "mean": 0.16666666666666666,
+      "std": 0.0,
+      "values": [
+        0.16666666666666666,
+        0.16666666666666666
+      ]
+    },
+    "calibration_treatment_unknown_rejection": {
+      "mean": 0.16666666666666666,
+      "std": 0.0,
+      "values": [
+        0.16666666666666666,
+        0.16666666666666666
+      ]
+    },
+    "calibration_treatment_auroc": {
+      "mean": 0.8186582809224319,
+      "std": 0.0029648083068618864,
+      "values": [
+        0.8165618448637316,
+        0.8207547169811321
+      ]
+    },
+    "calibration_direct_baseline_bird_action_precision": {
+      "mean": 0.7761194029850746,
+      "std": 0.0,
+      "values": [
+        0.7761194029850746,
+        0.7761194029850746
+      ]
+    },
+    "calibration_direct_baseline_bird_action_recall": {
+      "mean": 0.9811320754716981,
+      "std": 0.0,
+      "values": [
+        0.9811320754716981,
+        0.9811320754716981
+      ]
+    },
+    "calibration_direct_baseline_false_positive_rejection": {
+      "mean": 0.16666666666666666,
+      "std": 0.0,
+      "values": [
+        0.16666666666666666,
+        0.16666666666666666
+      ]
+    },
+    "calibration_direct_baseline_unknown_rejection": {
+      "mean": 0.16666666666666666,
+      "std": 0.0,
+      "values": [
+        0.16666666666666666,
+        0.16666666666666666
+      ]
+    },
+    "calibration_direct_baseline_auroc": {
+      "mean": 0.8160377358490566,
+      "std": 0.01260043530416282,
+      "values": [
+        0.8071278825995807,
+        0.8249475890985325
+      ]
+    },
+    "calibration_bird_action_precision_delta": {
+      "mean": -0.0016960651289009698,
+      "std": 0.002398598307959823,
+      "values": [
+        0.0,
+        -0.0033921302578019397
+      ]
+    },
+    "calibration_bird_action_recall_delta": {
+      "mean": -0.009433962264150941,
+      "std": 0.013341637380878252,
+      "values": [
+        0.0,
+        -0.018867924528301883
+      ]
+    },
+    "calibration_false_positive_rejection_delta": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0,
+        0.0
+      ]
+    },
+    "calibration_unknown_rejection_delta": {
+      "mean": 0.0,
+      "std": 0.0,
+      "values": [
+        0.0,
+        0.0
+      ]
+    },
+    "calibration_auroc_delta": {
+      "mean": 0.00262054507337528,
+      "std": 0.009635626997300934,
+      "values": [
+        0.009433962264150941,
+        -0.004192872117400381
+      ]
+    }
+  },
+  "criteria": {
+    "recall_safe_within_configured_budget": false,
+    "false_positive_rejection_non_decreasing": true,
+    "false_positive_rejection_gain_each_seed_and_pool": false,
+    "ranking_non_degrading_each_seed_and_pool": false,
+    "development_calibration_same_direction": false,
+    "formal_calibration_support_sufficient": false
+  },
+  "decision": "diagnostic_only_no_promotion",
+  "formal_l3_enabled": false,
+  "deployment_eligible": false,
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "payload_sha256": "ac0db78c5b223e26abb4eb0b6f3ea24221bc6b77f281e9671e24231566f8b4ba"
+}

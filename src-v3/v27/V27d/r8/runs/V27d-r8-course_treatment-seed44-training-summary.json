@@ -1,0 +1,26 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r8-training-summary-v1",
+  "experiment_id": "V27d-r8-joint-course-stable8",
+  "arm": "course_treatment",
+  "seed": 44,
+  "selected_epoch": 2,
+  "selection": {
+    "feasible": true,
+    "threshold": 0.16072921454906464,
+    "accepted_bird": 105,
+    "bird_support": 108,
+    "rejected_bird": 3,
+    "accepted_false_positive": 20,
+    "rejected_false_positive": 12,
+    "false_positive_rejection": 0.375,
+    "bird_precision": 0.84
+  },
+  "checkpoint_path": "src-v3/v27/V27d/r8/checkpoints/V27d-r8-course_treatment-seed44.pt",
+  "log_path": "src-v3/v27/V27d/r8/runs/V27d-r8-course_treatment-seed44.log",
+  "r6_initial_checkpoint_path": "src-v3/v27/V27d/r6/checkpoints/V27d-r6-liquid_treatment-seed44.pt",
+  "use_course": true,
+  "use_stable8": false,
+  "frozen_liquid_core": true,
+  "formal_l3_enabled": false,
+  "payload_sha256": "1ffe0b8407183ffb1914ffc8e8add011dcb1bef38067fc69c81e7620afa80b51"
+}

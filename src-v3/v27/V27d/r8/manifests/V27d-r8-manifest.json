@@ -1,0 +1,89 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r8-manifest-v1",
+  "experiment_id": "V27d-r8-joint-course-stable8",
+  "config": {
+    "path": "src-v3/v27/V27d/r8/config/V27d-r8-joint-course-stable8.json",
+    "sha256": "c8f4d27e95ebd69b88fcaba06ce7ab79be98cf8b24ad0725e4b92c868919a07e",
+    "identity_sha256": "83d4cdd16df08765f49d8d1e00c5f86cb71c094aa3e6fdfeb44bc52d43fb2a4d"
+  },
+  "source": {
+    "r6_config_path": "src-v3/v27/V27d/r6/config/V27d-r6-bird-liquid-verifier.json",
+    "r6_config_sha256": "e2f29f81b896b5b48cd82934670eb44e5033adc8638831b87ece1296c1042301",
+    "r6_manifest_path": "src-v3/v27/V27d/r6/manifests/V27d-r6-manifest.json",
+    "r6_manifest_sha256": "76851b6dda933bf86a3f629679920dcbc6835a5da834b4b918fa79b67debd1f7",
+    "r6_manifest_payload_sha256": "c4a7aedc3e88f6fd8665e922e7cf3982f43c9b9820ac9c6bc75271e7008126b1",
+    "course_cache_template": "src-v3/v27/v27_baseline/calibration/features/V27-{role}-mixed-course-cache.npz",
+    "course_fit_sha256": "8579ca704523a8df9bd55bc46d5b6976e68de5daca62d5d2a0ac121d0495e245",
+    "course_development_sha256": "1ee93e6985721525aee1caa0a6614ac6a7fab7afdb944f4ea7a9592b649901d3",
+    "course_calibration_sha256": "83dd2fa9b203085af989f47e8ce5eeb058e6ba2936b7bf367b256800d2c948dd",
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "forensics_report_path": "src-v3/v27/V27d/r7/feature-forensics/V27d-r7-feature-forensics.json",
+    "forensics_report_sha256": "52b86105aa760f9d36e99b9d612d8ecced7a090e50227ff89aa7bf63efbe0f17"
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d/r8/__init__.py": "45ad02fcc2234c6a53b08b76cd8f531e6d8c12063fce75124930ee47aaa2422c",
+    "src-v3/v27/V27d/r8/cli.py": "ed001860b58c1047acbba5ace84378c2f93e04dfc5ab0a04914828e937dcb30d",
+    "src-v3/v27/V27d/r8/evaluation.py": "0163344f6018f3074306e254ec4d3659cd9fb88b0531425b415c1ca5525cd3dc",
+    "src-v3/v27/V27d/r8/features.py": "72cbc21d6035ea230cb3346e92ecc18bc85e64bae036c962f2ed8e863e8bc2d8",
+    "src-v3/v27/V27d/r8/model.py": "1b115e36c438dbb2448a7873bbd8b081a2006dfcab7176fb13c038f119c3bfda",
+    "src-v3/v27/V27d/r8/protocol.py": "89b96ed379556cca8f3408044943e0e28fd9fa212575fdf42b33352d71cbb707",
+    "src-v3/v27/V27d/r8/smoke.py": "85b0da787cf670c997a3e81cc652be9fde89302f5756978edacf6de1542719cc",
+    "src-v3/v27/V27d/r8/summary.py": "e5f2babbfbb105e2bca0cec38f8a97754650ea14602bb6848499e093c216bbc8",
+    "src-v3/v27/V27d/r8/training.py": "c41f8a16ecbc2b0555e3ed95629609c3b80c95dc2cbaf0ee78d2778ffb981d6a"
+  },
+  "arms": [
+    "zero_control",
+    "stable8_treatment",
+    "course_treatment",
+    "joint_treatment"
+  ],
+  "roles": [
+    "representation_fit",
+    "representation_development",
+    "calibration"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "protocol": {
+    "direct_baseline": "V27d-r6-liquid_treatment",
+    "unique_variable": "paired_causal_v21e_course_and_stable8_dispersion_readout_branches",
+    "arms": {
+      "zero_control": {
+        "course": false,
+        "stable8": false
+      },
+      "stable8_treatment": {
+        "course": false,
+        "stable8": true
+      },
+      "course_treatment": {
+        "course": true,
+        "stable8": false
+      },
+      "joint_treatment": {
+        "course": true,
+        "stable8": true
+      }
+    },
+    "course_source": "V21e causal_prefix_course_circular_incoherence, exact event-order aligned",
+    "stable8_source": "r6 event_frame_values channel 6 pulse_envelope_rms_clipped_0_2_over_2",
+    "course_valid_is_model_input": false,
+    "dispersion_valid_fraction_is_model_input": false,
+    "classification_logits_input_to_head": false,
+    "softmax_input_to_head": false,
+    "label_identity_input_to_head": false,
+    "unknown_is_classifier_class": false,
+    "l1_l2_endpoints_frozen": true,
+    "liquid_v2_core_frozen": true,
+    "r6_initialization": true,
+    "strict_parent_class_balanced_loss": true,
+    "route_matched_population": true,
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "8acada568cb9eaf5c9b8824c47477a3ddd60593156d17c4d307d920e30e7a09b"
+}

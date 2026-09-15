@@ -1,0 +1,45 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r10-two-seed-summary-v1",
+  "experiment_id": "V27d-r10",
+  "status": "completed_two_seed_known_class_evaluation",
+  "direct_baseline": "V27a-r3-main-epoch-020",
+  "manifest_sha256": "a29fd02613553d322bbf2d4b5442b9fdfb803157985934167ef701e2dc05a569",
+  "seeds": [
+    42,
+    44
+  ],
+  "per_seed": {
+    "42": {
+      "bird_precision": 0.9152542372881356,
+      "bird_recall": 0.9642857142857143,
+      "bird_f1": 0.9391304347826087,
+      "total_correct_delta": 0,
+      "new_error_count": 0,
+      "drone_bird_correction_count": 0,
+      "drone_to_bird_error_delta": 0,
+      "passed": false
+    },
+    "44": {
+      "bird_precision": 0.9,
+      "bird_recall": 0.9642857142857143,
+      "bird_f1": 0.9310344827586207,
+      "total_correct_delta": -1,
+      "new_error_count": 1,
+      "drone_bird_correction_count": 0,
+      "drone_to_bird_error_delta": 1,
+      "passed": false
+    }
+  },
+  "promotion_standard": {
+    "minimum_bird_recall": 0.96,
+    "maximum_new_errors": 0,
+    "minimum_drone_bird_corrections": 1,
+    "minimum_total_correct_gain": 1,
+    "require_all_seeds": true
+  },
+  "promotion_passed": false,
+  "formal_l3_enabled": false,
+  "unknown_support": 0,
+  "deployment_eligible": false,
+  "payload_sha256": "40dab36e685c57bfaf801e245241d8b38d9d2d75ab4434cde13d47fe4d6a4044"
+}

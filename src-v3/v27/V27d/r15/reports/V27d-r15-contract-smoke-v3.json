@@ -1,0 +1,32 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r15-contract-smoke-v1",
+  "experiment_id": "V27d-r15",
+  "status": "passed",
+  "checks": {
+    "v10_shape": true,
+    "v10_finite": true,
+    "v10_invalid_zero": true,
+    "same_second_does_not_use_dt": true,
+    "causal_prefix_is_future_independent": true,
+    "cache_views_complete": true,
+    "cache_dataset_alignment": true,
+    "cache_padding_zero": true,
+    "zero_initialized_arms_replay": true,
+    "unknown_not_in_training_view": true,
+    "test_payload_unopened": true
+  },
+  "observation_increment_names": [
+    "reported_speed_delta_scaled",
+    "radial_speed_delta_scaled",
+    "course_delta_scaled",
+    "geometric_step_distance_scaled",
+    "range_delta_scaled",
+    "radial_range_direction_agreement",
+    "radial_sign_flip",
+    "consecutive_step_direction_cosine",
+    "causal_path_straightness"
+  ],
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "payload_sha256": "b444a2bcaf973b6b8a45e4ca4727b68b7f9396fd19363f84b5e7737e4feb4c73"
+}
