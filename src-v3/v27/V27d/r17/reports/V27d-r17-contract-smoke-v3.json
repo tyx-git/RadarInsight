@@ -1,0 +1,38 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r17-contract-smoke-v2",
+  "experiment_id": "V27d-r17",
+  "status": "passed",
+  "manifest_path": "F:\\Project\\RadarInsight\\src-v3\\v27\\V27d\\r17\\manifests\\V27d-r17-manifest-v3.json",
+  "manifest_sha256": "95d24669414f1572befc04ad7e5fed29237afb95b910d44ba1b117620e6ca7e8",
+  "checks": {
+    "only_declared_classes": true,
+    "no_unknown_or_excluded_training_labels": true,
+    "l2_is_dbb_only": true,
+    "manifest_data_scope": true,
+    "l1_placeholder_one_frame": true,
+    "l1_rd_missing_quality": true,
+    "l1_padded_quality_zero": true,
+    "l1_finite_inputs": true,
+    "l2_placeholder_one_frame": true,
+    "l2_rd_missing_quality": true,
+    "l2_padded_quality_zero": true,
+    "l2_finite_inputs": true,
+    "l2_clipping_audit_present": true,
+    "frozen_l1_forward_finite": true,
+    "frozen_l2_forward_finite": true,
+    "unknown_not_loaded": true,
+    "test_payload_unopened": true
+  },
+  "parent_counts": {
+    "train_l1": 338,
+    "validation_l1": 85,
+    "train_l2": 337,
+    "validation_l2": 85
+  },
+  "training": "not_executed",
+  "threshold_fitting": "not_executed",
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "deployment_eligible": false,
+  "payload_sha256": "8f5717dff279af158d7083fc1423709efef94560122adf67a57a249afe5968d3"
+}
