@@ -1,0 +1,21 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r18-contract-smoke-v3",
+  "experiment_id": "V27d-r18",
+  "status": "passed",
+  "manifest_path": "F:\\Project\\RadarInsight\\src-v3\\v27\\V27d\\r18\\manifests\\V27d-r18-manifest-v3.json",
+  "manifest_sha256": "028235f65a0c81ffdee1ebf8a9220443548e7b8d6d3a5d0dcb62b04e52cfc992",
+  "checks": {
+    "same_parent_population": true,
+    "nonempty_split": true,
+    "radial_speed_ablation_changes_input": true,
+    "ablation_marks_radial_speed_missing": true,
+    "padded_values_zero": true,
+    "unknown_not_in_protocol": true,
+    "test_not_accessed": true
+  },
+  "train": "not_executed",
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "deployment_eligible": false,
+  "payload_sha256": "f39de982aa7d9e6d595f5c5158949a6cc7b0808b6f2c4b8e20f86c1ae195c6e7"
+}

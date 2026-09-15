@@ -1,0 +1,43 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r18-config-v3",
+  "experiment_id": "V27d-r18",
+  "variant": "source-stratified-r17-tr-only-radial-speed-audit",
+  "objective": "Fix a deterministic source-by-label parent split and test the causal contribution of radial_speed_mps and its radial-derived observation increments under the frozen r17 TR-only input contract.",
+  "source": {
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "r17_config_path": "src-v3/v27/V27d/r17/config/V27d-r17-excel-tr-only.json"
+  },
+  "data": {
+    "split_strategy": "source_suffix+label_parent_stratified_deterministic",
+    "split_seed": 42,
+    "validation_fraction": 0.2,
+    "minimum_group_size_for_validation": 5,
+    "parent_boundary": "source_suffix+StartTimer+Batch",
+    "unknown_training_exposure": 0,
+    "test_created": false,
+    "radial_speed_ablation": "set radial_speed_mps missing before ordinary TR encoding and causal observation-increment encoding"
+  },
+  "training": {
+    "seeds": [42],
+    "batch_size": 4,
+    "epochs": 20,
+    "gradient_clip_norm": 100.0,
+    "l2_learning_rate": 0.00001,
+    "weight_decay": 0.001,
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "optimizer": "AdamW",
+    "device": "cuda",
+    "checkpoint_selection": "validation_parent_macro_f1_then_min_recall",
+    "training": "not_started"
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r18/manifests/V27d-r18-manifest-v3.json",
+    "diagnostic_report_path": "src-v3/v27/V27d/r18/reports/V27d-r18-radial-speed-diagnostic-v3.json",
+    "comparison_report_path": "src-v3/v27/V27d/r18/reports/V27d-r18-trained-comparison-v2.json",
+    "smoke_path": "src-v3/v27/V27d/r18/reports/V27d-r18-contract-smoke-v3.json",
+    "checkpoint_template": "src-v3/v27/V27d/r18/runs-v3/V27d-r18-{arm}-seed{seed}/checkpoint.pt",
+    "epoch_checkpoint_template": "src-v3/v27/V27d/r18/runs-v3/V27d-r18-{arm}-seed{seed}/epochs/epoch-{epoch:03d}.pt",
+    "training_summary_template": "src-v3/v27/V27d/r18/runs-v3/V27d-r18-{arm}-seed{seed}/training-summary.json"
+  }
+}
