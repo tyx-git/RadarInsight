@@ -1,0 +1,1903 @@
+{
+  "schema_version": "RADAR-LN3-V28-training-summary-v2",
+  "experiment_id": "V28",
+  "task": "l1_known_gate",
+  "seed": 42,
+  "status": "completed",
+  "elapsed_seconds": 2430.3843167999876,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4133391452666659,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.905587668593449,
+        "macro_precision": 0.6206427015250544,
+        "macro_recall": 0.8497368421052631,
+        "macro_f1": 0.6643259724660445,
+        "balanced_accuracy": 0.8497368421052631,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9912854030501089,
+            "recall": 0.91,
+            "f1": 0.948905109489051,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 45
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.25,
+            "recall": 0.7894736842105263,
+            "f1": 0.379746835443038,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 4
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            455,
+            45
+          ],
+          [
+            4,
+            15
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 1,
+        "ranking_key": [
+          0.379746835443038,
+          0.6643259724660445,
+          -1.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.905587668593449,
+          "macro_precision": 0.6206427015250544,
+          "macro_recall": 0.8497368421052631,
+          "macro_f1": 0.6643259724660445,
+          "balanced_accuracy": 0.8497368421052631,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9912854030501089,
+              "recall": 0.91,
+              "f1": 0.948905109489051,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 45
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.25,
+              "recall": 0.7894736842105263,
+              "f1": 0.379746835443038,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 4
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              455,
+              45
+            ],
+            [
+              4,
+              15
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.21818372275895223,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9460500963391136,
+        "macro_precision": 0.6746165357276468,
+        "macro_recall": 0.7947894736842105,
+        "macro_f1": 0.7165704478077703,
+        "balanced_accuracy": 0.7947894736842105,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.98559670781893,
+            "recall": 0.958,
+            "f1": 0.971602434077079,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 21
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.36363636363636365,
+            "recall": 0.631578947368421,
+            "f1": 0.46153846153846156,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 7
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            479,
+            21
+          ],
+          [
+            7,
+            12
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 2,
+        "ranking_key": [
+          0.46153846153846156,
+          0.7165704478077703,
+          -2.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9460500963391136,
+          "macro_precision": 0.6746165357276468,
+          "macro_recall": 0.7947894736842105,
+          "macro_f1": 0.7165704478077703,
+          "balanced_accuracy": 0.7947894736842105,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.98559670781893,
+              "recall": 0.958,
+              "f1": 0.971602434077079,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 21
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.36363636363636365,
+              "recall": 0.631578947368421,
+              "f1": 0.46153846153846156,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 7
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              479,
+              21
+            ],
+            [
+              7,
+              12
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.24527519199654907,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.8882466281310212,
+        "macro_precision": 0.6233766233766234,
+        "macro_recall": 0.942,
+        "macro_f1": 0.6671311040339702,
+        "balanced_accuracy": 0.942,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.884,
+            "f1": 0.9384288747346072,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 58
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.24675324675324675,
+            "recall": 1.0,
+            "f1": 0.3958333333333333,
+            "support": 19,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            442,
+            58
+          ],
+          [
+            0,
+            19
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 3,
+        "ranking_key": [
+          0.3958333333333333,
+          0.6671311040339702,
+          -3.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.8882466281310212,
+          "macro_precision": 0.6233766233766234,
+          "macro_recall": 0.942,
+          "macro_f1": 0.6671311040339702,
+          "balanced_accuracy": 0.942,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.884,
+              "f1": 0.9384288747346072,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 58
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.24675324675324675,
+              "recall": 1.0,
+              "f1": 0.3958333333333333,
+              "support": 19,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              442,
+              58
+            ],
+            [
+              0,
+              19
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.17499592554214227,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9691714836223507,
+        "macro_precision": 0.7716984661429105,
+        "macro_recall": 0.9586842105263158,
+        "macro_f1": 0.8380402558901544,
+        "balanced_accuracy": 0.9586842105263158,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9979423868312757,
+            "recall": 0.97,
+            "f1": 0.9837728194726165,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 15
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5454545454545454,
+            "recall": 0.9473684210526315,
+            "f1": 0.6923076923076923,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            485,
+            15
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 4,
+        "ranking_key": [
+          0.6923076923076923,
+          0.8380402558901544,
+          -4.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9691714836223507,
+          "macro_precision": 0.7716984661429105,
+          "macro_recall": 0.9586842105263158,
+          "macro_f1": 0.8380402558901544,
+          "balanced_accuracy": 0.9586842105263158,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9979423868312757,
+              "recall": 0.97,
+              "f1": 0.9837728194726165,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 15
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5454545454545454,
+              "recall": 0.9473684210526315,
+              "f1": 0.6923076923076923,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              485,
+              15
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.13609064726505238,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9710982658959537,
+        "macro_precision": 0.7802233059548255,
+        "macro_recall": 0.9596842105263157,
+        "macro_f1": 0.8453423922760593,
+        "balanced_accuracy": 0.9596842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.997946611909651,
+            "recall": 0.972,
+            "f1": 0.9848024316109422,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 14
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5625,
+            "recall": 0.9473684210526315,
+            "f1": 0.7058823529411765,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            486,
+            14
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 5,
+        "ranking_key": [
+          0.7058823529411765,
+          0.8453423922760593,
+          -5.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9710982658959537,
+          "macro_precision": 0.7802233059548255,
+          "macro_recall": 0.9596842105263157,
+          "macro_f1": 0.8453423922760593,
+          "balanced_accuracy": 0.9596842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.997946611909651,
+              "recall": 0.972,
+              "f1": 0.9848024316109422,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 14
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5625,
+              "recall": 0.9473684210526315,
+              "f1": 0.7058823529411765,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              486,
+              14
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.09094320411563046,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9788053949903661,
+        "macro_precision": 0.8204102414896712,
+        "macro_recall": 0.9636842105263157,
+        "macro_f1": 0.8774287738583421,
+        "balanced_accuracy": 0.9636842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9979633401221996,
+            "recall": 0.98,
+            "f1": 0.9889001009081735,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 10
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.6428571428571429,
+            "recall": 0.9473684210526315,
+            "f1": 0.7659574468085106,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            490,
+            10
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 6,
+        "ranking_key": [
+          0.7659574468085106,
+          0.8774287738583421,
+          -6.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9788053949903661,
+          "macro_precision": 0.8204102414896712,
+          "macro_recall": 0.9636842105263157,
+          "macro_f1": 0.8774287738583421,
+          "balanced_accuracy": 0.9636842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9979633401221996,
+              "recall": 0.98,
+              "f1": 0.9889001009081735,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 10
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.6428571428571429,
+              "recall": 0.9473684210526315,
+              "f1": 0.7659574468085106,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              490,
+              10
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.11457529730008294,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9922928709055877,
+        "macro_precision": 0.9453684210526316,
+        "macro_recall": 0.9453684210526316,
+        "macro_f1": 0.9453684210526316,
+        "balanced_accuracy": 0.9453684210526316,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.996,
+            "recall": 0.996,
+            "f1": 0.996,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8947368421052632,
+            "recall": 0.8947368421052632,
+            "f1": 0.8947368421052632,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            498,
+            2
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 7,
+        "ranking_key": [
+          0.8947368421052632,
+          0.9453684210526316,
+          -7.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9922928709055877,
+          "macro_precision": 0.9453684210526316,
+          "macro_recall": 0.9453684210526316,
+          "macro_f1": 0.9453684210526316,
+          "balanced_accuracy": 0.9453684210526316,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.996,
+              "recall": 0.996,
+              "f1": 0.996,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 2
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8947368421052632,
+              "recall": 0.8947368421052632,
+              "f1": 0.8947368421052632,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              498,
+              2
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.05538325631368157,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9595375722543352,
+        "macro_precision": 0.7358026042236568,
+        "macro_recall": 0.9536842105263157,
+        "macro_f1": 0.8050861097698374,
+        "balanced_accuracy": 0.9536842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.997920997920998,
+            "recall": 0.96,
+            "f1": 0.9785932721712539,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 20
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.47368421052631576,
+            "recall": 0.9473684210526315,
+            "f1": 0.631578947368421,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            480,
+            20
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 8,
+        "ranking_key": [
+          0.631578947368421,
+          0.8050861097698374,
+          -8.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9595375722543352,
+          "macro_precision": 0.7358026042236568,
+          "macro_recall": 0.9536842105263157,
+          "macro_f1": 0.8050861097698374,
+          "balanced_accuracy": 0.9536842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.997920997920998,
+              "recall": 0.96,
+              "f1": 0.9785932721712539,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 20
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.47368421052631576,
+              "recall": 0.9473684210526315,
+              "f1": 0.631578947368421,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              480,
+              20
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.04322596186967009,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9865125240847784,
+        "macro_precision": 0.9583451202263084,
+        "macro_recall": 0.8411052631578948,
+        "macro_f1": 0.8904568068747173,
+        "balanced_accuracy": 0.8411052631578948,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9881188118811881,
+            "recall": 0.998,
+            "f1": 0.9930348258706467,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9285714285714286,
+            "recall": 0.6842105263157895,
+            "f1": 0.7878787878787878,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 6
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            499,
+            1
+          ],
+          [
+            6,
+            13
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 9,
+        "ranking_key": [
+          0.7878787878787878,
+          0.8904568068747173,
+          -9.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9865125240847784,
+          "macro_precision": 0.9583451202263084,
+          "macro_recall": 0.8411052631578948,
+          "macro_f1": 0.8904568068747173,
+          "balanced_accuracy": 0.8411052631578948,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9881188118811881,
+              "recall": 0.998,
+              "f1": 0.9930348258706467,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9285714285714286,
+              "recall": 0.6842105263157895,
+              "f1": 0.7878787878787878,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 6
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              499,
+              1
+            ],
+            [
+              6,
+              13
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.09793033576908752,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9672447013487476,
+        "macro_precision": 0.7638888888888888,
+        "macro_recall": 0.983,
+        "macro_f1": 0.8368075464718394,
+        "balanced_accuracy": 0.983,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.966,
+            "f1": 0.982706002034588,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 17
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5277777777777778,
+            "recall": 1.0,
+            "f1": 0.6909090909090909,
+            "support": 19,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            483,
+            17
+          ],
+          [
+            0,
+            19
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 10,
+        "ranking_key": [
+          0.6909090909090909,
+          0.8368075464718394,
+          -10.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9672447013487476,
+          "macro_precision": 0.7638888888888888,
+          "macro_recall": 0.983,
+          "macro_f1": 0.8368075464718394,
+          "balanced_accuracy": 0.983,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.966,
+              "f1": 0.982706002034588,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 17
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5277777777777778,
+              "recall": 1.0,
+              "f1": 0.6909090909090909,
+              "support": 19,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              483,
+              17
+            ],
+            [
+              0,
+              19
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.05118639320513218,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9672447013487476,
+        "macro_precision": 0.7638888888888888,
+        "macro_recall": 0.983,
+        "macro_f1": 0.8368075464718394,
+        "balanced_accuracy": 0.983,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.966,
+            "f1": 0.982706002034588,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 17
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.5277777777777778,
+            "recall": 1.0,
+            "f1": 0.6909090909090909,
+            "support": 19,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            483,
+            17
+          ],
+          [
+            0,
+            19
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 11,
+        "ranking_key": [
+          0.6909090909090909,
+          0.8368075464718394,
+          -11.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9672447013487476,
+          "macro_precision": 0.7638888888888888,
+          "macro_recall": 0.983,
+          "macro_f1": 0.8368075464718394,
+          "balanced_accuracy": 0.983,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.966,
+              "f1": 0.982706002034588,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 17
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.5277777777777778,
+              "recall": 1.0,
+              "f1": 0.6909090909090909,
+              "support": 19,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              483,
+              17
+            ],
+            [
+              0,
+              19
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.025818219208894856,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9942196531791907,
+        "macro_precision": 0.9702262142381903,
+        "macro_recall": 0.9463684210526315,
+        "macro_f1": 0.957960957960958,
+        "balanced_accuracy": 0.9463684210526315,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9960079840319361,
+            "recall": 0.998,
+            "f1": 0.997002997002997,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9444444444444444,
+            "recall": 0.8947368421052632,
+            "f1": 0.918918918918919,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            499,
+            1
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 12,
+        "ranking_key": [
+          0.918918918918919,
+          0.957960957960958,
+          -12.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9942196531791907,
+          "macro_precision": 0.9702262142381903,
+          "macro_recall": 0.9463684210526315,
+          "macro_f1": 0.957960957960958,
+          "balanced_accuracy": 0.9463684210526315,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9960079840319361,
+              "recall": 0.998,
+              "f1": 0.997002997002997,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9444444444444444,
+              "recall": 0.8947368421052632,
+              "f1": 0.918918918918919,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              499,
+              1
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.055604470435044386,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9884393063583815,
+        "macro_precision": 0.9027538726333907,
+        "macro_recall": 0.9433684210526316,
+        "macro_f1": 0.921993987975952,
+        "balanced_accuracy": 0.9433684210526316,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9959839357429718,
+            "recall": 0.992,
+            "f1": 0.9939879759519038,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8095238095238095,
+            "recall": 0.8947368421052632,
+            "f1": 0.8500000000000001,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            496,
+            4
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 13,
+        "ranking_key": [
+          0.8500000000000001,
+          0.921993987975952,
+          -13.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9884393063583815,
+          "macro_precision": 0.9027538726333907,
+          "macro_recall": 0.9433684210526316,
+          "macro_f1": 0.921993987975952,
+          "balanced_accuracy": 0.9433684210526316,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9959839357429718,
+              "recall": 0.992,
+              "f1": 0.9939879759519038,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 4
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8095238095238095,
+              "recall": 0.8947368421052632,
+              "f1": 0.8500000000000001,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              496,
+              4
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.025913411617561635,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9942196531791907,
+        "macro_precision": 0.9318181818181819,
+        "macro_recall": 0.997,
+        "macro_f1": 0.9619101206057196,
+        "balanced_accuracy": 0.997,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 0.994,
+            "f1": 0.9969909729187563,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 3
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8636363636363636,
+            "recall": 1.0,
+            "f1": 0.9268292682926829,
+            "support": 19,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            497,
+            3
+          ],
+          [
+            0,
+            19
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 14,
+        "ranking_key": [
+          0.9268292682926829,
+          0.9619101206057196,
+          -14.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9942196531791907,
+          "macro_precision": 0.9318181818181819,
+          "macro_recall": 0.997,
+          "macro_f1": 0.9619101206057196,
+          "balanced_accuracy": 0.997,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 0.994,
+              "f1": 0.9969909729187563,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 3
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8636363636363636,
+              "recall": 1.0,
+              "f1": 0.9268292682926829,
+              "support": 19,
+              "major_confusion_to": null,
+              "major_confusion_count": 0
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              497,
+              3
+            ],
+            [
+              0,
+              19
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.027763172913478035,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9942196531791907,
+        "macro_precision": 0.948997995991984,
+        "macro_recall": 0.9716842105263157,
+        "macro_f1": 0.96003696003696,
+        "balanced_accuracy": 0.9716842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9979959919839679,
+            "recall": 0.996,
+            "f1": 0.9969969969969971,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 2
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9,
+            "recall": 0.9473684210526315,
+            "f1": 0.9230769230769231,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            498,
+            2
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 15,
+        "ranking_key": [
+          0.9230769230769231,
+          0.96003696003696,
+          -15.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9942196531791907,
+          "macro_precision": 0.948997995991984,
+          "macro_recall": 0.9716842105263157,
+          "macro_f1": 0.96003696003696,
+          "balanced_accuracy": 0.9716842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9979959919839679,
+              "recall": 0.996,
+              "f1": 0.9969969969969971,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 2
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9,
+              "recall": 0.9473684210526315,
+              "f1": 0.9230769230769231,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              498,
+              2
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.02062332728264742,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9903660886319846,
+        "macro_precision": 0.9080848728736053,
+        "macro_recall": 0.9696842105263157,
+        "macro_f1": 0.9365168676761993,
+        "balanced_accuracy": 0.9696842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9979879275653923,
+            "recall": 0.992,
+            "f1": 0.9949849548645938,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 4
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.8181818181818182,
+            "recall": 0.9473684210526315,
+            "f1": 0.8780487804878049,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            496,
+            4
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 16,
+        "ranking_key": [
+          0.8780487804878049,
+          0.9365168676761993,
+          -16.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9903660886319846,
+          "macro_precision": 0.9080848728736053,
+          "macro_recall": 0.9696842105263157,
+          "macro_f1": 0.9365168676761993,
+          "balanced_accuracy": 0.9696842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9979879275653923,
+              "recall": 0.992,
+              "f1": 0.9949849548645938,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 4
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.8181818181818182,
+              "recall": 0.9473684210526315,
+              "f1": 0.8780487804878049,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              496,
+              4
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.011764711546900675,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9942196531791907,
+        "macro_precision": 0.9702262142381903,
+        "macro_recall": 0.9463684210526315,
+        "macro_f1": 0.957960957960958,
+        "balanced_accuracy": 0.9463684210526315,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9960079840319361,
+            "recall": 0.998,
+            "f1": 0.997002997002997,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9444444444444444,
+            "recall": 0.8947368421052632,
+            "f1": 0.918918918918919,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            499,
+            1
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 17,
+        "ranking_key": [
+          0.918918918918919,
+          0.957960957960958,
+          -17.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9942196531791907,
+          "macro_precision": 0.9702262142381903,
+          "macro_recall": 0.9463684210526315,
+          "macro_f1": 0.957960957960958,
+          "balanced_accuracy": 0.9463684210526315,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9960079840319361,
+              "recall": 0.998,
+              "f1": 0.997002997002997,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9444444444444444,
+              "recall": 0.8947368421052632,
+              "f1": 0.918918918918919,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              499,
+              1
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.011106516728098067,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9942196531791907,
+        "macro_precision": 0.9702262142381903,
+        "macro_recall": 0.9463684210526315,
+        "macro_f1": 0.957960957960958,
+        "balanced_accuracy": 0.9463684210526315,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9960079840319361,
+            "recall": 0.998,
+            "f1": 0.997002997002997,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 1
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.9444444444444444,
+            "recall": 0.8947368421052632,
+            "f1": 0.918918918918919,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            499,
+            1
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 18,
+        "ranking_key": [
+          0.918918918918919,
+          0.957960957960958,
+          -18.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9942196531791907,
+          "macro_precision": 0.9702262142381903,
+          "macro_recall": 0.9463684210526315,
+          "macro_f1": 0.957960957960958,
+          "balanced_accuracy": 0.9463684210526315,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9960079840319361,
+              "recall": 0.998,
+              "f1": 0.997002997002997,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.9444444444444444,
+              "recall": 0.8947368421052632,
+              "f1": 0.918918918918919,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              499,
+              1
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.02795070741682823,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9865125240847784,
+        "macro_precision": 0.873989898989899,
+        "macro_recall": 0.9676842105263157,
+        "macro_f1": 0.9150870632230922,
+        "balanced_accuracy": 0.9676842105263157,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.997979797979798,
+            "recall": 0.988,
+            "f1": 0.9929648241206029,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 6
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.75,
+            "recall": 0.9473684210526315,
+            "f1": 0.8372093023255814,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 1
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            494,
+            6
+          ],
+          [
+            1,
+            18
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 19,
+        "ranking_key": [
+          0.8372093023255814,
+          0.9150870632230922,
+          -19.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9865125240847784,
+          "macro_precision": 0.873989898989899,
+          "macro_recall": 0.9676842105263157,
+          "macro_f1": 0.9150870632230922,
+          "balanced_accuracy": 0.9676842105263157,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.997979797979798,
+              "recall": 0.988,
+              "f1": 0.9929648241206029,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.75,
+              "recall": 0.9473684210526315,
+              "f1": 0.8372093023255814,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 1
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              494,
+              6
+            ],
+            [
+              1,
+              18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.009963704190270688,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 519,
+        "accuracy": 0.9845857418111753,
+        "macro_precision": 0.8675490883590462,
+        "macro_recall": 0.9413684210526316,
+        "macro_f1": 0.9007458405048767,
+        "balanced_accuracy": 0.9413684210526316,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 0.9959677419354839,
+            "recall": 0.988,
+            "f1": 0.9919678714859438,
+            "support": 500,
+            "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+            "major_confusion_count": 6
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 0.7391304347826086,
+            "recall": 0.8947368421052632,
+            "f1": 0.8095238095238095,
+            "support": 19,
+            "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+            "major_confusion_count": 2
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            494,
+            6
+          ],
+          [
+            2,
+            17
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 20,
+        "ranking_key": [
+          0.8095238095238095,
+          0.9007458405048767,
+          -20.0
+        ],
+        "metrics": {
+          "scope": "parent_final",
+          "support": 519,
+          "accuracy": 0.9845857418111753,
+          "macro_precision": 0.8675490883590462,
+          "macro_recall": 0.9413684210526316,
+          "macro_f1": 0.9007458405048767,
+          "balanced_accuracy": 0.9413684210526316,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 0.9959677419354839,
+              "recall": 0.988,
+              "f1": 0.9919678714859438,
+              "support": 500,
+              "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+              "major_confusion_count": 6
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.7391304347826086,
+              "recall": 0.8947368421052632,
+              "f1": 0.8095238095238095,
+              "support": 19,
+              "major_confusion_to": "KNOWN_TARGET_EVIDENCE",
+              "major_confusion_count": 2
+            }
+          ],
+          "confusion_matrix_rows_true_columns_pred": [
+            [
+              494,
+              6
+            ],
+            [
+              2,
+              17
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "best": {
+    "epoch": 14,
+    "ranking_key": [
+      0.9268292682926829,
+      0.9619101206057196,
+      -14.0
+    ],
+    "metrics": {
+      "scope": "parent_final",
+      "support": 519,
+      "accuracy": 0.9942196531791907,
+      "macro_precision": 0.9318181818181819,
+      "macro_recall": 0.997,
+      "macro_f1": 0.9619101206057196,
+      "balanced_accuracy": 0.997,
+      "per_class": [
+        {
+          "class": "KNOWN_TARGET_EVIDENCE",
+          "precision": 1.0,
+          "recall": 0.994,
+          "f1": 0.9969909729187563,
+          "support": 500,
+          "major_confusion_to": "KNOWN_CLUTTER_EVIDENCE",
+          "major_confusion_count": 3
+        },
+        {
+          "class": "KNOWN_CLUTTER_EVIDENCE",
+          "precision": 0.8636363636363636,
+          "recall": 1.0,
+          "f1": 0.9268292682926829,
+          "support": 19,
+          "major_confusion_to": null,
+          "major_confusion_count": 0
+        }
+      ],
+      "confusion_matrix_rows_true_columns_pred": [
+        [
+          497,
+          3
+        ],
+        [
+          0,
+          19
+        ]
+      ]
+    }
+  },
+  "migration_initialization": {
+    "enabled": true,
+    "source_key": "r15_l1_checkpoint",
+    "source_path": "src-v3/v27/V27d/r15/checkpoints/v3-global-best/V27d-r15-v10_observation_increment-seed42-global-best.pt",
+    "source_checkpoint_sha256": "697e2a5563e277bf7faf6fa8c9658e3c522c61329f302c972fd52dc6e010fb11",
+    "source_model_state_sha256": "5bc6c7a9d430f139b74bd4a551ddecd7eb6c222db8d880fdf50209090be8f2ce",
+    "copied_component_scope": [
+      "tr_encoder",
+      "rd_encoder"
+    ],
+    "copied_target_keys": [
+      "tr_encoder.0.weight",
+      "tr_encoder.0.bias",
+      "tr_encoder.1.weight",
+      "tr_encoder.1.bias",
+      "tr_encoder.3.weight",
+      "tr_encoder.3.bias",
+      "rd_encoder.net.0.weight",
+      "rd_encoder.net.0.bias",
+      "rd_encoder.net.1.weight",
+      "rd_encoder.net.1.bias",
+      "rd_encoder.net.3.weight",
+      "rd_encoder.net.3.bias",
+      "rd_encoder.net.4.weight",
+      "rd_encoder.net.4.bias",
+      "rd_encoder.net.6.weight",
+      "rd_encoder.net.6.bias",
+      "rd_encoder.net.7.weight",
+      "rd_encoder.net.7.bias",
+      "rd_encoder.proj.1.weight",
+      "rd_encoder.proj.1.bias",
+      "rd_encoder.proj.2.weight",
+      "rd_encoder.proj.2.bias"
+    ],
+    "forbidden_components": [
+      "fusion",
+      "liquid",
+      "classifier",
+      "classifier_norm",
+      "observation_residual",
+      "knownness",
+      "quality"
+    ]
+  },
+  "unknown_classifier_training_exposure": 0,
+  "test_payload_access_count": 0
+}

@@ -1,0 +1,1644 @@
+{
+  "schema_version": "RADAR-LN3-V28-head-checkpoint-v2",
+  "experiment_id": "V28",
+  "task": "l1_known_gate",
+  "seed": 42,
+  "status": "fitted",
+  "system_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34",
+  "representation_fit_cache_sha256": "72bf298c29a7ac4e615d2a8ca48db1941a9bf3f6a40a8306533ee5796698b6ec",
+  "representation_development_cache_sha256": "579bcbcc51a9e2ac5a474ca5695ca5a9667d1a189c4da711fb357e6156f12460",
+  "model_contract": {
+    "schema_version": "RADAR-LN3-V28-head-contract-v2",
+    "task": "l1_known_gate",
+    "knownness_input": "raw_causal_liquid_trace_plus_explicit_quality_facts",
+    "knownness_input_dim": 718,
+    "quality_input": "causal_quality_facts_only",
+    "forbidden_inputs": [
+      "l1_logits",
+      "l2_logits",
+      "softmax",
+      "label_identity"
+    ],
+    "recurrent_auxiliary_branch": "none"
+  },
+  "model_contract_sha256": "4ac21588c4964c3046c6e1f5ac283bcc34d376af6dee1edb70af48bb90277be2",
+  "state_dict_sha256": "1a3c06fe3a530d4d67b664da7ec3fcf4aea385ef8a20c34b61d4a66975395528",
+  "knownness_selection": {
+    "epoch": 30,
+    "knownness_loss": 0.07705007493495941,
+    "selection": {
+      "selection_status": "feasible",
+      "deployment_eligible": true,
+      "selected": {
+        "threshold": 0.23753167688846588,
+        "known_target_recall": 0.998,
+        "clutter_recall": 0.8947368421052632,
+        "unknown_rejection": 0.0,
+        "correct_known_new_rejections": 1,
+        "unknown_support": 31,
+        "minimum_negative_support": 10,
+        "support_sufficient": true,
+        "safe": true
+      },
+      "candidate_count": 1102,
+      "support_sufficient": true,
+      "diagnostics": {
+        "auroc": 0.8669277145876064,
+        "auprc": 0.9915307034149743,
+        "brier": 0.1905559883983338,
+        "ece_10bin": 0.3597436126524752,
+        "positive_support": 519,
+        "negative_support": 31
+      }
+    }
+  },
+  "quality_selection": {
+    "epoch": 30,
+    "quality_loss": 0.7732641100883484,
+    "selection": {
+      "selection_status": "feasible",
+      "deployment_eligible": true,
+      "selected": {
+        "threshold": 0.5223644375801086,
+        "positive_recall": 0.9518072289156626,
+        "negative_rejection": 0.7935779816513762,
+        "safe": true
+      },
+      "candidate_count": 1102,
+      "diagnostics": {
+        "auroc": 0.806579529125677,
+        "auprc": 0.7393173722550079,
+        "brier": 0.229503518988111,
+        "ece_10bin": 0.29934934437274935,
+        "positive_support": 332,
+        "negative_support": 218
+      }
+    }
+  },
+  "knownness_history": [
+    {
+      "epoch": 1,
+      "knownness_loss": 0.10902746766805649,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4879246950149536,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1096,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.6046056311765803,
+          "auprc": 0.9581845206364983,
+          "brier": 0.2563152174071624,
+          "ece_10bin": 0.4507671468908136,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 2,
+      "knownness_loss": 0.10576113313436508,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5460660457611084,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.732985269438747,
+          "auprc": 0.9797945478111004,
+          "brier": 0.2049329417524264,
+          "ece_10bin": 0.3897623789310455,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 3,
+      "knownness_loss": 0.10619641840457916,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5564239621162415,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.7950152277953881,
+          "auprc": 0.9857057035380569,
+          "brier": 0.19496691423817217,
+          "ece_10bin": 0.3768944909355857,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 4,
+      "knownness_loss": 0.10642435401678085,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5448753833770752,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8203741686866803,
+          "auprc": 0.9878807552650639,
+          "brier": 0.20147023658241922,
+          "ece_10bin": 0.38557062268257136,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 5,
+      "knownness_loss": 0.10591310262680054,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5244057774543762,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1098,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8324320964634222,
+          "auprc": 0.9888366315048476,
+          "brier": 0.21511531044488794,
+          "ece_10bin": 0.40302133375948124,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 6,
+      "knownness_loss": 0.10525292903184891,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5013687610626221,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8390826030206974,
+          "auprc": 0.9893659952694129,
+          "brier": 0.2316836151738449,
+          "ece_10bin": 0.4232082869789817,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 7,
+      "knownness_loss": 0.10478373616933823,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.48000720143318176,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1098,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8442414071726024,
+          "auprc": 0.9897821781230203,
+          "brier": 0.24785913618208755,
+          "ece_10bin": 0.44201945207335724,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 8,
+      "knownness_loss": 0.1045868843793869,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.463125616312027,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.846106035179315,
+          "auprc": 0.9899296081195481,
+          "brier": 0.26076858565148653,
+          "ece_10bin": 0.45649189542640334,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 9,
+      "knownness_loss": 0.10455833375453949,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.45203855633735657,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8474112747840139,
+          "auprc": 0.9900321741871062,
+          "brier": 0.26851128221338294,
+          "ece_10bin": 0.4649994029240174,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 10,
+      "knownness_loss": 0.10452987998723984,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4469076097011566,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8484678973211511,
+          "auprc": 0.9901152141292288,
+          "brier": 0.27038322873090476,
+          "ece_10bin": 0.46712269544601437,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 11,
+      "knownness_loss": 0.10438031703233719,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4470492899417877,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8495245198582883,
+          "auprc": 0.9901985622287307,
+          "brier": 0.26672857564580743,
+          "ece_10bin": 0.4633245439962907,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 12,
+      "knownness_loss": 0.10408085584640503,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4513339400291443,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8503325253278637,
+          "auprc": 0.9902654032755359,
+          "brier": 0.2586862758151303,
+          "ece_10bin": 0.454708559513092,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 13,
+      "knownness_loss": 0.10368245095014572,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.45816415548324585,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8507676051960967,
+          "auprc": 0.9903052499901058,
+          "brier": 0.24796481482994434,
+          "ece_10bin": 0.44292144916274334,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 14,
+      "knownness_loss": 0.10326958447694778,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4653489887714386,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8510162222636584,
+          "auprc": 0.9903273361589241,
+          "brier": 0.2366427994016164,
+          "ece_10bin": 0.43012479256499897,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 15,
+      "knownness_loss": 0.10289999842643738,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4700362980365753,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8511405307974392,
+          "auprc": 0.9903412481730575,
+          "brier": 0.22691981079066365,
+          "ece_10bin": 0.4188718501546167,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 16,
+      "knownness_loss": 0.10255225747823715,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.46903884410858154,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8513269935981105,
+          "auprc": 0.9903574528266014,
+          "brier": 0.22078985149359287,
+          "ece_10bin": 0.4117438243194059,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 17,
+      "knownness_loss": 0.10211960226297379,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.45966818928718567,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8512026850643296,
+          "auprc": 0.9903491675008305,
+          "brier": 0.2197790803274811,
+          "ece_10bin": 0.4108438740535215,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 18,
+      "knownness_loss": 0.10147880762815475,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4409719705581665,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8512026850643296,
+          "auprc": 0.9903491996777489,
+          "brier": 0.22468677813114388,
+          "ece_10bin": 0.4171768355369568,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 19,
+      "knownness_loss": 0.10060665011405945,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4155913293361664,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8515134563987817,
+          "auprc": 0.9903726299178779,
+          "brier": 0.23411841836143082,
+          "ece_10bin": 0.42877696806734256,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 20,
+      "knownness_loss": 0.09962457418441772,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.3908413052558899,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8516377649325626,
+          "auprc": 0.9903799937970484,
+          "brier": 0.2409262914937576,
+          "ece_10bin": 0.43711766004562375,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 21,
+      "knownness_loss": 0.0985073521733284,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.3733941912651062,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8520106905339051,
+          "auprc": 0.9904069225615362,
+          "brier": 0.23550709719361507,
+          "ece_10bin": 0.4313802532716231,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 22,
+      "knownness_loss": 0.09687985479831696,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.36433127522468567,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8521971533345765,
+          "auprc": 0.9904253530912238,
+          "brier": 0.21263124968590336,
+          "ece_10bin": 0.4044532119685953,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 23,
+      "knownness_loss": 0.09458354115486145,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.3536745309829712,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8533780844054945,
+          "auprc": 0.9905238775839545,
+          "brier": 0.18366688375204138,
+          "ece_10bin": 0.36705467478795484,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 24,
+      "knownness_loss": 0.09210237115621567,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.3278294503688812,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8543725526757412,
+          "auprc": 0.9905963337779832,
+          "brier": 0.17659365696002272,
+          "ece_10bin": 0.3568907367641276,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 25,
+      "knownness_loss": 0.08887843042612076,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.30457597970962524,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8558021008142209,
+          "auprc": 0.9907106626505531,
+          "brier": 0.19465104663846478,
+          "ece_10bin": 0.3802984917705709,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 26,
+      "knownness_loss": 0.08635617792606354,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.29716798663139343,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8580396544222761,
+          "auprc": 0.9908794555306456,
+          "brier": 0.16980097042746725,
+          "ece_10bin": 0.34466296456076884,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 27,
+      "knownness_loss": 0.08387992531061172,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.27890923619270325,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8600285909627696,
+          "auprc": 0.9910302038560961,
+          "brier": 0.15695651587888584,
+          "ece_10bin": 0.3230498933250254,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 28,
+      "knownness_loss": 0.08117518573999405,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.25165992975234985,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.862887687239729,
+          "auprc": 0.9912412209429393,
+          "brier": 0.20687952696457215,
+          "ece_10bin": 0.38873754707249725,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 29,
+      "knownness_loss": 0.07906876504421234,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.24375951290130615,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8640064640437566,
+          "auprc": 0.9913159902282015,
+          "brier": 0.14314804131151787,
+          "ece_10bin": 0.2934735470197418,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    },
+    {
+      "epoch": 30,
+      "knownness_loss": 0.07705007493495941,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.23753167688846588,
+          "known_target_recall": 0.998,
+          "clutter_recall": 0.8947368421052632,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 1,
+          "unknown_support": 31,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "support_sufficient": true,
+        "diagnostics": {
+          "auroc": 0.8669277145876064,
+          "auprc": 0.9915307034149743,
+          "brier": 0.1905559883983338,
+          "ece_10bin": 0.3597436126524752,
+          "positive_support": 519,
+          "negative_support": 31
+        }
+      }
+    }
+  ],
+  "quality_history": [
+    {
+      "epoch": 1,
+      "quality_loss": 0.8424635529518127,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.48505324125289917,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.03211009174311927,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.04017906488338676,
+          "auprc": 0.4012221377636443,
+          "brier": 0.26741762412615055,
+          "ece_10bin": 0.45427903852679513,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 2,
+      "quality_loss": 0.8400782346725464,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.48656147718429565,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.03211009174311927,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.05366419807671051,
+          "auprc": 0.40389327731936486,
+          "brier": 0.26607268136485324,
+          "ece_10bin": 0.4513522918115963,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 3,
+      "quality_loss": 0.8376971483230591,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4880948066711426,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.045871559633027525,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.08049629711506577,
+          "auprc": 0.4097286395277362,
+          "brier": 0.2647301810144951,
+          "ece_10bin": 0.44843015871264713,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 4,
+      "quality_loss": 0.8353202939033508,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.48959675431251526,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.07339449541284404,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.11387752846247375,
+          "auprc": 0.41779845338572347,
+          "brier": 0.26339080657065383,
+          "ece_10bin": 0.4382471010359851,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 5,
+      "quality_loss": 0.8329475522041321,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.4910372793674469,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.11926605504587157,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.13974245606278324,
+          "auprc": 0.42431086992660866,
+          "brier": 0.2620555184918628,
+          "ece_10bin": 0.42266499952836467,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 6,
+      "quality_loss": 0.830578625202179,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.49240410327911377,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.13302752293577982,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.16470929589919311,
+          "auprc": 0.4300304133604316,
+          "brier": 0.2607255129397508,
+          "ece_10bin": 0.39987506628036495,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 7,
+      "quality_loss": 0.8282132148742676,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.49383115768432617,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.16055045871559634,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.20755499060462032,
+          "auprc": 0.4414934946963168,
+          "brier": 0.2594019351729299,
+          "ece_10bin": 0.3590001358769157,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 8,
+      "quality_loss": 0.825850784778595,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.49524736404418945,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.2018348623853211,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.2508151873549243,
+          "auprc": 0.4541228649586224,
+          "brier": 0.258085458489473,
+          "ece_10bin": 0.2874197496609254,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 9,
+      "quality_loss": 0.8234908580780029,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.496629923582077,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.24770642201834864,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.2807560517298552,
+          "auprc": 0.46315940563338875,
+          "brier": 0.25677593975439217,
+          "ece_10bin": 0.1633914277228442,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 10,
+      "quality_loss": 0.8211327195167542,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.49800172448158264,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.2798165137614679,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.300748867027744,
+          "auprc": 0.4690122082131854,
+          "brier": 0.2554725996462417,
+          "ece_10bin": 0.09739576832814643,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 11,
+      "quality_loss": 0.8187757730484009,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.49934688210487366,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.28440366972477066,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.32735989830883166,
+          "auprc": 0.47714293735813823,
+          "brier": 0.2541743496009941,
+          "ece_10bin": 0.12524570324204184,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 12,
+      "quality_loss": 0.8164191842079163,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5005054473876953,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.3211009174311927,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.3585719022880513,
+          "auprc": 0.48751888387337927,
+          "brier": 0.25288011000282135,
+          "ece_10bin": 0.195452867529609,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 13,
+      "quality_loss": 0.8140622973442078,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.501652717590332,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.3394495412844037,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.3992621863601194,
+          "auprc": 0.502338410035138,
+          "brier": 0.2515889017259361,
+          "ece_10bin": 0.20558723877776755,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 14,
+      "quality_loss": 0.8117042183876038,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5026576519012451,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.3944954128440367,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.4291201503260749,
+          "auprc": 0.513548381895486,
+          "brier": 0.25029986782115793,
+          "ece_10bin": 0.21569906364787708,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 15,
+      "quality_loss": 0.8093443512916565,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5038901567459106,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.42201834862385323,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.4506880733944954,
+          "auprc": 0.5217254540796451,
+          "brier": 0.24901225444529684,
+          "ece_10bin": 0.22940628972920502,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 16,
+      "quality_loss": 0.8069818019866943,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5048747062683105,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.44036697247706424,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.4667293025312258,
+          "auprc": 0.5271553154127112,
+          "brier": 0.2477253819992135,
+          "ece_10bin": 0.2394370979612524,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 17,
+      "quality_loss": 0.8046159744262695,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.506156861782074,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.44954128440366975,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.48927130540510666,
+          "auprc": 0.536291027883808,
+          "brier": 0.24643863649242778,
+          "ece_10bin": 0.24216812643137847,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 18,
+      "quality_loss": 0.8022462129592896,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5072317719459534,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.45871559633027525,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.5321653586824362,
+          "auprc": 0.5570020964381905,
+          "brier": 0.2451514534161012,
+          "ece_10bin": 0.24669486593116408,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 19,
+      "quality_loss": 0.7998716831207275,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5082898139953613,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.4724770642201835,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.5791698905714602,
+          "auprc": 0.5796087416715252,
+          "brier": 0.24386329816914104,
+          "ece_10bin": 0.2511999399011785,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 20,
+      "quality_loss": 0.7974919080734253,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5096015334129333,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.5504587155963303,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.6132557753951586,
+          "auprc": 0.5973258012347386,
+          "brier": 0.24257368086254855,
+          "ece_10bin": 0.2520549834858287,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 21,
+      "quality_loss": 0.7951062321662903,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5109159350395203,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.5825688073394495,
+          "safe": true
+        },
+        "candidate_count": 1098,
+        "diagnostics": {
+          "auroc": 0.6391345197302973,
+          "auprc": 0.6113445496900807,
+          "brier": 0.24128213051937394,
+          "ece_10bin": 0.2528990492495623,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 22,
+      "quality_loss": 0.7927139401435852,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5121563076972961,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.6238532110091743,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.6633690726207583,
+          "auprc": 0.6265277429480679,
+          "brier": 0.2399882015324479,
+          "ece_10bin": 0.2519180318442258,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 23,
+      "quality_loss": 0.7903144359588623,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5133641958236694,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.6330275229357798,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.6908781916657456,
+          "auprc": 0.6441876643326175,
+          "brier": 0.23869146741144184,
+          "ece_10bin": 0.254562780640342,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 24,
+      "quality_loss": 0.787907063961029,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5145771503448486,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.6651376146788991,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.717295788659224,
+          "auprc": 0.6628400406211293,
+          "brier": 0.2373915175955828,
+          "ece_10bin": 0.25537362824786797,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 25,
+      "quality_loss": 0.7854913473129272,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.515795886516571,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.6880733944954128,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.7439620868796286,
+          "auprc": 0.68266564165681,
+          "brier": 0.23608796735229765,
+          "ece_10bin": 0.27432642682032155,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 26,
+      "quality_loss": 0.78306645154953,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5170213580131531,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.7247706422018348,
+          "safe": true
+        },
+        "candidate_count": 1100,
+        "diagnostics": {
+          "auroc": 0.7681551895656018,
+          "auprc": 0.6997812815929302,
+          "brier": 0.2347804327388637,
+          "ece_10bin": 0.2859383672475815,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 27,
+      "quality_loss": 0.780631959438324,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5183693766593933,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.7568807339449541,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.7836161158395049,
+          "auprc": 0.7103097998719521,
+          "brier": 0.23346855969202496,
+          "ece_10bin": 0.2920628649538214,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 28,
+      "quality_loss": 0.7781871557235718,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5197268724441528,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.7844036697247706,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.7918647065325523,
+          "auprc": 0.7167984626777032,
+          "brier": 0.23215199857414467,
+          "ece_10bin": 0.29634627065875313,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 29,
+      "quality_loss": 0.7757313847541809,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5210942625999451,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.7889908256880734,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.7985381894550679,
+          "auprc": 0.7239355368639007,
+          "brier": 0.2308304218226715,
+          "ece_10bin": 0.30240089015527205,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    },
+    {
+      "epoch": 30,
+      "quality_loss": 0.7732641100883484,
+      "selection": {
+        "selection_status": "feasible",
+        "deployment_eligible": true,
+        "selected": {
+          "threshold": 0.5223644375801086,
+          "positive_recall": 0.9518072289156626,
+          "negative_rejection": 0.7935779816513762,
+          "safe": true
+        },
+        "candidate_count": 1102,
+        "diagnostics": {
+          "auroc": 0.806579529125677,
+          "auprc": 0.7393173722550079,
+          "brier": 0.229503518988111,
+          "ece_10bin": 0.29934934437274935,
+          "positive_support": 332,
+          "negative_support": 218
+        }
+      }
+    }
+  ],
+  "quality_gate_active": false,
+  "test_payload_access_count": 0
+}

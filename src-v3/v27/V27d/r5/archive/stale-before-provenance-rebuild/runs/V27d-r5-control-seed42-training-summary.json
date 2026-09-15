@@ -1,0 +1,509 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-training-summary-v1",
+  "experiment_id": "V27d-r5-bird-route",
+  "arm": "control",
+  "seed": 42,
+  "fit_cache_sha256": "5af005a74bc230a3f2dbfca0bbb4a2aad52598f4f7362f86663a9df632f12b3b",
+  "selected_epoch": 30,
+  "selection": {
+    "threshold": 0.21416091918945312,
+    "higher_is_known": true,
+    "bird_recall": 0.982300877571106,
+    "unknown_rejection": 0.125,
+    "positive_support": 113,
+    "negative_support": 32,
+    "feasible": true,
+    "score_name": "bird_knownness_probability",
+    "epoch_population": 145
+  },
+  "positive_weight": 0.18232044198895028,
+  "history": [
+    {
+      "epoch": 1,
+      "loss": 0.2578108936548233,
+      "elapsed_seconds": 0.3354021999998622,
+      "selection": {
+        "threshold": 0.3856405019760132,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 2,
+      "loss": 0.24568246006965638,
+      "elapsed_seconds": 0.4229169999998703,
+      "selection": {
+        "threshold": 0.6153790950775146,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 3,
+      "loss": 0.22766365110874176,
+      "elapsed_seconds": 0.491255099999762,
+      "selection": {
+        "threshold": 0.4085351824760437,
+        "higher_is_known": true,
+        "bird_recall": 0.991150438785553,
+        "unknown_rejection": 0.03125,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 4,
+      "loss": 0.225751793384552,
+      "elapsed_seconds": 0.5610191999999188,
+      "selection": {
+        "threshold": 0.40490806102752686,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 5,
+      "loss": 0.22384239733219147,
+      "elapsed_seconds": 0.6346421999996892,
+      "selection": {
+        "threshold": 0.45764485001564026,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 6,
+      "loss": 0.21893059015274047,
+      "elapsed_seconds": 0.7038208999997551,
+      "selection": {
+        "threshold": 0.4567742645740509,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 7,
+      "loss": 0.2177546054124832,
+      "elapsed_seconds": 0.7724387999996907,
+      "selection": {
+        "threshold": 0.4615846276283264,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 8,
+      "loss": 0.2128547877073288,
+      "elapsed_seconds": 0.8454191999999239,
+      "selection": {
+        "threshold": 0.4383198022842407,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 9,
+      "loss": 0.21831530332565308,
+      "elapsed_seconds": 0.9093903999996655,
+      "selection": {
+        "threshold": 0.4516489505767822,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 10,
+      "loss": 0.2144029438495636,
+      "elapsed_seconds": 0.9801230999996733,
+      "selection": {
+        "threshold": 0.4133051335811615,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 11,
+      "loss": 0.216258642077446,
+      "elapsed_seconds": 1.0473934999999983,
+      "selection": {
+        "threshold": 0.41191160678863525,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 12,
+      "loss": 0.21111441254615784,
+      "elapsed_seconds": 1.1142461999997977,
+      "selection": {
+        "threshold": 0.41317811608314514,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 13,
+      "loss": 0.20791192054748536,
+      "elapsed_seconds": 1.1840095999996265,
+      "selection": {
+        "threshold": 0.39372971653938293,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 14,
+      "loss": 0.20806309580802917,
+      "elapsed_seconds": 1.2713505999995505,
+      "selection": {
+        "threshold": 0.3857022821903229,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 15,
+      "loss": 0.2040667086839676,
+      "elapsed_seconds": 1.3495035999999345,
+      "selection": {
+        "threshold": 0.3742583096027374,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 16,
+      "loss": 0.19939199686050416,
+      "elapsed_seconds": 1.4475377999997363,
+      "selection": {
+        "threshold": 0.38953885436058044,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 17,
+      "loss": 0.20191128849983214,
+      "elapsed_seconds": 1.5221804999996493,
+      "selection": {
+        "threshold": 0.3527678847312927,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 18,
+      "loss": 0.2036666214466095,
+      "elapsed_seconds": 1.5969099999997525,
+      "selection": {
+        "threshold": 0.355241596698761,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 19,
+      "loss": 0.1977770745754242,
+      "elapsed_seconds": 1.6693253999997069,
+      "selection": {
+        "threshold": 0.3394506275653839,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 20,
+      "loss": 0.19546795189380645,
+      "elapsed_seconds": 1.7536279999999351,
+      "selection": {
+        "threshold": 0.314168781042099,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 21,
+      "loss": 0.19425041675567628,
+      "elapsed_seconds": 1.844620599999871,
+      "selection": {
+        "threshold": 0.3115200102329254,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 22,
+      "loss": 0.18789483606815338,
+      "elapsed_seconds": 1.9085441999995965,
+      "selection": {
+        "threshold": 0.3161033093929291,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 23,
+      "loss": 0.1855236917734146,
+      "elapsed_seconds": 1.985907099999622,
+      "selection": {
+        "threshold": 0.32453009486198425,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 24,
+      "loss": 0.18872161507606505,
+      "elapsed_seconds": 2.0542176999997537,
+      "selection": {
+        "threshold": 0.31663909554481506,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 25,
+      "loss": 0.18664248585700988,
+      "elapsed_seconds": 2.1249078999999256,
+      "selection": {
+        "threshold": 0.2961881756782532,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 26,
+      "loss": 0.17552368193864823,
+      "elapsed_seconds": 2.1895555999999488,
+      "selection": {
+        "threshold": 0.3819974958896637,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 27,
+      "loss": 0.19713431596755981,
+      "elapsed_seconds": 2.2697151999996095,
+      "selection": {
+        "threshold": 0.2616267502307892,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 28,
+      "loss": 0.19762542843818665,
+      "elapsed_seconds": 2.345866599999681,
+      "selection": {
+        "threshold": 0.22928369045257568,
+        "higher_is_known": true,
+        "bird_recall": 1.0,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 29,
+      "loss": 0.17513497173786163,
+      "elapsed_seconds": 2.427222299999812,
+      "selection": {
+        "threshold": 0.4363289773464203,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.0625,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    },
+    {
+      "epoch": 30,
+      "loss": 0.19068527221679688,
+      "elapsed_seconds": 2.519223299999794,
+      "selection": {
+        "threshold": 0.21416091918945312,
+        "higher_is_known": true,
+        "bird_recall": 0.982300877571106,
+        "unknown_rejection": 0.125,
+        "positive_support": 113,
+        "negative_support": 32,
+        "feasible": true,
+        "score_name": "bird_knownness_probability",
+        "epoch_population": 145
+      }
+    }
+  ],
+  "checkpoint_path": "src-v3/v27/V27d/r5/checkpoints/V27d-r5-control-seed42-bird-head.pt",
+  "log_path": "src-v3/v27/V27d/r5/runs/V27d-r5-control-seed42.log",
+  "classification_logits_changed": false,
+  "classification_logits_input_to_head": false,
+  "formal_l3_enabled": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "398b02c1cb298d4ffafc41fcf13790db31f5ce0689b8eb764f1bd01e85010896"
+}

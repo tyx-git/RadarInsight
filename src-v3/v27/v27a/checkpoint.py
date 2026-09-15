@@ -82,7 +82,7 @@ def _checkpoint_metadata(
         raise ValueError("V27a checkpoint seed is not registered")
     if int(epoch) <= 0 or int(global_step) < 0:
         raise ValueError("V27a checkpoint epoch/global_step is invalid")
-    if kind not in {"epoch", "smoke"}:
+    if kind not in {"epoch", "selected", "smoke"}:
         raise ValueError("V27a checkpoint kind is invalid")
     contract = model.model_contract()
     return {

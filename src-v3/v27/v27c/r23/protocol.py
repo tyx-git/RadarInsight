@@ -505,6 +505,14 @@ def load_r23_config(
         _artifact_path(root, template, arm=R23_ARMS[0], seed=42, epoch=1)
 
     protocol = _mapping(payload, "protocol", "root")
+    checkpoint_selection = protocol.get(
+        "checkpoint_selection", "fixed_primary_epoch_without_validation_best_selection"
+    )
+    if checkpoint_selection not in {
+        "fixed_primary_epoch_without_validation_best_selection",
+        "global_validation_per_class_f1",
+    }:
+        raise ValueError("V27c-r23 checkpoint selection policy is unsupported")
     expected_protocol = {
         "arms": list(R23_ARMS),
         "factorial_design": "2x2_input_clipping_by_causal_motion",
@@ -520,7 +528,7 @@ def load_r23_config(
         "calibration": "not_in_scope",
         "l3": "not_in_scope",
         "test": "sealed_and_not_used",
-        "checkpoint_selection": "fixed_primary_epoch_without_validation_best_selection",
+        "checkpoint_selection": checkpoint_selection,
     }
     for key, expected in expected_protocol.items():
         if protocol.get(key) != expected:
@@ -933,8 +941,11 @@ def build_r23_manifest(
             "arms": list(R23_ARMS),
             "arm_specs": R23_ARM_SPECS,
             "seeds": list(config.training.seeds),
-            "fixed_primary_epoch": config.training.primary_epoch,
-            "checkpoint_selection": "fixed_primary_epoch_without_validation_best_selection",
+            "primary_epoch_budget": config.training.primary_epoch,
+            "checkpoint_selection": config.protocol.get(
+                "checkpoint_selection",
+                "fixed_primary_epoch_without_validation_best_selection",
+            ),
             "class_weights": list(config.base.expected_l2_class_weights),
         },
         "protocol": dict(config.protocol),

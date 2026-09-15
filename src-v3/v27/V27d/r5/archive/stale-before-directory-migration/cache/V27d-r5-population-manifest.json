@@ -1,0 +1,63 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-population-manifest-v1",
+  "experiment_id": "V27d-r5-bird-route",
+  "r5_manifest_sha256": "9b2564384c7719d7f4f83f8bbe6e7af05052888ea3f209fa0c134219b5990f11",
+  "tasks": {
+    "control:representation_fit": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-control-representation_fit-population.pt",
+      "sha256": "5c510d0307801feb7af80d25da34b2e09e0fc156e0792a37a4ff50dbaa28357e",
+      "cache_sha256": "09fb8a80af3ff5cb11e26dffa6ffcc76f0b3a267ee36bf319078d11a716c8ab2",
+      "parent_count": 550,
+      "bird_positive": 123,
+      "bird_route_unknown_negative": 26,
+      "quality_eligible": 546
+    },
+    "control:representation_development": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-control-representation_development-population.pt",
+      "sha256": "2aeebe4816ac9b54be398174ef8b142ad8ecafc1e1953ca42868dc73c100079a",
+      "cache_sha256": "5692e40fe76a0deca6931e14f34e09522b35d041141fe008e81eb34c5c9625f0",
+      "parent_count": 505,
+      "bird_positive": 113,
+      "bird_route_unknown_negative": 32,
+      "quality_eligible": 501
+    },
+    "control:calibration": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-control-calibration-population.pt",
+      "sha256": "0d2ea9ae24f91b6b15c9d2cc23a43490371df0a31f7c90ed978b62d5a015855a",
+      "cache_sha256": "cb1eee9c40a04b25aa23cf9507f9746a57ca6af04d691b2eed15643890171591",
+      "parent_count": 247,
+      "bird_positive": 55,
+      "bird_route_unknown_negative": 12,
+      "quality_eligible": 244
+    },
+    "stable8_treatment:representation_fit": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-stable8_treatment-representation_fit-population.pt",
+      "sha256": "15977d185680e99e73f8e9f31a3be2cb9c40d6cff1b1e5e9ea7aab633cf96067",
+      "cache_sha256": "634c24c2f73424f60d9aba53b8233cb1509e2ba7944247fe1150f5d0b0d8845e",
+      "parent_count": 550,
+      "bird_positive": 123,
+      "bird_route_unknown_negative": 26,
+      "quality_eligible": 546
+    },
+    "stable8_treatment:representation_development": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-stable8_treatment-representation_development-population.pt",
+      "sha256": "94f50e75d97ef9d1c106afa41cc8918b3d39f216b9575c2ea9c6d492908f7e8c",
+      "cache_sha256": "6dc7e986d83a4f6e147e48c399d63bf5130fc5aa4ec2296894015458266c54a2",
+      "parent_count": 505,
+      "bird_positive": 113,
+      "bird_route_unknown_negative": 32,
+      "quality_eligible": 501
+    },
+    "stable8_treatment:calibration": {
+      "path": "src-v3/v27/V27d/r5/cache/V27d-r5-stable8_treatment-calibration-population.pt",
+      "sha256": "99b7ac71e7919c6179233c6b7a4c3f13436f9b275532dd586664989486560dc5",
+      "cache_sha256": "b23c40de6afbe49bb5cc29a4ee4e550b0b4376fcbb0417061a36ad549edcaed5",
+      "parent_count": 247,
+      "bird_positive": 55,
+      "bird_route_unknown_negative": 12,
+      "quality_eligible": 244
+    }
+  },
+  "test_payload_access_count": 0,
+  "payload_sha256": "c3b54249cd0f1488e65b88f5ee3bf952a9ee4609f860814094dc37a6e7b9f3b9"
+}

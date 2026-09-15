@@ -1,0 +1,1530 @@
+{
+  "schema_version": "RADAR-LN3-V27d-head-training-summary-v1",
+  "experiment_id": "V27d",
+  "variant": "r1",
+  "task": "known_gate",
+  "seed": 42,
+  "feature_cache_path": "src-v3/v27/V27d/cache/V27d-r1-representation_fit-known_gate-features.pt",
+  "feature_cache_sha256": "6e865332ed1024bff210a9236aab2c0b21207a2cc79f9c1b37511563904fd882",
+  "knownness": {
+    "component": "knownness",
+    "positive_weight": 0.05139619587211655,
+    "history": [
+      {
+        "epoch": 1,
+        "loss": 0.07563766423198912,
+        "gradient_norm": 0.8569275736808777,
+        "elapsed_seconds": 1.3992169999983162,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.32633253931999207
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.32633253931999207,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.32633253931999207
+          ]
+        }
+      },
+      {
+        "epoch": 2,
+        "loss": 0.07096980739798811,
+        "gradient_norm": 0.659736156463623,
+        "elapsed_seconds": 1.8064287999877706,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.49696093797683716
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.49696093797683716,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.49696093797683716
+          ]
+        }
+      },
+      {
+        "epoch": 3,
+        "loss": 0.0676373133642806,
+        "gradient_norm": 0.8421309590339661,
+        "elapsed_seconds": 2.1865757999476045,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.370942622423172
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.370942622423172,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.370942622423172
+          ]
+        }
+      },
+      {
+        "epoch": 4,
+        "loss": 0.06623498102029164,
+        "gradient_norm": 1.0085008144378662,
+        "elapsed_seconds": 2.5309048999333754,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.2961013615131378
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.2961013615131378,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.2961013615131378
+          ]
+        }
+      },
+      {
+        "epoch": 5,
+        "loss": 0.07621144762055741,
+        "gradient_norm": 7.228437423706055,
+        "elapsed_seconds": 2.8738611999433488,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.2745244801044464
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.2745244801044464,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.2745244801044464
+          ]
+        }
+      },
+      {
+        "epoch": 6,
+        "loss": 0.07922808412048551,
+        "gradient_norm": 5.270166397094727,
+        "elapsed_seconds": 3.181623899959959,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.38027480244636536
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.38027480244636536,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.38027480244636536
+          ]
+        }
+      },
+      {
+        "epoch": 7,
+        "loss": 0.06308291583425468,
+        "gradient_norm": 0.9691092371940613,
+        "elapsed_seconds": 3.4718431999208406,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.2862972617149353
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.2862972617149353,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.2862972617149353
+          ]
+        }
+      },
+      {
+        "epoch": 8,
+        "loss": 0.06011954415589571,
+        "gradient_norm": 2.1866278648376465,
+        "elapsed_seconds": 3.7688784999772906,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.19796331226825714
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.19796331226825714,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.19796331226825714
+          ]
+        }
+      },
+      {
+        "epoch": 9,
+        "loss": 0.061835956242349416,
+        "gradient_norm": 3.1193580627441406,
+        "elapsed_seconds": 4.072429099935107,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.27530336380004883
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.27530336380004883,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.27530336380004883
+          ]
+        }
+      },
+      {
+        "epoch": 10,
+        "loss": 0.057970667257905006,
+        "gradient_norm": 1.003007173538208,
+        "elapsed_seconds": 4.376458499929868,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.23097476363182068
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.23097476363182068,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.23097476363182068
+          ]
+        }
+      },
+      {
+        "epoch": 11,
+        "loss": 0.051864365529682904,
+        "gradient_norm": 1.2496004104614258,
+        "elapsed_seconds": 4.68279099999927,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.1396287977695465
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.1396287977695465,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.1396287977695465
+          ]
+        }
+      },
+      {
+        "epoch": 12,
+        "loss": 0.05056273326691654,
+        "gradient_norm": 1.365830898284912,
+        "elapsed_seconds": 4.998006699956022,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.07722938805818558
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.07722938805818558,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.07722938805818558
+          ]
+        }
+      },
+      {
+        "epoch": 13,
+        "loss": 0.053561702370643616,
+        "gradient_norm": 1.8050143718719482,
+        "elapsed_seconds": 5.29643419990316,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.11487195640802383
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.11487195640802383,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.11487195640802383
+          ]
+        }
+      },
+      {
+        "epoch": 14,
+        "loss": 0.0455547749168343,
+        "gradient_norm": 0.5872236490249634,
+        "elapsed_seconds": 5.6174785000039265,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.1638026237487793
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.1638026237487793,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.1638026237487793
+          ]
+        }
+      },
+      {
+        "epoch": 15,
+        "loss": 0.04736938855300347,
+        "gradient_norm": 1.227260708808899,
+        "elapsed_seconds": 5.964923299965449,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.10169165581464767
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.10169165581464767,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.10169165581464767
+          ]
+        }
+      },
+      {
+        "epoch": 16,
+        "loss": 0.048341730868236885,
+        "gradient_norm": 1.0817959308624268,
+        "elapsed_seconds": 6.300026699900627,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.07634849846363068
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.07634849846363068,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.07634849846363068
+          ]
+        }
+      },
+      {
+        "epoch": 17,
+        "loss": 0.0452595352091723,
+        "gradient_norm": 0.7427518367767334,
+        "elapsed_seconds": 6.9029974999139085,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.09900505840778351
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.09900505840778351,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.09900505840778351
+          ]
+        }
+      },
+      {
+        "epoch": 18,
+        "loss": 0.044732152173916497,
+        "gradient_norm": 1.392590045928955,
+        "elapsed_seconds": 7.301320499973372,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.09221356362104416
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.09221356362104416,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.09221356362104416
+          ]
+        }
+      },
+      {
+        "epoch": 19,
+        "loss": 0.043993821574581995,
+        "gradient_norm": 0.8466348052024841,
+        "elapsed_seconds": 7.639565099962056,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.09757384657859802
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.09757384657859802,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.09757384657859802
+          ]
+        }
+      },
+      {
+        "epoch": 20,
+        "loss": 0.0431204309893979,
+        "gradient_norm": 0.6445360779762268,
+        "elapsed_seconds": 7.966925899963826,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.12109910696744919
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.12109910696744919,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.12109910696744919
+          ]
+        }
+      },
+      {
+        "epoch": 21,
+        "loss": 0.046605837220946945,
+        "gradient_norm": 2.121454954147339,
+        "elapsed_seconds": 8.303911399911158,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.07542131096124649
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.07542131096124649,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.07542131096124649
+          ]
+        }
+      },
+      {
+        "epoch": 22,
+        "loss": 0.041132453518609204,
+        "gradient_norm": 0.8869074583053589,
+        "elapsed_seconds": 8.620767999906093,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.13476711511611938
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.13476711511611938,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.13476711511611938
+          ]
+        }
+      },
+      {
+        "epoch": 23,
+        "loss": 0.0401068769602312,
+        "gradient_norm": 0.9452348947525024,
+        "elapsed_seconds": 8.984447799972259,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.0692073255777359
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.0692073255777359,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.0692073255777359
+          ]
+        }
+      },
+      {
+        "epoch": 24,
+        "loss": 0.0404644642646114,
+        "gradient_norm": 0.41386449337005615,
+        "elapsed_seconds": 9.316204399918206,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.09544297307729721
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.09544297307729721,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.09544297307729721
+          ]
+        }
+      },
+      {
+        "epoch": 25,
+        "loss": 0.04439842152512736,
+        "gradient_norm": 0.6169509291648865,
+        "elapsed_seconds": 9.815633399994113,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.11271984130144119
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.11271984130144119,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.11271984130144119
+          ]
+        }
+      },
+      {
+        "epoch": 26,
+        "loss": 0.040693673926095165,
+        "gradient_norm": 1.268268346786499,
+        "elapsed_seconds": 10.17739480000455,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.06523730605840683
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.06523730605840683,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.06523730605840683
+          ]
+        }
+      },
+      {
+        "epoch": 27,
+        "loss": 0.03899589729391866,
+        "gradient_norm": 0.8870819211006165,
+        "elapsed_seconds": 10.518816399970092,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.058381300419569016
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.058381300419569016,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.058381300419569016
+          ]
+        }
+      },
+      {
+        "epoch": 28,
+        "loss": 0.041038328471283116,
+        "gradient_norm": 0.9384959936141968,
+        "elapsed_seconds": 10.852236600010656,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.0776132270693779
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.0776132270693779,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.0776132270693779
+          ]
+        }
+      },
+      {
+        "epoch": 29,
+        "loss": 0.041262929431266256,
+        "gradient_norm": 1.111480474472046,
+        "elapsed_seconds": 11.175663999980316,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.03868233412504196
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.03868233412504196,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.03868233412504196
+          ]
+        }
+      },
+      {
+        "epoch": 30,
+        "loss": 0.040369558406786785,
+        "gradient_norm": 0.27885517477989197,
+        "elapsed_seconds": 11.523538499954157,
+        "selection_score": 0.0,
+        "selection_rank": [
+          0.0,
+          1.0,
+          0.15895195305347443
+        ],
+        "selection": {
+          "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+          "feasible": true,
+          "threshold": 0.15895195305347443,
+          "known_recall_by_class": {
+            "DroneTarget": 1.0,
+            "BirdTarget": 1.0,
+            "BalloonTarget": 1.0,
+            "ClutterTarget": 1.0
+          },
+          "unknown_rejection": 0.0,
+          "known_support": 465,
+          "unknown_support": 36,
+          "selection_rank": [
+            0.0,
+            1.0,
+            0.15895195305347443
+          ]
+        }
+      }
+    ],
+    "component_state_sha256": "c5cfb94dd5200133e389e4d0c980593710d9945a0c6c2c2783b666761f42d7e7",
+    "selected_epoch": 2,
+    "selection_score": 0.0,
+    "selection": {
+      "criterion": "development_unknown_rejection_at_per_class_known_recall_floor",
+      "feasible": true,
+      "threshold": 0.49696093797683716,
+      "known_recall_by_class": {
+        "DroneTarget": 1.0,
+        "BirdTarget": 1.0,
+        "BalloonTarget": 1.0,
+        "ClutterTarget": 1.0
+      },
+      "unknown_rejection": 0.0,
+      "known_support": 465,
+      "unknown_support": 36,
+      "selection_rank": [
+        0.0,
+        1.0,
+        0.49696093797683716
+      ]
+    },
+    "fit_parent_count": 546,
+    "fit_prefix_count": 7794
+  },
+  "quality": {
+    "component": "quality",
+    "positive_weight": 0.3624583012573775,
+    "history": [
+      {
+        "epoch": 1,
+        "loss": 0.3667491740650601,
+        "gradient_norm": 0.06525278091430664,
+        "elapsed_seconds": 0.1809101999970153,
+        "selection_score": 0.7070858283433133,
+        "selection_rank": [
+          0.7070858283433133
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.7070858283433133,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 2,
+        "loss": 0.35957541068394977,
+        "gradient_norm": 0.06397967040538788,
+        "elapsed_seconds": 0.5095405000029132,
+        "selection_score": 0.6916167664670658,
+        "selection_rank": [
+          0.6916167664670658
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6916167664670658,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 3,
+        "loss": 0.3522847145795822,
+        "gradient_norm": 0.07029199600219727,
+        "elapsed_seconds": 0.7068734000204131,
+        "selection_score": 0.6746506986027945,
+        "selection_rank": [
+          0.6746506986027945
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6746506986027945,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 4,
+        "loss": 0.34511776434050667,
+        "gradient_norm": 0.06444909423589706,
+        "elapsed_seconds": 0.9003564000595361,
+        "selection_score": 0.6337325349301397,
+        "selection_rank": [
+          0.6337325349301397
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6337325349301397,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 5,
+        "loss": 0.33571676909923553,
+        "gradient_norm": 0.08587390184402466,
+        "elapsed_seconds": 1.1159439000766724,
+        "selection_score": 0.6132734530938124,
+        "selection_rank": [
+          0.6132734530938124
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6132734530938124,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 6,
+        "loss": 0.32619890405072105,
+        "gradient_norm": 0.09206382930278778,
+        "elapsed_seconds": 1.3310187000315636,
+        "selection_score": 0.6072854291417166,
+        "selection_rank": [
+          0.6072854291417166
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6072854291417166,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 7,
+        "loss": 0.3142731073829863,
+        "gradient_norm": 0.10126901417970657,
+        "elapsed_seconds": 1.5479280999861658,
+        "selection_score": 0.5923153692614771,
+        "selection_rank": [
+          0.5923153692614771
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5923153692614771,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 8,
+        "loss": 0.3017193526029587,
+        "gradient_norm": 0.10633998364210129,
+        "elapsed_seconds": 1.7401718000182882,
+        "selection_score": 0.5893213572854291,
+        "selection_rank": [
+          0.5893213572854291
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5893213572854291,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 9,
+        "loss": 0.2884250101115968,
+        "gradient_norm": 0.10838497430086136,
+        "elapsed_seconds": 1.937779900035821,
+        "selection_score": 0.5873253493013972,
+        "selection_rank": [
+          0.5873253493013972
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5873253493013972,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 10,
+        "loss": 0.2739083535141415,
+        "gradient_norm": 0.13155508041381836,
+        "elapsed_seconds": 2.1317279000068083,
+        "selection_score": 0.5683632734530938,
+        "selection_rank": [
+          0.5683632734530938
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5683632734530938,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 11,
+        "loss": 0.2597379816903008,
+        "gradient_norm": 0.11504808813333511,
+        "elapsed_seconds": 2.3322824999922886,
+        "selection_score": 0.5718562874251497,
+        "selection_rank": [
+          0.5718562874251497
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5718562874251497,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 12,
+        "loss": 0.24539971186055076,
+        "gradient_norm": 0.11568070948123932,
+        "elapsed_seconds": 2.524565000087023,
+        "selection_score": 0.5578842315369261,
+        "selection_rank": [
+          0.5578842315369261
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5578842315369261,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 13,
+        "loss": 0.231988615459866,
+        "gradient_norm": 0.11915930360555649,
+        "elapsed_seconds": 2.7189348000101745,
+        "selection_score": 0.5523952095808383,
+        "selection_rank": [
+          0.5523952095808383
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5523952095808383,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 14,
+        "loss": 0.21854475885629654,
+        "gradient_norm": 0.12372814118862152,
+        "elapsed_seconds": 2.921351500088349,
+        "selection_score": 0.5523952095808383,
+        "selection_rank": [
+          0.5523952095808383
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5523952095808383,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 15,
+        "loss": 0.20760382380750445,
+        "gradient_norm": 0.10899471491575241,
+        "elapsed_seconds": 3.1344051000196487,
+        "selection_score": 0.5469061876247505,
+        "selection_rank": [
+          0.5469061876247505
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5469061876247505,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 16,
+        "loss": 0.19535729040702185,
+        "gradient_norm": 0.11832737177610397,
+        "elapsed_seconds": 3.3440360000822693,
+        "selection_score": 0.5399201596806387,
+        "selection_rank": [
+          0.5399201596806387
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5399201596806387,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 17,
+        "loss": 0.18616430461406708,
+        "gradient_norm": 0.09751316159963608,
+        "elapsed_seconds": 3.5488099000649527,
+        "selection_score": 0.5444111776447106,
+        "selection_rank": [
+          0.5444111776447106
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5444111776447106,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 18,
+        "loss": 0.17707926448848513,
+        "gradient_norm": 0.09254230558872223,
+        "elapsed_seconds": 3.7688856000313535,
+        "selection_score": 0.5558882235528941,
+        "selection_rank": [
+          0.5558882235528941
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5558882235528941,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 19,
+        "loss": 0.16827857246001562,
+        "gradient_norm": 0.10434563457965851,
+        "elapsed_seconds": 4.1141914000036195,
+        "selection_score": 0.5543912175648702,
+        "selection_rank": [
+          0.5543912175648702
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5543912175648702,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 20,
+        "loss": 0.16125063018666375,
+        "gradient_norm": 0.1266160011291504,
+        "elapsed_seconds": 4.3272935000713915,
+        "selection_score": 0.5538922155688623,
+        "selection_rank": [
+          0.5538922155688623
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5538922155688623,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 21,
+        "loss": 0.15526817573441398,
+        "gradient_norm": 0.07945385575294495,
+        "elapsed_seconds": 4.535653099999763,
+        "selection_score": 0.5588822355289421,
+        "selection_rank": [
+          0.5588822355289421
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5588822355289421,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 22,
+        "loss": 0.14923258374134699,
+        "gradient_norm": 0.10433433949947357,
+        "elapsed_seconds": 4.746475200052373,
+        "selection_score": 0.5838323353293413,
+        "selection_rank": [
+          0.5838323353293413
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5838323353293413,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 23,
+        "loss": 0.1442817524075508,
+        "gradient_norm": 0.12141011655330658,
+        "elapsed_seconds": 4.947550900047645,
+        "selection_score": 0.5733532934131736,
+        "selection_rank": [
+          0.5733532934131736
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5733532934131736,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 24,
+        "loss": 0.138420220464468,
+        "gradient_norm": 0.08221092820167542,
+        "elapsed_seconds": 5.157260800013319,
+        "selection_score": 0.5828343313373254,
+        "selection_rank": [
+          0.5828343313373254
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.5828343313373254,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 25,
+        "loss": 0.1339629366993904,
+        "gradient_norm": 0.1044827401638031,
+        "elapsed_seconds": 5.355777300079353,
+        "selection_score": 0.6037924151696608,
+        "selection_rank": [
+          0.6037924151696608
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6037924151696608,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 26,
+        "loss": 0.130851404948367,
+        "gradient_norm": 0.0736323669552803,
+        "elapsed_seconds": 5.556204100023024,
+        "selection_score": 0.6102794411177646,
+        "selection_rank": [
+          0.6102794411177646
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6102794411177646,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 27,
+        "loss": 0.12640270011292565,
+        "gradient_norm": 0.08460952341556549,
+        "elapsed_seconds": 5.74944270006381,
+        "selection_score": 0.6217564870259481,
+        "selection_rank": [
+          0.6217564870259481
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6217564870259481,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 28,
+        "loss": 0.12309826579358843,
+        "gradient_norm": 0.10589469224214554,
+        "elapsed_seconds": 5.970568499993533,
+        "selection_score": 0.6516966067864272,
+        "selection_rank": [
+          0.6516966067864272
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6516966067864272,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 29,
+        "loss": 0.11913056133521928,
+        "gradient_norm": 0.06716273725032806,
+        "elapsed_seconds": 6.171875800006092,
+        "selection_score": 0.6472055888223553,
+        "selection_rank": [
+          0.6472055888223553
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6472055888223553,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      },
+      {
+        "epoch": 30,
+        "loss": 0.11531095455090205,
+        "gradient_norm": 0.05204199254512787,
+        "elapsed_seconds": 6.374516600044444,
+        "selection_score": 0.6477045908183633,
+        "selection_rank": [
+          0.6477045908183633
+        ],
+        "selection": {
+          "criterion": "development_quality_auroc",
+          "feasible": true,
+          "auroc": 0.6477045908183633,
+          "positive_support": 501,
+          "negative_support": 4
+        }
+      }
+    ],
+    "component_state_sha256": "58c52605a98b9ce6402515c6c941e3c40f3a12a1158e77393c8ab14e5bfaee6c",
+    "selected_epoch": 1,
+    "selection_score": 0.7070858283433133,
+    "selection": {
+      "criterion": "development_quality_auroc",
+      "feasible": true,
+      "auroc": 0.7070858283433133,
+      "positive_support": 501,
+      "negative_support": 4
+    },
+    "fit_parent_count": 550,
+    "fit_prefix_count": 10619
+  },
+  "development_metrics": {
+    "parent_count": 505,
+    "knownness_fit_eligible_count": 501,
+    "knownness_parent_accuracy_at_zero": 0.9221556782722473,
+    "knownness_parent_accuracy_at_logit_zero": 0.9221556782722473,
+    "knownness_auroc": 0.8963560334528077,
+    "quality_parent_accuracy_at_zero": 0.9841583967208862,
+    "quality_positive_count": 501,
+    "knownness_logit_mean": 0.19567318260669708,
+    "quality_logit_mean": 0.055268190801143646
+  },
+  "model_contract": {
+    "schema_version": "RADAR-LN3-V27d-head-contract-v1",
+    "experiment_id": "V27d",
+    "task": "known_gate",
+    "variant": "r1",
+    "trajectory_input_dim": 363,
+    "trajectory_hidden_dim": 48,
+    "knownness_projection_dim": 32,
+    "knownness_projection_normalization": "none",
+    "event_facts_in_trajectory": true,
+    "event_facts_duplicated_in_trajectory_encoder": false,
+    "quality_head_input": "deterministic_task_and_event_facts_only",
+    "quality_output_feedback": "forbidden",
+    "classifier_logits_input_to_head": false,
+    "raw_scale_enabled": false,
+    "stable8_enabled": false
+  },
+  "model_contract_sha256": "7d646ff8967679c4dcab21b30785a756c4fbfe5f96608dd70b3f255423dfc6c0",
+  "classification_logits_changed": false,
+  "unknown_is_classifier_class": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "1c0642a9484ff9dc469cc86b4400ae4904a406f4d3f691a706939488f0dd0f12"
+}

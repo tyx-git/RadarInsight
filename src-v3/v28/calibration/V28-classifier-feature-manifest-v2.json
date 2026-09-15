@@ -1,0 +1,51 @@
+{
+  "schema_version": "RADAR-LN3-V28-classifier-feature-manifest-v2",
+  "experiment_id": "V28",
+  "status": "prepared",
+  "config_sha256": "0a3f60528c7d4269867748a170f87f89201820fcba9beb5b436470ab1dbb5431",
+  "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+  "caches": {
+    "l1_known_gate:classifier-train": {
+      "parent_ids_sha256": "d09e2ed06e0c58201224acd14e09162ba4f7c80278cfb54c1069a9192eea94af",
+      "event_count": 8852,
+      "unknown_exposure": 0
+    },
+    "l1_known_gate:classifier-development": {
+      "parent_ids_sha256": "e6bc3b96e49e76214c0d704b7324dd3729cde062089d5de8acc8e0d9b1e0f702",
+      "event_count": 10071,
+      "unknown_exposure": 0
+    },
+    "l2_dbb_specialist:classifier-train:rd-physical4": {
+      "path": "src-v3/v28/calibration/V28-classifier-train-rd-physical4-v2-cache.npz",
+      "sha256": "394827d2a5790bbf74c86dff3462edaed0a4f72879399e97fa04947a7791eafa",
+      "sample_ids_sha256": "6324646b4f4eedd2394655d87a12bb1c4484bc154caea0e64fa3c1159c09c528",
+      "event_count": 8576,
+      "valid_event_count": 8525
+    },
+    "l2_dbb_specialist:classifier-train:broadband-micro-doppler8": {
+      "path": "src-v3/v28/calibration/V28-classifier-train-broadband-micro-doppler8-v2-cache.npz",
+      "sha256": "7cd82accd26fc84fb6a49146cd34ca052330a19c7264c7fcea99935919a5451f",
+      "sample_ids_sha256": "6324646b4f4eedd2394655d87a12bb1c4484bc154caea0e64fa3c1159c09c528",
+      "event_count": 8576,
+      "valid_event_count": 8525
+    },
+    "l2_dbb_specialist:classifier-development:rd-physical4": {
+      "path": "src-v3/v28/calibration/V28-classifier-development-rd-physical4-v2-cache.npz",
+      "sha256": "38bb75c61d4a4b1d380ad9c1153e23f7fd680645d22b365ce960a31acd04ff5d",
+      "sample_ids_sha256": "fc63ebe25e100b9806bfa7a1679c5e932db5ece7ca1c2ec549b077a5fb83132e",
+      "event_count": 9690,
+      "valid_event_count": 9588
+    },
+    "l2_dbb_specialist:classifier-development:broadband-micro-doppler8": {
+      "path": "src-v3/v28/calibration/V28-classifier-development-broadband-micro-doppler8-v2-cache.npz",
+      "sha256": "294ef71d927ff82692acfd854c25d48dcd674bbaf3a08954e4cd3fac12c55f7b",
+      "sample_ids_sha256": "fc63ebe25e100b9806bfa7a1679c5e932db5ece7ca1c2ec549b077a5fb83132e",
+      "event_count": 9690,
+      "valid_event_count": 9588
+    }
+  },
+  "unknown_exposure": 0,
+  "test_payload_access_count": 0,
+  "feature_manifest_sha256": "62df05f17fea74c14dcacf2749b5b552cfda1fe018d50aa529b4c8f8e69973c1",
+  "payload_sha256": "162b0a632bd6b6823197ab61291be6355e59332d3e1c27e84c705e79629d254f"
+}

@@ -60,6 +60,17 @@ def _run_path(
     )
 
 
+def _global_best_path(context: V27AContext, *, arm: str, seed: int) -> Path:
+    epoch_path = _run_path(
+        context,
+        context.config.artifacts.epoch_checkpoint_template,
+        arm=arm,
+        seed=seed,
+        epoch=1,
+    )
+    return epoch_path.with_name("global-best.pt")
+
+
 def _validate_class_weights(context: V27AContext) -> torch.Tensor:
     configured = tuple(float(value) for value in task_class_weights(
         context.v27_config, "dbb_specialist"
@@ -436,6 +447,34 @@ def _train_v27a_arm(
             validation["parent_balanced_eligible_prefix_metrics"],
         )
 
+    if best_assessment is None:
+        raise RuntimeError("V27a training completed without a global validation assessment")
+    selected_epoch = int(best_assessment["epoch"])
+    selected_epoch_path = _run_path(
+        context,
+        context.config.artifacts.epoch_checkpoint_template,
+        arm=arm,
+        seed=seed,
+        epoch=selected_epoch,
+    )
+    selected_payload = torch.load(selected_epoch_path, map_location="cpu", weights_only=False)
+    if not isinstance(selected_payload, Mapping) or not isinstance(selected_payload.get("model_state"), Mapping):
+        raise ValueError("V27a global-best checkpoint payload is invalid")
+    model.load_state_dict(selected_payload["model_state"], strict=True)
+    global_best_path = _global_best_path(context, arm=arm, seed=seed)
+    save_v27a_checkpoint(
+        global_best_path,
+        context=context,
+        model=model,
+        optimizer=None,
+        arm=arm,
+        seed=seed,
+        epoch=selected_epoch,
+        global_step=int(selected_payload.get("global_step", 0)),
+        metrics={"checkpoint_assessment": best_assessment, "selection": "global_validation_per_class_f1"},
+        kind="selected",
+        cache_payload_sha256s=cache_payload_sha256s,
+    )
     primary_path = _run_path(
         context,
         context.config.artifacts.epoch_checkpoint_template,
@@ -445,19 +484,6 @@ def _train_v27a_arm(
     )
     if not primary_path.is_file():
         raise FileNotFoundError(f"V27a primary checkpoint was not written: {primary_path}")
-    if best_assessment is None:
-        raise RuntimeError("V27a training completed without a secondary checkpoint assessment")
-    secondary_best_path = _run_path(
-        context,
-        context.config.artifacts.epoch_checkpoint_template,
-        arm=arm,
-        seed=seed,
-        epoch=int(best_assessment["epoch"]),
-    )
-    if not secondary_best_path.is_file():
-        raise FileNotFoundError(
-            f"V27a secondary checkpoint was not written: {secondary_best_path}"
-        )
     summary = {
         "schema_version": _TRAINING_SUMMARY_SCHEMA,
         "experiment_id": "V27a",
@@ -466,13 +492,13 @@ def _train_v27a_arm(
         "seed": seed,
         "epochs": total_epochs,
         "primary_epoch": context.config.training.primary_epoch,
+        "selected_epoch": selected_epoch,
+        "selection": "global_validation_per_class_f1",
         "primary_checkpoint_path": relative_project_path(
             context.project_root, primary_path
         ),
-        "secondary_own_best_assessment": best_assessment,
-        "secondary_own_best_checkpoint_path": relative_project_path(
-            context.project_root, secondary_best_path
-        ),
+        "global_best_assessment": best_assessment,
+        "global_best_checkpoint_path": relative_project_path(context.project_root, global_best_path),
         "history": history,
         "base_checkpoint_sha256": context.config.base.expected_l2_checkpoint_sha256,
         "base_classifier_state_sha256": context.config.base.expected_l2_classifier_state_sha256,

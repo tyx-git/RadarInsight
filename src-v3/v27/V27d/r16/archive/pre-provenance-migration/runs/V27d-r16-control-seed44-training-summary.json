@@ -1,0 +1,40 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r16-rd-frame-liquid-v1-training-summary",
+  "status": "reused_frozen_r14_control",
+  "experiment_id": "V27d-r16",
+  "arm": "control",
+  "seed": 44,
+  "selected_epoch": 20,
+  "initial_state_sha256": "60354caaa21fa9d659e75109d07a2c16cc9d60a9ae2d14d21776ef1f6fcd1e49",
+  "model_contract": {
+    "schema_version": "RADAR-LN3-V27d-r16-rd-frame-liquid-v1-checkpoint",
+    "experiment_id": "V27d-r16",
+    "arm": "control",
+    "seed": 44,
+    "class_names": [
+      "DroneTarget",
+      "BirdTarget",
+      "BalloonTarget"
+    ],
+    "direct_baseline": "V27d-r14 control epoch020",
+    "outer_model": "V27 Liquid V2 L2 unchanged",
+    "rd_aggregation": "masked_mean",
+    "treatment_trainable": "none",
+    "unknown_is_l2_classifier_class": false,
+    "knownness_quality_l3": "not_in_scope",
+    "loss": "parent_final_fixed_parent_count_ce"
+  },
+  "checkpoint_path": "src-v3/v27/V27d/r16/checkpoints/V27d-r16-control-seed44-epoch020.pt",
+  "training_log_path": "src-v3/v27/V27d/r16/runs/V27d-r16-control-seed44.log",
+  "unknown_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "deployment_eligible": false,
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "cuda_available": true,
+    "cuda_device_count": 1,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "payload_sha256": "db51edcad5361940c763a078568e12cf61a82e137b2a72fb3e55c21d42b4a9a2"
+}

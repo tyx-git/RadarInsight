@@ -68,6 +68,18 @@ def _json_result(value: Any) -> None:
 
 
 def _treatment_checkpoint(context: Any, arm: str, seed: int) -> Path:
+    summary_path = v27a_artifact_path(
+        context.project_root,
+        context.config.artifacts.training_summary_template,
+        arm=arm,
+        seed=seed,
+    )
+    if summary_path.is_file():
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        selected = summary.get("global_best_checkpoint_path")
+        if isinstance(selected, str) and selected.strip():
+            candidate = Path(selected)
+            return candidate if candidate.is_absolute() else context.project_root / candidate
     return v27a_artifact_path(
         context.project_root,
         context.config.artifacts.epoch_checkpoint_template,

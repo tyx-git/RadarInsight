@@ -1,0 +1,49 @@
+{
+  "status": "passed",
+  "experiment_id": "V27d",
+  "variant": "r1",
+  "checks": {
+    "path_boundary": {
+      "path_escape_rejected": true
+    },
+    "sealed_hash": {
+      "sealed_hash_verified": true,
+      "sealed_hash_tamper_rejected": true
+    },
+    "endpoint_contract": {
+      "endpoint_caches_checked": 6,
+      "parent_order_and_hash_guards": true,
+      "padding_zero_guard": true
+    },
+    "feature_contract": {
+      "feature_caches_checked": 6,
+      "clutter_knownness_fit_count": {
+        "known_gate": 42,
+        "dbb_specialist": 0
+      },
+      "unknown_knownness_population_count": 168,
+      "unknown_not_l2_class": true
+    },
+    "empty_sequence": {
+      "empty_sequence_rejected": true
+    },
+    "l3_fail_closed": {
+      "unfitted_l3_action": "PENDING_ABSTAIN",
+      "unfitted_l3_reason": "CALIBRATION_NOT_FITTED",
+      "low_quality_l3_action": "PENDING_ABSTAIN",
+      "low_quality_l3_reason": "LOW_QUALITY_OR_IMMATURE"
+    },
+    "l3_quality_order": {
+      "l1_quality_precedes_l2": true,
+      "l1_quality_pending_action": "PENDING_ABSTAIN"
+    },
+    "l3_fitted_boundaries": {
+      "fitted_accept_action": "DroneTarget",
+      "route_conflict_reason": "L1_ROUTE_CONFLICT",
+      "class_ambiguity_reason": "KNOWN_CLASS_AMBIGUOUS",
+      "empty_set_reason": "OOD_NONCONFORMING"
+    }
+  },
+  "test_payload_access_count": 0,
+  "payload_sha256": "b30ba82b57740592588e50c103970d34729ffe97f81b1e57146468553a12e7d7"
+}

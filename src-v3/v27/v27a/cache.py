@@ -731,6 +731,7 @@ def materialize_frozen_logit_caches(
     )
 
     from .evidence import _load_split, _validate_index
+    from .runtime import load_verified_cache
 
     root = context.project_root
     index = _validate_index(root, context.config)
@@ -751,6 +752,26 @@ def materialize_frozen_logit_caches(
     base_model.eval()
     split_results: dict[str, Any] = {}
     for split_name in ("train", "val"):
+        target = (
+            resolve_project_path(root, context.config.artifacts.train_cache_path)
+            if split_name == "train"
+            else resolve_project_path(root, context.config.artifacts.validation_cache_path)
+        )
+        if target.exists():
+            # Torch archive bytes are not guaranteed to be stable across saves.
+            # Reuse an existing cache after verifying its semantic payload and
+            # provenance instead of comparing serialized bytes.
+            stored = load_verified_cache(context, split_name)
+            split_results[split_name] = {
+                "path": str(target),
+                "parent_count": len(stored["parent_sample_ids"]),
+                "event_count": len(stored["event_parent_ids"]),
+                "frame_count": int(stored["frame_values"].shape[0]),
+                "normalization_parent_count_used": normalization["parent_count_used"],
+                "cache_payload_sha256": cache_payload_sha256(stored),
+                "reuse": "verified_existing_semantic_payload",
+            }
+            continue
         evidence = _load_split(root, context.config, split_name=split_name, index=index)
         dataset = V27TaskDataset(
             root,
@@ -803,11 +824,6 @@ def materialize_frozen_logit_caches(
                 context.config.base.expected_l2_classifier_state_sha256
             ),
             manifest_sha256=context.manifest_sha256,
-        )
-        target = (
-            resolve_project_path(root, context.config.artifacts.train_cache_path)
-            if split_name == "train"
-            else resolve_project_path(root, context.config.artifacts.validation_cache_path)
         )
         save_cache_payload(target, payload)
         stored = load_cache_payload(target)

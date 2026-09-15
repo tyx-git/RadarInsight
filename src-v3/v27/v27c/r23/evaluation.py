@@ -240,10 +240,15 @@ def _infer(
     arm: str,
     seed: int,
     zero_motion: bool = False,
+    model: R23IntegratedL2Model | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
-    model, checkpoint = load_r23_checkpoint(
-        context, arm=arm, seed=seed, device=torch.device("cpu")
-    )
+    if model is None:
+        model, checkpoint = load_r23_checkpoint(
+            context, arm=arm, seed=seed, device=torch.device("cpu")
+        )
+    else:
+        checkpoint = {"checkpoint_provenance": "in_memory_validation"}
+    inference_device = next(model.parameters()).device
     dataset = R23L2Dataset(context, split="val", arm=arm)
     loader = build_r23_dataloader(
         dataset, batch_size=context.config.training.batch_size, shuffle=False
@@ -253,11 +258,9 @@ def _infer(
     model.eval()
     with torch.inference_mode():
         for batch in loader:
-            base_inputs = r23_model_input_kwargs(batch, torch.device("cpu"))
-            reference_inputs = r23_reference_model_input_kwargs(
-                batch, torch.device("cpu")
-            )
-            sidecars = r23_sidecar_kwargs(batch, torch.device("cpu"))
+            base_inputs = r23_model_input_kwargs(batch, inference_device)
+            reference_inputs = r23_reference_model_input_kwargs(batch, inference_device)
+            sidecars = r23_sidecar_kwargs(batch, inference_device)
             if zero_motion:
                 sidecars["motion_values"] = torch.zeros_like(sidecars["motion_values"])
             effective_motion = (
@@ -281,6 +284,47 @@ def _infer(
     if [row["parent_sample_id"] for row in parents] != dataset.parent_ids:
         raise ValueError("V27c-r23 evaluation changed canonical parent order")
     return parents, events, checkpoint
+
+
+def assess_r23_checkpoint(
+    metrics: Mapping[str, Any],
+    *,
+    epoch: int,
+) -> dict[str, Any]:
+    """Rank a checkpoint by all-class F1, prioritizing Bird and Drone."""
+
+    if isinstance(epoch, bool) or int(epoch) <= 0:
+        raise ValueError("V27c-r23 checkpoint assessment epoch is invalid")
+    rows = {str(row["class"]): row for row in metrics.get("per_class") or ()}
+    if set(rows) != set(R23_L2_CLASSES):
+        raise ValueError("V27c-r23 checkpoint assessment classes differ")
+    values = {
+        name: float(rows[name]["f1"])
+        for name in R23_L2_CLASSES
+    }
+    if not all(np.isfinite(value) for value in values.values()):
+        raise ValueError("V27c-r23 checkpoint assessment is non-finite")
+    macro_f1 = float(metrics["macro_f1"])
+    accuracy = float(metrics["accuracy"])
+    return {
+        "schema_version": "RADAR-LN3-V27c-r23-checkpoint-selector-v1",
+        "epoch": int(epoch),
+        "feasible": True,
+        "per_class_f1": values,
+        "minimum_per_class_f1": min(values.values()),
+        "macro_f1": macro_f1,
+        "accuracy": accuracy,
+        "selection_policy": "global_validation_per_class_f1",
+        "ranking_key": [
+            min(values.values()),
+            values["BirdTarget"],
+            values["DroneTarget"],
+            values["BalloonTarget"],
+            macro_f1,
+            accuracy,
+            -float(epoch),
+        ],
+    }
 
 
 def _metrics(
@@ -478,6 +522,49 @@ def evaluate_r23_seed(context: R23Context, *, seed: int) -> dict[str, Any]:
     )
     write_sealed_json_if_identical(path, report)
     return {**report, "report_path": str(path)}
+
+
+def evaluate_r23_single_arm(
+    context: R23Context,
+    *,
+    arm: str,
+    seed: int,
+) -> dict[str, Any]:
+    """Evaluate one trained arm without requiring the other factorial arms."""
+
+    if arm not in R23_ARMS:
+        raise ValueError("V27c-r23 single-arm evaluation arm is invalid")
+    if seed not in context.config.training.seeds:
+        raise ValueError("V27c-r23 evaluation seed is not registered")
+    reference_parents, reference_events = _cached_v27a_reference(context)
+    parents, events, checkpoint = _infer(context, arm=arm, seed=seed)
+    reference_metrics = _metrics(reference_parents, reference_events, context)
+    arm_metrics = _metrics(parents, events, context)
+    report = {
+        "schema_version": "RADAR-LN3-V27c-r23-single-arm-evaluation-v1",
+        "experiment_id": context.config.experiment_id,
+        "arm": arm,
+        "seed": int(seed),
+        "checkpoint_state_sha256": checkpoint["model_state_sha256"],
+        "reference": reference_metrics["parent_metrics"],
+        "metrics": arm_metrics["parent_metrics"],
+        "parent_balanced_eligible_prefix_metrics": arm_metrics[
+            "parent_balanced_eligible_prefix_metrics"
+        ],
+        "delta_vs_frozen_v27a_main": _metric_delta(
+            reference_metrics["parent_metrics"], arm_metrics["parent_metrics"]
+        ),
+        "scope": {
+            "unknown_training_exposure": 0,
+            "clutter_training_exposure": 0,
+            "knownness": "not_in_scope",
+            "quality": "not_in_scope",
+            "calibration": "not_in_scope",
+            "l3": "not_in_scope",
+            "test_payload_access_count": 0,
+        },
+    }
+    return report
 
 
 def summarize_r23_seeds(context: R23Context) -> dict[str, Any]:

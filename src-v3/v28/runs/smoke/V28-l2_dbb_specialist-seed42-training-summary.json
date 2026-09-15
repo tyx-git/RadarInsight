@@ -1,0 +1,92 @@
+{
+  "schema_version": "RADAR-LN3-V28-classification-summary-v1",
+  "status": "completed",
+  "task": "l2_dbb_specialist",
+  "seed": 42,
+  "selected_epoch": 1,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.23810613155365,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 2,
+        "accuracy": 1.0,
+        "macro_precision": 0.3333333333333333,
+        "macro_recall": 0.3333333333333333,
+        "macro_f1": 0.3333333333333333,
+        "balanced_accuracy": 0.3333333333333333,
+        "per_class": [
+          {
+            "class": "DroneTarget",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "BirdTarget",
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "BalloonTarget",
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 1,
+        "minimum_per_class_f1": 0.0,
+        "per_class_f1": {
+          "DroneTarget": 1.0,
+          "BirdTarget": 0.0,
+          "BalloonTarget": 0.0
+        },
+        "macro_f1": 0.3333333333333333,
+        "accuracy": 1.0,
+        "ranking_key": [
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.3333333333333333,
+          1.0,
+          -1
+        ]
+      }
+    }
+  ],
+  "checkpoint_path": "src-v3/v28/runs/smoke/V28-l2_dbb_specialist-seed42-best.pt",
+  "unknown_training_exposure": 0,
+  "clutter_l2_training_exposure": 0,
+  "payload_sha256": "b27e7aa7ccd0273d7b1f81cc06f8ef22a02614c83b0da479b119217d8b43e656"
+}

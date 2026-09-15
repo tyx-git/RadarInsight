@@ -1,0 +1,516 @@
+{
+  "schema_version": "RADAR-LN3-V27-deployment-benchmark-v2",
+  "status": "completed_with_l3_unavailable",
+  "current_stage": "completed",
+  "timestamp_utc": "2026-09-12T10:52:24Z",
+  "output_path": "src-v3/v27/deployment-benchmark-smoke.json",
+  "completed_stages": [
+    "serial_cpu_all_frames",
+    "serial_cpu_valid_frames_only",
+    "closed_set_measurements",
+    "unknown_diagnostic",
+    "prefix_analysis"
+  ],
+  "protocol": {
+    "serial_input": true,
+    "closed_set_data": "R15 validation view; L1 routes target parents to R23 robust_control L2 and clutter parents remain at L1",
+    "unknown_data": "R15 representation_development view; no test payload",
+    "l3_required_for_unknown_rates": true,
+    "minimum_event_answer": "empirical prefix stability plus metrics at every prefix length",
+    "rd_optimization": "仅对 rd_frame_mask=True 的帧执行卷积，再按事件做 masked mean 聚合。"
+  },
+  "environment": {
+    "python": "3.12.6",
+    "torch": "2.5.1+cu121",
+    "numpy": "2.4.4",
+    "cuda_available": true,
+    "cuda_device": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "provenance": {
+    "config_path": "src-v3/v27/deployment_benchmark_config.json",
+    "config_sha256": "b0329b0fe2930f832f1136a1c27ee76eccc98bd7fe9bc5ff2454581079c73884",
+    "l1_config": "src-v3/v27/V27d/r15/config/V27d-r15-v3-global-best.json",
+    "l1_checkpoint": "src-v3/v27/V27d/r15/checkpoints/v5/V27d-r15-v10_observation_increment-seed42.pt",
+    "l1_checkpoint_sha256": "592b1bd9de944ed39341c7bc8abd3d8e544141ff4a69866f036e55264d372723",
+    "l2_config": "src-v3/v27/v27c/r23/config/V27c-r23-global-best.json",
+    "l2_checkpoint": "src-v3/v27/v27c/r23/runs-global-best/V27c-r23-robust_control-seed43/epochs/global-best.pt",
+    "l2_checkpoint_sha256": "bb9029e2537386a3123472bf9cbbc57f4ada04cdb899dcdb34c09c01c4b9ab3a",
+    "l3_registry": "src-v3/v27/V27d/calibration/V27d-r1-l3-registry.json",
+    "l3_registry_sha256": "0e42a8e3a97cfe1fcc50701a110ba470a00d82ec498367e68c30004ede28fb42",
+    "l3_registry_status": "unavailable",
+    "validation_parent_count": 232,
+    "unknown_diagnostic_parent_count": 505,
+    "l2_validation_parent_count": 223
+  },
+  "models": {
+    "L1_r15_v3_treatment": {
+      "parameter_count": 112756,
+      "parameter_bytes_fp32": 451024,
+      "model_size_bytes": 724681,
+      "checkpoint_file_bytes": 724681
+    },
+    "L2_r23_robust_control": {
+      "parameter_count": 235210,
+      "parameter_bytes_fp32": 940840,
+      "model_size_bytes": 992540,
+      "checkpoint_file_bytes": 992540
+    },
+    "L3_current_registry": {
+      "parameter_count": null,
+      "artifact_file_bytes": 14494,
+      "status": "unavailable"
+    },
+    "serial_L1_plus_L2": {
+      "parameter_count": 347966,
+      "parameter_bytes_fp32": 1391864,
+      "model_size_bytes": 1717221,
+      "checkpoint_file_bytes": 1717221,
+      "l3_included": false
+    }
+  },
+  "closed_set": {
+    "l1_and_l2_serial": {
+      "support": 1,
+      "accuracy": 1.0,
+      "macro_f1": 0.25,
+      "per_class": [
+        {
+          "class": "DroneTarget",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 1
+        },
+        {
+          "class": "BirdTarget",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        },
+        {
+          "class": "BalloonTarget",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        },
+        {
+          "class": "ClutterTarget",
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 0
+        }
+      ]
+    },
+    "measurements": [
+      {
+        "rd_encoder_variant": "all_frames",
+        "sample_count": 1,
+        "labels": [
+          "DroneTarget"
+        ],
+        "predictions": [
+          "DroneTarget"
+        ],
+        "l1_predictions": [
+          "KNOWN_TARGET_EVIDENCE"
+        ],
+        "l2_predictions": [
+          "DroneTarget"
+        ],
+        "metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.25,
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "BirdTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l1_metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l2_routed_metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.3333333333333333,
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "BirdTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l2_route_count": 1,
+        "latency_ms": {
+          "p50": 598.808899987489,
+          "p95": 598.808899987489,
+          "p99": 598.808899987489,
+          "mean": 598.808899987489,
+          "max": 598.808899987489
+        },
+        "throughput": {
+          "samples_per_second": 1.6696297029584126,
+          "MB_per_second": 96.98545018544827,
+          "input_bytes": 58088000,
+          "elapsed_seconds": 0.5989351999596693
+        },
+        "compute": {
+          "representative_l1": {
+            "macs": 253753200,
+            "flops": 507506400,
+            "by_module": {
+              "observation_adapter.input_projection": 10800,
+              "observation_adapter.output_projection": 57600,
+              "base.tr_encoder.0": 30000,
+              "base.tr_encoder.3": 57600,
+              "base.rd_encoder.network.0": 87091200,
+              "base.rd_encoder.network.3": 91238400,
+              "base.rd_encoder.network.6": 74649600,
+              "base.rd_encoder.projection.1": 172800,
+              "base.fusion.0": 97200,
+              "base.liquid.cell.candidate_projection": 115200,
+              "base.liquid.cell.input_projection": 57600,
+              "base.liquid.cell.state_projection": 57600,
+              "base.liquid.cell.gate_projection": 115200,
+              "base.classifier": 2400
+            }
+          },
+          "representative_l2": {
+            "macs": 507611920,
+            "flops": 1015223840,
+            "by_module": {
+              "frozen_reference_base_model.tr_encoder.0": 30000,
+              "frozen_reference_base_model.tr_encoder.3": 57600,
+              "frozen_reference_base_model.rd_encoder.network.0": 87091200,
+              "frozen_reference_base_model.rd_encoder.network.3": 91238400,
+              "frozen_reference_base_model.rd_encoder.network.6": 74649600,
+              "frozen_reference_base_model.rd_encoder.projection.1": 172800,
+              "frozen_reference_base_model.fusion.0": 109200,
+              "frozen_reference_base_model.liquid.cell.candidate_projection": 115200,
+              "frozen_reference_base_model.liquid.cell.input_projection": 57600,
+              "frozen_reference_base_model.liquid.cell.state_projection": 57600,
+              "frozen_reference_base_model.liquid.cell.gate_projection": 115200,
+              "frozen_reference_base_model.classifier": 3600,
+              "trainable_base_model.tr_encoder.0": 30000,
+              "trainable_base_model.tr_encoder.3": 57600,
+              "trainable_base_model.rd_encoder.network.0": 87091200,
+              "trainable_base_model.rd_encoder.network.3": 91238400,
+              "trainable_base_model.rd_encoder.network.6": 74649600,
+              "trainable_base_model.rd_encoder.projection.1": 172800,
+              "trainable_base_model.fusion.0": 109200,
+              "motion_adapter.input_projection": 3600,
+              "motion_adapter.hidden_projection": 6400,
+              "motion_adapter.output_projection": 19200,
+              "trainable_base_model.liquid.cell.candidate_projection": 115200,
+              "trainable_base_model.liquid.cell.input_projection": 57600,
+              "trainable_base_model.liquid.cell.state_projection": 57600,
+              "trainable_base_model.liquid.cell.gate_projection": 115200,
+              "trainable_base_model.classifier": 3600,
+              "stable_model.token_projection": 30720,
+              "stable_model.parent_encoder": 153600,
+              "stable_model.residual_projection": 2400
+            }
+          },
+          "serial_representative_macs": 761365120,
+          "serial_representative_flops": 1522730240,
+          "flops_definition": "FLOPS=2*MACs；只统计 Linear/Conv2d/GRU 矩阵乘，未统计逐元素、LayerNorm 和内存搬运。"
+        },
+        "memory": {
+          "cpu_peak_rss_bytes": 821112832,
+          "cuda_peak_allocated_bytes": null,
+          "cuda_peak_reserved_bytes": null
+        },
+        "rd_frame_accounting": {
+          "total_frame_slots": 600,
+          "valid_frame_count": 240,
+          "skipped_frame_count": 360,
+          "skipped_fraction": 0.6
+        },
+        "device": "cpu",
+        "stage_index": 1
+      },
+      {
+        "rd_encoder_variant": "valid_frames_only",
+        "sample_count": 1,
+        "labels": [
+          "DroneTarget"
+        ],
+        "predictions": [
+          "DroneTarget"
+        ],
+        "l1_predictions": [
+          "KNOWN_TARGET_EVIDENCE"
+        ],
+        "l2_predictions": [
+          "DroneTarget"
+        ],
+        "metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.25,
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "BirdTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "ClutterTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l1_metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.5,
+          "per_class": [
+            {
+              "class": "KNOWN_TARGET_EVIDENCE",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "KNOWN_CLUTTER_EVIDENCE",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l2_routed_metrics": {
+          "support": 1,
+          "accuracy": 1.0,
+          "macro_f1": 0.3333333333333333,
+          "per_class": [
+            {
+              "class": "DroneTarget",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 1
+            },
+            {
+              "class": "BirdTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            },
+            {
+              "class": "BalloonTarget",
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "support": 0
+            }
+          ]
+        },
+        "l2_route_count": 1,
+        "latency_ms": {
+          "p50": 424.351200053934,
+          "p95": 424.351200053934,
+          "p99": 424.351200053934,
+          "mean": 424.351200053934,
+          "max": 424.351200053934
+        },
+        "throughput": {
+          "samples_per_second": 2.356071702824544,
+          "MB_per_second": 136.8594930736721,
+          "input_bytes": 58088000,
+          "elapsed_seconds": 0.42443529999582097
+        },
+        "compute": {
+          "representative_l1": {
+            "macs": 101862000,
+            "flops": 203724000,
+            "by_module": {
+              "observation_adapter.input_projection": 10800,
+              "observation_adapter.output_projection": 57600,
+              "base.tr_encoder.0": 30000,
+              "base.tr_encoder.3": 57600,
+              "base.rd_encoder.network.0": 34836480,
+              "base.rd_encoder.network.3": 36495360,
+              "base.rd_encoder.network.6": 29859840,
+              "base.rd_encoder.projection.1": 69120,
+              "base.fusion.0": 97200,
+              "base.liquid.cell.candidate_projection": 115200,
+              "base.liquid.cell.input_projection": 57600,
+              "base.liquid.cell.state_projection": 57600,
+              "base.liquid.cell.gate_projection": 115200,
+              "base.classifier": 2400
+            }
+          },
+          "representative_l2": {
+            "macs": 203829520,
+            "flops": 407659040,
+            "by_module": {
+              "frozen_reference_base_model.tr_encoder.0": 30000,
+              "frozen_reference_base_model.tr_encoder.3": 57600,
+              "frozen_reference_base_model.rd_encoder.network.0": 34836480,
+              "frozen_reference_base_model.rd_encoder.network.3": 36495360,
+              "frozen_reference_base_model.rd_encoder.network.6": 29859840,
+              "frozen_reference_base_model.rd_encoder.projection.1": 69120,
+              "frozen_reference_base_model.fusion.0": 109200,
+              "frozen_reference_base_model.liquid.cell.candidate_projection": 115200,
+              "frozen_reference_base_model.liquid.cell.input_projection": 57600,
+              "frozen_reference_base_model.liquid.cell.state_projection": 57600,
+              "frozen_reference_base_model.liquid.cell.gate_projection": 115200,
+              "frozen_reference_base_model.classifier": 3600,
+              "trainable_base_model.tr_encoder.0": 30000,
+              "trainable_base_model.tr_encoder.3": 57600,
+              "trainable_base_model.rd_encoder.network.0": 34836480,
+              "trainable_base_model.rd_encoder.network.3": 36495360,
+              "trainable_base_model.rd_encoder.network.6": 29859840,
+              "trainable_base_model.rd_encoder.projection.1": 69120,
+              "trainable_base_model.fusion.0": 109200,
+              "motion_adapter.input_projection": 3600,
+              "motion_adapter.hidden_projection": 6400,
+              "motion_adapter.output_projection": 19200,
+              "trainable_base_model.liquid.cell.candidate_projection": 115200,
+              "trainable_base_model.liquid.cell.input_projection": 57600,
+              "trainable_base_model.liquid.cell.state_projection": 57600,
+              "trainable_base_model.liquid.cell.gate_projection": 115200,
+              "trainable_base_model.classifier": 3600,
+              "stable_model.token_projection": 30720,
+              "stable_model.parent_encoder": 153600,
+              "stable_model.residual_projection": 2400
+            }
+          },
+          "serial_representative_macs": 305691520,
+          "serial_representative_flops": 611383040,
+          "flops_definition": "FLOPS=2*MACs；只统计 Linear/Conv2d/GRU 矩阵乘，未统计逐元素、LayerNorm 和内存搬运。"
+        },
+        "memory": {
+          "cpu_peak_rss_bytes": 835956736,
+          "cuda_peak_allocated_bytes": null,
+          "cuda_peak_reserved_bytes": null
+        },
+        "rd_frame_accounting": {
+          "total_frame_slots": 600,
+          "valid_frame_count": 240,
+          "skipped_frame_count": 360,
+          "skipped_fraction": 0.6
+        },
+        "device": "cpu",
+        "stage_index": 2
+      }
+    ]
+  },
+  "unknown": {
+    "l3_available": false,
+    "l3_status": "unavailable",
+    "unknown_support": 38,
+    "unknown_acceptance_rate": null,
+    "unknown_rejection_rate": null,
+    "reason": "当前 V27d-r1 registry 未 fitted 且旧 L3 head/cache 绑定 V27 baseline，不可直接用于 r15+r23 组合。",
+    "diagnostic_l1_known_route_rate": 1.0,
+    "diagnostic_only_not_l3": true
+  },
+  "prefix_analysis": {
+    "status": "skipped_by_argument",
+    "criterion": "not run"
+  },
+  "rd_optimization_conclusion": {
+    "parameter_count_unchanged": true,
+    "model_size_unchanged": true,
+    "measured_variants": [
+      "all_frames:cpu",
+      "valid_frames_only:cpu"
+    ],
+    "valid_frame_skip_fraction": 0.6,
+    "interpretation": "只有实际运行结果中的 MAC、FLOPS、吞吐量和时延可以作为结论；跳帧比例本身不能直接等价为同倍率端到端加速。"
+  },
+  "limitations": [
+    "当前 L3 registry status=unavailable，未报告伪造的 Unknown 接受率/拒绝率。",
+    "当前 r15/r23 没有为新组合重新拟合 L3；旧 V27d head/cache 不能跨 endpoint 复用。",
+    "MAC/FLOPS 不含 LayerNorm、逐元素运算、数据搬运和 Python/DataLoader 开销；吞吐量和时延是本机实测值。",
+    "CPU 峰值是进程 RSS 采样近似值，CUDA 峰值是 torch allocated/reserved 统计。"
+  ]
+}

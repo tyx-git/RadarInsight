@@ -1,0 +1,97 @@
+{
+  "schema_version": "RADAR-LN3-V28-manifest-v1",
+  "experiment_id": "V28",
+  "config": {
+    "path": "src-v3/v28/config/V28-default.json",
+    "sha256": "e5b5b05b84f305dc667a071bc572bc354d78562a717b9ec024edc61485360f0f",
+    "identity_sha256": "feb88f6553fdc212abee76d337c307452795eda6400e7526df6d8aaa022ec84b"
+  },
+  "source_hashes": {
+    "index": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "l1:train:course_cache": "a73c7e21656babf63ef4634fe5f77b08f2489b814e4c457f0d23981564ee3425",
+    "l1:validation:course_cache": "fea3c306563060476e73242e95a54dc188d75185da86baf8e1954b6204cb8cdc",
+    "l2:train:rd_physical_cache": "b6dc044b9a989a5d8991185b5638f6cfb5a1987522d1c280d8212c2b9a45d0d0",
+    "l2:train:micro_doppler_cache": "b118f6476435f2a1563a9011ea4cea2a6e720cd14ca7e428677a411f07f4030c",
+    "l2:validation:rd_physical_cache": "fe423cdb398d9cb4ee9aa9ff6f5f4d109b34c12dc492a9bcae1462cc0631d09e",
+    "l2:validation:micro_doppler_cache": "e14105a622c8ad6f3ec30810206dea69733e9b1dfb842178a543781cc34a5c6e",
+    "migration:r15_l1_checkpoint": "697e2a5563e277bf7faf6fa8c9658e3c522c61329f302c972fd52dc6e010fb11",
+    "migration:r23_l2_checkpoint": "4c2abd32d53ebf99875b6ab7da1ebff90bce67e92140b4ebacd1ec946a42e4e1"
+  },
+  "code_hashes": {
+    "src-v3/v28/__init__.py": "63d085c9b5b11af9f294869e33e7469fcee5f15d014b6b0951603bf0d2ca56ad",
+    "src-v3/v28/cli.py": "50e987d77808907507763a3c402277b8c57d9ed6a0bb73ae6e6a732a6e985d2d",
+    "src-v3/v28/data.py": "ce0efc7e57be49fcb335411569a26c2bef135d1a7010d2b4d30b055cdb029027",
+    "src-v3/v28/features.py": "fc52b2a3cb8e982f36fca7a5249c1747a666236851f774c347824253d70a55bb",
+    "src-v3/v28/head_training.py": "48dfada77857c08eccc3fa1fddaba42c6a207fa6405a5b3ea10e44cdd4f8403c",
+    "src-v3/v28/heads.py": "20b74876625498df2a120bff62d58e8124b20fd376be3e80825022ccdf379a3e",
+    "src-v3/v28/l3.py": "2096abdf35540eb407b935611cb9c4b5f98cf34e3d0a695291b156398f3f34ef",
+    "src-v3/v28/metrics.py": "ab84209f7cf9f99eef6b4660236ff13383089caf4bba35b08f82ea699d7ab505",
+    "src-v3/v28/model.py": "be1b87721e3ff61a7ee3e479017fa460727380a24755e6e375ff3d61bf76dcbc",
+    "src-v3/v28/pools.py": "83aa32efb5b4ebeafab1499ee9e6880af3fe98be4381ba79625c82c9143c62fb",
+    "src-v3/v28/protocol.py": "ff6f453a4fb50e02087796dbce3b0406f1d1c686f087ac84f19b60f5aa3ea88c",
+    "src-v3/v28/registry.py": "8845cac1bb8070f9228e1b180355cf93403b5e2704db21124aa319b50ca8d654",
+    "src-v3/v28/representations.py": "7c219259176ea30d0ca7d962ca3c15caf0a2acf0a556d7c564a4d34a45a12b04",
+    "src-v3/v28/selection.py": "2080607a54f589e4795bf65a93bff2622a2a9c759214f2eb524086f76249fdb1",
+    "src-v3/v28/training.py": "db09b2c2e3ffa07bfb245656311c2c0cfdc7e55ddbae0a7344500212e57512d8"
+  },
+  "liquid_v2": {
+    "equation_version": "RADAR-LN3-V27-liquid-v2-raw-memory-pre-norm-v1",
+    "memory_state": "raw_r_t",
+    "post_update_normalization": false,
+    "classifier_readout": "independent_layer_norm_on_raw_state",
+    "all_valid_events_update_both_tasks": true
+  },
+  "tasks": {
+    "l1_known_gate": {
+      "class_names": [
+        "KNOWN_TARGET_EVIDENCE",
+        "KNOWN_CLUTTER_EVIDENCE"
+      ],
+      "labels": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget",
+        "ClutterTarget"
+      ],
+      "unknown_classifier_class": false
+    },
+    "l2_dbb_specialist": {
+      "class_names": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "labels": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "clutter_classifier_training": false,
+      "unknown_classifier_class": false
+    }
+  },
+  "selection": {
+    "knownness_recall_floor": 0.98,
+    "clutter_recall_floor": 0.8888888888888888,
+    "max_correct_known_new_rejections": 2,
+    "quality_recall_floor": 0.95,
+    "minimum_negative_support": 10,
+    "fallback_allowed": true
+  },
+  "protocol": {
+    "unknown_is_classifier_class": false,
+    "unknown_classifier_training_exposure": 0,
+    "unknown_normalization_exposure": 0,
+    "l2_clutter_training": false,
+    "l2_clutter_knownness": false,
+    "all_valid_events_update_both_tasks": true,
+    "quality_output_feedback": false,
+    "fixed_softmax_threshold_allowed": false,
+    "single_global_distance_gate_allowed": false,
+    "l3_fail_closed_before_calibration": true,
+    "offline_chunked_online_must_match": true,
+    "post_selection_audit_pool": "required_for_formal_deployment"
+  },
+  "test_payload_access_count": 0,
+  "payload_sha256": "635502a295020f1d324da1e94bef57903226bbf48b47380d5c39e1b8ba81f371"
+}

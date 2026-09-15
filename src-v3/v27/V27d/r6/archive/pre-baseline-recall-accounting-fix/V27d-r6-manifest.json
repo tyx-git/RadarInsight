@@ -1,0 +1,58 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r6-manifest-v1",
+  "experiment_id": "V27d-r6-bird-liquid-verifier",
+  "config": {
+    "path": "src-v3/v27/V27d/r6-bird-liquid-verifier/config/V27d-r6-bird-liquid-verifier.json",
+    "sha256": "ca3d0d26b04137f2e0867ec7a6a3cc4da259a4bf020bbb0530c390a1e5fc7141",
+    "identity_sha256": "4779a6c2243ba4c913f87e122eb8c072da9b96804e1465e3abf055cee82dd8ad"
+  },
+  "source": {
+    "r5_v2_config_path": "src-v3/v27/V27d/r5-bird-route-v2/config/V27d-r5-bird-route-v2.json",
+    "r5_v2_config_sha256": "02d04117541e5ef5352d5b02418217172349998cd3adc5f4872eb831f0510762",
+    "r5_v2_manifest_path": "src-v3/v27/V27d/r5-bird-route-v2/manifests/V27d-r5-bird-route-v2-manifest.json",
+    "r5_v2_manifest_sha256": "b9ec912edb97d3219f5888f2dbc2f60535196c7a0244897e62ce4a08666c57df",
+    "r5_control_report_path": "src-v3/v27/V27d/r5-bird-route/reports/V27d-r5-seed42-bird-route-evaluation.json",
+    "r5_control_report_sha256": "90c01df1b9922df8d86f2de1e26540a5afc2e39ba8e165a095acce50920bd1ce",
+    "r5_control_config_path": "src-v3/v27/V27d/r5-bird-route/config/V27d-r5-bird-route.json",
+    "r5_control_config_sha256": "e21289c18817792d322bac5ebf4a68a84e24e7ad1d61083463f3ca37e3eb9922",
+    "r5_control_checkpoint_path": "src-v3/v27/V27d/r5-bird-route/checkpoints/V27d-r5-control-seed42-bird-head.pt",
+    "r5_control_checkpoint_sha256": "d6e9f96f980ffc73bf204a9329a011aa9cb1b7128ad8204b6e9d650d20036867",
+    "v27d_manifest_sha256": "6f09c077e204af8e577a91194e3ab0327cbff0a46e20e8d0878a76cfe4d70a3e"
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d_r6/__init__.py": "be224d99bd26594e58546746d4832900c72023f7c3153eb3e63ef4d62fa95382",
+    "src-v3/v27/V27d_r6/cli.py": "a4e455e4a78399f5df327d2dd151c8b10fec75ff1231ef4c40191a4d5008f4d8",
+    "src-v3/v27/V27d_r6/evaluation.py": "f742f7042a2b34af0dd6115242efd37caf48eabee6daf13f63564a52647d92a2",
+    "src-v3/v27/V27d_r6/features.py": "dcb839961980c3cb1d843b84345497b1716d3197192cbb6323a480be93774aa7",
+    "src-v3/v27/V27d_r6/model.py": "1c02fff5bf4a43839d1c1c8bf6b8b5d02de5741a6a4f70d050d1c91d4e74f808",
+    "src-v3/v27/V27d_r6/protocol.py": "6d7aeb2c637b4f50c5a9e513a5741e58c6f698ac33d7201f0a42f45ec4acfbed",
+    "src-v3/v27/V27d_r6/smoke.py": "f52877a497fb5dfba1b59d7d3281c321815819caab96acb6021e4bb7b2787365",
+    "src-v3/v27/V27d_r6/summary.py": "75de4935035de553098bea756eef3aca373ef0836ab0416e53064fac7b9050d0",
+    "src-v3/v27/V27d_r6/training.py": "db104be1528879c8540b62a61aff7f62c78161c2c9bd4634ad4d5cfd679626c9"
+  },
+  "roles": [
+    "representation_fit",
+    "representation_development",
+    "calibration"
+  ],
+  "arms": [
+    "gru_control",
+    "liquid_treatment"
+  ],
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "protocol": {
+    "direct_baseline": "V27d-r5-control",
+    "unique_variable": "recurrent_core_gru_vs_liquid_v2",
+    "unknown_is_classifier_class": false,
+    "l1_l2_endpoints_frozen": true,
+    "strict_parent_class_balanced_loss": true,
+    "route_matched_population": true,
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "857bb4c5b3a6b216ba45e4afbd7246dd82dc4b388e55c2cbb92a1e13940617d5"
+}

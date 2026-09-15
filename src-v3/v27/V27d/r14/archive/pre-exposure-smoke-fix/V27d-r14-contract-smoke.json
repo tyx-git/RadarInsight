@@ -1,0 +1,25 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r14-density-weighted-v1-smoke",
+  "experiment_id": "V27d-r14",
+  "status": "passed",
+  "manifest_sha256": "fb353c57c149d76d0332dd189eba7770263dae022c035e81ce674d64a31ab7c5",
+  "initial_control_treatment_state_equal": true,
+  "control_replays_v27a_main_at_initialization": true,
+  "treatment_is_density_exposed_initialization": false,
+  "control_mode": "bounded_observation",
+  "treatment_mode": "density_weighted",
+  "time_policy_probe": {
+    "k1_matches_control": true,
+    "k2_is_twice_control_increment": true,
+    "k3_is_three_times_control_increment": true,
+    "first_event_unchanged": true,
+    "positive_dt_unchanged": true,
+    "chunked_matches_full": true,
+    "padding_never_updates": true,
+    "finite": true
+  },
+  "unknown_payload_access_count": 0,
+  "test_payload_access_count": 0,
+  "formal_l3_enabled": false,
+  "payload_sha256": "53b18f56226b22df6f642ce262d2f02206ad73aaf7a634dd266547e2da7df28a"
+}

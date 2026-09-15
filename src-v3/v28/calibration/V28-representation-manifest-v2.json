@@ -1,0 +1,87 @@
+{
+  "schema_version": "RADAR-LN3-V28-representation-manifest-v2",
+  "experiment_id": "V28",
+  "status": "prepared",
+  "system_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34",
+  "pool_registry_sha256": "06c9516be091b6d4a2b992b1ef1c6c0657de475471df3c87d827f3047b6fcebf",
+  "tasks": {
+    "l1_known_gate:representation_fit": {
+      "path": "src-v3/v28/calibration/features/V28-representation_fit-l1_known_gate-representation-v2.pt",
+      "sha256": "ed17617f8b311355135a8c52b28ec3148214a13be6a43b7a3b38d70a8c5942ce",
+      "cache_sha256": "72bf298c29a7ac4e615d2a8ca48db1941a9bf3f6a40a8306533ee5796698b6ec",
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      }
+    },
+    "l1_known_gate:representation_development": {
+      "path": "src-v3/v28/calibration/features/V28-representation_development-l1_known_gate-representation-v2.pt",
+      "sha256": "9b324b10e3898e13524fb09ce63d57984874f46dbcf07e03aed5b574d5e983a2",
+      "cache_sha256": "579bcbcc51a9e2ac5a474ca5695ca5a9667d1a189c4da711fb357e6156f12460",
+      "parent_count": 550,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "ClutterTarget": 19,
+        "BalloonTarget": 127
+      }
+    },
+    "l1_known_gate:calibration": {
+      "path": "src-v3/v28/calibration/features/V28-calibration-l1_known_gate-representation-v2.pt",
+      "sha256": "327cf616722a6f101d5029c8be8dc442519e5ffc805761761f28418c6857623a",
+      "cache_sha256": "3da0d000675a72c89e0218fea697d7f5d7c35e861afb6cadb04bbcd555b958dc",
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      }
+    },
+    "l2_dbb_specialist:representation_fit": {
+      "path": "src-v3/v28/calibration/features/V28-representation_fit-l2_dbb_specialist-representation-v2.pt",
+      "sha256": "e38b53e2cc4834d9836a018f817e122bb6e3db1e1efa3a92661f497960114a78",
+      "cache_sha256": "7d76037e62877724cbce31af3261fbf0e8bb9e22fd90fb672fdcd62c11161a9d",
+      "parent_count": 491,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "BalloonTarget": 111
+      }
+    },
+    "l2_dbb_specialist:representation_development": {
+      "path": "src-v3/v28/calibration/features/V28-representation_development-l2_dbb_specialist-representation-v2.pt",
+      "sha256": "7b18737088834e85708f41071a27a0c6e16cd9604873988e2e25805e956be649",
+      "cache_sha256": "11d3b64af9c188dcad4bbee7d49eec3d2ae24a0d9ecfd0eec0ade84e67a876d5",
+      "parent_count": 531,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "BalloonTarget": 127
+      }
+    },
+    "l2_dbb_specialist:calibration": {
+      "path": "src-v3/v28/calibration/features/V28-calibration-l2_dbb_specialist-representation-v2.pt",
+      "sha256": "268eb11e7d6a23849a02af9d4cfae8f781fb2d558e545429e724450b1f3b6e35",
+      "cache_sha256": "50d99fa21dac913a6a30a07ad381bc806893a73ef9cb794d5a8cdefe122db4fc",
+      "parent_count": 238,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54
+      }
+    }
+  },
+  "test_payload_access_count": 0,
+  "representation_manifest_sha256": "ebe52a1c076cac379972e076c2f2f32f86018c9f77b86158dc3ada5b0e9dc25b",
+  "payload_sha256": "c4b265f7ed7a2e21ffd8b67d3bcf1f9220c775315e5b22bf80c3a66a8e6cc210"
+}

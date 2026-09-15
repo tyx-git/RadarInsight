@@ -1,0 +1,44 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-manifest-v1",
+  "experiment_id": "V27d-r5-bird-route",
+  "config": {
+    "path": "src-v3/v27/V27d/r5-bird-route/config/V27d-r5-bird-route.json",
+    "sha256": "e21289c18817792d322bac5ebf4a68a84e24e7ad1d61083463f3ca37e3eb9922",
+    "identity_sha256": "48754837479471c6f7104678a69af19c64592260e6d0b5a3353b571e87ac83d6"
+  },
+  "source": {
+    "v27d_manifest_path": "src-v3/v27/V27d/manifests/V27d-r1-manifest.json",
+    "v27d_manifest_sha256": "6f09c077e204af8e577a91194e3ab0327cbff0a46e20e8d0878a76cfe4d70a3e",
+    "v27d_config_path": "src-v3/v27/V27d/config/V27d-r1-frozen-endpoint-control.json",
+    "v27d_endpoint_manifest_sha256": ""
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d_r5/__init__.py": "a2b42a77e07dfad1a061eff15155a37cf95fed61206c885433236edc0d0f1f61",
+    "src-v3/v27/V27d_r5/cli.py": "421c77c92b0d516e9f821569e119661f79a8cac5b1536076a52312b5227a75e7",
+    "src-v3/v27/V27d_r5/evaluation.py": "17b36b0087c755a29eddcae103add90aa8d74d2ce329bea3dabd21a965705955",
+    "src-v3/v27/V27d_r5/features.py": "6025e334e4d4d624f29ae46d4cc1ea37b8310e3e902cbd190a6142ed1970d1a7",
+    "src-v3/v27/V27d_r5/model.py": "ab7d6f46cb249eef6165edd2c6b08f08759379ecba7a1b221e80407fbac4f3d5",
+    "src-v3/v27/V27d_r5/protocol.py": "99604090549ac151576aaaf1eced2c724d21b915a39cfd49bbe8798dbfb20b9f",
+    "src-v3/v27/V27d_r5/scoring.py": "cee86fafb41f6f2c635f145022c38fef69cad96b92b9e22a4648ba27df725445",
+    "src-v3/v27/V27d_r5/smoke.py": "85c327e751b98c8a6a50f67209973389c98018675ba37784461e45efdc3b5734",
+    "src-v3/v27/V27d_r5/training.py": "8739c8acff2c1c323c40f853c746a5db892a89b114e603b0f145511e0dc2dc54"
+  },
+  "arms": [
+    "control",
+    "stable8_treatment"
+  ],
+  "roles": [
+    "representation_fit",
+    "representation_development",
+    "calibration"
+  ],
+  "seed": 42,
+  "protocol": {
+    "unknown_is_classifier_class": false,
+    "classification_logits_input_to_head": false,
+    "calibration_scope": "exploratory_threshold_transfer_only",
+    "formal_l3_enabled": false,
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "d54a440e3637e4fdc830e88ad01e16a5d9101b57f79b8576283acb3cbd196e78"
+}

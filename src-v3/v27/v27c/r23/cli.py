@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
-from .evaluation import evaluate_r23_seed, summarize_r23_seeds
+# PyTorch reads this before CUDA initialization; keep deterministic r23 runs
+# reproducible without requiring a shell-specific environment setup.
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
+from .evaluation import evaluate_r23_seed, evaluate_r23_single_arm, summarize_r23_seeds
 from .protocol import R23_ARMS, load_r23_context, prepare_r23_manifest
 from .smoke import run_smoke
 from .training import run_r23_training_step, train_r23_arm
@@ -24,11 +29,12 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("smoke", help="run necessary alignment and initial-replay checks")
     step = commands.add_parser("training-step", help="run one CPU update without writing a formal artifact")
     step.add_argument("--arm", required=True, choices=R23_ARMS)
-    train = commands.add_parser("train", help="train one factorial L2 arm through epoch 20")
+    train = commands.add_parser("train", help="train one factorial L2 arm with global validation selection")
     train.add_argument("--arm", required=True, choices=R23_ARMS)
     train.add_argument("--seed", required=True, type=int)
     evaluate = commands.add_parser("evaluate", help="evaluate the paired arms for one seed")
     evaluate.add_argument("--seed", required=True, type=int)
+    evaluate.add_argument("--arm", choices=R23_ARMS, default=None, help="evaluate only one trained arm")
     commands.add_parser("summarize", help="summarize both prespecified seed reports")
     return parser
 
@@ -63,7 +69,10 @@ def main(argv: list[str] | None = None) -> int:
         _print(train_r23_arm(context, arm=args.arm, seed=int(args.seed)))
         return 0
     if args.command == "evaluate":
-        _print(evaluate_r23_seed(context, seed=int(args.seed)))
+        if args.arm is None:
+            _print(evaluate_r23_seed(context, seed=int(args.seed)))
+        else:
+            _print(evaluate_r23_single_arm(context, arm=args.arm, seed=int(args.seed)))
         return 0
     if args.command == "summarize":
         _print(summarize_r23_seeds(context))

@@ -1,0 +1,179 @@
+{
+  "schema_version": "RADAR-LN3-V28-unified-product-v2",
+  "experiment_id": "V28",
+  "variant": "unified-liquid-v2-strict-open-set-v2",
+  "data": {
+    "index_path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "index_schema_version": "RADAR-LN3-V16",
+    "source_name": "CQ08",
+    "train_split_name": "train",
+    "validation_split_name": "val",
+    "test_split_name": "test",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "l1": {
+      "train": {
+        "course_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-train-causal-course-consistency-cache.npz"
+      },
+      "validation": {
+        "course_cache": "data/processed/RADAR-LN3-V21e-cq08-known-gate-val-causal-course-consistency-cache.npz"
+      },
+      "course_feature_name": "causal_prefix_course_circular_incoherence",
+      "course_feature_variant": "v21e_course_prefix",
+      "course_minimum_valid_nonfirst_points": 3,
+      "rd_amplitude_center": 55.9375,
+      "rd_amplitude_scale": 6.945658779831175
+    },
+    "l2": {
+      "train": {
+        "rd_physical_cache": "src-v3/v28/calibration/V28-classifier-train-rd-physical4-v2-cache.npz",
+        "micro_doppler_cache": "src-v3/v28/calibration/V28-classifier-train-broadband-micro-doppler8-v2-cache.npz",
+        "open_set_rd_physical_cache": "src-v3/v28/calibration/V28-classifier-train-rd-physical4-v2-cache.npz",
+        "open_set_micro_doppler_cache": "src-v3/v28/calibration/V28-classifier-train-broadband-micro-doppler8-v2-cache.npz"
+      },
+      "validation": {
+        "rd_physical_cache": "src-v3/v28/calibration/V28-classifier-development-rd-physical4-v2-cache.npz",
+        "micro_doppler_cache": "src-v3/v28/calibration/V28-classifier-development-broadband-micro-doppler8-v2-cache.npz",
+        "open_set_rd_physical_cache": "src-v3/v28/calibration/V28-classifier-development-rd-physical4-v2-cache.npz",
+        "open_set_micro_doppler_cache": "src-v3/v28/calibration/V28-classifier-development-broadband-micro-doppler8-v2-cache.npz"
+      },
+      "test": {
+        "rd_physical_cache": "src-v3/v28/calibration/V28-test-rd-physical4-v2-cache.npz",
+        "micro_doppler_cache": "src-v3/v28/calibration/V28-test-broadband-micro-doppler8-v2-cache.npz",
+        "open_set_rd_physical_cache": "src-v3/v28/calibration/V28-test-rd-physical4-v2-cache.npz",
+        "open_set_micro_doppler_cache": "src-v3/v28/calibration/V28-test-broadband-micro-doppler8-v2-cache.npz"
+      },
+      "open_set_caches": {
+        "representation_fit": {
+          "rd_physical_cache": "src-v3/v28/calibration/V28-representation_fit-rd-physical4-v2-cache.npz",
+          "micro_doppler_cache": "src-v3/v28/calibration/V28-representation_fit-broadband-micro-doppler8-v2-cache.npz"
+        },
+        "representation_development": {
+          "rd_physical_cache": "src-v3/v28/calibration/V28-representation_development-rd-physical4-v2-cache.npz",
+          "micro_doppler_cache": "src-v3/v28/calibration/V28-representation_development-broadband-micro-doppler8-v2-cache.npz"
+        },
+        "calibration": {
+          "rd_physical_cache": "src-v3/v28/calibration/V28-calibration-rd-physical4-v2-cache.npz",
+          "micro_doppler_cache": "src-v3/v28/calibration/V28-calibration-broadband-micro-doppler8-v2-cache.npz"
+        }
+      },
+      "tr_clipping": {
+        "method": "known_train_only_one_sided_upper_quantile",
+        "quantile": 0.999,
+        "range_lower_m": 0.0,
+        "range_upper_m": 4843.660789968004,
+        "speed_lower_mps": 0.0,
+        "speed_upper_mps": 51.11839758400121
+      },
+      "rd_amplitude_center": 55.90625,
+      "rd_amplitude_scale": 6.942990104412662
+    }
+  },
+  "model": {
+    "tr_value_dim": 14,
+    "tr_missing_dim": 11,
+    "rd_quality_dim": 7,
+    "rd_height": 21,
+    "rd_width": 384,
+    "rd_embedding_dim": 24,
+    "hidden_dim": 48,
+    "liquid_input_dim": 48,
+    "liquid_hidden_dim": 48,
+    "observation_residual_hidden_dim": 48,
+    "equation_version": "RADAR-LN3-V27-liquid-v2-raw-memory-pre-norm-v1",
+    "tau_min_seconds": 0.05,
+    "tau_max_seconds": 30.0,
+    "zero_dt_event_floor_seconds": 0.001,
+    "dt_max_seconds": 120.0,
+    "invalid_dt_update_mode": "bounded_observation",
+    "invalid_dt_observation_gain": 0.25,
+    "classifier_readout_normalization": "independent_layer_norm_on_raw_state"
+  },
+  "heads": {
+    "projection_dim": 32,
+    "trajectory_hidden_dim": 48,
+    "knownness_hidden_dim": 48,
+    "quality_hidden_dim": 24,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 10.0,
+    "epochs": 30,
+    "knownness_min_events": 3,
+    "quality_min_events": 3,
+    "quality_min_rd_fraction": 0.5,
+    "quality_min_dt_fraction": 0.5,
+    "quality_min_aux_fraction": 0.5,
+    "quality_gate_active_initially": false,
+    "forbidden_inputs": ["l1_logits", "l2_logits", "softmax", "label_identity"]
+  },
+  "training": {
+    "seeds": [42, 43],
+    "batch_size": 2,
+    "epochs": 20,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "gradient_clip_norm": 100.0,
+    "l1_known_gate_class_weights": [0.5173137460650578, 14.93939393939394],
+    "l2_dbb_specialist_class_weights": [0.6673669467787114, 1.3291492329149233, 1.334733893557423],
+    "device": "cuda",
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "checkpoint_selection": "global_validation_per_class_f1",
+    "dataloader_seed": 42
+  },
+  "selection": {
+    "knownness_recall_floor": 0.98,
+    "clutter_recall_floor": 0.8888888888888888,
+    "max_correct_known_new_rejections": 2,
+    "quality_recall_floor": 0.95,
+    "minimum_negative_support": 10,
+    "fallback_allowed": true
+  },
+  "calibration": {
+    "known_target_recall_floor": 0.98,
+    "clutter_recall_floor": 0.8888888888888888,
+    "conformal_error_rate": 0.1,
+    "temperature_min": 0.05,
+    "temperature_max": 20.0,
+    "temperature_grid_size": 50,
+    "minimum_unknown_support_for_formal": 100,
+    "post_selection_audit_required": true
+  },
+  "migration_sources": {
+    "r15_l1_checkpoint": "src-v3/v27/V27d/r15/checkpoints/v3-global-best/V27d-r15-v10_observation_increment-seed42-global-best.pt",
+    "r23_l2_checkpoint": "src-v3/v27/v27c/r23/runs-global-best/V27c-r23-robust_control-seed42/epochs/global-best.pt"
+  },
+  "expected_source_hashes": {},
+  "artifacts": {
+    "manifest_path": "src-v3/v28/manifests/V28-manifest-v2.json",
+    "pool_registry_path": "src-v3/v28/calibration/V28-pool-registry-v2.json",
+    "feature_manifest_path": "src-v3/v28/calibration/V28-feature-manifest-v2.json",
+    "checkpoint_template": "src-v3/v28/checkpoints/V28-{task}-seed{seed}-best.pt",
+    "epoch_checkpoint_template": "src-v3/v28/checkpoints/V28-{task}-seed{seed}-epoch{epoch:03d}.pt",
+    "training_summary_template": "src-v3/v28/runs/V28-{task}-seed{seed}-training-summary.json",
+    "training_log_template": "src-v3/v28/runs/V28-{task}-seed{seed}.log",
+    "evaluation_template": "src-v3/v28/reports/V28-{task}-seed{seed}-evaluation.json",
+    "smoke_report_path": "src-v3/v28/reports/V28-contract-smoke-v2.json",
+    "registry_path": "src-v3/v28/calibration/V28-l3-registry-v2.json",
+    "calibration_report_path": "src-v3/v28/calibration/V28-calibration-v2.json",
+    "replay_report_path": "src-v3/v28/reports/V28-l3-replay-v2.json"
+    ,"head_checkpoint_template": "src-v3/v28/checkpoints/V28-{task}-head-seed{seed}.pt"
+    ,"head_summary_template": "src-v3/v28/runs/V28-{task}-head-seed{seed}-summary.json"
+    ,"representation_template": "src-v3/v28/calibration/features/V28-{role}-{task}-representation-v2.pt"
+    ,"representation_manifest_path": "src-v3/v28/calibration/V28-representation-manifest-v2.json"
+  },
+  "protocol": {
+    "unknown_is_classifier_class": false,
+    "unknown_classifier_training_exposure": 0,
+    "unknown_normalization_exposure": 0,
+    "l2_clutter_training": false,
+    "l2_clutter_knownness": false,
+    "all_valid_events_update_both_tasks": true,
+    "quality_output_feedback": false,
+    "fixed_softmax_threshold_allowed": false,
+    "single_global_distance_gate_allowed": false,
+    "l3_fail_closed_before_calibration": true,
+    "offline_chunked_online_must_match": true,
+    "post_selection_audit_pool": "required_for_formal_deployment"
+  }
+}

@@ -353,11 +353,7 @@ def assess_v27a_checkpoint(
     rows = {str(row["class"]): dict(row) for row in metrics.get("per_class") or ()}
     if set(rows) != set(V27A_L2_CLASS_NAMES) or int(epoch) <= 0:
         raise ValueError("V27a checkpoint assessment class/epoch differs")
-    values = [
-        float(row[field])
-        for row in rows.values()
-        for field in ("precision", "recall", "f1")
-    ]
+    values = [float(row[field]) for row in rows.values() for field in ("precision", "recall", "f1")]
     if not all(math.isfinite(value) for value in values):
         raise ValueError("V27a checkpoint assessment is non-finite")
     matrix = np.asarray(
@@ -366,17 +362,36 @@ def assess_v27a_checkpoint(
     if matrix.shape != (3, 3):
         raise ValueError("V27a checkpoint assessment confusion matrix differs")
     bidirectional = int(matrix[0, 1] + matrix[1, 0])
-    minimum = min(values)
+    minimum = min(float(row["f1"]) for row in rows.values())
+    bird_f1 = float(rows["BirdTarget"]["f1"])
+    drone_f1 = float(rows["DroneTarget"]["f1"])
+    balloon_f1 = float(rows["BalloonTarget"]["f1"])
     macro_f1 = float(metrics["macro_f1"])
+    accuracy = float(metrics["accuracy"])
     return {
-        "schema_version": "RADAR-LN3-V27a-checkpoint-selector-v1",
+        "schema_version": "RADAR-LN3-V27a-checkpoint-selector-v2",
         "arm": str(evaluation.get("arm")),
         "epoch": int(epoch),
         "feasible": True,
         "minimum_per_class_precision_recall_f1": float(minimum),
         "bidirectional_drone_bird_errors": bidirectional,
+        "per_class_f1": {
+            "DroneTarget": drone_f1,
+            "BirdTarget": bird_f1,
+            "BalloonTarget": balloon_f1,
+        },
         "macro_f1": macro_f1,
-        "ranking_key": [float(minimum), -float(bidirectional), macro_f1, -float(epoch)],
+        "accuracy": accuracy,
+        "selection_policy": "global_validation_per_class_f1",
+        "ranking_key": [
+            float(minimum),
+            bird_f1,
+            drone_f1,
+            balloon_f1,
+            macro_f1,
+            accuracy,
+            -float(epoch),
+        ],
     }
 
 

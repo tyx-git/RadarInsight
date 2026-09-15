@@ -1,0 +1,75 @@
+{
+  "schema_version": "RADAR-LN3-V28-classification-summary-v1",
+  "status": "completed",
+  "task": "l1_known_gate",
+  "seed": 42,
+  "selected_epoch": 1,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.6687046885490417,
+      "validation_parent_metrics": {
+        "scope": "parent_final",
+        "support": 2,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "balanced_accuracy": 1.0,
+        "per_class": [
+          {
+            "class": "KNOWN_TARGET_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          },
+          {
+            "class": "KNOWN_CLUTTER_EVIDENCE",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1,
+            "major_confusion_to": null,
+            "major_confusion_count": 0
+          }
+        ],
+        "confusion_matrix_rows_true_columns_pred": [
+          [
+            1,
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ]
+      },
+      "checkpoint_assessment": {
+        "epoch": 1,
+        "minimum_per_class_f1": 1.0,
+        "per_class_f1": {
+          "KNOWN_TARGET_EVIDENCE": 1.0,
+          "KNOWN_CLUTTER_EVIDENCE": 1.0
+        },
+        "macro_f1": 1.0,
+        "accuracy": 1.0,
+        "ranking_key": [
+          1.0,
+          1.0,
+          1.0,
+          0.0,
+          1.0,
+          1.0,
+          -1
+        ]
+      }
+    }
+  ],
+  "checkpoint_path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
+  "unknown_training_exposure": 0,
+  "clutter_l2_training_exposure": 0,
+  "payload_sha256": "68e8de87c9604aa02a91693424075822d603590606275e49efc1d0b0565c0f37"
+}

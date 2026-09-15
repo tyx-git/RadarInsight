@@ -1,0 +1,48 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r15-observation-increment-manifest-v1",
+  "experiment_id": "V27d-r15",
+  "v27d_r15_manifest_sha256": "d1f610bf8f4c7b5fc8cff4dbf8114c4f1acc659803f4c7ba035d47bbdb1c65f7",
+  "cache_path": "src-v3/v27/V27d/r15/cache/V27d-r15-observation-increment-cache-v3.pt",
+  "cache_file_sha256": "eeff0012551bec09817fc28962dc0d16b6851e390c640011e9ba4fb3d88de220",
+  "cache_sha256": "d642a096e910aa273644494098820787a6c9ba5f623b440dadb5cc014b22d182",
+  "views": {
+    "train": {
+      "parent_count": 986,
+      "event_count": 18923,
+      "source": "v27_known_gate:train",
+      "parent_ids_sha256": "24eb6f7505d88daf92d3f491a77e0e3d6f19b6764ba53edbac894b12d247aa7a",
+      "event_ids_order_sha256": "986ca62c06db35bf0d14e80198c6b034a6588fb822cc56558d8667356d1f1d4a"
+    },
+    "validation": {
+      "parent_count": 232,
+      "event_count": 4452,
+      "source": "v27_known_gate:val",
+      "parent_ids_sha256": "3c151756c6b45de817510a6e3289c5723107c0e201ad25090d9fb08b89bdf018",
+      "event_ids_order_sha256": "6249853b7ce0a51677fcef2aa6e2ee6775b56b405b0938a9d3143b712249c53c"
+    },
+    "representation_fit": {
+      "parent_count": 550,
+      "event_count": 10619,
+      "source": "endpoint:representation_fit",
+      "parent_ids_sha256": "a309d0f37a8bad990e2e542a27e8d7beda025ad1f55b75f64d7c242f2decc8a1",
+      "event_ids_order_sha256": "1e4c40fd6b93367be27505176fd3141945f3e30854d1aedd7ca952b891b01400"
+    },
+    "representation_development": {
+      "parent_count": 505,
+      "event_count": 9592,
+      "source": "endpoint:representation_development",
+      "parent_ids_sha256": "38f2a683a62204a1f5e8f4c656306121313594fae194d3534dbc63dfeb10b072",
+      "event_ids_order_sha256": "fbfcc60089d0d9a75d09d813192f7928455cd3275bf2373f1acb50d31ae8163e"
+    },
+    "calibration": {
+      "parent_count": 247,
+      "event_count": 4725,
+      "source": "endpoint:calibration",
+      "parent_ids_sha256": "e18ff17678d5bac177203ab0576675563ac62a7daa0d3d6e6baad3fdc3e1db5e",
+      "event_ids_order_sha256": "19d6163af5a008dac7ff6b51a0e163c76c07d75d19e519071475af65219278a1"
+    }
+  },
+  "unknown_training_exposure": 0,
+  "test_payload_access_count": 0,
+  "payload_sha256": "1dfabd184a6766df7cec08539476f03572000db13377b33bd5b0c948a8d5ffd7"
+}

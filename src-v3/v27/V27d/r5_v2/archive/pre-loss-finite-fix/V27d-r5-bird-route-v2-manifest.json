@@ -1,0 +1,46 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-bird-route-v2-manifest-v1",
+  "experiment_id": "V27d-r5-bird-route-v2",
+  "config": {
+    "path": "src-v3/v27/V27d/r5-bird-route-v2/config/V27d-r5-bird-route-v2.json",
+    "sha256": "08249b8ed51197a4a86842e06fa53eafa5defdefa6bc8c4be768943f5a184ef6",
+    "identity_sha256": "9919daa6001fa53bda568ff55fba4b357068e8465429c66aad8547e085a066cf"
+  },
+  "source": {
+    "r5_config_path": "src-v3/v27/V27d/r5-bird-route/config/V27d-r5-bird-route.json",
+    "r5_config_sha256": "e21289c18817792d322bac5ebf4a68a84e24e7ad1d61083463f3ca37e3eb9922",
+    "r5_manifest_path": "src-v3/v27/V27d/r5-bird-route/manifests/V27d-r5-manifest.json",
+    "r5_manifest_sha256": "c43fffb5b2a3f9182ded192617335f6e0c41446cbbfabd10a4ed0ae5b071e4ce",
+    "r5_report_path": "src-v3/v27/V27d/r5-bird-route/reports/V27d-r5-seed42-bird-route-evaluation.json",
+    "r5_report_sha256": "90c01df1b9922df8d86f2de1e26540a5afc2e39ba8e165a095acce50920bd1ce",
+    "v27d_manifest_sha256": "6f09c077e204af8e577a91194e3ab0327cbff0a46e20e8d0878a76cfe4d70a3e"
+  },
+  "code_hashes": {
+    "src-v3/v27/V27d_r5_v2/__init__.py": "46968b11e05d2fa17c7f59b7a864e6081b5fea00945cbd63ffdbd50d1056ecf3",
+    "src-v3/v27/V27d_r5_v2/audit.py": "53c83878482ea5bbbb4e9f3230156627b397094b0e09354e0a57af30d9769b13",
+    "src-v3/v27/V27d_r5_v2/cli.py": "ef71596d8df9da7137da2d7219e8fb9300347c8e9e7250cab00a86b43f9b5ddf",
+    "src-v3/v27/V27d_r5_v2/evaluation.py": "fbadafb47eb660c8fb5ac85fa0e70bcbe2c88d660af743ce308499f7b2962052",
+    "src-v3/v27/V27d_r5_v2/features.py": "c40e358976b37695fecb183c3f169aaad0af3e46452b5287f4e17540d5ead5f1",
+    "src-v3/v27/V27d_r5_v2/protocol.py": "d0b6e3eb47442249385e09984f6c5342a6e0f94ab3706de4c51843d703b8fb16",
+    "src-v3/v27/V27d_r5_v2/smoke.py": "a7448e541d97118fc27af25bf79c205f67f17533a4c18a4659be3819190914c6",
+    "src-v3/v27/V27d_r5_v2/training.py": "15b350d056b6c19bec89f0e1adf0abd947be09791135f021b340bf61bbfd37db"
+  },
+  "roles": [
+    "representation_fit",
+    "representation_development",
+    "calibration"
+  ],
+  "seed": 42,
+  "protocol": {
+    "direct_baseline": "V27d-r5-control",
+    "unique_variable": "causal_prefix_consistency_objective",
+    "unknown_is_classifier_class": false,
+    "classification_logits_input_to_head": false,
+    "softmax_input_to_head": false,
+    "label_identity_input_to_head": false,
+    "formal_l3_enabled": false,
+    "calibration_scope": "exploratory_threshold_transfer_only",
+    "test_payload_access_count": 0
+  },
+  "payload_sha256": "1819a1ae1f227670f607f088f3e34b35e68ec115e4a02ecf20ea29ce15096f86"
+}

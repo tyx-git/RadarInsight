@@ -1,0 +1,103 @@
+{
+  "schema_version": "RADAR-LN3-V27d-feature-cache-manifest-v1",
+  "experiment_id": "V27d",
+  "status": "prepared",
+  "variant": "r1",
+  "v27d_manifest_sha256": "f6b18bd753398168affbfbaba80631aa1fcf0d4540be96b8dcfc5829dec99f45",
+  "endpoint_manifest_sha256": "616e1143acd67af17363e8bee6dc4971fb87948c88cd50140f62c903a7140c8e",
+  "tasks": {
+    "known_gate:representation_fit": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-representation_fit-known_gate-features.pt",
+      "sha256": "6a317fac8ef608a82b4dbe307c2e681c73295fd1df4bd1debaacad7baac102e1",
+      "cache_sha256": "25404817b53ac0f93d81a6eba7b40f1e33737a31815e61c34dd025019556c667",
+      "parent_count": 550,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "ClutterTarget": 19,
+        "BalloonTarget": 127
+      },
+      "fit_eligible_count": 546,
+      "quality_eligible_count": 546
+    },
+    "known_gate:representation_development": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-representation_development-known_gate-features.pt",
+      "sha256": "c39faeb4d2892ad7e0ba3dc04382d8aa34ee3014b53b17a55a404af656dc02da",
+      "cache_sha256": "743aceb11d0639ecf8f6b0f5f9d9e207603e2bb98160d72741cf51acb84bf7da",
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "fit_eligible_count": 501,
+      "quality_eligible_count": 501
+    },
+    "known_gate:calibration": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-calibration-known_gate-features.pt",
+      "sha256": "9186da0b7a2dfcbeafea830797fec99fb4fec58c518e2c32cb8bd693d9b332a7",
+      "cache_sha256": "8d7e2a3d9fb4c84873eeda161bf8a114794da0fc793a061e3f8eaaace5082a6e",
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "fit_eligible_count": 244,
+      "quality_eligible_count": 244
+    },
+    "dbb_specialist:representation_fit": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-representation_fit-dbb_specialist-features.pt",
+      "sha256": "49b6bd80c5c2322ff0cc7ed66ad26907521f5f8513c3e80bd17a8a04dc3beaa8",
+      "cache_sha256": "d5d9a1d3699e148aec1068a86e02cde15dd9645901fada285adb223be3af3c10",
+      "parent_count": 550,
+      "label_counts": {
+        "DroneTarget": 248,
+        "BirdTarget": 125,
+        "UnknownTarget": 31,
+        "ClutterTarget": 19,
+        "BalloonTarget": 127
+      },
+      "fit_eligible_count": 527,
+      "quality_eligible_count": 546
+    },
+    "dbb_specialist:representation_development": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-representation_development-dbb_specialist-features.pt",
+      "sha256": "4b37f023e81eeeca82d53c5cf0e409553376ac4f05dcb718e2e9ad25948fe938",
+      "cache_sha256": "23915e870cb69dcdb94f71b3137a4f55c2030e168e86c039d58fc708a03d8880",
+      "parent_count": 505,
+      "label_counts": {
+        "DroneTarget": 228,
+        "BirdTarget": 114,
+        "UnknownTarget": 38,
+        "ClutterTarget": 14,
+        "BalloonTarget": 111
+      },
+      "fit_eligible_count": 487,
+      "quality_eligible_count": 501
+    },
+    "dbb_specialist:calibration": {
+      "path": "src-v3/v27/V27d/cache/V27d-r1-calibration-dbb_specialist-features.pt",
+      "sha256": "b8dcd430d67832713492a38e8d56dd71f96370fa577eb30749b0b440e6835edd",
+      "cache_sha256": "4f40c8de465a2955b698d7f28e0a3089bfc179651d3f0a033e188f57a5150a72",
+      "parent_count": 247,
+      "label_counts": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "UnknownTarget": 15,
+        "BalloonTarget": 54,
+        "ClutterTarget": 9
+      },
+      "fit_eligible_count": 235,
+      "quality_eligible_count": 244
+    }
+  },
+  "test_payload_access_count": 0,
+  "feature_manifest_sha256": "1974e785a1e16bd18b5cb5fe093f6d1567d7b71d8711df498ff579eb2d03f543",
+  "payload_sha256": "0babb494baf3ba05d49cf92512f176449aff4b23cd695b010a78cc2952f20e8a"
+}

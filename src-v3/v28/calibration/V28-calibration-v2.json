@@ -1,0 +1,264 @@
+{
+  "schema_version": "RADAR-LN3-V28-calibration-v2",
+  "experiment_id": "V28",
+  "status": "internal_exploratory",
+  "deployment_eligible": false,
+  "status_reasons": [
+    "unknown_support_below_formal_minimum",
+    "post_selection_audit_pool_unavailable"
+  ],
+  "system_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34",
+  "endpoint_binding": {
+    "l1_known_gate": {
+      "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
+      "task": "l1_known_gate",
+      "seed": 42,
+      "sha256": "2049d0645e5d75c4fe2b30c34edf6cb48f4c01a54372f1ad4c30c913b1701173",
+      "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+    },
+    "l2_dbb_specialist": {
+      "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-seed43-best.pt",
+      "task": "l2_dbb_specialist",
+      "seed": 43,
+      "sha256": "3a5749a709e471f6eba23b5b9830fc81dd56b12a39429689cd907e482088eba6",
+      "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+    }
+  },
+  "head_bindings": {
+    "l1_known_gate": {
+      "path": "src-v3/v28/checkpoints/V28-l1_known_gate-head-seed42.pt",
+      "task": "l1_known_gate",
+      "seed": 42,
+      "sha256": "1e99b64341ef1405f1fa10836685df6e700640d28c738e7ea4210316ef20c574",
+      "trained_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34"
+    },
+    "l2_dbb_specialist": {
+      "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-head-seed43.pt",
+      "task": "l2_dbb_specialist",
+      "seed": 43,
+      "sha256": "be5eb2ac0a2aa3b8f7f1307f4210073155ea60d59f8ad1cb81016c60a66c10de",
+      "trained_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34"
+    }
+  },
+  "unknown_support": 15,
+  "unknown_parent_ids_sha256": "8132b2b51a41c32a1d36ecaebc2df53a03b78f28001f19bbceca347bee923c0e",
+  "minimum_unknown_support": 100,
+  "post_selection_audit": {
+    "required": true,
+    "available": false
+  },
+  "calibration_role": "validation_split_only",
+  "tasks": {
+    "l1_known_gate": {
+      "class_names": [
+        "KNOWN_TARGET_EVIDENCE",
+        "KNOWN_CLUTTER_EVIDENCE"
+      ],
+      "representation_calibration": {
+        "path": "src-v3/v28/calibration/features/V28-calibration-l1_known_gate-representation-v2.pt",
+        "file_sha256": "327cf616722a6f101d5029c8be8dc442519e5ffc805761761f28418c6857623a",
+        "cache_sha256": "3da0d000675a72c89e0218fea697d7f5d7c35e861afb6cadb04bbcd555b958dc",
+        "parent_ids_sha256": "e18ff17678d5bac177203ab0576675563ac62a7daa0d3d6e6baad3fdc3e1db5e"
+      },
+      "temperature": {
+        "status": "fitted",
+        "temperature": 0.5104251226263908,
+        "nll": 0.013482905924320221,
+        "grid_size": 50,
+        "min": 0.05,
+        "max": 20.0,
+        "support": 232
+      },
+      "conformal": {
+        "method": "class_conditional_split_conformal_1_minus_calibrated_probability_higher",
+        "error_rate": 0.1,
+        "quantile_by_class": {
+          "KNOWN_TARGET_EVIDENCE": 6.604194641113281e-05,
+          "KNOWN_CLUTTER_EVIDENCE": 0.17282414436340332
+        },
+        "candidate_probability_floor_by_class": {
+          "KNOWN_TARGET_EVIDENCE": 0.9999339580535889,
+          "KNOWN_CLUTTER_EVIDENCE": 0.8271758556365967
+        },
+        "support_by_class": {
+          "KNOWN_TARGET_EVIDENCE": 223,
+          "KNOWN_CLUTTER_EVIDENCE": 9
+        },
+        "coverage_by_class": {
+          "KNOWN_TARGET_EVIDENCE": 0.905829596412556,
+          "KNOWN_CLUTTER_EVIDENCE": 1.0
+        },
+        "support": 232
+      },
+      "knownness": {
+        "status": "fitted",
+        "direction": "higher_is_known",
+        "threshold_space": "sigmoid_probability",
+        "selected": {
+          "threshold": 0.23825478553771973,
+          "known_target_recall": 1.0,
+          "clutter_recall": 0.8888888888888888,
+          "unknown_rejection": 0.0,
+          "correct_known_new_rejections": 0,
+          "unknown_support": 15,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 492,
+        "positive_support": 223,
+        "negative_support": 15,
+        "clutter_support": 9,
+        "known_target_recall_floor": 0.98,
+        "clutter_recall_floor": 0.8888888888888888,
+        "max_correct_known_new_rejections": 2
+      },
+      "quality": {
+        "status": "diagnostic_only",
+        "score_direction": "higher_is_eligible",
+        "quality_score_support": 247,
+        "deterministic_gate": {
+          "minimum_events": 3,
+          "minimum_rd_fraction": 0.5,
+          "minimum_dt_fraction": 0.5,
+          "minimum_aux_fraction": 0.5
+        },
+        "learned_threshold": {
+          "status": "fitted",
+          "direction": "higher_is_eligible",
+          "selected": {
+            "threshold": 0.5215632319450378,
+            "positive_recall": 0.9558823529411765,
+            "negative_rejection": 0.7567567567567568,
+            "safe": true
+          },
+          "candidate_count": 492,
+          "positive_support": 136,
+          "negative_support": 111,
+          "quality_recall_floor": 0.95
+        }
+      },
+      "scorer": null,
+      "support": {
+        "parent_count": 247,
+        "known_parent_count": 232,
+        "unknown_parent_count": 15,
+        "clutter_parent_count": 9
+      }
+    },
+    "l2_dbb_specialist": {
+      "class_names": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "representation_calibration": {
+        "path": "src-v3/v28/calibration/features/V28-calibration-l2_dbb_specialist-representation-v2.pt",
+        "file_sha256": "268eb11e7d6a23849a02af9d4cfae8f781fb2d558e545429e724450b1f3b6e35",
+        "cache_sha256": "50d99fa21dac913a6a30a07ad381bc806893a73ef9cb794d5a8cdefe122db4fc",
+        "parent_ids_sha256": "9d0da30260f1384a14a27a7b9c1a0a528e8d8cc5047552324f02625c84451e89"
+      },
+      "temperature": {
+        "status": "fitted",
+        "temperature": 1.2013094617983913,
+        "nll": 0.17455777525901794,
+        "grid_size": 50,
+        "min": 0.05,
+        "max": 20.0,
+        "support": 223
+      },
+      "conformal": {
+        "method": "class_conditional_split_conformal_1_minus_calibrated_probability_higher",
+        "error_rate": 0.1,
+        "quantile_by_class": {
+          "DroneTarget": 0.07544291019439697,
+          "BirdTarget": 0.7148842811584473,
+          "BalloonTarget": 0.2756069302558899
+        },
+        "candidate_probability_floor_by_class": {
+          "DroneTarget": 0.924557089805603,
+          "BirdTarget": 0.28511571884155273,
+          "BalloonTarget": 0.7243930697441101
+        },
+        "support_by_class": {
+          "DroneTarget": 113,
+          "BirdTarget": 56,
+          "BalloonTarget": 54
+        },
+        "coverage_by_class": {
+          "DroneTarget": 0.911504424778761,
+          "BirdTarget": 0.9285714285714286,
+          "BalloonTarget": 0.9259259259259259
+        },
+        "support": 223
+      },
+      "knownness": {
+        "status": "fitted",
+        "direction": "higher_is_known",
+        "threshold_space": "sigmoid_probability",
+        "selected": {
+          "threshold": 0.19195811450481415,
+          "known_target_recall": 0.9910313901345291,
+          "clutter_recall": null,
+          "unknown_rejection": 0.13333333333333333,
+          "correct_known_new_rejections": 2,
+          "unknown_support": 15,
+          "minimum_negative_support": 10,
+          "support_sufficient": true,
+          "safe": true
+        },
+        "candidate_count": 474,
+        "positive_support": 223,
+        "negative_support": 15,
+        "clutter_support": 0,
+        "known_target_recall_floor": 0.98,
+        "clutter_recall_floor": 0.8888888888888888,
+        "max_correct_known_new_rejections": 2
+      },
+      "quality": {
+        "status": "diagnostic_only",
+        "score_direction": "higher_is_eligible",
+        "quality_score_support": 238,
+        "deterministic_gate": {
+          "minimum_events": 3,
+          "minimum_rd_fraction": 0.5,
+          "minimum_dt_fraction": 0.5,
+          "minimum_aux_fraction": 0.5
+        },
+        "learned_threshold": {
+          "status": "fitted",
+          "direction": "higher_is_eligible",
+          "selected": {
+            "threshold": 0.5177010893821716,
+            "positive_recall": 0.952755905511811,
+            "negative_rejection": 1.0,
+            "safe": true
+          },
+          "candidate_count": 448,
+          "positive_support": 127,
+          "negative_support": 111,
+          "quality_recall_floor": 0.95
+        }
+      },
+      "scorer": {
+        "status": "implemented_diagnostic_only",
+        "method": "class_conditional_probability_nonconformity",
+        "score": "1 - calibrated_probability",
+        "reference_quantile_by_class": {
+          "DroneTarget": 0.07544291019439697,
+          "BirdTarget": 0.7148842811584473,
+          "BalloonTarget": 0.2756069302558899
+        },
+        "candidate_rule": "score <= reference_quantile"
+      },
+      "support": {
+        "parent_count": 238,
+        "known_parent_count": 223,
+        "unknown_parent_count": 15,
+        "clutter_parent_count": 0
+      }
+    }
+  },
+  "test_payload_access_count": 0,
+  "payload_sha256": "9101c8bf58115f006ddbd0a5b9f50bc8b5e04925f121fbf7bfbea7d304810677"
+}

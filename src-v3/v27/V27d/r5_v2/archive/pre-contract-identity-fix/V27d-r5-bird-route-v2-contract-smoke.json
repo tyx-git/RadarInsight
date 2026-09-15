@@ -1,0 +1,27 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r5-bird-route-v2-contract-smoke-v1",
+  "experiment_id": "V27d-r5-bird-route-v2",
+  "status": "passed",
+  "manifest_sha256": "d21fc142941bedddf9849df9ec3d31f7628d804224b867019195f83928f72990",
+  "roles": {
+    "representation_fit": {
+      "parent_count": 550,
+      "positive_support": 123,
+      "negative_support": 26
+    },
+    "representation_development": {
+      "parent_count": 505,
+      "positive_support": 113,
+      "negative_support": 32
+    },
+    "calibration": {
+      "parent_count": 247,
+      "positive_support": 55,
+      "negative_support": 12
+    }
+  },
+  "audit_reproduces_r5_control_split": true,
+  "formal_l3_enabled": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "dcdc906745902fa641669ad5d20a6bc9e88d3eb851dd1c7aab43aacebea8a42e"
+}

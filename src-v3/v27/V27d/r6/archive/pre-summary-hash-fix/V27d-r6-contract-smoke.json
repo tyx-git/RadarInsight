@@ -1,0 +1,28 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r6-contract-smoke-v1",
+  "experiment_id": "V27d-r6-bird-liquid-verifier",
+  "status": "passed",
+  "manifest_sha256": "72f5f406ed16fb425f41898b232dc1e360c3557efcb778b8b33e7f5102021cfa",
+  "recurrent_parameter_count_gru": 82176,
+  "recurrent_parameter_count_liquid": 82176,
+  "roles": {
+    "representation_fit": {
+      "parent_count": 550,
+      "positive": 118,
+      "negative": 31
+    },
+    "representation_development": {
+      "parent_count": 505,
+      "positive": 108,
+      "negative": 32
+    },
+    "calibration": {
+      "parent_count": 247,
+      "positive": 53,
+      "negative": 18
+    }
+  },
+  "formal_l3_enabled": false,
+  "test_payload_access_count": 0,
+  "payload_sha256": "29aca960f58c9abd6e7daaeb1f0e478cb7cc26e5c95aa0ea1918881372d7d9b7"
+}

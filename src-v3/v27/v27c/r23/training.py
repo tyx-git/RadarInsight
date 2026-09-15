@@ -85,6 +85,21 @@ def _path(context: R23Context, field: str, *, arm: str, seed: int, epoch: int | 
     )
 
 
+def _global_selection_enabled(context: R23Context) -> bool:
+    return context.config.protocol.get("checkpoint_selection") == "global_validation_per_class_f1"
+
+
+def _selected_checkpoint_path(context: R23Context, *, arm: str, seed: int) -> Path:
+    epoch_path = _path(
+        context,
+        "checkpoint_template",
+        arm=arm,
+        seed=seed,
+        epoch=context.config.training.primary_epoch,
+    )
+    return epoch_path.with_name("global-best.pt") if _global_selection_enabled(context) else epoch_path
+
+
 def _load_initial_states(context: R23Context) -> tuple[Mapping[str, torch.Tensor], Mapping[str, torch.Tensor]]:
     l2_path = context.project_root / context.config.base.l2_checkpoint_path
     stable_path = context.project_root / context.config.base.v27a_main_checkpoint_path
@@ -131,6 +146,7 @@ def _checkpoint_payload(
     global_step: int,
     train_loss: float,
     loader_seed: int,
+    metrics: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     state = {name: value.detach().cpu().clone() for name, value in model.state_dict().items()}
     contract = model.model_contract()
@@ -164,7 +180,10 @@ def _checkpoint_payload(
         "model_contract_sha256": canonical_sha256(contract),
         "model_state": state,
         "model_state_sha256": _state_hash(state),
-        "metrics": {"train_loss": float(train_loss), "selection": "fixed_primary_epoch"},
+        "metrics": {
+            "train_loss": float(train_loss),
+            **dict(metrics or {}),
+        },
         "scope": {
             "unknown_training_exposure": 0,
             "clutter_training_exposure": 0,
@@ -192,13 +211,7 @@ def load_r23_checkpoint(
 ) -> tuple[R23IntegratedL2Model, dict[str, Any]]:
     if arm not in R23_ARMS or seed not in context.config.training.seeds:
         raise ValueError("V27c-r23 checkpoint arm or seed is invalid")
-    path = _path(
-        context,
-        "checkpoint_template",
-        arm=arm,
-        seed=seed,
-        epoch=context.config.training.primary_epoch,
-    )
+    path = _selected_checkpoint_path(context, arm=arm, seed=seed)
     payload = torch.load(path, map_location="cpu", weights_only=False)
     if not isinstance(payload, Mapping):
         raise ValueError("V27c-r23 checkpoint is not an object")
@@ -217,7 +230,8 @@ def load_r23_checkpoint(
         or checked.get("experiment_id") != context.config.experiment_id
         or checked.get("arm") != arm
         or int(checked.get("seed", -1)) != int(seed)
-        or int(checked.get("epoch", -1)) != context.config.training.primary_epoch
+        or int(checked.get("epoch", -1)) <= 0
+        or int(checked.get("epoch", -1)) > context.config.training.epochs
         or checked.get("manifest_sha256") != context.manifest_sha256
         or checked.get("input_binding_sha256") != canonical_sha256(context.input_binding)
         or checked.get("l1_checkpoint_deserialized") is not False
@@ -274,8 +288,7 @@ def load_r23_checkpoint(
         summary.get("experiment_id") != context.config.experiment_id
         or summary.get("arm") != arm
         or int(summary.get("seed", -1)) != int(seed)
-        or int(summary.get("selected_epoch", -1))
-        != context.config.training.primary_epoch
+        or int(summary.get("selected_epoch", -1)) != int(checked.get("epoch", -2))
         or summary.get("manifest_sha256") != context.manifest_sha256
         or summary.get("checkpoint_state_sha256")
         != checked.get("model_state_sha256")
@@ -303,13 +316,16 @@ def train_r23_arm(
     seed: int,
     epochs_override: int | None = None,
 ) -> dict[str, Any]:
-    """Retrain one matched arm through the fixed primary epoch only."""
+    """Retrain one matched arm with optional global validation selection."""
 
     if arm not in R23_ARMS or seed not in context.config.training.seeds:
         raise ValueError("V27c-r23 training arm or seed is invalid")
     epochs = context.config.training.epochs if epochs_override is None else int(epochs_override)
-    if epochs != context.config.training.primary_epoch:
-        raise ValueError("V27c-r23 formal runs permit only the fixed primary epoch")
+    if epochs <= 0 or epochs > context.config.training.epochs:
+        raise ValueError("V27c-r23 requested epoch count is outside the configured range")
+    global_selection = context.config.protocol.get("checkpoint_selection") == "global_validation_per_class_f1"
+    if global_selection:
+        from .evaluation import _infer, _metrics, assess_r23_checkpoint
     workspace = _deterministic_cuda_workspace(context)
     seed_v27(seed, deterministic_cuda=context.config.training.cuda_deterministic_algorithms)
     train_set = R23L2Dataset(context, split="train", arm=arm)
@@ -461,6 +477,28 @@ def train_r23_arm(
                     np.mean(effective_coverage)
                 ),
             }
+            if global_selection:
+                validation_parents, validation_events, _ = _infer(
+                    context,
+                    arm=arm,
+                    seed=seed,
+                    model=model,
+                )
+                validation = _metrics(validation_parents, validation_events, context)
+                assessment = assess_r23_checkpoint(
+                    validation["parent_metrics"], epoch=epoch
+                )
+                record["validation_parent_metrics"] = validation["parent_metrics"]
+                record["validation_parent_balanced_eligible_prefix_metrics"] = validation[
+                    "parent_balanced_eligible_prefix_metrics"
+                ]
+                record["checkpoint_assessment"] = assessment
+                log_metric_set(logger, "validation_parent_final", validation["parent_metrics"])
+                log_metric_set(
+                    logger,
+                    "validation_parent_balanced_eligible_prefix",
+                    validation["parent_balanced_eligible_prefix_metrics"],
+                )
             history.append(record)
             log_event(
                 logger,
@@ -477,8 +515,86 @@ def train_r23_arm(
                 ],
                 elapsed=format_duration(time.perf_counter() - epoch_started),
             )
+            if global_selection:
+                log_event(
+                    logger,
+                    "r23_l2_selection",
+                    arm=arm,
+                    epoch=epoch,
+                    selection_policy="global_validation_per_class_f1",
+                    minimum_per_class_f1=record["checkpoint_assessment"]["minimum_per_class_f1"],
+                    bird_f1=record["checkpoint_assessment"]["per_class_f1"]["BirdTarget"],
+                    drone_f1=record["checkpoint_assessment"]["per_class_f1"]["DroneTarget"],
+                    macro_f1=record["checkpoint_assessment"]["macro_f1"],
+                    accuracy=record["checkpoint_assessment"]["accuracy"],
+                )
+            if global_selection or epoch == epochs:
+                epoch_payload = _checkpoint_payload(
+                    context,
+                    model=model,
+                    arm=arm,
+                    seed=seed,
+                    epoch=epoch,
+                    global_step=global_step,
+                    train_loss=record["train_loss"],
+                    loader_seed=loader_seed,
+                    metrics={
+                        "selection": "global_validation_per_class_f1" if global_selection else "fixed_primary_epoch",
+                        "checkpoint_assessment": record.get("checkpoint_assessment"),
+                    },
+                )
+                epoch_path = _path(
+                    context,
+                    "checkpoint_template",
+                    arm=arm,
+                    seed=seed,
+                    epoch=epoch,
+                )
+                write_torch_if_absent_or_identical(epoch_path, epoch_payload)
 
-        payload = _checkpoint_payload(
+        if global_selection:
+            assessments = [record.get("checkpoint_assessment") for record in history]
+            if any(not isinstance(value, Mapping) for value in assessments):
+                raise RuntimeError("V27c-r23 global selection lacks validation assessments")
+            best_assessment = max(assessments, key=lambda value: tuple(value["ranking_key"]))
+            selected_epoch = int(best_assessment["epoch"])
+            selected_epoch_path = _path(
+                context,
+                "checkpoint_template",
+                arm=arm,
+                seed=seed,
+                epoch=selected_epoch,
+            )
+            selected_payload = torch.load(selected_epoch_path, map_location="cpu", weights_only=False)
+            if not isinstance(selected_payload, Mapping) or not isinstance(selected_payload.get("model_state"), Mapping):
+                raise ValueError("V27c-r23 global-best checkpoint payload is invalid")
+            model.load_state_dict(selected_payload["model_state"], strict=True)
+            selected_path = selected_epoch_path.with_name("global-best.pt")
+            payload = _checkpoint_payload(
+                context,
+                model=model,
+                arm=arm,
+                seed=seed,
+                epoch=selected_epoch,
+                global_step=int(selected_payload.get("global_step", 0)),
+                train_loss=float(selected_payload["metrics"]["train_loss"]),
+                loader_seed=loader_seed,
+                metrics={
+                    "selection": "global_validation_per_class_f1",
+                    "checkpoint_assessment": dict(best_assessment),
+                },
+            )
+            write_torch_if_absent_or_identical(selected_path, payload)
+        else:
+            selected_epoch = epochs
+            selected_path = _path(
+                context,
+                "checkpoint_template",
+                arm=arm,
+                seed=seed,
+                epoch=selected_epoch,
+            )
+            payload = _checkpoint_payload(
             context,
             model=model,
             arm=arm,
@@ -487,23 +603,18 @@ def train_r23_arm(
             global_step=global_step,
             train_loss=history[-1]["train_loss"],
             loader_seed=loader_seed,
-        )
-        checkpoint_path = _path(
-            context,
-            "checkpoint_template",
-            arm=arm,
-            seed=seed,
-            epoch=epochs,
-        )
-        write_torch_if_absent_or_identical(checkpoint_path, payload)
+            metrics={"selection": "fixed_primary_epoch"},
+            )
+            write_torch_if_absent_or_identical(selected_path, payload)
+        checkpoint_path = selected_path
         summary = {
             "schema_version": "RADAR-LN3-V27c-r23-factorial-l2-training-summary-v1",
-            "status": "completed_fixed_epoch_matched_l2_retraining",
+            "status": "completed_global_validation_selected_l2_retraining" if global_selection else "completed_fixed_epoch_matched_l2_retraining",
             "experiment_id": context.config.experiment_id,
             "arm": arm,
             "seed": int(seed),
-            "selected_epoch": int(epochs),
-            "selection": "fixed_primary_epoch",
+            "selected_epoch": int(selected_epoch),
+            "selection": "global_validation_per_class_f1" if global_selection else "fixed_primary_epoch",
             "manifest_sha256": context.manifest_sha256,
             "input_binding_sha256": canonical_sha256(context.input_binding),
             "arm_spec": context.input_binding["arm_specs"][arm],
