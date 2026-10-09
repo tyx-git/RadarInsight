@@ -9,8 +9,8 @@ import numpy as np
 import torch
 
 from .data import V28ReplayDataset, build_dataloader, model_input_kwargs
-from .heads import V28TrajectoryHeads, deterministic_quality_target
-from .l3 import resolve_action
+from .heads import V28TrajectoryHeads, deterministic_quality_target, route_knownness_score, trajectory_consistency_score
+from .l3 import resolve_action_verified
 from .model import V28TaskModel
 from .protocol import V28Context, V28_L1_TASK, V28_L2_TASK, V28_L2_CLASSES, artifact_path, relative_project_path, resolve_project_path, write_sealed_json
 from .checkpoint import load_checkpoint
@@ -74,10 +74,22 @@ def _action_metrics(records: list[Mapping[str, Any]]) -> dict[str, Any]:
     unknown = [record for record in records if record["label_name"] == "UnknownTarget"]
     clutter = [record for record in records if record["label_name"] == "ClutterTarget"]
     known = [record for record in records if record["label_name"] in V28_L2_CLASSES]
-    return {"actions": rows, "true_labels": list(true_order), "action_labels": list(actions), "confusion_matrix_rows_true_columns_action": matrix.tolist(), "support": total, "pending_rate": _wilson(sum(record["action"] == "PENDING_ABSTAIN" for record in records), total), "coverage": _wilson(len(accepted), total), "accepted_accuracy": _wilson(accepted_correct, len(accepted)), "selective_risk": _wilson(len(accepted) - accepted_correct, len(accepted)), "unknown_rejection": {"rejected": sum(record["action"] == "UNKNOWN_REJECTED" for record in unknown), "error_acceptance": sum(record["action"] in V28_L2_CLASSES or record["action"] == "Clutter" for record in unknown), "pending": sum(record["action"] == "PENDING_ABSTAIN" for record in unknown), "rate": _wilson(sum(record["action"] == "UNKNOWN_REJECTED" for record in unknown), len(unknown))}, "clutter_acceptance": {"accepted": sum(record["action"] == "Clutter" for record in clutter), "misrouted": sum(record["action"] != "Clutter" for record in clutter), "rate": _wilson(sum(record["action"] == "Clutter" for record in clutter), len(clutter))}, "known_target_acceptance": {"accepted": sum(record["action"] == record["label_name"] for record in known), "pending": sum(record["action"] == "PENDING_ABSTAIN" for record in known), "rate": _wilson(sum(record["action"] == record["label_name"] for record in known), len(known))}}
+    known_by_class = {
+        label: {
+            "accepted": sum(record["action"] == label for record in known if record["label_name"] == label),
+            "pending": sum(record["action"] == "PENDING_ABSTAIN" for record in known if record["label_name"] == label),
+            "wrong_action": sum(record["action"] not in {label, "PENDING_ABSTAIN"} for record in known if record["label_name"] == label),
+            "support": sum(record["label_name"] == label for record in known),
+        }
+        for label in V28_L2_CLASSES
+    }
+    for values in known_by_class.values():
+        values["acceptance_rate"] = _wilson(values["accepted"], values["support"])
+        values["false_rejection_rate"] = _wilson(values["support"] - values["accepted"], values["support"])
+    return {"actions": rows, "true_labels": list(true_order), "action_labels": list(actions), "confusion_matrix_rows_true_columns_action": matrix.tolist(), "support": total, "pending_rate": _wilson(sum(record["action"] == "PENDING_ABSTAIN" for record in records), total), "coverage": _wilson(len(accepted), total), "accepted_accuracy": _wilson(accepted_correct, len(accepted)), "selective_risk": _wilson(len(accepted) - accepted_correct, len(accepted)), "unknown_rejection": {"rejected": sum(record["action"] == "UNKNOWN_REJECTED" for record in unknown), "error_acceptance": sum(record["action"] in V28_L2_CLASSES or record["action"] == "Clutter" for record in unknown), "pending": sum(record["action"] == "PENDING_ABSTAIN" for record in unknown), "rate": _wilson(sum(record["action"] == "UNKNOWN_REJECTED" for record in unknown), len(unknown))}, "clutter_acceptance": {"accepted": sum(record["action"] == "Clutter" for record in clutter), "misrouted": sum(record["action"] != "Clutter" for record in clutter), "rate": _wilson(sum(record["action"] == "Clutter" for record in clutter), len(clutter))}, "known_target_acceptance": {"accepted": sum(record["action"] == record["label_name"] for record in known), "pending": sum(record["action"] == "PENDING_ABSTAIN" for record in known), "wrong_action": sum(record["action"] not in {*V28_L2_CLASSES, "PENDING_ABSTAIN"} for record in known), "rate": _wilson(sum(record["action"] == record["label_name"] for record in known), len(known)), "by_class": known_by_class}}
 
 
-def run_replay(context: V28Context, *, device: torch.device) -> dict[str, Any]:
+def run_replay(context: V28Context, *, device: torch.device, audit_mode: bool = False) -> dict[str, Any]:
     registry = load_registry(context)
     calibration = registry["calibration"]
     l1_binding = registry["endpoint_binding"][V28_L1_TASK]
@@ -118,21 +130,42 @@ def run_replay(context: V28Context, *, device: torch.device) -> dict[str, Any]:
             l2_quality = deterministic_quality_target(context, task=V28_L2_TASK, task_facts=l2_output["task_facts_sequence"], event_facts=l2_output["event_facts_sequence"], padding_mask=l2_output["padding_mask"])[rows, l2_lengths - 1]
             l1_probs = _probabilities(l1_output["final_logits"].cpu().numpy(), float(l1_task["temperature"].get("temperature", 1.0)))
             l2_probs = _probabilities(l2_output["final_logits"].cpu().numpy(), float(l2_task["temperature"].get("temperature", 1.0)))
-            l1_scores = torch.sigmoid(l1_aux["knownness_logits"][rows, l1_lengths - 1]).cpu().numpy()
-            l2_scores = torch.sigmoid(l2_aux["knownness_logits"][rows, l2_lengths - 1]).cpu().numpy()
+            l1_target_scores = torch.sigmoid(l1_aux["target_knownness_logits"][rows, l1_lengths - 1]).cpu().numpy()
+            l1_clutter_scores = torch.sigmoid(l1_aux["clutter_knownness_logits"][rows, l1_lengths - 1]).cpu().numpy()
+            l2_scores = torch.sigmoid(l2_aux["target_knownness_logits"][rows, l2_lengths - 1]).cpu().numpy()
+            l2_consistency = trajectory_consistency_score(l2_output)[rows, l2_lengths - 1].cpu().numpy()
             for index, parent_id in enumerate(l1_batch["parent_sample_ids"]):
-                l1_candidates = _candidate_set(l1_probs[index], l1_names, l1_task["conformal"].get("candidate_probability_floor_by_class", {}))
+                l1_floors = dict(l1_task["conformal"].get("candidate_probability_floor_by_class", {}))
+                l1_floors["KNOWN_TARGET_EVIDENCE"] = float(context.config.selection["l1_target_candidate_probability_floor"])
+                l1_floors["KNOWN_CLUTTER_EVIDENCE"] = float(context.config.selection["l1_clutter_candidate_probability_floor"])
+                l1_candidates = _candidate_set(l1_probs[index], l1_names, l1_floors)
                 l1_prediction = l1_names[int(l1_probs[index].argmax())] if l1_probs.shape[1] else None
                 l1_target = l1_prediction == "KNOWN_TARGET_EVIDENCE"
                 l1_clutter = l1_prediction == "KNOWN_CLUTTER_EVIDENCE"
                 l2_candidates = _candidate_set(l2_probs[index], list(V28_L2_CLASSES), l2_task["conformal"].get("candidate_probability_floor_by_class", {}))
                 l2_prediction = V28_L2_CLASSES[int(l2_probs[index].argmax())] if l2_probs.shape[1] else None
-                l1_threshold = float(l1_task["knownness"].get("selected", {}).get("threshold", 1.0))
-                l2_threshold = float(l2_task["knownness"].get("selected", {}).get("threshold", 1.0))
-                decision = resolve_action(registry=registry, l1_candidate_set=l1_candidates, l1_prediction=l1_prediction, l1_knownness=bool(l1_scores[index] >= l1_threshold), l1_quality_eligible=bool(l1_quality[index]), l1_target=l1_target, l1_clutter=l1_clutter, l2_candidate_set=l2_candidates, l2_prediction=l2_prediction, l2_knownness=bool(l2_scores[index] >= l2_threshold), l2_quality_eligible=bool(l2_quality[index]), streaming=False, registry_context=context)
-                records.append({"parent_sample_id": str(parent_id), "label_name": str(l1_batch["base_label_names"][index]), "action": decision.action, "reason_code": decision.reason_code, "l1_prediction": l1_prediction, "l2_prediction": l2_prediction, "l1_candidates": l1_candidates, "l2_candidates": l2_candidates, "l1_knownness": float(l1_scores[index]), "l2_knownness": float(l2_scores[index]), "l1_quality_eligible": bool(l1_quality[index]), "l2_quality_eligible": bool(l2_quality[index]), "event_count": int(l1_lengths[index].item())})
-    report = {"schema_version": "RADAR-LN3-V28-l3-replay-v2", "experiment_id": "V28", "status": "completed", "registry_status": registry["status"], "deployment_eligible": bool(registry.get("deployment_eligible")), "registry_sha256": registry["registry_sha256"], "checkpoint_epochs": {V28_L1_TASK: int(l1_payload["epoch"]), V28_L2_TASK: int(l2_payload["epoch"])}, "parent_count": len(records), "evaluation_scope": {"split": context.config.data["test_split_name"], "test_payload_access_count": len(records), "post_selection_audit": "absent", "classification_training_unknown_exposure": 0}, "action_metrics": _action_metrics(records), "records": records}
-    path = artifact_path(context.project_root, str(context.config.artifacts["replay_report_path"]))
+                l1_knownness = bool(l1_target_scores[index] >= float(l1_task["knownness"]["target"]["selected"]["threshold"])) if l1_target else bool(l1_clutter_scores[index] >= float(l1_task["knownness"]["clutter"]["selected"]["threshold"]))
+                route_threshold = float(l2_task["knownness"].get(l2_prediction, {}).get("selected", {}).get("threshold", 1.0))
+                if l2_prediction == "BirdTarget":
+                    l2_route_score = float(route_knownness_score(
+                        l2_scores[index],
+                        l2_consistency[index],
+                        route="BirdTarget",
+                        consistency_weight=float(context.config.heads["bird_consistency_weight"]),
+                    ))
+                    l2_knownness = bool(l2_route_score >= route_threshold)
+                else:
+                    l2_route_score = float(l2_scores[index])
+                    l2_knownness = bool(l2_scores[index] >= route_threshold)
+                if not l1_candidates and l1_target and l1_probs[index].max() >= float(context.config.selection["l1_target_candidate_probability_floor"]):
+                    l1_candidates = [l1_prediction]
+                if not l2_candidates and context.config.selection["l2_candidate_empty_fallback"] and l2_knownness:
+                    l2_candidates = [l2_prediction]
+                decision = resolve_action_verified(registry=registry, l1_candidate_set=l1_candidates, l1_prediction=l1_prediction, l1_knownness=l1_knownness, l1_quality_eligible=bool(l1_quality[index]), l1_target=l1_target, l1_clutter=l1_clutter, l2_candidate_set=l2_candidates, l2_prediction=l2_prediction, l2_knownness=l2_knownness, l2_quality_eligible=bool(l2_quality[index]), streaming=False, audit_mode=audit_mode)
+                records.append({"parent_sample_id": str(parent_id), "label_name": str(l1_batch["base_label_names"][index]), "action": decision.action, "reason_code": decision.reason_code, "l1_prediction": l1_prediction, "l2_prediction": l2_prediction, "l1_candidates": l1_candidates, "l2_candidates": l2_candidates, "l1_knownness": float(l1_target_scores[index] if l1_target else l1_clutter_scores[index]), "l2_knownness": float(l2_scores[index]), "l2_route_knownness": l2_route_score, "l2_trajectory_consistency": float(l2_consistency[index]), "l1_quality_eligible": bool(l1_quality[index]), "l2_quality_eligible": bool(l2_quality[index]), "event_count": int(l1_lengths[index].item())})
+    audit_pool = calibration.get("post_selection_audit", {})
+    report = {"schema_version": "RADAR-LN3-V28-l3-replay-v2", "experiment_id": "V28", "mode": "audit" if audit_mode else "replay", "status": "completed", "registry_status": registry["status"], "deployment_eligible": bool(registry.get("deployment_eligible")), "system_manifest_sha256": context.manifest_sha256, "config_sha256": context.config.sha256, "registry_sha256": registry["registry_sha256"], "registry_file_sha256": sha256_file(artifact_path(context.project_root, str(context.config.artifacts["registry_path"]))), "checkpoint_epochs": {V28_L1_TASK: int(l1_payload["epoch"]), V28_L2_TASK: int(l2_payload["epoch"])}, "parent_count": len(records), "evaluation_scope": {"split": context.config.data["test_split_name"], "test_payload_access_count": 0 if audit_mode else len(records), "audit_payload_access_count": len(records) if audit_mode else 0, "post_selection_audit": "completed" if audit_mode else "not_executed", "audit_pool_parent_count": int(audit_pool.get("parent_count", 0)), "audit_pool_parent_ids_sha256": audit_pool.get("parent_ids_sha256"), "thresholds_frozen_before_audit": bool(audit_mode), "classification_training_unknown_exposure": 0}, "action_metrics": _action_metrics(records), "records": records}
+    path = artifact_path(context.project_root, str(context.config.artifacts["audit_report_path"] if audit_mode else context.config.artifacts["replay_report_path"]))
     write_sealed_json(path, report)
     return {"path": relative_project_path(context.project_root, path), "sha256": sha256_file(path), "report": report}
 

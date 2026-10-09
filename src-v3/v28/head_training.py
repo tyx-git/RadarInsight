@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import math
 import random
-import time
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -14,9 +12,9 @@ from torch import nn
 
 from radar_ln3.runtime import atomic_torch_save, atomic_write_text, canonical_sha256, json_text, relative_project_path, sha256_file
 
-from .heads import V28TrajectoryHeads
+from .heads import V28TrajectoryHeads, deterministic_quality_target
 from .representations import load_representation
-from .protocol import V28Context, V28_HEAD_SCHEMA, V28_L1_TASK, V28_L2_TASK, artifact_path
+from .protocol import V28Context, V28_HEAD_SCHEMA, V28_L1_TASK, artifact_path
 
 
 def _seed(seed: int) -> None:
@@ -34,20 +32,28 @@ def _quality_parts(payload: Mapping[str, Any], task: str) -> tuple[torch.Tensor,
     return quality[..., :19], quality[..., 19:38], quality[..., 38:], padding
 
 
-def _known_targets(task: str, labels: list[str], *, device: torch.device) -> torch.Tensor:
-    if task == V28_L1_TASK:
-        return torch.tensor([0.0 if label == "UnknownTarget" else 1.0 for label in labels], device=device, dtype=torch.float32)
-    return torch.tensor([1.0 if label in {"DroneTarget", "BirdTarget", "BalloonTarget"} else 0.0 for label in labels], device=device, dtype=torch.float32)
+def _known_targets(task: str, labels: list[str], *, device: torch.device, route: str = "target") -> torch.Tensor:
+    if task == V28_L1_TASK and route == "clutter":
+        positive = {"ClutterTarget"}
+    else:
+        positive = {"DroneTarget", "BirdTarget", "BalloonTarget"}
+    return torch.tensor(
+        [1.0 if label in positive else 0.0 for label in labels],
+        device=device,
+        dtype=torch.float32,
+    )
 
 
 def _quality_targets(task: str, task_facts: torch.Tensor, event_facts: torch.Tensor, padding: torch.Tensor, context: V28Context) -> torch.Tensor:
-    active = ~padding
-    event_number = active.long().cumsum(dim=1)
-    rd_fraction = task_facts[..., 1]
-    dt_fraction = task_facts[..., 3]
-    aux_fraction = task_facts[..., 7] if task == V28_L1_TASK else torch.minimum(task_facts[..., 5], task_facts[..., 6])
-    heads = context.config.heads
-    return active & (event_number >= int(heads["quality_min_events"])) & (rd_fraction >= float(heads["quality_min_rd_fraction"])) & (dt_fraction >= float(heads["quality_min_dt_fraction"])) & (aux_fraction >= float(heads["quality_min_aux_fraction"]))
+    """Use the shared deterministic quality contract for training and replay."""
+
+    return deterministic_quality_target(
+        context,
+        task=task,
+        task_facts=task_facts,
+        event_facts=event_facts,
+        padding_mask=padding,
+    )
 
 
 def _parent_bce(logits: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor, *, positive_weight: float) -> torch.Tensor:
@@ -80,13 +86,21 @@ def _final_scores(payload: Mapping[str, Any], heads: V28TrajectoryHeads, *, task
         output = heads.forward_features(known, quality, padding)
     lengths = tensors["lengths"].long().to(device)
     rows = torch.arange(lengths.shape[0], device=device)
-    known_scores = torch.sigmoid(output["knownness_logits"][rows, lengths - 1]).cpu().numpy()
+    target_scores = torch.sigmoid(output["target_knownness_logits"][rows, lengths - 1]).cpu().numpy()
+    clutter_scores = torch.sigmoid(output["clutter_knownness_logits"][rows, lengths - 1]).cpu().numpy()
     quality_scores = torch.sigmoid(output["quality_logits"][rows, lengths - 1]).cpu().numpy()
     task_facts, event_facts, task_fact_values, _ = _quality_parts(payload, task)
     quality_targets = _quality_targets(task, task_fact_values, event_facts, tensors["padding_mask"].bool(), context)[rows.cpu(), lengths.cpu() - 1].numpy().astype(np.int64)
     labels = [str(value) for value in payload["label_names"]]
-    known_targets = _known_targets(task, labels, device=torch.device("cpu")).numpy().astype(np.int64)
-    return {"known_scores": known_scores, "quality_scores": quality_scores, "known_targets": known_targets, "quality_targets": quality_targets, "labels": labels, "parent_ids": [str(value) for value in payload["parent_ids"]]}
+    return {
+        "known_scores": target_scores,
+        "target_knownness": target_scores,
+        "clutter_knownness": clutter_scores,
+        "quality_scores": quality_scores,
+        "quality_targets": quality_targets,
+        "labels": labels,
+        "parent_ids": [str(value) for value in payload["parent_ids"]],
+    }
 
 
 def _roc_auc(labels: np.ndarray, scores: np.ndarray) -> float | None:
@@ -128,15 +142,26 @@ def _threshold_candidates(scores: np.ndarray) -> list[float]:
     return sorted(value for value in candidates if 0.0 <= value <= 1.0)
 
 
-def _select_knownness(task: str, development: Mapping[str, Any], config: V28Context) -> dict[str, Any]:
+def _select_knownness(task: str, development: Mapping[str, Any], config: V28Context, *, route: str = "target") -> dict[str, Any]:
     labels = np.asarray(development["labels"], dtype=object)
     scores = np.asarray(development["known_scores"], dtype=np.float64)
     unknown = labels == "UnknownTarget"
-    known_target = np.isin(labels, ["DroneTarget", "BirdTarget", "BalloonTarget"])
+    known_target = (
+        np.isin(labels, ["DroneTarget", "BirdTarget", "BalloonTarget"])
+        if route == "target"
+        else labels == "ClutterTarget"
+    )
     clutter = labels == "ClutterTarget"
-    floor = float(config.config.selection["knownness_recall_floor"])
+    if task == V28_L1_TASK and route == "clutter":
+        floor = float(config.config.heads["l1_clutter_knownness_recall_floor"])
+        max_reject = int(config.config.selection["max_correct_known_new_rejections"])
+    elif task == V28_L1_TASK:
+        floor = float(config.config.heads["l1_target_knownness_recall_floor"])
+        max_reject = int(config.config.selection["max_correct_known_new_rejections"])
+    else:
+        floor = float(config.config.heads["l2_drone_knownness_recall_floor"])
+        max_reject = int(config.config.selection["max_correct_known_new_rejections"])
     clutter_floor = float(config.config.selection["clutter_recall_floor"])
-    max_reject = int(config.config.selection["max_correct_known_new_rejections"])
     minimum_negative_support = int(config.config.selection["minimum_negative_support"])
     unknown_support = int(unknown.sum())
     support_sufficient = unknown_support >= minimum_negative_support
@@ -147,7 +172,7 @@ def _select_knownness(task: str, development: Mapping[str, Any], config: V28Cont
         clutter_recall = float(accepted[clutter].mean()) if clutter.any() else None
         unknown_rejection = float((~accepted[unknown]).mean()) if unknown.any() else None
         new_rejections = int((known_target & ~accepted).sum())
-        clutter_safe = not clutter.any() or bool(clutter_recall >= clutter_floor)
+        clutter_safe = route != "clutter" or not clutter.any() or bool(clutter_recall >= clutter_floor)
         safe = target_recall >= floor and clutter_safe and new_rejections <= max_reject and support_sufficient
         candidates.append({"threshold": threshold, "known_target_recall": target_recall, "clutter_recall": clutter_recall, "unknown_rejection": unknown_rejection, "correct_known_new_rejections": new_rejections, "unknown_support": unknown_support, "minimum_negative_support": minimum_negative_support, "support_sufficient": support_sufficient, "safe": safe})
     safe = [row for row in candidates if row["safe"]]
@@ -161,7 +186,7 @@ def _select_knownness(task: str, development: Mapping[str, Any], config: V28Cont
         eligible = False
     else:
         raise ValueError(f"V28 {task} knownness safety gate is infeasible")
-    return {"selection_status": status, "deployment_eligible": eligible, "selected": selected, "candidate_count": len(candidates), "support_sufficient": support_sufficient, "diagnostics": _diagnostics((labels != "UnknownTarget").astype(np.int64) if task == V28_L1_TASK else np.isin(labels, ["DroneTarget", "BirdTarget", "BalloonTarget"]).astype(np.int64), scores)}
+    return {"route": route, "selection_status": status, "deployment_eligible": eligible, "selected": selected, "candidate_count": len(candidates), "support_sufficient": support_sufficient, "diagnostics": _diagnostics(known_target.astype(np.int64), scores)}
 
 
 def _select_quality(development: Mapping[str, Any], context: V28Context) -> dict[str, Any]:
@@ -218,47 +243,73 @@ def train_heads(context: V28Context, *, task: str, seed: int, device: torch.devi
     known_features = fit_tensors["knownness_features"].to(device).float()
     quality_features = fit_tensors["quality_features"].to(device).float()
     labels = [str(value) for value in fit["label_names"]]
-    known_targets = _known_targets(task, labels, device=device)
+    target_targets = _known_targets(task, labels, device=device, route="target")
+    clutter_targets = _known_targets(task, labels, device=device, route="clutter")
     _, event_facts, task_facts, _ = _quality_parts(fit, task)
     event_facts, task_facts = event_facts.to(device).float(), task_facts.to(device).float()
     quality_targets = _quality_targets(task, task_facts, event_facts, padding, context).float()
     event_number = (~padding).long().cumsum(dim=1)
     known_mask = (~padding) & (event_number >= int(context.config.heads["knownness_min_events"]))
     quality_mask = ~padding
-    pos = float(known_targets.unsqueeze(1).expand_as(known_mask).masked_select(known_mask).sum().item())
-    total = float(known_mask.sum().item())
-    if pos <= 0 or total <= pos:
-        raise ValueError("V28 knownness fit lacks both classes")
-    known_weight = (total - pos) / pos
+    def class_weight(targets: torch.Tensor) -> float:
+        pos = float(targets.unsqueeze(1).expand_as(known_mask).masked_select(known_mask).sum().item())
+        total = float(known_mask.sum().item())
+        if pos <= 0 or total <= pos:
+            raise ValueError("V28 knownness fit lacks both classes")
+        return (total - pos) / pos
+
+    target_weight = class_weight(target_targets)
+    clutter_weight = class_weight(clutter_targets) if task == V28_L1_TASK else None
     quality_pos = float(quality_targets.masked_select(quality_mask).sum().item())
     quality_total = float(quality_mask.sum().item())
     if quality_pos <= 0 or quality_total <= quality_pos:
         raise ValueError("V28 quality fit lacks both classes")
     quality_weight = (quality_total - quality_pos) / quality_pos
-    optimizer = torch.optim.AdamW(list(heads.knownness_projection.parameters()) + list(heads.knownness_head.parameters()), lr=float(context.config.heads["learning_rate"]), weight_decay=float(context.config.heads["weight_decay"]))
+    known_parameters = list(heads.knownness_projection.parameters()) + list(heads.target_knownness_head.parameters())
+    if task == V28_L1_TASK:
+        known_parameters += list(heads.clutter_knownness_head.parameters())
+    optimizer = torch.optim.AdamW(known_parameters, lr=float(context.config.heads["learning_rate"]), weight_decay=float(context.config.heads["weight_decay"]))
     history: list[dict[str, Any]] = []
     known_states: dict[int, dict[str, torch.Tensor]] = {}
     for epoch in range(1, int(context.config.heads["epochs"]) + 1):
         heads.train(); optimizer.zero_grad(set_to_none=True)
         output = heads.forward_features(known_features, quality_features, padding)
-        loss = _parent_bce(output["knownness_logits"], known_targets, known_mask, positive_weight=known_weight)
-        loss.backward(); torch.nn.utils.clip_grad_norm_(list(heads.knownness_projection.parameters()) + list(heads.knownness_head.parameters()), float(context.config.heads["gradient_clip_norm"]), error_if_nonfinite=True); optimizer.step()
+        target_loss = _parent_bce(output["target_knownness_logits"], target_targets, known_mask, positive_weight=target_weight)
+        loss = target_loss
+        if task == V28_L1_TASK:
+            clutter_loss = _parent_bce(output["clutter_knownness_logits"], clutter_targets, known_mask, positive_weight=float(clutter_weight))
+            loss = target_loss + clutter_loss
+        loss.backward(); torch.nn.utils.clip_grad_norm_(known_parameters, float(context.config.heads["gradient_clip_norm"]), error_if_nonfinite=True); optimizer.step()
         heads.eval()
         fit_scores = _final_scores(fit, heads, task=task, context=context, device=device)
         dev_scores = _final_scores(development, heads, task=task, context=context, device=device)
-        selection = _select_knownness(task, dev_scores, context)
-        history.append({"epoch": epoch, "knownness_loss": float(loss.detach().cpu()), "selection": selection})
+        target_selection = _select_knownness(task, {**dev_scores, "known_scores": dev_scores["target_knownness"]}, context, route="target")
+        clutter_selection = None
+        if task == V28_L1_TASK:
+            clutter_selection = _select_knownness(task, {**dev_scores, "known_scores": dev_scores["clutter_knownness"]}, context, route="clutter")
+        history.append({"epoch": epoch, "knownness_loss": float(loss.detach().cpu()), "target_selection": target_selection, "clutter_selection": clutter_selection})
         known_states[epoch] = {
             **{f"knownness_projection.{key}": value for key, value in _clone_state(heads.knownness_projection).items()},
-            **{f"knownness_head.{key}": value for key, value in _clone_state(heads.knownness_head).items()},
+            **{f"target_knownness_head.{key}": value for key, value in _clone_state(heads.target_knownness_head).items()},
+            **({f"clutter_knownness_head.{key}": value for key, value in _clone_state(heads.clutter_knownness_head).items()} if task == V28_L1_TASK else {}),
         }
-    best_known = min(history, key=lambda row: (not bool(row["selection"]["deployment_eligible"]), -float(row["selection"]["selected"]["unknown_rejection"] or 0.0), -int(row["epoch"])))
+    def rank(row: Mapping[str, Any]) -> tuple[bool, float, float, int]:
+        target = row["target_selection"]
+        clutter = row.get("clutter_selection")
+        eligible = bool(target["deployment_eligible"]) and (clutter is None or bool(clutter["deployment_eligible"]))
+        target_rejection = float(target["selected"].get("unknown_rejection") or 0.0)
+        clutter_rejection = float(clutter["selected"].get("unknown_rejection") or 0.0) if clutter else 0.0
+        return (not eligible, -(target_rejection + clutter_rejection), -target_rejection, -int(row["epoch"]))
+    best_known = min(history, key=rank)
     selected_known_state = known_states[int(best_known["epoch"])]
     heads.knownness_projection.load_state_dict({key.split(".", 1)[1]: value for key, value in selected_known_state.items() if key.startswith("knownness_projection.")}, strict=True)
-    heads.knownness_head.load_state_dict({key.split(".", 1)[1]: value for key, value in selected_known_state.items() if key.startswith("knownness_head.")}, strict=True)
+    heads.target_knownness_head.load_state_dict({key.split(".", 1)[1]: value for key, value in selected_known_state.items() if key.startswith("target_knownness_head.")}, strict=True)
+    if task == V28_L1_TASK:
+        heads.clutter_knownness_head.load_state_dict({key.split(".", 1)[1]: value for key, value in selected_known_state.items() if key.startswith("clutter_knownness_head.")}, strict=True)
     # Quality is trained separately; knownness parameters are frozen during it.
     for parameter in heads.knownness_projection.parameters(): parameter.requires_grad_(False)
-    for parameter in heads.knownness_head.parameters(): parameter.requires_grad_(False)
+    for parameter in heads.target_knownness_head.parameters(): parameter.requires_grad_(False)
+    for parameter in heads.clutter_knownness_head.parameters(): parameter.requires_grad_(False)
     quality_optimizer = torch.optim.AdamW(heads.quality_head.parameters(), lr=float(context.config.heads["learning_rate"]), weight_decay=float(context.config.heads["weight_decay"]))
     quality_history: list[dict[str, Any]] = []
     quality_states: dict[int, dict[str, torch.Tensor]] = {}

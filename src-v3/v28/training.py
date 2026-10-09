@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import logging
 import random
 import time
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -20,7 +17,7 @@ from .data import V28TaskDataset, build_dataloader, model_input_kwargs
 from .evaluation import evaluate_model
 from .metrics import selection_key
 from .model import V28TaskModel
-from .protocol import V28Context, V28_L1_TASK, V28_L2_TASK, artifact_path, task_classes
+from .protocol import V28Context, V28_L1_TASK, V28_L2_TASK, artifact_path
 
 
 def _seed(seed: int, deterministic: bool = False) -> None:

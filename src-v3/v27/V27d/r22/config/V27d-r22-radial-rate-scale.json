@@ -1,0 +1,88 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r22-config-v1",
+  "experiment_id": "V27d-r22",
+  "variant": "r20-radial-rate-scale-100-to-10",
+  "objective": "Keep the V27d-r20 radial sidecar, model, training and split fixed while changing only radial-rate normalization from 100 m/s/s to 10 m/s/s.",
+  "source": {
+    "parent": {
+      "r20_config_path": "src-v3/v27/V27d/r20/config/V27d-r20-radial-speed-decomposition.json",
+      "r20_config_sha256": "5b15ef4425696a0aeb6d8d3275c787aa69a0caebb2d1f56fdbea00beec7179b9",
+      "r20_manifest_path": "src-v3/v27/V27d/r20/manifests/V27d-r20-manifest.json",
+      "r20_manifest_sha256": "c4123b94b028349c6f417c31f3e294c412f31823452e51394dba31ffc72de4fc"
+    },
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "r19_config_path": "src-v3/v27/V27d/r19/config/V27d-r19-snr-channel-ablation.json",
+    "r19_config_sha256": "cb3b6f9db0383fd4f6c3c7f6bd818af62ee4cde97c58b219276d515574ffaae6",
+    "r19_manifest_path": "src-v3/v27/V27d/r19/manifests/V27d-r19-manifest.json",
+    "r19_manifest_sha256": "e8b8c35b30a2ff0496fb5501e3c0beb04bb45cfffe2d6cb617443b12d9b13333",
+    "r19_checkpoint_path": "src-v3/v27/V27d/r19/runs-v1/V27d-r19-snr_missing_only-seed42/checkpoint.pt",
+    "r19_checkpoint_sha256": "b4ef08a557e57b8833fd3758e76f59043695c58944d49093476447ed4bfa9c0c",
+    "r19_checkpoint_model_state_sha256": "994365fce04c3651f470ee5d7d05a1e6d5ee79daf9e44b63741b3749a6890b6b",
+    "r19_checkpoint_arm": "snr_missing_only",
+    "r19_checkpoint_seed": 42,
+    "r19_checkpoint_epoch": 20
+  },
+  "data": {
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "split_protocol": "r18 sealed source_suffix+label parent split",
+    "snr_protocol": "r19 snr_missing_only",
+    "untrusted_excel_noise_policy": "exclude Noise and derived SNR",
+    "raw_radial_speed_field": "radial_speed_mps",
+    "radial_scalar_removed": true,
+    "radial_value_names": [
+      "abs_radial_speed_scaled",
+      "radial_speed_sign",
+      "radial_speed_rate_scaled",
+      "radial_range_direction_consistency"
+    ],
+    "radial_valid_names": [
+      "abs_radial_speed_scaled_valid",
+      "radial_speed_sign_valid",
+      "radial_speed_rate_scaled_valid",
+      "radial_range_direction_consistency_valid"
+    ],
+    "radial_sidecar_dim": 4,
+    "radial_sidecar_input_dim": 8,
+    "radial_abs_scale_mps": 100.0,
+    "radial_rate_scale_mps_per_s": 10.0,
+    "sidecar_clip_absolute": 5.0,
+    "positive_dt_only_for_rate_and_consistency": true,
+    "zero_dt_rate_and_consistency_policy": "value_zero_and_valid_false",
+    "missing_radial_policy": "value_zero_and_valid_false_for_affected_fields",
+    "unknown_training_exposure": 0,
+    "test_created": false
+  },
+  "model": {
+    "task": "dbb_specialist",
+    "class_names": ["DroneTarget", "BirdTarget", "BalloonTarget"],
+    "radial_projection_dim": 16,
+    "radial_adapter_dim": 16,
+    "bias_free": true,
+    "output_zero_initialization": true,
+    "injection": "post_fusion_pre_liquid",
+    "validity_mask_is_model_input": true,
+    "unknown_classifier_class": false,
+    "trajectory_heads": "frozen_unused_by_classification"
+  },
+  "training": {
+    "seeds": [42],
+    "batch_size": 4,
+    "epochs": 20,
+    "gradient_clip_norm": 100.0,
+    "l2_learning_rate": 0.00001,
+    "weight_decay": 0.001,
+    "loss_name": "parent_final_fixed_parent_count_ce",
+    "loss_reduction": "fixed_parent_count",
+    "optimizer": "AdamW",
+    "device": "cuda",
+    "checkpoint_selection": "validation_parent_macro_f1_then_min_recall"
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r22/manifests/V27d-r22-manifest.json",
+    "smoke_path": "src-v3/v27/V27d/r22/reports/V27d-r22-contract-smoke.json",
+    "comparison_report_path": "src-v3/v27/V27d/r22/reports/V27d-r22-trained-comparison.json",
+    "checkpoint_template": "src-v3/v27/V27d/r22/runs-v1/V27d-r22-{arm}-seed{seed}/checkpoint.pt",
+    "epoch_checkpoint_template": "src-v3/v27/V27d/r22/runs-v1/V27d-r22-{arm}-seed{seed}/epochs/epoch-{epoch:03d}.pt",
+    "training_summary_template": "src-v3/v27/V27d/r22/runs-v1/V27d-r22-{arm}-seed{seed}/training-summary.json"
+  }
+}

@@ -13,6 +13,65 @@ from .pools import verify_pool_registry
 from .protocol import V28Context, V28_HEAD_SCHEMA, V28_L3_SCHEMA, V28_L1_TASK, V28_L2_TASK, artifact_path, checkpoint_manifest_compatibility, read_sealed_json, resolve_project_path, write_sealed_json
 
 
+_CLASSIFIER_FEATURE_MANIFEST = Path("src-v3/v28/calibration/V28-classifier-feature-manifest-v2.json")
+
+
+def _verify_custom_digest(payload: Mapping[str, Any], field: str, label: str) -> str:
+    value = dict(payload)
+    declared = value.pop(field, None)
+    value.pop("payload_sha256", None)
+    if not isinstance(declared, str) or declared != canonical_sha256(value):
+        raise ValueError(f"V28 {label} digest differs")
+    return declared
+
+
+def _normalization_contract(context: V28Context) -> dict[str, Any]:
+    data = context.config.data
+    model = context.config.model
+    return {
+        "index_schema_version": str(data["index_schema_version"]),
+        "max_sequence_length": int(data["max_sequence_length"]),
+        "max_rd_frames_per_point": int(data["max_rd_frames_per_point"]),
+        "rd_shape": {"height": int(model["rd_height"]), "width": int(model["rd_width"]), "channels": 2},
+        "l1": {
+            "course_feature_name": str(data["l1"]["course_feature_name"]),
+            "course_feature_variant": str(data["l1"]["course_feature_variant"]),
+            "course_minimum_valid_nonfirst_points": int(data["l1"]["course_minimum_valid_nonfirst_points"]),
+            "rd_amplitude_center": float(data["l1"]["rd_amplitude_center"]),
+            "rd_amplitude_scale": float(data["l1"]["rd_amplitude_scale"]),
+        },
+        "l2": {
+            "rd_amplitude_center": float(data["l2"]["rd_amplitude_center"]),
+            "rd_amplitude_scale": float(data["l2"]["rd_amplitude_scale"]),
+            "tr_clipping": dict(data["l2"]["tr_clipping"]),
+        },
+    }
+
+
+def _verify_classifier_feature_manifest(context: V28Context) -> tuple[Path, dict[str, Any]]:
+    path = resolve_project_path(context.project_root, _CLASSIFIER_FEATURE_MANIFEST, must_exist=True)
+    payload = read_sealed_json(path)
+    if payload.get("schema_version") != "RADAR-LN3-V28-classifier-feature-manifest-v2" or payload.get("status") != "prepared":
+        raise ValueError("V28 classifier feature manifest identity differs")
+    if payload.get("config_sha256") != context.config.sha256 or payload.get("index_sha256") != sha256_file(context.project_root / context.config.data["index_path"]):
+        raise ValueError("V28 classifier feature manifest provenance differs")
+    if payload.get("unknown_exposure") != 0 or int(payload.get("test_payload_access_count", -1)) != 0:
+        raise ValueError("V28 classifier feature manifest violated the test/Unknown boundary")
+    _verify_custom_digest(payload, "feature_manifest_sha256", "classifier feature manifest")
+    for key, record in (payload.get("caches") or {}).items():
+        if not isinstance(record, Mapping):
+            raise ValueError(f"V28 classifier feature cache record is invalid: {key}")
+        if "path" in record:
+            cache_path = resolve_project_path(context.project_root, str(record["path"]), must_exist=True)
+            if sha256_file(cache_path) != record.get("sha256"):
+                raise ValueError(f"V28 classifier feature cache hash differs: {key}")
+        elif key.startswith(f"{V28_L1_TASK}:") and record.get("unknown_exposure") == 0:
+            continue
+        else:
+            raise ValueError(f"V28 classifier feature cache binding is missing: {key}")
+    return path, payload
+
+
 def registry_path(context: V28Context) -> Path:
     return artifact_path(context.project_root, str(context.config.artifacts["registry_path"]))
 
@@ -61,6 +120,7 @@ def _verify_representation_manifest(
     payload = read_sealed_json(path)
     if payload.get("schema_version") != "RADAR-LN3-V28-representation-manifest-v2" or payload.get("status") != "prepared":
         raise ValueError("V28 representation manifest identity differs")
+    _verify_custom_digest(payload, "representation_manifest_sha256", "representation manifest")
     if payload.get("system_manifest_sha256") != context.manifest_sha256 or payload.get("pool_registry_sha256") != pool_registry.get("registry_sha256"):
         raise ValueError("V28 representation manifest provenance differs")
     expected_keys = {f"{task}:{role}" for task in (V28_L1_TASK, V28_L2_TASK) for role in ("representation_fit", "representation_development", "calibration")}
@@ -74,11 +134,23 @@ def _verify_representation_manifest(
         cache_path = resolve_project_path(context.project_root, str(record.get("path")), must_exist=True)
         if sha256_file(cache_path) != record.get("sha256"):
             raise ValueError(f"V28 representation cache hash differs: {key}")
-        cache = torch.load(cache_path, map_location="cpu", weights_only=False)
         task, role = key.split(":", 1)
-        if not isinstance(cache, Mapping) or cache.get("task") != task or cache.get("role") != role or cache.get("system_manifest_sha256") != context.manifest_sha256 or cache.get("pool_registry_sha256") != pool_registry.get("registry_sha256") or cache.get("endpoint_binding") != endpoint_binding[task] or cache.get("cache_sha256") != record.get("cache_sha256"):
+        # The sealed representation manifest already records the cache's
+        # content hash and provenance.  Rechecking the file SHA-256 here is
+        # sufficient; loading six 20-48 MB tensor payloads during every
+        # registry verification only duplicates memory and can stall a
+        # Windows run without adding provenance coverage.
+        if (
+            not record.get("cache_sha256")
+            or not record.get("sha256")
+            or record.get("task") != task
+            or record.get("role") != role
+            or record.get("system_manifest_sha256") != context.manifest_sha256
+            or record.get("pool_registry_sha256") != pool_registry.get("registry_sha256")
+            or dict(record.get("endpoint_binding") or {}) != dict(endpoint_binding.get(task) or {})
+        ):
             raise ValueError(f"V28 representation cache provenance differs: {key}")
-        cache_payloads[key] = cache
+        cache_payloads[key] = record
     for task, binding in head_bindings.items():
         head_path = _verify_binding_file(context, task, binding, head=True)
         head = torch.load(head_path, map_location="cpu", weights_only=False)
@@ -120,11 +192,13 @@ def build_registry(context: V28Context, *, endpoint_binding: Mapping[str, Any], 
     pool_payload = verify_pool_registry(context, read_sealed_json(pool_path), endpoint_binding=endpoint_binding)
     feature_hash = None
     feature_path = None
+    classifier_feature_path, classifier_feature_payload = _verify_classifier_feature_manifest(context)
     if feature_manifest_path is not None:
         feature_path = resolve_project_path(context.project_root, feature_manifest_path, must_exist=True)
         feature_hash = sha256_file(feature_path)
         feature_payload = read_sealed_json(feature_path)
-        if feature_payload.get("schema_version") != "RADAR-LN3-V28-feature-manifest-v2" or feature_payload.get("status") != "prepared" or feature_payload.get("system_manifest_sha256") != context.manifest_sha256 or feature_payload.get("endpoint_binding") != dict(endpoint_binding):
+        _verify_custom_digest(feature_payload, "feature_manifest_sha256", "open-set feature manifest")
+        if feature_payload.get("schema_version") != "RADAR-LN3-V28-feature-manifest-v2" or feature_payload.get("status") != "prepared" or feature_payload.get("system_manifest_sha256") != context.manifest_sha256 or feature_payload.get("pool_registry_sha256") != pool_payload.get("registry_sha256") or feature_payload.get("endpoint_binding") != dict(endpoint_binding):
             raise ValueError("V28 feature manifest provenance differs")
         for record in (feature_payload.get("caches") or {}).values():
             cache_path = resolve_project_path(context.project_root, str(record.get("path")), must_exist=True)
@@ -150,11 +224,13 @@ def build_registry(context: V28Context, *, endpoint_binding: Mapping[str, Any], 
         "endpoint_binding": dict(endpoint_binding),
         "head_bindings": dict(head_bindings),
         "pool_registry": {"path": relative_project_path(context.project_root, pool_path), "sha256": sha256_file(pool_path)},
+        "classifier_feature_manifest": {"path": relative_project_path(context.project_root, classifier_feature_path), "sha256": sha256_file(classifier_feature_path), "feature_manifest_sha256": classifier_feature_payload.get("feature_manifest_sha256")},
         "feature_manifest": None if feature_hash is None else {"path": relative_project_path(context.project_root, feature_path), "sha256": feature_hash},
         "representation_manifest": {"path": relative_project_path(context.project_root, representation_path), "sha256": sha256_file(representation_path), "payload_sha256": representation_payload.get("payload_sha256")},
         "calibration_report": {"path": relative_project_path(context.project_root, report_path), "sha256": sha256_file(report_path)},
         "calibration_payload_sha256": calibration.get("payload_sha256"),
         "calibration": dict(calibration),
+        "normalization_contract": _normalization_contract(context),
         "action_contract": {
             "unknown_is_classifier_class": False,
             "pending_is_not_unknown_rejection": True,
@@ -184,8 +260,11 @@ def verify_registry(context: V28Context, payload: Mapping[str, Any]) -> dict[str
     declared = value.pop("registry_sha256", None)
     if declared != canonical_sha256(value):
         raise ValueError("V28 L3 registry hash differs")
-    if value.get("schema_version") != V28_L3_SCHEMA or value.get("experiment_id") != "V28" or value.get("system_manifest_sha256") != context.manifest_sha256:
+    if value.get("schema_version") != V28_L3_SCHEMA or value.get("experiment_id") != "V28" or value.get("system_manifest_sha256") != context.manifest_sha256 or value.get("config_sha256") != context.config.sha256:
         raise ValueError("V28 L3 registry identity differs")
+    status = str(value.get("status", "unavailable"))
+    if status not in {"fitted", "internal_exploratory", "unavailable"}:
+        raise ValueError("V28 L3 registry status is invalid")
     if value.get("action_contract") != {"unknown_is_classifier_class": False, "pending_is_not_unknown_rejection": True, "quality_first": True, "registry_fail_closed": True, "fixed_softmax_threshold": False, "single_global_distance_gate": False}:
         raise ValueError("V28 L3 action contract differs")
     if int(value.get("test_payload_access_count", -1)) != 0:
@@ -204,6 +283,18 @@ def verify_registry(context: V28Context, payload: Mapping[str, Any]) -> dict[str
     pool_path = resolve_project_path(context.project_root, str(pool.get("path")), must_exist=True)
     if sha256_file(pool_path) != pool.get("sha256"):
         raise ValueError("V28 L3 registry pool hash differs")
+    pool_payload = verify_pool_registry(context, read_sealed_json(pool_path), endpoint_binding=value["endpoint_binding"])
+    classifier_feature = value.get("classifier_feature_manifest")
+    if not isinstance(classifier_feature, Mapping):
+        raise ValueError("V28 L3 registry classifier feature binding is missing")
+    classifier_feature_path = resolve_project_path(context.project_root, str(classifier_feature.get("path")), must_exist=True)
+    if sha256_file(classifier_feature_path) != classifier_feature.get("sha256"):
+        raise ValueError("V28 L3 registry classifier feature hash differs")
+    checked_classifier_feature_path, checked_classifier_feature = _verify_classifier_feature_manifest(context)
+    if classifier_feature_path != checked_classifier_feature_path or classifier_feature.get("feature_manifest_sha256") != checked_classifier_feature.get("feature_manifest_sha256"):
+        raise ValueError("V28 L3 registry classifier feature provenance differs")
+    if value.get("normalization_contract") != _normalization_contract(context):
+        raise ValueError("V28 L3 registry normalization contract differs")
     feature = value.get("feature_manifest")
     if feature is not None:
         if not isinstance(feature, Mapping):
@@ -212,7 +303,8 @@ def verify_registry(context: V28Context, payload: Mapping[str, Any]) -> dict[str
         if sha256_file(feature_path) != feature.get("sha256"):
             raise ValueError("V28 L3 registry feature hash differs")
         feature_payload = read_sealed_json(feature_path)
-        if feature_payload.get("system_manifest_sha256") != context.manifest_sha256 or feature_payload.get("endpoint_binding") != value.get("endpoint_binding"):
+        _verify_custom_digest(feature_payload, "feature_manifest_sha256", "open-set feature manifest")
+        if feature_payload.get("system_manifest_sha256") != context.manifest_sha256 or feature_payload.get("pool_registry_sha256") != pool_payload.get("registry_sha256") or feature_payload.get("endpoint_binding") != value.get("endpoint_binding"):
             raise ValueError("V28 L3 registry feature provenance differs")
         for record in (feature_payload.get("caches") or {}).values():
             cache_path = resolve_project_path(context.project_root, str(record.get("path")), must_exist=True)
@@ -224,6 +316,10 @@ def verify_registry(context: V28Context, payload: Mapping[str, Any]) -> dict[str
     representation_path = resolve_project_path(context.project_root, str(representation.get("path")), must_exist=True)
     if sha256_file(representation_path) != representation.get("sha256"):
         raise ValueError("V28 L3 registry representation manifest hash differs")
+    representation_payload = read_sealed_json(representation_path)
+    _verify_custom_digest(representation_payload, "representation_manifest_sha256", "representation manifest")
+    if representation_payload.get("payload_sha256") != representation.get("payload_sha256"):
+        raise ValueError("V28 L3 registry representation manifest payload hash differs")
     report = value.get("calibration_report")
     if not isinstance(report, Mapping):
         raise ValueError("V28 L3 registry calibration report binding is missing")
@@ -233,12 +329,11 @@ def verify_registry(context: V28Context, payload: Mapping[str, Any]) -> dict[str
     calibration = read_sealed_json(report_path)
     if calibration.get("payload_sha256") != value.get("calibration_payload_sha256") or calibration.get("system_manifest_sha256") != context.manifest_sha256:
         raise ValueError("V28 L3 registry calibration binding differs")
+    if value.get("calibration") != calibration or value.get("status") != calibration.get("status") or value.get("deployment_eligible") != bool(status == "fitted" and calibration.get("deployment_eligible") is True):
+        raise ValueError("V28 L3 registry calibration status or payload differs")
     if value.get("calibration", {}).get("endpoint_binding") != value.get("endpoint_binding") or value.get("calibration", {}).get("head_bindings") != value.get("head_bindings"):
         raise ValueError("V28 L3 registry calibration endpoint binding differs")
-    pool_payload = verify_pool_registry(context, read_sealed_json(pool_path), endpoint_binding=value["endpoint_binding"])
     representation_payload = _verify_representation_manifest(context, representation_path, endpoint_binding=value["endpoint_binding"], head_bindings=value["head_bindings"], pool_registry=pool_payload)
-    if representation_payload.get("payload_sha256") != representation.get("payload_sha256"):
-        raise ValueError("V28 L3 registry representation manifest payload hash differs")
     _verify_calibration_representation_binding(context, calibration, representation_payload)
     return {**value, "registry_sha256": declared, "payload_sha256": envelope}
 

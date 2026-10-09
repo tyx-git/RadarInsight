@@ -1,0 +1,71 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r01-config-v1",
+  "experiment_id": "V27d-r01",
+  "variant": "r20-denoising-replication-pointwise-input",
+  "objective": "Replicate the existing V27d denoising mechanism with an independent pointwise adapter and diagnose why X5A point denoising cannot directly alter Excel TR classification.",
+  "source": {
+    "parent_experiment": "V27d-r20",
+    "parent_manifest_path": "src-v3/v27/V27d/r20/manifests/V27d-r20-manifest.json",
+    "classification_dataset": "OriData/excel/TR-only-processed-r17",
+    "x5a_dataset": "OriData/梁子湖X5A",
+    "x5a_role": "external_quality_and_format_diagnostic_only",
+    "x5a_label_policy": "no_point_labels; filename hints are not point truth"
+  },
+  "data": {
+    "input_unit": "one event row for Excel TR; one point row for X5A",
+    "pointwise_input": true,
+    "excel_feature_keys": [
+      "range_m", "azimuth_deg", "elevation_deg", "speed_mps",
+      "radial_speed_mps", "height_m", "amplitude_db", "dt_seconds"
+    ],
+    "x5a_field_names": [
+      "u16_00", "u16_01", "u16_02", "u16_03", "u16_04", "u16_05",
+      "u16_06", "u16_07", "u16_08", "u16_09", "u16_10", "u16_11"
+    ],
+    "x5a_dtype": "uint16_little_endian",
+    "x5a_layout_status": "summary_v1_offset74_countN; must be validated before training",
+    "x5a_record_magic": "0xBBBBBBBB",
+    "x5a_record_header_bytes": 74,
+    "x5a_point_stride_bytes": 24,
+    "x5a_point_count_offset_bytes": 22,
+    "x5a_payload_offset_bytes": 74,
+    "x5a_semantics": "unknown_u16_offsets_only",
+    "normalization": "existing r20 TR physical feature vector uses fixed physical scales; X5A point adapter uses log1p then train-split median and 1.4826*MAD",
+    "noise_feature_policy": "Excel Noise and derived SNR are excluded, matching r20"
+  },
+  "denoising": {
+    "mechanism": "V27d-r20 denoising.py unchanged for Excel event rows",
+    "k_neighbors": 5,
+    "target_retention_floor": 0.985,
+    "score_temperature": 1.5,
+    "density_weight": 0.24,
+    "continuity_weight": 0.24,
+    "clutter_weight": 0.34,
+    "outlier_weight": 0.18,
+    "min_event_keep_weight": 0.08,
+    "threshold_selection": "maximize ClutterTarget score recall subject to DroneTarget and BirdTarget retention floor",
+    "x5a_mode": "pointwise protocol-safe quality score; no class prototype and no physical coordinate claim"
+  },
+  "evaluation": {
+    "classification_object": "r20 validation parent_final",
+    "classification_classes": ["DroneTarget", "BirdTarget", "BalloonTarget"],
+    "metrics": ["accuracy", "per_class_precision", "per_class_recall", "per_class_f1", "macro_precision", "macro_recall", "macro_f1", "confusion_matrix"],
+    "baseline": "V27d-r20 zero_control checkpoint seed42",
+    "x5a_metrics_without_labels": ["parse_valid_rate", "empty_record_rate", "point_keep_rate", "single_point_keep_rate", "score_distribution", "file_drift", "throughput"],
+    "paired_audit": true,
+    "logit_audit": true
+  },
+  "training": {
+    "default": "not_required_for_replication",
+    "seed": 42,
+    "split": "inherit sealed r20/r18 parent split for Excel; X5A is external and never enters r20 parent split",
+    "unknown_training_exposure": 0,
+    "test_payload_access_count": 0,
+    "rd_payload_access_count": 0,
+    "checkpoint_policy": "read-only parent r20 checkpoint; r01 artifacts stay under r01"
+  },
+  "artifacts": {
+    "diagnostic_report": "src-v3/v27/V27d/r01/reports/V27d-r01-diagnostic.json",
+    "smoke_report": "src-v3/v27/V27d/r01/reports/V27d-r01-contract-smoke.json"
+  }
+}

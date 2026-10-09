@@ -15,8 +15,6 @@ import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-import numpy as np
-
 from radar_ln3 import known_gate_v26c_oof as _v26c
 from radar_ln3 import known_gate_v26e_oof as _v26e
 

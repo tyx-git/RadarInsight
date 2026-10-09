@@ -29,6 +29,7 @@ V28_L1_TASK = "l1_known_gate"
 V28_L2_TASK = "l2_dbb_specialist"
 V28_TASKS = (V28_L1_TASK, V28_L2_TASK)
 V28_ROLES = ("representation_fit", "representation_development", "calibration")
+V28_AUDIT_ROLE = "post_selection_audit"
 V28_L1_CLASSES = ("KNOWN_TARGET_EVIDENCE", "KNOWN_CLUTTER_EVIDENCE")
 V28_L2_CLASSES = ("DroneTarget", "BirdTarget", "BalloonTarget")
 V28_DBB_LABELS = frozenset(V28_L2_CLASSES)
@@ -37,7 +38,17 @@ V28_DEFAULT_CONFIG = V28_ROOT / "config" / "V28-default.json"
 V28_CHECKPOINT_CODE_SCOPE = (
     "src-v3/v28/model.py",
     "src-v3/v28/data.py",
-    "src-v3/v28/training.py",
+)
+
+#: Tooling that measures or inspects the frozen product but does not define
+#: model semantics, feature construction, training, or the decision policy.
+#: These files are excluded from the code manifest so that instrumentation can
+#: be added or edited without invalidating every checkpoint and the L3
+#: registry that binds ``system_manifest_sha256``.
+V28_NON_CONTRACT_SOURCES = frozenset(
+    {
+        "benchmark.py",
+    }
 )
 
 
@@ -258,6 +269,28 @@ def _validate_config(root: Path, payload: Mapping[str, Any], *, allow_missing_de
         value = _finite_float(heads.get(field), f"heads.{field}")
         if not 0.0 <= value <= 1.0:
             raise ValueError(f"V28 heads.{field} must be within [0,1]")
+    for field in (
+        "l1_target_knownness_recall_floor",
+        "l1_clutter_knownness_recall_floor",
+        "l2_drone_knownness_recall_floor",
+        "l2_bird_knownness_recall_floor",
+        "l2_balloon_knownness_recall_floor",
+    ):
+        value = _finite_float(heads.get(field), f"heads.{field}")
+        if not 0.0 < value <= 1.0:
+            raise ValueError(f"V28 heads.{field} must be in (0,1]")
+    for field in ("l2_bird_max_correct_known_new_rejections", "l2_route_max_correct_known_new_rejections"):
+        _nonnegative_int(heads.get(field), f"heads.{field}")
+    _finite_float(heads.get("bird_consistency_weight"), "heads.bird_consistency_weight")
+    for field in ("l1_target_candidate_probability_floor", "l1_clutter_candidate_probability_floor"):
+        value = _finite_float(selection.get(field), f"selection.{field}")
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"V28 selection.{field} must be within [0,1]")
+    route_thresholds = _mapping(selection.get("l2_route_thresholds"), "selection.l2_route_thresholds")
+    if set(route_thresholds) != set(V28_L2_CLASSES):
+        raise ValueError("V28 L2 route thresholds must cover exactly the DBB classes")
+    for name, value in route_thresholds.items():
+        _finite_float(value, f"selection.l2_route_thresholds.{name}")
     calibration = _mapping(payload.get("calibration"), "calibration")
     for field in ("known_target_recall_floor", "clutter_recall_floor", "conformal_error_rate"):
         value = _finite_float(calibration.get(field), f"calibration.{field}")
@@ -348,7 +381,11 @@ def _public_dependency_hashes(root: Path) -> dict[str, str]:
 
 
 def build_manifest(root: Path, config: V28Config, source_hashes: Mapping[str, str]) -> dict[str, Any]:
-    code_files = sorted(path for path in (root / V28_ROOT).rglob("*.py") if "__pycache__" not in path.parts)
+    code_files = sorted(
+        path
+        for path in (root / V28_ROOT).rglob("*.py")
+        if "__pycache__" not in path.parts and path.name not in V28_NON_CONTRACT_SOURCES
+    )
     dependencies: dict[str, str] = {}
     for package in ("torch", "numpy", "pandas", "scipy"):
         try:
@@ -411,9 +448,8 @@ def checkpoint_manifest_compatibility(
     """Validate a checkpoint against the current model-affecting contract.
 
     A classifier checkpoint may outlive downstream representation/cache code.
-    Such a checkpoint is accepted only when its archived manifest is found and
-    every model/input contract is identical; the compatibility decision is
-    returned for downstream provenance records.
+    The formal Unknown-support gate is an L3-only policy and may change
+    without retraining the classifier; model and input contracts remain strict.
     """
 
     current_digest = sha256_file(
@@ -432,21 +468,88 @@ def checkpoint_manifest_compatibility(
     if old_path is None:
         raise ValueError("V28 checkpoint manifest differs and its archived manifest is unavailable")
     old = read_sealed_json(old_path)
-    for key in ("config", "source_hashes", "public_dependency_hashes", "liquid_v2", "selection", "calibration", "protocol"):
+    old_selection = dict(old.get("selection", {}))
+    current_selection = dict(current_manifest.get("selection", {}))
+    for key in (
+        "l1_target_candidate_probability_floor",
+        "l1_clutter_candidate_probability_floor",
+        "l2_candidate_empty_fallback",
+        "l2_route_thresholds",
+    ):
+        old_selection.pop(key, None)
+        current_selection.pop(key, None)
+    for key in ("source_hashes", "public_dependency_hashes", "liquid_v2", "protocol"):
         if old.get(key) != current_manifest.get(key):
             raise ValueError(f"V28 checkpoint compatibility differs: {key}")
+    if old_selection != current_selection:
+        raise ValueError("V28 checkpoint compatibility differs: selection")
+    old_config = old.get("config", {})
+    current_config = current_manifest.get("config", {})
+    if old_config.get("path") != current_config.get("path"):
+        raise ValueError("V28 checkpoint compatibility differs: config/path")
+    config_path = resolve_project_path(root, str(current_config.get("path")), must_exist=True)
+    current_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(current_payload, Mapping):
+        raise ValueError("V28 checkpoint compatibility differs: config payload")
+    if canonical_sha256(current_payload) != old_config.get("identity_sha256"):
+        normalized_payload = dict(current_payload)
+        normalized_calibration = dict(normalized_payload.get("calibration", {}))
+        normalized_calibration["minimum_unknown_support_for_formal"] = old.get("calibration", {}).get("minimum_unknown_support_for_formal")
+        normalized_payload["calibration"] = normalized_calibration
+        normalized_heads = dict(normalized_payload.get("heads", {}))
+        for key in (
+            "l1_target_knownness_recall_floor",
+            "l1_clutter_knownness_recall_floor",
+            "l2_drone_knownness_recall_floor",
+            "l2_bird_knownness_recall_floor",
+            "l2_balloon_knownness_recall_floor",
+            "l2_bird_max_correct_known_new_rejections",
+            "l2_route_max_correct_known_new_rejections",
+            "bird_consistency_weight",
+        ):
+            normalized_heads.pop(key, None)
+        normalized_payload["heads"] = normalized_heads
+        normalized_selection = dict(normalized_payload.get("selection", {}))
+        for key in (
+            "l1_target_candidate_probability_floor",
+            "l1_clutter_candidate_probability_floor",
+            "l2_candidate_empty_fallback",
+            "l2_route_thresholds",
+        ):
+            normalized_selection.pop(key, None)
+        normalized_payload["selection"] = normalized_selection
+        normalized_artifacts = dict(normalized_payload.get("artifacts", {}))
+        normalized_artifacts.pop("audit_report_path", None)
+        normalized_payload["artifacts"] = normalized_artifacts
+    else:
+        normalized_payload = None
+    if normalized_payload is not None and canonical_sha256(normalized_payload) != old_config.get("identity_sha256"):
+        raise ValueError("V28 checkpoint compatibility differs: config outside L3 support policy")
+    old_calibration = old.get("calibration", {})
+    current_calibration = current_manifest.get("calibration", {})
+    for key in set(old_calibration) | set(current_calibration):
+        if key == "minimum_unknown_support_for_formal":
+            continue
+        if old_calibration.get(key) != current_calibration.get(key):
+            raise ValueError(f"V28 checkpoint compatibility differs: calibration/{key}")
     for key in V28_CHECKPOINT_CODE_SCOPE:
         if old.get("code_hashes", {}).get(key) != current_manifest.get("code_hashes", {}).get(key):
             raise ValueError(f"V28 checkpoint compatibility differs: {key}")
     if old.get("tasks", {}).get(task) != current_manifest.get("tasks", {}).get(task):
         raise ValueError(f"V28 checkpoint compatibility differs: tasks/{task}")
+    changed_code = sorted(
+        key
+        for key in set(old.get("code_hashes", {})) | set(current_manifest.get("code_hashes", {}))
+        if old.get("code_hashes", {}).get(key) != current_manifest.get("code_hashes", {}).get(key)
+        and key not in V28_CHECKPOINT_CODE_SCOPE
+    )
     return {
         "status": "compatible_archived_manifest",
         "trained_manifest_sha256": trained_manifest_sha256,
         "current_manifest_sha256": current_digest,
         "archived_manifest_path": relative_project_path(root, old_path),
         "unchanged_code_scope": list(V28_CHECKPOINT_CODE_SCOPE),
-        "downstream_only_change": "src-v3/v28/representations.py",
+        "downstream_only_changes": changed_code,
     }
 
 
@@ -495,5 +598,5 @@ def task_classes(task: str) -> tuple[str, ...]:
 
 
 __all__ = [
-    "V28Config", "V28Context", "V28_DBB_LABELS", "V28_HEAD_SCHEMA", "V28_KNOWN_LABELS", "V28_L1_CLASSES", "V28_L1_TASK", "V28_L2_CLASSES", "V28_L2_TASK", "V28_L3_SCHEMA", "V28_MANIFEST_SCHEMA", "V28_POOL_SCHEMA", "V28_REPORT_SCHEMA", "V28_REPRESENTATION_SCHEMA", "V28_ROLES", "V28_ROOT", "V28_SCHEMA_VERSION", "V28_TASKS", "artifact_path", "build_manifest", "checkpoint_manifest_compatibility", "load_config", "load_context", "prepare_manifest", "read_sealed_json", "task_classes", "write_sealed_json",
+    "V28Config", "V28Context", "V28_AUDIT_ROLE", "V28_DBB_LABELS", "V28_HEAD_SCHEMA", "V28_KNOWN_LABELS", "V28_L1_CLASSES", "V28_L1_TASK", "V28_L2_CLASSES", "V28_L2_TASK", "V28_L3_SCHEMA", "V28_MANIFEST_SCHEMA", "V28_POOL_SCHEMA", "V28_REPORT_SCHEMA", "V28_REPRESENTATION_SCHEMA", "V28_ROLES", "V28_ROOT", "V28_SCHEMA_VERSION", "V28_TASKS", "artifact_path", "build_manifest", "checkpoint_manifest_compatibility", "load_config", "load_context", "prepare_manifest", "read_sealed_json", "task_classes", "write_sealed_json",
 ]

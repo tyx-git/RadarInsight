@@ -2,7 +2,7 @@
   "schema_version": "RADAR-LN3-V28-classifier-feature-manifest-v2",
   "experiment_id": "V28",
   "status": "prepared",
-  "config_sha256": "0a3f60528c7d4269867748a170f87f89201820fcba9beb5b436470ab1dbb5431",
+  "config_sha256": "e0fe4059e347bd479d21b9f4c5c92f6b6bf4354152fcccd6d88d368d8996a55c",
   "index_sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
   "caches": {
     "l1_known_gate:classifier-train": {
@@ -46,6 +46,6 @@
   },
   "unknown_exposure": 0,
   "test_payload_access_count": 0,
-  "feature_manifest_sha256": "62df05f17fea74c14dcacf2749b5b552cfda1fe018d50aa529b4c8f8e69973c1",
-  "payload_sha256": "162b0a632bd6b6823197ab61291be6355e59332d3e1c27e84c705e79629d254f"
+  "feature_manifest_sha256": "b09176227dfd5e2e8952674a59800cceb30ffabc03a4dba4d49988a4e3b951e4",
+  "payload_sha256": "d2f7e680229e2271442d1feb7f2628c30488b1a1ab94f1f4c58882256a1fae3b"
 }

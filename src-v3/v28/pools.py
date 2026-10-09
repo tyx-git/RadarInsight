@@ -17,6 +17,7 @@ from radar_ln3.runtime import canonical_sha256, relative_project_path, sha256_fi
 
 from .protocol import (
     V28Context,
+    V28_AUDIT_ROLE,
     V28_L1_TASK,
     V28_L2_TASK,
     V28_POOL_SCHEMA,
@@ -86,8 +87,13 @@ def build_pool_registry(context: V28Context, *, endpoint_binding: Mapping[str, A
     fit = train[train["_bucket"].eq(0)].sort_values("parent_sample_id")["parent_sample_id"].astype(str).tolist()
     development = train[train["_bucket"].eq(1)].sort_values("parent_sample_id")["parent_sample_id"].astype(str).tolist()
     calibration = validation.sort_values("parent_sample_id")["parent_sample_id"].astype(str).tolist()
+    audit = parents[parents["split_name"].astype(str).eq(context.config.data["test_split_name"])].sort_values("parent_sample_id")["parent_sample_id"].astype(str).tolist()
+    if not audit:
+        raise ValueError("V28 post-selection audit split is empty")
     if set(fit) & set(development) or set(fit) & set(calibration) or set(development) & set(calibration):
         raise ValueError("V28 role registry has overlapping parents")
+    if set(audit) & (set(fit) | set(development) | set(calibration)):
+        raise ValueError("V28 post-selection audit parents overlap a fitting role")
     role_ids = {"representation_fit": fit, "representation_development": development, "calibration": calibration}
     roles: dict[str, dict[str, Any]] = {}
     for task, excluded in ((V28_L1_TASK, frozenset()), (V28_L2_TASK, frozenset({"ClutterTarget"}))):
@@ -118,7 +124,13 @@ def build_pool_registry(context: V28Context, *, endpoint_binding: Mapping[str, A
             "l2_clutter": "excluded from classifier and auxiliary head; endpoint pollution audit only",
             "unknown_normalization_exposure": 0,
         },
-        "post_selection_audit": {"status": "absent", "parent_count": 0, "reason": "no independent source pool exposed"},
+        "post_selection_audit": {
+            **_role_record(frame, role=V28_AUDIT_ROLE, split_name=context.config.data["test_split_name"], parent_ids=audit),
+            "status": "registered",
+            "payload_access_count": 0,
+            "threshold_fitting_allowed": False,
+            "independent_from": ["representation_fit", "representation_development", "calibration"],
+        },
         "test_payload_access_count": 0,
     }
     payload["registry_sha256"] = canonical_sha256(payload)
@@ -162,11 +174,29 @@ def verify_pool_registry(context: V28Context, payload: Mapping[str, Any], *, end
             for key in ("parent_count", "parent_ids_sha256", "event_count", "sample_ids_sha256", "parent_label_counts"):
                 if entry.get(key) != expected.get(key):
                     raise ValueError(f"V28 pool registry role differs: {task}/{role}/{key}")
+            allowed_labels = (
+                {"DroneTarget", "BirdTarget", "BalloonTarget", "ClutterTarget", "UnknownTarget"}
+                if task == V28_L1_TASK
+                else {"DroneTarget", "BirdTarget", "BalloonTarget", "UnknownTarget"}
+            )
+            if set(expected["parent_label_counts"]) - allowed_labels:
+                raise ValueError(f"V28 pool registry labels differ: {task}/{role}")
             ids = set(expected["parent_ids"])
             if all_ids & ids and task == V28_L1_TASK:
                 raise ValueError("V28 pool registry roles overlap")
             if task == V28_L1_TASK:
                 all_ids |= ids
+    audit = value.get("post_selection_audit")
+    if not isinstance(audit, Mapping) or audit.get("status") != "registered" or audit.get("role") != V28_AUDIT_ROLE:
+        raise ValueError("V28 post-selection audit pool is missing or not registered")
+    if int(audit.get("payload_access_count", -1)) != 0 or audit.get("threshold_fitting_allowed") is not False:
+        raise ValueError("V28 post-selection audit pool violated the fitting boundary")
+    expected_audit = _role_record(frame, role=V28_AUDIT_ROLE, split_name=str(audit.get("split_name")), parent_ids=[str(item) for item in audit.get("parent_ids", [])])
+    for key in ("parent_count", "parent_ids_sha256", "event_count", "sample_ids_sha256", "parent_label_counts"):
+        if audit.get(key) != expected_audit.get(key):
+            raise ValueError(f"V28 post-selection audit pool differs: {key}")
+    if set(expected_audit["parent_ids"]) & all_ids:
+        raise ValueError("V28 post-selection audit pool overlaps a fitting role")
     return {**value, "registry_sha256": declared, "payload_sha256": envelope}
 
 

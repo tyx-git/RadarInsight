@@ -2,8 +2,8 @@
   "schema_version": "RADAR-LN3-V28-feature-manifest-v2",
   "experiment_id": "V28",
   "status": "prepared",
-  "system_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34",
-  "pool_registry_sha256": "06c9516be091b6d4a2b992b1ef1c6c0657de475471df3c87d827f3047b6fcebf",
+  "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+  "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
   "endpoint_binding": {
     "l1_known_gate": {
       "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
@@ -19,6 +19,16 @@
       "sha256": "3a5749a709e471f6eba23b5b9830fc81dd56b12a39429689cd907e482088eba6",
       "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
     }
+  },
+  "post_selection_audit": {
+    "status": "prepared",
+    "split_name": "test",
+    "parent_count": 244,
+    "event_count": 4727,
+    "parent_ids_sha256": "d37acdfaf24a193ccd53388eafdfb0379b9fbec59549d6cbcbb3dadd8858b0a3",
+    "sample_ids_sha256": "b13b86dbc702806fac4ba9806ecd3b94a9f7d74fdb0ebb00c9b5d1de995a324a",
+    "payload_access_count": 0,
+    "threshold_fitting_allowed": false
   },
   "caches": {
     "representation_fit:rd-physical4": {
@@ -63,14 +73,14 @@
       "event_count": 4561,
       "valid_event_count": 4506
     },
-    "post_selection_replay:rd-physical4": {
+    "post_selection_audit:rd-physical4": {
       "path": "src-v3/v28/calibration/V28-test-rd-physical4-v2-cache.npz",
       "sha256": "e80b7e48223dc819eea12fe8743dd3afaa4077044f3ea00016f3b7c0f4bd464b",
       "sample_ids_sha256": "b13b86dbc702806fac4ba9806ecd3b94a9f7d74fdb0ebb00c9b5d1de995a324a",
       "event_count": 4727,
       "valid_event_count": 4658
     },
-    "post_selection_replay:broadband-micro-doppler8": {
+    "post_selection_audit:broadband-micro-doppler8": {
       "path": "src-v3/v28/calibration/V28-test-broadband-micro-doppler8-v2-cache.npz",
       "sha256": "2e83e80e4f76c76b6c40f6ba34afb9123b276d51b5d910cf7d2d598504ce1dc8",
       "sample_ids_sha256": "b13b86dbc702806fac4ba9806ecd3b94a9f7d74fdb0ebb00c9b5d1de995a324a",
@@ -79,6 +89,6 @@
     }
   },
   "test_payload_access_count": 0,
-  "feature_manifest_sha256": "ac4aa243abaf2f4110d4a7638c274b928c4abd023d77b6033ba68ce404100ff8",
-  "payload_sha256": "efd9528a7e9a88392ab2c7285df171ccc6c9e7d5361eb0713ed36beabb2e3c7d"
+  "feature_manifest_sha256": "53e423356f882dbc0ee847a6c81c7cb7003ab62d15d1a92e47bb5df69a988150",
+  "payload_sha256": "e35c590a4f8579a1b2b62414746697f9978e555d7f3d9a9da8ef0bb9d9b1482d"
 }

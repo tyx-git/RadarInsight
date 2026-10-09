@@ -1,0 +1,71 @@
+{
+  "schema_version": "RADAR-LN3-V28-post-selection-audit-v2-availability-v1",
+  "experiment_id": "V28-final-research-l3",
+  "status": "unavailable",
+  "deployment_eligible": false,
+  "reason": "no_new_unexposed_parent_pool_in_current_CQ08_contract",
+  "reasons": [
+    "V16_grouped_index_contains_all_1546_contract_parents",
+    "train_and_val_are_already_used_by_fit_development_or_calibration",
+    "test_244_parent_audit_was_previously_exposed",
+    "event_source_cache_is_same_29663_event_1546_parent_universe",
+    "raw_extra_files_are_not_in_the_V16_grouped_index_or_V28_data_contract"
+  ],
+  "system_manifest_sha256": "94ef819f3c3d97a400eefaa9f6cd7d5e94c8cc74e8611397572063b25d2d7311",
+  "index": {
+    "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-index.csv",
+    "sha256": "0af7412f0ea5963ba2bcf42bc87a3d02ee1c6fcfedfc42d68f027a6922bf466c",
+    "parent_count": 1546,
+    "sample_count": 29663,
+    "split_parent_counts": {
+      "train": 1055,
+      "val": 247,
+      "test": 244
+    },
+    "split_sample_counts": {
+      "train": 20211,
+      "test": 4727,
+      "val": 4725
+    }
+  },
+  "event_source_cache": {
+    "path": "data/cq08/cache/event-source-cache.jsonl",
+    "sha256": "b6ab6d90e2403991d8870e85376479af2efadc733306d2c392b01ee431c3a2e7",
+    "event_count": 29663,
+    "parent_count": 1546,
+    "parent_intersection_with_index": 1546,
+    "parent_outside_index": 0,
+    "same_parent_universe": true
+  },
+  "raw_directories": {
+    "tr": {
+      "file_count": 1550,
+      "indexed_intersection": 1546,
+      "outside_index": 4
+    },
+    "rd": {
+      "file_count": 1549,
+      "indexed_intersection": 1546,
+      "outside_index": 3
+    },
+    "outside_files_not_registered": true
+  },
+  "grouped_split": {
+    "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-grouped-split.json",
+    "sha256": "ffec88bcc8d8f0727fbf186734a5740eaf2a64ff391914f6088b00908824b7a4"
+  },
+  "provenance_manifest": {
+    "path": "data/processed/RADAR-LN3-V16-cq08-capture-content-provenance-manifest.json",
+    "sha256": "0102dac76173fd75fd3d9c698b7b64465a943c34bd13a8d768d1d3335e41d9f9"
+  },
+  "previous_audit": {
+    "path": "src-v3/v28/reports/V28-l3-audit-v2.json",
+    "sha256": "258f827bba1be3d8312457818d39f48e8a382375b979dc72de51cab73dc19eb8",
+    "must_not_be_reused": true
+  },
+  "required_next_input": "new_parent_trajectories_or_new_capture_source_with_independent_provenance_and_blind_audit_lock",
+  "test_payload_access_count": 0,
+  "post_selection_audit_access_count": 0,
+  "source_scope": "current_CQ08_contract",
+  "payload_sha256": "35e1504a943900d43f20bd32cbd4525e74bd57b8350daf997c5350dd80c3c8cf"
+}

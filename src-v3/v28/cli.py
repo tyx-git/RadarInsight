@@ -9,17 +9,16 @@ from pathlib import Path
 
 import torch
 
-from .calibration import fit_calibration
+from .calibration import finalize_audit, fit_calibration
 from .features import prepare_classifier_features, prepare_open_set_features
 from .head_training import train_heads
-from .pools import build_pool_registry, write_pool_registry
-from .protocol import V28_L1_TASK, V28_L2_TASK, artifact_path, load_config, load_context, prepare_manifest
+from .protocol import V28_L1_TASK, V28_L2_TASK, load_context, prepare_manifest
 from .registry import build_registry, write_registry
 from .representations import materialize_representations
 from .smoke import run_smoke
-from .training import train_task
 from .evaluation import evaluate_checkpoint
 from .replay import run_replay
+from .training import train_task
 
 
 def _binding(root: Path, path_text: str, *, task: str, seed: int) -> dict[str, object]:
@@ -100,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
     reg.add_argument("--l1-head-seed", type=int, required=True)
     reg.add_argument("--l2-head-seed", type=int, required=True)
     sub.add_parser("replay")
+    sub.add_parser("audit")
+    sub.add_parser("finalize-audit")
     args = parser.parse_args(argv)
     root = args.project_root.resolve()
     if args.command == "prepare-manifest":
@@ -144,6 +145,13 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "replay":
         context = load_context(root, args.config)
         result = run_replay(context, device=_device(context))
+    elif args.command == "audit":
+        context = load_context(root, args.config)
+        result = run_replay(context, device=_device(context), audit_mode=True)
+    elif args.command == "finalize-audit":
+        context = load_context(root, args.config)
+        from .registry import load_registry
+        result = finalize_audit(context, registry=load_registry(context))
     else:
         raise AssertionError(args.command)
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))

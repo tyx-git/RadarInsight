@@ -30,10 +30,6 @@ def representation_path(context: V28Context, *, task: str, role: str) -> Path:
     return artifact_path(context.project_root, str(context.config.artifacts["representation_template"]), task=task, role=role, seed=0)
 
 
-def _endpoint_binding(context: V28Context, *, task: str, checkpoint: Path) -> dict[str, Any]:
-    return {"task": task, "path": relative_project_path(context.project_root, checkpoint), "sha256": sha256_file(checkpoint)}
-
-
 def _concat_sequence_batches(arrays: Mapping[str, list[torch.Tensor]]) -> dict[str, torch.Tensor]:
     """Concatenate variable-length batches under one canonical time width."""
 
@@ -90,7 +86,7 @@ def materialize_representations(context: V28Context, *, endpoint_binding: Mappin
         for role in V28_ROLES:
             entry = pool["roles"][task][role]
             dataset = V28RoleDataset(context, task=task, role=role, parent_ids=entry["parent_ids"], split="validation" if role == "calibration" else "train")
-            arrays: dict[str, list[torch.Tensor]] = {"knownness_features": [], "quality_features": [], "padding_mask": [], "lengths": [], "sequence_logits": []}
+            arrays: dict[str, list[torch.Tensor]] = {"knownness_features": [], "quality_features": [], "trajectory_consistency": [], "padding_mask": [], "lengths": [], "sequence_logits": []}
             labels: list[str] = []
             parent_ids: list[str] = []
             with torch.inference_mode():
@@ -99,6 +95,7 @@ def materialize_representations(context: V28Context, *, endpoint_binding: Mappin
                     features = heads.build_features(output)
                     arrays["knownness_features"].append(features["knownness_features"].cpu())
                     arrays["quality_features"].append(features["quality_features"].cpu())
+                    arrays["trajectory_consistency"].append(features["trajectory_consistency_sequence"].cpu())
                     arrays["padding_mask"].append(batch["tr_padding_mask"].cpu())
                     arrays["lengths"].append(batch["lengths"].cpu())
                     arrays["sequence_logits"].append(output["sequence_logits"].cpu())
@@ -116,7 +113,18 @@ def materialize_representations(context: V28Context, *, endpoint_binding: Mappin
             payload["cache_sha256"] = canonical_sha256({"metadata": {key: value for key, value in payload.items() if key not in {"tensors", "cache_sha256"}}, "tensor_sha256": _tensor_hash(tensors)})
             path = representation_path(context, task=task, role=role)
             _write_representation(path, payload, context=context)
-            results[f"{task}:{role}"] = {"path": relative_project_path(context.project_root, path), "sha256": sha256_file(path), "cache_sha256": payload["cache_sha256"], "parent_count": len(parent_ids), "label_counts": dict(Counter(labels))}
+            results[f"{task}:{role}"] = {
+                "path": relative_project_path(context.project_root, path),
+                "sha256": sha256_file(path),
+                "cache_sha256": payload["cache_sha256"],
+                "task": task,
+                "role": role,
+                "system_manifest_sha256": context.manifest_sha256,
+                "pool_registry_sha256": pool["registry_sha256"],
+                "endpoint_binding": dict(endpoint),
+                "parent_count": len(parent_ids),
+                "label_counts": dict(Counter(labels)),
+            }
     manifest = {"schema_version": "RADAR-LN3-V28-representation-manifest-v2", "experiment_id": "V28", "status": "prepared", "system_manifest_sha256": context.manifest_sha256, "pool_registry_sha256": pool["registry_sha256"], "tasks": results, "test_payload_access_count": 0}
     manifest["representation_manifest_sha256"] = canonical_sha256(manifest)
     manifest_path = artifact_path(context.project_root, str(context.config.artifacts["representation_manifest_path"]))

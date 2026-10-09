@@ -7,10 +7,10 @@ from typing import Any, Mapping
 
 import torch
 
-from radar_ln3.runtime import atomic_torch_save, canonical_sha256, resolve_project_path, sha256_file
+from radar_ln3.runtime import atomic_torch_save, canonical_sha256, resolve_project_path
 
 from .model import V28TaskModel
-from .protocol import V28Context, V28_REPORT_SCHEMA, artifact_path, checkpoint_manifest_compatibility, task_classes
+from .protocol import V28Context, artifact_path, checkpoint_manifest_compatibility, task_classes
 
 
 def _tensor_hash(state: Mapping[str, Any]) -> str:
@@ -69,15 +69,20 @@ def load_checkpoint(context: V28Context, model: V28TaskModel, path: str | Path, 
     payload = torch.load(target, map_location=map_location, weights_only=False)
     if not isinstance(payload, Mapping) or payload.get("schema_version") != "RADAR-LN3-V28-task-checkpoint-v2":
         raise ValueError("V28 checkpoint schema differs")
-    for key, expected in (("task", task), ("seed", int(seed)), ("config_sha256", context.config.sha256)):
+    for key, expected in (("task", task), ("seed", int(seed))):
         if payload.get(key) != expected:
             raise ValueError(f"V28 checkpoint binding differs: {key}")
+    # The formal Unknown-support gate is an L3 policy and does not alter the
+    # frozen classifier parameters or their input contract.
+    config_matches = payload.get("config_sha256") == context.config.sha256
     compatibility = checkpoint_manifest_compatibility(
         context.project_root,
         {**context.manifest, "_manifest_path": context.manifest_path.relative_to(context.project_root).as_posix()},
         str(payload.get("manifest_sha256")),
         task=task,
     )
+    if not config_matches and compatibility.get("status") != "compatible_archived_manifest":
+        raise ValueError("V28 checkpoint config binding differs")
     contract = model.model_contract()
     if payload.get("model_contract") != contract or payload.get("model_contract_sha256") != canonical_sha256(contract):
         raise ValueError("V28 checkpoint model contract differs")

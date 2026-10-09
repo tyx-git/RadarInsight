@@ -2,13 +2,24 @@
   "schema_version": "RADAR-LN3-V28-representation-manifest-v2",
   "experiment_id": "V28",
   "status": "prepared",
-  "system_manifest_sha256": "165e65e5794f23a15759b653539221977e6b24b3c1e781ebf5e02813dcea4a34",
-  "pool_registry_sha256": "06c9516be091b6d4a2b992b1ef1c6c0657de475471df3c87d827f3047b6fcebf",
+  "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+  "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
   "tasks": {
     "l1_known_gate:representation_fit": {
       "path": "src-v3/v28/calibration/features/V28-representation_fit-l1_known_gate-representation-v2.pt",
-      "sha256": "ed17617f8b311355135a8c52b28ec3148214a13be6a43b7a3b38d70a8c5942ce",
-      "cache_sha256": "72bf298c29a7ac4e615d2a8ca48db1941a9bf3f6a40a8306533ee5796698b6ec",
+      "sha256": "4ece447af3483a74ef4627e57265c90a7a8adb86fb2c30d319f8f7bb0181190d",
+      "cache_sha256": "33f6d8a14d7b78c7b5cadd62283cefab4523aa86ca63c41d7ab3857b4726d409",
+      "task": "l1_known_gate",
+      "role": "representation_fit",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
+        "task": "l1_known_gate",
+        "seed": 42,
+        "sha256": "2049d0645e5d75c4fe2b30c34edf6cb48f4c01a54372f1ad4c30c913b1701173",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 505,
       "label_counts": {
         "DroneTarget": 228,
@@ -20,8 +31,19 @@
     },
     "l1_known_gate:representation_development": {
       "path": "src-v3/v28/calibration/features/V28-representation_development-l1_known_gate-representation-v2.pt",
-      "sha256": "9b324b10e3898e13524fb09ce63d57984874f46dbcf07e03aed5b574d5e983a2",
-      "cache_sha256": "579bcbcc51a9e2ac5a474ca5695ca5a9667d1a189c4da711fb357e6156f12460",
+      "sha256": "d53f50ddbf98daf73a6ae8db17e3ca4802668ea7a12b978b347822ae2f5d13f7",
+      "cache_sha256": "ca6df0b07de0291374fef32ec0d5ef9552b6a26952fb33b7a3eaa27c498f0863",
+      "task": "l1_known_gate",
+      "role": "representation_development",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
+        "task": "l1_known_gate",
+        "seed": 42,
+        "sha256": "2049d0645e5d75c4fe2b30c34edf6cb48f4c01a54372f1ad4c30c913b1701173",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 550,
       "label_counts": {
         "DroneTarget": 248,
@@ -33,8 +55,19 @@
     },
     "l1_known_gate:calibration": {
       "path": "src-v3/v28/calibration/features/V28-calibration-l1_known_gate-representation-v2.pt",
-      "sha256": "327cf616722a6f101d5029c8be8dc442519e5ffc805761761f28418c6857623a",
-      "cache_sha256": "3da0d000675a72c89e0218fea697d7f5d7c35e861afb6cadb04bbcd555b958dc",
+      "sha256": "5d3201e8f78015f12b0e1d088cade9e001fcead0cccf1274002fb5e57eb77c49",
+      "cache_sha256": "73c4b8448a82eae0a2259974adcb93a0d636d7acf6394255f139a99d3af3dfc4",
+      "task": "l1_known_gate",
+      "role": "calibration",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
+        "task": "l1_known_gate",
+        "seed": 42,
+        "sha256": "2049d0645e5d75c4fe2b30c34edf6cb48f4c01a54372f1ad4c30c913b1701173",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 247,
       "label_counts": {
         "DroneTarget": 113,
@@ -46,8 +79,19 @@
     },
     "l2_dbb_specialist:representation_fit": {
       "path": "src-v3/v28/calibration/features/V28-representation_fit-l2_dbb_specialist-representation-v2.pt",
-      "sha256": "e38b53e2cc4834d9836a018f817e122bb6e3db1e1efa3a92661f497960114a78",
-      "cache_sha256": "7d76037e62877724cbce31af3261fbf0e8bb9e22fd90fb672fdcd62c11161a9d",
+      "sha256": "97655f623e9dd088fbe1d7325f7c2be44ecb5907092a8e2cac9b738e13697e45",
+      "cache_sha256": "0820fda46aacb58d98b42431e9b7fe39ce371eeadf11353e5bcb3d2b26ec623c",
+      "task": "l2_dbb_specialist",
+      "role": "representation_fit",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-seed43-best.pt",
+        "task": "l2_dbb_specialist",
+        "seed": 43,
+        "sha256": "3a5749a709e471f6eba23b5b9830fc81dd56b12a39429689cd907e482088eba6",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 491,
       "label_counts": {
         "DroneTarget": 228,
@@ -58,8 +102,19 @@
     },
     "l2_dbb_specialist:representation_development": {
       "path": "src-v3/v28/calibration/features/V28-representation_development-l2_dbb_specialist-representation-v2.pt",
-      "sha256": "7b18737088834e85708f41071a27a0c6e16cd9604873988e2e25805e956be649",
-      "cache_sha256": "11d3b64af9c188dcad4bbee7d49eec3d2ae24a0d9ecfd0eec0ade84e67a876d5",
+      "sha256": "1f667eb000aed6c9dd2a1970e9d3af64d390086ad3ea967305eab4853bd857a4",
+      "cache_sha256": "760553b4e87391c55863a3e4cf5953e6e47667511279fa8378368cc9cb5f95da",
+      "task": "l2_dbb_specialist",
+      "role": "representation_development",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-seed43-best.pt",
+        "task": "l2_dbb_specialist",
+        "seed": 43,
+        "sha256": "3a5749a709e471f6eba23b5b9830fc81dd56b12a39429689cd907e482088eba6",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 531,
       "label_counts": {
         "DroneTarget": 248,
@@ -70,8 +125,19 @@
     },
     "l2_dbb_specialist:calibration": {
       "path": "src-v3/v28/calibration/features/V28-calibration-l2_dbb_specialist-representation-v2.pt",
-      "sha256": "268eb11e7d6a23849a02af9d4cfae8f781fb2d558e545429e724450b1f3b6e35",
-      "cache_sha256": "50d99fa21dac913a6a30a07ad381bc806893a73ef9cb794d5a8cdefe122db4fc",
+      "sha256": "cda2bf89df4d77e791c76c654283e342b796dc40828e604c93a5d78b57ebd5ed",
+      "cache_sha256": "55c5948746dc12a00d3e29b6b9caf44f53ac82cd5615815f66922b1ab4653d96",
+      "task": "l2_dbb_specialist",
+      "role": "calibration",
+      "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "endpoint_binding": {
+        "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-seed43-best.pt",
+        "task": "l2_dbb_specialist",
+        "seed": 43,
+        "sha256": "3a5749a709e471f6eba23b5b9830fc81dd56b12a39429689cd907e482088eba6",
+        "trained_manifest_sha256": "cdad51f98efabac9d167d3f5dd764163956f25a21499531fbc3d5b4d49de3149"
+      },
       "parent_count": 238,
       "label_counts": {
         "DroneTarget": 113,
@@ -82,6 +148,6 @@
     }
   },
   "test_payload_access_count": 0,
-  "representation_manifest_sha256": "ebe52a1c076cac379972e076c2f2f32f86018c9f77b86158dc3ada5b0e9dc25b",
-  "payload_sha256": "c4b265f7ed7a2e21ffd8b67d3bcf1f9220c775315e5b22bf80c3a66a8e6cc210"
+  "representation_manifest_sha256": "bcc69dd609e1cbaaa8918f00fa59c3e303d5394fd4fdc9f7669f8ba78312aa13",
+  "payload_sha256": "e84bd1eb410cb0587c665bd87dfcdba2e2500bd1e1a920f848bb9d20294a80ac"
 }

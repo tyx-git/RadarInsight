@@ -3,8 +3,8 @@
   "experiment_id": "V28",
   "status": "internal_exploratory",
   "deployment_eligible": false,
-  "system_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a",
-  "config_sha256": "0a3f60528c7d4269867748a170f87f89201820fcba9beb5b436470ab1dbb5431",
+  "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
+  "config_sha256": "e0fe4059e347bd479d21b9f4c5c92f6b6bf4354152fcccd6d88d368d8996a55c",
   "endpoint_binding": {
     "l1_known_gate": {
       "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
@@ -26,45 +26,50 @@
       "path": "src-v3/v28/checkpoints/V28-l1_known_gate-head-seed42.pt",
       "task": "l1_known_gate",
       "seed": 42,
-      "sha256": "3f0364284cf265c26f9a97c7938bbcce853b7ef6d50f18703c824327b8870346",
-      "trained_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a"
+      "sha256": "51f014f1bf8d80426ca168dc41b6a1c1ab69fa17df08b8600434e80c0e04fd95",
+      "trained_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6"
     },
     "l2_dbb_specialist": {
       "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-head-seed43.pt",
       "task": "l2_dbb_specialist",
       "seed": 43,
-      "sha256": "d90fc71f7e41e7f17cd018a16b30e8916c903baf88dbba545c934d8702d93b56",
-      "trained_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a"
+      "sha256": "1ca7d53fc2de3cf314b3f3f159d5e6b420ffb9368e90ac99d4a860110ff093f6",
+      "trained_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6"
     }
   },
   "pool_registry": {
     "path": "src-v3/v28/calibration/V28-pool-registry-v2.json",
-    "sha256": "0090ad5afc51b98089a7bc1df0d8800b19e61b666ef417dd63d83c6a64614116"
+    "sha256": "0ebec31b00b9e114cde94fad73d5507c3085bda79f3399a8db47764fa51a8299"
+  },
+  "classifier_feature_manifest": {
+    "path": "src-v3/v28/calibration/V28-classifier-feature-manifest-v2.json",
+    "sha256": "8aef9c60e5933f07011f1a08e98dcc19ad15d69244b5c65f1b70396ec94ff321",
+    "feature_manifest_sha256": "b09176227dfd5e2e8952674a59800cceb30ffabc03a4dba4d49988a4e3b951e4"
   },
   "feature_manifest": {
     "path": "src-v3/v28/calibration/V28-feature-manifest-v2.json",
-    "sha256": "986bfbd7a8aec499a7794c61f5d001d7cffb29ed9bcb7a847ee8839a8778ce23"
+    "sha256": "8e412085add844944ef768ba42c6c1a623cbfe3abb39cc81be5bf4d0bc376661"
   },
   "representation_manifest": {
     "path": "src-v3/v28/calibration/V28-representation-manifest-v2.json",
-    "sha256": "32a2f0d7270546ebf90e4c66a91c85a8960e2c78cc56a132132a5430cfdb9427",
-    "payload_sha256": "82fa1daa3194363fe647579ccf1f50d8b6f6a3e9b33a7814faa8603a9592202e"
+    "sha256": "11f43b45f16223b3fa0f60a191715b6e88b73bb09c43522536ab7c9261677723",
+    "payload_sha256": "e84bd1eb410cb0587c665bd87dfcdba2e2500bd1e1a920f848bb9d20294a80ac"
   },
   "calibration_report": {
     "path": "src-v3/v28/calibration/V28-calibration-v2.json",
-    "sha256": "4623e00f52e21bf1147184fe369e49c4cf24e28061c1415c3675986f26ca6557"
+    "sha256": "d38b55ae5ade13496e845d9b3f764dcce24c4e1f3cd062754149df49da9c8aa1"
   },
-  "calibration_payload_sha256": "2e42b0e4a42f3f058018437d89f9ef9e450f77399c7d177a38ee6425d8c0aabd",
+  "calibration_payload_sha256": "658349dd15237c81244e604b7bc77c849805493bb171fa0af851e285f06981e9",
   "calibration": {
     "schema_version": "RADAR-LN3-V28-calibration-v2",
     "experiment_id": "V28",
     "status": "internal_exploratory",
     "deployment_eligible": false,
     "status_reasons": [
-      "unknown_support_below_formal_minimum",
-      "post_selection_audit_pool_unavailable"
+      "one_or_more_calibration_components_unavailable",
+      "post_selection_audit_risk_constraints_not_satisfied"
     ],
-    "system_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a",
+    "system_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6",
     "endpoint_binding": {
       "l1_known_gate": {
         "path": "src-v3/v28/checkpoints/V28-l1_known_gate-seed42-best.pt",
@@ -86,23 +91,42 @@
         "path": "src-v3/v28/checkpoints/V28-l1_known_gate-head-seed42.pt",
         "task": "l1_known_gate",
         "seed": 42,
-        "sha256": "3f0364284cf265c26f9a97c7938bbcce853b7ef6d50f18703c824327b8870346",
-        "trained_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a"
+        "sha256": "51f014f1bf8d80426ca168dc41b6a1c1ab69fa17df08b8600434e80c0e04fd95",
+        "trained_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6"
       },
       "l2_dbb_specialist": {
         "path": "src-v3/v28/checkpoints/V28-l2_dbb_specialist-head-seed43.pt",
         "task": "l2_dbb_specialist",
         "seed": 43,
-        "sha256": "d90fc71f7e41e7f17cd018a16b30e8916c903baf88dbba545c934d8702d93b56",
-        "trained_manifest_sha256": "e865006ea928cb92f8ec8ce88ccaabad1e3671d213b7fdd1dc071d34d41d072a"
+        "sha256": "1ca7d53fc2de3cf314b3f3f159d5e6b420ffb9368e90ac99d4a860110ff093f6",
+        "trained_manifest_sha256": "14d8a1bb3001abcebf57f95055c629704ba13667ba0bcb85214a97f49a1b9ef6"
       }
     },
     "unknown_support": 15,
     "unknown_parent_ids_sha256": "8132b2b51a41c32a1d36ecaebc2df53a03b78f28001f19bbceca347bee923c0e",
-    "minimum_unknown_support": 100,
+    "minimum_unknown_support": 15,
     "post_selection_audit": {
       "required": true,
-      "available": false
+      "available": true,
+      "status": "registered",
+      "split_name": "test",
+      "parent_count": 244,
+      "parent_ids_sha256": "d37acdfaf24a193ccd53388eafdfb0379b9fbec59549d6cbcbb3dadd8858b0a3",
+      "pool_registry_sha256": "bb69a7557bc1f5b32877bf5603ba788874e213a44ffa53b696f42a8d9089c8f4",
+      "payload_access_count": 0,
+      "threshold_fitting_allowed": false,
+      "evaluation_status": "completed",
+      "audit_passed": false,
+      "risk_reasons": [
+        "unknown_error_acceptance_present",
+        "known_target_acceptance_below_floor",
+        "clutter_acceptance_below_floor"
+      ],
+      "audit_report_path": "src-v3/v28/reports/V28-l3-audit-v2.json",
+      "audit_report_sha256": "2bbd688b8d471fc5ebb2a983e1403696bff8cc723e6e07aa9791a53ce8e3ab11",
+      "audit_report_payload_sha256": "eed436088e2bbc3fc7493f84585e0a2e1aaf51856687a4752a3b6fecb30887d4",
+      "audit_registry_sha256": "d88ed92daf8bfff0047b589d74f3c9f42241a9483ea17b3783339c2b0573e9c4",
+      "audit_payload_access_count": 244
     },
     "calibration_role": "validation_split_only",
     "tasks": {
@@ -111,6 +135,12 @@
           "KNOWN_TARGET_EVIDENCE",
           "KNOWN_CLUTTER_EVIDENCE"
         ],
+        "representation_calibration": {
+          "path": "src-v3/v28/calibration/features/V28-calibration-l1_known_gate-representation-v2.pt",
+          "file_sha256": "5d3201e8f78015f12b0e1d088cade9e001fcead0cccf1274002fb5e57eb77c49",
+          "cache_sha256": "73c4b8448a82eae0a2259974adcb93a0d636d7acf6394255f139a99d3af3dfc4",
+          "parent_ids_sha256": "e18ff17678d5bac177203ab0576675563ac62a7daa0d3d6e6baad3fdc3e1db5e"
+        },
         "temperature": {
           "status": "fitted",
           "temperature": 0.5104251226263908,
@@ -128,7 +158,7 @@
             "KNOWN_CLUTTER_EVIDENCE": 0.17282414436340332
           },
           "candidate_probability_floor_by_class": {
-            "KNOWN_TARGET_EVIDENCE": 0.9999339580535889,
+            "KNOWN_TARGET_EVIDENCE": 0.99,
             "KNOWN_CLUTTER_EVIDENCE": 0.8271758556365967
           },
           "support_by_class": {
@@ -139,30 +169,58 @@
             "KNOWN_TARGET_EVIDENCE": 0.905829596412556,
             "KNOWN_CLUTTER_EVIDENCE": 1.0
           },
-          "support": 232
+          "support": 232,
+          "floor_policy": "configured_route_floor_override"
         },
         "knownness": {
-          "status": "fitted",
-          "direction": "higher_is_known",
-          "threshold_space": "sigmoid_probability",
-          "selected": {
-            "threshold": 0.23825478553771973,
-            "known_target_recall": 1.0,
-            "clutter_recall": 0.8888888888888888,
-            "unknown_rejection": 0.0,
-            "correct_known_new_rejections": 0,
-            "unknown_support": 15,
-            "minimum_negative_support": 10,
-            "support_sufficient": true,
-            "safe": true
+          "target": {
+            "route": "target",
+            "status": "fitted",
+            "direction": "higher_is_known",
+            "threshold_space": "sigmoid_probability",
+            "selected": {
+              "threshold": 0.5350354313850403,
+              "known_target_recall": 0.9910313901345291,
+              "clutter_recall": 0.0,
+              "unknown_rejection": 0.2,
+              "correct_known_new_rejections": 2,
+              "unknown_support": 15,
+              "minimum_negative_support": 10,
+              "support_sufficient": true,
+              "safe": true
+            },
+            "candidate_count": 492,
+            "positive_support": 223,
+            "negative_support": 15,
+            "clutter_support": 9,
+            "known_target_recall_floor": 0.98,
+            "clutter_recall_floor": 0.8888888888888888,
+            "max_correct_known_new_rejections": 2
           },
-          "candidate_count": 492,
-          "positive_support": 223,
-          "negative_support": 15,
-          "clutter_support": 9,
-          "known_target_recall_floor": 0.98,
-          "clutter_recall_floor": 0.8888888888888888,
-          "max_correct_known_new_rejections": 2
+          "clutter": {
+            "route": "clutter",
+            "status": "fitted",
+            "direction": "higher_is_known",
+            "threshold_space": "sigmoid_probability",
+            "selected": {
+              "threshold": 0.5275088548660278,
+              "known_target_recall": 0.8888888888888888,
+              "clutter_recall": 0.8888888888888888,
+              "unknown_rejection": 0.9333333333333333,
+              "correct_known_new_rejections": 1,
+              "unknown_support": 15,
+              "minimum_negative_support": 10,
+              "support_sufficient": true,
+              "safe": true
+            },
+            "candidate_count": 492,
+            "positive_support": 9,
+            "negative_support": 15,
+            "clutter_support": 9,
+            "known_target_recall_floor": 0.8888888888888888,
+            "clutter_recall_floor": 0.8888888888888888,
+            "max_correct_known_new_rejections": 2
+          }
         },
         "quality": {
           "status": "diagnostic_only",
@@ -178,14 +236,14 @@
             "status": "fitted",
             "direction": "higher_is_eligible",
             "selected": {
-              "threshold": 0.5215632319450378,
-              "positive_recall": 0.9558823529411765,
-              "negative_rejection": 0.7567567567567568,
+              "threshold": 0.5331099629402161,
+              "positive_recall": 0.9508196721311475,
+              "negative_rejection": 0.3333333333333333,
               "safe": true
             },
             "candidate_count": 492,
-            "positive_support": 136,
-            "negative_support": 111,
+            "positive_support": 244,
+            "negative_support": 3,
             "quality_recall_floor": 0.95
           }
         },
@@ -203,6 +261,12 @@
           "BirdTarget",
           "BalloonTarget"
         ],
+        "representation_calibration": {
+          "path": "src-v3/v28/calibration/features/V28-calibration-l2_dbb_specialist-representation-v2.pt",
+          "file_sha256": "cda2bf89df4d77e791c76c654283e342b796dc40828e604c93a5d78b57ebd5ed",
+          "cache_sha256": "55c5948746dc12a00d3e29b6b9caf44f53ac82cd5615815f66922b1ab4653d96",
+          "parent_ids_sha256": "9d0da30260f1384a14a27a7b9c1a0a528e8d8cc5047552324f02625c84451e89"
+        },
         "temperature": {
           "status": "fitted",
           "temperature": 1.2013094617983913,
@@ -238,27 +302,63 @@
           "support": 223
         },
         "knownness": {
-          "status": "fitted",
-          "direction": "higher_is_known",
-          "threshold_space": "sigmoid_probability",
-          "selected": {
-            "threshold": 0.19195811450481415,
-            "known_target_recall": 0.9910313901345291,
-            "clutter_recall": null,
-            "unknown_rejection": 0.13333333333333333,
-            "correct_known_new_rejections": 2,
-            "unknown_support": 15,
-            "minimum_negative_support": 10,
-            "support_sufficient": true,
-            "safe": true
+          "DroneTarget": {
+            "route": "DroneTarget",
+            "status": "fallback_infeasible",
+            "selected": {
+              "threshold": 0.0,
+              "known_route_recall": 1.0,
+              "unknown_rejection": null,
+              "correct_known_new_rejections": 0,
+              "unknown_support": 0,
+              "minimum_negative_support": 10,
+              "safe": false
+            },
+            "candidate_count": 228,
+            "known_route_support": 109,
+            "unknown_route_support": 0,
+            "support_sufficient": false,
+            "recall_floor": 0.98,
+            "max_correct_known_new_rejections": 2
           },
-          "candidate_count": 474,
-          "positive_support": 223,
-          "negative_support": 15,
-          "clutter_support": 0,
-          "known_target_recall_floor": 0.98,
-          "clutter_recall_floor": 0.8888888888888888,
-          "max_correct_known_new_rejections": 2
+          "BirdTarget": {
+            "route": "BirdTarget",
+            "status": "fitted",
+            "selected": {
+              "threshold": 0.5354596376419067,
+              "known_route_recall": 0.9607843137254902,
+              "unknown_rejection": 0.07692307692307693,
+              "correct_known_new_rejections": 2,
+              "unknown_support": 13,
+              "minimum_negative_support": 10,
+              "safe": true
+            },
+            "candidate_count": 142,
+            "known_route_support": 51,
+            "unknown_route_support": 13,
+            "support_sufficient": true,
+            "recall_floor": 0.95,
+            "max_correct_known_new_rejections": 8
+          },
+          "BalloonTarget": {
+            "route": "BalloonTarget",
+            "status": "fallback_infeasible",
+            "selected": {
+              "threshold": 0.5002822875976564,
+              "known_route_recall": 1.0,
+              "unknown_rejection": 1.0,
+              "correct_known_new_rejections": 0,
+              "unknown_support": 2,
+              "minimum_negative_support": 10,
+              "safe": false
+            },
+            "candidate_count": 108,
+            "known_route_support": 51,
+            "unknown_route_support": 2,
+            "support_sufficient": false,
+            "recall_floor": 0.98,
+            "max_correct_known_new_rejections": 2
+          }
         },
         "quality": {
           "status": "diagnostic_only",
@@ -274,14 +374,14 @@
             "status": "fitted",
             "direction": "higher_is_eligible",
             "selected": {
-              "threshold": 0.5177010893821716,
-              "positive_recall": 0.952755905511811,
+              "threshold": 0.5260709524154663,
+              "positive_recall": 0.9531914893617022,
               "negative_rejection": 1.0,
               "safe": true
             },
             "candidate_count": 448,
-            "positive_support": 127,
-            "negative_support": 111,
+            "positive_support": 235,
+            "negative_support": 3,
             "quality_recall_floor": 0.95
           }
         },
@@ -305,7 +405,36 @@
       }
     },
     "test_payload_access_count": 0,
-    "payload_sha256": "2e42b0e4a42f3f058018437d89f9ef9e450f77399c7d177a38ee6425d8c0aabd"
+    "payload_sha256": "658349dd15237c81244e604b7bc77c849805493bb171fa0af851e285f06981e9"
+  },
+  "normalization_contract": {
+    "index_schema_version": "RADAR-LN3-V16",
+    "max_sequence_length": 29,
+    "max_rd_frames_per_point": 12,
+    "rd_shape": {
+      "height": 21,
+      "width": 384,
+      "channels": 2
+    },
+    "l1": {
+      "course_feature_name": "causal_prefix_course_circular_incoherence",
+      "course_feature_variant": "v21e_course_prefix",
+      "course_minimum_valid_nonfirst_points": 3,
+      "rd_amplitude_center": 55.9375,
+      "rd_amplitude_scale": 6.945658779831175
+    },
+    "l2": {
+      "rd_amplitude_center": 55.90625,
+      "rd_amplitude_scale": 6.942990104412662,
+      "tr_clipping": {
+        "method": "known_train_only_one_sided_upper_quantile",
+        "quantile": 0.999,
+        "range_lower_m": 0.0,
+        "range_upper_m": 4843.660789968004,
+        "speed_lower_mps": 0.0,
+        "speed_upper_mps": 51.11839758400121
+      }
+    }
   },
   "action_contract": {
     "unknown_is_classifier_class": false,
@@ -324,6 +453,6 @@
     "BalloonTarget"
   ],
   "test_payload_access_count": 0,
-  "registry_sha256": "f5e3e02450845e921d96acb2b6a6802e99fac5231f46688518c214efca2cd550",
-  "payload_sha256": "90e7f09ee464214584eaf29a32f9e7a2b718b0dc8cc7c877a5ad9356de7ec220"
+  "registry_sha256": "df684944f46c44c867878f3984bfd6e71111591d5ce84ce88ce985bfb3c4fa4d",
+  "payload_sha256": "642c634b0416e5b8a8e533febab3be0b2f4248a674ef2514a2600fb8c943009c"
 }

@@ -1,0 +1,121 @@
+{
+  "schema_version": "RADAR-LN3-V28-final-research-r2-registry-v1",
+  "experiment_id": "V28-final-research-r2",
+  "status": "internal_exploratory",
+  "research_only": true,
+  "deployment_eligible": false,
+  "status_reasons": [
+    "research_only",
+    "calibration_role_replay_only",
+    "new_unexposed_post_selection_audit_required"
+  ],
+  "source_manifest_sha256": "94ef819f3c3d97a400eefaa9f6cd7d5e94c8cc74e8611397572063b25d2d7311",
+  "policy": {
+    "path": "src-v3/v28/final/r2/V28-final-research-r2-policy.json",
+    "sha256": "b43cade5849744e4204543c038ff01b4557831f689f243f352587c776f9550b9",
+    "payload_sha256": "3fd361552b4a552373ccd8896f713eb09fbd75e62a826204bc1e8aa0d14d3eb7"
+  },
+  "source_registry_sha256": "efaa5c2217500ba10fff1d4f34db0745dc658a9288eb20806d7d9e73ef58722f",
+  "frozen_endpoints": {
+    "l1_known_gate": {
+      "path": "src-v3/v28/final/heads/l1_known_gate-treatment-seed42.pt",
+      "sha256": "ce119bfc3ce423152e6584a29da539826e67252dd33cbaa1205c52932ee1808d"
+    },
+    "l2_dbb_specialist": {
+      "path": "src-v3/v28/final/heads/l2_dbb_specialist-profile-residual-treatment-seed43.pt",
+      "sha256": "9861e85c070641d1eb936545c1cfabdd96e97bfe2593114955ea6647cd5bb9b6"
+    }
+  },
+  "head_compositions": {
+    "l1_known_gate": {
+      "type": "direct",
+      "head": {
+        "path": "src-v3/v28/final/heads/l1_known_gate-treatment-seed42.pt",
+        "sha256": "ce119bfc3ce423152e6584a29da539826e67252dd33cbaa1205c52932ee1808d"
+      }
+    },
+    "l2_dbb_specialist": {
+      "type": "frozen_base_plus_profile_residual",
+      "baseline": {
+        "path": "src-v3/v28/final/heads/l2_dbb_specialist-temporal-norm-treatment-seed43.pt",
+        "sha256": "711c54f0c879d3c12893d7fb3563c2625ce17fc95e1b94ff2ad4ec53e28b9506"
+      },
+      "residual": {
+        "path": "src-v3/v28/final/heads/l2_dbb_specialist-profile-residual-treatment-seed43.pt",
+        "sha256": "9861e85c070641d1eb936545c1cfabdd96e97bfe2593114955ea6647cd5bb9b6"
+      },
+      "baseline_state_dict_sha256": "b62f592342845c6d7bc0eb0e91297d58053ab476c2e7c43295ecc401eec01d93",
+      "residual_state_dict_sha256": "715510df0e7fc967f5febb388e919166fd48eb226d86d7bf3b341c8eb15ee32d",
+      "model_contract": {
+        "schema_version": "RADAR-LN3-V28-knownness-l2-profile-head-v4",
+        "knownness_input": "frozen_temporal_norm_head_plus_causal_l2_event_profile_residual",
+        "profile_feature_dim": 44,
+        "profile_sources": [
+          "rd_physical_features",
+          "micro_doppler_features",
+          "rd_physical_valid",
+          "micro_doppler_valid"
+        ],
+        "baseline_frozen": true,
+        "quality_head": "frozen_baseline_diagnostic_only",
+        "forbidden_inputs": [
+          "l1_logits",
+          "l2_logits",
+          "softmax",
+          "label_identity"
+        ]
+      },
+      "model_contract_sha256": "387b43818b2ccf804090560798cba3df40b1294746435e79ddd153f9ec053241"
+    }
+  },
+  "scorers": {
+    "l2_dbb_specialist": {
+      "status": "implemented_research_only",
+      "research_only": true,
+      "method": "class_conditional_probability_nonconformity",
+      "score": "1 - calibrated_probability",
+      "class_names": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ],
+      "reference_quantile_by_class": {
+        "DroneTarget": 0.07544291019439697,
+        "BirdTarget": 0.7148842811584473,
+        "BalloonTarget": 0.2756069302558899
+      },
+      "support_by_class": {
+        "DroneTarget": 113,
+        "BirdTarget": 56,
+        "BalloonTarget": 54
+      },
+      "reference_support": 223,
+      "candidate_rule": "score <= reference_quantile + tolerance",
+      "tolerance": 1e-12,
+      "temperature": 1.2013094617983913,
+      "temperature_support": 223,
+      "source_role": "calibration_known_only",
+      "scorer_sha256": "5bbc48a9d696682fa0fa7dbc50cbc1834d5fbe92939259f1b13e5ee87640e610"
+    }
+  },
+  "knownness_score_source": "frozen_v1_replay_records",
+  "pending_policy": {
+    "max_rate": 0.1,
+    "max_count_rule": "ceil(parent_count * max_rate)",
+    "pending_is_not_unknown_rejection": true,
+    "quality_override": false,
+    "candidate_conflict_override": false
+  },
+  "replay": {
+    "path": "src-v3/v28/final/results/V28-final-research-r2-replay-v1.json",
+    "sha256": "f2bb121a8c88c5174cfc38354b250812cb0e3efbea977089cdab62dd09ea102b",
+    "payload_sha256": "750ca5b233347f5ed2f8aa156bc21a68505316d3c8fcc090990315d9160167a8"
+  },
+  "post_selection_audit": {
+    "status": "new_unexposed_pool_required",
+    "threshold_fitting_allowed": false
+  },
+  "test_payload_access_count": 0,
+  "registry_sha256": "c2fc1caca89f8a716f49364af1af43c41c13775b35ab33f66e0c74d10ee91755",
+  "payload_sha256": "60b131d9ba02a5aef948cfd0582bd20505a4f997ab30186ec9b99512d1d43604"
+}

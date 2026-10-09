@@ -238,8 +238,9 @@ def prepare_open_set_features(project_root: str | Path, *, endpoint_binding: Map
     )
     for name, values, valid in (("rd-physical4", test_physical, test_physical_valid), ("broadband-micro-doppler8", test_micro, test_micro_valid)):
         path = root / "src-v3/v28/calibration" / f"V28-test-{name}-v2-cache.npz"
-        records[f"post_selection_replay:{name}"] = _write_npz(path, test_ids, values, valid)
-    payload = {"schema_version": "RADAR-LN3-V28-feature-manifest-v2", "experiment_id": "V28", "status": "prepared", "system_manifest_sha256": context.manifest_sha256, "pool_registry_sha256": pool["registry_sha256"], "endpoint_binding": dict(endpoint_binding), "caches": records, "test_payload_access_count": 0}
+        records[f"post_selection_audit:{name}"] = _write_npz(path, test_ids, values, valid)
+    audit_pool = pool["post_selection_audit"]
+    payload = {"schema_version": "RADAR-LN3-V28-feature-manifest-v2", "experiment_id": "V28", "status": "prepared", "system_manifest_sha256": context.manifest_sha256, "pool_registry_sha256": pool["registry_sha256"], "endpoint_binding": dict(endpoint_binding), "post_selection_audit": {"status": "prepared", "split_name": audit_pool["split_name"], "parent_count": audit_pool["parent_count"], "event_count": audit_pool["event_count"], "parent_ids_sha256": audit_pool["parent_ids_sha256"], "sample_ids_sha256": audit_pool["sample_ids_sha256"], "payload_access_count": 0, "threshold_fitting_allowed": False}, "caches": records, "test_payload_access_count": 0}
     payload["feature_manifest_sha256"] = canonical_sha256(payload)
     path = root / "src-v3/v28/calibration/V28-feature-manifest-v2.json"
     write_sealed_json(path, payload)

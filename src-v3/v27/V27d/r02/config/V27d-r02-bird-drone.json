@@ -1,0 +1,61 @@
+{
+  "schema_version": "RADAR-LN3-V27d-r02-config-v1",
+  "experiment_id": "V27d-r02",
+  "variant": "r20-zero-control-bird-drone-reliability-margin",
+  "objective": "Reduce BirdTarget predicted as DroneTarget while preserving complete-parent evaluation and avoiding validation leakage.",
+  "source": {
+    "dataset": "OriData/excel/TR-only-processed-r17",
+    "r20_experiment_id": "V27d-r20",
+    "r20_config_path": "src-v3/v27/V27d/r20/config/V27d-r20-radial-speed-decomposition.json",
+    "r20_config_sha256": "5b15ef4425696a0aeb6d8d3275c787aa69a0caebb2d1f56fdbea00beec7179b9",
+    "r20_checkpoint_path": "src-v3/v27/V27d/r20/runs-v1/V27d-r20-zero_control-seed42/checkpoint.pt",
+    "r20_checkpoint_sha256": "babbd75efab617ae80be526bd89df2a987c1eb5632c7a8cc87f806e40e57cf17",
+    "r20_manifest_path": "src-v3/v27/V27d/r20/manifests/V27d-r20-manifest.json",
+    "r20_manifest_sha256": "c4123b94b028349c6f417c31f3e294c412f31823452e51394dba31ffc72de4fc",
+    "base_arm": "zero_control",
+    "base_seed": 42
+  },
+  "model": {
+    "hidden_dim": 48,
+    "reliability_hidden_dim": 24,
+    "maturity_hidden_dim": 24,
+    "class_count": 3,
+    "bird_class_id": 1,
+    "drone_class_id": 0,
+    "balloon_class_id": 2,
+    "reliability_target": "1 for BirdTarget, 0 for DroneTarget/BalloonTarget",
+    "maturity_target": "valid event prefix ratio within each complete parent",
+    "correction": "learned Bird-vs-Drone logit correction from final reliability and maturity",
+    "initialization": "copy r20 zero_control checkpoint; new heads and correction start at zero"
+  },
+  "training": {
+    "seed": 42,
+    "epochs": 20,
+    "batch_size": 4,
+    "learning_rate": 0.00001,
+    "weight_decay": 0.001,
+    "gradient_clip_norm": 100.0,
+    "margin": 0.20,
+    "margin_weight": 0.50,
+    "reliability_weight": 0.20,
+    "maturity_weight": 0.05,
+    "hard_negative_weight": 2.00,
+    "sequence_policy": "complete_parent_sequence_no_event_random_split",
+    "data_loader_policy": "parent_batch_shuffle_only",
+    "validation_policy": "validation_is_apply_only_and_never_used_for_training",
+    "checkpoint_selection": "fixed_final_epoch_no_validation_selection",
+    "calibration_regularization": 0.10,
+    "calibration_log_temperature_bound": 0.70,
+    "calibration_bias_bound": 1.00,
+    "class_conditional_calibration": "train-only fit; validation apply-only"
+  },
+  "artifacts": {
+    "manifest_path": "src-v3/v27/V27d/r02/manifests/V27d-r02-manifest.json",
+    "hard_negative_path": "src-v3/v27/V27d/r02/manifests/hard_negatives.json",
+    "checkpoint_path": "src-v3/v27/V27d/r02/runs-v1/V27d-r02-seed42/checkpoint.pt",
+    "training_report_path": "src-v3/v27/V27d/r02/reports/V27d-r02-training-summary.json",
+    "report_path": "src-v3/v27/V27d/r02/reports/V27d-r02-trained-report.json",
+    "calibration_path": "src-v3/v27/V27d/r02/reports/V27d-r02-calibration.json",
+    "smoke_path": "src-v3/v27/V27d/r02/reports/V27d-r02-contract-smoke.json"
+  }
+}

@@ -12,7 +12,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import torch
 from torch.utils.data import DataLoader, Dataset
 
 from .data import CQ08PointSequenceDataset, PointSequence, build_point_dataloader

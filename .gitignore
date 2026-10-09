@@ -37,3 +37,9 @@ src.zip
 .dvc/
 docx/
 docs/
+src-v3/.ars/
+.workbuddy-ai/
+outputs/
+src-v3/v28/calibration/features/archive/
+src-v3/v28/manifests/archive
+src-v3/v28_experiments/

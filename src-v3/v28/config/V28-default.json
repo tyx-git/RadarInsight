@@ -103,6 +103,14 @@
     "quality_min_rd_fraction": 0.5,
     "quality_min_dt_fraction": 0.5,
     "quality_min_aux_fraction": 0.5,
+    "l1_target_knownness_recall_floor": 0.98,
+    "l1_clutter_knownness_recall_floor": 0.8888888888888888,
+    "l2_drone_knownness_recall_floor": 0.98,
+    "l2_bird_knownness_recall_floor": 0.95,
+    "l2_balloon_knownness_recall_floor": 0.98,
+    "l2_bird_max_correct_known_new_rejections": 8,
+    "l2_route_max_correct_known_new_rejections": 2,
+    "bird_consistency_weight": 0.5,
     "quality_gate_active_initially": false,
     "forbidden_inputs": ["l1_logits", "l2_logits", "softmax", "label_identity"]
   },
@@ -127,7 +135,15 @@
     "max_correct_known_new_rejections": 2,
     "quality_recall_floor": 0.95,
     "minimum_negative_support": 10,
-    "fallback_allowed": true
+    "fallback_allowed": true,
+    "l1_target_candidate_probability_floor": 0.99,
+    "l1_clutter_candidate_probability_floor": 0.8271758556365967,
+    "l2_candidate_empty_fallback": false,
+    "l2_route_thresholds": {
+      "DroneTarget": 0.12435714900493622,
+      "BirdTarget": 0.14,
+      "BalloonTarget": 0.12435714900493622
+    }
   },
   "calibration": {
     "known_target_recall_floor": 0.98,
@@ -136,7 +152,7 @@
     "temperature_min": 0.05,
     "temperature_max": 20.0,
     "temperature_grid_size": 50,
-    "minimum_unknown_support_for_formal": 100,
+    "minimum_unknown_support_for_formal": 15,
     "post_selection_audit_required": true
   },
   "migration_sources": {
@@ -156,7 +172,8 @@
     "smoke_report_path": "src-v3/v28/reports/V28-contract-smoke-v2.json",
     "registry_path": "src-v3/v28/calibration/V28-l3-registry-v2.json",
     "calibration_report_path": "src-v3/v28/calibration/V28-calibration-v2.json",
-    "replay_report_path": "src-v3/v28/reports/V28-l3-replay-v2.json"
+    "replay_report_path": "src-v3/v28/reports/V28-l3-replay-v2.json",
+    "audit_report_path": "src-v3/v28/reports/V28-l3-audit-v2.json"
     ,"head_checkpoint_template": "src-v3/v28/checkpoints/V28-{task}-head-seed{seed}.pt"
     ,"head_summary_template": "src-v3/v28/runs/V28-{task}-head-seed{seed}-summary.json"
     ,"representation_template": "src-v3/v28/calibration/features/V28-{role}-{task}-representation-v2.pt"
