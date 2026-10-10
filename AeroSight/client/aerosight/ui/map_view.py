@@ -7,7 +7,7 @@ import os
 from collections import OrderedDict, deque
 from dataclasses import astuple
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush, QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap,
     QTransform,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QGraphicsItem,
     QGraphicsEllipseItem,
+    QGraphicsLineItem,
     QGraphicsPixmapItem,
     QGraphicsScene,
     QGraphicsTextItem,
@@ -25,8 +26,8 @@ from PySide6.QtWidgets import (
 from aerosight.ui.theme import C, category_color, ui_font_family
 
 DEFAULT_CAL = {
-    "radar_x": 680.0,
-    "radar_y": 680.0,
+    "radar_x": 975.0,
+    "radar_y": 700.0,
     "pixels_per_100m": 20.0,
     "heading_deg": 0.0,
 }
@@ -39,6 +40,9 @@ RING_STEPS = (
     1000, 2000, 2500, 5000, 10000, 20000, 25000,
     50000, 100000,
 )
+RADAR_BLUE_GRAY = (78, 121, 142)
+# Keep the range labels unchanged while tuning only the radar-layer spacing.
+RADAR_LAYER_SCALE = 1.5 * 0.95
 
 
 class RadarTagItem(QGraphicsItem):
@@ -141,6 +145,7 @@ class MapRadarView(QGraphicsView):
         self._zoom = 1.0
         self._arm_position = False
         self._map_item: QGraphicsPixmapItem | None = None
+        self._map_cover_scale = 1.0
         self._dynamic_items = []
         self._static_text_items = []
         self._target_signature = None
@@ -355,6 +360,7 @@ class MapRadarView(QGraphicsView):
         self._dynamic_items = []
         self._target_signature = None
         self._map_item = None
+        self._map_cover_scale = 1.0
         self._static_text_items = []
         scene.setBackgroundBrush(QColor(EMPTY_BACKGROUND))
 
@@ -362,7 +368,7 @@ class MapRadarView(QGraphicsView):
         if self.map_visible:
             self._draw_radar_layer(scene)
 
-        radius = self.plane_range_m
+        radius = self.plane_range_m * RADAR_LAYER_SCALE
         radar_rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
         # Include enough scene area around the origin to fill the whole
         # viewport; otherwise Qt cannot keep the radar origin centred.
@@ -404,22 +410,118 @@ class MapRadarView(QGraphicsView):
         transform.scale(scale, scale)
         transform.translate(-radar_x, -radar_y)
         item.setTransform(transform)
+
+        # The map is a background layer, so its finite image bounds must cover
+        # the initial viewport. Keep the calibrated radar point at scene origin
+        # while applying only the minimum additional scale required to remove
+        # exposed scene background around the image.
+        base_rect = item.sceneBoundingRect()
+        viewport_rect = self._viewport_scene_rect()
+        cover_scale = self._required_map_cover_scale(base_rect, viewport_rect)
+        if cover_scale > 1.0:
+            covered_transform = QTransform()
+            covered_transform.rotate(-heading)
+            covered_transform.scale(scale * cover_scale, scale * cover_scale)
+            covered_transform.translate(-radar_x, -radar_y)
+            item.setTransform(covered_transform)
+        self._map_cover_scale = cover_scale
         scene.addItem(item)
         self._map_item = item
         return item.sceneBoundingRect()
 
+    @staticmethod
+    def _required_map_cover_scale(
+        map_rect: QRectF, viewport_rect: QRectF
+    ) -> float:
+        """Return the minimum scale that makes a map rect cover a viewport."""
+        required = 1.0
+        for map_start, map_end, view_start, view_end in (
+            (map_rect.left(), map_rect.right(), viewport_rect.left(), viewport_rect.right()),
+            (map_rect.top(), map_rect.bottom(), viewport_rect.top(), viewport_rect.bottom()),
+        ):
+            if map_start < 0.0 and view_start < map_start:
+                required = max(required, view_start / map_start)
+            if map_end > 0.0 and view_end > map_end:
+                required = max(required, view_end / map_end)
+        return max(required, 1.0)
+
     def _draw_radar_layer(self, scene: QGraphicsScene):
-        radius = self.plane_range_m
+        radius = self.plane_range_m * RADAR_LAYER_SCALE
 
         coverage_rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
         disk = QGraphicsEllipseItem(coverage_rect)
-        disk.setPen(thin_pen(QColor(77, 148, 180), 110))
-        disk.setBrush(QBrush(QColor(34, 103, 126, 18)))
+        coverage_color = QColor(*RADAR_BLUE_GRAY, 235)
+        coverage_fill = QColor(*RADAR_BLUE_GRAY, 18)
+        ring_color = QColor(*RADAR_BLUE_GRAY, 230)
+        label_color = QColor(*RADAR_BLUE_GRAY, 245)
+
+        coverage_pen = QPen(coverage_color)
+        coverage_pen.setWidthF(1.4)
+        coverage_pen.setCosmetic(True)
+        disk.setPen(coverage_pen)
+        disk.setBrush(QBrush(coverage_fill))
         disk.setZValue(1)
         scene.addItem(disk)
 
+        self._draw_radar_crosshair(scene, radius)
+
         for value in self._ring_values():
-            self._draw_range_ring(scene, value)
+            self._draw_range_ring(scene, value, ring_color, label_color)
+
+    def _draw_radar_crosshair(self, scene: QGraphicsScene, radius: float):
+        """Draw balanced cardinal and shorter diagonal radar reference lines."""
+        origin = QPointF(0.0, 0.0)
+        light_blue_gray = (112, 148, 165)
+        cardinal_color = QColor(*light_blue_gray, 168)
+        diagonal_color = QColor(*light_blue_gray, 132)
+
+        self._add_radar_line(
+            scene,
+            QLineF(-radius, 0.0, radius, 0.0),
+            cardinal_color,
+            width=1.15,
+        )
+        self._add_radar_line(
+            scene,
+            QLineF(0.0, -radius, 0.0, radius),
+            cardinal_color,
+            width=1.15,
+        )
+
+        diagonal_radius = radius * 0.72
+        diagonal_offset = diagonal_radius / math.sqrt(2.0)
+        self._add_radar_line(
+            scene,
+            QLineF(-diagonal_offset, -diagonal_offset,
+                   diagonal_offset, diagonal_offset),
+            diagonal_color,
+            width=1.0,
+        )
+        self._add_radar_line(
+            scene,
+            QLineF(-diagonal_offset, diagonal_offset,
+                   diagonal_offset, -diagonal_offset),
+            diagonal_color,
+            width=1.0,
+        )
+
+    @staticmethod
+    def _add_radar_line(
+        scene: QGraphicsScene,
+        line: QLineF,
+        color: QColor,
+        *,
+        width: float,
+    ):
+        item = QGraphicsLineItem(line)
+        pen = QPen(color)
+        pen.setWidthF(width)
+        pen.setCosmetic(True)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        item.setPen(pen)
+        item.setZValue(2.1)
+        item.setData(0, "radar-crosshair")
+        scene.addItem(item)
 
     def _view_radius_px(self) -> float:
         width = max(self.viewport().width(), 1)
@@ -445,20 +547,32 @@ class MapRadarView(QGraphicsView):
             values.append(self.plane_range_m)
         return values
 
-    def _draw_range_ring(self, scene: QGraphicsScene, value: float):
-        rect = QRectF(-value, -value, 2 * value, 2 * value)
+    def _draw_range_ring(
+        self,
+        scene: QGraphicsScene,
+        value: float,
+        ring_color: QColor | None = None,
+        label_color: QColor | None = None,
+    ):
+        display_radius = float(value) * RADAR_LAYER_SCALE
+        rect = QRectF(
+            -display_radius, -display_radius,
+            2 * display_radius, 2 * display_radius)
         ring = QGraphicsEllipseItem(rect)
-        ring.setPen(thin_pen(QColor(197, 213, 224), 105))
+        pen = QPen(ring_color or QColor(197, 213, 224, 105))
+        pen.setWidthF(1.0)
+        pen.setCosmetic(True)
+        ring.setPen(pen)
         ring.setBrush(Qt.BrushStyle.NoBrush)
         ring.setZValue(2)
         scene.addItem(ring)
 
         label = QGraphicsTextItem(f"{value:g}m")
-        label.setDefaultTextColor(QColor(188, 204, 216))
+        label.setDefaultTextColor(label_color or QColor(188, 204, 216))
         label.setFont(QFont(ui_font_family(), 8))
         label.setZValue(3)
         label.setFlag(label.GraphicsItemFlag.ItemIgnoresTransformations, True)
-        label.setPos(8.0, -value - 8.0)
+        label.setPos(8.0, -display_radius - 8.0)
         scene.addItem(label)
         self._static_text_items.append(label)
 
@@ -553,7 +667,12 @@ class MapRadarView(QGraphicsView):
                 float(obs.range_m)
                 * math.cos(math.radians(float(getattr(obs, "elevation_deg", 0.0) or 0.0))))
 
-        azimuth = math.radians(float(getattr(obs, "azimuth_deg", 0.0) or 0.0))
+        return self._target_position_for_range(plane_range, float(
+            getattr(obs, "azimuth_deg", 0.0) or 0.0))
+
+    @staticmethod
+    def _target_position_for_range(plane_range: float, azimuth_deg: float) -> QPointF:
+        azimuth = math.radians(float(azimuth_deg))
         # Positive azimuth is clockwise/right; scene y grows downward, hence -y.
         return QPointF(
             plane_range * math.sin(azimuth),

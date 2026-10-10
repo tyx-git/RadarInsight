@@ -4,6 +4,7 @@ import os
 import queue
 import signal
 import threading
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QPushButton)
 
 from aerosight.core.radar import RadarFrame, RadarObservation
+from aerosight.app_config import load_config
 from aerosight.main import _install_shutdown_timer
 from aerosight.ui.main_window import MainWindow
 from aerosight.ui.map_view import MapRadarView
@@ -73,8 +75,17 @@ def test_map_retains_ten_trajectories_as_individual_points(app):
     assert len(point_items) == 50
     assert not path_lines
     assert view.map_visible
+    crosshair_items = [
+        item for item in view.scene().items()
+        if item.data(0) == "radar-crosshair"
+    ]
+    assert len(crosshair_items) == 4
+    assert all(isinstance(item, QGraphicsLineItem) for item in crosshair_items)
+    line_lengths = sorted(item.line().length() for item in crosshair_items)
+    assert line_lengths[0] < line_lengths[-1]
     assert not any(
         isinstance(item, QGraphicsLineItem)
+        and item.data(0) != "radar-crosshair"
         for item in view.scene().items()
     )
 
@@ -91,12 +102,46 @@ def test_map_retains_ten_trajectories_as_individual_points(app):
     assert view.map_visible
     assert not any(
         isinstance(item, QGraphicsLineItem)
+        and item.data(0) != "radar-crosshair"
         for item in view.scene().items()
     )
     view.zoom_by(1.2)
     assert view._zoom > 1.0
     view.center_radar()
     assert view._zoom == 1.0
+    view.close()
+
+
+def test_builtin_map_asset_is_loaded_by_map_view(app):
+    cfg = load_config()
+    map_path = Path(cfg["instances"][0]["map"]["image_path"])
+    assert map_path.name == "map.png"
+    assert map_path.is_file()
+    assert cfg["instances"][0]["map"]["radar_x"] == 975.0
+    assert cfg["instances"][0]["map"]["radar_y"] == 700.0
+
+    view = MapRadarView()
+    view.resize(1100, 700)
+    view.configure(cfg["instances"][0]["map"], 3000)
+    view.show()
+    app.processEvents()
+    assert view._map_item is not None
+    assert view._map_cover_scale >= 1.0
+    map_rect = view._map_item.sceneBoundingRect().adjusted(
+        -0.001, -0.001, 0.001, 0.001)
+    assert map_rect.contains(view._viewport_scene_rect())
+    range_rings = [
+        item for item in view.scene().items()
+        if isinstance(item, QGraphicsEllipseItem)
+        and item.zValue() == 2
+    ]
+    assert range_rings
+    assert all(item.pen().widthF() >= 1.0 for item in range_rings)
+    assert view._ring_values() == [1000.0, 2000.0, 3000.0]
+    ring_radii = sorted(
+        round(item.rect().width() / 2.0, 3)
+        for item in range_rings)
+    assert ring_radii == [1425.0, 2850.0, 4275.0]
     view.close()
 
 
@@ -185,6 +230,28 @@ def test_remote_classification_is_rendered_in_target_table(app, tmp_path):
     assert window.targets_table.item(0, 1).text() == "drone"
     assert window.targets_table.item(0, 2).text() == "87%"
     assert window.value_model.text() == "\u672a\u6307\u5b9a"
+    assert window.start_detection_button.objectName() == "StartDetectionButton"
+    assert window.start_detection_button.text() == "\u5f00\u59cb\u63a2\u6d4b"
+    assert window.emergency_stop_button.objectName() == "EmergencyStopButton"
+    assert window.emergency_stop_button.text() == "\u7d27\u6025\u505c\u673a"
+    assert window.start_detection_button.parentWidget() is window.map_surface
+    assert window.emergency_stop_button.parentWidget() is window.map_surface
+    assert window.start_detection_button.size().width() == 124
+    assert window.start_detection_button.size().height() == 36
+    assert window.emergency_stop_button.size().width() == 124
+    assert window.emergency_stop_button.size().height() == 36
+    group_width = (
+        window.start_detection_button.width()
+        + 14
+        + window.emergency_stop_button.width())
+    expected_left = (window.map_surface.width() - group_width) // 2
+    assert window.start_detection_button.geometry().left() == expected_left
+    assert window.emergency_stop_button.geometry().left() == (
+        expected_left + window.start_detection_button.width() + 14)
+    assert window.start_detection_button.geometry().right() < window.emergency_stop_button.geometry().left()
+    assert window.start_detection_button.geometry().bottom() == 462
+    assert window.emergency_stop_button.geometry().bottom() == 462
+    assert window.map_surface.rect().bottom() - window.start_detection_button.geometry().bottom() == 68
 
     model_path = tmp_path / "custom-cascade.onnx"
     model_path.write_bytes(b"placeholder")

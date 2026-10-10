@@ -105,6 +105,9 @@ QPushButton:disabled {{ color:{C.text_faint}; background:{C.panel_alt}; }}
 QPushButton#Primary {{ background:{C.blue}; border-color:{C.blue_dark}; color:white; font-weight:700; }}
 QPushButton#Primary:hover {{ background:{C.blue_dark}; }}
 QPushButton#ModeToggle {{ min-width:76px; }}
+QPushButton#StartDetectionButton,QPushButton#EmergencyStopButton {{ background:rgba(232,235,247,225); border:1px solid rgba(255,255,255,235); border-radius:8px; color:#1F2B3D; font-size:11pt; font-weight:700; padding:0px; }}
+QPushButton#StartDetectionButton:hover,QPushButton#EmergencyStopButton:hover {{ background:rgba(245,247,255,240); border-color:rgba(255,255,255,255); }}
+QPushButton#StartDetectionButton:pressed,QPushButton#EmergencyStopButton:pressed {{ background:rgba(205,211,230,240); }}
 QLineEdit,QSpinBox,QDoubleSpinBox,QComboBox {{ background:white; border:1px solid {C.border}; border-radius:4px; padding:5px 8px; min-height:18px; }}
 QLineEdit:focus,QSpinBox:focus,QDoubleSpinBox:focus,QComboBox:focus {{ border-color:{C.blue}; }}
 QSpinBox::up-button,QSpinBox::down-button,QDoubleSpinBox::up-button,QDoubleSpinBox::down-button {{ width:0; height:0; border:none; }}

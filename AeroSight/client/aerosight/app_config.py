@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import copy
 import os
+from pathlib import Path
+
 import yaml
 
-USER_SETTINGS_PATH = os.path.join(
-    os.path.dirname(__file__), "config", "user_settings.yaml")
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_MAP_IMAGE_PATH = PROJECT_ROOT / "src" / "core" / "server" / "images" / "map.png"
 
 # 内置默认配置，不依赖随包发布的 yaml 文件。
 BUILTIN_DEFAULT_CONFIG = yaml.safe_load("""
 instances:
   - id: asd-directory-replay
-    name: "ASD 目录回放"
+    name: "XW/SR226-6000XP"
     enabled: true
     source:
       kind: rrtsp
@@ -28,8 +30,8 @@ instances:
       plane_range_m: 3000
     map:
       image_path: ""
-      radar_x: 680
-      radar_y: 680
+      radar_x: 975
+      radar_y: 700
       pixels_per_100m: 20
       heading_deg: 0
     model:
@@ -40,17 +42,19 @@ pipeline:
   result_queue_size: 32
 ui:
   render_fps: 30
-  window_title: "AeroSight 雷达终端"
+  window_title: "AeroSight终端"
   selected_instance_id: asd-directory-replay
 logging:
   level: INFO
   dir: logs
 """)
+BUILTIN_DEFAULT_CONFIG["instances"][0]["map"]["image_path"] = str(
+    DEFAULT_MAP_IMAGE_PATH)
 
 DEFAULT_MAP = {
-    "image_path": "",
-    "radar_x": 680.0,
-    "radar_y": 680.0,
+    "image_path": str(DEFAULT_MAP_IMAGE_PATH),
+    "radar_x": 975.0,
+    "radar_y": 700.0,
     "pixels_per_100m": 20.0,
     "heading_deg": 0.0,
 }
@@ -74,10 +78,6 @@ def load_config(path: str | None = None) -> dict:
             cfg = yaml.safe_load(f) or {}
     else:
         cfg = copy.deepcopy(BUILTIN_DEFAULT_CONFIG)
-        if os.path.exists(USER_SETTINGS_PATH):
-            with open(USER_SETTINGS_PATH, "r", encoding="utf-8") as f:
-                user_cfg = yaml.safe_load(f) or {}
-            cfg = _deep_merge(cfg, user_cfg)
     return normalize_config(cfg)
 
 
@@ -88,8 +88,8 @@ def normalize_map(value=None, fallback=None) -> dict:
         result.update(value)
     return {
         "image_path": str(result.get("image_path", "")),
-        "radar_x": float(result.get("radar_x", 680.0)),
-        "radar_y": float(result.get("radar_y", 680.0)),
+        "radar_x": float(result.get("radar_x", 975.0)),
+        "radar_y": float(result.get("radar_y", 700.0)),
         "pixels_per_100m": max(float(result.get("pixels_per_100m", 20.0)), 1.0),
         "heading_deg": float(result.get("heading_deg", 0.0)),
     }

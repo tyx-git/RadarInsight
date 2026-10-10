@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QMessageBox, QPushButton, QSpinBox, QSplitter, QTableWidget,
     QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget)
 
-from aerosight.app_config import USER_SETTINGS_PATH, default_instance, normalize_map
+from aerosight.app_config import  default_instance, normalize_map
 from aerosight.ui.i18n import t
 from aerosight.ui.map_view import MapRadarView
 from aerosight.ui.theme import C, ui_font_family
@@ -463,8 +463,8 @@ class BasicSettingsDialog(QDialog):
         self.preview_range.setValue(item.get("display", {}).get("plane_range_m", 3000))
         map_cfg = item.get("map", {})
         self.map_path.setText(map_cfg.get("image_path", ""))
-        self.radar_x.setValue(map_cfg.get("radar_x", 680))
-        self.radar_y.setValue(map_cfg.get("radar_y", 680))
+        self.radar_x.setValue(map_cfg.get("radar_x", 975))
+        self.radar_y.setValue(map_cfg.get("radar_y", 700))
         self.pixels_per_100m.setValue(map_cfg.get("pixels_per_100m", 20))
         self.heading.setValue(map_cfg.get("heading_deg", 0))
         self.onnx_path.setText(item.get("model", {}).get("onnx_path", ""))
@@ -654,8 +654,6 @@ class BasicSettingsDialog(QDialog):
         cfg = self.gather_cfg()
         self.receiver_cmd.put({"cmd": "apply", "cfg": cfg})
         self.inference_cmd.put({"cmd": "apply", "cfg": cfg})
-        with open(USER_SETTINGS_PATH, "w", encoding="utf-8") as f:
-            yaml.safe_dump(cfg, f, allow_unicode=True, sort_keys=False)
         self.state_label.setText(
             f"{t('state_saved')} \u00b7 {time.strftime('%H:%M:%S')}")
         self.applied.emit(cfg)
@@ -670,6 +668,6 @@ class BasicSettingsDialog(QDialog):
     def browse_map(self):
         path, _ = QFileDialog.getOpenFileName(
             self, t("map_image"), "",
-            "Images (*.png *.jpg *.jpeg *.bmp);;All files (*.*)")
+            "Images (*.png *.jpg *.jpeg *.bmp *.svg);;All files (*.*)")
         if path:
             self.map_path.setText(os.path.normpath(path))

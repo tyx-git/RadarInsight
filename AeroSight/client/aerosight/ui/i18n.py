@@ -28,6 +28,8 @@ TEXTS = {
     "map_layer_hint": "\u663e\u793a\u672c\u5730\u5730\u56fe\u548c\u96f7\u8fbe\u80cc\u666f",
     "trajectory_points": "\u8f68\u8ff9\u70b9",
     "map_labels": "\u5730\u56fe\u6807\u6ce8",
+    "start_detection": "\u5f00\u59cb\u63a2\u6d4b",
+    "emergency_stop": "\u7d27\u6025\u505c\u673a",
     "center_view": "\u5c45\u4e2d",
     "zoom_out": "\u7f29\u5c0f",
     "zoom_in": "\u653e\u5927",

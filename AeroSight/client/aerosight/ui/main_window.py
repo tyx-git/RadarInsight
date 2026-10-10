@@ -10,12 +10,12 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor, QFontMetrics
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFrame, QHBoxLayout, QHeaderView, QLabel,
-    QMainWindow, QPushButton, QSizePolicy, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget)
+    QMainWindow, QPushButton, QSizePolicy, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget)
 
 from aerosight.ui.i18n import t
 from aerosight.ui.map_view import MapRadarView
@@ -24,6 +24,67 @@ from aerosight.ui.theme import C, category_color
 from aerosight.ui.widgets import LedDot
 
 log = logging.getLogger(__name__)
+
+MAP_ACTION_BOTTOM = 68
+MAP_ACTION_GAP = 14
+MAP_ACTION_WIDTH = 124
+MAP_ACTION_HEIGHT = 36
+
+
+def _action_icon(kind: str) -> QIcon:
+    """Create the small neutral control glyphs used by the map actions."""
+    pixmap = QPixmap(30, 30)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    icon_color = QColor(31, 43, 61, 235)
+    pen = QPen(icon_color, 2.0)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    if kind == "start":
+        painter.drawEllipse(4, 4, 22, 22)
+        painter.drawArc(7, 7, 16, 16, 35 * 16, 120 * 16)
+        painter.drawArc(10, 10, 10, 10, 35 * 16, 120 * 16)
+        painter.setBrush(icon_color)
+        painter.drawEllipse(13, 13, 4, 4)
+    else:
+        painter.drawRoundedRect(4, 4, 22, 22, 4, 4)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(icon_color)
+        painter.drawRoundedRect(11, 11, 8, 8, 2, 2)
+    painter.end()
+    return QIcon(pixmap)
+
+
+class MapSurface(QWidget):
+    """Map viewport with controls anchored directly to its bottom edge."""
+
+    def __init__(self, map_view, start_button, emergency_button, parent=None):
+        super().__init__(parent)
+        self.map_view = map_view
+        self.start_button = start_button
+        self.emergency_button = emergency_button
+        self.map_view.setParent(self)
+        self.start_button.setParent(self)
+        self.emergency_button.setParent(self)
+
+    def resizeEvent(self, event):
+        self.map_view.setGeometry(self.rect())
+        button_height = self.start_button.height()
+        button_y = max(self.height() - MAP_ACTION_BOTTOM - button_height, 0)
+        group_width = (
+            self.start_button.width()
+            + MAP_ACTION_GAP
+            + self.emergency_button.width())
+        group_left = max((self.width() - group_width) // 2, 0)
+        self.start_button.move(group_left, button_y)
+        self.emergency_button.move(
+            self.start_button.x() + self.start_button.width() + MAP_ACTION_GAP,
+            button_y)
+        self.start_button.raise_()
+        self.emergency_button.raise_()
+        super().resizeEvent(event)
 
 
 def _local_onnx_name(model_path: str) -> str:
@@ -91,7 +152,7 @@ class MainWindow(QMainWindow):
         workspace_layout = QHBoxLayout(workspace)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(0)
-        workspace_layout.addWidget(self.map_view, 1)
+        workspace_layout.addWidget(self._map_surface(), 1)
         workspace_layout.addWidget(self._target_panel())
         layout.addWidget(workspace, 1)
         self.setCentralWidget(root)
@@ -103,6 +164,40 @@ class MainWindow(QMainWindow):
         self.sb_time = QLabel()
         self.statusBar().addWidget(self.sb_status)
         self.statusBar().addPermanentWidget(self.sb_time)
+
+    def _map_surface(self):
+        """Build the map viewport with bottom-edge action controls."""
+        self.start_detection_button = QPushButton(t("start_detection"))
+        self.start_detection_button.setObjectName("StartDetectionButton")
+        self.start_detection_button.setFixedSize(
+            MAP_ACTION_WIDTH, MAP_ACTION_HEIGHT)
+        self.start_detection_button.setIcon(_action_icon("start"))
+        self.start_detection_button.setIconSize(QSize(22, 22))
+        self.start_detection_button.clicked.connect(
+            self._on_start_detection_clicked)
+
+        self.emergency_stop_button = QPushButton(t("emergency_stop"))
+        self.emergency_stop_button.setObjectName("EmergencyStopButton")
+        self.emergency_stop_button.setFixedSize(
+            MAP_ACTION_WIDTH, MAP_ACTION_HEIGHT)
+        self.emergency_stop_button.setIcon(_action_icon("stop"))
+        self.emergency_stop_button.setIconSize(QSize(22, 22))
+        self.emergency_stop_button.clicked.connect(
+            self._on_emergency_stop_clicked)
+
+        self.map_surface = MapSurface(
+            self.map_view,
+            self.start_detection_button,
+            self.emergency_stop_button)
+        return self.map_surface
+
+    def _on_start_detection_clicked(self):
+        # TODO: Bind this placeholder to the future detection-start command.
+        pass
+
+    def _on_emergency_stop_clicked(self):
+        # TODO: Bind this placeholder to the future emergency-stop command.
+        pass
 
     def _topbar(self):
         bar = QFrame()
