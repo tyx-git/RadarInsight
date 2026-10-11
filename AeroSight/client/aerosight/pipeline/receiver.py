@@ -10,7 +10,7 @@ import threading
 import time
 
 from aerosight.core.radar import RadarFrame, RadarObservation, StreamStatus
-from aerosight.pipeline.rrtsp_source import RRTSPConnection
+from aerosight.pipeline.rrtsp_source import RRTSPConnection, RTP_CLOCK_HZ
 from aerosight.pipeline.simulation import build_simulation_observations
 
 log = logging.getLogger(__name__)
@@ -176,6 +176,8 @@ class InstanceSupervisor:
                             timeout=0.5
                         )
                     except (_q.Empty, socket.timeout, TimeoutError):
+                        if conn.stopped:
+                            break
                         # A 0.5 s receive timeout is shorter than the normal
                         # replay scan interval.  An empty track queue means
                         # that the next radar batch has not arrived yet; it is
@@ -200,7 +202,9 @@ class InstanceSupervisor:
                         stream_id=conf["id"],
                         stream_name=conf.get("name", conf["id"]),
                         frame_id=frame_id,
-                        timestamp=float(timestamp) / 90000.0,
+                        timestamp=float(timestamp) / RTP_CLOCK_HZ,
+                        rtp_timestamp=int(timestamp),
+                        scan_interval_seconds=conn.scan_interval_seconds,
                         observations=observations,
                         rd_amplitude=rd_amplitude,
                         rd_phase=rd_phase,

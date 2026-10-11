@@ -80,6 +80,10 @@ class RadarFrame:
     stream_name: str
     frame_id: int
     timestamp: float
+    # RTP timestamp in the sender's 90 kHz clock. ``timestamp`` remains the
+    # seconds representation used by existing frontend consumers.
+    rtp_timestamp: int | None = None
+    scan_interval_seconds: float = 3.0
     observations: list[RadarObservation] = field(default_factory=list)
     # Current complete RD map for this frame. Lists are used because they are
     # trivial to pickle across multiprocessing/spawn.

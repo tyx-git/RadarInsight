@@ -10,13 +10,14 @@ from dataclasses import astuple
 from PySide6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QBrush, QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap,
-    QTransform,
+    QPainterPath, QTransform,
 )
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsItem,
     QGraphicsEllipseItem,
     QGraphicsLineItem,
+    QGraphicsPathItem,
     QGraphicsPixmapItem,
     QGraphicsScene,
     QGraphicsTextItem,
@@ -35,32 +36,66 @@ DEFAULT_PLANE_RANGE_M = 3000.0
 EMPTY_BACKGROUND = "#111923"
 MAX_TRAJECTORIES = 10
 MAX_TRAJECTORY_POINTS = 29
-RING_STEPS = (
-    1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500,
-    1000, 2000, 2500, 5000, 10000, 20000, 25000,
-    50000, 100000,
-)
+FIXED_RING_VALUES_M = (500.0, 1000.0, 2000.0, 3000.0)
 RADAR_BLUE_GRAY = (78, 121, 142)
 # Keep the range labels unchanged while tuning only the radar-layer spacing.
 RADAR_LAYER_SCALE = 1.5 * 0.95
+RADAR_SECTOR_WIDTH_DEG = 60.0
+RADAR_SECTOR_HALF_WIDTH_DEG = RADAR_SECTOR_WIDTH_DEG / 2.0
+RADAR_SECTOR_CENTER_DEG = 0.0
 
 
 class RadarTagItem(QGraphicsItem):
     """Compact fixed-screen label with a dark, high-contrast background."""
 
-    def __init__(self, lines: tuple[str, ...], color: QColor, parent=None):
+    def __init__(
+        self,
+        lines: tuple[str, ...],
+        color: QColor,
+        parent=None,
+        detail_lines: tuple[str, ...] | None = None,
+    ):
         super().__init__(parent)
         self._color = QColor(color)
         self.font = QFont(ui_font_family(), 8)
+        self._compact_lines = tuple(lines)
+        self._detail_lines = tuple(detail_lines or lines)
+        self._expanded = False
+        self._lines: tuple[str, ...] = ()
+        self._rect = QRectF()
+        self.setAcceptHoverEvents(True)
+        self._rebuild_geometry()
+
+    def _rebuild_geometry(self):
         metrics = QFontMetrics(self.font)
+        source_lines = self._detail_lines if self._expanded else self._compact_lines
+        max_width = 320 if self._expanded else 220
         self._lines = tuple(
-            metrics.elidedText(line, Qt.TextElideMode.ElideRight, 220)
-            for line in lines
+            metrics.elidedText(line, Qt.TextElideMode.ElideRight, max_width)
+            for line in source_lines
         )
-        text_width = max(metrics.horizontalAdvance(line) for line in self._lines)
+        text_width = max(
+            (metrics.horizontalAdvance(line) for line in self._lines),
+            default=0,
+        )
         text_height = metrics.height() * len(self._lines) + 2
         self._rect = QRectF(
             0.0, 0.0, float(text_width + 28), float(text_height + 8))
+
+    def set_expanded(self, expanded: bool):
+        expanded = bool(expanded)
+        if expanded == self._expanded:
+            return
+        self.prepareGeometryChange()
+        self._expanded = expanded
+        self._rebuild_geometry()
+        self.update()
+        if self.scene() is not None:
+            self.scene().update()
+
+    @property
+    def expanded(self) -> bool:
+        return self._expanded
 
     def boundingRect(self) -> QRectF:
         return self._rect
@@ -79,7 +114,8 @@ class RadarTagItem(QGraphicsItem):
 
         painter.setPen(QPen(self._color, 0))
         painter.setBrush(self._color)
-        painter.drawEllipse(7, int(self._rect.height() / 2 - 3), 6, 6)
+        metrics = QFontMetrics(self.font)
+        painter.drawEllipse(7, int(6 + metrics.height() / 2 - 3), 6, 6)
 
         painter.setPen(QColor(247, 250, 255))
         metrics = QFontMetrics(self.font)
@@ -88,6 +124,14 @@ class RadarTagItem(QGraphicsItem):
             painter.drawText(19, y + metrics.ascent(), line)
             y += metrics.height()
         painter.restore()
+
+    def hoverEnterEvent(self, event):
+        self.set_expanded(True)
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self.set_expanded(False)
+        super().hoverLeaveEvent(event)
 
 
 def thin_pen(color, alpha: int | None = None) -> QPen:
@@ -120,7 +164,9 @@ class MapRadarView(QGraphicsView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.setInteractive(False)
+        self.setInteractive(True)
+        self.setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
         # Dynamic labels ignore the view transform. Full viewport updates keep
         # their old bounding regions from leaving stale pixels behind when a
         # target moves or a label is replaced.
@@ -148,6 +194,7 @@ class MapRadarView(QGraphicsView):
         self._map_cover_scale = 1.0
         self._dynamic_items = []
         self._static_text_items = []
+        self._scan_sector_item: QGraphicsPathItem | None = None
         self._target_signature = None
         self._build_layers()
 
@@ -185,12 +232,17 @@ class MapRadarView(QGraphicsView):
         self._target_signature = None
         self._draw_targets()
 
-    def record_frame(self, observations, *, frame_id=None, timestamp=None):
+    def record_frame(
+        self,
+        observations,
+        *,
+        frame_id=None,
+        timestamp=None,
+    ):
         observations = list(observations or [])
         if observations:
             stream_id = str(observations[0].stream_id)
             self.begin_stream(stream_id)
-
         if frame_id is None:
             frame_token = tuple(tuple(astuple(obs)) for obs in observations)
         else:
@@ -236,17 +288,27 @@ class MapRadarView(QGraphicsView):
             self.trajectories.move_to_end(key)
 
         while len(self.trajectories) > MAX_TRAJECTORIES:
-            removed, _history = self.trajectories.popitem(last=False)
+            removed, _removed_history = self.trajectories.popitem(last=False)
             self.latest_by_track.pop(removed, None)
             self.inferred.pop(removed, None)
             if self.selected_track == removed:
                 self.selected_track = None
         return frame_token
 
-    def update_targets(self, observations, inferred=None, *, frame_id=None, timestamp=None):
+    def update_targets(
+        self,
+        observations,
+        inferred=None,
+        *,
+        frame_id=None,
+        timestamp=None,
+    ):
         observations = list(observations or [])
         frame_token = self.record_frame(
-            observations, frame_id=frame_id, timestamp=timestamp)
+            observations,
+            frame_id=frame_id,
+            timestamp=timestamp,
+        )
 
         for key, value in (inferred or {}).items():
             if key in self.trajectories:
@@ -327,6 +389,9 @@ class MapRadarView(QGraphicsView):
         super().showEvent(event)
         self._build_layers()
 
+    def closeEvent(self, event):
+        super().closeEvent(event)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._build_layers()
@@ -360,6 +425,7 @@ class MapRadarView(QGraphicsView):
         self._dynamic_items = []
         self._target_signature = None
         self._map_item = None
+        self._scan_sector_item = None
         self._map_cover_scale = 1.0
         self._static_text_items = []
         scene.setBackgroundBrush(QColor(EMPTY_BACKGROUND))
@@ -463,10 +529,34 @@ class MapRadarView(QGraphicsView):
         disk.setZValue(1)
         scene.addItem(disk)
 
+        sector = QGraphicsPathItem()
+        sector.setBrush(QBrush(QColor(*RADAR_BLUE_GRAY, 76)))
+        sector.setPen(Qt.PenStyle.NoPen)
+        sector.setZValue(1.4)
+        sector.setData(0, "radar-fixed-sector")
+        scene.addItem(sector)
+        self._scan_sector_item = sector
+        sector.setPath(
+            self._fixed_sector_path(
+                self.plane_range_m * RADAR_LAYER_SCALE))
+
         self._draw_radar_crosshair(scene, radius)
 
         for value in self._ring_values():
             self._draw_range_ring(scene, value, ring_color, label_color)
+
+    @staticmethod
+    def _fixed_sector_path(radius: float) -> QPainterPath:
+        path = QPainterPath(QPointF(0.0, 0.0))
+        steps = 12
+        start = RADAR_SECTOR_CENTER_DEG - RADAR_SECTOR_HALF_WIDTH_DEG
+        for index in range(steps + 1):
+            bearing = start + RADAR_SECTOR_WIDTH_DEG * index / steps
+            angle = math.radians(bearing)
+            path.lineTo(
+                QPointF(radius * math.sin(angle), -radius * math.cos(angle)))
+        path.closeSubpath()
+        return path
 
     def _draw_radar_crosshair(self, scene: QGraphicsScene, radius: float):
         """Draw balanced cardinal and shorter diagonal radar reference lines."""
@@ -532,20 +622,7 @@ class MapRadarView(QGraphicsView):
         return self._view_radius_px() / self.plane_range_m
 
     def _ring_values(self):
-        # Keep about 64 px between range rings, then round the interval to a
-        # human-friendly scale step. The coverage boundary is drawn separately,
-        # so it is not repeated when too close to the final scale ring.
-        ppm = self._screen_pixels_per_meter() * self._zoom
-        desired_step_m = 64.0 / ppm
-        step = next(value for value in RING_STEPS if value >= desired_step_m)
-        values = [
-            float(value)
-            for value in range(step, int(math.ceil(self.plane_range_m)), step)
-        ]
-        remaining_px = (self.plane_range_m - (values[-1] if values else 0.0)) * ppm
-        if remaining_px >= 40.0:
-            values.append(self.plane_range_m)
-        return values
+        return list(FIXED_RING_VALUES_M)
 
     def _draw_range_ring(
         self,
@@ -567,7 +644,7 @@ class MapRadarView(QGraphicsView):
         ring.setZValue(2)
         scene.addItem(ring)
 
-        label = QGraphicsTextItem(f"{value:g}m")
+        label = QGraphicsTextItem(f"{value / 1000.0:g}km")
         label.setDefaultTextColor(label_color or QColor(188, 204, 216))
         label.setFont(QFont(ui_font_family(), 8))
         label.setZValue(3)
@@ -611,8 +688,9 @@ class MapRadarView(QGraphicsView):
 
             history = self.trajectories.get(key, ())
             if self.trails_visible:
-                point_count = len(history)
-                for index, point_obs in enumerate(list(history)[:-1]):
+                visible_history = list(history)[:-1]
+                point_count = len(visible_history)
+                for index, point_obs in enumerate(visible_history):
                     point_color = QColor(color)
                     point_color.setAlpha(90 + int(105 * (index + 1) / max(point_count, 1)))
                     radius = 2.7 if is_selected else 2.1
@@ -644,7 +722,9 @@ class MapRadarView(QGraphicsView):
             if self.labels_visible:
                 tag = RadarTagItem(
                     (header, f"{obs.ground_range_m:.0f}m  {obs.speed_mps:.1f}m/s"),
-                    color)
+                    color,
+                    detail_lines=tuple(self._tooltip(obs).splitlines()),
+                )
                 tag.setZValue(8 if is_selected else 7)
                 tag.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
                 tag.setToolTip(self._tooltip(obs))

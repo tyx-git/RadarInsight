@@ -15,6 +15,7 @@ import struct
 import threading
 import time
 import queue as _queue
+import re
 from urllib.parse import unquote, urlparse
 
 
@@ -46,6 +47,8 @@ INFERENCE_CLASS_NAMES = {
     5: "unknown",
     6: "pending",
 }
+DEFAULT_SCAN_INTERVAL_SECONDS = 3.0
+RTP_CLOCK_HZ = 90000.0
 
 
 def sha256(text: str) -> str:
@@ -57,6 +60,27 @@ def digest_response(username, password, realm, method, uri, nonce,
     ha1 = sha256(f"{username}:{realm}:{password}")
     ha2 = sha256(f"{method}:{uri}")
     return sha256(f"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2}")
+
+
+def parse_sdp_update_rate(sdp: str) -> float | None:
+    """Read the track media ``updateRate`` from an R-RTSP SDP body."""
+
+    in_track_media = False
+    for raw_line in str(sdp or "").splitlines():
+        line = raw_line.strip()
+        if line.startswith("m="):
+            in_track_media = bool(re.match(r"m=\S+\s+\d+\s+\S+\s+97(?:\s|$)", line))
+            continue
+        if not in_track_media or not line.lower().startswith("a=fmtp:"):
+            continue
+        match = re.search(r"(?:^|;)\s*updateRate\s*=\s*([0-9]+(?:\.[0-9]*)?(?:[eE][+-]?\d+)?)", line)
+        if match:
+            try:
+                value = float(match.group(1))
+            except ValueError:
+                return None
+            return value if value > 0.0 else None
+    return None
 
 
 def parse_track_payload(payload: bytes) -> list[dict]:
@@ -148,6 +172,10 @@ class RRTSPConnection:
         self.playing = False
         self.has_rd = False
         self.has_inference = False
+        self.sdp = ""
+        self.update_rate_hz: float | None = None
+        self.scan_interval_seconds = DEFAULT_SCAN_INTERVAL_SECONDS
+        self.last_response_body = b""
         self.challenge: dict[str, str] | None = None
         self.nc = 0
         self.cnonce = secrets.token_hex(8)
@@ -164,6 +192,12 @@ class RRTSPConnection:
     def open(self):
         self.tcp = socket.create_connection((self.host, self.port), timeout=5)
         self.command("DESCRIBE")
+        self.sdp = self.last_response_body.decode("utf-8", "replace")
+        self.update_rate_hz = parse_sdp_update_rate(self.sdp)
+        if self.update_rate_hz is not None and self.update_rate_hz > 0.0:
+            self.scan_interval_seconds = 1.0 / self.update_rate_hz
+        else:
+            self.scan_interval_seconds = DEFAULT_SCAN_INTERVAL_SECONDS
 
         self.rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -221,6 +255,9 @@ class RRTSPConnection:
 
     def close(self):
         self._stop.set()
+        self._rd_pending.clear()
+        self._inference_pending.clear()
+        self.last_remote_labels = {}
         try:
             if self.tcp and self.playing:
                 self.command("TEARDOWN", accepted_statuses=(200, 404, 454))
@@ -230,6 +267,12 @@ class RRTSPConnection:
 
         for thread in self._threads:
             thread.join(timeout=0.5)
+        for pending_queue in (self.track_q, self.rd_q, self.inference_q):
+            while True:
+                try:
+                    pending_queue.get_nowait()
+                except _queue.Empty:
+                    break
         for sock in (
             self.tcp, self.rtp, self.rtcp,
             self.rd_rtp, self.rd_rtcp,
@@ -245,6 +288,10 @@ class RRTSPConnection:
         self.rd_rtp = self.rd_rtcp = None
         self.inference_rtp = self.inference_rtcp = None
 
+    @property
+    def stopped(self) -> bool:
+        return self._stop.is_set()
+
     def command(self, method: str, path: str | None = None,
                 headers: dict | None = None, accepted_statuses=(200,)):
         uri = path or self.url
@@ -259,7 +306,8 @@ class RRTSPConnection:
         data = ("\r\n".join(lines) + "\r\n\r\n").encode("utf-8")
         assert self.tcp is not None
         self.tcp.sendall(data)
-        status, resp_headers, _body = self._read_response()
+        status, resp_headers, response_body = self._read_response()
+        self.last_response_body = response_body
 
         if status == 401:
             challenge_text = resp_headers.get("www-authenticate", "")
@@ -350,6 +398,13 @@ class RRTSPConnection:
 
     def _start_receivers(self):
         self._stop.clear()
+        watchdog_thread = threading.Thread(
+            target=self._connection_watchdog,
+            name="aerosight-rrtsp-watchdog",
+            daemon=True,
+        )
+        self._threads.append(watchdog_thread)
+        watchdog_thread.start()
         track_thread = threading.Thread(
             target=self._track_loop, name="aerosight-rrtsp-track", daemon=True
         )
@@ -369,6 +424,27 @@ class RRTSPConnection:
             )
             self._threads.append(inference_thread)
             inference_thread.start()
+
+    def _connection_watchdog(self):
+        """Notice a closed RTSP control socket while UDP media is idle."""
+
+        tcp = self.tcp
+        if tcp is None:
+            return
+        tcp.settimeout(0.2)
+        while not self._stop.is_set():
+            try:
+                data = tcp.recv(1, socket.MSG_PEEK)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            if not data:
+                break
+            # A response may be waiting for a control command. Do not consume
+            # it here; just avoid a busy loop while the command reader drains it.
+            self._stop.wait(0.2)
+        self._stop.set()
 
     def _track_loop(self):
         assert self.rtp is not None
@@ -509,8 +585,18 @@ class RRTSPConnection:
         return amplitude, phase
 
     def receive_paired(self, timeout: float = 0.5):
-        """Return next track frame and RD with same RTP timestamp."""
-        timestamp, tracks = self.track_q.get(timeout=timeout)
+        """Return one complete timestamp-matched radar batch.
+
+        When the server advertises PT=98, the current track batch remains
+        blocked until its classification packet arrives. This preserves batch
+        order and prevents later track packets from reaching the UI first.
+        """
+        try:
+            timestamp, tracks = self.track_q.get(timeout=timeout)
+        except _queue.Empty:
+            if self._stop.is_set():
+                raise ConnectionError("R-RTSP control connection is closed")
+            raise
         rd = None
         if self.has_rd:
             rd = self._wait_for_rd(timestamp)
@@ -526,18 +612,19 @@ class RRTSPConnection:
     ) -> dict[int, tuple[str, float]]:
         if timestamp in self._inference_pending:
             return self._inference_pending.pop(timestamp)
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        # ``timeout`` is retained for source compatibility. Inference is a
+        # required part of a remote-inference batch and must not time out.
+        while not self._stop.is_set():
             try:
                 result_timestamp, labels = self.inference_q.get(
-                    timeout=min(0.05, max(0.0, deadline - time.monotonic()))
+                    timeout=0.1
                 )
             except _queue.Empty:
                 continue
             if result_timestamp == timestamp:
                 return labels
             self._inference_pending[result_timestamp] = labels
-        return {}
+        raise TimeoutError("R-RTSP connection closed while waiting for inference")
 
     def _wait_for_rd(self, timestamp: int, timeout: float = 0.8):
         if timestamp in self._rd_pending:
