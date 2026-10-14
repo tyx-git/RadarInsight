@@ -1,0 +1,501 @@
+{
+  "schema_version": "RADAR-LN3-L1-MATURITY-PRELIMINARY-COMPARISON-V1",
+  "source": "F:\\Project\\RadarInsight\\tmp\\L1_18\\full-l3-replay.json",
+  "final_metrics_valid": true,
+  "event10_comparison_valid": false,
+  "reason": "原 replay 将所有 event>=10 使用终点阈值；已修复脚本，需重跑后确认 event10。",
+  "splits": {
+    "validation": {
+      "shared": {
+        "parent_count": 247,
+        "action_counts": {
+          "DroneTarget": 108,
+          "BirdTarget": 54,
+          "PENDING_ABSTAIN": 3,
+          "UNKNOWN_REJECTED": 22,
+          "Clutter": 8,
+          "BalloonTarget": 52
+        },
+        "reason_counts": {
+          "KNOWN_DBB_CLASS_ACCEPTED": 214,
+          "L2_ROUTE_CONFLICT": 2,
+          "L2_KNOWNNESS_BELOW_THRESHOLD": 8,
+          "L1_KNOWNNESS_BELOW_THRESHOLD": 12,
+          "L1_CLUTTER_ACCEPTED": 8,
+          "L2_CONFORMAL_SET_EMPTY": 1,
+          "L1_CONFORMAL_SET_EMPTY": 1,
+          "L2_CLASS_AMBIGUOUS": 1
+        },
+        "by_label": {
+          "DroneTarget": {
+            "support": 113,
+            "accepted": 110,
+            "correct_accepted": 107,
+            "actions": {
+              "DroneTarget": 107,
+              "BirdTarget": 3,
+              "PENDING_ABSTAIN": 1,
+              "UNKNOWN_REJECTED": 2
+            }
+          },
+          "BirdTarget": {
+            "support": 56,
+            "accepted": 49,
+            "correct_accepted": 48,
+            "actions": {
+              "DroneTarget": 1,
+              "UNKNOWN_REJECTED": 7,
+              "BirdTarget": 48
+            }
+          },
+          "BalloonTarget": {
+            "support": 54,
+            "accepted": 52,
+            "correct_accepted": 52,
+            "actions": {
+              "BalloonTarget": 52,
+              "UNKNOWN_REJECTED": 1,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "ClutterTarget": {
+            "support": 9,
+            "accepted": 6,
+            "correct_accepted": 6,
+            "actions": {
+              "Clutter": 6,
+              "UNKNOWN_REJECTED": 3
+            }
+          },
+          "UnknownTarget": {
+            "support": 15,
+            "accepted": 5,
+            "correct_accepted": 0,
+            "actions": {
+              "BirdTarget": 3,
+              "UNKNOWN_REJECTED": 9,
+              "Clutter": 2,
+              "PENDING_ABSTAIN": 1
+            }
+          }
+        }
+      },
+      "maturity": {
+        "parent_count": 247,
+        "action_counts": {
+          "DroneTarget": 108,
+          "BirdTarget": 54,
+          "PENDING_ABSTAIN": 3,
+          "UNKNOWN_REJECTED": 22,
+          "Clutter": 8,
+          "BalloonTarget": 52
+        },
+        "reason_counts": {
+          "KNOWN_DBB_CLASS_ACCEPTED": 214,
+          "L2_ROUTE_CONFLICT": 2,
+          "L2_KNOWNNESS_BELOW_THRESHOLD": 8,
+          "L1_KNOWNNESS_BELOW_THRESHOLD": 12,
+          "L1_CLUTTER_ACCEPTED": 8,
+          "L2_CONFORMAL_SET_EMPTY": 1,
+          "L1_CONFORMAL_SET_EMPTY": 1,
+          "L2_CLASS_AMBIGUOUS": 1
+        },
+        "by_label": {
+          "DroneTarget": {
+            "support": 113,
+            "accepted": 110,
+            "correct_accepted": 107,
+            "actions": {
+              "DroneTarget": 107,
+              "BirdTarget": 3,
+              "PENDING_ABSTAIN": 1,
+              "UNKNOWN_REJECTED": 2
+            }
+          },
+          "BirdTarget": {
+            "support": 56,
+            "accepted": 49,
+            "correct_accepted": 48,
+            "actions": {
+              "DroneTarget": 1,
+              "UNKNOWN_REJECTED": 7,
+              "BirdTarget": 48
+            }
+          },
+          "BalloonTarget": {
+            "support": 54,
+            "accepted": 52,
+            "correct_accepted": 52,
+            "actions": {
+              "BalloonTarget": 52,
+              "UNKNOWN_REJECTED": 1,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "ClutterTarget": {
+            "support": 9,
+            "accepted": 6,
+            "correct_accepted": 6,
+            "actions": {
+              "Clutter": 6,
+              "UNKNOWN_REJECTED": 3
+            }
+          },
+          "UnknownTarget": {
+            "support": 15,
+            "accepted": 5,
+            "correct_accepted": 0,
+            "actions": {
+              "BirdTarget": 3,
+              "UNKNOWN_REJECTED": 9,
+              "Clutter": 2,
+              "PENDING_ABSTAIN": 1
+            }
+          }
+        }
+      },
+      "events": {
+        "3": {
+          "shared": {
+            "eligible": 247,
+            "actions": {
+              "PENDING_ABSTAIN": 247
+            },
+            "bird_actions": {
+              "PENDING_ABSTAIN": 56
+            },
+            "bird_correct": 0,
+            "unknown_accepted": 0,
+            "unknown_support": 15,
+            "reason_counts": {
+              "L1_LOW_QUALITY_OR_IMMATURE": 247
+            }
+          },
+          "maturity": {
+            "eligible": 247,
+            "actions": {
+              "PENDING_ABSTAIN": 247
+            },
+            "bird_actions": {
+              "PENDING_ABSTAIN": 56
+            },
+            "bird_correct": 0,
+            "unknown_accepted": 0,
+            "unknown_support": 15,
+            "reason_counts": {
+              "L1_LOW_QUALITY_OR_IMMATURE": 247
+            }
+          }
+        },
+        "5": {
+          "shared": {
+            "eligible": 247,
+            "actions": {
+              "PENDING_ABSTAIN": 6,
+              "DroneTarget": 102,
+              "UNKNOWN_REJECTED": 67,
+              "BirdTarget": 29,
+              "BalloonTarget": 41,
+              "Clutter": 2
+            },
+            "bird_actions": {
+              "DroneTarget": 1,
+              "UNKNOWN_REJECTED": 26,
+              "PENDING_ABSTAIN": 2,
+              "BirdTarget": 26,
+              "BalloonTarget": 1
+            },
+            "bird_correct": 26,
+            "unknown_accepted": 2,
+            "unknown_support": 15,
+            "reason_counts": {
+              "L2_CLASS_AMBIGUOUS": 1,
+              "KNOWN_DBB_CLASS_ACCEPTED": 172,
+              "L2_CONFORMAL_SET_EMPTY": 12,
+              "L2_KNOWNNESS_BELOW_THRESHOLD": 5,
+              "L1_KNOWNNESS_BELOW_THRESHOLD": 50,
+              "L1_LOW_QUALITY_OR_IMMATURE": 4,
+              "L1_CLUTTER_ACCEPTED": 2,
+              "L2_ROUTE_CONFLICT": 1
+            }
+          },
+          "maturity": {
+            "eligible": 247,
+            "actions": {
+              "PENDING_ABSTAIN": 7,
+              "DroneTarget": 102,
+              "UNKNOWN_REJECTED": 64,
+              "BirdTarget": 29,
+              "BalloonTarget": 43,
+              "Clutter": 2
+            },
+            "bird_actions": {
+              "DroneTarget": 1,
+              "UNKNOWN_REJECTED": 26,
+              "PENDING_ABSTAIN": 2,
+              "BirdTarget": 26,
+              "BalloonTarget": 1
+            },
+            "bird_correct": 26,
+            "unknown_accepted": 2,
+            "unknown_support": 15,
+            "reason_counts": {
+              "L2_CLASS_AMBIGUOUS": 2,
+              "KNOWN_DBB_CLASS_ACCEPTED": 174,
+              "L2_CONFORMAL_SET_EMPTY": 12,
+              "L2_KNOWNNESS_BELOW_THRESHOLD": 8,
+              "L1_KNOWNNESS_BELOW_THRESHOLD": 44,
+              "L1_LOW_QUALITY_OR_IMMATURE": 4,
+              "L1_CLUTTER_ACCEPTED": 2,
+              "L2_ROUTE_CONFLICT": 1
+            }
+          }
+        }
+      }
+    },
+    "test": {
+      "shared": {
+        "parent_count": 244,
+        "action_counts": {
+          "DroneTarget": 109,
+          "BirdTarget": 43,
+          "Clutter": 7,
+          "UNKNOWN_REJECTED": 27,
+          "BalloonTarget": 56,
+          "PENDING_ABSTAIN": 2
+        },
+        "reason_counts": {
+          "KNOWN_DBB_CLASS_ACCEPTED": 208,
+          "L1_CLUTTER_ACCEPTED": 7,
+          "L2_KNOWNNESS_BELOW_THRESHOLD": 10,
+          "L1_KNOWNNESS_BELOW_THRESHOLD": 14,
+          "L1_CONFORMAL_SET_EMPTY": 2,
+          "L2_CONFORMAL_SET_EMPTY": 1,
+          "L1_LOW_QUALITY_OR_IMMATURE": 2
+        },
+        "by_label": {
+          "DroneTarget": {
+            "support": 109,
+            "accepted": 108,
+            "correct_accepted": 107,
+            "actions": {
+              "DroneTarget": 107,
+              "BirdTarget": 1,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "BirdTarget": {
+            "support": 53,
+            "accepted": 41,
+            "correct_accepted": 37,
+            "actions": {
+              "BirdTarget": 37,
+              "UNKNOWN_REJECTED": 11,
+              "Clutter": 2,
+              "DroneTarget": 2,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "BalloonTarget": {
+            "support": 58,
+            "accepted": 56,
+            "correct_accepted": 56,
+            "actions": {
+              "BalloonTarget": 56,
+              "UNKNOWN_REJECTED": 2
+            }
+          },
+          "ClutterTarget": {
+            "support": 8,
+            "accepted": 5,
+            "correct_accepted": 5,
+            "actions": {
+              "Clutter": 5,
+              "UNKNOWN_REJECTED": 3
+            }
+          },
+          "UnknownTarget": {
+            "support": 16,
+            "accepted": 5,
+            "correct_accepted": 0,
+            "actions": {
+              "BirdTarget": 5,
+              "UNKNOWN_REJECTED": 11
+            }
+          }
+        }
+      },
+      "maturity": {
+        "parent_count": 244,
+        "action_counts": {
+          "DroneTarget": 109,
+          "BirdTarget": 43,
+          "Clutter": 7,
+          "UNKNOWN_REJECTED": 27,
+          "BalloonTarget": 56,
+          "PENDING_ABSTAIN": 2
+        },
+        "reason_counts": {
+          "KNOWN_DBB_CLASS_ACCEPTED": 208,
+          "L1_CLUTTER_ACCEPTED": 7,
+          "L2_KNOWNNESS_BELOW_THRESHOLD": 10,
+          "L1_KNOWNNESS_BELOW_THRESHOLD": 14,
+          "L1_CONFORMAL_SET_EMPTY": 2,
+          "L2_CONFORMAL_SET_EMPTY": 1,
+          "L1_LOW_QUALITY_OR_IMMATURE": 2
+        },
+        "by_label": {
+          "DroneTarget": {
+            "support": 109,
+            "accepted": 108,
+            "correct_accepted": 107,
+            "actions": {
+              "DroneTarget": 107,
+              "BirdTarget": 1,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "BirdTarget": {
+            "support": 53,
+            "accepted": 41,
+            "correct_accepted": 37,
+            "actions": {
+              "BirdTarget": 37,
+              "UNKNOWN_REJECTED": 11,
+              "Clutter": 2,
+              "DroneTarget": 2,
+              "PENDING_ABSTAIN": 1
+            }
+          },
+          "BalloonTarget": {
+            "support": 58,
+            "accepted": 56,
+            "correct_accepted": 56,
+            "actions": {
+              "BalloonTarget": 56,
+              "UNKNOWN_REJECTED": 2
+            }
+          },
+          "ClutterTarget": {
+            "support": 8,
+            "accepted": 5,
+            "correct_accepted": 5,
+            "actions": {
+              "Clutter": 5,
+              "UNKNOWN_REJECTED": 3
+            }
+          },
+          "UnknownTarget": {
+            "support": 16,
+            "accepted": 5,
+            "correct_accepted": 0,
+            "actions": {
+              "BirdTarget": 5,
+              "UNKNOWN_REJECTED": 11
+            }
+          }
+        }
+      },
+      "events": {
+        "3": {
+          "shared": {
+            "eligible": 244,
+            "actions": {
+              "PENDING_ABSTAIN": 244
+            },
+            "bird_actions": {
+              "PENDING_ABSTAIN": 53
+            },
+            "bird_correct": 0,
+            "unknown_accepted": 0,
+            "unknown_support": 16,
+            "reason_counts": {
+              "L1_LOW_QUALITY_OR_IMMATURE": 244
+            }
+          },
+          "maturity": {
+            "eligible": 244,
+            "actions": {
+              "PENDING_ABSTAIN": 244
+            },
+            "bird_actions": {
+              "PENDING_ABSTAIN": 53
+            },
+            "bird_correct": 0,
+            "unknown_accepted": 0,
+            "unknown_support": 16,
+            "reason_counts": {
+              "L1_LOW_QUALITY_OR_IMMATURE": 244
+            }
+          }
+        },
+        "5": {
+          "shared": {
+            "eligible": 244,
+            "actions": {
+              "DroneTarget": 103,
+              "UNKNOWN_REJECTED": 58,
+              "PENDING_ABSTAIN": 7,
+              "BirdTarget": 30,
+              "Clutter": 3,
+              "BalloonTarget": 43
+            },
+            "bird_actions": {
+              "UNKNOWN_REJECTED": 27,
+              "BirdTarget": 19,
+              "Clutter": 1,
+              "BalloonTarget": 1,
+              "DroneTarget": 3,
+              "PENDING_ABSTAIN": 2
+            },
+            "bird_correct": 19,
+            "unknown_accepted": 1,
+            "unknown_support": 16,
+            "reason_counts": {
+              "KNOWN_DBB_CLASS_ACCEPTED": 176,
+              "L1_KNOWNNESS_BELOW_THRESHOLD": 48,
+              "L1_LOW_QUALITY_OR_IMMATURE": 1,
+              "L2_CLASS_AMBIGUOUS": 1,
+              "L1_CLUTTER_ACCEPTED": 3,
+              "L2_KNOWNNESS_BELOW_THRESHOLD": 7,
+              "L2_ROUTE_CONFLICT": 5,
+              "L2_CONFORMAL_SET_EMPTY": 3
+            }
+          },
+          "maturity": {
+            "eligible": 244,
+            "actions": {
+              "DroneTarget": 103,
+              "UNKNOWN_REJECTED": 50,
+              "PENDING_ABSTAIN": 7,
+              "BirdTarget": 34,
+              "Clutter": 3,
+              "BalloonTarget": 47
+            },
+            "bird_actions": {
+              "UNKNOWN_REJECTED": 24,
+              "BirdTarget": 22,
+              "Clutter": 1,
+              "BalloonTarget": 1,
+              "DroneTarget": 3,
+              "PENDING_ABSTAIN": 2
+            },
+            "bird_correct": 22,
+            "unknown_accepted": 2,
+            "unknown_support": 16,
+            "reason_counts": {
+              "KNOWN_DBB_CLASS_ACCEPTED": 184,
+              "L1_KNOWNNESS_BELOW_THRESHOLD": 36,
+              "L1_LOW_QUALITY_OR_IMMATURE": 1,
+              "L2_CLASS_AMBIGUOUS": 1,
+              "L2_KNOWNNESS_BELOW_THRESHOLD": 11,
+              "L1_CLUTTER_ACCEPTED": 3,
+              "L2_ROUTE_CONFLICT": 5,
+              "L2_CONFORMAL_SET_EMPTY": 3
+            }
+          }
+        }
+      }
+    }
+  }
+}

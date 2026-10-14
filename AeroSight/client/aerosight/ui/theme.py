@@ -95,6 +95,10 @@ QFrame#MiniCard,QFrame#Card {{ background:{C.card}; border:1px solid {C.border};
 QLabel#MiniTitle {{ color:{C.text_faint}; font-size:8pt; }}
 QLabel#MiniValue {{ color:{C.text}; font-size:14pt; font-weight:800; }}
 QLabel#TargetCount {{ color:{C.text_dim}; font-size:9pt; font-weight:700; }}
+QLabel#AnalysisTitle {{ color:{C.text}; font-size:13pt; font-weight:700; }}
+QLabel#AnalysisCount {{ color:{C.text_dim}; font-size:9pt; }}
+QLabel#AnalysisSpeed {{ color:{C.cyan}; font-size:10pt; font-weight:600; }}
+QLabel#AnalysisAltitude {{ color:{C.blue}; font-size:10pt; font-weight:600; }}
 QLabel#MetricValue {{ font-size:19pt; font-weight:800; color:{C.text}; }}
 QLabel#MetricUnit,QLabel#MetricName {{ color:{C.text_dim}; }}
 QPushButton {{ background:{C.panel}; border:1px solid {C.border}; border-radius:4px; padding:6px 12px; }}

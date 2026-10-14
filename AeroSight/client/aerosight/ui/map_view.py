@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Callable
 from collections import OrderedDict, deque
 from dataclasses import astuple
 
@@ -54,6 +55,8 @@ class RadarTagItem(QGraphicsItem):
         color: QColor,
         parent=None,
         detail_lines: tuple[str, ...] | None = None,
+        track_key: tuple[str, int] | None = None,
+        analysis_requested: Callable[[str, int], None] | None = None,
     ):
         super().__init__(parent)
         self._color = QColor(color)
@@ -61,6 +64,8 @@ class RadarTagItem(QGraphicsItem):
         self._compact_lines = tuple(lines)
         self._detail_lines = tuple(detail_lines or lines)
         self._expanded = False
+        self._track_key = track_key
+        self._analysis_requested = analysis_requested
         self._lines: tuple[str, ...] = ()
         self._rect = QRectF()
         self.setAcceptHoverEvents(True)
@@ -133,6 +138,13 @@ class RadarTagItem(QGraphicsItem):
         self.set_expanded(False)
         super().hoverLeaveEvent(event)
 
+    def contextMenuEvent(self, event):
+        if self._track_key is not None and self._analysis_requested is not None:
+            self._analysis_requested(*self._track_key)
+            event.accept()
+            return
+        super().contextMenuEvent(event)
+
 
 def thin_pen(color, alpha: int | None = None) -> QPen:
     """Return a fixed, hairline-width screen pen."""
@@ -152,6 +164,8 @@ class MapRadarView(QGraphicsView):
 
     # Calibration clicks report original image pixels, not scene coordinates.
     mapClicked = Signal(QPointF)
+    # Track IDs are uint32 on the wire; a Qt signed-int signal would overflow.
+    trackAnalysisRequested = Signal(str, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -724,6 +738,8 @@ class MapRadarView(QGraphicsView):
                     (header, f"{obs.ground_range_m:.0f}m  {obs.speed_mps:.1f}m/s"),
                     color,
                     detail_lines=tuple(self._tooltip(obs).splitlines()),
+                    track_key=key,
+                    analysis_requested=self.trackAnalysisRequested.emit,
                 )
                 tag.setZValue(8 if is_selected else 7)
                 tag.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)

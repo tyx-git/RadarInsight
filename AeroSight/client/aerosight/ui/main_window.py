@@ -17,10 +17,12 @@ from PySide6.QtWidgets import (
     QMainWindow, QPushButton, QSizePolicy, QTableWidget,
     QTableWidgetItem, QVBoxLayout, QWidget)
 
+from aerosight.core.track_analysis import TrackAnalysisHistory
 from aerosight.ui.i18n import t
 from aerosight.ui.map_view import MapRadarView
 from aerosight.ui.settings_dialog import BasicSettingsDialog
 from aerosight.ui.theme import C, category_color
+from aerosight.ui.track_analysis import TrackAnalysisDialog
 from aerosight.ui.widgets import LedDot
 
 log = logging.getLogger(__name__)
@@ -120,6 +122,8 @@ class MainWindow(QMainWindow):
         self.last_fps_at_by_instance: dict[str, float] = {}
         self.current_instance_id = ""
         self.settings_dialog = None
+        self.analysis_history = TrackAnalysisHistory()
+        self.analysis_windows: dict[tuple[str, int], TrackAnalysisDialog] = {}
         self._target_table_signature = None
 
         self.setWindowTitle(cfg["ui"].get("window_title", t("app_title")))
@@ -146,6 +150,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
         layout.addWidget(self._topbar())
         self.map_view = MapRadarView()
+        self.map_view.trackAnalysisRequested.connect(self.open_track_analysis)
         layout.addWidget(self._viewbar())
 
         workspace = QWidget()
@@ -410,6 +415,12 @@ class MainWindow(QMainWindow):
                 break
             if kind == "frame":
                 self.latest_frames[payload.stream_id] = payload
+                added = self.analysis_history.record_frame(payload)
+                for key, samples in added.items():
+                    dialog = self.analysis_windows.get(key)
+                    if dialog is not None:
+                        dialog.set_stream_name(payload.stream_name)
+                        dialog.append_samples(samples)
                 if payload.stream_id == self.current_instance_id:
                     self.map_view.record_frame(
                         payload.observations,
@@ -422,6 +433,14 @@ class MainWindow(QMainWindow):
                     payload.stream_id, deque(maxlen=300)).append(time.time())
                 self._forward(payload)
             elif kind == "status":
+                previous = self.stream_status.get(payload.id)
+                if payload.state == "connected" and (
+                    previous is None or previous.state != "connected"
+                ):
+                    self.analysis_history.reset_stream(payload.id)
+                    for key, dialog in self.analysis_windows.items():
+                        if key[0] == payload.id:
+                            dialog.reset_history()
                 self.stream_status[payload.id] = payload
 
     def _drain_results(self):
@@ -658,11 +677,36 @@ class MainWindow(QMainWindow):
         if item is not None:
             self.map_view.select_track(item.data(Qt.ItemDataRole.UserRole))
 
+    def open_track_analysis(self, stream_id: str, track_id: int):
+        key = (str(stream_id), int(track_id))
+        dialog = self.analysis_windows.get(key)
+        if dialog is None:
+            frame = self.latest_frames.get(key[0])
+            instance = self._find_instance(key[0]) or {}
+            name = frame.stream_name if frame is not None else instance.get("name", key[0])
+            dialog = TrackAnalysisDialog(key[0], key[1], name, self)
+            dialog.append_samples(self.analysis_history.samples_for(*key))
+            self.analysis_windows[key] = dialog
+            dialog.finished.connect(
+                lambda _result, key=key: self.analysis_windows.pop(key, None))
+        if dialog.isMinimized():
+            dialog.showNormal()
+        else:
+            dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
     def _on_applied(self, cfg):
         configured = {
             item["id"] for item in cfg.get("instances", [])
             if item.get("enabled", True)
         }
+        for stream_id in self.analysis_history.stream_ids:
+            if stream_id not in configured:
+                self.analysis_history.reset_stream(stream_id)
+        for key, dialog in list(self.analysis_windows.items()):
+            if key[0] not in configured:
+                dialog.close()
         for instance_id in list(self.latest_frames):
             if instance_id not in configured:
                 self.latest_frames.pop(instance_id, None)
@@ -699,4 +743,7 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self.clock.stop()
         self.stop_event.set()
+        for dialog in list(self.analysis_windows.values()):
+            dialog.close()
+        self.analysis_history.clear()
         event.accept()
