@@ -184,9 +184,18 @@ class BasicSettingsDialog(QDialog):
         self.rrtsp_username = QLineEdit()
         self.rrtsp_password = QLineEdit()
         self.rrtsp_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.backend_send_period = QDoubleSpinBox()
+        self.backend_send_period.setRange(0.05, 3600.0)
+        self.backend_send_period.setDecimals(2)
+        self.backend_send_period.setSuffix(" s")
+        self.backend_send_period.valueChanged.connect(self._on_form_changed)
         form.addRow(self._form_label(t("rrtsp_url")), self.rrtsp_url)
         form.addRow(self._form_label(t("username")), self.rrtsp_username)
         form.addRow(self._form_label(t("password")), self.rrtsp_password)
+        form.addRow(
+            self._form_label(t("backend_send_period")),
+            self.backend_send_period,
+        )
 
         self.simulation_rate = QDoubleSpinBox()
         self.simulation_rate.setRange(0.1, 30.0)
@@ -212,6 +221,22 @@ class BasicSettingsDialog(QDialog):
         self.preview_range.setDecimals(0)
         self.preview_range.valueChanged.connect(self._on_form_changed)
         form.addRow(self._form_label(t("preview_range")), self.preview_range)
+
+        self.radar_display_mode = QComboBox()
+        self.radar_display_mode.addItem(t("radar_mode_fixed"), "fixed")
+        self.radar_display_mode.addItem(t("radar_mode_scan"), "scan")
+        self.radar_display_mode.currentIndexChanged.connect(self._on_form_changed)
+        form.addRow(self._form_label(t("radar_display_mode")), self.radar_display_mode)
+
+        self.frontend_scan_period = QDoubleSpinBox()
+        self.frontend_scan_period.setRange(0.1, 3600.0)
+        self.frontend_scan_period.setDecimals(1)
+        self.frontend_scan_period.setSuffix(" s")
+        self.frontend_scan_period.valueChanged.connect(self._on_form_changed)
+        form.addRow(
+            self._form_label(t("frontend_scan_period")),
+            self.frontend_scan_period,
+        )
         return page
 
     def _map_page(self):
@@ -458,9 +483,19 @@ class BasicSettingsDialog(QDialog):
         self.rrtsp_url.setText(rrtsp.get("url", ""))
         self.rrtsp_username.setText(rrtsp.get("username", ""))
         self.rrtsp_password.setText(rrtsp.get("password", ""))
+        self.backend_send_period.setValue(
+            max(float(rrtsp.get("send_interval_seconds", 1.0)), 0.05)
+        )
         self.simulation_rate.setValue(source.get("simulation", {}).get("rate_hz", 5))
 
         self.preview_range.setValue(item.get("display", {}).get("plane_range_m", 3000))
+        display_cfg = item.get("display", {})
+        mode = str(display_cfg.get("radar_display_mode", "fixed"))
+        mode_index = self.radar_display_mode.findData(mode)
+        self.radar_display_mode.setCurrentIndex(max(mode_index, 0))
+        self.frontend_scan_period.setValue(
+            max(float(display_cfg.get("frontend_scan_period_seconds", 3.0)), 0.1)
+        )
         map_cfg = item.get("map", {})
         self.map_path.setText(map_cfg.get("image_path", ""))
         self.radar_x.setValue(map_cfg.get("radar_x", 975))
@@ -495,12 +530,17 @@ class BasicSettingsDialog(QDialog):
                 "remote_inference": bool(
                     item.get("source", {}).get("rrtsp", {}).get("remote_inference", False)
                 ),
+                "send_interval_seconds": float(self.backend_send_period.value()),
             },
             "simulation": {
                 "rate_hz": float(self.simulation_rate.value()),
             },
         }
-        item["display"] = {"plane_range_m": float(self.preview_range.value())}
+        item["display"] = {
+            "plane_range_m": float(self.preview_range.value()),
+            "radar_display_mode": str(self.radar_display_mode.currentData() or "fixed"),
+            "frontend_scan_period_seconds": float(self.frontend_scan_period.value()),
+        }
         item["map"] = normalize_map({
             "image_path": self.map_path.text().strip(),
             "radar_x": float(self.radar_x.value()),
@@ -538,7 +578,12 @@ class BasicSettingsDialog(QDialog):
 
     def _update_editor_enabled(self):
         simulation = self.source_kind.currentData() == "simulation"
-        for widget in (self.rrtsp_url, self.rrtsp_username, self.rrtsp_password):
+        for widget in (
+            self.rrtsp_url,
+            self.rrtsp_username,
+            self.rrtsp_password,
+            self.backend_send_period,
+        ):
             widget.setEnabled(not simulation)
         self.simulation_rate.setEnabled(simulation)
 
@@ -581,7 +626,14 @@ class BasicSettingsDialog(QDialog):
             return
         self.map_preview.configure(
             item.get("map", {}),
-            float(self.preview_range.value()))
+            float(self.preview_range.value()),
+            display_mode=str(
+                item.get("display", {}).get("radar_display_mode", "fixed")
+            ),
+            scan_period_seconds=float(
+                item.get("display", {}).get("frontend_scan_period_seconds", 3.0)
+            ),
+        )
         self.map_preview.update_targets([], {})
 
     # ----------------------------------------------------------- add
@@ -657,6 +709,7 @@ class BasicSettingsDialog(QDialog):
         self.state_label.setText(
             f"{t('state_saved')} \u00b7 {time.strftime('%H:%M:%S')}")
         self.applied.emit(cfg)
+        self.hide()
 
     # -------------------------------------------------------- browse
     def browse_model(self):

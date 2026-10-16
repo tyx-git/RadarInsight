@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from collections.abc import Callable
 from collections import OrderedDict, deque
-from dataclasses import astuple
+from dataclasses import astuple, dataclass
 
 from PySide6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
-    QBrush, QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap,
+    QBrush, QColor, QFont, QFontMetrics, QImage, QPainter, QPen, QPixmap,
     QPainterPath, QTransform,
 )
 from PySide6.QtWidgets import (
@@ -37,13 +38,26 @@ DEFAULT_PLANE_RANGE_M = 3000.0
 EMPTY_BACKGROUND = "#111923"
 MAX_TRAJECTORIES = 10
 MAX_TRAJECTORY_POINTS = 29
-FIXED_RING_VALUES_M = (500.0, 1000.0, 2000.0, 3000.0)
+FRONTEND_QUEUE_MAX_POINTS = 60
+FIXED_RING_VALUES_M = (500.0, 1000.0, 2000.0, 3000.0, 5000.0)
+MIN_RADAR_DISPLAY_RANGE_M = max(FIXED_RING_VALUES_M)
 RADAR_BLUE_GRAY = (78, 121, 142)
-# Keep the range labels unchanged while tuning only the radar-layer spacing.
-RADAR_LAYER_SCALE = 1.5 * 0.95
+# Ring labels are physical distances and share the map/target metre scale.
+RADAR_LAYER_SCALE = 1.0
 RADAR_SECTOR_WIDTH_DEG = 60.0
 RADAR_SECTOR_HALF_WIDTH_DEG = RADAR_SECTOR_WIDTH_DEG / 2.0
 RADAR_SECTOR_CENTER_DEG = 0.0
+RADAR_SCAN_SECTOR_WIDTH_DEG = 15.0
+DEFAULT_FRONTEND_SCAN_PERIOD_SECONDS = 3.0
+MAP_CONTENT_THRESHOLD = 250
+_MAP_CONTENT_BOUNDS_CACHE: dict[tuple[str, int, int], QRectF] = {}
+
+
+@dataclass
+class _PendingPoint:
+    observation: object
+    reveal_at_position: float
+    batch_timestamp: float | None
 
 
 class RadarTagItem(QGraphicsItem):
@@ -202,10 +216,19 @@ class MapRadarView(QGraphicsView):
         self.trails_visible = True
         self.labels_visible = True
         self.map_visible = True
+        self.display_mode = "fixed"
+        self.buffered_reveal = False
+        self.frontend_scan_period_seconds = DEFAULT_FRONTEND_SCAN_PERIOD_SECONDS
+        self._scan_origin_monotonic = time.monotonic()
+        self._scan_position_degrees = 0.0
+        self._pending_points: OrderedDict[
+            tuple[str, int], deque[_PendingPoint]
+        ] = OrderedDict()
         self._zoom = 1.0
         self._arm_position = False
         self._map_item: QGraphicsPixmapItem | None = None
-        self._map_cover_scale = 1.0
+        self._radar_display_scale = 1.0
+        self._map_edge_distance_m: float | None = None
         self._dynamic_items = []
         self._static_text_items = []
         self._scan_sector_item: QGraphicsPathItem | None = None
@@ -213,11 +236,23 @@ class MapRadarView(QGraphicsView):
         self._build_layers()
 
     # ------------------------------------------------------------ public
-    def configure(self, map_cfg=None, plane_range_m=DEFAULT_PLANE_RANGE_M):
+    def configure(
+        self,
+        map_cfg=None,
+        plane_range_m=DEFAULT_PLANE_RANGE_M,
+        *,
+        display_mode: str = "fixed",
+        scan_period_seconds: float = DEFAULT_FRONTEND_SCAN_PERIOD_SECONDS,
+    ):
         self.image_path = str((map_cfg or {}).get("image_path", ""))
         self.cal = dict(DEFAULT_CAL)
         self.cal.update(map_cfg or {})
         self.plane_range_m = max(float(plane_range_m), 1.0)
+        normalized_mode = self._normalize_display_mode(display_mode)
+        if normalized_mode != self.display_mode:
+            self.clear_trajectories()
+        self.display_mode = normalized_mode
+        self.set_scan_period(scan_period_seconds)
         self._build_layers()
 
     def set_background(self, path: str):
@@ -236,15 +271,153 @@ class MapRadarView(QGraphicsView):
         self.clear_trajectories()
         self._current_stream_id = stream_id
 
+    @staticmethod
+    def _normalize_display_mode(mode: str) -> str:
+        return "scan" if str(mode or "fixed").strip().lower() in {
+            "scan", "t", "clockwise"
+        } else "fixed"
+
+    def set_buffered_reveal(self, enabled: bool):
+        self.buffered_reveal = bool(enabled)
+        if not self.buffered_reveal:
+            self._pending_points.clear()
+
+    def set_display_mode(self, mode: str):
+        normalized = self._normalize_display_mode(mode)
+        if normalized == self.display_mode:
+            return
+        self.display_mode = normalized
+        self.clear_trajectories()
+        self._reset_scan_clock()
+        self._build_layers()
+
+    def set_scan_period(self, seconds: float):
+        try:
+            value = float(seconds)
+        except (TypeError, ValueError):
+            value = DEFAULT_FRONTEND_SCAN_PERIOD_SECONDS
+        if not math.isfinite(value):
+            value = DEFAULT_FRONTEND_SCAN_PERIOD_SECONDS
+        value = max(value, 0.1)
+        if value == self.frontend_scan_period_seconds:
+            return
+        now = time.monotonic()
+        self.advance_scan(now)
+        self.frontend_scan_period_seconds = value
+        # Preserve the unwrapped angle and pending-point crossings when only
+        # the animation speed changes.
+        self._scan_origin_monotonic = now - self._scan_position_degrees * value / 360.0
+
+    def _reset_scan_clock(self):
+        self._scan_origin_monotonic = time.monotonic()
+        self._scan_position_degrees = 0.0
+
+    @staticmethod
+    def _normalize_bearing(value: float) -> float:
+        return float(value) % 360.0
+
+    def _next_reveal_position(self, azimuth_deg: float) -> float:
+        """Return the next leading-edge crossing for a received point."""
+        current = self._normalize_bearing(self._scan_position_degrees)
+        point = self._normalize_bearing(azimuth_deg)
+        signed_delta = (point - current + 180.0) % 360.0 - 180.0
+        if abs(signed_delta) <= RADAR_SCAN_SECTOR_WIDTH_DEG / 2.0:
+            return self._scan_position_degrees
+        leading_edge_bearing = self._normalize_bearing(
+            point - RADAR_SCAN_SECTOR_WIDTH_DEG / 2.0
+        )
+        delta = (leading_edge_bearing - current) % 360.0
+        return self._scan_position_degrees + delta
+
+    def advance_scan(self, now_monotonic: float | None = None):
+        """Advance the local scan clock and reveal points it has crossed."""
+        if self.display_mode != "scan":
+            return
+        now = time.monotonic() if now_monotonic is None else float(now_monotonic)
+        elapsed = max(0.0, now - self._scan_origin_monotonic)
+        position = elapsed * 360.0 / self.frontend_scan_period_seconds
+        if position < self._scan_position_degrees:
+            position = self._scan_position_degrees
+        changed = position != self._scan_position_degrees
+        self._scan_position_degrees = position
+
+        revealed = False
+        for key in list(self._pending_points):
+            pending = self._pending_points[key]
+            # A point arriving late can have an earlier crossing than a point
+            # already waiting at the head of the deque. Select every point
+            # whose scan crossing has passed, then append them in source order;
+            # one delayed point must not block the complete visible history.
+            ready = [
+                point for point in pending
+                if point.reveal_at_position <= position
+            ]
+            if ready:
+                remaining = [
+                    point for point in pending
+                    if point.reveal_at_position > position
+                ]
+                pending.clear()
+                pending.extend(remaining)
+            for point in ready:
+                self._append_revealed_point(key, point.observation)
+                revealed = True
+            if not pending:
+                self._pending_points.pop(key, None)
+        if self._scan_sector_item is not None and changed:
+            radius = self._effective_plane_range_m() * RADAR_LAYER_SCALE * self._radar_display_scale
+            self._scan_sector_item.setPath(
+                self._sector_path(
+                    radius,
+                    self._normalize_bearing(position),
+                    RADAR_SCAN_SECTOR_WIDTH_DEG,
+                )
+            )
+        if revealed:
+            self._target_signature = None
+            self._draw_targets()
+
     def clear_trajectories(self):
         self.trajectories.clear()
         self.latest_by_track.clear()
         self.inferred.clear()
         self.observations = []
+        self._pending_points.clear()
         self.selected_track = None
         self._last_frame_token = None
         self._target_signature = None
+        self._reset_scan_clock()
         self._draw_targets()
+
+    def _drop_track(self, key):
+        self.trajectories.pop(key, None)
+        self.latest_by_track.pop(key, None)
+        self.inferred.pop(key, None)
+        self._pending_points.pop(key, None)
+        if self.selected_track == key:
+            self.selected_track = None
+
+    def _ensure_track_slot(self, key) -> bool:
+        if key in self.trajectories or key in self._pending_points:
+            return True
+        known = list(self.trajectories)
+        known.extend(key for key in self._pending_points if key not in known)
+        if len(known) >= MAX_TRAJECTORIES:
+            stale_key = known[0] if known else None
+            if stale_key is None:
+                return False
+            self._drop_track(stale_key)
+        return True
+
+    def _append_revealed_point(self, key, observation) -> bool:
+        if not self._ensure_track_slot(key):
+            return False
+        history = self.trajectories.setdefault(
+            key, deque(maxlen=MAX_TRAJECTORY_POINTS))
+        history.append(observation)
+        self.latest_by_track[key] = observation
+        self.trajectories.move_to_end(key)
+        return True
 
     def record_frame(
         self,
@@ -267,6 +440,32 @@ class MapRadarView(QGraphicsView):
 
         self._last_frame_token = frame_token
         self.observations = observations
+        if self.buffered_reveal:
+            for obs in observations:
+                key = (str(obs.stream_id), int(obs.track_id))
+                if not self._ensure_track_slot(key):
+                    continue
+                if self.display_mode == "fixed":
+                    self._append_revealed_point(key, obs)
+                    continue
+                pending = self._pending_points.setdefault(
+                    key, deque(maxlen=FRONTEND_QUEUE_MAX_POINTS))
+                pending.append(
+                    _PendingPoint(
+                        observation=obs,
+                        reveal_at_position=self._next_reveal_position(
+                            float(getattr(obs, "azimuth_deg", 0.0) or 0.0)
+                        ),
+                        batch_timestamp=(
+                            None if timestamp is None else float(timestamp)
+                        ),
+                    )
+                )
+            if self.display_mode == "fixed":
+                self._target_signature = None
+                self._draw_targets()
+            return frame_token
+
         current_keys = {
             (str(obs.stream_id), int(obs.track_id))
             for obs in observations
@@ -325,7 +524,7 @@ class MapRadarView(QGraphicsView):
         )
 
         for key, value in (inferred or {}).items():
-            if key in self.trajectories:
+            if key in self.trajectories or key in self._pending_points:
                 self.inferred[key] = value
 
         self.observations = observations
@@ -345,6 +544,9 @@ class MapRadarView(QGraphicsView):
     @property
     def track_count(self) -> int:
         return len(self.trajectories)
+
+    def has_track(self, key) -> bool:
+        return key in self.trajectories or key in self._pending_points
 
     def display_targets(self):
         return [
@@ -440,7 +642,8 @@ class MapRadarView(QGraphicsView):
         self._target_signature = None
         self._map_item = None
         self._scan_sector_item = None
-        self._map_cover_scale = 1.0
+        self._radar_display_scale = 1.0
+        self._map_edge_distance_m = None
         self._static_text_items = []
         scene.setBackgroundBrush(QColor(EMPTY_BACKGROUND))
 
@@ -448,7 +651,7 @@ class MapRadarView(QGraphicsView):
         if self.map_visible:
             self._draw_radar_layer(scene)
 
-        radius = self.plane_range_m * RADAR_LAYER_SCALE
+        radius = self._effective_plane_range_m() * RADAR_LAYER_SCALE * self._radar_display_scale
         radar_rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
         # Include enough scene area around the origin to fill the whole
         # viewport; otherwise Qt cannot keep the radar origin centred.
@@ -462,8 +665,7 @@ class MapRadarView(QGraphicsView):
 
     def _add_map_layer(self, scene: QGraphicsScene) -> QRectF:
         if (
-            not self.map_visible
-            or not self.image_path
+            not self.image_path
             or not os.path.exists(self.image_path)
         ):
             return QRectF()
@@ -491,42 +693,121 @@ class MapRadarView(QGraphicsView):
         transform.translate(-radar_x, -radar_y)
         item.setTransform(transform)
 
-        # The map is a background layer, so its finite image bounds must cover
-        # the initial viewport. Keep the calibrated radar point at scene origin
-        # while applying only the minimum additional scale required to remove
-        # exposed scene background around the image.
-        base_rect = item.sceneBoundingRect()
-        viewport_rect = self._viewport_scene_rect()
-        cover_scale = self._required_map_cover_scale(base_rect, viewport_rect)
-        if cover_scale > 1.0:
-            covered_transform = QTransform()
-            covered_transform.rotate(-heading)
-            covered_transform.scale(scale * cover_scale, scale * cover_scale)
-            covered_transform.translate(-radar_x, -radar_y)
-            item.setTransform(covered_transform)
-        self._map_cover_scale = cover_scale
+        # Use the radar/map calibration only to derive the displayed radial
+        # scale. Keep the image transform unchanged; target locations follow
+        # the same radar-overlay scale as the labeled range rings.
+        base_edge_distance = self._map_edge_distance(item)
+        radar_display_scale = (
+            base_edge_distance / MIN_RADAR_DISPLAY_RANGE_M
+            if base_edge_distance > 1e-9
+            else 1.0
+        )
+        self._radar_display_scale = radar_display_scale
+        self._map_edge_distance_m = base_edge_distance
+        # Background visibility must not change the coordinate transform of
+        # targets. Calculate the same map scale even while the layer is hidden.
+        if not self.map_visible:
+            return item.sceneBoundingRect()
         scene.addItem(item)
         self._map_item = item
         return item.sceneBoundingRect()
 
     @staticmethod
-    def _required_map_cover_scale(
-        map_rect: QRectF, viewport_rect: QRectF
-    ) -> float:
-        """Return the minimum scale that makes a map rect cover a viewport."""
-        required = 1.0
-        for map_start, map_end, view_start, view_end in (
-            (map_rect.left(), map_rect.right(), viewport_rect.left(), viewport_rect.right()),
-            (map_rect.top(), map_rect.bottom(), viewport_rect.top(), viewport_rect.bottom()),
+    def _point_to_segment_distance(point: QPointF, start: QPointF, end: QPointF) -> float:
+        dx = end.x() - start.x()
+        dy = end.y() - start.y()
+        length_squared = dx * dx + dy * dy
+        if length_squared <= 1e-12:
+            return math.hypot(point.x() - start.x(), point.y() - start.y())
+        factor = (
+            (point.x() - start.x()) * dx
+            + (point.y() - start.y()) * dy
+        ) / length_squared
+        factor = min(max(factor, 0.0), 1.0)
+        closest_x = start.x() + factor * dx
+        closest_y = start.y() + factor * dy
+        return math.hypot(point.x() - closest_x, point.y() - closest_y)
+
+    def _map_edge_distance(self, item: QGraphicsPixmapItem) -> float:
+        pixmap = item.pixmap()
+        content_rect = self._map_content_rect(pixmap)
+        corners = (
+            item.mapToScene(content_rect.topLeft()),
+            item.mapToScene(content_rect.topRight()),
+            item.mapToScene(content_rect.bottomRight()),
+            item.mapToScene(content_rect.bottomLeft()),
+        )
+        origin = QPointF(0.0, 0.0)
+        return min(
+            self._point_to_segment_distance(origin, start, end)
+            for start, end in zip(corners, corners[1:] + corners[:1])
+        )
+
+    def _map_content_rect(self, pixmap: QPixmap) -> QRectF:
+        """Return the colored map bounds, excluding solid white image margins."""
+        path = os.path.abspath(self.image_path) if self.image_path else ""
+        key = (path, int(pixmap.width()), int(pixmap.height()))
+        cached = _MAP_CONTENT_BOUNDS_CACHE.get(key)
+        if cached is not None:
+            return QRectF(cached)
+
+        image = QImage(self.image_path)
+        if image.isNull():
+            rect = QRectF(0.0, 0.0, float(pixmap.width()), float(pixmap.height()))
+            _MAP_CONTENT_BOUNDS_CACHE[key] = rect
+            return QRectF(rect)
+
+        width = image.width()
+        height = image.height()
+
+        def is_content(x: int, y: int) -> bool:
+            pixel = int(image.pixel(x, y))
+            alpha = (pixel >> 24) & 0xFF
+            if alpha == 0:
+                return False
+            red = (pixel >> 16) & 0xFF
+            green = (pixel >> 8) & 0xFF
+            blue = pixel & 0xFF
+            return min(red, green, blue) < MAP_CONTENT_THRESHOLD
+
+        def row_has_content(y: int) -> bool:
+            return any(is_content(x, y) for x in range(width))
+
+        def column_has_content(x: int) -> bool:
+            return any(is_content(x, y) for y in range(height))
+
+        left = 0
+        while left < width - 1 and not column_has_content(left):
+            left += 1
+        right = width - 1
+        while right > left and not column_has_content(right):
+            right -= 1
+        top = 0
+        while top < height - 1 and not row_has_content(top):
+            top += 1
+        bottom = height - 1
+        while bottom > top and not row_has_content(bottom):
+            bottom -= 1
+
+        if (
+            not column_has_content(left)
+            or not column_has_content(right)
+            or not row_has_content(top)
+            or not row_has_content(bottom)
         ):
-            if map_start < 0.0 and view_start < map_start:
-                required = max(required, view_start / map_start)
-            if map_end > 0.0 and view_end > map_end:
-                required = max(required, view_end / map_end)
-        return max(required, 1.0)
+            rect = QRectF(0.0, 0.0, float(width), float(height))
+            _MAP_CONTENT_BOUNDS_CACHE[key] = rect
+            return QRectF(rect)
+
+        rect = QRectF(
+            float(left), float(top),
+            float(right - left + 1), float(bottom - top + 1),
+        )
+        _MAP_CONTENT_BOUNDS_CACHE[key] = rect
+        return QRectF(rect)
 
     def _draw_radar_layer(self, scene: QGraphicsScene):
-        radius = self.plane_range_m * RADAR_LAYER_SCALE
+        radius = self._effective_plane_range_m() * RADAR_LAYER_SCALE * self._radar_display_scale
 
         coverage_rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
         disk = QGraphicsEllipseItem(coverage_rect)
@@ -547,12 +828,23 @@ class MapRadarView(QGraphicsView):
         sector.setBrush(QBrush(QColor(*RADAR_BLUE_GRAY, 76)))
         sector.setPen(Qt.PenStyle.NoPen)
         sector.setZValue(1.4)
-        sector.setData(0, "radar-fixed-sector")
+        sector.setData(
+            0,
+            "radar-scan-sector" if self.display_mode == "scan" else "radar-fixed-sector",
+        )
         scene.addItem(sector)
         self._scan_sector_item = sector
         sector.setPath(
-            self._fixed_sector_path(
-                self.plane_range_m * RADAR_LAYER_SCALE))
+            self._sector_path(
+                self._effective_plane_range_m() * RADAR_LAYER_SCALE * self._radar_display_scale,
+                self._normalize_bearing(self._scan_position_degrees)
+                if self.display_mode == "scan"
+                else RADAR_SECTOR_CENTER_DEG,
+                RADAR_SCAN_SECTOR_WIDTH_DEG
+                if self.display_mode == "scan"
+                else RADAR_SECTOR_WIDTH_DEG,
+            )
+        )
 
         self._draw_radar_crosshair(scene, radius)
 
@@ -560,17 +852,26 @@ class MapRadarView(QGraphicsView):
             self._draw_range_ring(scene, value, ring_color, label_color)
 
     @staticmethod
-    def _fixed_sector_path(radius: float) -> QPainterPath:
+    def _sector_path(
+        radius: float,
+        center_degrees: float,
+        width_degrees: float,
+    ) -> QPainterPath:
         path = QPainterPath(QPointF(0.0, 0.0))
         steps = 12
-        start = RADAR_SECTOR_CENTER_DEG - RADAR_SECTOR_HALF_WIDTH_DEG
+        start = float(center_degrees) - float(width_degrees) / 2.0
         for index in range(steps + 1):
-            bearing = start + RADAR_SECTOR_WIDTH_DEG * index / steps
+            bearing = start + float(width_degrees) * index / steps
             angle = math.radians(bearing)
             path.lineTo(
                 QPointF(radius * math.sin(angle), -radius * math.cos(angle)))
         path.closeSubpath()
         return path
+
+    @staticmethod
+    def _fixed_sector_path(radius: float) -> QPainterPath:
+        return MapRadarView._sector_path(
+            radius, RADAR_SECTOR_CENTER_DEG, RADAR_SECTOR_WIDTH_DEG)
 
     def _draw_radar_crosshair(self, scene: QGraphicsScene, radius: float):
         """Draw balanced cardinal and shorter diagonal radar reference lines."""
@@ -633,7 +934,18 @@ class MapRadarView(QGraphicsView):
         return max(min(width, height) / 2.0 - 46.0, 20.0)
 
     def _screen_pixels_per_meter(self) -> float:
-        return self._view_radius_px() / self.plane_range_m
+        return (
+            self._view_radius_px()
+            / self._effective_plane_range_m()
+            / max(self._radar_display_scale, 1e-9)
+        )
+
+    def _effective_plane_range_m(self) -> float:
+        """Keep every fixed range ring within the visible radar radius."""
+        return max(
+            self.plane_range_m,
+            MIN_RADAR_DISPLAY_RANGE_M,
+        )
 
     def _ring_values(self):
         return list(FIXED_RING_VALUES_M)
@@ -645,7 +957,9 @@ class MapRadarView(QGraphicsView):
         ring_color: QColor | None = None,
         label_color: QColor | None = None,
     ):
-        display_radius = float(value) * RADAR_LAYER_SCALE
+        display_radius = (
+            float(value) * RADAR_LAYER_SCALE * self._radar_display_scale
+        )
         rect = QRectF(
             -display_radius, -display_radius,
             2 * display_radius, 2 * display_radius)
@@ -752,7 +1066,7 @@ class MapRadarView(QGraphicsView):
         self.viewport().update()
 
     def _target_position(self, obs) -> QPointF:
-        """Map a target to screen-oriented scene coordinates in metres."""
+        """Map a target into the same visual scale as the radar layer."""
         plane_range = float(getattr(obs, "ground_range_m", 0.0) or 0.0)
         if plane_range <= 0.0:
             plane_range = math.hypot(
@@ -763,8 +1077,12 @@ class MapRadarView(QGraphicsView):
                 float(obs.range_m)
                 * math.cos(math.radians(float(getattr(obs, "elevation_deg", 0.0) or 0.0))))
 
-        return self._target_position_for_range(plane_range, float(
-            getattr(obs, "azimuth_deg", 0.0) or 0.0))
+        # Range labels are metric, so target positions use the calibrated map
+        # distance directly.
+        return self._target_position_for_range(
+            plane_range * RADAR_LAYER_SCALE * self._radar_display_scale,
+            float(getattr(obs, "azimuth_deg", 0.0) or 0.0),
+        )
 
     @staticmethod
     def _target_position_for_range(plane_range: float, azimuth_deg: float) -> QPointF:

@@ -34,9 +34,26 @@ class RadarObservation:
     @classmethod
     def from_track(cls, stream_id: str, track: dict) -> "RadarObservation":
         fields = track.get("fields", {})
-        r = float(fields.get("range_m", 0.0))
-        az = float(fields.get("azimuth_deg", 0.0))
-        el = float(fields.get("elevation_deg", 0.0))
+        try:
+            r = float(fields["range_m"])
+            az = float(fields["azimuth_deg"])
+            el = float(fields["elevation_deg"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                "track position requires finite range_m, azimuth_deg, "
+                "and elevation_deg"
+            ) from exc
+        if not all(math.isfinite(value) for value in (r, az, el)):
+            raise ValueError(
+                "track position requires finite range_m, azimuth_deg, "
+                "and elevation_deg"
+            )
+        if r < 0.0:
+            raise ValueError("track range_m must be non-negative")
+        if not -180.0 <= az <= 180.0:
+            raise ValueError("track azimuth_deg must be in [-180, 180]")
+        if not -90.0 <= el <= 90.0:
+            raise ValueError("track elevation_deg must be in [-90, 90]")
         xyz = spherical_to_xyz(r, az, el).reshape(3)
         radial_speed = float(fields.get("radial_speed_mps", 0.0))
         speed = float(fields.get("speed_mps", radial_speed))
@@ -83,13 +100,18 @@ class RadarFrame:
     # RTP timestamp in the sender's 90 kHz clock. ``timestamp`` remains the
     # seconds representation used by existing frontend consumers.
     rtp_timestamp: int | None = None
-    scan_interval_seconds: float = 3.0
+    send_interval_seconds: float = 1.0
     observations: list[RadarObservation] = field(default_factory=list)
     # Current complete RD map for this frame. Lists are used because they are
     # trivial to pickle across multiprocessing/spawn.
     rd_amplitude: list[list[float]] = field(default_factory=list)
     rd_phase: list[list[float]] = field(default_factory=list)
     remote_labels: dict[int, tuple[str, float]] = field(default_factory=dict)
+
+    @property
+    def scan_interval_seconds(self) -> float:
+        """Compatibility alias; frontend animation has its own period."""
+        return float(self.send_interval_seconds)
 
 
 @dataclass

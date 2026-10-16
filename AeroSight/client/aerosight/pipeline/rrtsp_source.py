@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 import secrets
 import socket
 import struct
@@ -47,8 +48,12 @@ INFERENCE_CLASS_NAMES = {
     5: "unknown",
     6: "pending",
 }
-DEFAULT_SCAN_INTERVAL_SECONDS = 3.0
+DEFAULT_SEND_INTERVAL_SECONDS = 1.0
+# Compatibility name retained for older integrations. This is the transport
+# fallback interval, not the independent frontend scan animation period.
+DEFAULT_SCAN_INTERVAL_SECONDS = DEFAULT_SEND_INTERVAL_SECONDS
 RTP_CLOCK_HZ = 90000.0
+MAX_RTP_DATAGRAM_SIZE = 65535
 
 
 def sha256(text: str) -> str:
@@ -84,23 +89,35 @@ def parse_sdp_update_rate(sdp: str) -> float | None:
 
 
 def parse_track_payload(payload: bytes) -> list[dict]:
+    if len(payload) < TRACK_FRAME_HEAD.size:
+        raise ValueError("Track payload is shorter than its frame header")
     frame_type, n_tracks, _seq, _reserved = TRACK_FRAME_HEAD.unpack_from(payload)
+    if frame_type != 1:
+        raise ValueError(f"Unsupported track frame type: {frame_type}")
     offset = TRACK_FRAME_HEAD.size
     tracks = []
 
     for _ in range(n_tracks):
+        if offset + TLV_HEAD.size > len(payload):
+            raise ValueError("Track payload has a truncated TLV header")
         tlv_type, length = TLV_HEAD.unpack_from(payload, offset)
         offset += TLV_HEAD.size
+        if offset + length > len(payload):
+            raise ValueError("Track payload has a truncated TLV value")
         value = payload[offset:offset + length]
         offset += length
-        if tlv_type != 1 or len(value) < TRACK_VALUE_HEAD.size:
+        if tlv_type != 1:
             continue
+        if len(value) < TRACK_VALUE_HEAD.size:
+            raise ValueError("Track TLV has a truncated track header")
 
         track_id, state, class_id, fspec = TRACK_VALUE_HEAD.unpack_from(value)
         p = TRACK_VALUE_HEAD.size
         fields = {}
         for bit, name in enumerate(TRACK_FIELD_NAMES):
             if fspec & (1 << bit):
+                if p + 4 > len(value):
+                    raise ValueError("Track TLV has a truncated float field")
                 fields[name] = struct.unpack(">f", value[p:p + 4])[0]
                 p += 4
 
@@ -111,6 +128,8 @@ def parse_track_payload(payload: bytes) -> list[dict]:
             "class_name": CLASS_NAMES.get(class_id, "unknown"),
             "fields": fields,
         })
+    if offset != len(payload):
+        raise ValueError("Track payload contains trailing bytes")
     return tracks
 
 
@@ -148,7 +167,14 @@ def parse_inference_payload(payload: bytes) -> dict[int, tuple[str, float]]:
 
 
 class RRTSPConnection:
-    def __init__(self, url: str, username: str = "", password: str = ""):
+    def __init__(
+        self,
+        url: str,
+        username: str = "",
+        password: str = "",
+        *,
+        send_interval_seconds: float | None = None,
+    ):
         parsed = urlparse(url)
         if parsed.scheme != "rtsp" or not parsed.hostname:
             raise ValueError(f"Invalid R-RTSP URL: {url}")
@@ -174,7 +200,15 @@ class RRTSPConnection:
         self.has_inference = False
         self.sdp = ""
         self.update_rate_hz: float | None = None
-        self.scan_interval_seconds = DEFAULT_SCAN_INTERVAL_SECONDS
+        self.send_interval_seconds = DEFAULT_SEND_INTERVAL_SECONDS
+        self.requested_send_interval_seconds = (
+            None if send_interval_seconds is None else float(send_interval_seconds)
+        )
+        if self.requested_send_interval_seconds is not None and (
+            not math.isfinite(self.requested_send_interval_seconds)
+            or self.requested_send_interval_seconds <= 0.0
+        ):
+            raise ValueError("send_interval_seconds must be positive and finite")
         self.last_response_body = b""
         self.challenge: dict[str, str] | None = None
         self.nc = 0
@@ -189,15 +223,20 @@ class RRTSPConnection:
         self._inference_pending: dict[int, dict[int, tuple[str, float]]] = {}
         self.last_remote_labels: dict[int, tuple[str, float]] = {}
 
+    @property
+    def scan_interval_seconds(self) -> float:
+        """Compatibility alias for older UI integrations."""
+        return float(self.send_interval_seconds)
+
     def open(self):
         self.tcp = socket.create_connection((self.host, self.port), timeout=5)
         self.command("DESCRIBE")
         self.sdp = self.last_response_body.decode("utf-8", "replace")
         self.update_rate_hz = parse_sdp_update_rate(self.sdp)
         if self.update_rate_hz is not None and self.update_rate_hz > 0.0:
-            self.scan_interval_seconds = 1.0 / self.update_rate_hz
+            self.send_interval_seconds = 1.0 / self.update_rate_hz
         else:
-            self.scan_interval_seconds = DEFAULT_SCAN_INTERVAL_SECONDS
+            self.send_interval_seconds = DEFAULT_SEND_INTERVAL_SECONDS
 
         self.rtp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rtcp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -249,6 +288,28 @@ class RRTSPConnection:
         )
         self.has_inference = status == 200
 
+        if self.requested_send_interval_seconds is not None:
+            requested = self.requested_send_interval_seconds
+            body = f"send_interval_seconds: {requested:g}\r\n"
+            status, _headers = self.command(
+                "SET_PARAMETER",
+                headers={"Content-Type": "text/parameters"},
+                body=body,
+                accepted_statuses=(200, 400, 404, 454, 501),
+            )
+            if status != 200:
+                raise RuntimeError(
+                    f"后端未接受发送周期设置（RTSP {status}），请确认后端已更新"
+                )
+            response_value = self._parameter_value(
+                self.last_response_body,
+                "send_interval_seconds",
+            )
+            if response_value is None:
+                raise RuntimeError("后端未返回有效的 send_interval_seconds")
+            self.send_interval_seconds = response_value
+            self.update_rate_hz = 1.0 / response_value
+
         self.command("PLAY")
         self.playing = True
         self._start_receivers()
@@ -259,7 +320,7 @@ class RRTSPConnection:
         self._inference_pending.clear()
         self.last_remote_labels = {}
         try:
-            if self.tcp and self.playing:
+            if self.tcp and self.session_id:
                 self.command("TEARDOWN", accepted_statuses=(200, 404, 454))
                 self.playing = False
         except Exception:
@@ -292,18 +353,28 @@ class RRTSPConnection:
     def stopped(self) -> bool:
         return self._stop.is_set()
 
-    def command(self, method: str, path: str | None = None,
-                headers: dict | None = None, accepted_statuses=(200,)):
+    def command(
+        self,
+        method: str,
+        path: str | None = None,
+        headers: dict | None = None,
+        accepted_statuses=(200,),
+        body: bytes | str = b"",
+    ):
         uri = path or self.url
-        body = dict(headers or {})
+        request_headers = dict(headers or {})
+        request_body = body.encode("utf-8") if isinstance(body, str) else bytes(body)
         if self.challenge:
-            body["Authorization"] = self._authorization(method, uri)
+            request_headers["Authorization"] = self._authorization(method, uri)
         lines = [f"{method} {uri} RTSP/1.0", f"CSeq: {self.next_cseq()}"]
         if self.session_id and method != "DESCRIBE":
             lines.append(f"Session: {self.session_id}")
-        for key, value in body.items():
+        if request_body:
+            request_headers.setdefault("Content-Length", str(len(request_body)))
+            request_headers.setdefault("Content-Type", "text/parameters")
+        for key, value in request_headers.items():
             lines.append(f"{key}: {value}")
-        data = ("\r\n".join(lines) + "\r\n\r\n").encode("utf-8")
+        data = ("\r\n".join(lines) + "\r\n\r\n").encode("utf-8") + request_body
         assert self.tcp is not None
         self.tcp.sendall(data)
         status, resp_headers, response_body = self._read_response()
@@ -318,7 +389,7 @@ class RRTSPConnection:
                 self.challenge = self._parse_digest(challenge_text)
                 self.cseq -= 1
                 return self.command(
-                    method, path, headers, accepted_statuses
+                    method, path, headers, accepted_statuses, request_body
                 )
             if self.challenge:
                 raise PermissionError("R-RTSP 账号或密码错误")
@@ -331,6 +402,20 @@ class RRTSPConnection:
         if session:
             self.session_id = session.split(";")[0]
         return status, resp_headers
+
+    @staticmethod
+    def _parameter_value(body: bytes, name: str) -> float | None:
+        prefix = f"{name}:".lower()
+        for raw_line in body.decode("utf-8", "replace").splitlines():
+            line = raw_line.strip()
+            if not line.lower().startswith(prefix):
+                continue
+            try:
+                value = float(line.split(":", 1)[1].strip())
+            except (IndexError, TypeError, ValueError):
+                return None
+            return value if math.isfinite(value) and value > 0.0 else None
+        return None
 
     def next_cseq(self) -> int:
         self.cseq += 1
@@ -451,7 +536,7 @@ class RRTSPConnection:
         self.rtp.settimeout(0.2)
         while not self._stop.is_set():
             try:
-                data, _addr = self.rtp.recvfrom(4096)
+                data, _addr = self.rtp.recvfrom(MAX_RTP_DATAGRAM_SIZE)
             except socket.timeout:
                 continue
             except OSError:
@@ -459,7 +544,11 @@ class RRTSPConnection:
             parsed = self._parse_rtp(data)
             if parsed is None or parsed["payload_type"] != 97:
                 continue
-            tracks = parse_track_payload(parsed["payload"])
+            try:
+                tracks = parse_track_payload(parsed["payload"])
+            except (struct.error, ValueError) as exc:
+                log.warning("Discarding malformed PT=97 packet: %s", exc)
+                continue
             try:
                 self.track_q.put(
                     (parsed["timestamp"], tracks), timeout=0.2
@@ -517,7 +606,7 @@ class RRTSPConnection:
         self.inference_rtp.settimeout(0.2)
         while not self._stop.is_set():
             try:
-                data, _addr = self.inference_rtp.recvfrom(4096)
+                data, _addr = self.inference_rtp.recvfrom(MAX_RTP_DATAGRAM_SIZE)
             except socket.timeout:
                 continue
             except OSError:
@@ -584,7 +673,12 @@ class RRTSPConnection:
             phase = np.zeros_like(amplitude)
         return amplitude, phase
 
-    def receive_paired(self, timeout: float = 0.5):
+    def receive_paired(
+        self,
+        timeout: float = 0.5,
+        *,
+        stop_event: threading.Event | None = None,
+    ):
         """Return one complete timestamp-matched radar batch.
 
         When the server advertises PT=98, the current track batch remains
@@ -599,9 +693,10 @@ class RRTSPConnection:
             raise
         rd = None
         if self.has_rd:
-            rd = self._wait_for_rd(timestamp)
+            rd = self._wait_for_rd(timestamp, stop_event=stop_event)
         self.last_remote_labels = (
-            self._wait_for_inference(timestamp) if self.has_inference else {}
+            self._wait_for_inference(timestamp, stop_event=stop_event)
+            if self.has_inference else {}
         )
         return timestamp, tracks, rd
 
@@ -609,12 +704,14 @@ class RRTSPConnection:
         self,
         timestamp: int,
         timeout: float = 0.5,
+        *,
+        stop_event: threading.Event | None = None,
     ) -> dict[int, tuple[str, float]]:
         if timestamp in self._inference_pending:
             return self._inference_pending.pop(timestamp)
         # ``timeout`` is retained for source compatibility. Inference is a
         # required part of a remote-inference batch and must not time out.
-        while not self._stop.is_set():
+        while not self._stop.is_set() and not (stop_event and stop_event.is_set()):
             try:
                 result_timestamp, labels = self.inference_q.get(
                     timeout=0.1
@@ -626,12 +723,20 @@ class RRTSPConnection:
             self._inference_pending[result_timestamp] = labels
         raise TimeoutError("R-RTSP connection closed while waiting for inference")
 
-    def _wait_for_rd(self, timestamp: int, timeout: float = 0.8):
+    def _wait_for_rd(
+        self,
+        timestamp: int,
+        timeout: float = 0.8,
+        *,
+        stop_event: threading.Event | None = None,
+    ):
         if timestamp in self._rd_pending:
             return self._rd_pending.pop(timestamp)
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if self._stop.is_set() or (stop_event and stop_event.is_set()):
+                return None
             remaining = max(0.0, deadline - time.monotonic())
             try:
                 rd_timestamp, amplitude, phase = self.rd_q.get(

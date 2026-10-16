@@ -2,6 +2,7 @@
 """Receiver process: independently supervise radar instances."""
 from __future__ import annotations
 
+from copy import deepcopy
 import logging
 import multiprocessing as mp
 import queue as _q
@@ -59,6 +60,7 @@ class InstanceSupervisor:
         self.out_q = out_q
         self.workers: dict[str, threading.Thread] = {}
         self.stops: dict[str, threading.Event] = {}
+        self._worker_configs: dict[str, dict] = {}
         self._lock = threading.Lock()
 
     def start(self):
@@ -87,28 +89,30 @@ class InstanceSupervisor:
 
             for instance_id, conf in wanted.items():
                 worker = self.workers.get(instance_id)
-                if worker is None or not worker.is_alive():
-                    event = threading.Event()
-                    worker = threading.Thread(
-                        target=self._worker_entry,
-                        args=(conf, event),
-                        name=f"aerosight-instance-{instance_id}",
-                        daemon=True)
-                    self.stops[instance_id] = event
-                    self.workers[instance_id] = worker
-                    worker.start()
-                else:
+                worker_config = {
+                    "source": conf.get("source", {}),
+                    "name": conf.get("name"),
+                    "mode": conf.get("display", {}).get("radar_display_mode", "fixed"),
+                }
+                if worker is not None and worker.is_alive():
+                    if (
+                        not self.stops[instance_id].is_set()
+                        and self._worker_configs.get(instance_id) == worker_config
+                    ):
+                        # Local scan speed/map changes do not restart replay.
+                        continue
                     self.stops[instance_id].set()
                     worker.join(timeout=0.8)
-                    event = threading.Event()
-                    worker = threading.Thread(
-                        target=self._worker_entry,
-                        args=(conf, event),
-                        name=f"aerosight-instance-{instance_id}",
-                        daemon=True)
-                    self.stops[instance_id] = event
-                    self.workers[instance_id] = worker
-                    worker.start()
+                event = threading.Event()
+                worker = threading.Thread(
+                    target=self._worker_entry,
+                    args=(conf, event),
+                    name=f"aerosight-instance-{instance_id}",
+                    daemon=True)
+                self._worker_configs[instance_id] = deepcopy(worker_config)
+                self.stops[instance_id] = event
+                self.workers[instance_id] = worker
+                worker.start()
 
         for missing in set(self.stops) - set(wanted):
             worker = self.workers.get(missing)
@@ -165,7 +169,9 @@ class InstanceSupervisor:
                 conn = RRTSPConnection(
                     rrtsp.get("url", ""),
                     rrtsp.get("username", ""),
-                    rrtsp.get("password", ""))
+                    rrtsp.get("password", ""),
+                    send_interval_seconds=rrtsp.get("send_interval_seconds"),
+                )
                 conn.open()
                 failure_count = 0
                 self._emit_status(conf, "connected", "\u6b63\u5728\u63a5\u6536\u822a\u8ff9")
@@ -173,7 +179,7 @@ class InstanceSupervisor:
                 while not stop.is_set():
                     try:
                         timestamp, tracks, rd = conn.receive_paired(
-                            timeout=0.5
+                            timeout=0.5, stop_event=stop
                         )
                     except (_q.Empty, socket.timeout, TimeoutError):
                         if conn.stopped:
@@ -184,6 +190,8 @@ class InstanceSupervisor:
                         # not a connection failure and must not trigger a
                         # reconnect (which would discard trajectory continuity).
                         continue
+                    if stop.is_set():
+                        break
                     rd_amplitude = []
                     rd_phase = []
                     if rd is not None:
@@ -193,18 +201,25 @@ class InstanceSupervisor:
 
                     observations = []
                     for track in tracks:
-                        if track.get("fields", {}).get("range_m") is None:
+                        try:
+                            observation = RadarObservation.from_track(
+                                conf["id"], track
+                            )
+                        except (TypeError, ValueError) as exc:
+                            log.warning(
+                                "Instance %s dropped track %s without a valid "
+                                "position: %s",
+                                conf.get("name"), track.get("id"), exc,
+                            )
                             continue
-                        observations.append(
-                            RadarObservation.from_track(conf["id"], track)
-                        )
+                        observations.append(observation)
                     frame = RadarFrame(
                         stream_id=conf["id"],
                         stream_name=conf.get("name", conf["id"]),
                         frame_id=frame_id,
                         timestamp=float(timestamp) / RTP_CLOCK_HZ,
                         rtp_timestamp=int(timestamp),
-                        scan_interval_seconds=conn.scan_interval_seconds,
+                        send_interval_seconds=conn.send_interval_seconds,
                         observations=observations,
                         rd_amplitude=rd_amplitude,
                         rd_phase=rd_phase,
@@ -212,6 +227,8 @@ class InstanceSupervisor:
                     put_latest(self.out_q, ("frame", frame))
                     frame_id += 1
             except Exception as exc:
+                if stop.is_set():
+                    break
                 failure_count += 1
                 detail = self._friendly_error(exc)
                 self._emit_status(conf, "error", detail)

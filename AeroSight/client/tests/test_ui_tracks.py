@@ -1,28 +1,31 @@
 from __future__ import annotations
 
 import os
+import math
 import queue
 import signal
+import struct
 import threading
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QPointF, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QApplication, QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsPathItem,
     QGraphicsView, QPushButton)
 
 from aerosight.core.radar import RadarFrame, RadarObservation
-from aerosight.app_config import load_config
+from aerosight.app_config import default_instance, load_config
 from aerosight.main import _install_shutdown_timer
 from aerosight.pipeline.rrtsp_source import (
     RRTSPConnection,
     parse_sdp_update_rate,
 )
 from aerosight.ui.main_window import MainWindow
+from aerosight.ui.settings_dialog import BasicSettingsDialog
 from aerosight.ui.map_view import (
     FIXED_RING_VALUES_M,
     MapRadarView,
@@ -230,10 +233,33 @@ def test_builtin_map_asset_is_loaded_by_map_view(app):
     view.show()
     app.processEvents()
     assert view._map_item is not None
-    assert view._map_cover_scale >= 1.0
+    assert view._radar_display_scale > 0.0
     map_rect = view._map_item.sceneBoundingRect().adjusted(
         -0.001, -0.001, 0.001, 0.001)
-    assert map_rect.contains(view._viewport_scene_rect())
+    assert map_rect.width() > 0.0
+    assert map_rect.height() > 0.0
+    calibration = cfg["instances"][0]["map"]["pixels_per_100m"]
+    radar_x = cfg["instances"][0]["map"]["radar_x"]
+    radar_y = cfg["instances"][0]["map"]["radar_y"]
+    origin = view._map_item.mapToScene(QPointF(radar_x, radar_y))
+    probe = view._map_item.mapToScene(
+        QPointF(radar_x + calibration, radar_y))
+    calibrated_distance = math.hypot(
+        probe.x() - origin.x(), probe.y() - origin.y())
+    initial_display_scale = view._radar_display_scale
+    view.resize(1600, 500)
+    app.processEvents()
+    origin_after_resize = view._map_item.mapToScene(QPointF(radar_x, radar_y))
+    probe_after_resize = view._map_item.mapToScene(
+        QPointF(radar_x + calibration, radar_y))
+    assert view._radar_display_scale == pytest.approx(initial_display_scale)
+    resized_distance = math.hypot(
+        probe_after_resize.x() - origin_after_resize.x(),
+        probe_after_resize.y() - origin_after_resize.y(),
+    )
+    assert resized_distance == pytest.approx(
+        calibrated_distance
+    )
     range_rings = [
         item for item in view.scene().items()
         if isinstance(item, QGraphicsEllipseItem)
@@ -245,8 +271,76 @@ def test_builtin_map_asset_is_loaded_by_map_view(app):
     ring_radii = sorted(
         round(item.rect().width() / 2.0, 3)
         for item in range_rings)
-    assert ring_radii == [712.5, 1425.0, 2850.0, 4275.0]
+    assert ring_radii == [
+        round(value * view._radar_display_scale, 3)
+        for value in FIXED_RING_VALUES_M
+    ]
+    assert FIXED_RING_VALUES_M == (500.0, 1000.0, 2000.0, 3000.0, 5000.0)
+    assert view._effective_plane_range_m() == 5000.0
+    outer_ring_radius = ring_radii[-1]
+    assert outer_ring_radius * view._screen_pixels_per_meter() == pytest.approx(
+        view._view_radius_px())
+    assert view._map_edge_distance_m == pytest.approx(outer_ring_radius)
+    target = RadarObservation(
+        stream_id="stream-a", track_id=99, ground_range_m=1000.0,
+        azimuth_deg=0.0,
+    )
+    target_position = view._target_position(target)
+    assert math.hypot(target_position.x(), target_position.y()) == pytest.approx(
+        1000.0 * view._radar_display_scale)
+    map_pixel = view._map_item.mapFromScene(target_position)
+    assert map_pixel.x() == pytest.approx(radar_x)
+    assert map_pixel.y() == pytest.approx(
+        radar_y - calibration * 10 * view._radar_display_scale)
+    view.resize(680, 420)
+    app.processEvents()
+    resized_target_position = view._target_position(target)
+    resized_map_pixel = view._map_item.mapFromScene(resized_target_position)
+    assert resized_map_pixel.x() == pytest.approx(radar_x)
+    assert resized_map_pixel.y() == pytest.approx(
+        radar_y - calibration * 10 * view._radar_display_scale)
+    view.set_map_visible(False)
+    hidden_map_position = view._target_position(target)
+    assert hidden_map_position.x() == pytest.approx(resized_target_position.x())
+    assert hidden_map_position.y() == pytest.approx(resized_target_position.y())
+    view.set_map_visible(True)
+    assert view._target_position(target) == resized_target_position
     view.close()
+
+
+def test_missing_position_fields_are_rejected_and_large_track_payload_is_safe(app):
+    from aerosight.core.radar import RadarObservation
+    from aerosight.pipeline.rrtsp_source import (
+        TRACK_FRAME_HEAD,
+        TRACK_VALUE_HEAD,
+        MAX_RTP_DATAGRAM_SIZE,
+        RTP_HEAD,
+        TLV_HEAD,
+        parse_track_payload,
+    )
+    with pytest.raises(ValueError, match="finite range_m"):
+        RadarObservation.from_track(
+            "stream-a",
+            {"id": 1, "fields": {"range_m": 1000, "elevation_deg": 2}},
+        )
+
+    values = struct.pack(">f", 1000.0) * 8
+    track_value = TRACK_VALUE_HEAD.pack(1, 0, 5, 0xFF) + values
+    tlv = TLV_HEAD.pack(1, len(track_value)) + track_value
+    payload = TRACK_FRAME_HEAD.pack(1, 91, 0, 0) + tlv * 91
+    assert len(payload) > 4096
+    assert len(payload) + RTP_HEAD.size <= MAX_RTP_DATAGRAM_SIZE
+    assert len(parse_track_payload(payload)) == 91
+    with pytest.raises(ValueError, match="truncated"):
+        parse_track_payload(payload[:-1])
+    short_value = TRACK_VALUE_HEAD.pack(1, 0, 5, 1) + b"\x00\x00"
+    malformed = (
+        TRACK_FRAME_HEAD.pack(1, 1, 0, 0)
+        + TLV_HEAD.pack(1, len(short_value))
+        + short_value
+    )
+    with pytest.raises(ValueError, match="truncated float field"):
+        parse_track_payload(malformed)
 
 
 def test_batch_frames_keep_history_for_stable_display_slots(app):
@@ -408,3 +502,69 @@ def test_sigint_requests_clean_qt_event_loop_exit(app):
         watchdog.stop()
         for signum, handler in previous_handlers.items():
             signal.signal(signum, handler)
+
+
+def test_settings_apply_independent_periods_for_each_instance(app):
+    cfg = load_config()
+    cfg["instances"] = [
+        default_instance("radar-n", "N", "rrtsp"),
+        default_instance("radar-t", "T", "rrtsp"),
+    ]
+    cfg["ui"]["selected_instance_id"] = "radar-n"
+    receiver_cmd, inference_cmd = queue.Queue(), queue.Queue()
+    dialog = BasicSettingsDialog(cfg, receiver_cmd, inference_cmd)
+    dialog.show()
+    app.processEvents()
+    try:
+        assert dialog.backend_send_period.suffix() == " s"
+        assert dialog.frontend_scan_period.suffix() == " s"
+        assert dialog.backend_send_period.value() == 1.0
+        assert dialog.frontend_scan_period.value() == 3.0
+        dialog.backend_send_period.setValue(1.25)
+        dialog.frontend_scan_period.setValue(7.5)
+        dialog.instance_table.selectRow(1)
+        assert dialog.backend_send_period.value() == 1.0
+        assert dialog.frontend_scan_period.value() == 3.0
+        dialog.backend_send_period.setValue(0.75)
+        dialog.frontend_scan_period.setValue(4.5)
+        dialog.instance_table.selectRow(0)
+        assert dialog.backend_send_period.value() == 1.25
+        assert dialog.frontend_scan_period.value() == 7.5
+        dialog.apply_settings()
+        assert not dialog.isVisible()
+        for commands in (receiver_cmd, inference_cmd):
+            command = commands.get_nowait()
+            assert command["cmd"] == "apply"
+            instances = command["cfg"]["instances"]
+            assert [item["source"]["rrtsp"]["send_interval_seconds"] for item in instances] == [1.25, 0.75]
+            assert [item["display"]["frontend_scan_period_seconds"] for item in instances] == [7.5, 4.5]
+    finally:
+        dialog.close()
+
+
+def test_scan_period_change_preserves_angle_and_pending_reveal(app, monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr("aerosight.ui.map_view.time.monotonic", lambda: clock[0])
+    view = MapRadarView()
+    view.set_display_mode("scan")
+    view.set_buffered_reveal(True)
+    view.begin_stream("stream-a")
+    clock[0] = 101.0
+    view.advance_scan()
+    point = observation(1, 0)
+    point.azimuth_deg = -90.0
+    view.record_frame([point], frame_id=1, timestamp=1.0)
+    key = ("stream-a", 1)
+    crossing = view._pending_points[key][0].reveal_at_position
+    assert view._scan_position_degrees == pytest.approx(120.0)
+    view.set_scan_period(6.0)
+    assert view._scan_position_degrees == pytest.approx(120.0)
+    assert view._pending_points[key][0].reveal_at_position == crossing
+    clock[0] = 102.0
+    view.advance_scan()
+    assert view._scan_position_degrees == pytest.approx(180.0)
+    assert key not in view.trajectories
+    clock[0] = 104.0
+    view.advance_scan()
+    assert len(view.trajectories[key]) == 1
+    view.close()

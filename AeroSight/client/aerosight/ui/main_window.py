@@ -150,6 +150,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
         layout.addWidget(self._topbar())
         self.map_view = MapRadarView()
+        self.map_view.set_buffered_reveal(True)
         self.map_view.trackAnalysisRequested.connect(self.open_track_analysis)
         layout.addWidget(self._viewbar())
 
@@ -391,6 +392,7 @@ class MainWindow(QMainWindow):
         self._drain_messages()
         self._drain_results()
         self._refresh_instance_selector()
+        self.map_view.advance_scan()
 
         frame = self.latest_frames.get(self.current_instance_id)
         observations = self._current_observations()
@@ -402,7 +404,7 @@ class MainWindow(QMainWindow):
         )
         self.inferred = {
             key: value for key, value in self.inferred.items()
-            if key in self.map_view.latest_by_track
+            if self.map_view.has_track(key)
         }
         self._refresh_target_table()
         self._metrics()
@@ -421,26 +423,23 @@ class MainWindow(QMainWindow):
                     if dialog is not None:
                         dialog.set_stream_name(payload.stream_name)
                         dialog.append_samples(samples)
+                for track_id, label in payload.remote_labels.items():
+                    self.inferred[(payload.stream_id, int(track_id))] = label
                 if payload.stream_id == self.current_instance_id:
                     self.map_view.record_frame(
                         payload.observations,
                         frame_id=payload.frame_id,
                         timestamp=payload.timestamp,
                     )
-                for track_id, label in payload.remote_labels.items():
-                    self.inferred[(payload.stream_id, int(track_id))] = label
                 self.arrival_by_instance.setdefault(
                     payload.stream_id, deque(maxlen=300)).append(time.time())
                 self._forward(payload)
             elif kind == "status":
                 previous = self.stream_status.get(payload.id)
-                if payload.state == "connected" and (
+                if payload.state in {"connecting", "connected"} and (
                     previous is None or previous.state != "connected"
                 ):
-                    self.analysis_history.reset_stream(payload.id)
-                    for key, dialog in self.analysis_windows.items():
-                        if key[0] == payload.id:
-                            dialog.reset_history()
+                    self._reset_stream_view(payload.id)
                 self.stream_status[payload.id] = payload
 
     def _drain_results(self):
@@ -605,10 +604,16 @@ class MainWindow(QMainWindow):
     def _apply_preview(self):
         instance = self._find_instance(self.current_instance_id)
         if not instance:
-            self.map_view.configure({}, 3000)
+            self.map_view.configure({}, 3000, display_mode="fixed")
             return
-        range_m = instance.get("display", {}).get("plane_range_m", 3000)
-        self.map_view.configure(instance.get("map", {}), range_m)
+        display = instance.get("display", {})
+        range_m = display.get("plane_range_m", 3000)
+        self.map_view.configure(
+            instance.get("map", {}),
+            range_m,
+            display_mode=display.get("radar_display_mode", "fixed"),
+            scan_period_seconds=display.get("frontend_scan_period_seconds", 3.0),
+        )
 
     def _refresh_target_table(self):
         targets = self.map_view.display_targets()
@@ -676,6 +681,25 @@ class MainWindow(QMainWindow):
         item = self.targets_table.item(row, 0)
         if item is not None:
             self.map_view.select_track(item.data(Qt.ItemDataRole.UserRole))
+
+    def _reset_stream_view(self, stream_id: str):
+        """Drop stale UI state when a receiver starts a new connection."""
+        stream_id = str(stream_id)
+        self.latest_frames.pop(stream_id, None)
+        self.inference_by_instance.pop(stream_id, None)
+        self.inferred = {
+            key: value for key, value in self.inferred.items()
+            if key[0] != stream_id
+        }
+        self.arrival_by_instance.pop(stream_id, None)
+        self.fps_smoothed.pop(stream_id, None)
+        self.last_fps_at_by_instance.pop(stream_id, None)
+        self.analysis_history.reset_stream(stream_id)
+        for key, dialog in self.analysis_windows.items():
+            if key[0] == stream_id:
+                dialog.reset_history()
+        if stream_id == self.current_instance_id:
+            self.map_view.clear_trajectories()
 
     def open_track_analysis(self, stream_id: str, track_id: int):
         key = (str(stream_id), int(track_id))

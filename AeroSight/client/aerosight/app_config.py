@@ -24,10 +24,13 @@ instances:
         username: ""
         password: ""
         remote_inference: true
+        send_interval_seconds: 1.0
       simulation:
         rate_hz: 5
     display:
       plane_range_m: 3000
+      radar_display_mode: fixed
+      frontend_scan_period_seconds: 3.0
     map:
       image_path: ""
       radar_x: 975
@@ -107,6 +110,7 @@ def default_instance(instance_id: str, name: str, kind: str = "simulation") -> d
                 "username": "",
                 "password": "",
                 "remote_inference": False,
+                "send_interval_seconds": 1.0,
             },
             "simulation": {
                 "rate_hz": 5.0,
@@ -114,6 +118,8 @@ def default_instance(instance_id: str, name: str, kind: str = "simulation") -> d
         },
         "display": {
             "plane_range_m": 3000.0,
+            "radar_display_mode": "fixed",
+            "frontend_scan_period_seconds": 3.0,
         },
         "map": normalize_map(),
         "model": {
@@ -139,12 +145,26 @@ def normalize_instance(raw: dict, index: int, fallback_map=None) -> dict:
         "username": str(rrtsp_raw.get("username", "")),
         "password": str(rrtsp_raw.get("password", "")),
         "remote_inference": bool(rrtsp_raw.get("remote_inference", False)),
+        "send_interval_seconds": max(
+            float(rrtsp_raw.get("send_interval_seconds", 1.0)),
+            0.05,
+        ),
     }
     item["source"]["simulation"] = {
         "rate_hz": max(float(simulation_raw.get("rate_hz", 5.0)), 0.1),
     }
     item["display"] = {
         "plane_range_m": max(float(raw.get("display", {}).get("plane_range_m", 3000.0)), 1.0),
+        "radar_display_mode": (
+            "scan"
+            if str(raw.get("display", {}).get("radar_display_mode", "fixed")).lower()
+            in {"scan", "t", "clockwise"}
+            else "fixed"
+        ),
+        "frontend_scan_period_seconds": max(
+            float(raw.get("display", {}).get("frontend_scan_period_seconds", 3.0)),
+            0.1,
+        ),
     }
     item["map"] = normalize_map(raw.get("map", {}), fallback_map)
     item["model"] = {

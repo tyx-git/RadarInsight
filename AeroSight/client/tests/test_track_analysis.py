@@ -202,6 +202,7 @@ def test_disconnect_holds_history_and_reconnect_starts_new_segment(window):
     window.message_q.put(("frame", frame(0)))
     window.message_q.put(("frame", frame(1)))
     window._tick()
+    assert len(window.map_view.trajectories[key]) == 2
     window.open_track_analysis(*key)
     dialog = window.analysis_windows[key]
     window.message_q.put(("status", StreamStatus("stream-a", "Radar A", "error")))
@@ -209,7 +210,9 @@ def test_disconnect_holds_history_and_reconnect_starts_new_segment(window):
     assert dialog.sample_count == 2
     window.message_q.put(("status", StreamStatus("stream-a", "Radar A", "connecting")))
     window._tick()
-    assert dialog.sample_count == 2
+    assert dialog.sample_count == 0
+    assert key not in window.map_view.trajectories
+    assert "stream-a" not in window.latest_frames
     window.message_q.put(("status", StreamStatus("stream-a", "Radar A", "connected")))
     window._tick()
     assert dialog.sample_count == 0
@@ -217,6 +220,7 @@ def test_disconnect_holds_history_and_reconnect_starts_new_segment(window):
     window.message_q.put(("frame", frame(0, timestamp=30)))
     window._tick()
     assert dialog.sample_count == 1
+    assert len(window.map_view.trajectories[key]) == 1
     assert dialog.speed_curve.segments[0].at(0).x() == 0
     window.close()
     assert window.analysis_windows == {}
@@ -231,7 +235,8 @@ def test_unpaired_tracks_do_not_advance_analysis(window):
     ticks = 270_000
     connection.track_q.put((ticks, [{
         "id": 534, "fields": {
-            "range_m": 1000, "elevation_deg": 5, "radial_speed_mps": -14,
+            "range_m": 1000, "azimuth_deg": 0, "elevation_deg": 5,
+            "radial_speed_mps": -14,
         },
     }]))
     waiting = threading.Event()
