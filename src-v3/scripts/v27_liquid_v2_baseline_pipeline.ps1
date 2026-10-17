@@ -2,7 +2,6 @@
 param(
     [ValidateSet(
         'prepare',
-        'smoke',
         'init-unfitted-l3',
         'prepare-open-set',
         'materialize-representations',
@@ -19,7 +18,7 @@ param(
         'evaluate-open-set',
         'audit'
     )]
-    [string]$Stage = 'smoke',
+    [string]$Stage = 'prepare',
     [string]$ProjectRoot = ''
 )
 
@@ -37,7 +36,6 @@ try {
     $arguments = @('-m', 'v27.v27_baseline.cli', '--project-root', $root)
     switch ($Stage) {
         'prepare' { $arguments += 'prepare' }
-        'smoke' { $arguments += 'smoke' }
         'init-unfitted-l3' { $arguments += 'init-unfitted-l3' }
         'prepare-open-set' { $arguments += 'prepare-open-set' }
         'materialize-representations' { $arguments += 'materialize-representations' }

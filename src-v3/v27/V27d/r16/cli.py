@@ -9,7 +9,6 @@ from typing import Any
 
 from .evaluation import build_paired_report, evaluate_arm, summarize_seeds
 from .protocol import R16_ARMS, load_context, prepare_manifest
-from .smoke import run_smoke
 from .training import train_r16_arm
 
 
@@ -19,7 +18,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     train = commands.add_parser("train")
     train.add_argument("--arm", choices=R16_ARMS, required=True)
     train.add_argument("--seed", type=int, required=True)
@@ -39,8 +37,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "prepare":
         _, path, digest = prepare_manifest(root, args.config)
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
-    elif args.command == "smoke":
-        _print(run_smoke(load_context(root, args.config)))
     elif args.command == "train":
         _print(train_r16_arm(load_context(root, args.config), arm=args.arm, seed=args.seed))
     elif args.command == "evaluate":

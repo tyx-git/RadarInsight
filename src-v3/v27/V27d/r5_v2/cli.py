@@ -11,7 +11,6 @@ from .audit import audit_error_samples
 from .evaluation import evaluate_experiment
 from .features import materialize_population_caches
 from .protocol import load_config, prepare_manifest
-from .smoke import run_smoke
 from .training import train_control
 
 
@@ -23,7 +22,6 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("prepare")
     subparsers.add_parser("materialize")
     subparsers.add_parser("audit")
-    subparsers.add_parser("smoke")
     train = subparsers.add_parser("train")
     train.add_argument("--seed", type=int, default=42)
     evaluate = subparsers.add_parser("evaluate")
@@ -47,9 +45,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "audit":
         _print(audit_error_samples(root, args.config))
-        return 0
-    if args.command == "smoke":
-        _print(run_smoke(root, args.config))
         return 0
     if args.command == "train":
         _print(train_control(root, seed=args.seed, config_path=args.config))

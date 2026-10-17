@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "radar-ln3-liquid-v2"
+version = "0.1.0"
+description = "Radar-LN3 第二版液态算法：raw-memory / pre-norm 递归单元（冻结参考实现）"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

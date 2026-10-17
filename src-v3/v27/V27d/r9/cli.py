@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate_seed, summarize_seeds
 from .features import materialize_profile_caches
 from .protocol import R9_SEEDS, prepare_manifest
-from .smoke import run_smoke
 from .training import train_seed
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
     commands.add_parser("materialize")
-    commands.add_parser("smoke")
     train = commands.add_parser("train")
     train.add_argument("--seed", type=int, choices=R9_SEEDS, required=True)
     evaluate = commands.add_parser("evaluate")
@@ -42,8 +40,6 @@ def main(argv: list[str] | None = None) -> int:
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
     elif args.command == "materialize":
         _print(materialize_profile_caches(root, args.config))
-    elif args.command == "smoke":
-        _print(run_smoke(root, args.config))
     elif args.command == "train":
         _print(train_seed(root, seed=args.seed, config_path=args.config))
     elif args.command == "evaluate":

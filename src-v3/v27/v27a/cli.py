@@ -26,7 +26,6 @@ from .protocol import (
     v27a_artifact_path,
 )
 from .runtime import configured_device
-from .smoke import run_smoke
 from .training import train_v27a_arm
 from .model import build_v27a_model
 
@@ -43,7 +42,6 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("prepare", help="Audit inputs and create the V27a manifest")
-    subparsers.add_parser("smoke", help="Run structural contract smoke tests")
     subparsers.add_parser("materialize", help="Cache frozen V27 L2 logits and evidence")
 
     train = subparsers.add_parser("train", help="Train one V27a residual arm")
@@ -146,9 +144,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     context = load_v27a_context(root, args.config)
-    if args.command == "smoke":
-        _json_result(run_smoke(context))
-        return 0
     if args.command == "materialize":
         _json_result(
             materialize_frozen_logit_caches(

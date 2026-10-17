@@ -17,7 +17,6 @@ from .protocol import (
     load_context,
     prepare_manifest,
 )
-from .smoke import run_smoke
 from .training import train_heads
 
 
@@ -30,7 +29,6 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("materialize-endpoints", help="Replay frozen L1/L2 classification endpoints")
     materialize = subparsers.add_parser("materialize-features", help="Build a V27d representation cache")
     materialize.add_argument("--variant", choices=V27D_VARIANTS, default="r1")
-    subparsers.add_parser("smoke", help="Run V27d contract checks")
     train = subparsers.add_parser("train", help="Train independent knownness and quality heads")
     train.add_argument("--task", choices=V27D_TASKS, required=True)
     train.add_argument("--variant", choices=V27D_VARIANTS, default="r1")
@@ -70,10 +68,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "materialize-features":
         _print(materialize_feature_caches(context, variant=args.variant))
-        return 0
-    if args.command == "smoke":
-        result = run_smoke(context)
-        _print(result)
         return 0
     if args.command == "train":
         _print(train_heads(context, variant=args.variant, task=args.task, seed=args.seed))

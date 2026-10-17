@@ -14,7 +14,6 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 from .evaluation import evaluate_r23_seed, evaluate_r23_single_arm, summarize_r23_seeds
 from .protocol import R23_ARMS, load_r23_context, prepare_r23_manifest
-from .smoke import run_smoke
 from .training import run_r23_training_step, train_r23_arm
 
 
@@ -26,7 +25,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="verify frozen inputs and write the immutable manifest")
-    commands.add_parser("smoke", help="run necessary alignment and initial-replay checks")
     step = commands.add_parser("training-step", help="run one CPU update without writing a formal artifact")
     step.add_argument("--arm", required=True, choices=R23_ARMS)
     train = commands.add_parser("train", help="train one factorial L2 arm with global validation selection")
@@ -59,9 +57,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     context = load_r23_context(root, args.config)
-    if args.command == "smoke":
-        _print(run_smoke(context))
-        return 0
     if args.command == "training-step":
         _print(run_r23_training_step(context, arm=args.arm))
         return 0

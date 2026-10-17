@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate_all
 from .features import materialize_population_caches
 from .protocol import R7_ARMS, prepare_manifest
-from .smoke import run_smoke
 from .summary import summarize
 from .training import train_arm
 
@@ -22,7 +21,6 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
     commands.add_parser("materialize")
-    commands.add_parser("smoke")
     train = commands.add_parser("train")
     train.add_argument("--arm", choices=R7_ARMS, required=True)
     train.add_argument("--seed", type=int, required=True)
@@ -44,8 +42,6 @@ def main(argv: list[str] | None = None) -> int:
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
     elif args.command == "materialize":
         _print(materialize_population_caches(root, args.config))
-    elif args.command == "smoke":
-        _print(run_smoke(root, args.config))
     elif args.command == "train":
         _print(train_arm(root, arm=args.arm, seed=args.seed, config_path=args.config))
     elif args.command == "evaluate":

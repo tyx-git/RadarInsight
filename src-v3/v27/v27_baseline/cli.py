@@ -219,7 +219,6 @@ def main() -> None:
     parser.add_argument("--project-root", type=Path, required=True)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("prepare")
-    sub.add_parser("smoke")
     train = sub.add_parser("train")
     train.add_argument("--task", required=True, choices=sorted(V27_ALLOWED_TASKS))
     train.add_argument("--seed", type=int)
@@ -261,9 +260,6 @@ def main() -> None:
             "data_registry_sha256": binding["data_registry_sha256"],
             "l3_registry": registry,
         }
-    elif args.command == "smoke":
-        from .smoke import run_smoke
-        result = run_smoke(root)
     elif args.command == "train":
         result = train_v27_task(
             load_v27_context(root),

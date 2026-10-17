@@ -26,7 +26,6 @@ from .protocol import (
     v27b_artifact_path,
 )
 from .runtime import configured_device
-from .smoke import run_smoke
 from .training import train_v27b
 from .model import build_v27b_model
 
@@ -42,7 +41,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("prepare", help="Verify V27a inputs and write the V27b manifest")
-    subparsers.add_parser("smoke", help="Run structural V27b contract tests")
     subparsers.add_parser("materialize", help="Materialize frozen V27a features")
 
     train = subparsers.add_parser("train", help="Train the conditional treatment head")
@@ -123,9 +121,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     context = load_v27b_context(root, args.config)
-    if args.command == "smoke":
-        _print(run_smoke(context))
-        return 0
     if args.command == "materialize":
         _print(
             materialize_v27b_feature_caches(

@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate_v27c_motion, summarize_v27c_seeds
 from .features import materialize_feature_caches
 from .protocol import load_v27c_context, prepare_v27c_manifest
-from .smoke import run_smoke
 from .training import train_v27c_motion
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="verify frozen V27a inputs and write the V27c manifest")
     commands.add_parser("materialize", help="materialize cache-aligned numeric motion sidecars")
-    commands.add_parser("smoke", help="run necessary model, sidecar, and endpoint checks")
     train = commands.add_parser("train", help="train one fixed-epoch causal motion residual")
     train.add_argument("--seed", required=True, type=int)
     evaluate = commands.add_parser("evaluate", help="write one paired known-only validation report")
@@ -44,9 +42,6 @@ def main(argv: list[str] | None = None) -> int:
     context = load_v27c_context(root, args.config)
     if args.command == "materialize":
         _print(materialize_feature_caches(context))
-        return 0
-    if args.command == "smoke":
-        _print(run_smoke(context))
         return 0
     if args.command == "train":
         _print(train_v27c_motion(context, seed=int(args.seed)))

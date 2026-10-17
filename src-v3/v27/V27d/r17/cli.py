@@ -10,7 +10,6 @@ from typing import Any
 from .data import build_r17_data
 from .evaluation import evaluate_frozen, evaluate_l2_checkpoint
 from .protocol import artifact_path, load_config, prepare_manifest
-from .smoke import run_smoke
 from .training import train_l2
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare-data")
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     evaluate = commands.add_parser("evaluate-frozen")
     evaluate.add_argument("--device", choices=("cpu", "cuda", "auto"), default=None)
     evaluate_l2 = commands.add_parser("evaluate-l2")
@@ -46,8 +44,6 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "prepare":
         _, path, digest = prepare_manifest(root, args.config)
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
-    elif args.command == "smoke":
-        _print(run_smoke(root, config))
     elif args.command == "evaluate-frozen":
         _print(evaluate_frozen(root, config, device=args.device))
     elif args.command == "evaluate-l2":

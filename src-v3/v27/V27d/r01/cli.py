@@ -10,7 +10,6 @@ from .benchmark import run_benchmark
 from .diagnostics import diagnose_excel_from_project, diagnose_x5a, write_json
 from .evaluation import evaluate_excel
 from .protocol import artifact_path, load_config
-from .smoke import run_smoke
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -18,7 +17,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project-root", type=Path, required=True)
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("smoke")
     x5a = commands.add_parser("diagnose-x5a")
     x5a.add_argument("--limit-files", type=int, default=None)
     x5a.add_argument("--output", type=Path, default=None)
@@ -40,9 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root = args.project_root.resolve()
     config = load_config(root, args.config)
-    if args.command == "smoke":
-        value = run_smoke(root)
-    elif args.command == "diagnose-x5a":
+    if args.command == "diagnose-x5a":
         value = diagnose_x5a(root, limit_files=args.limit_files)
         if args.output is not None:
             output = args.output if args.output.is_absolute() else artifact_path(root, args.output)

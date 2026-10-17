@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .evaluation import build_paired_report, evaluate_arm, summarize_seeds
 from .protocol import R14_ARMS, R14_SEEDS, load_context, prepare_manifest
-from .smoke import run_smoke
 from .training import train_v27d_r14_arm
 
 
@@ -18,7 +17,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=None)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("prepare")
-    sub.add_parser("smoke")
     train = sub.add_parser("train")
     train.add_argument("--arm", choices=R14_ARMS, required=True)
     train.add_argument("--seed", type=int, choices=R14_SEEDS, required=True)
@@ -35,9 +33,7 @@ def main(argv: list[str] | None = None) -> int:
         result = {"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest}
     else:
         context = load_context(root, args.config)
-        if args.command == "smoke":
-            result = run_smoke(context)
-        elif args.command == "train":
+        if args.command == "train":
             result = train_v27d_r14_arm(context, arm=args.arm, seed=args.seed)
         elif args.command == "evaluate":
             result = evaluate_arm(context, arm=args.arm, seed=args.seed)

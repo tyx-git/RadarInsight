@@ -11,7 +11,6 @@ from .diagnosis import diagnose
 from .evaluation import evaluate_comparison
 from .training import train_arm
 from .protocol import load_config, prepare_manifest
-from .smoke import run_smoke
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,7 +19,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     diagnosis = commands.add_parser("diagnose")
     diagnosis.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     evaluation = commands.add_parser("evaluate")
@@ -36,8 +34,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "prepare":
         _, path, digest = prepare_manifest(root, args.config)
         value: Any = {"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest}
-    elif args.command == "smoke":
-        value = run_smoke(root, config)
     elif args.command == "diagnose":
         value = diagnose(root, config, device=args.device)
     elif args.command == "evaluate":

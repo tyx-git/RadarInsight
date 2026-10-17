@@ -1,0 +1,37 @@
+"""Frozen contracts for V21e KnownGate paired five-fold OOF evaluation."""
+
+from __future__ import annotations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

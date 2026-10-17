@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate_seed, evaluate_single_arm, summarize_seeds
 from .features import materialize_observation_cache
 from .protocol import R15_ARMS, load_context, prepare_manifest
-from .smoke import run_smoke
 from .training import train_r15_arm
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
     commands.add_parser("materialize")
-    commands.add_parser("smoke")
     train = commands.add_parser("train")
     train.add_argument("--arm", choices=R15_ARMS, required=True)
     train.add_argument("--seed", type=int, required=True)
@@ -44,8 +42,6 @@ def main(argv: list[str] | None = None) -> int:
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
     elif args.command == "materialize":
         _print(materialize_observation_cache(load_context(root, args.config)))
-    elif args.command == "smoke":
-        _print(run_smoke(load_context(root, args.config)))
     elif args.command == "train":
         _print(train_r15_arm(load_context(root, args.config), arm=args.arm, seed=args.seed))
     elif args.command == "evaluate":

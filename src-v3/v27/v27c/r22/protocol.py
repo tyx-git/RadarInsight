@@ -957,7 +957,6 @@ def _source_paths() -> tuple[Path, ...]:
         Path("src-v3/v27/v27c/r22/model.py"),
         Path("src-v3/v27/v27c/r22/training.py"),
         Path("src-v3/v27/v27c/r22/evaluation.py"),
-        Path("src-v3/v27/v27c/r22/smoke.py"),
         Path("src-v3/v27/v27c/r22/cli.py"),
         Path("src-v3/v27/v27_baseline/base_binding.py"),
         Path("src-v3/v27/v27_baseline/data.py"),

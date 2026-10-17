@@ -15,7 +15,6 @@ from .head_training import train_heads
 from .protocol import V28_L1_TASK, V28_L2_TASK, load_context, prepare_manifest
 from .registry import build_registry, write_registry
 from .representations import materialize_representations
-from .smoke import run_smoke
 from .evaluation import evaluate_checkpoint
 from .replay import run_replay
 from .training import train_task
@@ -56,7 +55,6 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("prepare-manifest")
     sub.add_parser("prepare-classifier-features")
-    smoke = sub.add_parser("smoke")
     train = sub.add_parser("train")
     train.add_argument("--task", choices=(V28_L1_TASK, V28_L2_TASK), required=True)
     train.add_argument("--seed", type=int, required=True)
@@ -107,8 +105,6 @@ def main(argv: list[str] | None = None) -> int:
         result = prepare_manifest(root, args.config)
     elif args.command == "prepare-classifier-features":
         result = prepare_classifier_features(root)
-    elif args.command == "smoke":
-        result = run_smoke(root, args.config)
     elif args.command == "train":
         result = train_task(load_context(root, args.config), task=args.task, seed=args.seed, epochs=args.epochs)
     elif args.command == "evaluate":

@@ -9,7 +9,6 @@ from typing import Any
 
 from .evaluation import evaluate_r22_seed, summarize_r22_seeds
 from .protocol import R22_ARMS, load_r22_context, prepare_r22_manifest
-from .smoke import run_smoke
 from .training import run_r22_training_step, train_r22_arm
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="verify frozen inputs and write the immutable manifest")
-    commands.add_parser("smoke", help="run necessary alignment and initial-replay checks")
     step = commands.add_parser("training-step", help="run one CPU update without writing a formal artifact")
     step.add_argument("--arm", required=True, choices=R22_ARMS)
     train = commands.add_parser("train", help="train one matched L2 arm through epoch 20")
@@ -53,9 +51,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     context = load_r22_context(root, args.config)
-    if args.command == "smoke":
-        _print(run_smoke(context))
-        return 0
     if args.command == "training-step":
         _print(run_r22_training_step(context, arm=args.arm))
         return 0

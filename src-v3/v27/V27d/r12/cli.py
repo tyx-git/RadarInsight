@@ -9,7 +9,6 @@ from typing import Any
 
 from .evaluation import evaluate_seed, summarize_seeds
 from .protocol import R12_SEEDS, prepare_manifest
-from .smoke import run_smoke
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -20,7 +19,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     evaluate = commands.add_parser("evaluate")
     evaluate.add_argument("--seed", type=int, choices=R12_SEEDS, required=True)
     commands.add_parser("summarize")
@@ -37,8 +35,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "prepare":
         _, path, digest = prepare_manifest(root, args.config)
         _print({"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest})
-    elif args.command == "smoke":
-        _print(run_smoke(root, args.config))
     elif args.command == "evaluate":
         _print(evaluate_seed(root, seed=args.seed, config_path=args.config))
     elif args.command == "summarize":

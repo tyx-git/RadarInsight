@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate_experiment
 from .features import materialize_population_caches
 from .protocol import load_config, prepare_manifest
-from .smoke import run_smoke
 from .training import train_arm
 
 
@@ -21,7 +20,6 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("prepare")
     subparsers.add_parser("materialize")
-    subparsers.add_parser("smoke")
     train = subparsers.add_parser("train")
     train.add_argument("--arm", choices=("control", "stable8_treatment"), required=True)
     train.add_argument("--seed", type=int, default=42)
@@ -43,9 +41,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "materialize":
         _print(materialize_population_caches(root, args.config))
-        return 0
-    if args.command == "smoke":
-        _print(run_smoke(root, args.config))
         return 0
     if args.command == "train":
         _print(train_arm(root, arm=args.arm, seed=args.seed, config_path=args.config))

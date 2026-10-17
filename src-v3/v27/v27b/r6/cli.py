@@ -15,7 +15,6 @@ from .evaluation import (
 )
 from .features import materialize_feature_caches
 from .protocol import R6_ARMS, R6_ROLES, load_r6_context, prepare_r6_manifest
-from .smoke import run_smoke
 from .training import train_r6_head
 
 
@@ -25,7 +24,6 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="verify frozen inputs and write the r6 manifest")
-    commands.add_parser("smoke", help="run necessary structural and endpoint-replay checks")
     commands.add_parser("materialize", help="materialize sealed mixed-pool feature sidecars")
     train = commands.add_parser("train", help="fit one fixed-epoch knownness arm")
     train.add_argument("--arm", choices=R6_ARMS, required=True)
@@ -58,9 +56,6 @@ def main(argv: list[str] | None = None) -> int:
         })
         return 0
     context = load_r6_context(root, args.config)
-    if args.command == "smoke":
-        _print(run_smoke(context))
-        return 0
     if args.command == "materialize":
         _print(materialize_feature_caches(context))
         return 0

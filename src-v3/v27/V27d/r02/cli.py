@@ -10,7 +10,6 @@ from typing import Any
 from .evaluation import evaluate
 from .followup import run_followup
 from .protocol import load_config, prepare_manifest
-from .smoke import run_smoke
 from .training import train
 
 
@@ -20,7 +19,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     train_parser = commands.add_parser("train")
     train_parser.add_argument("--device", choices=("cpu", "cuda", "auto"), default="cuda")
     eval_parser = commands.add_parser("evaluate")
@@ -40,8 +38,6 @@ def main(argv: list[str] | None = None) -> int:
             "train_parent_count": manifest["split"]["train_parent_count"],
             "validation_parent_count": manifest["split"]["validation_parent_count"],
         }
-    elif args.command == "smoke":
-        value = run_smoke(root, config)
     elif args.command == "train":
         value = train(root, config, device=args.device)
     elif args.command == "followup":

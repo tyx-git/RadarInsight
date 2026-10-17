@@ -491,7 +491,6 @@ R6_SOURCE_PATHS = (
     Path("src-v3/v27/v27b/r6/model.py"),
     Path("src-v3/v27/v27b/r6/training.py"),
     Path("src-v3/v27/v27b/r6/evaluation.py"),
-    Path("src-v3/v27/v27b/r6/smoke.py"),
     Path("src-v3/v27/v27b/r6/cli.py"),
     Path("src-v3/v27/v27_baseline/open_set.py"),
     Path("src-v3/v27/v27_baseline/open_set_data.py"),

@@ -9,7 +9,6 @@ from typing import Any
 
 from .evaluation import evaluate_comparison
 from .protocol import load_config, prepare_manifest
-from .smoke import run_smoke
 from .training import train_arm
 
 
@@ -19,7 +18,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=None)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare")
-    commands.add_parser("smoke")
     train = commands.add_parser("train")
     train.add_argument("--arm", choices=("snr_missing_only", "snr_channel_removed"), required=True)
     train.add_argument("--seed", type=int, default=42)
@@ -33,8 +31,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "prepare":
         _, path, digest = prepare_manifest(root, args.config)
         value: Any = {"status": "prepared", "manifest_path": str(path), "manifest_sha256": digest}
-    elif args.command == "smoke":
-        value = run_smoke(root, config)
     elif args.command == "train":
         value = train_arm(root, config, arm=args.arm, seed=int(args.seed), device=args.device)
     else:

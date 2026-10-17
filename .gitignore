@@ -1,4 +1,3 @@
-.history/
 .venv/
 .agents/
 __pycache__/
@@ -10,7 +9,6 @@ __pycache__/
 *.temp
 Thumbs.db
 .DS_Store
-.idea/
 .vscode/
 artifacts/
 data/*
@@ -23,11 +21,8 @@ OriData/
 tmp/*
 todos.md
 **.md
-todos.md
 src-v3/smoke/*
 **.pt
-!src-v3/smoke/
-v2r/
 !.dvc
 **.png
 **.jpg
@@ -36,8 +31,6 @@ calkit.yaml
 src.zip
 .dvc/
 docx/
-docs/
-src-v3/.ars/
 .workbuddy-ai/
 outputs/
 src-v3/v28/calibration/features/archive/

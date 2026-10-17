@@ -673,7 +673,6 @@ V27C_SOURCE_PATHS = (
     Path("src-v3/v27/v27c/model.py"),
     Path("src-v3/v27/v27c/training.py"),
     Path("src-v3/v27/v27c/evaluation.py"),
-    Path("src-v3/v27/v27c/smoke.py"),
     Path("src-v3/v27/v27c/cli.py"),
 )
 

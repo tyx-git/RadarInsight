@@ -860,7 +860,6 @@ V27_SOURCE_PATHS = (
     Path("src-v3/v27/v27_baseline/runtime.py"),
     Path("src-v3/v27/v27_baseline/logging_utils.py"),
     Path("src-v3/v27/v27_baseline/training.py"),
-    Path("src-v3/v27/v27_baseline/smoke.py"),
     Path("src-v3/v27/v27_baseline/cli.py"),
     Path("src-v3/radar_ln3/liquid_v2.py"),
     Path("src-v3/radar_ln3/runtime.py"),
