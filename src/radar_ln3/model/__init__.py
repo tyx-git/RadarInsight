@@ -1,0 +1,67 @@
+"""正式分层模型公共入口。"""
+
+from .config import (
+    ArtifactSettings,
+    ModelConfig,
+    TrainingSettings,
+    load_model_config,
+    task_class_names,
+)
+from .l1 import L1Model, ObservationIncrementAdapter, build_l1_model
+from .l2 import (
+    EvidenceResidual,
+    L2Model,
+    MotionAdapter,
+    build_l2_model,
+    trainable_parameter_groups,
+)
+from .l3 import (
+    KNOWNNESS_HEAD_SCHEMA,
+    KNOWNNESS_HEAD_SCHEMA_V3,
+    KNOWNNESS_HEAD_SCHEMA_V4,
+    KNOWNNESS_HEAD_SCHEMA_V5,
+    KNOWNNESS_HEAD_SCHEMA_V6,
+    BirdProfileResidualKnownnessHead,
+    BirdProfileResidualFusionKnownnessHead,
+    BirdProfileResidualEvidenceFusionKnownnessHead,
+    BirdTemporalStabilityResidualKnownnessHead,
+    MICRO_DOPPLER_TEMPORAL_STABILITY_FEATURE_NAMES,
+    build_micro_doppler_temporal_stability_features,
+    ProfileResidualKnownnessHead,
+    TemporalKnownnessHead,
+    build_profile_knownness_features,
+    build_temporal_knownness_features,
+    knownness_representation_contract,
+)
+
+__all__ = [
+    "EvidenceResidual",
+    "ArtifactSettings",
+    "L2Model",
+    "L1Model",
+    "ModelConfig",
+    "MotionAdapter",
+    "ObservationIncrementAdapter",
+    "build_l1_model",
+    "build_l2_model",
+    "load_model_config",
+    "task_class_names",
+    "TrainingSettings",
+    "trainable_parameter_groups",
+    "KNOWNNESS_HEAD_SCHEMA",
+    "KNOWNNESS_HEAD_SCHEMA_V3",
+    "KNOWNNESS_HEAD_SCHEMA_V4",
+    "KNOWNNESS_HEAD_SCHEMA_V5",
+    "KNOWNNESS_HEAD_SCHEMA_V6",
+    "BirdProfileResidualKnownnessHead",
+    "BirdProfileResidualFusionKnownnessHead",
+    "BirdProfileResidualEvidenceFusionKnownnessHead",
+    "BirdTemporalStabilityResidualKnownnessHead",
+    "MICRO_DOPPLER_TEMPORAL_STABILITY_FEATURE_NAMES",
+    "build_micro_doppler_temporal_stability_features",
+    "ProfileResidualKnownnessHead",
+    "TemporalKnownnessHead",
+    "build_profile_knownness_features",
+    "build_temporal_knownness_features",
+    "knownness_representation_contract",
+]

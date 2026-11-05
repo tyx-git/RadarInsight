@@ -1,0 +1,51 @@
+{
+  "schema_version": "RADAR-LN3-DECISION-PROFILE",
+  "profile": "recall_priority",
+  "l1_target_conformal_floor_override": {
+    "floor": 0.999999,
+    "source": "validation_l1_knownness_fit",
+    "fit_artifact_sha256": "36717dd83dfd03719b5427eb7c160a92ce56d120d22cc42016b2952e200d67a9"
+  },
+  "l1_target_knownness_override": {
+    "threshold": 0.7647222877,
+    "source": "validation_l1_knownness_fit",
+    "fit_artifact_sha256": "29bbe124b1657c133efd16cf76dc9777cf615981e14b741019588d32ce78a87c"
+  },
+  "bird_recovery_gate": {
+    "enabled": true,
+    "knownness_route": "BirdTarget",
+    "knownness_threshold": 0.4394992322,
+    "probability_floor": 0.0,
+    "margin_floor": 0.0,
+    "strategy": "validation_operating_point"
+  },
+  "l1_clutter_bird_recovery_gate": {
+    "enabled": true,
+    "l1_target_score_min": 0.0,
+    "l1_target_score_max": 0.765,
+    "l2_bird_probability_floor": 0.98,
+    "l2_bird_knownness_threshold": 0.39,
+    "strategy": "clutter_bird_recovery"
+  },
+  "l1_target_bird_recovery_gate": {
+    "enabled": true,
+    "l1_target_score_min": 0.6,
+    "l1_target_score_max": 0.72,
+    "l2_bird_probability_floor": 0.95,
+    "l2_bird_knownness_threshold": 0.47,
+    "l2_bird_margin_floor": 0.9,
+    "strategy": "target_bird_recovery"
+  },
+  "source_head_model_state_sha256": {
+    "l1": "8cb56292f62e20d06a5004b8f25e9d5ffb4c5c55fa61fd861706762ff468e393",
+    "l2": "7d630bb20d21726e6a6a584b10022a00a3f9477bf3b0470e6c8b5132d6937c0b"
+  },
+  "constraints": {
+    "unknown_far_limit": 0.65,
+    "priority": [
+      "bird_recall",
+      "known_precision",
+      "unknown_far"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "RADAR-LN3-PRODUCT-CONFIG",
+  "manifest_path": "src/config/manifests.json",
+  "source_config_path": "src/config/source.json",
+  "model_config_path": "src/config/model.json",
+  "runtime_config_path": "src/config/runtime.json",
+  "data": {
+    "event_csv_path": "data/cq08/csv/cq08-event-index.csv",
+    "feature_cache_root": "data/cq08/cache/features",
+    "feature_cache_manifest_path": "data/cq08/cache/features/feature-cache-manifest.json",
+    "event_cache_path": "data/cq08/cache/event-source-cache.jsonl"
+  },
+  "training": {
+    "base_root": "src/core/training/base",
+    "artifact_root": "artifacts/radar_ln3",
+    "l1_checkpoint_path": "artifacts/radar_ln3/l1/l1.pt",
+    "l2_checkpoint_path": "artifacts/radar_ln3/l2/l2.pt"
+  }
+}

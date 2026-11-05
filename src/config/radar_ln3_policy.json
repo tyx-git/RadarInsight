@@ -1,0 +1,20 @@
+{
+  "known_acceptance_floor": {
+    "DroneTarget": 0.95,
+    "BirdTarget": 0.95,
+    "BalloonTarget": 0.95,
+    "ClutterTarget": 0.8888888888888888
+  },
+  "conformal_error_rate": 0.05,
+  "minimum_class_support": 8,
+  "minimum_unknown_support": 15,
+  "minimum_audit_unknown_support": 16,
+  "maximum_unknown_false_acceptance_rate": 0.65,
+  "maximum_known_selective_risk": 0.15,
+  "maximum_audit_unknown_false_acceptance_rate": 0.65,
+  "maximum_audit_known_selective_risk": 0.1,
+  "threshold_grid_size": 101,
+  "temperature_grid_size": 81,
+  "temperature_min": 0.05,
+  "temperature_max": 20.0
+}

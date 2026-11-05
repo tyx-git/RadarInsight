@@ -1,0 +1,23 @@
+{
+  "schema_version": "RADAR-LN3-RUNTIME-CONFIG-V1",
+  "device": "cuda",
+  "num_workers": 0,
+  "pin_memory": true,
+  "progress_interval": 5,
+  "allow_unknown_training_exposure": false,
+  "allow_test_training_exposure": false,
+  "logging": {
+    "enabled": true,
+    "mode": "console_and_file",
+    "console": true,
+    "file": true,
+    "level": "DEBUG",
+    "console_level": "INFO",
+    "file_level": "DEBUG",
+    "file_path": "logs/radar_ln3.log",
+    "console_format": "%(message)s",
+    "file_format": "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    "date_format": "%Y-%m-%d %H:%M:%S",
+    "TODO_frontend_progress_protocol": true
+  }
+}

@@ -12,8 +12,8 @@ Thumbs.db
 .vscode/
 artifacts/
 data/*
-src/
 reports/
+src/前端数据包/
 tests/*
 tools/
 logs/

@@ -1,0 +1,147 @@
+{
+  "schema_version": "RADAR-LN3-MODEL-CONFIG-V2",
+  "common": {
+    "class_names": {
+      "l1": [
+        "KNOWN_TARGET_EVIDENCE",
+        "KNOWN_CLUTTER_EVIDENCE"
+      ],
+      "l2": [
+        "DroneTarget",
+        "BirdTarget",
+        "BalloonTarget"
+      ]
+    },
+    "input": {
+      "tr_value_dim": 14,
+      "tr_missing_dim": 11,
+      "rd_quality_dim": 7,
+      "rd_height": 21,
+      "rd_width": 384,
+      "rd_max_frames": 12,
+      "max_sequence_length": 29,
+      "rd_embedding_dim": 24,
+      "hidden_dim": 48,
+      "liquid_input_dim": 48,
+      "liquid_hidden_dim": 48,
+      "stable8_dim": 8,
+      "stable8_evidence_dim": 23
+    },
+    "liquid": {
+      "tau_min_seconds": 0.05,
+      "tau_max_seconds": 30.0,
+      "zero_dt_event_floor_seconds": 0.001,
+      "dt_max_seconds": 120.0,
+      "invalid_dt_update_mode": "bounded_observation",
+      "invalid_dt_observation_gain": 0.25
+    }
+  },
+  "L1": {
+    "model": {
+      "observation_increment_dim": 9,
+      "adapter_hidden_dim": 48,
+      "adapter_output_dim": 48,
+      "adapter_bias": false,
+      "adapter_zero_initialize": true,
+      "injection_boundary": "after_fusion_before_liquid",
+      "base_weight_path": "src/core/training/base/l1base.pt",
+      "output_path": "artifacts/radar_ln3/l1/l1.pt"
+    },
+    "training": {
+      "batch_size": 4,
+      "epochs": 20,
+      "seed": 42,
+      "dataloader_seed": 42,
+      "learning_rate": 0.0001,
+      "weight_decay": 0.01,
+      "gradient_clip_norm": 100.0,
+      "class_weights": [
+        0.5173137460650578,
+        14.93939393939394
+      ],
+      "loss_name": "parent_final_fixed_parent_count_ce",
+      "checkpoint_selection": "minimum_class_f1_macro_f1"
+    }
+  },
+  "L2": {
+    "model": {
+      "motion_dim": 9,
+      "motion_projection_dim": 16,
+      "motion_hidden_dim": 16,
+      "motion_output_bias": false,
+      "motion_zero_initialize": true,
+      "stable8_hidden_dim": 32,
+      "stable8_residual_bound": 3.0,
+      "stable8_indices": [
+        1,
+        2,
+        3,
+        7,
+        11,
+        13,
+        14,
+        22
+      ],
+      "stable8_median": [
+        0.0035029142163693905,
+        0.004402076825499535,
+        0.0021488298662006855,
+        0.5772135257720947,
+        0.3320268988609314,
+        0.03509014472365379,
+        0.13884085416793823,
+        0.16021232306957245
+      ],
+      "stable8_scale": [
+        0.014797377516515553,
+        0.015404822770506144,
+        0.015320465434342623,
+        0.18266576528549194,
+        0.18392197787761688,
+        0.02261693775653839,
+        0.11879825555052186,
+        0.2753225490450859
+      ],
+      "tr_clipping_bounds": {
+        "range_m": {
+          "lower": 0.0,
+          "upper": 4843.660789968004
+        },
+        "speed_mps": {
+          "lower": 0.0,
+          "upper": 51.11839758400121
+        }
+      },
+      "base_weight_path": "src/core/training/base/l2base1.pt",
+      "stable8_weight_path": "src/core/training/base/l2base2.pt",
+      "baseline_anchor_path": "data/cq08/cache/l2-baseline-anchor.pt",
+      "output_path": "artifacts/radar_ln3/l2/l2.pt",
+      "direct_output_path": "artifacts/radar_ln3/l2-direct/l2-direct.pt",
+      "direct_grouped_output_path": "artifacts/radar_ln3/l2-direct-grouped/l2-direct-grouped.pt",
+      "direct_stable8_input_mode": "raw",
+      "variant": "robust_control"
+    },
+    "training": {
+      "batch_size": 4,
+      "epochs": 20,
+      "seed": 42,
+      "dataloader_seed": 42,
+      "learning_rate": 0.0001,
+      "base_learning_rate": 3e-05,
+      "stable_learning_rate": 3e-05,
+      "motion_learning_rate": 0.0003,
+      "weight_decay": 0.01,
+      "l2_weight_decay": 0.001,
+      "gradient_clip_norm": 100.0,
+      "class_weights": [
+        0.667,
+        1.311,
+        1.317
+      ],
+      "loss_name": "parent_final_fixed_parent_count_ce",
+      "l2_prefix_loss_weight": 0.15,
+      "l2_prefix_loss_events": 4,
+      "l2_checkpoint_selection": "minimum_class_f1_drone_bird_confusion_macro_f1"
+    }
+  }
+}

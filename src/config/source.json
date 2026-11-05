@@ -1,0 +1,24 @@
+{
+  "schema_version": "RADAR-LN3-CQ08-SOURCE-CONFIG-V1",
+  "dataset": "CQ08",
+  "manifest_path": "src/config/manifests.json",
+  "tr_index_path": "data/cq08/tr/cq08-tr-event-index.jsonl",
+  "rd_index_path": "data/cq08/rd/cq08-rd-frame-index.jsonl",
+  "event_cache_path": "data/cq08/cache/event-source-cache.jsonl",
+  "source_roots": {
+    "cq08": {
+      "path": "OriData/23/CQ-08",
+      "allow_external": true,
+      "logical_prefixes": [
+        "OriData/23/CQ-08",
+        "external/cq08"
+      ]
+    }
+  },
+  "raw_subdirectories": {
+    "track": "航迹",
+    "point": "点迹",
+    "raw_echo": "原始回波",
+    "mat": "MAT"
+  }
+}

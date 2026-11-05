@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package radarinsight.l3.v1;
+
+// The service processes one parent/track per bidirectional stream. The server
+// owns all causal model state and emits a decision after each accepted event.
+service RadarL3Service {
+  rpc GetReadiness(ReadinessRequest) returns (ReadinessResponse);
+  rpc StreamParent(stream ClientMessage) returns (stream ServerMessage);
+}
+
+enum InputEncoding {
+  INPUT_ENCODING_UNSPECIFIED = 0;
+  CANONICAL_RD_F32_LE = 1;
+}
+
+enum PayloadCompression {
+  PAYLOAD_COMPRESSION_NONE = 0;
+  PAYLOAD_COMPRESSION_ZSTD = 1;
+}
+
+enum L3Action {
+  L3_ACTION_UNSPECIFIED = 0;
+  DRONE_TARGET = 1;
+  BIRD_TARGET = 2;
+  BALLOON_TARGET = 3;
+  CLUTTER = 4;
+  UNKNOWN_REJECTED = 5;
+  PENDING_ABSTAIN = 6;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  INVALID_SCHEMA = 1;
+  MODEL_NOT_READY = 2;
+  CALIBRATION_NOT_DEPLOYABLE = 3;
+  STREAM_ID_REUSED = 4;
+  STREAM_STATE_ERROR = 5;
+  PARENT_MISMATCH = 6;
+  EVENT_ORDER_ERROR = 7;
+  DUPLICATE_EVENT = 8;
+  EVENT_INDEX_GAP = 9;
+  NEGATIVE_TIMESTAMP_DELTA = 10;
+  NON_FINITE_VALUE = 11;
+  INVALID_TENSOR_SHAPE = 12;
+  INVALID_TENSOR_ENCODING = 13;
+  INVALID_VELOCITY_AXIS = 14;
+  RD_FRAME_LIMIT_EXCEEDED = 15;
+  PAYLOAD_TOO_LARGE = 16;
+  BACKPRESSURE = 17;
+  INTERNAL_MODEL_ERROR = 18;
+  EVENT_LIMIT_EXCEEDED = 19;
+}
+
+message ReadinessRequest {
+  string model_version = 1; // empty means query the current active model
+  string expected_calibration_artifact_sha256 = 2;
+  // Empty means that the client does not add an extra equality assertion.
+  string expected_input_contract = 3;
+  string expected_velocity_axis_id = 4;
+}
+
+message ReadinessResponse {
+  bool ready = 1;
+  ErrorCode error_code = 2;
+  string error_message = 3;
+  ModelBinding model = 4;
+}
+
+message ModelBinding {
+  string model_version = 1;
+  string config_sha256 = 2;
+  string l1_checkpoint_sha256 = 3;
+  string l2_checkpoint_sha256 = 4;
+  string calibration_artifact_sha256 = 5;
+  bool deployment_eligible = 6;
+  string input_contract = 7;
+  string velocity_axis_id = 8;
+  string stable8_normalization_sha256 = 9;
+  string stable_evidence_schema = 10;
+}
+
+message ClientMessage {
+  oneof payload {
+    StartStream start = 1;
+    Event event = 2;
+    EndStream end = 3;
+    CancelStream cancel = 4;
+    Heartbeat heartbeat = 5;
+  }
+}
+
+message StartStream {
+  string stream_id = 1;
+  string parent_sample_id = 2;
+  string model_version = 3;
+  string input_contract = 4;
+  InputEncoding input_encoding = 5;
+  PayloadCompression payload_compression = 6;
+  string velocity_axis_id = 7;
+  uint32 max_in_flight_events = 8;
+}
+
+message Event {
+  uint32 event_index = 1;
+  double timestamp_seconds = 2;
+  TRObservation tr = 3;
+  RDEvent rd = 4; // omitted means RD is unavailable for this event
+  uint32 client_sequence = 5;
+  StableEvidence stable_evidence = 6;
+}
+
+message TRObservation {
+  optional float range_m = 1;
+  optional float radial_speed_mps = 2;
+  optional float elevation_deg = 3;
+  optional float azimuth_deg = 4;
+  optional float course_deg = 5;
+  optional float speed_mps = 6;
+  optional float amplitude_db = 7;
+  optional float snr_db = 8;
+  optional float height_m = 9;
+  optional float latitude = 10;
+  optional float longitude = 11;
+}
+
+// L2 stable8 sidecar for the current trained endpoint. Values are the raw
+// [0, 1] feature values before the server applies the frozen train-only
+// median/IQR normalization. The server must not infer this sidecar from a
+// canonical RD tensor because the feature is derived from raw-IQ evidence.
+message StableEvidence {
+  string schema = 1;
+  repeated float summary_values = 2; // exactly 8 raw [0,1] values
+  bool summary_valid = 3;
+  repeated StableEvidenceFrame frames = 4;
+}
+
+message StableEvidenceFrame {
+  repeated float values = 1; // exactly 8 raw [0,1] values; zero if unreliable
+  bool reliable = 2;
+}
+
+message RDEvent {
+  string velocity_axis_id = 1;
+  uint32 range_bins = 2;
+  uint32 velocity_bins = 3;
+  repeated RDFrame frames = 4;
+}
+
+message RDFrame {
+  double time_seconds = 1;
+  bytes amplitude_f32_le = 2;
+  bytes phase_f32_le = 3;
+  PayloadCompression compression = 4;
+  uint32 uncompressed_float_count = 5;
+}
+
+message EndStream {
+  string stream_id = 1;
+  bool return_final_decision = 2;
+}
+
+message CancelStream {
+  string stream_id = 1;
+  string reason = 2;
+}
+
+message Heartbeat {
+  uint64 client_time_unix_ms = 1;
+}
+
+message ServerMessage {
+  oneof payload {
+    StreamAccepted accepted = 1;
+    EventAck event_ack = 2;
+    Decision decision = 3;
+    StreamCompleted completed = 4;
+    StreamError error = 5;
+    HeartbeatAck heartbeat_ack = 6;
+  }
+}
+
+message StreamAccepted {
+  string stream_id = 1;
+  string parent_sample_id = 2;
+  uint32 next_event_index = 3;
+  ModelBinding model = 4;
+  InputEncoding input_encoding = 5;
+  PayloadCompression payload_compression = 6;
+  uint32 max_in_flight_events = 7;
+}
+
+message EventAck {
+  uint32 event_index = 1;
+  uint32 next_event_index = 2;
+  uint32 server_sequence = 3;
+}
+
+message Decision {
+  string stream_id = 1;
+  string parent_sample_id = 2;
+  uint32 event_index = 3;
+  bool is_final = 4;
+  L3Action action = 5;
+  string reason_code = 6;
+  repeated string l1_candidates = 7;
+  repeated string l2_candidates = 8;
+  repeated float l1_probabilities = 9;
+  repeated float l2_probabilities = 10;
+  reserved 11, 12;
+  uint32 event_count = 13;
+  ModelBinding model = 14;
+}
+
+message StreamCompleted {
+  string stream_id = 1;
+  string parent_sample_id = 2;
+  uint32 final_event_index = 3;
+  Decision final_decision = 4;
+}
+
+message StreamError {
+  ErrorCode code = 1;
+  string message = 2;
+  bool retryable = 3;
+  uint32 expected_event_index = 4;
+  uint32 received_event_index = 5;
+}
+
+message HeartbeatAck {
+  uint64 server_time_unix_ms = 1;
+}
