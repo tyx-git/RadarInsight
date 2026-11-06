@@ -116,6 +116,7 @@ def _archive_existing_outputs(
     config: Any,
     *,
     task: str,
+    artifact_root: str,
     mode: str = "residual",
 ) -> Path | None:
     """在显式替换训练产物前归档已存在的输出。"""
@@ -143,7 +144,7 @@ def _archive_existing_outputs(
         return None
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    archive_root = root / "artifacts" / "radar_ln3" / "replaced"
+    archive_root = root / artifact_root / "replaced"
     archive_dir = archive_root / timestamp / task
     suffix = 1
     while archive_dir.exists():
@@ -207,6 +208,7 @@ def _prepare_output_for_training(
     config: Any,
     *,
     task: str,
+    artifact_root: str,
     replace_existing: bool,
     mode: str = "residual",
 ) -> None:
@@ -240,6 +242,7 @@ def _prepare_output_for_training(
             root,
             config,
             task=task,
+            artifact_root=artifact_root,
             mode=mode,
         )
         if archive_dir is not None:
@@ -407,6 +410,9 @@ def _train_l1(
     batch_size: int,
     config_path: Path,
     artifact_root: str,
+    num_workers: int | None,
+    prefetch_factor: int,
+    pin_memory: bool | None,
 ):
     from radar_ln3.model import load_model_config
     from radar_ln3.training import train_l1
@@ -416,6 +422,7 @@ def _train_l1(
         root,
         config,
         task="l1",
+        artifact_root=artifact_root,
         replace_existing=replace_existing,
     )
     _assert_output_absent(root, config, "l1")
@@ -433,6 +440,9 @@ def _train_l1(
         batch_size=batch_size,
         config_path=config_path,
         artifact_root=artifact_root,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=pin_memory,
     )
     summary_path = root / artifact_root / "l1" / "training-summary.json"
     summary["summary_path"] = str(summary_path)
@@ -455,6 +465,9 @@ def _train_l2(
     batch_size: int,
     config_path: Path,
     artifact_root: str,
+    num_workers: int | None,
+    prefetch_factor: int,
+    pin_memory: bool | None,
 ):
     from radar_ln3.model import load_model_config
     from radar_ln3.training.l2_anchor import ensure_l2_baseline_anchor
@@ -504,6 +517,7 @@ def _train_l2(
             root,
             config,
             task="l2",
+            artifact_root=artifact_root,
             replace_existing=replace_existing,
             mode=mode,
         )
@@ -528,6 +542,9 @@ def _train_l2(
         batch_size=batch_size,
         config_path=config_path,
         artifact_root=artifact_root,
+        num_workers=num_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=pin_memory,
     )
     summary_path = (
         root / artifact_root / "l2-direct-grouped" / "training-summary.json"
@@ -552,6 +569,10 @@ def main() -> int:
     parser.add_argument("--device", choices=("cuda", "cpu"), required=True)
     parser.add_argument("--progress-interval", type=int, required=True)
     parser.add_argument("--batch-size", type=int, required=True)
+    parser.add_argument("--num-workers", type=int, default=None)
+    parser.add_argument("--prefetch-factor", type=int, default=2)
+    parser.add_argument("--pin-memory", action="store_true")
+    parser.add_argument("--no-pin-memory", action="store_true")
     parser.add_argument("--model-config-path", type=Path, required=True)
     parser.add_argument("--rebuild-cache", action="store_true")
     parser.add_argument("--skip-data-validation", action="store_true")
@@ -562,9 +583,17 @@ def main() -> int:
 
     root = args.project_root.resolve()
     artifact_root = _root_relative(root, args.root)
+    if args.resume and (args.overwrite or args.replace_existing):
+        raise ValueError(
+            "--resume 不能与 --overwrite 或 --replace-existing 同时使用；覆盖会移走可恢复的 epoch checkpoints"
+        )
     from radar_ln3.artifacts import DEFAULT_ARTIFACT_ROOT
 
-    if args.stage in {"all", "l1", "l2"} and not args.overwrite and Path(artifact_root) == DEFAULT_ARTIFACT_ROOT:
+    if (
+        args.stage in {"all", "l1", "l2"}
+        and not (args.overwrite or args.replace_existing)
+        and Path(artifact_root) == DEFAULT_ARTIFACT_ROOT
+    ):
         raise FileExistsError(
             f"默认 Root {artifact_root} 已可能包含模型包；重新创建整包请显式传入 --overwrite"
         )
@@ -584,6 +613,13 @@ def main() -> int:
             raise ValueError("progress_interval 必须是正整数")
         if args.batch_size <= 0:
             raise ValueError("batch_size 必须是正整数")
+        if args.num_workers is not None and args.num_workers < 0:
+            raise ValueError("num_workers 必须是非负整数")
+        if args.prefetch_factor <= 0:
+            raise ValueError("prefetch_factor 必须是正整数")
+        if args.pin_memory and args.no_pin_memory:
+            raise ValueError("--pin-memory 与 --no-pin-memory 不能同时使用")
+        pin_memory = True if args.pin_memory else False if args.no_pin_memory else None
         if args.resume and args.stage != "l2":
             raise ValueError("L2 resume 只能与 --stage l2 一起使用")
 
@@ -603,7 +639,7 @@ def main() -> int:
 
         if args.stage == "all":
             prepare_artifact_directory(root / artifact_root, overwrite=args.overwrite)
-        elif args.stage in {"l1", "l2"}:
+        elif args.stage in {"l1", "l2"} and args.overwrite and not args.replace_existing:
             prepare_artifact_stage(root / artifact_root, args.stage, overwrite=args.overwrite)
 
         manifest, l1_caches, l2_caches = _build_or_load_caches(
@@ -626,6 +662,9 @@ def main() -> int:
                 batch_size=args.batch_size,
                 config_path=args.model_config_path,
                 artifact_root=artifact_root,
+                num_workers=args.num_workers,
+                prefetch_factor=args.prefetch_factor,
+                pin_memory=pin_memory,
             )
         if args.stage in {"all", "l2"}:
             # L1 完成后总 manifest 会登记 L1 checkpoint，L2 使用最新总 manifest。
@@ -650,6 +689,9 @@ def main() -> int:
                 batch_size=args.batch_size,
                 config_path=args.model_config_path,
                 artifact_root=artifact_root,
+                num_workers=args.num_workers,
+                prefetch_factor=args.prefetch_factor,
+                pin_memory=pin_memory,
             )
         _get_logger().info("[script] 训练流程完成。")
         return 0

@@ -120,7 +120,9 @@ def _validate_loss_cli_contract(args: argparse.Namespace) -> None:
 def _knownness_loss_arguments(args: argparse.Namespace, *, task: str) -> dict[str, Any]:
     """保持 L1 route Unknown 与 L2 Unknown 两个权重的训练契约分离。"""
     return {
-        "unknown_loss_weight": float(args.unknown_loss_weight) if task == "l1" else 0.15,
+        # L2 has its own explicitly named weight.  Do not pass the L1 route
+        # weight through the L2 call as a dummy value.
+        "unknown_loss_weight": float(args.unknown_loss_weight) if task == "l1" else None,
         "l2_unknown_loss_weight": float(args.l2_unknown_loss_weight) if task == "l2" else 1.0,
         "l2_classwise": bool(args.l2_classwise) if task == "l2" else False,
         "bird_loss_weight": float(args.bird_loss_weight) if task == "l2" else 1.0,
@@ -145,10 +147,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         defaults = {
             **training["common"],
             **{f"l1_{name}": value for name, value in l1.items() if name != "unknown_loss_weight"},
-            "unknown_loss_weight": l1["unknown_loss_weight"],
+            # The default L1 objective is balanced BCE, where this route-loss
+            # weight is intentionally not part of the applied gradient.
+            # Keep the CLI available for explicit route-loss experiments.
+            "unknown_loss_weight": l1.get("unknown_loss_weight", 0.15),
             "l2_unknown_loss_weight": l2["unknown_loss_weight"],
             "l2_classwise": l2["classwise"],
-            "bird_loss_weight": l2["bird_loss_weight"],
+            "bird_loss_weight": l2.get("bird_loss_weight", 1.0),
         }
         for name, value in defaults.items():
             if getattr(args, name) is None:
@@ -211,6 +216,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     return representation
                 except (OSError, RuntimeError, ValueError) as exc:
                     print(json.dumps({"stage": "representation_rebuild", "task": task, "split": split_name, "reason": str(exc)}, ensure_ascii=False), flush=True)
+            print(
+                json.dumps(
+                    {
+                        "stage": "representation_materialize_start",
+                        "task": task,
+                        "split": split_name,
+                        "device": args.device,
+                        "batch_size": args.batch_size,
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
             representation = materialize_frozen_endpoint_representation(
                 root,
                 task=task,
@@ -230,6 +248,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 l2_checkpoint_path=args.l2_checkpoint_path,
                 l1_config_path=args.l1_config_path,
                 l2_config_path=args.l2_config_path,
+            )
+            print(
+                json.dumps(
+                    {
+                        "stage": "representation_materialize_complete",
+                        "task": task,
+                        "split": split_name,
+                        "parents": len(representation.parent_ids),
+                        "path": str(target),
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
             )
             save_frozen_endpoint_representation(
                 root,

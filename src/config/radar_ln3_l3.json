@@ -53,14 +53,12 @@
       "target_prefix_weight": 0.05,
       "clutter_prefix_weight": 0.0,
       "selection_mode": "operating_point",
-      "unknown_loss_weight": 0.15,
       "route_loss": false,
       "ignore_unknown": false
     },
     "l2": {
       "unknown_loss_weight": 0.88,
-      "classwise": false,
-      "bird_loss_weight": 1.0
+      "classwise": false
     }
   },
   "artifact_root": "artifacts/radar_ln3"

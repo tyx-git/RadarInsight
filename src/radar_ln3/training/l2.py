@@ -17,13 +17,16 @@ from radar_ln3.data import load_manifest
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.data.derived import register_product_artifacts
 from radar_ln3.data.manifest import data_manifest_hash
-from radar_ln3.features import FeatureCache, build_model_batch
+from radar_ln3.features import FeatureCache
 from radar_ln3.data.contracts import RawEchoProvider
 from radar_ln3.model import build_l2_model, load_model_config
 from radar_ln3.model.l2 import trainable_parameter_groups
 from radar_ln3.logger import log_classification_metrics
 
 from .common import (
+    ModelBatchCollator,
+    _l2_inputs,
+    _l2_reference_inputs,
     build_training_dataset,
     build_training_loader,
     checkpoint_payload,
@@ -204,6 +207,9 @@ def train_l2(
     progress_interval: int = 25,
     resume: bool = False,
     batch_size: int | None = None,
+    num_workers: int | None = None,
+    prefetch_factor: int = 2,
+    pin_memory: bool | None = None,
     bird_precision_floor: float | None = None,
     config_path: str | Path = "src/config/model.json",
     artifact_root: str | Path | None = None,
@@ -289,19 +295,66 @@ def train_l2(
     effective_batch_size = int(batch_size or config.training.batch_size)
     if effective_batch_size <= 0:
         raise ValueError("L2 batch_size 必须为正整数")
+    target_device = _device(device)
+    effective_workers = (
+        (2 if target_device.type == "cuda" else 0)
+        if num_workers is None
+        else int(num_workers)
+    )
+    if effective_workers < 0:
+        raise ValueError("num_workers 必须是非负整数")
+    effective_pin_memory = (
+        target_device.type == "cuda" if pin_memory is None else bool(pin_memory)
+    )
+    clipping = {
+        "bounds": {
+            name: {"lower": bounds[0], "upper": bounds[1]}
+            for name, bounds in config.data.l2.tr_clipping_bounds.items()
+        }
+    }
+    collator_args = {
+        "task": "l2",
+        "max_rd_frames": config.data.max_rd_frames_per_point,
+        "max_sequence_length": config.data.max_sequence_length,
+        "stable_indices": config.data.l2.stable8_indices,
+        "clipping": clipping,
+        "raw_echo_provider": raw_echo_provider,
+        "stable_median": config.data.l2.stable8_median,
+        "stable_scale": config.data.l2.stable8_scale,
+        "stable_input_mode": (
+            "raw" if mode in {"direct", "direct_grouped"} else "normalized"
+        ),
+    }
     train_loader = build_training_loader(
         train_set,
+        collate_fn=ModelBatchCollator(
+            **collator_args,
+            feature_caches=train_feature_caches,
+            expected_view_hash=train_set.view.view_hash,
+            baseline_anchor=baseline_anchor,
+        ),
         batch_size=effective_batch_size,
         shuffle=True,
         seed=config.training.dataloader_seed + run_seed,
+        num_workers=effective_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=effective_pin_memory,
     )
     validation_loader = build_training_loader(
         validation_set,
+        collate_fn=ModelBatchCollator(
+            **collator_args,
+            feature_caches=validation_feature_caches,
+            expected_view_hash=validation_set.view.view_hash,
+            baseline_anchor=baseline_anchor,
+        ),
         batch_size=effective_batch_size,
         shuffle=False,
         seed=config.training.dataloader_seed + run_seed,
+        num_workers=effective_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=effective_pin_memory,
     )
-    target_device = _device(device)
     _, model = load_l2_base_model(
         root, device=target_device, arm=arm, mode=mode, config_path=config_path,
         artifact_root=artifact_root,
@@ -435,6 +488,9 @@ def train_l2(
         "stage": "l2_start",
         "train_parents": len(train_set),
         "validation_parents": len(validation_set),
+        "num_workers": effective_workers,
+        "prefetch_factor": int(prefetch_factor) if effective_workers else 0,
+        "pin_memory": effective_pin_memory,
     }
     if cached_stable8_valid_events is not None:
         start_event["stable8_valid_train_events"] = cached_stable8_valid_events
@@ -442,6 +498,7 @@ def train_l2(
     if resumed_from_epoch is not None:
         start_event["resumed_from_epoch"] = resumed_from_epoch
     _emit(progress_callback, start_event)
+    baseline_reference_verified = False
     for epoch in range(start_epoch, config.training.epochs + 1):
         model.train()
         model.frozen_reference_base_model.eval()
@@ -450,27 +507,47 @@ def train_l2(
         loss_component_totals: dict[str, torch.Tensor] = {}
         prefix_event_count = 0
         epoch_stable8_valid_events = 0
-        for step, sequences in enumerate(train_loader, start=1):
-            batch = build_model_batch(
-                sequences,
-                task="l2",
-                max_rd_frames=config.data.max_rd_frames_per_point,
-                max_sequence_length=config.data.max_sequence_length,
-                raw_echo_provider=raw_echo_provider,
-                stable_median=np.asarray(config.data.l2.stable8_median, dtype=np.float32),
-                stable_scale=np.asarray(config.data.l2.stable8_scale, dtype=np.float32),
-                stable_indices=config.data.l2.stable8_indices,
-                clipping={
-                    "bounds": {
-                        name: {"lower": bounds[0], "upper": bounds[1]}
-                        for name, bounds in config.data.l2.tr_clipping_bounds.items()
-                    }
-                },
-                feature_caches=train_feature_caches,
-                expected_view_hash=train_set.view.view_hash,
-                baseline_anchor=baseline_anchor,
-                stable_input_mode=("raw" if mode in {"direct", "direct_grouped"} else "normalized"),
-            )
+        loader_iterator = iter(train_loader)
+        for step in range(1, len(train_loader) + 1):
+            wait_started = time.perf_counter()
+            batch = next(loader_iterator)
+            batch_wait_seconds = time.perf_counter() - wait_started
+            compute_started = time.perf_counter()
+            if mode == "residual" and not baseline_reference_verified:
+                inputs = _l2_inputs(batch, target_device)
+                reference_inputs = _l2_reference_inputs(
+                    batch, target_device, base_inputs=inputs
+                )
+                anchor = batch["baseline_logits"].to(
+                    device=target_device,
+                    non_blocking=target_device.type == "cuda",
+                )
+                with torch.inference_mode():
+                    reference_logits = model.frozen_reference_logits(
+                        base_inputs=reference_inputs
+                    )
+                    active = ~inputs["tr_padding_mask"]
+                    max_error = float(
+                        (reference_logits - anchor)
+                        .abs()
+                        .masked_select(active.unsqueeze(-1))
+                        .max()
+                        .item()
+                    )
+                if max_error > 1.0e-5:
+                    raise ValueError(
+                        "L2 baseline anchor 与当前 frozen reference 不一致："
+                        f"max_abs_error={max_error:.8g}，请重建 baseline anchor"
+                    )
+                baseline_reference_verified = True
+                _emit(
+                    progress_callback,
+                    {
+                        "stage": "l2_anchor_verified",
+                        "max_abs_error": max_error,
+                        "tolerance": 1.0e-5,
+                    },
+                )
             if mode == "residual":
                 epoch_stable8_valid_events += int(
                     batch["stable_summary_valid"].sum().item()
@@ -497,6 +574,7 @@ def train_l2(
                     prefix_weight=config.training.l2_prefix_loss_weight,
                     prefix_events=config.training.l2_prefix_loss_events,
                     return_loss_components=True,
+                    baseline_reference_verified=baseline_reference_verified,
                 )
                 assert isinstance(step_loss, tuple)
                 loss, loss_components = step_loss
@@ -517,6 +595,8 @@ def train_l2(
                         "step": step,
                         "total": len(train_loader),
                         "loss": float(loss.item()),
+                        "batch_wait_seconds": batch_wait_seconds,
+                        "step_compute_seconds": time.perf_counter() - compute_started,
                         "loss_components": {
                             name: float(value.item())
                             for name, value in loss_components.items()
@@ -533,24 +613,11 @@ def train_l2(
         if mode in {"direct", "direct_grouped"}:
             metrics = evaluate_l2_direct(
                 model, validation_loader, device=target_device,
-                stable_median=np.asarray(config.data.l2.stable8_median, dtype=np.float32),
-                stable_scale=np.asarray(config.data.l2.stable8_scale, dtype=np.float32),
-                feature_caches=validation_feature_caches,
-                clipping={
-                    "bounds": {
-                        name: {"lower": bounds[0], "upper": bounds[1]}
-                        for name, bounds in config.data.l2.tr_clipping_bounds.items()
-                    }
-                },
             )
         else:
             metrics = evaluate_l2(
                 model, validation_loader, device=target_device,
-                raw_echo_provider=raw_echo_provider,
-                stable_median=np.asarray(config.data.l2.stable8_median, dtype=np.float32),
-                stable_scale=np.asarray(config.data.l2.stable8_scale, dtype=np.float32),
-                feature_caches=validation_feature_caches,
-                baseline_anchor=baseline_anchor,
+                baseline_reference_verified=baseline_reference_verified,
             )
         record = {
             "epoch": epoch,
@@ -645,6 +712,11 @@ def train_l2(
         "train_parent_count": len(train_set),
         "validation_parent_count": len(validation_set),
         "batch_size": effective_batch_size,
+        "data_loader": {
+            "num_workers": effective_workers,
+            "prefetch_factor": int(prefetch_factor) if effective_workers else 0,
+            "pin_memory": effective_pin_memory,
+        },
         "history": history,
         "checkpoint": final_checkpoint.provenance(kind="final", task="l2"),
         "manifest_sha256": source_manifest_hash,

@@ -10,6 +10,7 @@ from radar_ln3.checkpoint import Checkpoint, load_model_state
 from radar_ln3.features import build_model_batch
 from radar_ln3.model import build_l1_model, build_l2_model, load_model_config
 from radar_ln3.data.contracts import EventData, EventSequence
+from radar_ln3.training.common import ModelBatchCollator, build_training_loader
 
 
 def test_load_model_state_drops_only_retired_quality_head_keys() -> None:
@@ -27,6 +28,32 @@ def test_load_model_state_drops_only_retired_quality_head_keys() -> None:
         assert "Unexpected key(s)" in str(exc)
     else:
         raise AssertionError("unrelated checkpoint keys must remain strict")
+
+
+def test_checkpoint_round_trip_in_experiment_directory(tmp_path: Path) -> None:
+    checkpoint, status = Checkpoint.save(
+        tmp_path,
+        "experiments/tmp/L2/l2-knownness.pt",
+        {"schema_version": "fixture", "model_state": {"weight": torch.ones(1)}},
+    )
+
+    assert status == "created"
+    loaded = Checkpoint.load(tmp_path, "experiments/tmp/L2/l2-knownness.pt")
+    assert torch.equal(loaded.state["weight"], torch.ones(1))
+    assert checkpoint.provenance(kind="test")["path"] == "experiments/tmp/L2/l2-knownness.pt"
+
+
+def test_artifact_root_redirects_l1_and_l2_endpoint_outputs(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    l1_config = load_model_config(root, artifact_root="experiments/tmp/L1")
+    l2_config = load_model_config(root, artifact_root="experiments/tmp/L2")
+
+    assert l1_config.artifacts.l1_output_path == "experiments/tmp/L1/l1/l1.pt"
+    assert l2_config.artifacts.l2_output_path == "experiments/tmp/L2/l2/l2.pt"
+    assert l2_config.artifacts.l2_direct_output_path == "experiments/tmp/L2/l2-direct/l2-direct.pt"
+    assert l2_config.artifacts.l2_direct_grouped_output_path == (
+        "experiments/tmp/L2/l2-direct-grouped/l2-direct-grouped.pt"
+    )
 
 
 def _sequence(parent_id: str, label_id: int, label_name: str, length: int) -> EventSequence:
@@ -156,3 +183,56 @@ def test_formal_models_forward_backward() -> None:
         parameter.grad is None
         for parameter in l2.trainable_base_model.trajectory_heads.parameters()
     )
+
+    reference_output = l2(
+        base_inputs=inputs,
+        reference_base_inputs=inputs,
+        baseline_logits=anchor.detach(),
+        stable_summary_tokens=l2_batch["stable_summary_tokens"],
+        stable_summary_valid=l2_batch["stable_summary_valid"],
+        stable_frame_values=l2_batch["stable_frame_values"],
+        stable_frame_mask=l2_batch["stable_frame_mask"],
+        motion_values=l2_batch["motion_values"],
+    )
+    optimized_output = l2(
+        base_inputs=inputs,
+        reference_base_inputs=None,
+        baseline_logits=anchor.detach(),
+        stable_summary_tokens=l2_batch["stable_summary_tokens"],
+        stable_summary_valid=l2_batch["stable_summary_valid"],
+        stable_frame_values=l2_batch["stable_frame_values"],
+        stable_frame_mask=l2_batch["stable_frame_mask"],
+        motion_values=l2_batch["motion_values"],
+        frozen_reference_logits_override=anchor.detach(),
+    )
+    assert torch.equal(
+        optimized_output["sequence_logits"], reference_output["sequence_logits"]
+    )
+
+
+def test_model_batch_collator_matches_single_process_with_workers() -> None:
+    sequences = [
+        _sequence("workers|track|1", 0, "DroneTarget", 2),
+        _sequence("workers|track|2", 1, "BirdTarget", 3),
+    ]
+    collator = ModelBatchCollator(
+        task="l1",
+        max_rd_frames=12,
+        max_sequence_length=29,
+        stable_indices=(1, 2, 3, 7, 11, 13, 14, 22),
+    )
+    expected = collator(sequences)
+    loader = build_training_loader(
+        sequences,
+        collate_fn=collator,
+        batch_size=2,
+        shuffle=False,
+        seed=42,
+        num_workers=2,
+        prefetch_factor=2,
+        pin_memory=True,
+    )
+    actual = next(iter(loader))
+    assert actual.keys() == expected.keys()
+    for key, value in expected.items():
+        assert torch.equal(actual[key], value), key

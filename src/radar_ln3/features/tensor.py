@@ -424,28 +424,17 @@ def build_model_batch(
                 )
             rd_frames[row, event_index, : frames.shape[0]] = frames
             rd_mask[row, event_index, : frame_mask.shape[0]] = frame_mask
-            rd_quality[row, event_index] = encode_rd_quality_from_event(
-                prepared,
-                max_rd_frames_per_event=max_rd_frames,
-            )
             if quality_cached is not None:
                 cache, cache_index = quality_cached
                 cached_values = np.asarray(cache.values[cache_index], dtype=np.float32)
                 if cached_values.shape != (7,):
                     raise ValueError("rd_quality cache row shape 无效")
                 rd_quality[row, event_index] = cached_values
-            if prepared is not None:
-                try:
-                    physical_result = extract_current_event_rd_physical(
-                        prepared.amplitude,
-                        resolve_rd_velocity_axis(event.rd_values),
-                        frame_mask=prepared.frame_mask,
-                    )
-                    physical[row, event_index] = physical_result.values
-                    physical_valid[row, event_index] = bool(physical_result.valid)
-                except (ValueError, FloatingPointError):
-                    physical[row, event_index] = 0.0
-                    physical_valid[row, event_index] = False
+            else:
+                rd_quality[row, event_index] = encode_rd_quality_from_event(
+                    prepared,
+                    max_rd_frames_per_event=max_rd_frames,
+                )
             physical_cached = _cache_row(
                 feature_caches,
                 cache_positions,
@@ -460,6 +449,18 @@ def build_model_batch(
                     raise ValueError("rd_physical4 cache row shape 无效")
                 physical[row, event_index] = cached_values
                 physical_valid[row, event_index] = bool(cached_valid)
+            elif prepared is not None:
+                try:
+                    physical_result = extract_current_event_rd_physical(
+                        prepared.amplitude,
+                        resolve_rd_velocity_axis(event.rd_values),
+                        frame_mask=prepared.frame_mask,
+                    )
+                    physical[row, event_index] = physical_result.values
+                    physical_valid[row, event_index] = bool(physical_result.valid)
+                except (ValueError, FloatingPointError):
+                    physical[row, event_index] = 0.0
+                    physical_valid[row, event_index] = False
             stable_cached = _cache_row(
                 feature_caches,
                 cache_positions,

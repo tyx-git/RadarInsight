@@ -19,7 +19,7 @@ from typing import Any
 
 import torch
 
-from radar_ln3.data.paths import relative_project_path, resolve_project_path
+from radar_ln3.data.paths import resolve_project_artifact_path
 
 
 class CheckpointError(RuntimeError):
@@ -203,7 +203,7 @@ class Checkpoint:
         """返回可登记到总 manifest 的文件 provenance。"""
 
         result: dict[str, Any] = {
-            "path": relative_project_path(self.project_root, self.path),
+            "path": self.path.relative_to(self.project_root).as_posix(),
             "kind": str(kind),
             "file_size": int(self.path.stat().st_size),
             "sha256": sha256_file(self.path),
@@ -229,7 +229,7 @@ class Checkpoint:
         expected_task: str | None = None,
     ) -> "Checkpoint":
         root = Path(project_root).resolve()
-        target = resolve_project_path(root, path, must_exist=True)
+        target = resolve_project_artifact_path(root, path, must_exist=True)
         if target.suffix.lower() != ".pt":
             raise CheckpointError(f"checkpoint 必须是 .pt 文件：{target}")
         payload = _load_file(target)
@@ -267,7 +267,7 @@ class Checkpoint:
         payload: Mapping[str, Any],
     ) -> tuple["Checkpoint", str]:
         root = Path(project_root).resolve()
-        target = resolve_project_path(root, path)
+        target = resolve_project_artifact_path(root, path)
         if target.suffix.lower() != ".pt":
             raise CheckpointError(f"checkpoint 必须是 .pt 文件：{target}")
         value = dict(payload)

@@ -39,6 +39,7 @@ from radar_ln3.data.manifest import (
 )
 from radar_ln3.data.paths import (
     resolve_data_path,
+    resolve_project_artifact_path,
     resolve_project_path,
     resolve_rd_path,
     resolve_source_path,
@@ -184,6 +185,21 @@ def test_path_boundaries_reject_escape_and_wrong_modality(tmp_path: Path) -> Non
         resolve_project_path(tmp_path, "src-v3/data.json", allow_external=True)
     with pytest.raises(PathBoundaryError):
         resolve_source_path(tmp_path, "external/cq08/data.json", source_roots={"cq08": tmp_path / "src-v3"}, allow_external=True)
+
+
+def test_experiment_artifact_paths_are_separate_from_data_paths(tmp_path: Path) -> None:
+    with pytest.raises(PathBoundaryError):
+        resolve_project_path(tmp_path, "experiments/tmp/L2/representations/l2-train.pt")
+
+    target = resolve_project_artifact_path(
+        tmp_path, "experiments/tmp/L2/representations/l2-train.pt"
+    )
+    assert target == tmp_path / "experiments/tmp/L2/representations/l2-train.pt"
+
+    with pytest.raises(PathBoundaryError):
+        resolve_project_artifact_path(tmp_path, "../outside.pt")
+    with pytest.raises(PathBoundaryError):
+        resolve_project_artifact_path(tmp_path, "src-v3/old-model.pt")
 
 
 def test_manifest_source_paths_reject_absolute_and_escape_values(tmp_path: Path) -> None:

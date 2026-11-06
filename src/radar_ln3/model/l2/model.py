@@ -414,13 +414,14 @@ class L2Model(nn.Module):
         self,
         *,
         base_inputs: Mapping[str, torch.Tensor],
-        reference_base_inputs: Mapping[str, torch.Tensor],
+        reference_base_inputs: Mapping[str, torch.Tensor] | None,
         baseline_logits: torch.Tensor,
         stable_summary_tokens: torch.Tensor,
         stable_summary_valid: torch.Tensor,
         stable_frame_values: torch.Tensor,
         stable_frame_mask: torch.Tensor,
         motion_values: torch.Tensor,
+        frozen_reference_logits_override: torch.Tensor | None = None,
         return_representation: bool = False,
     ) -> dict[str, torch.Tensor]:
         padding = base_inputs.get("tr_padding_mask")
@@ -437,9 +438,23 @@ class L2Model(nn.Module):
         )
         if batch != padding.shape[0] or length != padding.shape[1]:
             raise ValueError("L2 主干与 sidecar 时间维度不一致")
-        reference_l2_logits = self._reference_l2_logits(
-            base_inputs=reference_base_inputs
-        )
+        if frozen_reference_logits_override is None:
+            if reference_base_inputs is None:
+                raise ValueError(
+                    "L2 必须提供 reference_base_inputs 或已校验的 frozen reference logits"
+                )
+            reference_l2_logits = self._reference_l2_logits(
+                base_inputs=reference_base_inputs
+            )
+        else:
+            reference_l2_logits = frozen_reference_logits_override
+            if (
+                reference_l2_logits.shape != baseline_logits.shape
+                or reference_l2_logits.device != baseline_logits.device
+                or reference_l2_logits.dtype != baseline_logits.dtype
+                or not torch.isfinite(reference_l2_logits).all()
+            ):
+                raise ValueError("L2 frozen reference logits override contract 不一致")
         current_l2_logits, motion_adapter_output, liquid_output = self._current_l2_logits(
             base_inputs=base_inputs,
             motion_values=motion_values,

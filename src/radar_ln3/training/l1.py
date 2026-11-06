@@ -16,11 +16,12 @@ from radar_ln3.data import load_manifest
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.data.derived import register_product_artifacts
 from radar_ln3.data.manifest import data_manifest_hash
-from radar_ln3.features import FeatureCache, build_model_batch
+from radar_ln3.features import FeatureCache
 from radar_ln3.model import build_l1_model, load_model_config
 from radar_ln3.logger import log_classification_metrics
 
 from .common import (
+    ModelBatchCollator,
     build_training_dataset,
     build_training_loader,
     checkpoint_payload,
@@ -102,6 +103,9 @@ def train_l1(
     validate_caches: bool = True,
     progress_interval: int = 25,
     batch_size: int | None = None,
+    num_workers: int | None = None,
+    prefetch_factor: int = 2,
+    pin_memory: bool | None = None,
     config_path: str | Path = "src/config/model.json",
     artifact_root: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -135,19 +139,49 @@ def train_l1(
     effective_batch_size = int(batch_size or config.training.l1_batch_size)
     if effective_batch_size <= 0:
         raise ValueError("L1 batch_size 必须为正整数")
+    target_device = _device(device)
+    effective_workers = (
+        (2 if target_device.type == "cuda" else 0)
+        if num_workers is None
+        else int(num_workers)
+    )
+    effective_pin_memory = (
+        target_device.type == "cuda" if pin_memory is None else bool(pin_memory)
+    )
+    collator_args = dict(
+        task="l1",
+        max_rd_frames=config.data.max_rd_frames_per_point,
+        max_sequence_length=config.data.max_sequence_length,
+        stable_indices=config.data.l2.stable8_indices,
+    )
     train_loader = build_training_loader(
         train_set,
+        collate_fn=ModelBatchCollator(
+            **collator_args,
+            feature_caches=train_feature_caches,
+            expected_view_hash=train_set.view.view_hash,
+        ),
         batch_size=effective_batch_size,
         shuffle=True,
         seed=config.training.l1_dataloader_seed,
+        num_workers=effective_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=effective_pin_memory,
     )
     validation_loader = build_training_loader(
         validation_set,
+        collate_fn=ModelBatchCollator(
+            **collator_args,
+            feature_caches=validation_feature_caches,
+            expected_view_hash=validation_set.view.view_hash,
+        ),
         batch_size=effective_batch_size,
         shuffle=False,
         seed=config.training.l1_dataloader_seed,
+        num_workers=effective_workers,
+        prefetch_factor=prefetch_factor,
+        pin_memory=effective_pin_memory,
     )
-    target_device = _device(device)
     _, model = load_l1_base_model(
         root, device=target_device, arm=arm, config_path=config_path,
         artifact_root=artifact_root,
@@ -170,19 +204,23 @@ def train_l1(
     best_rank: tuple[float, ...] | None = None
     best_payload: dict[str, Any] | None = None
     started = time.perf_counter()
-    _emit(progress_callback, {"stage": "l1_start", "train_parents": len(train_set), "validation_parents": len(validation_set)})
+    _emit(progress_callback, {
+        "stage": "l1_start",
+        "train_parents": len(train_set),
+        "validation_parents": len(validation_set),
+        "num_workers": effective_workers,
+        "prefetch_factor": int(prefetch_factor) if effective_workers else 0,
+        "pin_memory": effective_pin_memory,
+    })
     for epoch in range(1, config.training.l1_epochs + 1):
         model.train()
         losses: list[torch.Tensor] = []
-        for step, sequences in enumerate(train_loader, start=1):
-            batch = build_model_batch(
-                sequences,
-                task="l1",
-                max_rd_frames=config.data.max_rd_frames_per_point,
-                max_sequence_length=config.data.max_sequence_length,
-                feature_caches=train_feature_caches,
-                expected_view_hash=train_set.view.view_hash,
-            )
+        loader_iterator = iter(train_loader)
+        for step in range(1, len(train_loader) + 1):
+            wait_started = time.perf_counter()
+            batch = next(loader_iterator)
+            batch_wait_seconds = time.perf_counter() - wait_started
+            compute_started = time.perf_counter()
             loss = train_l1_step(
                 model,
                 batch,
@@ -203,13 +241,14 @@ def train_l1(
                         "step": step,
                         "total": len(train_loader),
                         "loss": float(loss.item()),
+                        "batch_wait_seconds": batch_wait_seconds,
+                        "step_compute_seconds": time.perf_counter() - compute_started,
                     },
                 )
         metrics = evaluate_l1(
             model,
             validation_loader,
             device=target_device,
-            feature_caches=validation_feature_caches,
         )
         record = {
             "epoch": epoch,
@@ -263,6 +302,11 @@ def train_l1(
         "train_parent_count": len(train_set),
         "validation_parent_count": len(validation_set),
         "batch_size": effective_batch_size,
+        "data_loader": {
+            "num_workers": effective_workers,
+            "prefetch_factor": int(prefetch_factor) if effective_workers else 0,
+            "pin_memory": effective_pin_memory,
+        },
         "training": {
             "learning_rate": config.training.l1_learning_rate,
             "weight_decay": config.training.l1_weight_decay,

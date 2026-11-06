@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import torch
 
-from radar_ln3.training.l3_heads import _route_targets
+from radar_ln3.training.l3_heads import _epoch_permutation, _route_targets
+
+
+def test_profile_epochs_use_distinct_deterministic_shuffle_orders() -> None:
+    first = _epoch_permutation(32, seed=42, epoch=1, phase_offset=20)
+    second = _epoch_permutation(32, seed=42, epoch=2, phase_offset=20)
+    repeat = _epoch_permutation(32, seed=42, epoch=1, phase_offset=20)
+
+    assert not torch.equal(first, second)
+    assert torch.equal(first, repeat)
 
 
 def test_l2_non_classwise_counts_all_known_target_labels() -> None:

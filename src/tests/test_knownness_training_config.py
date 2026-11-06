@@ -55,7 +55,9 @@ def head_runner(tmp_path: Path, monkeypatch):
 
 @pytest.mark.parametrize("task", ["both", "l1", "l2"])
 def test_head_training_reads_formal_config_and_keeps_tasks_separate(head_runner, task):
-    run, _, _ = head_runner
+    run, _, document = head_runner
+    assert "unknown_loss_weight" not in document["knownness_training"]["l1"]
+    assert "bird_loss_weight" not in document["knownness_training"]["l2"]
     calls = run("--task", task)
     assert [c["task"] for c in calls] == (["l1", "l2"] if task == "both" else [task])
     for call in calls:
@@ -65,6 +67,7 @@ def test_head_training_reads_formal_config_and_keeps_tasks_separate(head_runner,
         assert call["weight_decay"] == 0.0001
         assert call["unknown_far_limit"] == 0.65
         if call["task"] == "l1":
+            assert call["unknown_loss_weight"] == 0.15
             assert call["l1_loss_mode"] == "endpoint_tail"
             assert call["l1_bce_unknown_weight"] == 1.25
             assert call["l1_endpoint_weight"] == 1.0
@@ -75,6 +78,7 @@ def test_head_training_reads_formal_config_and_keeps_tasks_separate(head_runner,
             assert call["l1_selection_mode"] == "operating_point"
             assert call["l2_unknown_loss_weight"] == 1.0
         else:
+            assert call["unknown_loss_weight"] is None
             assert call["l2_unknown_loss_weight"] == 0.88
             assert call["l2_classwise"] is False
             assert call["bird_loss_weight"] == 1.0
@@ -99,3 +103,9 @@ def test_l2_still_rejects_misrouted_unknown_weight(head_runner):
     run, _, _ = head_runner
     with pytest.raises(ValueError, match="L2 请使用 --l2-unknown-loss-weight"):
         run("--task", "l2", "--unknown-loss-weight", "0.88")
+
+
+def test_l1_unknown_loss_weight_can_be_explicitly_set_from_cli(head_runner):
+    run, _, _ = head_runner
+    calls = run("--task", "l1", "--unknown-loss-weight", "0.15")
+    assert calls[-1]["unknown_loss_weight"] == 0.15

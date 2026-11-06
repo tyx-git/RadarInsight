@@ -93,6 +93,34 @@ def resolve_project_path(
     return resolved
 
 
+def resolve_project_artifact_path(
+    project_root: str | Path,
+    value: str | Path,
+    *,
+    must_exist: bool = False,
+) -> Path:
+    """解析项目内模型或实验产物路径，允许 ``experiments`` 子目录。"""
+
+    root = Path(project_root).resolve()
+    raw = _normalise(value)
+    if not raw:
+        raise DataPathError("项目产物路径不能为空")
+    candidate = Path(raw)
+    resolved = (
+        candidate.resolve()
+        if candidate.is_absolute()
+        else (root / candidate).resolve()
+    )
+    ensure_path_inside_root(resolved, root)
+    relative = resolved.relative_to(root)
+    archived_source = Path("src-v3")
+    if relative == archived_source or archived_source in relative.parents:
+        raise PathBoundaryError(f"项目产物路径指向归档源码目录：{relative}")
+    if must_exist and not resolved.is_file():
+        raise MissingDataFileError(str(resolved))
+    return resolved
+
+
 def relative_project_path(project_root: str | Path, path: str | Path) -> str:
     """将项目内路径转换为稳定的 POSIX 相对路径。"""
 
@@ -239,6 +267,7 @@ __all__ = [
     "RD_INDEX_PATH",
     "ensure_path_inside_root",
     "resolve_project_path",
+    "resolve_project_artifact_path",
     "relative_project_path",
     "data_root",
     "data_root_name",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,70 @@ def _identity_batch(items: list[Any]) -> list[Any]:
     """保留 parent 序列，交由特征层按当前 batch 做 suffix padding。"""
 
     return items
+
+
+@dataclass(frozen=True)
+class ModelBatchCollator:
+    """把 parent 序列转为任务专用模型输入，可在 DataLoader worker 中运行。"""
+
+    task: str
+    max_rd_frames: int
+    max_sequence_length: int
+    stable_indices: tuple[int, ...]
+    clipping: Mapping[str, Any] | None = None
+    raw_echo_provider: Any | None = None
+    stable_median: tuple[float, ...] | None = None
+    stable_scale: tuple[float, ...] | None = None
+    feature_caches: Mapping[str, FeatureCache] | None = None
+    expected_view_hash: str | None = None
+    baseline_anchor: Any | None = None
+    stable_input_mode: str = "normalized"
+
+    def __call__(self, sequences: list[Any]) -> dict[str, Any]:
+        batch = build_model_batch(
+            sequences,
+            task=self.task,
+            max_rd_frames=self.max_rd_frames,
+            max_sequence_length=self.max_sequence_length,
+            stable_indices=self.stable_indices,
+            clipping=self.clipping,
+            raw_echo_provider=self.raw_echo_provider,
+            stable_median=(
+                None
+                if self.stable_median is None
+                else np.asarray(self.stable_median, dtype=np.float32)
+            ),
+            stable_scale=(
+                None
+                if self.stable_scale is None
+                else np.asarray(self.stable_scale, dtype=np.float32)
+            ),
+            feature_caches=self.feature_caches,
+            expected_view_hash=self.expected_view_hash,
+            baseline_anchor=self.baseline_anchor,
+            stable_input_mode=self.stable_input_mode,
+        )
+        if self.task == "l1":
+            keep = {
+                "tr_features", "tr_missing_mask", "tr_dt_seconds", "tr_dt_valid",
+                "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
+                "rd_quality", "observation_increment_values", "course_features",
+                "course_valid", "course_support", "labels",
+            }
+        else:
+            keep = {
+                "tr_features", "tr_missing_mask", "reference_tr_features",
+                "reference_tr_missing_mask", "tr_dt_seconds", "tr_dt_valid",
+                "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
+                "rd_quality", "rd_physical_features", "rd_physical_valid",
+                "micro_doppler_features", "micro_doppler_valid",
+                "stable_summary_tokens", "stable_summary_valid",
+                "stable_frame_values", "stable_frame_mask", "motion_values",
+                "labels", "lengths",
+            }
+            if "baseline_logits" in batch:
+                keep.add("baseline_logits")
+        return {key: value for key, value in batch.items() if key in keep}
 
 
 def build_training_dataset(
@@ -69,6 +134,8 @@ def build_training_loader(
     seed: int,
     num_workers: int = 0,
     pin_memory: bool = False,
+    prefetch_factor: int = 2,
+    collate_fn: Callable[[list[Any]], Any] = _identity_batch,
 ) -> DataLoader[list[Any]]:
     """构造只按 parent 采样的 DataLoader。"""
 
@@ -76,15 +143,19 @@ def build_training_loader(
         raise ValueError("batch_size 必须是正整数")
     if isinstance(num_workers, bool) or int(num_workers) < 0:
         raise ValueError("num_workers 必须是非负整数")
+    if isinstance(prefetch_factor, bool) or int(prefetch_factor) <= 0:
+        raise ValueError("prefetch_factor 必须是正整数")
     generator = torch.Generator(device="cpu").manual_seed(int(seed))
+    workers = int(num_workers)
     return DataLoader(
         dataset,
         batch_size=int(batch_size),
         shuffle=bool(shuffle),
-        num_workers=int(num_workers),
+        num_workers=workers,
         pin_memory=bool(pin_memory),
-        persistent_workers=bool(num_workers),
-        collate_fn=_identity_batch,
+        persistent_workers=bool(workers),
+        prefetch_factor=int(prefetch_factor) if workers else None,
+        collate_fn=collate_fn,
         generator=generator,
     )
 
@@ -147,7 +218,11 @@ def _move_inputs(
     names = batch.keys() if keys is None else keys
     for key in names:
         value = batch[key]
-        result[key] = value.to(device=device) if isinstance(value, torch.Tensor) else value
+        result[key] = (
+            value.to(device=device, non_blocking=device.type == "cuda")
+            if isinstance(value, torch.Tensor)
+            else value
+        )
     return result
 
 
@@ -227,11 +302,13 @@ def train_l1_step(
     """执行一个 L1 parent-final backward step。"""
 
     inputs = _l1_inputs(batch, device)
-    observations = batch["observation_increment_values"].to(device=device)
+    observations = batch["observation_increment_values"].to(
+        device=device, non_blocking=device.type == "cuda"
+    )
     output = model(base_inputs=inputs, observation_increment_values=observations)
     loss = parent_final_fixed_parent_count_ce(
         output["sequence_logits"],
-        batch["labels"].to(device=device),
+        batch["labels"].to(device=device, non_blocking=device.type == "cuda"),
         inputs["tr_padding_mask"],
         class_weights=class_weights,
     )["loss"]
@@ -259,31 +336,47 @@ def train_l2_step(
     prefix_weight: float = 0.0,
     prefix_events: int = 0,
     return_loss_components: bool = False,
+    baseline_reference_verified: bool = False,
 ) -> float | torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor | int]]:
     """执行一个 L2 parent-final backward step。"""
 
     _require_stable_sidecars(batch)
     inputs = _l2_inputs(batch, device)
-    reference_inputs = _l2_reference_inputs(
-        batch, device, base_inputs=inputs
+    reference_inputs = (
+        None
+        if baseline_reference_verified
+        else _l2_reference_inputs(batch, device, base_inputs=inputs)
     )
     anchor = batch.get("baseline_logits")
     if not isinstance(anchor, torch.Tensor):
         raise ValueError("L2 batch 缺少 event_baseline_logits anchor")
-    anchor = anchor.to(device=device)
+    anchor = anchor.to(device=device, non_blocking=device.type == "cuda")
     output = model(
         base_inputs=inputs,
         reference_base_inputs=reference_inputs,
         baseline_logits=anchor.detach(),
-        stable_summary_tokens=batch["stable_summary_tokens"].to(device=device),
-        stable_summary_valid=batch["stable_summary_valid"].to(device=device),
-        stable_frame_values=batch["stable_frame_values"].to(device=device),
-        stable_frame_mask=batch["stable_frame_mask"].to(device=device),
-        motion_values=batch["motion_values"].to(device=device),
+        frozen_reference_logits_override=(
+            anchor.detach() if baseline_reference_verified else None
+        ),
+        stable_summary_tokens=batch["stable_summary_tokens"].to(
+            device=device, non_blocking=device.type == "cuda"
+        ),
+        stable_summary_valid=batch["stable_summary_valid"].to(
+            device=device, non_blocking=device.type == "cuda"
+        ),
+        stable_frame_values=batch["stable_frame_values"].to(
+            device=device, non_blocking=device.type == "cuda"
+        ),
+        stable_frame_mask=batch["stable_frame_mask"].to(
+            device=device, non_blocking=device.type == "cuda"
+        ),
+        motion_values=batch["motion_values"].to(
+            device=device, non_blocking=device.type == "cuda"
+        ),
     )
     loss_result = parent_final_fixed_parent_count_ce(
         output["sequence_logits"],
-        batch["labels"].to(device=device),
+        batch["labels"].to(device=device, non_blocking=device.type == "cuda"),
         inputs["tr_padding_mask"],
         class_weights=class_weights,
         prefix_weight=prefix_weight,
@@ -346,29 +439,19 @@ def evaluate_l1(
     loader: DataLoader,
     *,
     device: torch.device,
-    feature_caches: Mapping[str, FeatureCache] | None = None,
 ) -> dict[str, Any]:
     """在 parent-final 级别评估 L1。"""
 
     predictions: list[int] = []
     labels: list[int] = []
     model.eval()
-    view = getattr(loader.dataset, "view", None)
-    expected_view_hash = getattr(view, "view_hash", None)
     with torch.inference_mode():
-        for sequences in loader:
-            batch = build_model_batch(
-                sequences,
-                task="l1",
-                max_rd_frames=model.config.data.max_rd_frames_per_point,
-                max_sequence_length=model.config.data.max_sequence_length,
-                stable_indices=model.config.data.l2.stable8_indices,
-                feature_caches=feature_caches,
-                expected_view_hash=expected_view_hash,
-            )
+        for batch in loader:
             output = model(
                 base_inputs=_l1_inputs(batch, device),
-                observation_increment_values=batch["observation_increment_values"].to(device=device),
+                observation_increment_values=batch["observation_increment_values"].to(
+                    device=device, non_blocking=device.type == "cuda"
+                ),
             )
             predictions.extend(output["final_logits"].argmax(dim=-1).cpu().tolist())
             labels.extend(batch["labels"].tolist())
@@ -380,63 +463,38 @@ def evaluate_l2(
     loader: DataLoader,
     *,
     device: torch.device,
-    raw_echo_provider: Any | None = None,
-    stable_median: np.ndarray | None = None,
-    stable_scale: np.ndarray | None = None,
-    stable_indices: Sequence[int] | None = None,
-    feature_caches: Mapping[str, FeatureCache] | None = None,
-    baseline_anchor: Any | None = None,
+    baseline_reference_verified: bool = False,
 ) -> dict[str, Any]:
     """在 parent-final 级别评估 L2。"""
 
     predictions: list[int] = []
     labels: list[int] = []
     model.eval()
-    view = getattr(loader.dataset, "view", None)
-    expected_view_hash = getattr(view, "view_hash", None)
     with torch.inference_mode():
-        for sequences in loader:
-            batch = build_model_batch(
-                sequences,
-                task="l2",
-                max_rd_frames=model.config.data.max_rd_frames_per_point,
-                max_sequence_length=model.config.data.max_sequence_length,
-                raw_echo_provider=raw_echo_provider,
-                stable_median=stable_median,
-                stable_scale=stable_scale,
-                stable_indices=(
-                    model.config.data.l2.stable8_indices
-                    if stable_indices is None
-                    else stable_indices
-                ),
-                clipping={
-                    "bounds": {
-                        name: {"lower": bounds[0], "upper": bounds[1]}
-                        for name, bounds in model.config.data.l2.tr_clipping_bounds.items()
-                    }
-                },
-                feature_caches=feature_caches,
-                expected_view_hash=expected_view_hash,
-                baseline_anchor=baseline_anchor,
-            )
+        for batch in loader:
             _require_stable_sidecars(batch)
             inputs = _l2_inputs(batch, device)
-            reference_inputs = _l2_reference_inputs(
-                batch, device, base_inputs=inputs
-            )
             anchor = batch.get("baseline_logits")
             if not isinstance(anchor, torch.Tensor):
                 raise ValueError("L2 batch 缺少 event_baseline_logits anchor")
-            anchor = anchor.to(device=device)
+            anchor = anchor.to(device=device, non_blocking=device.type == "cuda")
+            reference_inputs = (
+                None
+                if baseline_reference_verified
+                else _l2_reference_inputs(batch, device, base_inputs=inputs)
+            )
             output = model(
                 base_inputs=inputs,
                 reference_base_inputs=reference_inputs,
                 baseline_logits=anchor,
-                stable_summary_tokens=batch["stable_summary_tokens"].to(device=device),
-                stable_summary_valid=batch["stable_summary_valid"].to(device=device),
-                stable_frame_values=batch["stable_frame_values"].to(device=device),
-                stable_frame_mask=batch["stable_frame_mask"].to(device=device),
-                motion_values=batch["motion_values"].to(device=device),
+                frozen_reference_logits_override=(
+                    anchor if baseline_reference_verified else None
+                ),
+                stable_summary_tokens=batch["stable_summary_tokens"].to(device=device, non_blocking=device.type == "cuda"),
+                stable_summary_valid=batch["stable_summary_valid"].to(device=device, non_blocking=device.type == "cuda"),
+                stable_frame_values=batch["stable_frame_values"].to(device=device, non_blocking=device.type == "cuda"),
+                stable_frame_mask=batch["stable_frame_mask"].to(device=device, non_blocking=device.type == "cuda"),
+                motion_values=batch["motion_values"].to(device=device, non_blocking=device.type == "cuda"),
             )
             lengths = inputs["tr_padding_mask"].logical_not().sum(dim=1)
             rows = torch.arange(lengths.shape[0], device=device)
@@ -450,33 +508,14 @@ def evaluate_l2_direct(
     loader: DataLoader,
     *,
     device: torch.device,
-    stable_median: np.ndarray,
-    stable_scale: np.ndarray,
-    feature_caches: Mapping[str, FeatureCache] | None = None,
-    clipping: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """在完整 L2 主干上评估，不注入 baseline 或 stable residual。"""
 
     predictions: list[int] = []
     labels: list[int] = []
     model.eval()
-    view = getattr(loader.dataset, "view", None)
-    expected_view_hash = getattr(view, "view_hash", None)
     with torch.inference_mode():
-        for sequences in loader:
-            batch = build_model_batch(
-                sequences,
-                task="l2",
-                max_rd_frames=model.config.data.max_rd_frames_per_point,
-                max_sequence_length=model.config.data.max_sequence_length,
-                stable_median=stable_median,
-                stable_scale=stable_scale,
-                stable_indices=model.config.data.l2.stable8_indices,
-                clipping=clipping,
-                feature_caches=feature_caches,
-                expected_view_hash=expected_view_hash,
-                stable_input_mode="raw",
-            )
+        for batch in loader:
             output = model.direct_logits(base_inputs=_l2_inputs(batch, device))
             predictions.extend(output["final_logits"].argmax(dim=-1).cpu().tolist())
             labels.extend(batch["labels"].tolist())

@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader
 from radar_ln3.checkpoint import Checkpoint, canonical_hash, sha256_file
 from radar_ln3.data import DatasetManifest, load_manifest
 from radar_ln3.data.manifest import data_manifest_hash
-from radar_ln3.data.paths import resolve_project_path
+from radar_ln3.data.paths import resolve_project_artifact_path, resolve_project_path
 from radar_ln3.features import (
     FeatureCache,
     build_model_batch,
@@ -171,6 +171,26 @@ def _device(value: str | torch.device) -> torch.device:
     if target.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("knownness head 配置要求 CUDA，但当前环境不可用")
     return target
+
+
+def _epoch_permutation(
+    length: int,
+    *,
+    seed: int,
+    epoch: int,
+    phase_offset: int = 0,
+) -> torch.Tensor:
+    """Return the deterministic shuffle for one training epoch.
+
+    Base and profile training are separate phases.  Keeping the phase offset
+    explicit makes profile epoch ``n`` use a new seed instead of accidentally
+    reusing the base-history length after the base phase has finished.
+    """
+
+    generator = torch.Generator(device="cpu").manual_seed(
+        int(seed) + int(phase_offset) + int(epoch)
+    )
+    return torch.randperm(int(length), generator=generator)
 
 
 def _feature_caches(
@@ -593,10 +613,9 @@ def endpoint_representation_path(
     if task not in {"l1", "l2"} or not str(split_name):
         raise ValueError("endpoint representation task/split 无效")
     root = Path(project_root).resolve()
-    return resolve_project_path(
+    return resolve_project_artifact_path(
         root,
         Path(representation_root) / f"{task}-{split_name}.pt",
-        must_exist=False,
     )
 
 
@@ -611,7 +630,7 @@ def save_frozen_endpoint_representation(
     """保存可复用的 endpoint representation 和完整 provenance。"""
 
     root = Path(project_root).resolve()
-    target = resolve_project_path(root, output_path, must_exist=False)
+    target = resolve_project_artifact_path(root, output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     hidden = int(config.model.liquid_hidden_dim)
     contract = knownness_representation_contract(
@@ -683,7 +702,7 @@ def load_frozen_endpoint_representation(
     expected_config_sha256: str | None = None,
 ) -> FrozenEndpointRepresentation:
     root = Path(project_root).resolve()
-    target = resolve_project_path(root, path, must_exist=True)
+    target = resolve_project_artifact_path(root, path, must_exist=True)
     payload = torch.load(target, map_location="cpu", weights_only=False)
     if not isinstance(payload, Mapping) or not isinstance(payload.get("metadata"), Mapping):
         raise ValueError(f"endpoint representation 文件格式无效：{target}")
@@ -959,7 +978,7 @@ def _train_knownness_head(
     l1_tail_events: int = 4,
     l1_target_prefix_weight: float = 0.0,
     l1_clutter_prefix_weight: float = 0.0,
-    unknown_loss_weight: float = 0.15,
+    unknown_loss_weight: float | None = None,
     l2_unknown_loss_weight: float = 1.0,
     l2_classwise: bool = False,
     bird_loss_weight: float = 1.0,
@@ -989,8 +1008,11 @@ def _train_knownness_head(
             "L2 非 classwise knownness 没有 Bird 类别权重；"
             "请将 bird_loss_weight 设为 1.0，或启用 classwise"
         )
-    if task == "l2" and float(unknown_loss_weight) != 0.15:
+    if task == "l2" and unknown_loss_weight not in (None, 0.15):
         raise ValueError("L2 不使用 L1 route 的 unknown_loss_weight；请使用 l2_unknown_loss_weight")
+    effective_unknown_loss_weight = (
+        0.15 if unknown_loss_weight is None else float(unknown_loss_weight)
+    )
     if task == "l1" and (
         float(l2_unknown_loss_weight) != 1.0
         or l2_classwise
@@ -1043,7 +1065,7 @@ def _train_knownness_head(
         ("l1_clutter_weight", l1_clutter_weight),
         ("l1_bce_unknown_weight", l1_bce_unknown_weight),
         ("l1_bird_loss_weight", l1_bird_loss_weight),
-        ("unknown_loss_weight", unknown_loss_weight),
+        ("unknown_loss_weight", effective_unknown_loss_weight),
         ("l2_unknown_loss_weight", l2_unknown_loss_weight),
         ("bird_loss_weight", bird_loss_weight),
         ("unknown_far_limit", unknown_far_limit),
@@ -1112,10 +1134,20 @@ def _train_knownness_head(
         if route_prefix_enabled else None
     )
 
-    def train_epoch(model: nn.Module, optimizer: torch.optim.Optimizer, *, profile: bool) -> tuple[float, dict[str, float]]:
+    def train_epoch(
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        *,
+        epoch: int,
+        profile: bool,
+    ) -> tuple[float, dict[str, float]]:
         model.train()
-        generator = torch.Generator(device="cpu").manual_seed(int(seed) + len(history) + 1)
-        order = torch.randperm(len(fit.parent_ids), generator=generator)
+        order = _epoch_permutation(
+            len(fit.parent_ids),
+            seed=seed,
+            epoch=epoch,
+            phase_offset=int(epochs) if profile else 0,
+        )
         losses: list[float] = []
         component_totals: dict[str, torch.Tensor] = {}
         for start in range(0, len(order), int(batch_size)):
@@ -1172,7 +1204,7 @@ def _train_knownness_head(
                 ).mean(dim=-1)
                 loss_values = route_loss * known_rows.to(dtype=route_loss.dtype)
                 if not l1_ignore_unknown:
-                    loss_values = loss_values + float(unknown_loss_weight) * unknown_loss * unknown_rows.to(dtype=unknown_loss.dtype)
+                    loss_values = loss_values + effective_unknown_loss_weight * unknown_loss * unknown_rows.to(dtype=unknown_loss.dtype)
             else:
                 loss_values = torch.nn.functional.binary_cross_entropy_with_logits(
                     logits,
@@ -1298,7 +1330,7 @@ def _train_knownness_head(
     best_epoch = 0
     optimizer = torch.optim.AdamW(base.parameters(), lr=float(learning_rate), weight_decay=float(weight_decay))
     for epoch in range(1, int(epochs) + 1):
-        loss, loss_components = train_epoch(base, optimizer, profile=False)
+        loss, loss_components = train_epoch(base, optimizer, epoch=epoch, profile=False)
         base.eval()
         with torch.inference_mode():
             output = base(val_rep, val_pad)
@@ -1377,7 +1409,7 @@ def _train_knownness_head(
         profile_best = None
         profile_best_state = None
         for epoch in range(1, int(epochs) + 1):
-            loss, _ = train_epoch(model, profile_optimizer, profile=True)
+            loss, _ = train_epoch(model, profile_optimizer, epoch=epoch, profile=True)
             model.eval()
             with torch.inference_mode():
                 if val_profile is None:
@@ -1462,7 +1494,12 @@ def _train_knownness_head(
             "l1_tail_events": int(l1_tail_events),
             "l1_target_prefix_weight": float(l1_target_prefix_weight),
             "l1_clutter_prefix_weight": float(l1_clutter_prefix_weight),
-            "unknown_loss_weight": float(unknown_loss_weight),
+            "unknown_loss_weight": (
+                float(effective_unknown_loss_weight) if task == "l1" else None
+            ),
+            "unknown_loss_weight_applied": bool(
+                task == "l1" and (l1_route_loss or l1_ignore_unknown)
+            ),
             "l2_unknown_loss_weight": float(l2_unknown_loss_weight),
             "l2_unknown_loss_weight_applied": bool(task == "l2"),
             "l2_classwise": bool(l2_classwise),
@@ -1518,7 +1555,7 @@ def _train_knownness_head(
         "min_events": int(min_events),
         "seed": int(seed),
     }
-    target = resolve_project_path(Path(project_root).resolve(), output_path)
+    target = resolve_project_artifact_path(Path(project_root).resolve(), output_path)
     if target.exists() and overwrite:
         _archive(target)
     checkpoint, _ = Checkpoint.save(project_root, output_path, {**body, "model_state": model.state_dict()})
@@ -1569,7 +1606,7 @@ def train_l3_knownness_head(
     l1_tail_events: int = 4,
     l1_target_prefix_weight: float = 0.0,
     l1_clutter_prefix_weight: float = 0.0,
-    unknown_loss_weight: float = 0.15,
+    unknown_loss_weight: float | None = None,
     l2_unknown_loss_weight: float = 1.0,
     l2_classwise: bool = False,
     bird_loss_weight: float = 1.0,

@@ -285,7 +285,8 @@ try {
             "--output-root",$headRoot,"--representation-root",$representationRoot,
             "--l3-config-path",$l3ConfigPath
         )
-        Add-OverwriteFlag $args; Add-ValidationFlag $args; [void]$args.Add("--skip-event-cache-validation")
+        Add-OverwriteFlag $args; Add-ValidationFlag $args
+        if ($SkipDataValidation) { [void]$args.Add("--skip-event-cache-validation") }
         Invoke-PackageStep "03-knownness-heads" $args @($l1HeadPath,$l2HeadPath,"$representationRoot/l1-train.pt","$representationRoot/l1-validation.pt","$representationRoot/l2-train.pt","$representationRoot/l2-validation.pt","$headRoot/l1-knownness-summary.json","$headRoot/l2-knownness-summary.json") -Inputs @($l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l3ConfigPath,$headFitCache,$validationCache)
     }
     if ($Stage -in @("all", "calibration")) {
