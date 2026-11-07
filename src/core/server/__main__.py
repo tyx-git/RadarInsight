@@ -23,6 +23,7 @@ from .source import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _positive_float(value: str) -> float:
@@ -61,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument(
         "--asd-dir",
         type=Path,
-        default=PROJECT_ROOT / "data" / "asd",
+        default=BACKEND_ROOT / "data" / "asd",
         help="replay top-level ASD packages in filename order (default: data/asd)",
     )
     parser.add_argument("--host", default="0.0.0.0", help="RTSP bind address")
@@ -151,7 +152,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         readiness = backend.readiness()
         print(f"model readiness: {readiness}")
-        if readiness["research_only"] or not readiness["deployment_eligible"]:
+        metadata = readiness.get("metadata", {}) or {}
+        research_only = str(
+            metadata.get("research_only", "false")).strip().lower() == "true"
+        deployment_eligible = str(
+            metadata.get("deployment_eligible", "false")).strip().lower() == "true"
+        if research_only or not deployment_eligible:
             print("WARNING: bound cascade is research-only; rendered predictions are not deployment-certified")
         factory_type = {
             "causal": FullCascadeInferenceFactory,

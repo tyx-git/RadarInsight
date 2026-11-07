@@ -13,7 +13,7 @@ Thumbs.db
 artifacts/
 data/*
 reports/
-src/前端数据包/
+src/data/
 tests/*
 tools/
 logs/

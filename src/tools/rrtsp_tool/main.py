@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""AeroSight 客户端启动入口。
-
-用法: python main.py   (或直接双击)
-从任意目录启动都可以, 依赖使用 aerosight-client 环境。
-"""
+"""AeroSight R-RTSP 推流工具启动入口。"""
 import os
 import sys
 
@@ -19,7 +15,7 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-from aerosight.main import main
+from rrtsp.gui import run_gui
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_gui())

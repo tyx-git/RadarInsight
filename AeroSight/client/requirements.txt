@@ -1,9 +1,0 @@
-# AeroSight client runtime dependencies
-# Python 3.11 / Windows
-numpy==2.4.6
-PySide6==6.11.2
-PyYAML==6.0.3
-
-# Windows DirectML inference backend.
-# If installing on non-Windows, replace this line with: onnxruntime==1.24.4
-onnxruntime-directml==1.24.4
