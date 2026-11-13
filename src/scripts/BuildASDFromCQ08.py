@@ -25,11 +25,9 @@ PROJECT_ROOT = SRC_ROOT.parent
 if str(SRC_ROOT) not in __import__("sys").path:
     __import__("sys").path.insert(0, str(SRC_ROOT))
 
-from radar_ln3.data.cq08 import CQ08Adapter  # noqa: E402
-from radar_ln3.data.paths import resolve_source_path  # noqa: E402
+from radar_ln3.data.cq08 import CQ08Adapter, resolve_frame_source_path  # noqa: E402
 from radar_ln3.data.raw_reader import read_mat  # noqa: E402
 from radar_ln3.data.rd_sanitizer import sanitize_rd_amplitude_db  # noqa: E402
-from radar_ln3.data.source import resolve_registered_source_path  # noqa: E402
 
 
 ASD_PACKAGE_SCHEMA = "RADAR-LN3-ASD-PACKAGE-V1"
@@ -57,40 +55,11 @@ def _finite(value: Any, *, name: str) -> float:
     return number
 
 
-def _json_value(value: Any) -> Any:
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
-    return value
-
-
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
-    )
-
-
-def _resolve_frame_path(adapter: CQ08Adapter, raw_path: str) -> Path:
-    if str(raw_path).replace("\\", "/").startswith("external/"):
-        return resolve_source_path(
-            adapter.project_root,
-            raw_path,
-            source_roots={"cq08": adapter.source_root},
-            must_exist=True,
-            allow_external=True,
-        )
-    return resolve_registered_source_path(
-        adapter.project_root,
-        raw_path,
-        adapter.source_config,
-        must_exist=True,
     )
 
 
@@ -237,7 +206,12 @@ def _build_parent_package(
         rd_root = event_path / "rd"
         rd_root.mkdir(parents=True, exist_ok=True)
         for position, raw_path in enumerate(raw_paths):
-            path = _resolve_frame_path(adapter, str(raw_path))
+            path = resolve_frame_source_path(
+                adapter.project_root,
+                str(raw_path),
+                source_root=adapter.source_root,
+                source_config=adapter.source_config,
+            )
             source_meta = (
                 dict(frame_metadata[position])
                 if position < len(frame_metadata)

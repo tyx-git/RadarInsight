@@ -8,33 +8,14 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from radar_ln3.model.io import LEGACY_LV28_BATCH_ALIASES, LV28_INPUT_NAMES
+
 from .cascade import CASCADE_ACTION_NAMES, CASCADE_REASON_NAMES, FULL_CASCADE_INPUT_NAMES
 
 
 # Experimental LV28 was exported before the current full-cascade input
 # contract was finalized.  Keep its graph usable as a compatibility endpoint;
 # the product batch adapter below supplies the same tensors under these names.
-LV28_INPUT_NAMES = (
-    "l1_tr_features",
-    "l2_tr_features",
-    "tr_missing_mask",
-    "tr_dt_seconds",
-    "tr_dt_valid",
-    "tr_dt_reason",
-    "tr_padding_mask",
-    "l1_rd_frames",
-    "l2_rd_frames",
-    "rd_frame_mask",
-    "rd_quality",
-    "course_features",
-    "course_valid",
-    "course_support",
-    "rd_physical_features",
-    "rd_physical_valid",
-    "micro_doppler_features",
-    "micro_doppler_valid",
-    "observation_increment",
-)
 
 
 class ONNXCascadeRunner:
@@ -132,27 +113,7 @@ class ONNXCascadeRunner:
         return np.asarray(value)
 
     def _feed_for_lv28(self, batch: Mapping[str, Any]) -> dict[str, np.ndarray]:
-        aliases = {
-            "l1_tr_features": "l1_tr_features",
-            "l2_tr_features": "l2_tr_features",
-            "tr_missing_mask": "tr_missing_mask",
-            "tr_dt_seconds": "tr_dt_seconds",
-            "tr_dt_valid": "tr_dt_valid",
-            "tr_dt_reason": "tr_dt_reason",
-            "tr_padding_mask": "tr_padding_mask",
-            "l1_rd_frames": "l1_rd_frames",
-            "l2_rd_frames": "l2_rd_frames",
-            "rd_frame_mask": "rd_frame_mask",
-            "rd_quality": "rd_quality",
-            "course_features": "course_features",
-            "course_valid": "course_valid",
-            "course_support": "course_support",
-            "rd_physical_features": "rd_physical_features",
-            "rd_physical_valid": "rd_physical_valid",
-            "micro_doppler_features": "micro_doppler_features",
-            "micro_doppler_valid": "micro_doppler_valid",
-            "observation_increment": "observation_increment_values",
-        }
+        aliases = LEGACY_LV28_BATCH_ALIASES
         missing = [source for source in aliases.values() if source not in batch]
         if missing:
             raise ValueError(f"LV28 ONNX 输入缺少特征：{missing}")

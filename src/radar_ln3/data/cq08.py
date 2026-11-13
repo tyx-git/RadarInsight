@@ -9,10 +9,8 @@ from __future__ import annotations
 import io
 import json
 import math
-import os
 import re
 import struct
-import tempfile
 import zipfile
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -20,11 +18,13 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from .atomic import write_bytes
 from .contracts import (
     DataFormatError,
     DataPairingError,
     DataReadError,
     DataSplitError,
+    DatasetManifest,
     EventData,
     EventRecord,
     ParentData,
@@ -220,43 +220,6 @@ def _safe_name(value: str) -> str:
     )
 
 
-def _atomic_bytes(path: Path, payload: bytes, *, overwrite: bool) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() == payload:
-            return "reused_identical"
-        if not overwrite:
-            raise FileExistsError(
-                f"拒绝覆盖内容不同的数据产物：{path}"
-            )
-    fd, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if overwrite:
-            os.replace(temporary, path)
-        else:
-            try:
-                os.link(temporary, path)
-            except FileExistsError:
-                if path.is_file() and path.read_bytes() == payload:
-                    return "reused_identical"
-                raise FileExistsError(
-                    f"拒绝覆盖竞态产生的不同数据产物：{path}"
-                )
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-    return "created"
-
-
 def _normalise_label(raw_label: str) -> tuple[int, str]:
     text = str(raw_label).strip()
     if not text:
@@ -331,6 +294,31 @@ def _validate_source_rows(
         )
 
 
+def resolve_frame_source_path(
+    project_root: Path,
+    raw_path: str,
+    *,
+    source_root: Path,
+    source_config: Mapping[str, Any],
+) -> Path:
+    """把 TR/RD 记录中的帧路径解析为已存在的 MAT 文件。"""
+
+    if str(raw_path).replace("\\", "/").startswith("external/"):
+        return resolve_source_path(
+            project_root,
+            raw_path,
+            source_roots={"cq08": source_root},
+            must_exist=True,
+            allow_external=True,
+        )
+    return resolve_registered_source_path(
+        project_root,
+        raw_path,
+        source_config,
+        must_exist=True,
+    )
+
+
 def _deterministic_npz_bytes(values: Mapping[str, Any]) -> bytes:
     """以固定 ZIP 元数据写出 NPZ，避免重复运行产生伪差异。"""
 
@@ -375,6 +363,7 @@ class CQ08Adapter:
         registered_index: bool = False,
         manifest_path: str | Path = "src/config/manifests.json",
         verify_files: bool = True,
+        manifest: DatasetManifest | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
         self.source_config = load_source_config(self.project_root)
@@ -382,6 +371,7 @@ class CQ08Adapter:
         self.registered_index = bool(registered_index)
         self.manifest_path = manifest_path
         self.verify_files = bool(verify_files)
+        self._provided_manifest = manifest
         self.parent_split = (
             None
             if parent_split is None or str(parent_split).lower() == "all"
@@ -452,7 +442,7 @@ class CQ08Adapter:
     def _load_registered_index(self) -> None:
         """只读取已生成的产品索引和产物，不扫描原始 MAT 目录。"""
 
-        manifest = load_manifest(
+        manifest = self._provided_manifest or load_manifest(
             self.manifest_path,
             self.project_root,
             verify_files=self.verify_files,
@@ -1228,17 +1218,11 @@ class CQ08Adapter:
         frame_metadata = event.metadata.get("rd_frame_metadata") or []
         elapsed = 0.0
         for position, raw_path in enumerate(event.metadata.get("rd_frame_paths", [])):
-            path = resolve_source_path(
+            path = resolve_frame_source_path(
                 self.project_root,
                 raw_path,
-                source_roots={"cq08": self.source_root},
-                must_exist=True,
-                allow_external=True,
-            ) if str(raw_path).startswith("external/") else resolve_registered_source_path(
-                self.project_root,
-                raw_path,
-                self.source_config,
-                must_exist=True,
+                source_root=self.source_root,
+                source_config=self.source_config,
             )
             payload = read_mat(
                 path,
@@ -1597,10 +1581,9 @@ class CQ08Adapter:
                 )
                 + "\n"
             )
-        _atomic_bytes(
-            tr_path,
-            "".join(tr_lines).encode("utf-8"),
-            overwrite=overwrite,
+        tr_payload = "".join(tr_lines).encode("utf-8")
+        tr_hash = write_bytes(
+            tr_path, tr_payload, overwrite=overwrite, label="数据产物"
         )
 
         frames: list[np.ndarray] = []
@@ -1654,6 +1637,7 @@ class CQ08Adapter:
             frame_cursor += 1
 
         rd_available = bool(frames)
+        rd_hash: str | None = None
         if rd_available:
             amplitude_array = np.stack(frames, axis=0).astype(np.float32)
             phase_array = np.stack(phases, axis=0).astype(np.float32)
@@ -1668,18 +1652,19 @@ class CQ08Adapter:
                     "time_seconds": time_array,
                 }
             )
-            _atomic_bytes(rd_path, payload, overwrite=overwrite)
+            rd_hash = write_bytes(
+                rd_path, payload, overwrite=overwrite, label="数据产物"
+            )
         elif rd_path.exists():
             if not overwrite:
                 raise FileExistsError(
                     f"refusing to overwrite a different empty RD artifact: {rd_path}"
                 )
             rd_path.unlink()
+            rd_hash = None
 
         tr_size = int(tr_path.stat().st_size)
-        tr_hash = sha256_file(tr_path)
         rd_size = int(rd_path.stat().st_size) if rd_available else None
-        rd_hash = sha256_file(rd_path) if rd_available else None
         tr_artifacts: dict[str, Any] = {}
         rd_artifacts: dict[str, Any] = {}
         for event in events:
@@ -1780,8 +1765,8 @@ def _raw_u32(payload: bytes, offset: int, count: int) -> tuple[int, ...]:
     return struct.unpack_from(f"<{int(count)}I", payload, offset)
 
 
-def _canonical_raw_target_location(frame: Any, record: RawTargetRecord) -> tuple[int, int]:
-    """复现旧流程的局部 MTD 搜索并输出零基 canonical 坐标。"""
+def _locate_raw_dat_target_bin(frame: Any, record: RawTargetRecord) -> tuple[int, int]:
+    """在 raw-DAT 帧内执行局部 MTD 搜索并输出零基目标坐标。"""
 
     try:
         from scipy.signal.windows import taylor
@@ -1887,7 +1872,7 @@ def _parse_raw_echo_file(path: Path) -> list[RawEchoFrame]:
         for record in raw_records:
             if record.event_index < 0:
                 continue
-            range_bin, doppler_bin = _canonical_raw_target_location(frame, record)
+            range_bin, doppler_bin = _locate_raw_dat_target_bin(frame, record)
             canonical_records.append(
                 RawTargetRecord(
                     target_identifier=record.target_identifier,
@@ -2015,4 +2000,5 @@ __all__ = [
     "CQ08_LABEL_NAME_TO_ID",
     "CQ08_TR_SCHEMA_VERSION",
     "CQ08_RD_SCHEMA_VERSION",
+    "resolve_frame_source_path",
 ]

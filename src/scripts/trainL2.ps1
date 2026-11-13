@@ -11,6 +11,7 @@ param(
     [switch]$NoPinMemory,
     [switch]$RebuildCache,
     [switch]$SkipDataValidation,
+    [switch]$SkipEventCacheValidation,
     [switch]$ReplaceExisting,
     [switch]$Overwrite,
     [switch]$Resume,
@@ -34,6 +35,7 @@ $forwardArguments = @{
     ModelConfigPath    = $ModelConfigPath
     RebuildCache       = [bool]$RebuildCache
     SkipDataValidation = [bool]$SkipDataValidation
+    SkipEventCacheValidation = [bool]$SkipEventCacheValidation
     ReplaceExisting    = [bool]$ReplaceExisting
     Overwrite          = [bool]$Overwrite
     Resume             = [bool]$Resume

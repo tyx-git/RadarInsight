@@ -22,6 +22,8 @@ PROJECT_ROOT = SRC_ROOT.parent
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from radar_ln3.model.io import L2_MODEL_INPUTS  # noqa: E402
+
 
 EXPORT_CONTRACT = "RADAR-LN3-ONNX-STREAMING-L2-DIRECT-V1"
 DEFAULT_CHECKPOINT = Path(
@@ -30,21 +32,7 @@ DEFAULT_CHECKPOINT = Path(
 DEFAULT_OUTPUT = Path(
     "artifacts/radar_ln3/onnx/radar_ln3_l2_direct_grouped.onnx"
 )
-INPUT_NAMES = (
-    "tr_features",
-    "tr_missing_mask",
-    "tr_dt_seconds",
-    "tr_dt_valid",
-    "tr_dt_reason",
-    "tr_padding_mask",
-    "rd_frames",
-    "rd_frame_mask",
-    "rd_quality",
-    "rd_physical_features",
-    "rd_physical_valid",
-    "micro_doppler_features",
-    "micro_doppler_valid",
-)
+INPUT_NAMES = L2_MODEL_INPUTS
 
 
 def _parser() -> argparse.ArgumentParser:

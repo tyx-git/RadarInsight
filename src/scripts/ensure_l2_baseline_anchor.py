@@ -34,7 +34,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="忽略已有 anchor，按当前 reference 输入重新生成",
     )
-    parser.add_argument("--skip-data-validation", action="store_true")
+    parser.add_argument(
+        "--skip-data-validation",
+        action="store_true",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
+    )
+    parser.add_argument("--skip-event-cache-validation", action="store_true")
     args = parser.parse_args(argv)
     try:
         from radar_ln3.training.l2_anchor import ensure_l2_baseline_anchor
@@ -47,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
             device=str(args.device),
             batch_size=int(args.batch_size),
             verify_files=not bool(args.skip_data_validation),
-            validate_event_cache=not bool(args.skip_data_validation),
+            validate_event_cache=not bool(args.skip_event_cache_validation),
             rebuild=bool(args.rebuild),
         )
         print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)

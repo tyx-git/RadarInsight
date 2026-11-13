@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-data-validation",
         action="store_true",
-        help="复用前置 data_index 校验结果，不重复扫描 TR/RD 文件",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
     )
     args = parser.parse_args(argv)
     try:

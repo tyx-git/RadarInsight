@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from radar_ln3.data.atomic import write_json
 from radar_ln3.data.contracts import DatasetView, EventSequence, RawEchoProvider
 from radar_ln3.data.paths import ensure_path_inside_root, relative_project_path, resolve_project_path
 
@@ -99,65 +98,6 @@ def _tr_value_validity(missing: np.ndarray) -> np.ndarray:
     result[:, 12] = ~mask[:, 9]
     result[:, 13] = ~mask[:, 10]
     return result
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def _atomic_json_write(
-    target: Path,
-    payload: Mapping[str, Any],
-    *,
-    overwrite: bool,
-) -> None:
-    """以原子方式写入 bundle manifest，且默认拒绝竞态覆盖。"""
-
-    encoded = (
-        json.dumps(
-            dict(payload),
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n"
-    ).encode("utf-8")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        if not target.is_file():
-            raise FeatureCacheFormatError(f"feature cache manifest 不是文件：{target}")
-        if target.read_bytes() == encoded:
-            return
-        if not overwrite:
-            raise FileExistsError(f"拒绝覆盖内容不同的 feature cache manifest：{target}")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.",
-        suffix=".tmp",
-        dir=target.parent,
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if overwrite:
-            os.replace(temporary, target)
-            return
-        try:
-            os.link(temporary, target)
-        except FileExistsError:
-            if target.is_file() and target.read_bytes() == encoded:
-                return
-            raise FileExistsError(
-                f"拒绝覆盖竞态产生的 feature cache manifest：{target}"
-            )
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _canonical_hash(value: Mapping[str, Any]) -> str:
@@ -626,11 +566,13 @@ def save_feature_cache_bundle(
         if feature_name not in FEATURE_CACHE_FILE_NAMES:
             raise FeatureCacheFormatError(f"未登记的 feature cache：{feature_name}")
         path = target_root / FEATURE_CACHE_FILE_NAMES[feature_name]
-        saved = save_feature_cache(path, cache, overwrite=overwrite)
+        saved, saved_hash = save_feature_cache(
+            path, cache, overwrite=overwrite, return_sha256=True
+        )
         files[feature_name] = {
             "path": relative_project_path(root, saved),
             "file_size": int(saved.stat().st_size),
-            "sha256": feature_cache_sha256(saved),
+            "sha256": saved_hash,
             **_record_shape_metadata(cache),
         }
     first = next(iter(caches.values()))
@@ -652,12 +594,18 @@ def save_feature_cache_bundle(
         ):
             raise FeatureCacheFormatError("bundle 内 cache 的统一 view 或数量不一致")
     payload["manifest_sha256"] = _canonical_hash(payload)
-    _atomic_json_write(manifest_path, payload, overwrite=overwrite)
+    manifest_file_sha256 = write_json(
+        manifest_path,
+        payload,
+        overwrite=overwrite,
+        sort_keys=True,
+        label="feature cache manifest",
+    )
     return {
         **payload,
         "path": relative_project_path(root, manifest_path),
         "file_size": int(manifest_path.stat().st_size),
-        "sha256": _sha256(manifest_path),
+        "sha256": manifest_file_sha256,
     }
 
 

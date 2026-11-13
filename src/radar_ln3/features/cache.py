@@ -19,6 +19,8 @@ from typing import Any
 
 import numpy as np
 
+from radar_ln3.data.raw_reader import sha256_file as _data_sha256_file
+
 from .contracts import (
     FeatureCacheDescriptor,
     FeatureCacheError,
@@ -218,7 +220,8 @@ def save_feature_cache(
     cache: FeatureCache,
     *,
     overwrite: bool = False,
-) -> Path:
+    return_sha256: bool = False,
+) -> Path | tuple[Path, str]:
     """原子保存一个 feature cache；默认禁止覆盖已有文件。"""
 
     # TODO: 后续由上层统一日志系统记录 cache 的构建、复用和 hash 校验过程；
@@ -232,19 +235,43 @@ def save_feature_cache(
                 f"已有 feature cache 无法校验，拒绝覆盖：{target}"
             ) from exc
         if _cache_equal(existing, cache):
-            return target
+            return (target, _data_sha256_file(target)) if return_sha256 else target
         raise FeatureCachePathError(f"feature cache 内容不同，未允许覆盖：{target}")
     target.parent.mkdir(parents=True, exist_ok=True)
     payload = _cache_payload(cache)
+    encoded_hash: str | None = None
     temporary_path: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="wb", suffix=".npz", dir=target.parent, delete=False
-        ) as handle:
-            temporary_path = Path(handle.name)
+        ) as raw_handle:
+            class _DigestWriter:
+                def __init__(self, handle):
+                    self.handle = handle
+                    self.digest = hashlib.sha256()
+
+                def write(self, value):
+                    self.digest.update(value)
+                    return self.handle.write(value)
+
+                def flush(self):
+                    self.handle.flush()
+
+                def tell(self):
+                    return self.handle.tell()
+
+                def seekable(self):
+                    return False
+
+                def read(self, *args):
+                    return self.handle.read(*args)
+
+            handle = _DigestWriter(raw_handle)
+            temporary_path = Path(raw_handle.name)
             np.savez_compressed(handle, **payload)
             handle.flush()
-            os.fsync(handle.fileno())
+            os.fsync(raw_handle.fileno())
+            encoded_hash = handle.digest.hexdigest()
         if overwrite:
             os.replace(temporary_path, target)
         else:
@@ -253,7 +280,7 @@ def save_feature_cache(
             except FileExistsError:
                 existing = load_feature_cache(target)
                 if _cache_equal(existing, cache):
-                    return target
+                    return (target, _data_sha256_file(target)) if return_sha256 else target
                 raise FeatureCachePathError(
                     f"feature cache 在写入前出现了不同内容：{target}"
                 )
@@ -263,7 +290,7 @@ def save_feature_cache(
     finally:
         if temporary_path is not None:
             temporary_path.unlink(missing_ok=True)
-    return target
+    return (target, str(encoded_hash)) if return_sha256 else target
 
 
 def load_feature_cache(
@@ -402,11 +429,7 @@ def feature_cache_sha256(path: str | Path) -> str:
     target = Path(path).resolve()
     if not target.is_file():
         raise FeatureCachePathError(f"feature cache 不存在：{target}")
-    digest = hashlib.sha256()
-    with target.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return _data_sha256_file(target)
 
 
 def build_feature_cache_from_records(

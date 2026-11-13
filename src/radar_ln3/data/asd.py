@@ -278,8 +278,6 @@ def _evidence_metadata(
         "micro_doppler_frame_values": micro_values,
         "micro_doppler_frame_mask": micro_frame_mask,
         "micro_doppler_reliable": micro_reliable,
-        "micro_doppler_values": stable_values,
-        "micro_doppler_valid": bool(value.get("stable8_valid", False)),
         "micro_doppler_raw_frame_indices": raw_indices,
         "stable8_sidecar_mode": "raw",
         "stable8_evidence_schema": ASD_EVIDENCE_SCHEMA,

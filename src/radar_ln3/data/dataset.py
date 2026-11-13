@@ -134,10 +134,14 @@ class ParentSequenceDataset:
         self._tr_by_id = {
             str(row["sample_id"]): row for row in self.manifest.tr_records
         }
+        self._tr_ids_by_path: dict[str, set[str]] = {}
+        for sample_id, record in self._tr_by_id.items():
+            if bool(record["available"]):
+                self._tr_ids_by_path.setdefault(str(record["data_path"]), set()).add(sample_id)
         self._rd_by_id = {
             str(row["sample_id"]): row for row in self.manifest.rd_records
         }
-        self._tr_caches: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
+        self._tr_caches: OrderedDict[str, dict[str, dict[str, Any]]] = OrderedDict()
         self._rd_caches: OrderedDict[str, dict[str, np.ndarray]] = OrderedDict()
         self._tensor_cache_size = max(1, int(tensor_cache_size))
 
@@ -169,7 +173,7 @@ class ParentSequenceDataset:
     def __len__(self) -> int:
         return len(self.parent_ids)
 
-    def _load_tr_rows(self, data_path: str) -> list[dict[str, Any]]:
+    def _load_tr_rows(self, data_path: str) -> dict[str, dict[str, Any]]:
         key = str(data_path)
         cached = self._tr_caches.get(key)
         if cached is not None:
@@ -177,10 +181,19 @@ class ParentSequenceDataset:
             return cached
         path = resolve_tr_path(self.project_root, key, must_exist=True)
         rows = _read_jsonl(path)
-        self._tr_caches[key] = rows
+        by_id: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            sample_id = str(row.get("sample_id", ""))
+            if not sample_id or sample_id in by_id:
+                raise DataIntegrityError(f"TR 数据产物存在重复 sample_id：{path}")
+            by_id[sample_id] = row
+        expected_ids = self._tr_ids_by_path.get(key, set())
+        if set(by_id) != expected_ids:
+            raise DataIntegrityError(f"TR 数据产物事件覆盖范围与索引不一致：{path}")
+        self._tr_caches[key] = by_id
         while len(self._tr_caches) > self._tensor_cache_size:
             self._tr_caches.popitem(last=False)
-        return rows
+        return by_id
 
     def _load_rd_archive(self, data_path: str) -> dict[str, np.ndarray]:
         key = str(data_path)
@@ -301,24 +314,7 @@ class ParentSequenceDataset:
                     must_exist=True,
                 )
                 tr_rows = self._load_tr_rows(str(tr_record["data_path"]))
-                tr_ids = [str(row.get("sample_id", "")) for row in tr_rows]
-                if len(tr_ids) != len(set(tr_ids)):
-                    raise DataIntegrityError(
-                        f"TR 数据产物存在重复 sample_id：{tr_path}"
-                    )
-                expected_ids = {
-                    value
-                    for value in sample_ids
-                    if self._tr_by_id[value]["data_path"]
-                    == tr_record["data_path"]
-                    and bool(self._tr_by_id[value]["available"])
-                }
-                if set(tr_ids) != expected_ids:
-                    raise DataIntegrityError(
-                        f"TR 数据产物事件覆盖范围与索引不一致：{tr_path}"
-                    )
-                tr_by_id = {str(row["sample_id"]): row for row in tr_rows}
-                tr_row = tr_by_id.get(sample_id)
+                tr_row = tr_rows.get(sample_id)
                 if tr_row is None:
                     raise DataIntegrityError(
                         f"TR 数据产物缺少索引事件：{sample_id}"

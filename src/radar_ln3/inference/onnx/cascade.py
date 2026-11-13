@@ -12,6 +12,12 @@ from torch import nn
 from radar_ln3.checkpoint import Checkpoint, load_model_state, sha256_file
 from radar_ln3.decision.l3 import load_l3_calibration
 from radar_ln3.model import build_l1_model, build_l2_model, load_model_config
+from radar_ln3.model.io import (
+    FULL_CASCADE_INPUTS,
+    L1_MODEL_INPUTS,
+    L2_MODEL_INPUTS,
+    select_inputs,
+)
 from radar_ln3.model.l3.knownness import (
     ProfileResidualKnownnessHead,
     TemporalKnownnessHead,
@@ -20,32 +26,7 @@ from radar_ln3.model.l3.knownness import (
 from radar_ln3.training.l3_heads import load_l3_knownness_head
 
 
-FULL_CASCADE_INPUT_NAMES = (
-    "tr_features",
-    "tr_missing_mask",
-    "tr_dt_seconds",
-    "tr_dt_valid",
-    "tr_dt_reason",
-    "tr_padding_mask",
-    "rd_frames",
-    "rd_frame_mask",
-    "rd_quality",
-    "rd_physical_features",
-    "rd_physical_valid",
-    "micro_doppler_features",
-    "micro_doppler_valid",
-    "course_features",
-    "course_valid",
-    "course_support",
-    "observation_increment_values",
-    "reference_tr_features",
-    "reference_tr_missing_mask",
-    "stable_summary_tokens",
-    "stable_summary_valid",
-    "stable_frame_values",
-    "stable_frame_mask",
-    "motion_values",
-)
+FULL_CASCADE_INPUT_NAMES = FULL_CASCADE_INPUTS
 
 CASCADE_ACTION_NAMES = (
     "DroneTarget",
@@ -174,44 +155,11 @@ def _classify_sequence(base: Any, sequence: torch.Tensor, padding: torch.Tensor)
 
 
 def _base_l1_inputs(inputs: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    return {
-        name: inputs[name]
-        for name in (
-            "tr_features",
-            "tr_missing_mask",
-            "tr_dt_seconds",
-            "tr_dt_valid",
-            "tr_dt_reason",
-            "tr_padding_mask",
-            "rd_frames",
-            "rd_frame_mask",
-            "rd_quality",
-            "course_features",
-            "course_valid",
-            "course_support",
-        )
-    }
+    return select_inputs(inputs, L1_MODEL_INPUTS)
 
 
 def _base_l2_inputs(inputs: Mapping[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    return {
-        name: inputs[name]
-        for name in (
-            "tr_features",
-            "tr_missing_mask",
-            "tr_dt_seconds",
-            "tr_dt_valid",
-            "tr_dt_reason",
-            "tr_padding_mask",
-            "rd_frames",
-            "rd_frame_mask",
-            "rd_quality",
-            "rd_physical_features",
-            "rd_physical_valid",
-            "micro_doppler_features",
-            "micro_doppler_valid",
-        )
-    }
+    return select_inputs(inputs, L2_MODEL_INPUTS)
 
 
 class FullCascadeModel(nn.Module):
@@ -803,8 +751,8 @@ def build_full_cascade_model(
     load_model_state(l2, l2_checkpoint.state)
     calibration = load_l3_calibration(root, calibration_path)
     endpoint_hashes = {
-        "l1": sha256_file(root / l1_checkpoint_path),
-        "l2": sha256_file(root / l2_checkpoint_path),
+        "l1": l1_checkpoint.file_sha256,
+        "l2": l2_checkpoint.file_sha256,
     }
     if calibration.get("endpoint_sha256") != endpoint_hashes:
         raise ValueError("L3 calibration 与 endpoint checkpoint 绑定不一致")
@@ -821,7 +769,7 @@ def build_full_cascade_model(
         expected_endpoint_sha256=endpoint_hashes["l2"],
     )
     expected_heads = calibration.get("head_checkpoint_sha256") or {}
-    if expected_heads.get("l1") != sha256_file(l1_head_checkpoint.path) or expected_heads.get("l2") != sha256_file(l2_head_checkpoint.path):
+    if expected_heads.get("l1") != l1_head_checkpoint.file_sha256 or expected_heads.get("l2") != l2_head_checkpoint.file_sha256:
         raise ValueError("L3 calibration 与 knownness head checkpoint 绑定不一致")
     model = FullCascadeModel(
         l1.eval(), l2.eval(), l1_head.eval(), l2_head.eval(), calibration

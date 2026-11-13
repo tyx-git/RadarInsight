@@ -3,22 +3,22 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+from radar_ln3.data.atomic import write_bytes
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.data.dataset import ParentSequenceDataset
 from radar_ln3.data.manifest import (
     DEFAULT_PROGRESS_INTERVAL,
     data_manifest_hash,
     load_manifest,
-    validate_baseline_training_view,
+    normalise_progress_interval,
     validate_manifest,
 )
 from radar_ln3.data.paths import ensure_path_inside_root, relative_project_path
+from radar_ln3.data.raw_reader import sha256_file as _data_sha256_file
 
 from .contracts import (
     CACHE_FORMAT,
@@ -34,14 +34,6 @@ DEFAULT_CACHE_RELATIVE_PATH = Path("data/cq08/cache/event-source-cache.jsonl")
 
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
-
-
-def _normalise_progress_interval(value: int) -> int:
-    """校验缓存构建进度的回调间隔。"""
-
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise ValueError("progress_interval 必须是正整数")
-    return value
 
 
 def _cache_basis(manifest: DatasetManifest) -> str:
@@ -70,44 +62,8 @@ def _cache_basis_candidates(manifest: DatasetManifest) -> tuple[str, ...]:
     return tuple(dict.fromkeys(candidates))
 
 
-def _atomic_write(path: Path, payload: bytes, *, overwrite: bool) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() == payload:
-            return
-        if not overwrite:
-            raise FileExistsError(f"拒绝覆盖内容不同的缓存：{path}")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if overwrite:
-            os.replace(temporary, path)
-        else:
-            try:
-                os.link(temporary, path)
-            except FileExistsError:
-                if path.is_file() and path.read_bytes() == payload:
-                    return
-                raise FileExistsError(f"拒绝覆盖竞态产生的缓存：{path}")
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-
-
 def _sha256(path: Path) -> str:
-    import hashlib
-
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+    return _data_sha256_file(path)
 
 
 def _resolve_cache_path(project_root: Path, cache_path: str | Path) -> Path:
@@ -133,7 +89,7 @@ def _event_cache_rows(
     progress_callback: ProgressCallback | None = None,
     progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
 ) -> list[dict[str, Any]]:
-    progress_interval = _normalise_progress_interval(progress_interval)
+    progress_interval = normalise_progress_interval(progress_interval)
     rd_by_id = {str(row["sample_id"]): row for row in manifest.rd_records}
     rows: list[dict[str, Any]] = []
     records_by_parent: dict[str, list[dict[str, Any]]] = {}
@@ -156,15 +112,8 @@ def _event_cache_rows(
             rd_metadata = dict((rd or {}).get("metadata") or {})
             tr_metadata = dict(tr.get("metadata") or {})
             tr_timing = dict(tr_metadata.get("tr_timing") or {})
-            frame_metadata = rd_metadata.get("frame_metadata") or []
-            rd_frame_times = [
-                float(item["rd_frame_time_seconds"])
-                for item in frame_metadata
-                if isinstance(item, Mapping) and item.get("rd_frame_time_seconds") is not None
-            ]
             rows.append(
                 {
-                    "schema_version": CACHE_SCHEMA_VERSION,
                     "sample_id": sample_id,
                     "parent_sample_id": str(tr["parent_sample_id"]),
                     "track_id": str(tr["track_id"]),
@@ -172,13 +121,10 @@ def _event_cache_rows(
                     "label_id": tr["label_id"],
                     "label_name": str(tr["label_name"]),
                     "split_name": str(tr["split_name"]),
-                    "baseline_training_view": validate_baseline_training_view(
-                        tr, section="TR"
+                    "baseline_training_view": bool(
+                        tr["metadata"]["baseline_training_view"]
                     ),
                     "tr_available": bool(tr["available"]),
-                    "tr_data_path": str(tr.get("data_path") or ""),
-                    "tr_file_size": tr.get("file_size"),
-                    "tr_sha256": tr.get("sha256"),
                     "tr_time_seconds": tr_timing.get("time_seconds"),
                     "tr_dt_seconds": tr_timing.get("dt_seconds"),
                     "tr_dt_valid": tr_timing.get("dt_valid"),
@@ -190,12 +136,7 @@ def _event_cache_rows(
                         tr_metadata.get("tr_time_order_status", "unknown")
                     ),
                     "rd_available": bool(rd and rd.get("available")),
-                    "rd_data_path": str((rd or {}).get("data_path") or ""),
-                    "rd_file_size": (rd or {}).get("file_size"),
-                    "rd_sha256": (rd or {}).get("sha256"),
                     "rd_frame_indices": [int(value) for value in rd_metadata.get("frame_indices", [])],
-                    "rd_frame_count": int(rd_metadata.get("rd_frame_count", 0)),
-                    "rd_frame_times": rd_frame_times,
                     "rd_time_semantics": str(
                         rd_metadata.get("time_semantics", "parent_relative_cpi_elapsed_seconds")
                     ),
@@ -219,6 +160,61 @@ def _event_cache_rows(
     return rows
 
 
+def _cache_files(manifest: DatasetManifest) -> list[dict[str, Any]]:
+    """按 ``data_path`` 去重的来源文件身份；行内只保留事件引用。"""
+
+    files: dict[str, dict[str, Any]] = {}
+    for section, records in (("TR", manifest.tr_records), ("RD", manifest.rd_records)):
+        for record in records:
+            path = str(record.get("data_path") or "")
+            if not path:
+                continue
+            entry = {
+                "section": section,
+                "path": path,
+                "file_size": record.get("file_size"),
+                "sha256": record.get("sha256"),
+            }
+            if entry["file_size"] is None or entry["sha256"] is None:
+                if bool(record.get("available")):
+                    raise CacheIntegrityError(
+                        f"事件缓存来源文件缺少 size/hash：{section}:{path}"
+                    )
+                continue
+            previous = files.setdefault(path, entry)
+            if previous != entry:
+                raise CacheIntegrityError(f"事件缓存来源文件身份冲突：{path}")
+    return [files[path] for path in sorted(files)]
+
+
+def _validate_cache_files(descriptor: Mapping[str, Any]) -> None:
+    files = descriptor.get("files")
+    if not isinstance(files, list):
+        raise CacheFormatError("事件缓存 descriptor 缺少 files")
+    seen: set[str] = set()
+    for entry in files:
+        if not isinstance(entry, Mapping):
+            raise CacheFormatError("事件缓存 files 条目必须是对象")
+        path = entry.get("path")
+        if not isinstance(path, str) or not path:
+            raise CacheFormatError("事件缓存 files 条目缺少 path")
+        if path in seen:
+            raise CacheFormatError(f"事件缓存 files 条目重复：{path}")
+        seen.add(path)
+        if entry.get("section") not in {"TR", "RD"}:
+            raise CacheFormatError(f"事件缓存 files section 无效：{path}")
+        size = entry.get("file_size")
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            raise CacheFormatError(f"事件缓存 files file_size 无效：{path}")
+        digest = entry.get("sha256")
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or set(digest) - set("0123456789abcdef")
+        ):
+            raise CacheFormatError(f"事件缓存 files sha256 无效：{path}")
+
+
 def _validate_rows(rows: list[dict[str, Any]], manifest: DatasetManifest) -> None:
     expected = {str(row["sample_id"]) for row in manifest.tr_records}
     tr_by_id = {str(row["sample_id"]): row for row in manifest.tr_records}
@@ -229,24 +225,20 @@ def _validate_rows(rows: list[dict[str, Any]], manifest: DatasetManifest) -> Non
         raise CacheIntegrityError("事件缓存与 TR event 索引覆盖范围不一致")
     for row in rows:
         required = {
-            "schema_version", "sample_id", "parent_sample_id", "track_id",
-            "causal_event_index", "split_name", "tr_available", "rd_available",
-            "baseline_training_view",
-            "tr_data_path", "rd_data_path", "rd_frame_indices",
-            "tr_time_seconds", "tr_dt_seconds", "tr_dt_valid", "tr_dt_reason",
-            "rd_frame_count", "rd_frame_times", "rd_time_semantics",
-            "parent_anomalous", "training_excluded", "tr_dt_is_negative",
-            "tr_time_order_status",
+            "sample_id", "parent_sample_id", "track_id", "causal_event_index",
+            "label_id", "label_name", "split_name", "baseline_training_view",
+            "tr_available", "tr_time_seconds", "tr_dt_seconds", "tr_dt_valid",
+            "tr_dt_reason", "parent_anomalous", "training_excluded",
+            "tr_dt_is_negative", "tr_time_order_status", "rd_available",
+            "rd_frame_indices", "rd_time_semantics",
         }
         missing = sorted(required - set(row))
         if missing:
             raise CacheFormatError(f"事件缓存记录缺少字段：{missing}")
-        if row["schema_version"] != CACHE_SCHEMA_VERSION:
-            raise CacheFormatError("事件缓存 schema_version 不匹配")
         if not isinstance(row["baseline_training_view"], bool):
             raise CacheFormatError("事件缓存 baseline_training_view 必须是布尔值")
-        expected_view = validate_baseline_training_view(
-            tr_by_id[str(row["sample_id"])], section="TR"
+        expected_view = bool(
+            tr_by_id[str(row["sample_id"])]["metadata"]["baseline_training_view"]
         )
         if row["baseline_training_view"] != expected_view:
             raise CacheIntegrityError(
@@ -257,10 +249,6 @@ def _validate_rows(rows: list[dict[str, Any]], manifest: DatasetManifest) -> Non
             raise CacheFormatError("事件缓存 rd_frame_indices 必须是列表")
         if row["tr_dt_valid"] is not None and not isinstance(row["tr_dt_valid"], bool):
             raise CacheFormatError("事件缓存 tr_dt_valid 必须是布尔值或 null")
-        if not isinstance(row["rd_frame_count"], int) or row["rd_frame_count"] < 0:
-            raise CacheFormatError("事件缓存 rd_frame_count 必须是非负整数")
-        if not isinstance(row["rd_frame_times"], list):
-            raise CacheFormatError("事件缓存 rd_frame_times 必须是列表")
         for key in ("parent_anomalous", "training_excluded", "tr_dt_is_negative"):
             if not isinstance(row[key], bool):
                 raise CacheFormatError(f"事件缓存 {key} 必须是布尔值")
@@ -313,7 +301,9 @@ def build_event_cache(
         (json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
         for row in rows
     )
-    _atomic_write(target, payload, overwrite=overwrite)
+    payload_hash = write_bytes(
+        target, payload, overwrite=overwrite, label="缓存"
+    )
     descriptor = {
         "schema_version": CACHE_SCHEMA_VERSION,
         "kind": CACHE_KIND,
@@ -321,8 +311,9 @@ def build_event_cache(
         "path": relative_project_path(root, target),
         "record_count": len(rows),
         "file_size": int(target.stat().st_size),
-        "sha256": _sha256(target),
+        "sha256": payload_hash,
         "source_manifest_basis_sha256": _cache_basis(checked),
+        "files": _cache_files(checked),
         "payload_materialized": False,
         "runtime_lru_enabled": True,
         "source_sections": {
@@ -331,11 +322,12 @@ def build_event_cache(
         },
     }
     if progress_callback is not None:
+        parent_count = len({str(row["parent_sample_id"]) for row in rows})
         progress_callback(
             {
                 "stage": "cache_complete",
-                "processed": len({str(row["parent_sample_id"]) for row in rows}),
-                "total": len({str(row["parent_sample_id"]) for row in rows}),
+                "processed": parent_count,
+                "total": parent_count,
                 "record_count": len(rows),
                 "path": descriptor["path"],
             }
@@ -377,6 +369,7 @@ def load_event_cache(
     descriptor = dict(checked.audit.get("cache") or {})
     if descriptor.get("schema_version") != CACHE_SCHEMA_VERSION or descriptor.get("kind") != CACHE_KIND:
         raise CacheFormatError("manifest 没有注册兼容的事件缓存")
+    _validate_cache_files(descriptor)
     target = _resolve_cache_path(root, str(descriptor.get("path") or ""))
     if not target.is_file():
         raise CachePathError(f"事件缓存不存在：{target}")
@@ -425,16 +418,9 @@ class CachedParentSequenceDataset:
         validate_event_cache: bool = True,
     ) -> None:
         root = Path(project_root).resolve()
-        if validate_event_cache:
-            self.cache_descriptor, self.cache_rows = load_event_cache(
-                root, manifest=manifest, manifest_path=manifest_path
-            )
-        else:
-            # 正式训练前可以复用已由独立 cache 阶段完成的事件缓存。
-            # 训练仍会按 manifest 读取真实 TR/RD 产物；这里只跳过再次
-            # 扫描 event-source-cache.jsonl 和重新计算其来源 hash。
-            self.cache_descriptor = {}
-            self.cache_rows = []
+        self.project_root = root
+        self.manifest_path = Path(manifest_path)
+        self.event_cache_validated = False
         self._base = ParentSequenceDataset(
             root,
             manifest_path=manifest_path,
@@ -447,24 +433,35 @@ class CachedParentSequenceDataset:
             allow_unknown_head_training=allow_unknown_head_training,
             manifest=manifest,
         )
-        self.project_root = root
         self.manifest = self._base.manifest
         self.view = self._base.view
         self.parent_ids = list(self._base.parent_ids)
-        self._positions = {value: index for index, value in enumerate(self.parent_ids)}
         self._sequence_cache: OrderedDict[str, Any] = OrderedDict()
         self._cache_size = max(1, int(cache_size))
         if validate_event_cache:
-            cached_parents = {str(row["parent_sample_id"]) for row in self.cache_rows}
-            missing = sorted(set(self.parent_ids) - cached_parents)
-            if missing:
-                raise CacheIntegrityError(f"事件缓存缺少 parent：{missing[:3]}")
-            cached_sample_ids = {str(row["sample_id"]) for row in self.cache_rows}
-            missing_events = sorted(set(self._base.view.sample_ids) - cached_sample_ids)
-            if missing_events:
-                raise CacheIntegrityError(
-                    f"事件缓存缺少统一视图事件：{missing_events[:3]}"
-                )
+            self.validate_event_cache()
+
+    def validate_event_cache(self) -> None:
+        """Validate event-cache provenance and coverage for this dataset view once."""
+
+        if self.event_cache_validated:
+            return
+        _, rows = load_event_cache(
+            self.project_root,
+            manifest=self.manifest,
+            manifest_path=self.manifest_path,
+        )
+        cached_parents = {str(row["parent_sample_id"]) for row in rows}
+        missing = sorted(set(self.parent_ids) - cached_parents)
+        if missing:
+            raise CacheIntegrityError(f"事件缓存缺少 parent：{missing[:3]}")
+        cached_sample_ids = {str(row["sample_id"]) for row in rows}
+        missing_events = sorted(set(self.view.sample_ids) - cached_sample_ids)
+        if missing_events:
+            raise CacheIntegrityError(
+                f"事件缓存缺少统一视图事件：{missing_events[:3]}"
+            )
+        self.event_cache_validated = True
 
     def __len__(self) -> int:
         return len(self.parent_ids)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,18 +16,20 @@ from radar_ln3.checkpoint import canonical_hash, sha256_file
 from radar_ln3.cache import CachedParentSequenceDataset
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.features import FeatureCache, build_model_batch
+from radar_ln3.labels import KNOWN_TRAINING_LABELS, L2_LABELS, TASK_LABELS
+from radar_ln3.logger import log_classification_metrics
 from radar_ln3.losses import parent_final_fixed_parent_count_ce
 from radar_ln3.model.config import ModelConfig, task_class_names
+from radar_ln3.model.io import L1_MODEL_INPUTS, L2_MODEL_INPUTS
 
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
 
-TASK_LABELS = {
-    "l1": ("DroneTarget", "BirdTarget", "BalloonTarget", "ClutterTarget"),
-    "l2": ("DroneTarget", "BirdTarget", "BalloonTarget"),
-}
-KNOWN_TRAINING_LABELS = tuple(
-    sorted({label for labels in TASK_LABELS.values() for label in labels})
+STABLE_SIDECAR_KEYS: tuple[str, ...] = (
+    "stable_summary_tokens",
+    "stable_summary_valid",
+    "stable_frame_values",
+    "stable_frame_mask",
 )
 
 
@@ -36,6 +39,77 @@ def _identity_batch(items: list[Any]) -> list[Any]:
     return items
 
 
+def seed_everything(value: int) -> None:
+    """把 python/numpy/torch（含 CUDA）随机源统一到一个种子。"""
+
+    random.seed(int(value))
+    np.random.seed(int(value) % (2**32))
+    torch.manual_seed(int(value))
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(int(value))
+
+
+def emit_progress(
+    progress_callback: ProgressCallback | None,
+    event: Mapping[str, Any],
+    *,
+    task: str,
+) -> None:
+    """把阶段事件转给调用方，并把 validation 指标写进统一日志。"""
+
+    if progress_callback is not None:
+        progress_callback(event)
+    if "validation" in event:
+        log_classification_metrics(
+            event["validation"], task=task, epoch=event["epoch"]
+        )
+
+
+def model_batch_kwargs(
+    config: ModelConfig,
+    task: str,
+    *,
+    stable_input_mode: str = "normalized",
+    allow_unmapped_labels: bool = False,
+    pad_to_max_sequence_length: bool = False,
+    max_sequence_length: int | None = None,
+) -> dict[str, Any]:
+    """把模型配置收敛为 build_model_batch 的任务参数。"""
+
+    if task not in {"l1", "l2"}:
+        raise ValueError(f"不支持的模型 task：{task}")
+    kwargs: dict[str, Any] = {
+        "task": task,
+        "max_rd_frames": config.data.max_rd_frames_per_point,
+        "max_sequence_length": (
+            config.data.max_sequence_length
+            if max_sequence_length is None
+            else int(max_sequence_length)
+        ),
+        "stable_dim": config.data.stable8_dim,
+        "stable_indices": config.data.l2.stable8_indices,
+        "allow_unmapped_labels": bool(allow_unmapped_labels),
+        "pad_to_max_sequence_length": bool(pad_to_max_sequence_length),
+    }
+    if task == "l2":
+        kwargs.update(
+            clipping={
+                "bounds": {
+                    name: {"lower": bounds[0], "upper": bounds[1]}
+                    for name, bounds in config.data.l2.tr_clipping_bounds.items()
+                }
+            },
+            stable_median=np.asarray(
+                config.data.l2.stable8_median, dtype=np.float32
+            ),
+            stable_scale=np.asarray(
+                config.data.l2.stable8_scale, dtype=np.float32
+            ),
+            stable_input_mode=stable_input_mode,
+        )
+    return kwargs
+
+
 @dataclass(frozen=True)
 class ModelBatchCollator:
     """把 parent 序列转为任务专用模型输入，可在 DataLoader worker 中运行。"""
@@ -43,6 +117,7 @@ class ModelBatchCollator:
     task: str
     max_rd_frames: int
     max_sequence_length: int
+    stable_dim: int
     stable_indices: tuple[int, ...]
     clipping: Mapping[str, Any] | None = None
     raw_echo_provider: Any | None = None
@@ -53,12 +128,44 @@ class ModelBatchCollator:
     baseline_anchor: Any | None = None
     stable_input_mode: str = "normalized"
 
+    @classmethod
+    def from_config(
+        cls,
+        config: ModelConfig,
+        task: str,
+        *,
+        stable_input_mode: str = "normalized",
+        feature_caches: Mapping[str, FeatureCache] | None = None,
+        expected_view_hash: str | None = None,
+        baseline_anchor: Any | None = None,
+        raw_echo_provider: Any | None = None,
+    ) -> "ModelBatchCollator":
+        kwargs = model_batch_kwargs(
+            config, task, stable_input_mode=stable_input_mode
+        )
+        return cls(
+            task=kwargs["task"],
+            max_rd_frames=kwargs["max_rd_frames"],
+            max_sequence_length=kwargs["max_sequence_length"],
+            stable_dim=kwargs["stable_dim"],
+            stable_indices=kwargs["stable_indices"],
+            clipping=kwargs.get("clipping"),
+            stable_median=kwargs.get("stable_median"),
+            stable_scale=kwargs.get("stable_scale"),
+            stable_input_mode=kwargs.get("stable_input_mode", "normalized"),
+            raw_echo_provider=raw_echo_provider,
+            feature_caches=feature_caches,
+            expected_view_hash=expected_view_hash,
+            baseline_anchor=baseline_anchor,
+        )
+
     def __call__(self, sequences: list[Any]) -> dict[str, Any]:
         batch = build_model_batch(
             sequences,
             task=self.task,
             max_rd_frames=self.max_rd_frames,
             max_sequence_length=self.max_sequence_length,
+            stable_dim=self.stable_dim,
             stable_indices=self.stable_indices,
             clipping=self.clipping,
             raw_echo_provider=self.raw_echo_provider,
@@ -91,8 +198,7 @@ class ModelBatchCollator:
                 "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
                 "rd_quality", "rd_physical_features", "rd_physical_valid",
                 "micro_doppler_features", "micro_doppler_valid",
-                "stable_summary_tokens", "stable_summary_valid",
-                "stable_frame_values", "stable_frame_mask", "motion_values",
+                *STABLE_SIDECAR_KEYS, "motion_values",
                 "labels", "lengths",
             }
             if "baseline_logits" in batch:
@@ -160,7 +266,7 @@ def build_training_loader(
     )
 
 
-def _metrics(
+def classification_metrics(
     predictions: Sequence[int],
     labels: Sequence[int],
     class_names: Sequence[str],
@@ -226,32 +332,15 @@ def _move_inputs(
     return result
 
 
-def _l1_inputs(batch: Mapping[str, Any], device: torch.device) -> dict[str, Any]:
-    return _move_inputs(
-        batch,
-        device,
-        keys=(
-            "tr_features", "tr_missing_mask", "tr_dt_seconds", "tr_dt_valid",
-            "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
-            "rd_quality", "course_features", "course_valid", "course_support",
-        ),
-    )
+def l1_model_inputs(batch: Mapping[str, Any], device: torch.device) -> dict[str, Any]:
+    return _move_inputs(batch, device, keys=L1_MODEL_INPUTS)
 
 
-def _l2_inputs(batch: Mapping[str, Any], device: torch.device) -> dict[str, Any]:
-    return _move_inputs(
-        batch,
-        device,
-        keys=(
-            "tr_features", "tr_missing_mask", "tr_dt_seconds", "tr_dt_valid",
-            "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
-            "rd_quality", "rd_physical_features", "rd_physical_valid",
-            "micro_doppler_features", "micro_doppler_valid",
-        ),
-    )
+def l2_model_inputs(batch: Mapping[str, Any], device: torch.device) -> dict[str, Any]:
+    return _move_inputs(batch, device, keys=L2_MODEL_INPUTS)
 
 
-def _l2_reference_inputs(
+def l2_reference_inputs(
     batch: Mapping[str, Any],
     device: torch.device,
     *,
@@ -278,12 +367,7 @@ def _require_stable_sidecars(batch: Mapping[str, Any]) -> None:
     是合法情况，整体覆盖率应由训练入口按整个 train view 检查。
     """
 
-    required = (
-        "stable_summary_tokens",
-        "stable_summary_valid",
-        "stable_frame_values",
-        "stable_frame_mask",
-    )
+    required = STABLE_SIDECAR_KEYS
     missing = [key for key in required if key not in batch]
     if missing:
         raise ValueError(f"L2 缺少 stable8 侧车：{missing}")
@@ -301,7 +385,7 @@ def train_l1_step(
 ) -> float | torch.Tensor:
     """执行一个 L1 parent-final backward step。"""
 
-    inputs = _l1_inputs(batch, device)
+    inputs = l1_model_inputs(batch, device)
     observations = batch["observation_increment_values"].to(
         device=device, non_blocking=device.type == "cuda"
     )
@@ -341,11 +425,11 @@ def train_l2_step(
     """执行一个 L2 parent-final backward step。"""
 
     _require_stable_sidecars(batch)
-    inputs = _l2_inputs(batch, device)
+    inputs = l2_model_inputs(batch, device)
     reference_inputs = (
         None
         if baseline_reference_verified
-        else _l2_reference_inputs(batch, device, base_inputs=inputs)
+        else l2_reference_inputs(batch, device, base_inputs=inputs)
     )
     anchor = batch.get("baseline_logits")
     if not isinstance(anchor, torch.Tensor):
@@ -414,7 +498,7 @@ def train_l2_direct_step(
 ) -> float | torch.Tensor:
     """执行完整 L2 主干训练 step。"""
 
-    inputs = _l2_inputs(batch, device)
+    inputs = l2_model_inputs(batch, device)
     output = model.direct_logits(base_inputs=inputs)
     loss = parent_final_fixed_parent_count_ce(
         output["sequence_logits"],
@@ -448,14 +532,14 @@ def evaluate_l1(
     with torch.inference_mode():
         for batch in loader:
             output = model(
-                base_inputs=_l1_inputs(batch, device),
+                base_inputs=l1_model_inputs(batch, device),
                 observation_increment_values=batch["observation_increment_values"].to(
                     device=device, non_blocking=device.type == "cuda"
                 ),
             )
             predictions.extend(output["final_logits"].argmax(dim=-1).cpu().tolist())
             labels.extend(batch["labels"].tolist())
-    return _metrics(predictions, labels, task_class_names(model.config, "l1"))
+    return classification_metrics(predictions, labels, task_class_names(model.config, "l1"))
 
 
 def evaluate_l2(
@@ -473,7 +557,7 @@ def evaluate_l2(
     with torch.inference_mode():
         for batch in loader:
             _require_stable_sidecars(batch)
-            inputs = _l2_inputs(batch, device)
+            inputs = l2_model_inputs(batch, device)
             anchor = batch.get("baseline_logits")
             if not isinstance(anchor, torch.Tensor):
                 raise ValueError("L2 batch 缺少 event_baseline_logits anchor")
@@ -481,7 +565,7 @@ def evaluate_l2(
             reference_inputs = (
                 None
                 if baseline_reference_verified
-                else _l2_reference_inputs(batch, device, base_inputs=inputs)
+                else l2_reference_inputs(batch, device, base_inputs=inputs)
             )
             output = model(
                 base_inputs=inputs,
@@ -500,7 +584,7 @@ def evaluate_l2(
             rows = torch.arange(lengths.shape[0], device=device)
             predictions.extend(output["sequence_logits"][rows, lengths - 1].argmax(dim=-1).cpu().tolist())
             labels.extend(batch["labels"].tolist())
-    return _metrics(predictions, labels, task_class_names(model.config, "l2"))
+    return classification_metrics(predictions, labels, task_class_names(model.config, "l2"))
 
 
 def evaluate_l2_direct(
@@ -516,10 +600,10 @@ def evaluate_l2_direct(
     model.eval()
     with torch.inference_mode():
         for batch in loader:
-            output = model.direct_logits(base_inputs=_l2_inputs(batch, device))
+            output = model.direct_logits(base_inputs=l2_model_inputs(batch, device))
             predictions.extend(output["final_logits"].argmax(dim=-1).cpu().tolist())
             labels.extend(batch["labels"].tolist())
-    return _metrics(predictions, labels, task_class_names(model.config, "l2"))
+    return classification_metrics(predictions, labels, task_class_names(model.config, "l2"))
 
 
 def checkpoint_payload(
@@ -561,13 +645,21 @@ def checkpoint_payload(
 __all__ = [
     "ProgressCallback",
     "KNOWN_TRAINING_LABELS",
+    "L2_LABELS",
+    "STABLE_SIDECAR_KEYS",
     "TASK_LABELS",
     "build_training_dataset",
     "build_training_loader",
     "checkpoint_payload",
+    "classification_metrics",
+    "emit_progress",
     "evaluate_l1",
     "evaluate_l2",
     "evaluate_l2_direct",
+    "l1_model_inputs",
+    "l2_model_inputs",
+    "l2_reference_inputs",
+    "seed_everything",
     "train_l1_step",
     "train_l2_step",
     "train_l2_direct_step",

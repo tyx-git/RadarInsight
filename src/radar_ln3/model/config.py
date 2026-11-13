@@ -28,8 +28,8 @@ class ModelSettings:
     dt_max_seconds: float
     invalid_dt_update_mode: str
     invalid_dt_observation_gain: float
+    evidence_dim: int
     rd_frame_aggregation: str = "masked_mean"
-    evidence_dim: int = 8
     residual_bound: float = 3.0
     token_activation: str = "silu"
     frame_gru_layers: int = 1
@@ -54,12 +54,15 @@ class L1DataSettings:
 @dataclass(frozen=True)
 class L2DataSettings:
     rd_physical_dim: int = 4
-    micro_doppler_dim: int = 8
     stable8_indices: tuple[int, ...] = (1, 2, 3, 7, 11, 13, 14, 22)
     stable8_median: tuple[float, ...] = ()
     stable8_scale: tuple[float, ...] = ()
     tr_clipping_bounds: Mapping[str, tuple[float, float]] = field(default_factory=dict)
     direct_stable8_input_mode: str = "raw"
+
+    @property
+    def micro_doppler_dim(self) -> int:
+        return len(self.stable8_indices)
 
 
 @dataclass(frozen=True)
@@ -68,7 +71,7 @@ class DataSettings:
     max_rd_frames_per_point: int
     l1: L1DataSettings
     l2: L2DataSettings
-    stable8_dim: int = 8
+    stable8_dim: int
     motion_dim: int = 9
     motion_clip_absolute: float = 5.0
 
@@ -318,6 +321,10 @@ def load_model_config(
         motion_dim=9,
         motion_clip_absolute=5.0,
     )
+    if int(model.evidence_dim) != int(data.stable8_dim):
+        raise ValueError("模型配置 input.stable8_dim 与 stable8 证据宽度不一致")
+    if len(data.l2.stable8_indices) != int(data.stable8_dim):
+        raise ValueError("模型配置 l2.stable8_indices 数量与 input.stable8_dim 不一致")
     def _class_weights(raw_training: Mapping[str, Any], task: str) -> tuple[float, ...]:
         values = raw_training.get("class_weights")
         if not isinstance(values, list) or len(values) != len(names[task]):

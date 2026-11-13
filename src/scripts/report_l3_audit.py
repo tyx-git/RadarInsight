@@ -5,9 +5,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -18,48 +16,37 @@ SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from radar_ln3.data.atomic import write_json  # noqa: E402
+
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Export per-parent L1/L2 and frozen L3 audit diagnostics"
     )
     parser.add_argument("--project-root", type=Path, required=True)
-    parser.add_argument(
-        "--calibration-path",
-        type=Path,
-        default=Path("artifacts/radar_ln3/l3/radar_ln3_calibration.json"),
-    )
-    parser.add_argument("--l1-checkpoint-path", type=Path, default=None)
-    parser.add_argument("--l2-checkpoint-path", type=Path, default=None)
-    parser.add_argument("--l1-config-path", type=Path, default=None)
-    parser.add_argument("--l2-config-path", type=Path, default=None)
     parser.add_argument("--model-config-path", type=Path, default=Path("src/config/model.json"))
-    parser.add_argument("--audit-manifest-path", type=Path, required=True)
-    parser.add_argument(
-        "--audit-feature-cache-manifest-path", type=Path, required=True
-    )
-    parser.add_argument(
-        "--representation-root",
-        type=Path,
-        default=Path("artifacts/radar_ln3/l3/representations"),
-        help="冻结 endpoint representation 缓存目录",
-    )
     parser.add_argument("--audit-split-name", default="test")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--batch-size", type=int, default=None)
-    parser.add_argument("--l1-head-path", type=Path, default=None)
-    parser.add_argument("--l2-head-path", type=Path, default=None)
+    parser.add_argument("--root", type=Path, default=Path("artifacts/radar_ln3"))
     parser.add_argument(
-        "--output-path",
+        "--audit-evidence-path",
         type=Path,
-        default=Path("artifacts/radar_ln3/l3/audit-report.json"),
+        default=None,
+        help="audit_l3 保存的行级证据；默认 <root>/l3/audit-evidence.jsonl，存在且绑定一致时不再重跑推理",
+    )
+    parser.add_argument(
+        "--recompute-evidence",
+        action="store_true",
+        help="忽略 audit evidence，重新收集 evidence 与 head scores",
     )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "--skip-data-validation",
         action="store_true",
-        help="复用前置 data_index 校验结果，不重复扫描完整 TR/RD 文件",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
     )
+    parser.add_argument("--skip-event-cache-validation", action="store_true")
     return parser
 
 
@@ -122,31 +109,30 @@ def _expected_endpoint(label: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _atomic_json(path: Path, payload: Mapping[str, Any], *, overwrite: bool) -> None:
-    encoded = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode(
-        "utf-8"
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and not overwrite:
-        if path.read_bytes() == encoded:
-            return
-        raise FileExistsError(f"拒绝覆盖不同的审计报告：{path}")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def _mean(values: list[float]) -> float | None:
     return None if not values else float(np.mean(np.asarray(values, dtype=np.float64)))
+
+
+def _validate_audit_evidence_binding(
+    calibration: Mapping[str, Any],
+    header: Mapping[str, Any],
+) -> None:
+    # 证据行只包含 audit manifest 的 logits/knownness 分数，与被应用的
+    # 阈值无关；这里绑定的是数据身份（含 audit 特征缓存 manifest），
+    # 不绑定发布状态或阈值派生的 calibration artifact hash。
+    from radar_ln3.training.l3 import _audit_evidence_binding
+
+    expected = _audit_evidence_binding(calibration)
+    actual = header.get("data_binding")
+    if not isinstance(actual, Mapping):
+        raise ValueError("L3 audit evidence 缺少 data_binding")
+    mismatched = sorted(
+        key
+        for key in set(expected) | set(actual)
+        if expected.get(key) != actual.get(key)
+    )
+    if mismatched:
+        raise ValueError(f"L3 audit evidence 数据绑定与 calibration 不一致：{mismatched}")
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -158,50 +144,91 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         _effective_l1_conformal_floors,
         resolve_l3,
     )
+    from radar_ln3.artifacts import l3_layout
+    from radar_ln3.data.paths import resolve_project_artifact_path
+    from radar_ln3.model import load_model_config
     from radar_ln3.training import collect_l3_audit_evidence
-    from radar_ln3.training.l3 import _collect_l3_head_scores
+    from radar_ln3.training.l3 import _collect_l3_head_scores, _load_audit_evidence
 
     root = args.project_root.resolve()
-    calibration = load_l3_calibration(root, args.calibration_path)
-    evidence = collect_l3_audit_evidence(
-        root,
-        calibration,
-        manifest_path=args.audit_manifest_path,
-        feature_cache_manifest_path=args.audit_feature_cache_manifest_path,
-        thresholds_frozen_before_access=True,
-        split_name=str(args.audit_split_name),
-        device=str(args.device),
-        batch_size=args.batch_size,
-        verify_files=not bool(args.skip_data_validation),
-        representation_root=args.representation_root,
-        l1_checkpoint_path=args.l1_checkpoint_path,
-        l2_checkpoint_path=args.l2_checkpoint_path,
-        l1_config_path=args.l1_config_path,
-        l2_config_path=args.l2_config_path,
-        model_config_path=args.model_config_path,
-    )
+    layout = l3_layout(root, args.root)
+    calibration = load_l3_calibration(root, layout.calibration)
+    evidence_path = args.audit_evidence_path or layout.audit_evidence
+    evidence = None
+    head_scores = None
+    config = None
+    if not args.recompute_evidence:
+        candidate = resolve_project_artifact_path(
+            root, evidence_path, must_exist=False
+        )
+        if candidate.is_file():
+            header, stored_evidence, stored_scores = _load_audit_evidence(
+                root, evidence_path
+            )
+            _validate_audit_evidence_binding(calibration, header)
+            if (
+                calibration.get("knownness_source") == "independent_l3_head"
+                and stored_scores is None
+            ):
+                raise ValueError("audit evidence 缺少 knownness scores")
+            evidence = stored_evidence
+            head_scores = stored_scores
+    if evidence is None:
+        config = load_model_config(
+            root, args.model_config_path, artifact_root=layout.root
+        )
+        evidence = collect_l3_audit_evidence(
+            root,
+            calibration,
+            manifest_path=layout.audit_manifest,
+            feature_cache_manifest_path=layout.audit_feature_cache,
+            thresholds_frozen_before_access=True,
+            split_name=str(args.audit_split_name),
+            device=str(args.device),
+            batch_size=args.batch_size,
+            verify_files=not bool(args.skip_data_validation),
+            validate_event_cache=not bool(args.skip_event_cache_validation),
+            representation_root=layout.representations,
+            model_config_path=args.model_config_path,
+            l1_checkpoint_path=layout.l1_checkpoint,
+            l2_checkpoint_path=layout.l2_checkpoint,
+            config=config,
+            retain_representations=calibration.get("knownness_source") == "independent_l3_head",
+        )
     if dict(evidence.endpoint_sha256) != dict(calibration.get("endpoint_sha256") or {}):
         raise ValueError("L3 audit report endpoint hash 与 calibration 不一致")
-    head_scores = None
-    if calibration.get("knownness_source") == "independent_l3_head":
+    if head_scores is None and calibration.get("knownness_source") == "independent_l3_head":
+        head_config = config or evidence.config
+        if head_config is None:
+            head_config = load_model_config(
+                root, args.model_config_path, artifact_root=layout.root
+            )
         head_ids, l1_head_scores, l2_head_scores, head_hashes, _ = _collect_l3_head_scores(
             root,
-            manifest_path=args.audit_manifest_path,
-            feature_cache_manifest_path=args.audit_feature_cache_manifest_path,
+            manifest_path=layout.audit_manifest,
+            feature_cache_manifest_path=layout.audit_feature_cache,
             split_name=str(args.audit_split_name),
             training_view=False,
-            l1_head_path=args.l1_head_path or "artifacts/radar_ln3/l3/heads/l1-knownness.pt",
-            l2_head_path=args.l2_head_path or "artifacts/radar_ln3/l3/heads/l2-knownness.pt",
+            l1_head_path=layout.l1_head,
+            l2_head_path=layout.l2_head,
             device=str(args.device),
             batch_size=args.batch_size,
             require_training_manifest_match=False,
             verify_files=not bool(args.skip_data_validation),
-            representation_root=args.representation_root,
-            l1_checkpoint_path=args.l1_checkpoint_path,
-            l2_checkpoint_path=args.l2_checkpoint_path,
-            l1_config_path=args.l1_config_path,
-            l2_config_path=args.l2_config_path,
+            validate_event_cache=not bool(args.skip_event_cache_validation),
+            representation_root=layout.representations,
             model_config_path=args.model_config_path,
+            l1_checkpoint_path=layout.l1_checkpoint,
+            l2_checkpoint_path=layout.l2_checkpoint,
+            manifest=evidence.manifest,
+            config=head_config,
+            config_sha256=evidence.config_sha256,
+            feature_caches=evidence.feature_caches,
+            feature_cache_sha256=evidence.feature_cache_manifest_sha256,
+            dataset=evidence.dataset,
+            endpoint_sha256=evidence.endpoint_sha256,
+            source_manifest_sha256=evidence.source_manifest_sha256,
+            representations=evidence.representations,
         )
         if head_ids != evidence.parent_ids:
             raise ValueError("L3 audit knownness head parent binding 不一致")
@@ -395,7 +422,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     payload = {
         "schema_version": "RADAR-LN3-AUDIT-REPORT-V1",
         "record_count": len(records),
-        "calibration_path": str(args.calibration_path),
+        "calibration_path": layout.calibration.as_posix(),
         "calibration_status": calibration["status"],
         "deployment_eligible": bool(calibration["deployment_eligible"]),
         "source_manifest_sha256": evidence.source_manifest_sha256,
@@ -410,10 +437,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "summary": summary,
         "records": records,
     }
-    output_path = args.output_path
-    if not output_path.is_absolute():
-        output_path = root / output_path
-    _atomic_json(output_path, payload, overwrite=bool(args.overwrite))
+    output_path = root / layout.audit_report
+    write_json(output_path, payload, overwrite=bool(args.overwrite), label="审计报告")
     return {
         "path": str(output_path),
         "record_count": len(records),

@@ -21,7 +21,7 @@ class CacheIntegrityError(CacheError):
     """缓存 hash、数量或来源绑定不一致。"""
 
 
-CACHE_SCHEMA_VERSION = "RADAR-LN3-EVENT-SOURCE-CACHE-V3"
+CACHE_SCHEMA_VERSION = "RADAR-LN3-EVENT-SOURCE-CACHE-V4"
 CACHE_FORMAT = "jsonl"
 CACHE_KIND = "event_source_reference_runtime_lru"
 

@@ -3,15 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from radar_ln3.data.collate import collate_parent_sequences
-from radar_ln3.data.contracts import EventData, EventRecord, EventSequence, ParentRecord
+from radar_ln3.data.contracts import EventData, EventRecord, ParentRecord
 from radar_ln3.data.index import build_manifest, write_manifest
 from radar_ln3.data.temporal import (
     TR_DT_REASON_FIRST,
     TR_DT_REASON_NEGATIVE,
     TR_DT_REASON_POSITIVE,
     TR_DT_REASON_ZERO,
-    annotate_event_data,
     build_temporal_metadata,
 )
 from radar_ln3.cache.contracts import CACHE_SCHEMA_VERSION
@@ -143,113 +141,5 @@ def test_manifest_training_view_excludes_anomalous_parent(tmp_path) -> None:
         )
 
 
-def test_collate_exposes_event_time_and_multi_frame_masks() -> None:
-    events = [
-        EventData(
-            sample_id="p:event-0",
-            parent_sample_id="p",
-            track_id="p",
-            causal_event_index=0,
-            label_id=0,
-            label_name="DroneTarget",
-            split_name="train",
-            tr_values={"time_seconds": 10.0},
-            rd_values={
-                "amplitude": np.ones((2, 2, 3, 4), dtype=np.float32),
-                "phase": np.zeros((2, 2, 3, 4), dtype=np.float32),
-                "time_seconds": np.asarray([0.0, 0.01], dtype=np.float32),
-                "frame_count": 2,
-                "frame_source_paths": ["a.mat", "b.mat"],
-            },
-            tr_available=True,
-            rd_available=True,
-        ),
-        EventData(
-            sample_id="p:event-1",
-            parent_sample_id="p",
-            track_id="p",
-            causal_event_index=1,
-            label_id=0,
-            label_name="DroneTarget",
-            split_name="train",
-            tr_values={"time_seconds": 10.0},
-            rd_values=None,
-            tr_available=True,
-            rd_available=False,
-        ),
-    ]
-    sequence = EventSequence(
-        parent_sample_id="p",
-        track_id="p",
-        label_id=0,
-        label_name="DroneTarget",
-        split_name="train",
-        events=annotate_event_data(events),
-        source_name="fixture",
-    )
-
-    batch = collate_parent_sequences([sequence])
-
-    assert batch["tr_dt_reason"] == [[TR_DT_REASON_FIRST, TR_DT_REASON_ZERO]]
-    assert batch["tr_dt_valid"].tolist() == [[False, False]]
-    assert batch["rd_frame_mask"].tolist() == [[[True, True], [False, False]]]
-    np.testing.assert_allclose(
-        batch["rd_frame_times"],
-        np.asarray([[[0.0, 0.01], [0.0, 0.0]]], dtype=np.float32),
-    )
-    assert batch["rd_frame_source_paths"] == [[[
-        "a.mat", "b.mat"
-    ], []]]
-
-
-def test_collate_accepts_raw_event_frame_records() -> None:
-    event = EventData(
-        sample_id="raw:event-0",
-        parent_sample_id="raw",
-        track_id="raw",
-        causal_event_index=0,
-        label_id=0,
-        label_name="DroneTarget",
-        split_name="train",
-        tr_values={"time_seconds": 1.0},
-        rd_values={
-            "frames": [
-                {
-                    "amplitude": np.ones((2, 3), dtype=np.float32),
-                    "phase": np.zeros((2, 3), dtype=np.float32),
-                    "time_seconds": 0.0,
-                    "source_path": "first.mat",
-                },
-                {
-                    "amplitude": np.ones((2, 3), dtype=np.float32),
-                    "phase": np.zeros((2, 3), dtype=np.float32),
-                    "time_seconds": 0.01,
-                    "source_path": "second.mat",
-                },
-            ]
-        },
-        tr_available=True,
-        rd_available=True,
-    )
-    sequence = EventSequence(
-        parent_sample_id="raw",
-        track_id="raw",
-        label_id=0,
-        label_name="DroneTarget",
-        split_name="train",
-        events=annotate_event_data([event]),
-        source_name="fixture",
-    )
-
-    batch = collate_parent_sequences([sequence])
-
-    assert batch["rd_frame_mask"].tolist() == [[[True, True]]]
-    np.testing.assert_allclose(
-        batch["rd_frame_times"],
-        np.asarray([[[0.0, 0.01]]], dtype=np.float32),
-    )
-    assert batch["rd_frame_source_paths"] == [[['first.mat', 'second.mat']]]
-
-
 def test_cache_schema_includes_temporal_provenance_version() -> None:
-    assert CACHE_SCHEMA_VERSION == "RADAR-LN3-EVENT-SOURCE-CACHE-V3"
+    assert CACHE_SCHEMA_VERSION == "RADAR-LN3-EVENT-SOURCE-CACHE-V4"

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
-import tempfile
+import sys
 from typing import Any
+
+
+SRC_ROOT = Path(__file__).resolve().parents[1]
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+from radar_ln3.data.atomic import write_json  # noqa: E402
 
 
 def _path(root: Path, value: str | Path) -> Path:
@@ -17,23 +23,6 @@ def _path(root: Path, value: str | Path) -> Path:
     except ValueError as exc:
         raise ValueError(f"路径越过项目根目录：{value}") from exc
     return target
-
-
-def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -127,7 +116,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     if target.exists() and not args.overwrite:
         raise FileExistsError(f"拒绝覆盖 CQ08 split：{target}；请使用 --overwrite")
-    _atomic_write(target, payload)
+    write_json(target, payload, overwrite=True, label="split 文件")
     return {
         "path": str(target.relative_to(root).as_posix()),
         "split": str(args.split),

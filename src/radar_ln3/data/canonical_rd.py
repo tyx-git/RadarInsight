@@ -15,20 +15,21 @@ import json
 import os
 import re
 import shutil
-import tempfile
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from .atomic import write_json
 from .contracts import DataFormatError, DataIntegrityError, DataReadError
 from .manifest import load_manifest
 from .paths import ensure_path_inside_root, relative_project_path, resolve_project_path
+from .raw_reader import sha256_file as _data_sha256_file
 
 
-CANONICAL_RD_SCHEMA_VERSION = "RADAR-LN3-CQ08-CANONICAL-RD-V1"
+CANONICAL_RD_SCHEMA_VERSION = "RADAR-LN3-CQ08-CANONICAL-RD-V2"
 CANONICAL_SOURCE_SCHEMA_VERSION = "cq08_rd_physical_canonical_v3_1"
 CANONICAL_RD_RELATIVE_ROOT = Path("data/cq08/rd/canonical")
 CANONICAL_RD_MANIFEST_NAME = "canonical-rd-manifest.json"
@@ -66,11 +67,7 @@ _REQUIRED_TENSOR_FIELDS = {
 
 
 def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+    return _data_sha256_file(path)
 
 
 def _canonical_json_hash(value: Any) -> str:
@@ -78,21 +75,6 @@ def _canonical_json_hash(value: Any) -> str:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
-
-
-def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    temporary = Path(name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
-            json.dump(dict(payload), handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _safe_parent_name(parent_id: str) -> str:
@@ -212,8 +194,11 @@ def _load_tensor(path: Path) -> dict[str, np.ndarray]:
 
 def _copy_tensor(source: Path, target: Path, *, overwrite: bool) -> dict[str, Any]:
     target.parent.mkdir(parents=True, exist_ok=True)
+    source_hash = _sha256_file(source)
+    target_hash: str | None = None
     if target.exists() and not overwrite:
-        if _sha256_file(target) != _sha256_file(source):
+        target_hash = _sha256_file(target)
+        if target_hash != source_hash:
             raise FileExistsError(f"canonical RD 输出已存在且内容不同：{target}")
     elif target.exists() and overwrite:
         target.unlink()
@@ -221,10 +206,14 @@ def _copy_tensor(source: Path, target: Path, *, overwrite: bool) -> dict[str, An
         temporary = target.with_name(f".{target.name}.tmp")
         shutil.copyfile(source, temporary)
         os.replace(temporary, target)
+    if target_hash is None:
+        target_hash = _sha256_file(target)
+    if target_hash != source_hash:
+        raise DataIntegrityError(f"canonical RD tensor 复制后摘要不一致：{target}")
     return {
         "path": target,
         "file_size": int(target.stat().st_size),
-        "sha256": _sha256_file(target),
+        "sha256": target_hash,
     }
 
 
@@ -307,7 +296,6 @@ def materialize_canonical_rd_store(
         frame_rows = frame_rows_by_event.get((parent_id, track_point), [])
         available = bool(frame_rows)
         record: dict[str, Any] = {
-            "schema_version": CANONICAL_RD_SCHEMA_VERSION,
             "sample_id": str(tr["sample_id"]),
             "parent_sample_id": parent_id,
             "track_id": str(tr["track_id"]),
@@ -318,28 +306,28 @@ def materialize_canonical_rd_store(
             "available": available,
             "data_path": tensor_descriptors[parent_id]["path"] if available else "",
             "tensor_frame_indices": [int(row["tensor_frame_index"]) for row in frame_rows],
-            "legacy_mat_list_ordinals": [int(row["raw_frame_index"]) for row in frame_rows],
-            "raw_dat_frame_indices": [
-                _parse_mat_frame_number(row["rd_mat_path"], expected_track=str(tr["track_id"])) - 1
-                for row in frame_rows
-            ],
             "mat_frame_numbers": [
                 _parse_mat_frame_number(row["rd_mat_path"], expected_track=str(tr["track_id"]))
                 for row in frame_rows
             ],
-            "rd_mat_paths": [str(row["rd_mat_path"]) for row in frame_rows],
-            "rd_tensor_path": str(frame_rows[0]["rd_tensor_path"]) if frame_rows else "",
         }
         event_rows.append(record)
 
     event_index_path = output / CANONICAL_RD_EVENT_INDEX_NAME
     frame_index_path = output / CANONICAL_RD_FRAME_INDEX_NAME
-    event_index_path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in event_rows),
-        encoding="utf-8",
+    line_separator = os.linesep.encode("utf-8")
+    event_index_payload = b"".join(
+        json.dumps(
+            row, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        + line_separator
+        for row in event_rows
     )
+    event_index_path.write_bytes(event_index_payload)
+    event_index_sha256 = hashlib.sha256(event_index_payload).hexdigest()
+    source_frame_index_sha256 = _sha256_file(source_index)
     if frame_index_path.exists() and not overwrite:
-        if _sha256_file(frame_index_path) != _sha256_file(source_index):
+        if _sha256_file(frame_index_path) != source_frame_index_sha256:
             raise FileExistsError(f"canonical RD frame index 已存在且内容不同：{frame_index_path}")
     else:
         shutil.copyfile(source_index, frame_index_path)
@@ -347,13 +335,13 @@ def materialize_canonical_rd_store(
         "schema_version": CANONICAL_RD_SCHEMA_VERSION,
         "source_schema_version": CANONICAL_SOURCE_SCHEMA_VERSION,
         "source_frame_index": relative_project_path(root, source_index),
-        "source_frame_index_sha256": _sha256_file(source_index),
+        "source_frame_index_sha256": source_frame_index_sha256,
         "manifest_path": relative_project_path(root, resolve_project_path(root, manifest_path, must_exist=True)),
         "source_manifest_sha256": manifest.manifest_sha256,
         "event_index_path": relative_project_path(root, event_index_path),
-        "event_index_sha256": _sha256_file(event_index_path),
+        "event_index_sha256": event_index_sha256,
         "frame_index_path": relative_project_path(root, frame_index_path),
-        "frame_index_sha256": _sha256_file(frame_index_path),
+        "frame_index_sha256": source_frame_index_sha256,
         "tensor_count": len(tensor_descriptors),
         "event_count": len(event_rows),
         "available_event_count": sum(int(row["available"]) for row in event_rows),
@@ -361,10 +349,15 @@ def materialize_canonical_rd_store(
         "tensor_descriptors": tensor_descriptors,
     }
     payload = {**body, "store_manifest_sha256": _canonical_json_hash(body)}
-    _atomic_json(output / CANONICAL_RD_MANIFEST_NAME, payload)
+    manifest_file_sha256 = write_json(
+        output / CANONICAL_RD_MANIFEST_NAME,
+        payload,
+        overwrite=True,
+        label="canonical RD manifest",
+    )
     return {
         "manifest_path": relative_project_path(root, output / CANONICAL_RD_MANIFEST_NAME),
-        "manifest_sha256": _sha256_file(output / CANONICAL_RD_MANIFEST_NAME),
+        "manifest_sha256": manifest_file_sha256,
         "event_count": len(event_rows),
         "available_event_count": int(sum(row["available"] for row in event_rows)),
         "tensor_count": len(tensor_descriptors),
@@ -439,7 +432,6 @@ class CanonicalRDStore:
             "range_offset_m": tensor["range_offset_m"],
             "frame_indices": indices,
             "canonical_frame_indices": indices,
-            "raw_dat_frame_indices": np.asarray(row["raw_dat_frame_indices"], dtype=np.int64),
             "mat_frame_numbers": np.asarray(row["mat_frame_numbers"], dtype=np.int64),
             "frame_count": int(indices.size),
             "time_semantics": "canonical_rd_tensor_time_seconds",

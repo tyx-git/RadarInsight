@@ -19,25 +19,24 @@ from radar_ln3.cache import (
 )
 from radar_ln3.checkpoint import sha256_file
 from radar_ln3.data.contracts import DatasetManifest
-from radar_ln3.data.manifest import data_manifest_hash
+from radar_ln3.data.manifest import data_manifest_hash, resolve_manifest_view
 from radar_ln3.data.paths import resolve_project_path
+from radar_ln3.device import resolve_device
 from radar_ln3.features import build_model_batch, load_feature_cache_bundle
 from radar_ln3.model import load_model_config
 
-from .common import _identity_batch, _l2_inputs, _l2_reference_inputs
+from .common import (
+    L2_LABELS,
+    _identity_batch,
+    l2_model_inputs,
+    l2_reference_inputs,
+    model_batch_kwargs,
+)
 from .l2 import load_l2_base_model
 
 
 DEFAULT_FEATURE_CACHE_MANIFEST = "data/cq08/cache/features/feature-cache-manifest.json"
 DEFAULT_ANCHOR_PATH = "data/cq08/cache/l2-baseline-anchor.pt"
-L2_LABELS = ("DroneTarget", "BirdTarget", "BalloonTarget")
-
-
-def _device(value: str | torch.device) -> torch.device:
-    target = torch.device(str(value))
-    if target.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("L2 anchor 配置要求 CUDA，但当前环境不可用")
-    return target
 
 
 def _archive_existing(path: Path) -> Path | None:
@@ -91,18 +90,17 @@ def ensure_l2_baseline_anchor(
         allow_unmaterialized=False,
     )
     source_hash = data_manifest_hash(checked)
-    dataset = CachedParentSequenceDataset(
-        root,
-        manifest_path=manifest_path,
-        manifest=checked,
+    # 复用判断只需要 view 的事件集合；view 直接由内存 manifest 生成，
+    # 不触发 canonical RD / 事件缓存的全量 dataset 构造。
+    anchor_view = resolve_manifest_view(
+        checked,
         split_name=None,
         include_unknown=False,
         training_view=True,
         allowed_labels=L2_LABELS,
         task_name="l2_anchor",
-        validate_event_cache=bool(validate_event_cache),
     )
-    expected_sample_ids = tuple(dataset.view.sample_ids)
+    expected_sample_ids = tuple(anchor_view.sample_ids)
     expected_set = set(expected_sample_ids)
     anchor_path = resolve_project_path(root, output_path, must_exist=False)
     existing = _load_existing(root, output_path)
@@ -122,6 +120,18 @@ def ensure_l2_baseline_anchor(
             "computed_event_count": 0,
         }
 
+    dataset = CachedParentSequenceDataset(
+        root,
+        manifest_path=manifest_path,
+        manifest=checked,
+        split_name=None,
+        include_unknown=False,
+        training_view=True,
+        allowed_labels=L2_LABELS,
+        task_name="l2_anchor",
+        validate_event_cache=bool(validate_event_cache),
+    )
+
     cache_path = resolve_project_path(root, feature_cache_manifest_path, must_exist=True)
     caches = load_feature_cache_bundle(
         root,
@@ -129,7 +139,7 @@ def ensure_l2_baseline_anchor(
         expected_source_manifest_hash=source_hash if verify_files else None,
         verify_integrity=bool(verify_files),
     )
-    target_device = _device(device)
+    target_device = resolve_device(device)
     _, model = load_l2_base_model(
         root,
         device=target_device,
@@ -186,30 +196,22 @@ def ensure_l2_baseline_anchor(
                 break
             batch = build_model_batch(
                 sequences,
-                task="l2",
-                max_rd_frames=config.data.max_rd_frames_per_point,
-                # 训练/推理 batch 仍按产品 contract 截断到 29 点；anchor
-                # 必须覆盖完整 view 的事件身份，因此重建时保留当前
-                # parent batch 的完整长度，避免访问被截断后的 logits。
-                max_sequence_length=max(
-                    int(config.data.max_sequence_length),
-                    max(len(sequence.events) for sequence in sequences),
+                **model_batch_kwargs(
+                    config,
+                    "l2",
+                    # 训练/推理 batch 仍按产品 contract 截断到 29 点；anchor
+                    # 必须覆盖完整 view 的事件身份，因此重建时保留当前
+                    # parent batch 的完整长度，避免访问被截断后的 logits。
+                    max_sequence_length=max(
+                        int(config.data.max_sequence_length),
+                        max(len(sequence.events) for sequence in sequences),
+                    ),
+                    allow_unmapped_labels=True,
                 ),
-                stable_median=np.asarray(config.data.l2.stable8_median, dtype=np.float32),
-                stable_scale=np.asarray(config.data.l2.stable8_scale, dtype=np.float32),
-                stable_indices=config.data.l2.stable8_indices,
-                clipping={
-                    "bounds": {
-                        name: {"lower": bounds[0], "upper": bounds[1]}
-                        for name, bounds in config.data.l2.tr_clipping_bounds.items()
-                    }
-                },
                 feature_caches=caches,
-                stable_input_mode="normalized",
-                allow_unmapped_labels=True,
             )
-            inputs = _l2_inputs(batch, target_device)
-            reference_inputs = _l2_reference_inputs(
+            inputs = l2_model_inputs(batch, target_device)
+            reference_inputs = l2_reference_inputs(
                 batch,
                 target_device,
                 base_inputs=inputs,

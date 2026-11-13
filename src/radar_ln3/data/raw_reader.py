@@ -40,7 +40,7 @@ def require_file(path: str | Path, *, max_bytes: int = DEFAULT_MAX_FILE_BYTES) -
 
 
 def sha256_file(path: str | Path, *, chunk_size: int = 1024 * 1024) -> str:
-    target = require_file(path, max_bytes=2**63 - 1)
+    target = require_file(path, max_bytes=2**63 - 1).resolve()
     digest = hashlib.sha256()
     with target.open("rb") as handle:
         for block in iter(lambda: handle.read(chunk_size), b""):

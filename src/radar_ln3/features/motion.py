@@ -14,7 +14,12 @@ from typing import Any
 
 import numpy as np
 
-from .contracts import FeatureInputError, FeatureNumericalError, FeatureSchema
+from .contracts import (
+    FeatureInputError,
+    FeatureNumericalError,
+    FeatureSchema,
+    event_values,
+)
 
 
 TR_MOTION_SCHEMA = "causal-tr-motion-v1"
@@ -151,15 +156,6 @@ def _number(values: Mapping[str, Any], name: str) -> tuple[float, bool]:
     if not _finite(value):
         return 0.0, True
     return float(value), False
-
-
-def _event_values(item: Any) -> Mapping[str, Any]:
-    if isinstance(item, Mapping):
-        return item
-    values = getattr(item, "tr_values", None)
-    if not isinstance(values, Mapping):
-        raise FeatureInputError("TR motion event 缺少 mapping 类型的 tr_values")
-    return values
 
 
 def _spherical_position_m(values: Mapping[str, Any]) -> np.ndarray | None:
@@ -488,7 +484,7 @@ def encode_causal_tr_motion_sequence(
     if (dt_seconds is None) != (dt_valid is None):
         raise FeatureInputError("dt_seconds 与 dt_valid 必须同时提供")
     if dt_seconds is None:
-        timing = [_timing(item, _event_values(item)) for item in values]
+        timing = [_timing(item, event_values(item)) for item in values]
         dt_values = [item[0] for item in timing]
         valid_values = [item[1] for item in timing]
     else:
@@ -499,7 +495,7 @@ def encode_causal_tr_motion_sequence(
     state = CausalTRMotionState()
     encoded = [
         state.update(
-            _event_values(point),
+            event_values(point),
             dt_seconds=float(dt),
             dt_valid=bool(is_valid),
         )
@@ -517,7 +513,7 @@ def encode_causal_tr_observation_increment_sequence(
     if len(values) == 0:
         raise FeatureInputError("TR observation increment 序列不能为空")
     state = CausalTRObservationIncrementState()
-    encoded = [state.update(_event_values(point)) for point in values]
+    encoded = [state.update(event_values(point)) for point in values]
     return (
         np.stack([item[0] for item in encoded], axis=0).astype(np.float32, copy=False),
         np.stack([item[1] for item in encoded], axis=0).astype(np.bool_, copy=False),

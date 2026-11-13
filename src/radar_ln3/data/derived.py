@@ -11,6 +11,7 @@ import tempfile
 from collections.abc import Mapping
 from typing import Any
 
+from .atomic import write_json
 from .contracts import DataFormatError, DatasetManifest
 from .manifest import canonical_json_hash, data_manifest_hash, validate_manifest
 from .paths import (
@@ -19,17 +20,19 @@ from .paths import (
     resolve_project_path,
     resolve_tr_path,
 )
+from .raw_reader import sha256_file as _data_sha256_file
 
 
 CSV_PATH = Path("data/cq08/csv/cq08-event-index.csv")
 
 
 def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+    return _data_sha256_file(path)
+
+
+def _is_sha256(value: Any) -> bool:
+    text = str(value or "")
+    return len(text) == 64 and not set(text.lower()) - set("0123456789abcdef")
 
 
 def _read_tr_values(root: Path, records: list[dict[str, Any]]) -> dict[str, str]:
@@ -123,35 +126,6 @@ def _load_manifest_payload(root: Path, path: str | Path) -> dict[str, Any]:
     return payload
 
 
-def _atomic_json_write(
-    target: Path,
-    payload: dict[str, Any],
-    *,
-    overwrite: bool,
-) -> None:
-    """以同目录临时文件原子更新总 manifest。"""
-
-    encoded = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
-    )
-    os.close(descriptor)
-    temporary = Path(temporary_name)
-    try:
-        temporary.write_bytes(encoded)
-        if overwrite:
-            os.replace(temporary, target)
-        else:
-            try:
-                os.link(temporary, target)
-            except FileExistsError:
-                if target.is_file() and target.read_bytes() == encoded:
-                    return
-                raise FileExistsError(f"拒绝覆盖竞态产生的总 manifest：{target}")
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def build_event_csv_index(
     project_root: str | Path,
     *,
@@ -227,13 +201,30 @@ def build_event_csv_index(
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
         mode="w", encoding="utf-8", newline="", suffix=".tmp", dir=target.parent, delete=False
-    ) as handle:
-        temporary = Path(handle.name)
+    ) as raw_handle:
+        class _DigestTextWriter:
+            def __init__(self, handle):
+                self.handle = handle
+                self.digest = hashlib.sha256()
+
+            def write(self, value: str) -> int:
+                self.digest.update(value.encode("utf-8"))
+                return self.handle.write(value)
+
+            def flush(self) -> None:
+                self.handle.flush()
+
+            def fileno(self) -> int:
+                return self.handle.fileno()
+
+        temporary = Path(raw_handle.name)
+        handle = _DigestTextWriter(raw_handle)
         writer = csv.DictWriter(handle, fieldnames=list(fields))
         writer.writeheader()
         writer.writerows(rows)
         handle.flush()
         os.fsync(handle.fileno())
+        candidate_hash = handle.digest.hexdigest()
     try:
         if target.exists() and not overwrite:
             existing = target.read_bytes()
@@ -254,7 +245,7 @@ def build_event_csv_index(
                             "format": "csv",
                             "record_count": len(rows),
                             "file_size": int(target.stat().st_size),
-                            "sha256": _sha256(target),
+                            "sha256": candidate_hash,
                             "source_manifest_sha256": manifest_sha256,
                         }
                     raise FileExistsError(f"拒绝覆盖竞态产生的不同 CSV：{target}")
@@ -266,7 +257,7 @@ def build_event_csv_index(
         "format": "csv",
         "record_count": len(rows),
         "file_size": int(target.stat().st_size),
-        "sha256": _sha256(target),
+        "sha256": candidate_hash,
         "source_manifest_sha256": manifest_sha256,
     }
 
@@ -315,7 +306,7 @@ def register_product_artifacts(
 
     root = Path(project_root).resolve()
     payload = _load_manifest_payload(root, manifest_path)
-    if validate_manifest_payload:
+    if validate_manifest_payload and manifest is None:
         validate_manifest(
             payload,
             root,
@@ -348,10 +339,13 @@ def register_product_artifacts(
             raise DataFormatError("事件缓存未绑定当前稳定 data manifest hash")
     else:
         cache_info = dict((payload.get("audit") or {}).get("cache") or {})
+    audit_payload = dict(payload.get("audit") or {})
     if cache_info:
-        audit_payload = dict(payload.get("audit") or {})
         audit_payload["cache"] = cache_info
-        payload["audit"] = audit_payload
+    # L3 派生状态只保留在 product.scope 一份；旧 manifest 的 audit.scope
+    # 在下次注册时一并剔除。
+    audit_payload.pop("scope", None)
+    payload["audit"] = audit_payload
     previous_product = payload.get("product")
     previous_derivatives = (
         previous_product.get("data_derivatives", {})
@@ -397,17 +391,16 @@ def register_product_artifacts(
             str(registered_l3.get("path") or ""),
             must_exist=True,
         )
+        declared_l3_hash = str(registered_l3.get("sha256") or "").lower()
+        descriptor_hash_matches = (
+            _is_sha256(declared_l3_hash) and declared_l3_hash == _sha256(l3_path)
+        )
         if (
             registered_l3.get("kind") != "l3_calibration"
             or int(registered_l3.get("file_size", -1)) != int(l3_path.stat().st_size)
-            or str(registered_l3.get("sha256") or "") != _sha256(l3_path)
+            or not descriptor_hash_matches
         ):
             raise DataFormatError("L3 calibration artifact descriptor 不匹配")
-        audit_payload = dict(payload.get("audit") or {})
-        audit_scope = dict(audit_payload.get("scope") or {})
-        audit_scope["l3"] = str(registered_l3.get("status", "exploratory"))
-        audit_payload["scope"] = audit_scope
-        payload["audit"] = audit_payload
     artifact_base = Path(artifact_root).as_posix().strip("/")
     registries = {
         "product": {
@@ -441,11 +434,6 @@ def register_product_artifacts(
                     kind="event_baseline_logits_anchor",
                     task="l2",
                 ),
-            },
-            "base_weights": {
-                "l1": _file_descriptor(root, "src/core/training/base/l1base.pt", kind="base_weight", task="l1"),
-                "l2_base": _file_descriptor(root, "src/core/training/base/l2base1.pt", kind="base_weight", task="l2"),
-                "l2_stable": _file_descriptor(root, "src/core/training/base/l2base2.pt", kind="base_weight", task="l2"),
             },
             "formal_outputs": {
                 "l1": _file_descriptor(root, f"{artifact_base}/l1/l1.pt", kind="checkpoint", task="l1"),
@@ -521,7 +509,7 @@ def register_product_artifacts(
         current = _load_manifest_payload(root, manifest_path)
         if current.get("manifest_sha256") != payload["manifest_sha256"]:
             raise FileExistsError(f"拒绝覆盖内容不同的总 manifest：{target}")
-    _atomic_json_write(target, payload, overwrite=overwrite)
+    write_json(target, payload, overwrite=overwrite, label="总 manifest")
     return target
 
 

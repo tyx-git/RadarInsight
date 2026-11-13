@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -14,6 +16,7 @@ from radar_ln3.features import (
     BROADBAND_FRAME_VALUE_DIM,
     COURSE_FEATURE_NAME,
     FEATURE_CACHE_SCHEMA_VERSION,
+    FeatureCache,
     FeatureCacheDescriptor,
     RawEchoFrame,
     RawTargetRecord,
@@ -510,3 +513,150 @@ def test_feature_cache_bundle_binds_one_unified_view(tmp_path) -> None:
             feature_caches=loaded,
             expected_view_hash="different-view",
         )
+
+
+def _two_event_sequence() -> EventSequence:
+    events = [
+        EventData(
+            sample_id=f"p:event-{index}",
+            parent_sample_id="p",
+            track_id="p",
+            causal_event_index=index,
+            label_id=0,
+            label_name="DroneTarget",
+            split_name="train",
+            tr_values=_tr_event(time_seconds=float(index)),
+            rd_values=None,
+            tr_available=True,
+            rd_available=False,
+            tr_time_seconds=float(index),
+            tr_dt_seconds=0.0 if index == 0 else 1.0,
+            tr_dt_valid=index > 0,
+            tr_dt_reason=(
+                "first_event_no_predecessor"
+                if index == 0
+                else "positive_delta_at_second_precision"
+            ),
+        )
+        for index in range(2)
+    ]
+    return EventSequence(
+        parent_sample_id="p",
+        track_id="p",
+        label_id=0,
+        label_name="DroneTarget",
+        split_name="train",
+        events=events,
+        source_name="fixture",
+    )
+
+
+def _complete_l1_caches(
+    sequence: EventSequence,
+    *,
+    view_hash: str,
+) -> dict[str, FeatureCache]:
+    sample_ids = tuple(str(event.sample_id) for event in sequence.events)
+
+    def cache(
+        name: str,
+        dim: int,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> FeatureCache:
+        return FeatureCache(
+            descriptor=FeatureCacheDescriptor(
+                schema_version=FEATURE_CACHE_SCHEMA_VERSION,
+                feature_name=name,
+                source_manifest_hash="a" * 64,
+                feature_config_hash="b" * 64,
+                view_name="audit",
+                view_hash=view_hash,
+            ),
+            feature_names=tuple(f"{name}-{index}" for index in range(dim)),
+            sample_ids=sample_ids,
+            parent_sample_ids=tuple("p" for _ in sample_ids),
+            causal_event_indices=np.arange(len(sample_ids), dtype=np.int64),
+            split_names=tuple("train" for _ in sample_ids),
+            values=np.zeros((len(sample_ids), dim), dtype=np.float32),
+            valid=np.ones((len(sample_ids), dim), dtype=np.bool_),
+            metadata=metadata or {},
+        )
+
+    return {
+        "tr_observation": cache("tr_observation", TR_VALUE_DIM),
+        "tr_observation_increment": cache("tr_observation_increment", 9),
+        "course_circular_incoherence": cache(
+            COURSE_FEATURE_NAME,
+            1,
+            metadata={"course_support": [0, 1]},
+        ),
+    }
+
+
+def test_cache_positions_reuses_stored_sample_positions() -> None:
+    from radar_ln3.features.tensor import _cache_positions
+
+    sequence = _two_event_sequence()
+    caches = _complete_l1_caches(sequence, view_hash="view-hash")
+    positions = _cache_positions(
+        caches,
+        expected_view_hash="view-hash",
+    )
+
+    assert positions["tr_observation"] is caches["tr_observation"].sample_positions
+    assert positions["tr_observation"]["p:event-1"] == 1
+
+
+def test_l1_batch_does_not_reencode_complete_feature_cache(monkeypatch) -> None:
+    import radar_ln3.features.tensor as tensor_module
+
+    sequence = _two_event_sequence()
+    caches = _complete_l1_caches(sequence, view_hash="view-hash")
+    calls: list[str] = []
+    for name in (
+        "encode_tr_sequence",
+        "encode_causal_tr_observation_increment_sequence",
+        "encode_causal_course_sequence",
+    ):
+        original = getattr(tensor_module, name)
+
+        def counted(original=original, name=name):
+            def wrapper(*args, **kwargs):
+                calls.append(name)
+                return original(*args, **kwargs)
+
+            return wrapper
+
+        monkeypatch.setattr(tensor_module, name, counted())
+
+    batch = build_model_batch(
+        [sequence],
+        task="l1",
+        feature_caches=caches,
+        expected_view_hash="view-hash",
+    )
+
+    assert calls == []
+    assert batch["tr_features"].count_nonzero() == 0
+    assert batch["reference_tr_features"].count_nonzero() == 0
+    assert batch["observation_increment_values"].count_nonzero() == 0
+    assert batch["course_support"].tolist() == [[0, 1]]
+
+
+def test_l1_batch_encodes_reference_tr_once(monkeypatch) -> None:
+    import radar_ln3.features.tensor as tensor_module
+
+    calls = 0
+    original = tensor_module.encode_tr_sequence
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(tensor_module, "encode_tr_sequence", counted)
+    batch = build_model_batch([_two_event_sequence()], task="l1")
+
+    assert calls == 1
+    assert batch["tr_features"].count_nonzero() > 0

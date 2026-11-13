@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from .adapter import DataSourceAdapter
+from .atomic import write_bytes, write_json
 from .contracts import (
     DataFormatError,
     DataIntegrityError,
     DataSplitError,
     DatasetManifest,
     EventRecord,
-    PairRecord,
     ParentRecord,
 )
 from .manifest import (
@@ -27,6 +25,7 @@ from .manifest import (
     TR_SCHEMA_VERSION,
     canonical_json_hash,
     expected_baseline_training_view,
+    normalise_progress_interval,
     normalise_split_name,
     validate_manifest,
 )
@@ -38,50 +37,10 @@ from .paths import (
     relative_project_path,
     resolve_index_path,
 )
-from .raw_reader import sha256_file
 from .temporal import annotate_event_records
 
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
-
-
-def _normalise_progress_interval(value: int) -> int:
-    """校验处理进度的回调间隔。"""
-
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise ValueError("progress_interval 必须是正整数")
-    return value
-
-
-def _atomic_write_bytes(path: Path, payload: bytes, *, overwrite: bool) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        if path.read_bytes() == payload:
-            return "reused_identical"
-        if not overwrite:
-            raise FileExistsError(f"拒绝覆盖内容不同的索引文件：{path}")
-    fd, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if overwrite:
-            os.replace(temporary, path)
-        else:
-            try:
-                os.link(temporary, path)
-            except FileExistsError:
-                if path.is_file() and path.read_bytes() == payload:
-                    return "reused_identical"
-                raise FileExistsError(
-                    f"拒绝覆盖竞态产生的不同索引文件：{path}"
-                )
-    finally:
-        if temporary.exists():
-            temporary.unlink()
-    return "created"
 
 
 def _jsonl_bytes(records: list[Mapping[str, Any]]) -> bytes:
@@ -104,12 +63,12 @@ def _write_sidecar(
 ) -> dict[str, Any]:
     target = resolve_index_path(project_root, path, section=section, must_exist=False)
     payload = _jsonl_bytes(records)
-    _atomic_write_bytes(target, payload, overwrite=overwrite)
+    payload_hash = write_bytes(target, payload, overwrite=overwrite, label="索引文件")
     record = {
         "path": relative_project_path(project_root, target),
         "record_count": len(records),
         "file_size": int(target.stat().st_size),
-        "sha256": sha256_file(target),
+        "sha256": payload_hash,
     }
     return record
 
@@ -265,7 +224,7 @@ def build_manifest(
 ) -> DatasetManifest:
     """发现 parent/event，写出 sidecar，并构造小型总 manifest。"""
 
-    progress_interval = _normalise_progress_interval(progress_interval)
+    progress_interval = normalise_progress_interval(progress_interval)
     root = Path(project_root).resolve()
     parents = _sorted_parents(adapter)
     excluded_parents: list[ParentRecord] = []
@@ -385,29 +344,10 @@ def build_manifest(
             }
         )
     rd_sample_ids = {str(row["sample_id"]) for row in rd_frames}
-    pair_records = [
-        PairRecord(
-            sample_id=str(row["sample_id"]),
-            parent_sample_id=str(row["parent_sample_id"]),
-            tr_available=bool(row["available"]),
-            rd_available=str(row["sample_id"]) in rd_sample_ids,
-            tr_record_index=index,
-            rd_record_index=index,
-            metadata={
-                "pairing_basis": "sample_id_and_causal_event_index",
-                "parent_anomalous": bool(
-                    row.get("metadata", {}).get("parent_anomalous", False)
-                ),
-                "training_excluded": bool(
-                    row.get("metadata", {}).get("training_excluded", False)
-                ),
-                "baseline_training_view": bool(
-                    row["metadata"]["baseline_training_view"]
-                ),
-            },
-        ).to_dict()
-        for index, row in enumerate(tr_records)
-    ]
+    paired_event_count = len(tr_records)
+    missing_rd_event_count = sum(
+        1 for row in tr_records if str(row["sample_id"]) not in rd_sample_ids
+    )
     payload = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "dataset": str(adapter.dataset_name),
@@ -416,7 +356,7 @@ def build_manifest(
         "split": {"group_unit": "parent_sample_id", "split_field": "split_name", **dict(split_policy or {})},
         "TR": {"schema_version": TR_SCHEMA_VERSION, "format": INDEX_FORMAT, "record_count": len(tr_records), "parts": [tr_part]},
         "RD": {"schema_version": RD_SCHEMA_VERSION, "format": INDEX_FORMAT, "record_count": len(rd_frames), "parts": [rd_part]},
-        "pairing": {"schema_version": PAIRING_SCHEMA_VERSION, "strategy": "sample_id_and_causal_event_index", "tr_index": "TR", "rd_index": "RD", "rd_frame_cardinality": "many_frames_per_event", "paired_event_count": len(pair_records), "missing_tr_event_count": 0, "missing_rd_event_count": sum(1 for row in pair_records if not row["rd_available"])},
+        "pairing": {"schema_version": PAIRING_SCHEMA_VERSION, "strategy": "sample_id_and_causal_event_index", "tr_index": "TR", "rd_index": "RD", "rd_frame_cardinality": "many_frames_per_event", "paired_event_count": paired_event_count, "missing_tr_event_count": 0, "missing_rd_event_count": missing_rd_event_count},
         "audit": {
             "parent_count": len(parents),
             "parent_ids": parent_ids,
@@ -453,7 +393,7 @@ def build_manifest(
                 "excluded_parent_count": len(excluded_parents),
                 "tr_record_count": len(tr_records),
                 "rd_record_count": len(rd_frames),
-                "pairing_count": len(pair_records),
+                "pairing_count": paired_event_count,
                 "materialized": bool(materialize),
             }
         )
@@ -467,27 +407,32 @@ def write_manifest(
     path: str | Path = PROJECT_MANIFEST_PATH,
     overwrite: bool = False,
     verify_files: bool = True,
+    validate: bool = True,
     progress_callback: ProgressCallback | None = None,
     progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
 ) -> Path:
-    """校验并原子写入唯一总 manifest。"""
+    """校验并原子写入唯一总 manifest。
+
+    ``validate=False`` 仅用于调用方刚刚完成 ``validate_manifest`` 的场景，
+    跳过重复的整份 sidecar 重新校验；manifest 内容仍会重新封 hash。
+    """
 
     root = Path(project_root).resolve()
     payload = manifest.to_dict() if isinstance(manifest, DatasetManifest) else dict(manifest)
     payload.pop("manifest_sha256", None)
-    validate_manifest(
-        payload,
-        root,
-        verify_files=bool(verify_files),
-        allow_unmaterialized=True,
-        progress_callback=progress_callback,
-        progress_interval=progress_interval,
-    )
+    if validate:
+        validate_manifest(
+            payload,
+            root,
+            verify_files=bool(verify_files),
+            allow_unmaterialized=True,
+            progress_callback=progress_callback,
+            progress_interval=progress_interval,
+        )
     payload["manifest_sha256"] = canonical_json_hash(payload)
     target = (root / path if not Path(path).is_absolute() else Path(path)).resolve()
     relative_project_path(root, target)
-    encoded = (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False) + "\n").encode("utf-8")
-    _atomic_write_bytes(target, encoded, overwrite=overwrite)
+    write_json(target, payload, overwrite=overwrite, label="总 manifest")
     return target
 
 

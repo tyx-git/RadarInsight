@@ -4,64 +4,34 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from pathlib import Path
-import random
 import time
 from typing import Any
 
-import numpy as np
 import torch
 
 from radar_ln3.checkpoint import Checkpoint
+from radar_ln3.cache import CachedParentSequenceDataset
 from radar_ln3.data import load_manifest
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.data.derived import register_product_artifacts
 from radar_ln3.data.manifest import data_manifest_hash
+from radar_ln3.device import resolve_device
 from radar_ln3.features import FeatureCache
 from radar_ln3.model import build_l1_model, load_model_config
-from radar_ln3.logger import log_classification_metrics
 
 from .common import (
     ModelBatchCollator,
     build_training_dataset,
     build_training_loader,
     checkpoint_payload,
+    emit_progress,
     evaluate_l1,
+    seed_everything,
     train_l1_step,
 )
 
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
-
-
-def _seed(value: int) -> None:
-    random.seed(int(value))
-    np.random.seed(int(value) % (2**32))
-    torch.manual_seed(int(value))
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(int(value))
-
-
-def _device(requested: str) -> torch.device:
-    value = str(requested).lower()
-    if value == "cuda":
-        if not torch.cuda.is_available():
-            raise RuntimeError("配置要求 CUDA，但当前环境不可用")
-        return torch.device("cuda:0")
-    if value == "cpu":
-        return torch.device("cpu")
-    raise ValueError(f"不支持的训练 device：{requested}")
-
-
-def _emit(
-    progress_callback: ProgressCallback | None,
-    event: Mapping[str, Any],
-) -> None:
-    if progress_callback is not None:
-        progress_callback(event)
-    if "validation" in event:
-        log_classification_metrics(
-            event["validation"], task="l1", epoch=event["epoch"]
-        )
 
 
 def load_l1_base_model(
@@ -97,10 +67,13 @@ def train_l1(
     device: str = "cpu",
     arm: str = "observation_increment",
     manifest: DatasetManifest | None = None,
+    train_dataset: CachedParentSequenceDataset | None = None,
+    validation_dataset: CachedParentSequenceDataset | None = None,
     progress_callback: ProgressCallback | None = None,
     train_feature_caches: Mapping[str, FeatureCache] | None = None,
     validation_feature_caches: Mapping[str, FeatureCache] | None = None,
     validate_caches: bool = True,
+    validate_event_cache: bool | None = None,
     progress_interval: int = 25,
     batch_size: int | None = None,
     num_workers: int | None = None,
@@ -115,31 +88,44 @@ def train_l1(
     if isinstance(progress_interval, bool) or int(progress_interval) <= 0:
         raise ValueError("progress_interval 必须是正整数")
     config = load_model_config(root, config_path, artifact_root=artifact_root)
-    _seed(config.training.l1_seed)
+    event_cache_validation = (
+        bool(validate_caches)
+        if validate_event_cache is None
+        else bool(validate_event_cache)
+    )
+    seed_everything(config.training.l1_seed)
     manifest = manifest or load_manifest(
         manifest_path, root, verify_files=True, allow_unmaterialized=False
     )
     source_manifest_hash = data_manifest_hash(manifest)
-    train_set = build_training_dataset(
-        root,
-        task="l1",
-        split_name="train",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_caches,
+    train_set = (
+        train_dataset
+        if train_dataset is not None
+        else build_training_dataset(
+            root,
+            task="l1",
+            split_name="train",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
     )
-    validation_set = build_training_dataset(
-        root,
-        task="l1",
-        split_name="validation",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_caches,
+    validation_set = (
+        validation_dataset
+        if validation_dataset is not None
+        else build_training_dataset(
+            root,
+            task="l1",
+            split_name="validation",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
     )
     effective_batch_size = int(batch_size or config.training.l1_batch_size)
     if effective_batch_size <= 0:
         raise ValueError("L1 batch_size 必须为正整数")
-    target_device = _device(device)
+    target_device = resolve_device(device)
     effective_workers = (
         (2 if target_device.type == "cuda" else 0)
         if num_workers is None
@@ -148,16 +134,11 @@ def train_l1(
     effective_pin_memory = (
         target_device.type == "cuda" if pin_memory is None else bool(pin_memory)
     )
-    collator_args = dict(
-        task="l1",
-        max_rd_frames=config.data.max_rd_frames_per_point,
-        max_sequence_length=config.data.max_sequence_length,
-        stable_indices=config.data.l2.stable8_indices,
-    )
     train_loader = build_training_loader(
         train_set,
-        collate_fn=ModelBatchCollator(
-            **collator_args,
+        collate_fn=ModelBatchCollator.from_config(
+            config,
+            "l1",
             feature_caches=train_feature_caches,
             expected_view_hash=train_set.view.view_hash,
         ),
@@ -170,8 +151,9 @@ def train_l1(
     )
     validation_loader = build_training_loader(
         validation_set,
-        collate_fn=ModelBatchCollator(
-            **collator_args,
+        collate_fn=ModelBatchCollator.from_config(
+            config,
+            "l1",
             feature_caches=validation_feature_caches,
             expected_view_hash=validation_set.view.view_hash,
         ),
@@ -204,14 +186,14 @@ def train_l1(
     best_rank: tuple[float, ...] | None = None
     best_payload: dict[str, Any] | None = None
     started = time.perf_counter()
-    _emit(progress_callback, {
+    emit_progress(progress_callback, {
         "stage": "l1_start",
         "train_parents": len(train_set),
         "validation_parents": len(validation_set),
         "num_workers": effective_workers,
         "prefetch_factor": int(prefetch_factor) if effective_workers else 0,
         "pin_memory": effective_pin_memory,
-    })
+    }, task="l1")
     for epoch in range(1, config.training.l1_epochs + 1):
         model.train()
         losses: list[torch.Tensor] = []
@@ -233,7 +215,7 @@ def train_l1(
             assert isinstance(loss, torch.Tensor)
             losses.append(loss)
             if step % int(progress_interval) == 0 or step == len(train_loader):
-                _emit(
+                emit_progress(
                     progress_callback,
                     {
                         "stage": "l1_step",
@@ -244,6 +226,7 @@ def train_l1(
                         "batch_wait_seconds": batch_wait_seconds,
                         "step_compute_seconds": time.perf_counter() - compute_started,
                     },
+                    task="l1",
                 )
         metrics = evaluate_l1(
             model,
@@ -280,7 +263,7 @@ def train_l1(
         if best_rank is None or rank > best_rank:
             best_rank = rank
             best_payload = payload
-        _emit(progress_callback, {"stage": "l1_epoch", **record, "elapsed_seconds": time.perf_counter() - started})
+        emit_progress(progress_callback, {"stage": "l1_epoch", **record, "elapsed_seconds": time.perf_counter() - started}, task="l1")
     if best_payload is None:
         raise RuntimeError("L1 训练没有产生 checkpoint")
     best_payload["selection"] = config.training.l1_checkpoint_selection
@@ -325,7 +308,7 @@ def train_l1(
         "test_payload_access_count": 0,
         "elapsed_seconds": time.perf_counter() - started,
     }
-    _emit(progress_callback, {"stage": "l1_complete", **summary["checkpoint"], "selected_epoch": summary["selected_epoch"]})
+    emit_progress(progress_callback, {"stage": "l1_complete", **summary["checkpoint"], "selected_epoch": summary["selected_epoch"]}, task="l1")
     return summary
 
 

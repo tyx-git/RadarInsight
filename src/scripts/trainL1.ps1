@@ -10,6 +10,7 @@ param(
     [switch]$NoPinMemory,
     [switch]$RebuildCache,
     [switch]$SkipDataValidation,
+    [switch]$SkipEventCacheValidation,
     [switch]$ReplaceExisting,
     [switch]$Overwrite,
     [string]$PythonPath = ""
@@ -31,6 +32,7 @@ $forwardArguments = @{
     Overwrite        = [bool]$Overwrite
     RebuildCache     = [bool]$RebuildCache
     SkipDataValidation = [bool]$SkipDataValidation
+    SkipEventCacheValidation = [bool]$SkipEventCacheValidation
     ReplaceExisting  = [bool]$ReplaceExisting
 }
 if ($PythonPath) { $forwardArguments.PythonPath = $PythonPath }

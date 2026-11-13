@@ -97,43 +97,7 @@ def validate_scorer_descriptor(scorer: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def score_class_conditional(
-    probabilities: np.ndarray,
-    scorer: Mapping[str, Any],
-) -> dict[str, Any]:
-    descriptor = validate_scorer_descriptor(scorer)
-    names = tuple(descriptor["class_names"])
-    quantiles = np.asarray(
-        [descriptor["reference_quantile_by_class"][name] for name in names],
-        dtype=np.float64,
-    )
-    values = np.asarray(probabilities, dtype=np.float64)
-    if values.ndim == 1:
-        values = values[None, :]
-    if (
-        values.ndim != 2
-        or values.shape[1] != len(names)
-        or not np.isfinite(values).all()
-        or not np.allclose(values.sum(axis=1), 1.0, atol=1.0e-6, rtol=0.0)
-    ):
-        raise ValueError("scorer probability shape/value 无效")
-    scores = 1.0 - np.clip(values, 0.0, 1.0)
-    passes = scores <= quantiles[None, :] + float(descriptor["tolerance"])
-    return {
-        "class_names": list(names),
-        "probability_by_class": values,
-        "score_by_class": scores,
-        "reference_quantile_by_class": np.broadcast_to(quantiles, scores.shape).copy(),
-        "candidate_pass_by_class": passes,
-        "candidate_sets": [
-            [names[index] for index in np.flatnonzero(row)] for row in passes
-        ],
-        "predictions": [names[int(index)] for index in values.argmax(axis=1)],
-    }
-
-
 __all__ = [
     "build_scorer_descriptor",
-    "score_class_conditional",
     "validate_scorer_descriptor",
 ]

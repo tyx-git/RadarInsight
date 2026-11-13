@@ -17,6 +17,7 @@ from .contracts import (
     FeatureInputError,
     FeatureNumericalError,
     FeatureSchema,
+    event_values,
 )
 
 
@@ -100,15 +101,6 @@ def _angle_pair(values: Mapping[str, Any], name: str) -> tuple[float, float, boo
     return math.sin(radians), math.cos(radians), False
 
 
-def _event_values(item: Any) -> Mapping[str, Any]:
-    if isinstance(item, Mapping):
-        return item
-    values = getattr(item, "tr_values", None)
-    if not isinstance(values, Mapping):
-        raise FeatureInputError("TR event 必须提供 mapping 类型的 tr_values")
-    return values
-
-
 def encode_tr_values(values: Mapping[str, Any]) -> tuple[np.ndarray, np.ndarray]:
     """编码一个 TR 观测，返回 ``(values, missing_mask)``。"""
 
@@ -182,7 +174,7 @@ def encode_tr_sequence(
 
     if not values:
         raise FeatureInputError("TR 序列不能为空")
-    encoded = [encode_tr_values(_event_values(item)) for item in values]
+    encoded = [encode_tr_values(event_values(item)) for item in values]
     result = np.stack([item[0] for item in encoded], axis=0).astype(
         np.float32, copy=False
     )

@@ -3,33 +3,17 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import shutil
 import sys
-import tempfile
 from typing import Any
 
 
-def _atomic_json_write(path: Path, payload: Any) -> None:
-    """原子写入训练摘要，避免长训练结束时留下半个 JSON。"""
+SRC_ROOT = Path(__file__).resolve().parents[1]
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+from radar_ln3.data.atomic import write_json  # noqa: E402
 
 
 def _print_summary(task: str, summary: dict[str, Any]) -> None:
@@ -289,6 +273,7 @@ def _build_or_load_caches(
     rebuild_cache: bool,
     validate_caches: bool,
     skip_data_validation: bool = False,
+    skip_event_cache_validation: bool = False,
 ):
     from core.training.cache import (
         build_feature_training_caches,
@@ -298,6 +283,7 @@ def _build_or_load_caches(
     from radar_ln3.model import load_model_config
 
     validate_caches = bool(validate_caches and not skip_data_validation)
+    validate_event_cache = not bool(skip_event_cache_validation)
     cache_paths = _cache_paths(root)
     cache_ready = all(path.is_file() for path in cache_paths)
     manifest = _load_context(
@@ -333,6 +319,7 @@ def _build_or_load_caches(
             registered_index=True,
             manifest_path=manifest_path,
             verify_files=validate_caches,
+            manifest=manifest,
         )
         provider = CQ08RawEchoProvider(
             root,
@@ -350,7 +337,7 @@ def _build_or_load_caches(
             overwrite=bool(rebuild_cache),
             manifest=manifest,
             verify_files=validate_caches,
-            validate_event_cache=validate_caches,
+            validate_event_cache=validate_event_cache,
             progress_callback=_print_progress,
             progress_interval=progress_interval,
         )
@@ -369,33 +356,52 @@ def _build_or_load_caches(
                 indent=2,
             )
         )
-        manifest = _load_context(
-            root,
-            manifest_path,
-            progress_interval,
-            verify_files=validate_caches,
-            show_progress=validate_caches,
-        )
 
+    from radar_ln3.training.common import build_training_dataset
+
+    datasets = {
+        task: {
+            split_name: build_training_dataset(
+                root,
+                task=task,
+                split_name=split_name,
+                manifest_path=manifest_path,
+                manifest=manifest,
+                validate_event_cache=validate_event_cache,
+            )
+            for split_name in ("train", "validation")
+        }
+        for task in ("l1", "l2")
+    }
     l1_train, l1_validation = load_task_feature_caches(
         root,
         task="l1",
         manifest_path=manifest_path,
         manifest=manifest,
+        datasets=datasets["l1"],
         validate_cache=validate_caches,
+        validate_event_cache=validate_event_cache,
     )
     l2_train, l2_validation = load_task_feature_caches(
         root,
         task="l2",
         manifest_path=manifest_path,
         manifest=manifest,
+        datasets=datasets["l2"],
         validate_cache=validate_caches,
+        validate_event_cache=validate_event_cache,
     )
     if validate_caches:
         _get_logger().info("[script] L1/L2 train/validation feature cache 校验通过。")
     else:
         _get_logger().info("[script] 训练阶段已加载 L1/L2 train/validation feature cache，跳过训练前完整校验。")
-    return manifest, (l1_train, l1_validation), (l2_train, l2_validation)
+    return (
+        manifest,
+        (l1_train, l1_validation),
+        (l2_train, l2_validation),
+        datasets["l1"],
+        datasets["l2"],
+    )
 
 
 def _train_l1(
@@ -403,6 +409,7 @@ def _train_l1(
     manifest_path: Path,
     manifest: Any,
     caches: tuple[dict[str, Any], dict[str, Any]],
+    datasets: dict[str, Any],
     *,
     device: str,
     replace_existing: bool,
@@ -413,6 +420,7 @@ def _train_l1(
     num_workers: int | None,
     prefetch_factor: int,
     pin_memory: bool | None,
+    validate_event_cache: bool,
 ):
     from radar_ln3.model import load_model_config
     from radar_ln3.training import train_l1
@@ -435,7 +443,10 @@ def _train_l1(
         progress_callback=_print_progress,
         train_feature_caches=caches[0],
         validation_feature_caches=caches[1],
+        train_dataset=datasets["train"],
+        validation_dataset=datasets["validation"],
         validate_caches=False,
+        validate_event_cache=bool(validate_event_cache),
         progress_interval=progress_interval,
         batch_size=batch_size,
         config_path=config_path,
@@ -446,7 +457,7 @@ def _train_l1(
     )
     summary_path = root / artifact_root / "l1" / "training-summary.json"
     summary["summary_path"] = str(summary_path)
-    _atomic_json_write(summary_path, summary)
+    write_json(summary_path, summary, overwrite=True, label="训练摘要")
     _print_summary("l1", summary)
     return summary
 
@@ -456,6 +467,7 @@ def _train_l2(
     manifest_path: Path,
     manifest: Any,
     caches: tuple[dict[str, Any], dict[str, Any]],
+    datasets: dict[str, Any],
     *,
     device: str,
     mode: str,
@@ -468,6 +480,7 @@ def _train_l2(
     num_workers: int | None,
     prefetch_factor: int,
     pin_memory: bool | None,
+    validate_event_cache: bool,
 ):
     from radar_ln3.model import load_model_config
     from radar_ln3.training.l2_anchor import ensure_l2_baseline_anchor
@@ -486,7 +499,7 @@ def _train_l2(
             device=device,
             batch_size=batch_size,
             verify_files=False,
-            validate_event_cache=False,
+            validate_event_cache=bool(validate_event_cache),
         )
         _get_logger().info(
             "[script] L2 baseline anchor 已准备：status=%s parent_count=%s record_count=%s computed_event_count=%s",
@@ -536,6 +549,8 @@ def _train_l2(
         raw_echo_provider=None,
         train_feature_caches=caches[0],
         validation_feature_caches=caches[1],
+        train_dataset=datasets["train"],
+        validation_dataset=datasets["validation"],
         validate_caches=False,
         progress_interval=progress_interval,
         resume=resume,
@@ -554,7 +569,7 @@ def _train_l2(
         else root / artifact_root / "l2" / "training-summary.json"
     )
     summary["summary_path"] = str(summary_path)
-    _atomic_json_write(summary_path, summary)
+    write_json(summary_path, summary, overwrite=True, label="训练摘要")
     _print_summary("l2", summary)
     return summary
 
@@ -575,7 +590,12 @@ def main() -> int:
     parser.add_argument("--no-pin-memory", action="store_true")
     parser.add_argument("--model-config-path", type=Path, required=True)
     parser.add_argument("--rebuild-cache", action="store_true")
-    parser.add_argument("--skip-data-validation", action="store_true")
+    parser.add_argument(
+        "--skip-data-validation",
+        action="store_true",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
+    )
+    parser.add_argument("--skip-event-cache-validation", action="store_true")
     parser.add_argument("--replace-existing", action="store_true")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
@@ -631,6 +651,7 @@ def main() -> int:
                 rebuild_cache=args.rebuild_cache,
                 validate_caches=True,
                 skip_data_validation=args.skip_data_validation,
+                skip_event_cache_validation=args.skip_event_cache_validation,
             )
             _get_logger().info("[script] feature cache 阶段完成。")
             return 0
@@ -642,13 +663,14 @@ def main() -> int:
         elif args.stage in {"l1", "l2"} and args.overwrite and not args.replace_existing:
             prepare_artifact_stage(root / artifact_root, args.stage, overwrite=args.overwrite)
 
-        manifest, l1_caches, l2_caches = _build_or_load_caches(
+        manifest, l1_caches, l2_caches, l1_datasets, l2_datasets = _build_or_load_caches(
             root,
             manifest_path,
             progress_interval=args.progress_interval,
             rebuild_cache=args.rebuild_cache,
             validate_caches=False,
             skip_data_validation=args.skip_data_validation,
+            skip_event_cache_validation=args.skip_event_cache_validation,
         )
         if args.stage in {"all", "l1"}:
             _train_l1(
@@ -656,6 +678,7 @@ def main() -> int:
                 manifest_path,
                 manifest,
                 l1_caches,
+                l1_datasets,
                 device=args.device,
                 replace_existing=args.replace_existing,
                 progress_interval=args.progress_interval,
@@ -665,22 +688,17 @@ def main() -> int:
                 num_workers=args.num_workers,
                 prefetch_factor=args.prefetch_factor,
                 pin_memory=pin_memory,
+                validate_event_cache=not args.skip_event_cache_validation,
             )
         if args.stage in {"all", "l2"}:
-            # L1 完成后总 manifest 会登记 L1 checkpoint，L2 使用最新总 manifest。
-            if args.stage == "all":
-                manifest = _load_context(
-                    root,
-                    manifest_path,
-                    args.progress_interval,
-                    verify_files=False,
-                    show_progress=False,
-                )
+            # L1 完成后的登记只改变派生 registry，训练数据段未变；L2 沿用
+            # 同一份已验证 manifest，避免重新解析完整 TR/RD sidecar。
             _train_l2(
                 root,
                 manifest_path,
                 manifest,
                 l2_caches,
+                l2_datasets,
                 device=args.device,
                 mode=args.l2_mode,
                 replace_existing=args.replace_existing,
@@ -692,6 +710,7 @@ def main() -> int:
                 num_workers=args.num_workers,
                 prefetch_factor=args.prefetch_factor,
                 pin_memory=pin_memory,
+                validate_event_cache=not args.skip_event_cache_validation,
             )
         _get_logger().info("[script] 训练流程完成。")
         return 0

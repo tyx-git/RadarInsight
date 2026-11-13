@@ -10,7 +10,6 @@ from .l3 import (
     fit_l3_validation_calibration,
     save_and_register_l3_calibration,
 )
-from .smoke import load_l1_smoke_model, load_l2_smoke_model
 from .l3_heads import (
     FrozenEndpointRepresentation,
     build_head_fit_dataset,
@@ -27,8 +26,6 @@ from .l3_heads import (
 __all__ = [
     "load_l1_base_model",
     "load_l2_base_model",
-    "load_l1_smoke_model",
-    "load_l2_smoke_model",
     "L3ValidationEvidence",
     "collect_l3_validation_evidence",
     "collect_l3_audit_evidence",

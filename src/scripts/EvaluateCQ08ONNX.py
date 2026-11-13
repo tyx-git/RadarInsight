@@ -16,22 +16,8 @@ PROJECT_ROOT = SRC_ROOT.parent
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-
-def _sequence(adapter: Any, parent: Any) -> Any:
-    from radar_ln3.data.contracts import EventSequence
-
-    records = adapter.discover_events(parent)
-    events = [adapter.read_event(record) for record in records]
-    return EventSequence(
-        parent_sample_id=parent.parent_sample_id,
-        track_id=parent.track_id,
-        label_id=parent.label_id,
-        label_name=parent.label_name,
-        split_name=parent.split_name,
-        events=events,
-        source_name="cq08",
-        metadata={"adapter": "CQ08Adapter", "source_path": parent.source_path},
-    )
+from radar_ln3.inference.onnx.eval_support import sequence_from_adapter  # noqa: E402
+from radar_ln3.model.io import FULL_CASCADE_INPUTS, L1_SOURCE_ONLY_INPUTS  # noqa: E402
 
 
 def _build_batch(sequences: list[Any], root: Path, caches: dict[str, Any]) -> dict[str, Any]:
@@ -66,17 +52,8 @@ def _build_batch(sequences: list[Any], root: Path, caches: dict[str, Any]) -> di
         pad_to_max_sequence_length=True,
         **common,
     )
-    names = (
-        "tr_features", "tr_missing_mask", "tr_dt_seconds", "tr_dt_valid",
-        "tr_dt_reason", "tr_padding_mask", "rd_frames", "rd_frame_mask",
-        "rd_quality", "rd_physical_features", "rd_physical_valid",
-        "micro_doppler_features", "micro_doppler_valid", "course_features",
-        "course_valid", "course_support", "observation_increment_values",
-        "reference_tr_features", "reference_tr_missing_mask",
-        "stable_summary_tokens", "stable_summary_valid", "stable_frame_values",
-        "stable_frame_mask", "motion_values",
-    )
-    l1_names = {"course_features", "course_valid", "course_support", "observation_increment_values"}
+    names = FULL_CASCADE_INPUTS
+    l1_names = set(L1_SOURCE_ONLY_INPUTS)
     return {
         name: (l1[name] if name in l1_names else l2[name])
         for name in names
@@ -132,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         all_rows: list[dict[str, Any]] = []
         for start in range(0, len(parents), int(args.batch_size)):
             chunk = parents[start : start + int(args.batch_size)]
-            sequences = [_sequence(adapter, parent) for parent in chunk]
+            sequences = [sequence_from_adapter(adapter, parent) for parent in chunk]
             batch = _build_batch(sequences, root, caches)
             output = runner.predict(batch)
             actions = output["actions"].tolist()

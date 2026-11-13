@@ -15,6 +15,7 @@ import torch
 
 from radar_ln3.data.contracts import EventSequence, RawEchoProvider
 from radar_ln3.data.temporal import encode_dt_reason
+from radar_ln3.labels import TASK_LABEL_TO_ID
 
 from .course import encode_causal_course_sequence
 from .cache import FeatureCache
@@ -31,21 +32,6 @@ from .rd import (
     resolve_rd_velocity_axis,
 )
 from .tr import encode_tr_sequence
-
-
-_TASK_LABEL_TO_ID = {
-    "l1": {
-        "DroneTarget": 0,
-        "BirdTarget": 0,
-        "BalloonTarget": 0,
-        "ClutterTarget": 1,
-    },
-    "l2": {
-        "DroneTarget": 0,
-        "BirdTarget": 1,
-        "BalloonTarget": 2,
-    },
-}
 
 
 def _velocity_axis() -> np.ndarray:
@@ -101,16 +87,16 @@ def _cache_positions(
     feature_caches: Mapping[str, FeatureCache] | None,
     *,
     expected_view_hash: str | None,
-) -> dict[str, dict[str, int]]:
+) -> dict[str, Mapping[str, int]]:
     if feature_caches is None:
         return {}
-    result: dict[str, dict[str, int]] = {}
+    result: dict[str, Mapping[str, int]] = {}
     view_hashes: set[str] = set()
     for name, cache in feature_caches.items():
         if not isinstance(cache, FeatureCache):
             raise ValueError(f"feature cache 类型无效：{name}")
         view_hashes.add(cache.descriptor.view_hash)
-        positions = dict(cache.sample_positions)
+        positions = cache.sample_positions
         if len(positions) != len(cache.sample_ids):
             raise ValueError(f"feature cache sample_id 不唯一：{name}")
         result[str(name)] = positions
@@ -214,6 +200,12 @@ def build_model_batch(
         expected_view_hash=expected_view_hash,
     )
     use_cached_tr_features = clipping is None
+    cache_names = set(feature_caches) if feature_caches is not None else set()
+    cached_tr = use_cached_tr_features and "tr_observation" in cache_names
+    cached_increment = (
+        use_cached_tr_features and "tr_observation_increment" in cache_names
+    )
+    cached_course = "course_circular_incoherence" in cache_names
     original_lengths = [len(item.events) for item in sequences]
     truncated_flags = [
         length > int(max_sequence_length) for length in original_lengths
@@ -294,9 +286,21 @@ def build_model_batch(
                         item[name] = float(
                             np.clip(number, float(bound["lower"]), float(bound["upper"]))
                         )
-        encoded, missing = encode_tr_sequence(values)
-        reference_encoded, reference_missing = encode_tr_sequence(reference_values)
-        increments, _ = encode_causal_tr_observation_increment_sequence(values)
+        if not cached_tr:
+            encoded, missing = encode_tr_sequence(values)
+            if clipping is None:
+                reference_encoded, reference_missing = encoded, missing
+            else:
+                reference_encoded, reference_missing = encode_tr_sequence(
+                    reference_values
+                )
+            tr_values[row, : len(values)] = encoded
+            tr_missing[row, : len(values)] = missing
+            reference_tr_values[row, : len(reference_values)] = reference_encoded
+            reference_tr_missing[row, : len(reference_values)] = reference_missing
+        if not cached_increment:
+            increments, _ = encode_causal_tr_observation_increment_sequence(values)
+            increment[row, : len(values)] = increments
         if task == "l2":
             motion_dt = [event.tr_dt_seconds for event in sequence.events]
             motion_dt_valid = [event.tr_dt_valid for event in sequence.events]
@@ -312,15 +316,11 @@ def build_model_batch(
                 dt_valid=[bool(value) for value in motion_dt_valid],
             )
             motion[row, : len(values)] = motion_values
-        course_values, course_mask, support = encode_causal_course_sequence(values)
-        tr_values[row, : len(values)] = encoded
-        tr_missing[row, : len(values)] = missing
-        reference_tr_values[row, : len(reference_values)] = reference_encoded
-        reference_tr_missing[row, : len(reference_values)] = reference_missing
-        increment[row, : len(values)] = increments
-        course[row, : len(values)] = course_values
-        course_valid[row, : len(values)] = course_mask
-        course_support[row, : len(values)] = support
+        if not cached_course:
+            course_values, course_mask, support = encode_causal_course_sequence(values)
+            course[row, : len(values)] = course_values
+            course_valid[row, : len(values)] = course_mask
+            course_support[row, : len(values)] = support
         padding[row, : len(values)] = False
         if baseline_anchor is not None:
             events = sequence.events
@@ -360,6 +360,13 @@ def build_model_batch(
                     raise ValueError("tr_observation cache row 包含非有限值")
                 tr_values[row, event_index] = cached_values
                 tr_missing[row, event_index] = _tr_missing_from_valid(cached_valid)
+                if clipping is None:
+                    # L1 的 reference TR 与当前 TR 语义完全一致；缓存命中时
+                    # 一并填充，避免为 reference 单独编码。
+                    reference_tr_values[row, event_index] = cached_values
+                    reference_tr_missing[row, event_index] = _tr_missing_from_valid(
+                        cached_valid
+                    )
             increment_cached = (
                 _cache_row(
                     feature_caches,
@@ -583,7 +590,7 @@ def build_model_batch(
             stable_frame_values[row, event_index] = frame_values
             stable_frame_mask[row, event_index] = frame_ok
         label_name = str(sequence.label_name)
-        task_mapping = _TASK_LABEL_TO_ID[task]
+        task_mapping = TASK_LABEL_TO_ID[task]
         if label_name not in task_mapping:
             if not allow_unmapped_labels:
                 raise ValueError(f"{task} 训练序列包含不允许的 label：{label_name}")

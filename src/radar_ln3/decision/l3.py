@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -1482,7 +1483,8 @@ def save_l3_calibration(
     calibration: Mapping[str, Any],
     *,
     overwrite: bool = False,
-) -> Path:
+    return_sha256: bool = False,
+) -> Path | tuple[Path, str]:
     """在项目根目录内原子保存 sealed L3 calibration JSON。"""
 
     value = _validate_calibration(calibration)
@@ -1492,21 +1494,27 @@ def save_l3_calibration(
     if target.exists() and not overwrite:
         existing = load_l3_calibration(root, target)
         if existing == value:
+            if return_sha256:
+                return target, hashlib.sha256(target.read_bytes()).hexdigest()
             return target
         raise FileExistsError(f"拒绝覆盖不同的 L3 calibration：{target}")
     text = json.dumps(value, ensure_ascii=False, indent=2) + "\n"
+    encoded = text.encode("utf-8")
+    file_sha256 = hashlib.sha256(encoded).hexdigest()
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
     )
     temporary = Path(temporary_name)
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(temporary, target)
     finally:
         if temporary.exists():
             temporary.unlink()
-    return target
+    return (target, file_sha256) if return_sha256 else target
 
 
 __all__ = [

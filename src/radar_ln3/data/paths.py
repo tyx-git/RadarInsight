@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import stat as stat_module
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
-from typing import Mapping
+from typing import Iterator, Mapping
 
 from .contracts import DataPathError, MissingDataFileError, PathBoundaryError
 
@@ -16,6 +19,66 @@ PROJECT_MANIFEST_PATH = Path("src/config/manifests.json")
 TR_INDEX_PATH = TR_ROOT / "cq08-tr-event-index.jsonl"
 RD_INDEX_PATH = RD_ROOT / "cq08-rd-frame-index.jsonl"
 FORBIDDEN_PROJECT_RELATIVE_ROOTS = (Path("src-v3"), Path("experiments"))
+_FORBIDDEN_PROJECT_ROOT_NAMES = frozenset(
+    item.as_posix() for item in FORBIDDEN_PROJECT_RELATIVE_ROOTS
+)
+
+_RESOLUTION_CACHE: ContextVar[dict[Path, Path] | None] = ContextVar(
+    "radar_ln3_path_resolution_cache",
+    default=None,
+)
+
+
+@contextmanager
+def path_resolution_cache() -> Iterator[None]:
+    """在一次只读批量校验内复用 ``Path.resolve()`` 结果。
+
+    作用域内不得创建或删除文件；退出后缓存立即释放，作用域外行为不变。
+    仅用于 manifest 等纯读取校验，避免同一路径被反复解析。
+    """
+
+    token = _RESOLUTION_CACHE.set({})
+    try:
+        yield
+    finally:
+        _RESOLUTION_CACHE.reset(token)
+
+
+def resolve_path(path: str | Path) -> Path:
+    """解析路径；``path_resolution_cache`` 生效时同一路径只解析一次。
+
+    缓存生效时先解析父目录再拼接叶节点，避免同目录下大量文件重复执行完整
+    realpath；叶节点是符号链接或 junction 时仍回退到完整解析，越界校验
+    语义不变。
+    """
+
+    candidate = path if isinstance(path, Path) else Path(path)
+    cache = _RESOLUTION_CACHE.get()
+    if cache is None:
+        return candidate.resolve()
+    resolved = cache.get(candidate)
+    if resolved is not None:
+        return resolved
+    if candidate.name in {"", ".", ".."} or candidate.parent == candidate:
+        resolved = candidate.resolve()
+    else:
+        parent = resolve_path(candidate.parent)
+        resolved = parent / candidate.name
+        try:
+            info = os.lstat(resolved)
+        except OSError:
+            needs_full_resolve = True
+        else:
+            # 符号链接或 Windows junction 的叶节点必须完整解析，防止逃逸。
+            needs_full_resolve = stat_module.S_ISLNK(info.st_mode) or (
+                getattr(info, "st_reparse_tag", 0) == 0xA0000003
+            )
+        if needs_full_resolve:
+            resolved = candidate.resolve()
+    cache[candidate] = resolved
+    # 已解析路径常被再次传入（如 ensure_path_inside_root），直接复用结果。
+    cache[resolved] = resolved
+    return resolved
 
 
 def data_root_name() -> str:
@@ -40,30 +103,47 @@ def _normalise(value: str | os.PathLike[str]) -> str:
     return str(value).replace("\\", "/").strip()
 
 
+def _normalised_text(path: Path) -> str:
+    """返回用于边界比较的规范化路径文本（Windows 大小写不敏感）。"""
+
+    return os.path.normcase(os.fspath(path))
+
+
+def _is_within_normalised(candidate: str, boundary: str) -> bool:
+    if candidate == boundary:
+        return True
+    prefix = boundary if boundary.endswith(os.sep) else boundary + os.sep
+    return candidate.startswith(prefix)
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    return _is_within_normalised(_normalised_text(path), _normalised_text(root))
+
+
 def ensure_path_inside_root(path: str | Path, root: str | Path) -> Path:
     """确保 path 位于 root 内。"""
 
-    candidate = Path(path).resolve()
-    boundary = Path(root).resolve()
-    try:
-        candidate.relative_to(boundary)
-    except ValueError as exc:
+    candidate = resolve_path(path)
+    boundary = resolve_path(root)
+    if not _is_within(candidate, boundary):
         raise PathBoundaryError(
             f"路径越过边界：path={candidate}，root={boundary}"
-        ) from exc
+        )
     return candidate
 
 
 def _reject_forbidden_project_subtree(path: Path, project_root: Path) -> None:
-    try:
-        relative = path.relative_to(project_root)
-    except ValueError:
+    candidate = _normalised_text(path)
+    boundary = _normalised_text(project_root)
+    if not _is_within_normalised(candidate, boundary) or candidate == boundary:
         return
-    if any(
-        relative == forbidden or forbidden in relative.parents
-        for forbidden in FORBIDDEN_PROJECT_RELATIVE_ROOTS
-    ):
-        raise PathBoundaryError(f"数据路径指向禁止的项目目录：{relative}")
+    prefix = boundary if boundary.endswith(os.sep) else boundary + os.sep
+    relative = candidate[len(prefix):]
+    first = relative.split(os.sep, 1)[0]
+    if first in _FORBIDDEN_PROJECT_ROOT_NAMES:
+        raise PathBoundaryError(
+            f"数据路径指向禁止的项目目录：{relative.replace(os.sep, '/')}"
+        )
 
 
 def resolve_project_path(
@@ -75,15 +155,15 @@ def resolve_project_path(
 ) -> Path:
     """解析项目内路径，并拒绝越界路径和实验目录。"""
 
-    root = Path(project_root).resolve()
+    root = resolve_path(project_root)
     raw = _normalise(value)
     if not raw:
         raise DataPathError("数据路径不能为空")
     candidate = Path(raw)
     resolved = (
-        candidate.resolve()
+        resolve_path(candidate)
         if candidate.is_absolute()
-        else (root / candidate).resolve()
+        else resolve_path(root / candidate)
     )
     if not allow_external:
         ensure_path_inside_root(resolved, root)
@@ -101,15 +181,15 @@ def resolve_project_artifact_path(
 ) -> Path:
     """解析项目内模型或实验产物路径，允许 ``experiments`` 子目录。"""
 
-    root = Path(project_root).resolve()
+    root = resolve_path(project_root)
     raw = _normalise(value)
     if not raw:
         raise DataPathError("项目产物路径不能为空")
     candidate = Path(raw)
     resolved = (
-        candidate.resolve()
+        resolve_path(candidate)
         if candidate.is_absolute()
-        else (root / candidate).resolve()
+        else resolve_path(root / candidate)
     )
     ensure_path_inside_root(resolved, root)
     relative = resolved.relative_to(root)
@@ -124,28 +204,30 @@ def resolve_project_artifact_path(
 def relative_project_path(project_root: str | Path, path: str | Path) -> str:
     """将项目内路径转换为稳定的 POSIX 相对路径。"""
 
-    root = Path(project_root).resolve()
+    root = resolve_path(project_root)
     resolved = ensure_path_inside_root(Path(path), root)
     _reject_forbidden_project_subtree(resolved, root)
     return resolved.relative_to(root).as_posix()
 
 
 def data_root(project_root: str | Path) -> Path:
-    root = Path(project_root).resolve()
-    path = (root / DATA_ROOT).resolve()
+    root = resolve_path(project_root)
+    path = resolve_path(root / DATA_ROOT)
     ensure_path_inside_root(path, root)
     return path
 
 
 def tr_root(project_root: str | Path) -> Path:
-    path = (data_root(project_root) / "tr").resolve()
-    ensure_path_inside_root(path, data_root(project_root))
+    data = data_root(project_root)
+    path = resolve_path(data / "tr")
+    ensure_path_inside_root(path, data)
     return path
 
 
 def rd_root(project_root: str | Path) -> Path:
-    path = (data_root(project_root) / "rd").resolve()
-    ensure_path_inside_root(path, data_root(project_root))
+    data = data_root(project_root)
+    path = resolve_path(data / "rd")
+    ensure_path_inside_root(path, data)
     return path
 
 
@@ -157,15 +239,15 @@ def resolve_data_path(
 ) -> Path:
     """解析 data/cq08 内的产物路径。"""
 
-    root = Path(project_root).resolve()
+    root = resolve_path(project_root)
     raw = _normalise(value)
     if not raw:
         raise DataPathError("数据产物路径不能为空")
     candidate = Path(raw)
     resolved = (
-        candidate.resolve()
+        resolve_path(candidate)
         if candidate.is_absolute()
-        else (root / candidate).resolve()
+        else resolve_path(root / candidate)
     )
     ensure_path_inside_root(resolved, data_root(root))
     if must_exist and not resolved.is_file():
@@ -240,10 +322,10 @@ def resolve_source_path(
         if logical_root not in roots:
             raise DataPathError(f"未配置 external source root：{logical_root!r}")
         suffix = parts[2] if len(parts) > 2 else ""
-        configured_root = Path(roots[logical_root]).expanduser().resolve()
-        resolved = (configured_root / suffix).resolve()
+        configured_root = resolve_path(Path(roots[logical_root]).expanduser())
+        resolved = resolve_path(configured_root / suffix)
         ensure_path_inside_root(resolved, configured_root)
-        _reject_forbidden_project_subtree(resolved, Path(project_root).resolve())
+        _reject_forbidden_project_subtree(resolved, resolve_path(project_root))
         if not allow_external:
             raise PathBoundaryError("解析 external source 必须显式允许外部路径")
     else:
@@ -266,6 +348,8 @@ __all__ = [
     "TR_INDEX_PATH",
     "RD_INDEX_PATH",
     "ensure_path_inside_root",
+    "path_resolution_cache",
+    "resolve_path",
     "resolve_project_path",
     "resolve_project_artifact_path",
     "relative_project_path",

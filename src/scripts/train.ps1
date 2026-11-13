@@ -15,6 +15,8 @@ param(
 
     [switch]$ResetState,
 
+    [switch]$SkipEventCacheValidation,
+
     [string]$PythonPath = ""
     ,[string]$Root = "artifacts/radar_ln3"
     ,[switch]$Overwrite
@@ -385,17 +387,20 @@ try {
             "-ProgressInterval", [string]$ProgressInterval, "-BatchSize", [string]$BatchSize,
             "-PythonPath", $PythonPath, "-RebuildCache", "-SkipDataValidation"
         )
+        if ($SkipEventCacheValidation) { $featureCacheArguments += "-SkipEventCacheValidation" }
         Invoke-ResumableStep -Name "feature_cache" -Executable $trainScript -Arguments $featureCacheArguments -Outputs $featureCacheOutputs
     } else {
         Mark-ReusedStep -Name "feature_cache" -Outputs $featureCacheOutputs
     }
 
-    Invoke-ResumableStep -Name "l1_train" -Executable $trainScript -Arguments @(
+    $l1Arguments = @(
         "-Root", $rootPath, "-Stage", "l1", "-L2Mode", "residual", "-Device", $Device,
         "-ModelConfigPath", "src/config/model.json",
         "-ProgressInterval", [string]$ProgressInterval, "-BatchSize", [string]$BatchSize,
         "-PythonPath", $PythonPath, "-ReplaceExisting"
-    ) -Outputs @(
+    )
+    if ($SkipEventCacheValidation) { $l1Arguments += "-SkipEventCacheValidation" }
+    Invoke-ResumableStep -Name "l1_train" -Executable $trainScript -Arguments $l1Arguments -Outputs @(
         $l1FinalRel,
         $l1SummaryRel
     ) -Inputs @("src/config/model.json")
@@ -407,7 +412,7 @@ try {
         return
     }
 
-    Invoke-ResumableStep -Name "l2_baseline_anchor" -Executable $PythonPath -Arguments @(
+    $anchorArguments = @(
         "-B", "src/scripts/ensure_l2_baseline_anchor.py",
         "--project-root", $projectRoot,
         "--manifest-path", "src/config/manifests.json",
@@ -416,7 +421,9 @@ try {
         "--device", $Device,
         "--batch-size", [string]$BatchSize,
         "--skip-data-validation"
-    ) -Outputs @("data/cq08/cache/l2-baseline-anchor.pt") -Inputs @("src/config/manifests.json") -AllowExistingOutputs
+    )
+    if ($SkipEventCacheValidation) { $anchorArguments += "--skip-event-cache-validation" }
+    Invoke-ResumableStep -Name "l2_baseline_anchor" -Executable $PythonPath -Arguments $anchorArguments -Outputs @("data/cq08/cache/l2-baseline-anchor.pt") -Inputs @("src/config/manifests.json") -AllowExistingOutputs
 
     $l2Arguments = @(
         "-Root", $rootPath, "-Stage", "l2", "-L2Mode", "residual", "-Device", $Device,
@@ -442,6 +449,7 @@ try {
         )
         Write-Host "[pipeline] 检测到可恢复的 L2 epoch checkpoint，将使用 -Resume。"
     }
+    if ($SkipEventCacheValidation) { $l2Arguments += "-SkipEventCacheValidation" }
     Invoke-ResumableStep -Name "l2_train" -Executable $trainScript -Arguments $l2Arguments -Outputs @(
         $l2FinalRel,
         $l2SummaryRel
@@ -460,6 +468,7 @@ try {
         "-ProgressInterval", [string]$ProgressInterval,
         "-SkipDataValidation"
     )
+    if ($SkipEventCacheValidation) { $formalL3Arguments += "-SkipEventCacheValidation" }
     if ($ResetState -or -not (Test-Path -LiteralPath $formalL3State -PathType Leaf)) {
         $formalL3Arguments += @("-Overwrite", "-ResetState")
     } else {

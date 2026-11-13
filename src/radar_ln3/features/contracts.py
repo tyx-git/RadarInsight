@@ -52,6 +52,17 @@ class FeatureCacheIntegrityError(FeatureCacheError):
     """缓存身份、对齐关系或 hash 绑定不一致。"""
 
 
+def event_values(item: Any) -> Mapping[str, Any]:
+    """取事件的 TR 映射：直接给 mapping，或从 ``tr_values`` 取。"""
+
+    if isinstance(item, Mapping):
+        return item
+    values = getattr(item, "tr_values", None)
+    if not isinstance(values, Mapping):
+        raise FeatureInputError("TR event 缺少 mapping 类型的 tr_values")
+    return values
+
+
 def _as_tuple(values: Sequence[str], *, name: str) -> tuple[str, ...]:
     result = tuple(str(value) for value in values)
     if not result or any(not value for value in result):
@@ -280,4 +291,5 @@ __all__ = [
     "RawEchoFrame",
     "RawEchoProvider",
     "RawTargetRecord",
+    "event_values",
 ]

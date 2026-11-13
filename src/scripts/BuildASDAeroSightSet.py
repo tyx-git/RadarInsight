@@ -23,11 +23,9 @@ PROJECT_ROOT = SRC_ROOT.parent
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from radar_ln3.data.cq08 import CQ08Adapter  # noqa: E402
-from radar_ln3.data.paths import resolve_source_path  # noqa: E402
+from radar_ln3.data.cq08 import CQ08Adapter, resolve_frame_source_path  # noqa: E402
 from radar_ln3.data.raw_reader import read_mat  # noqa: E402
 from radar_ln3.data.rd_sanitizer import sanitize_rd_amplitude_db  # noqa: E402
-from radar_ln3.data.source import resolve_registered_source_path  # noqa: E402
 from radar_ln3.features.micro_doppler import (  # noqa: E402
     MICRO_DOPPLER_FRAME_CAP,
     MICRO_DOPPLER_FRAME_VALUE_DIM,
@@ -76,23 +74,6 @@ def _finite(value: Any, *, name: str) -> float:
     if not math.isfinite(result):
         raise ValueError(f"{name} 不是有限数值: {value!r}")
     return result
-
-
-def _resolve_frame_path(adapter: CQ08Adapter, raw_path: str) -> Path:
-    if str(raw_path).replace("\\", "/").startswith("external/"):
-        return resolve_source_path(
-            adapter.project_root,
-            raw_path,
-            source_roots={"cq08": adapter.source_root},
-            must_exist=True,
-            allow_external=True,
-        )
-    return resolve_registered_source_path(
-        adapter.project_root,
-        raw_path,
-        adapter.source_config,
-        must_exist=True,
-    )
 
 
 def _debug_scalar(debug: Any, name: str, *, path: Path) -> float:
@@ -249,7 +230,12 @@ def _build_parent(adapter: CQ08Adapter, parent: Any, output_path: Path) -> dict[
             )
             duration = max(0.0, float(source_meta.get("duration_seconds") or 0.0))
             mat_frame_number = int(source_meta.get("frame_index", position + 1))
-            path = _resolve_frame_path(adapter, str(raw_path))
+            path = resolve_frame_source_path(
+                adapter.project_root,
+                str(raw_path),
+                source_root=adapter.source_root,
+                source_config=adapter.source_config,
+            )
             amplitude, phase, axes = _raw_frame(
                 path,
                 time_seconds=elapsed,

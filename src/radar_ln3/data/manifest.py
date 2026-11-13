@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
+from dataclasses import dataclass, field
+from functools import wraps
 from pathlib import Path
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Callable, Iterable, Iterator, Mapping
@@ -20,7 +22,9 @@ from .contracts import (
 )
 from .paths import (
     data_root_name,
+    path_resolution_cache,
     resolve_index_path,
+    resolve_path,
     resolve_project_path,
     resolve_rd_path,
     resolve_tr_path,
@@ -42,7 +46,20 @@ DEFAULT_PROGRESS_INTERVAL = 5
 ProgressCallback = Callable[[Mapping[str, Any]], None]
 
 
-def _normalise_progress_interval(value: int) -> int:
+@dataclass
+class _ManifestPathCache:
+    """单次 manifest 校验内的路径校验结果。
+
+    ``source_paths`` 按完整来源字符串去重（含 ``;`` 分隔项）；``data_paths``
+    按 section 记忆已解析的数据路径，避免 1,549 个真实文件被 16 万条记录
+    反复解析。
+    """
+
+    source_paths: set[str] = field(default_factory=set)
+    data_paths: dict[tuple[str, str], Path] = field(default_factory=dict)
+
+
+def normalise_progress_interval(value: int) -> int:
     """校验进度回调的间隔参数。"""
 
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
@@ -65,10 +82,18 @@ def _relative_manifest_path(value: Any, *, field: str) -> str:
     return raw
 
 
-def _validate_source_path(project_root: Path, value: str, *, section: str) -> None:
+def _validate_source_path(
+    project_root: Path,
+    value: str,
+    *,
+    section: str,
+    path_cache: _ManifestPathCache,
+) -> None:
     """校验项目内来源或 external 逻辑来源标识。"""
 
     if not value:
+        return
+    if value in path_cache.source_paths:
         return
     parts = value.split(";")
     if any(not part for part in parts):
@@ -83,6 +108,7 @@ def _validate_source_path(project_root: Path, value: str, *, section: str) -> No
                 raise DataPathError(f"{section}.source_path 的 external 逻辑路径无效：{item!r}")
             continue
         resolve_project_path(project_root, relative)
+    path_cache.source_paths.add(value)
 
 
 def normalise_split_name(value: Any) -> str:
@@ -297,9 +323,9 @@ def data_manifest_hash(manifest: DatasetManifest | Mapping[str, Any]) -> str:
             payload.pop(key, None)
     audit = dict(payload.get("audit") or {})
     audit.pop("cache", None)
-    # Product registrations are derived metadata.  In particular, adding an
-    # L3 calibration descriptor updates ``audit.scope`` but does not change
-    # the TR/RD data identity or invalidate feature caches built from it.
+    # Product registrations are derived metadata.  L3 registration state now
+    # lives only in ``product.scope``; keep dropping legacy ``audit.scope`` so
+    # old manifests do not change the TR/RD data identity or invalidate caches.
     audit.pop("scope", None)
     payload["audit"] = audit
     return canonical_json_hash(payload)
@@ -392,6 +418,7 @@ def _validate_data_reference(
     section: str,
     verify_files: bool,
     artifact_cache: dict[str, tuple[int, str]],
+    path_cache: _ManifestPathCache,
 ) -> None:
     data_path = _relative_manifest_path(record["data_path"], field=f"{section}.data_path")
     if bool(record["available"]) and not data_path:
@@ -399,15 +426,19 @@ def _validate_data_reference(
     if not data_path:
         return
 
-    resolver = resolve_tr_path if section == "TR" else resolve_rd_path
-    path = resolver(project_root, data_path, must_exist=verify_files)
+    cache_key = (section, data_path)
+    path = path_cache.data_paths.get(cache_key)
+    if path is None:
+        resolver = resolve_tr_path if section == "TR" else resolve_rd_path
+        path = resolver(project_root, data_path, must_exist=verify_files)
+        path_cache.data_paths[cache_key] = path
     if not verify_files:
         return
-    cache_key = str(path)
-    observed = artifact_cache.get(cache_key)
+    observed_key = str(path)
+    observed = artifact_cache.get(observed_key)
     if observed is None:
         observed = (int(path.stat().st_size), sha256_file(path))
-        artifact_cache[cache_key] = observed
+        artifact_cache[observed_key] = observed
     declared_size = _size_value(record["file_size"], field=f"{section}.file_size")
     if declared_size is not None and declared_size != observed[0]:
         raise DataIntegrityError(f"数据文件大小不一致：{path}")
@@ -505,10 +536,11 @@ def _validate_event_records(
     project_root: Path,
     verify_files: bool,
     artifact_cache: dict[str, tuple[int, str]],
+    path_cache: _ManifestPathCache,
     progress_callback: ProgressCallback | None = None,
     progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
 ) -> None:
-    progress_interval = _normalise_progress_interval(progress_interval)
+    progress_interval = normalise_progress_interval(progress_interval)
     seen: set[str] = set()
     records_by_parent: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in records:
@@ -517,13 +549,19 @@ def _validate_event_records(
     for processed_parent_count, parent_id in enumerate(parent_ids, start=1):
         for record in records_by_parent[parent_id]:
             _validate_record_identity(record, section=section)
-            _validate_source_path(project_root, str(record["source_path"]), section=section)
+            _validate_source_path(
+                project_root,
+                str(record["source_path"]),
+                section=section,
+                path_cache=path_cache,
+            )
             _validate_data_reference(
                 project_root,
                 record,
                 section=section,
                 verify_files=verify_files,
                 artifact_cache=artifact_cache,
+                path_cache=path_cache,
             )
             sample_id = str(record["sample_id"])
             if sample_id in seen:
@@ -557,10 +595,11 @@ def _aggregate_rd_frames(
     project_root: Path,
     verify_files: bool,
     artifact_cache: dict[str, tuple[int, str]],
+    path_cache: _ManifestPathCache,
     progress_callback: ProgressCallback | None = None,
     progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
 ) -> list[dict[str, Any]]:
-    progress_interval = _normalise_progress_interval(progress_interval)
+    progress_interval = normalise_progress_interval(progress_interval)
     by_sample: dict[str, list[dict[str, Any]]] = defaultdict(list)
     seen_frames: set[tuple[str, int]] = set()
     tr_by_id = {str(record["sample_id"]): record for record in tr_records}
@@ -577,13 +616,19 @@ def _aggregate_rd_frames(
         parent_frames = frames_by_parent.get(parent_id, [])
         for record in parent_frames:
             _validate_record_identity(record, section="RD", frame_record=True)
-            _validate_source_path(project_root, str(record["source_path"]), section="RD")
+            _validate_source_path(
+                project_root,
+                str(record["source_path"]),
+                section="RD",
+                path_cache=path_cache,
+            )
             _validate_data_reference(
                 project_root,
                 record,
                 section="RD",
                 verify_files=verify_files,
                 artifact_cache=artifact_cache,
+                path_cache=path_cache,
             )
             key = (str(record["sample_id"]), int(record["frame_index"]))
             if key in seen_frames:
@@ -691,12 +736,11 @@ def _aggregate_rd_frames(
 def _validate_relationships(
     tr_records: list[dict[str, Any]],
     rd_records: list[dict[str, Any]],
-    pair_records: list[dict[str, Any]],
     *,
     source_policy: Mapping[str, Any],
 ) -> None:
-    if len(tr_records) != len(rd_records) or len(pair_records) != len(tr_records):
-        raise DataPairingError("TR、RD 事件和 pairing 的数量不一致")
+    if len(tr_records) != len(rd_records):
+        raise DataPairingError("TR 和 RD 事件数量不一致")
     tr_by_id = {str(row["sample_id"]): row for row in tr_records}
     rd_by_id = {str(row["sample_id"]): row for row in rd_records}
     if set(tr_by_id) != set(rd_by_id):
@@ -724,23 +768,8 @@ def _validate_relationships(
                 old_name = id_to_label.setdefault(int(label_id), label_name)
                 if old_name != label_name:
                     raise DataIntegrityError(f"label_id 对应多个 label_name：{label_id}")
-    pair_seen: set[str] = set()
-    for pair in pair_records:
-        _required(pair, ("sample_id", "parent_sample_id", "tr_available", "rd_available", "tr_record_index", "rd_record_index"), section="pairing")
-        sample_id = str(pair["sample_id"])
-        if sample_id in pair_seen:
-            raise DataPairingError(f"重复 pairing sample_id：{sample_id}")
-        pair_seen.add(sample_id)
-        if sample_id not in tr_by_id:
-            raise DataPairingError(f"pairing 引用了未知 sample_id：{sample_id}")
-        tr = tr_by_id[sample_id]
+    for sample_id, tr in tr_by_id.items():
         rd = rd_by_id[sample_id]
-        if str(pair["parent_sample_id"]) != str(tr["parent_sample_id"]):
-            raise DataPairingError(f"pairing parent 不一致：{sample_id}")
-        if not isinstance(pair["tr_available"], bool) or not isinstance(pair["rd_available"], bool):
-            raise DataFormatError(f"pairing 可用性必须是布尔值：{sample_id}")
-        if bool(pair["tr_available"]) != bool(tr["available"]) or bool(pair["rd_available"]) != bool(rd["available"]):
-            raise DataPairingError(f"pairing 可用性不一致：{sample_id}")
         tr_anomalous = bool(tr.get("metadata", {}).get("parent_anomalous", False))
         rd_anomalous = bool(rd.get("metadata", {}).get("parent_anomalous", False))
         if tr_anomalous != rd_anomalous:
@@ -749,25 +778,6 @@ def _validate_relationships(
         rd_excluded = bool(rd.get("metadata", {}).get("training_excluded", False))
         if tr_excluded != rd_excluded:
             raise DataPairingError(f"TR/RD training_excluded 标记不一致：{sample_id}")
-        pair_metadata = pair.get("metadata")
-        if not isinstance(pair_metadata, Mapping):
-            raise DataFormatError(f"pairing metadata 必须是对象：{sample_id}")
-        if "baseline_training_view" not in pair_metadata:
-            raise DataFormatError(f"pairing 缺少统一 baseline_training_view：{sample_id}")
-        if not isinstance(pair_metadata["baseline_training_view"], bool):
-            raise DataFormatError(f"pairing baseline_training_view 必须是布尔值：{sample_id}")
-        if pair_metadata["baseline_training_view"] != validate_baseline_training_view(
-            tr, section="TR"
-        ):
-            raise DataSplitError(f"pairing baseline_training_view 与TR不一致：{sample_id}")
-        for field, records in (("tr_record_index", tr_records), ("rd_record_index", rd_records)):
-            index = pair[field]
-            if isinstance(index, bool) or not isinstance(index, int):
-                raise DataFormatError(f"pairing record index 必须是整数：{sample_id}")
-            if not 0 <= index < len(records) or str(records[index]["sample_id"]) != sample_id:
-                raise DataPairingError(f"pairing record index 指向错误：{sample_id}")
-    if len(pair_seen) != len(tr_records):
-        raise DataPairingError("pairing 没有覆盖全部事件")
     for section, records in (("TR", tr_records), ("RD", rd_records)):
         parent_splits: dict[str, set[str]] = defaultdict(set)
         parent_events: dict[str, list[int]] = defaultdict(list)
@@ -832,6 +842,18 @@ def _validate_relationships(
             raise DataSplitError(f"test 数据出现在 {section} training view")
 
 
+def _cached_path_resolution(function: Callable[..., Any]) -> Callable[..., Any]:
+    """在一次 manifest 校验内复用路径解析结果；校验全程只读。"""
+
+    @wraps(function)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        with path_resolution_cache():
+            return function(*args, **kwargs)
+
+    return wrapper
+
+
+@_cached_path_resolution
 def validate_manifest(
     manifest: Mapping[str, Any] | DatasetManifest,
     project_root: str | Path,
@@ -843,7 +865,7 @@ def validate_manifest(
 ) -> DatasetManifest:
     """校验总 manifest、sidecar、split 边界和数据 hash。"""
 
-    progress_interval = _normalise_progress_interval(progress_interval)
+    progress_interval = normalise_progress_interval(progress_interval)
     payload = manifest.to_dict() if isinstance(manifest, DatasetManifest) else dict(manifest)
     if payload.get("schema_version") != MANIFEST_SCHEMA_VERSION:
         raise DataFormatError("manifest schema_version 不匹配")
@@ -881,7 +903,7 @@ def validate_manifest(
         raise DataFormatError("pairing schema_version 不匹配")
     if pair_section.get("strategy") != "sample_id_and_causal_event_index":
         raise DataPairingError("不支持的 pairing strategy")
-    root = Path(project_root).resolve()
+    root = resolve_path(project_root)
     tr_records = _load_index_parts(root, tr_section, name="TR", schema_version=TR_SCHEMA_VERSION, verify_files=verify_files)
     rd_frames = _load_index_parts(root, rd_section, name="RD", schema_version=RD_SCHEMA_VERSION, verify_files=verify_files)
     tr_parent_count = len({str(row.get("parent_sample_id", "")) for row in tr_records})
@@ -899,12 +921,14 @@ def validate_manifest(
         )
     if tr_records:
         artifact_cache: dict[str, tuple[int, str]] = {}
+        path_cache = _ManifestPathCache()
         _validate_event_records(
             tr_records,
             section="TR",
             project_root=root,
             verify_files=verify_files,
             artifact_cache=artifact_cache,
+            path_cache=path_cache,
             progress_callback=progress_callback,
             progress_interval=progress_interval,
         )
@@ -936,36 +960,23 @@ def validate_manifest(
             project_root=root,
             verify_files=verify_files,
             artifact_cache=artifact_cache,
+            path_cache=path_cache,
             progress_callback=progress_callback,
             progress_interval=progress_interval,
         )
+        # 聚合记录的 source_path 只由上面逐帧校验过的路径拼接而成，
+        # 不再二次拆分校验（P0-3）；data_path 由 path_cache 命中。
         for record in rd_records:
             _validate_record_identity(record, section="RD")
-            _validate_source_path(root, str(record["source_path"]), section="RD")
-            _validate_data_reference(root, record, section="RD", verify_files=verify_files, artifact_cache=artifact_cache)
-        tr_position = {str(row["sample_id"]): index for index, row in enumerate(tr_records)}
-        rd_position = {str(row["sample_id"]): index for index, row in enumerate(rd_records)}
-        pair_records = [{
-            "sample_id": str(tr["sample_id"]),
-            "parent_sample_id": str(tr["parent_sample_id"]),
-            "tr_available": bool(tr["available"]),
-            "rd_available": bool(rd_records[rd_position[str(tr["sample_id"])]]["available"]),
-            "tr_record_index": tr_position[str(tr["sample_id"])],
-            "rd_record_index": rd_position[str(tr["sample_id"])],
-            "metadata": {
-                "pairing_basis": "sample_id_and_causal_event_index",
-                "parent_anomalous": bool(
-                    tr.get("metadata", {}).get("parent_anomalous", False)
-                ),
-                "training_excluded": bool(
-                    tr.get("metadata", {}).get("training_excluded", False)
-                ),
-                "baseline_training_view": bool(
-                    tr["metadata"]["baseline_training_view"]
-                ),
-            },
-        } for tr in tr_records]
-        _validate_relationships(tr_records, rd_records, pair_records, source_policy=source_policy)
+            _validate_data_reference(
+                root,
+                record,
+                section="RD",
+                verify_files=verify_files,
+                artifact_cache=artifact_cache,
+                path_cache=path_cache,
+            )
+        _validate_relationships(tr_records, rd_records, source_policy=source_policy)
         if progress_callback is not None:
             progress_callback(
                 {
@@ -979,7 +990,6 @@ def validate_manifest(
             )
     else:
         rd_records = []
-        pair_records = []
         if progress_callback is not None:
             progress_callback(
                 {
@@ -1012,8 +1022,8 @@ def validate_manifest(
                     "record_count": 0,
                 }
             )
-    expected_events = int(pair_section.get("paired_event_count", len(pair_records)))
-    if expected_events != len(pair_records) and (tr_records or verify_files):
+    expected_events = int(pair_section.get("paired_event_count", len(tr_records)))
+    if expected_events != len(tr_records) and (tr_records or verify_files):
         raise DataIntegrityError("pairing.paired_event_count 与实际事件数量不一致")
     if not allow_unmaterialized and not tr_records:
         raise DataIntegrityError("manifest 尚未生成 sidecar 记录")
@@ -1044,7 +1054,6 @@ def validate_manifest(
         split=dict(split_policy),
         tr_records=tr_records,
         rd_records=rd_records,
-        pair_records=pair_records,
         tr_index=dict(tr_section),
         rd_index=dict(rd_section),
         pairing=dict(pair_section),
@@ -1082,69 +1091,11 @@ def load_manifest(
     )
 
 
-def load_tr_records(
-    manifest: DatasetManifest | Mapping[str, Any],
-    project_root: str | Path,
-    *,
-    verify_files: bool = True,
-    progress_callback: ProgressCallback | None = None,
-    progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
-) -> list[dict[str, Any]]:
-    return list(
-        validate_manifest(
-            manifest,
-            project_root,
-            verify_files=verify_files,
-            progress_callback=progress_callback,
-            progress_interval=progress_interval,
-        ).tr_records
-    )
-
-
-def load_rd_records(
-    manifest: DatasetManifest | Mapping[str, Any],
-    project_root: str | Path,
-    *,
-    verify_files: bool = True,
-    progress_callback: ProgressCallback | None = None,
-    progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
-) -> list[dict[str, Any]]:
-    return list(
-        validate_manifest(
-            manifest,
-            project_root,
-            verify_files=verify_files,
-            progress_callback=progress_callback,
-            progress_interval=progress_interval,
-        ).rd_records
-    )
-
-
-def load_pairs(
-    manifest: DatasetManifest | Mapping[str, Any],
-    project_root: str | Path,
-    *,
-    verify_files: bool = True,
-    progress_callback: ProgressCallback | None = None,
-    progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
-) -> list[dict[str, Any]]:
-    return list(
-        validate_manifest(
-            manifest,
-            project_root,
-            verify_files=verify_files,
-            progress_callback=progress_callback,
-            progress_interval=progress_interval,
-        ).pair_records
-    )
-
-
 __all__ = [
     "MANIFEST_SCHEMA_VERSION", "TR_SCHEMA_VERSION", "RD_SCHEMA_VERSION",
     "PAIRING_SCHEMA_VERSION", "INDEX_FORMAT", "SPLIT_NAMES", "DEFAULT_PROGRESS_INTERVAL",
-    "ProgressCallback", "canonical_json_hash", "data_manifest_hash",
+    "ProgressCallback", "normalise_progress_interval", "canonical_json_hash", "data_manifest_hash",
     "normalise_split_name", "expected_baseline_training_view",
     "validate_baseline_training_view", "resolve_manifest_view",
-    "load_manifest", "validate_manifest", "load_tr_records",
-    "load_rd_records", "load_pairs",
+    "load_manifest", "validate_manifest",
 ]

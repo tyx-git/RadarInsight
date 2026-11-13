@@ -7,18 +7,14 @@ param(
     [string]$Device,
     [ValidateRange(1, 64)]
     [int]$BatchSize,
-    [ValidateRange(1, 256)]
-    [int]$HeadBatchSize,
-    [ValidateRange(1, 10000)]
-    [int]$Epochs,
     [ValidateRange(1, 10000)]
     [int]$ProgressInterval = 25,
-    [double]$LearningRate,
-    [double]$WeightDecay,
     [switch]$Overwrite,
     [switch]$Resume,
     [switch]$ResetState,
     [switch]$SkipDataValidation,
+    [switch]$SkipEventCacheValidation,
+    [switch]$SkipRegister,
     [string]$PythonPath = ""
 )
 
@@ -36,6 +32,7 @@ $rootPath = if ([IO.Path]::IsPathRooted($Root)) { [IO.Path]::GetFullPath($Root) 
 $rootRelative = [IO.Path]::GetRelativePath($projectRoot, $rootPath)
 if ($rootRelative -eq ".." -or $rootRelative.StartsWith("..$([IO.Path]::DirectorySeparatorChar)") -or [IO.Path]::IsPathRooted($rootRelative)) { throw "Root 必须位于项目目录内：$Root" }
 $pipelineRoot = Join-Path $rootPath "pipeline\l3"
+$rootPosix = $rootRelative.Replace('\','/')
 $headRoot = "$($rootRelative.Replace('\','/'))/l3/heads"
 $representationRoot = "$($rootRelative.Replace('\','/'))/l3/representations"
 $reportRoot = "$($rootRelative.Replace('\','/'))/l3"
@@ -53,7 +50,7 @@ $l3ConfigPath = "src/config/radar_ln3_l3.json"
 $cacheRoot = "data/cq08/cache/features/l3"
 $headFitCache = "$cacheRoot/head_fit/feature-cache-manifest.json"
 $validationCache = "$cacheRoot/validation/feature-cache-manifest.json"
-$auditManifest = "src/config/radar_ln3_audit_manifest.json"
+$auditManifest = "$reportRoot/radar_ln3_audit_manifest.json"
 $auditCache = "$cacheRoot/audit/feature-cache-manifest.json"
 $calibrationPath = "$reportRoot/radar_ln3_calibration.exploratory.json"
 $auditedCalibrationPath = "$reportRoot/radar_ln3_calibration.json"
@@ -63,14 +60,14 @@ $logRoot = Join-Path $pipelineRoot "logs"
 $commandRoot = Join-Path $pipelineRoot "commands"
 $lockPath = Join-Path $pipelineRoot "run.lock"
 
-# 正式训练参数从同一份配置读取，显式命令行参数优先。
+# 正式训练参数从同一份配置读取；命令行只允许覆盖 Device / BatchSize 等运行口径。
 $l3Config = Get-Content -LiteralPath (Join-Path $projectRoot $l3ConfigPath) -Raw -Encoding UTF8 | ConvertFrom-Json
 $knownnessTraining = $l3Config.knownness_training
-foreach ($entry in @{Device="device"; BatchSize="batch_size"; HeadBatchSize="head_batch_size"; Epochs="epochs"; LearningRate="learning_rate"; WeightDecay="weight_decay"}.GetEnumerator()) {
-    if (-not $PSBoundParameters.ContainsKey($entry.Key)) {
-        Set-Variable -Name $entry.Key -Value $knownnessTraining.common.($entry.Value)
-    }
-    $knownnessTraining.common.($entry.Value) = Get-Variable -Name $entry.Key -ValueOnly
+if (-not $PSBoundParameters.ContainsKey("Device")) {
+    $Device = [string]$knownnessTraining.common.device
+}
+if (-not $PSBoundParameters.ContainsKey("BatchSize")) {
+    $BatchSize = [int]$knownnessTraining.common.batch_size
 }
 $knownnessTrainingJson = $knownnessTraining | ConvertTo-Json -Depth 10 -Compress
 
@@ -128,10 +125,6 @@ $state = [ordered]@{
     configuration = [ordered]@{
         device = $Device
         batch_size = $BatchSize
-        head_batch_size = $HeadBatchSize
-        epochs = $Epochs
-        learning_rate = $LearningRate
-        weight_decay = $WeightDecay
         package_root = "src"
         root = $rootRelative.Replace('\','/')
         profile_path = $decisionProfilePath
@@ -182,6 +175,16 @@ function Add-OverwriteFlag {
 function Add-ValidationFlag {
     param([System.Collections.Generic.List[string]]$Arguments)
     if ($SkipDataValidation) { [void]$Arguments.Add("--skip-data-validation") }
+}
+
+function Add-EventCacheValidationFlag {
+    param([System.Collections.Generic.List[string]]$Arguments)
+    if ($SkipEventCacheValidation) { [void]$Arguments.Add("--skip-event-cache-validation") }
+}
+
+function Add-SkipRegisterFlag {
+    param([System.Collections.Generic.List[string]]$Arguments)
+    if ($SkipRegister) { [void]$Arguments.Add("--skip-register") }
 }
 
 function Test-Outputs {
@@ -266,43 +269,38 @@ try {
     }
     Save-State
     if ($Stage -in @("all", "cache")) {
-        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--role","head-fit","--output-root","$cacheRoot/head_fit","--progress-interval",[string]$ProgressInterval)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args
+        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--role","head-fit","--progress-interval",[string]$ProgressInterval)
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args
         Invoke-PackageStep "01-head-fit-cache" $args @($headFitCache)
-        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--role","validation","--output-root","$cacheRoot/validation","--progress-interval",[string]$ProgressInterval)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args
+        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--role","validation","--progress-interval",[string]$ProgressInterval)
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args
         Invoke-PackageStep "02-validation-cache" $args @($validationCache)
     }
     if ($Stage -in @("all", "heads")) {
         $args = New-Args @(
             "-B","src/scripts/train_l3_heads.py","--project-root",$projectRoot,
             "--manifest-path",$manifestPath,"--model-config-path",$modelConfigPath,
-            "--l1-checkpoint-path",$l1CheckpointPath,"--l2-checkpoint-path",$l2CheckpointPath,
-            "--l1-config-path",$l1ConfigPath,"--l2-config-path",$l2ConfigPath,
-            "--fit-feature-cache-manifest-path",$headFitCache,"--validation-feature-cache-manifest-path",$validationCache,
-            "--task","both","--device",$Device,"--batch-size",[string]$BatchSize,"--head-batch-size",[string]$HeadBatchSize,
-            "--epochs",[string]$Epochs,"--learning-rate",[string]$LearningRate,"--weight-decay",[string]$WeightDecay,
-            "--output-root",$headRoot,"--representation-root",$representationRoot,
-            "--l3-config-path",$l3ConfigPath
+            "--l3-config-path",$l3ConfigPath,
+            "--task","both","--device",$Device,"--batch-size",[string]$BatchSize,
+            "--root",$rootPosix
         )
-        Add-OverwriteFlag $args; Add-ValidationFlag $args
-        if ($SkipDataValidation) { [void]$args.Add("--skip-event-cache-validation") }
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args; Add-SkipRegisterFlag $args
         Invoke-PackageStep "03-knownness-heads" $args @($l1HeadPath,$l2HeadPath,"$representationRoot/l1-train.pt","$representationRoot/l1-validation.pt","$representationRoot/l2-train.pt","$representationRoot/l2-validation.pt","$headRoot/l1-knownness-summary.json","$headRoot/l2-knownness-summary.json") -Inputs @($l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l3ConfigPath,$headFitCache,$validationCache)
     }
     if ($Stage -in @("all", "calibration")) {
-        $args = New-Args @("-B","src/scripts/calibrate_l3.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--model-config-path",$modelConfigPath,"--l1-checkpoint-path",$l1CheckpointPath,"--l2-checkpoint-path",$l2CheckpointPath,"--l1-config-path",$l1ConfigPath,"--l2-config-path",$l2ConfigPath,"--feature-cache-manifest-path",$validationCache,"--policy-json",$policyPath,"--decision-profile-json",$decisionProfilePath,"--l1-head-path",$l1HeadPath,"--l2-head-path",$l2HeadPath,"--representation-root",$representationRoot,"--device",$Device,"--batch-size",[string]$BatchSize,"--output-path",$calibrationPath)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args
+        $args = New-Args @("-B","src/scripts/calibrate_l3.py","--project-root",$projectRoot,"--manifest-path",$manifestPath,"--model-config-path",$modelConfigPath,"--device",$Device,"--batch-size",[string]$BatchSize,"--root",$rootPosix)
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args
         Invoke-PackageStep "04-validation-calibration" $args @($calibrationPath) -Inputs @($l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$validationCache,$policyPath,$decisionProfilePath,$l1HeadPath,$l2HeadPath)
     }
     if ($Stage -in @("all", "audit")) {
         $args = New-Args @("-B","src/scripts/freeze_l3_audit_manifest.py","--project-root",$projectRoot,"--source-manifest-path",$manifestPath,"--calibration-path",$calibrationPath,"--output-manifest-path",$auditManifest)
         Add-OverwriteFlag $args; Add-ValidationFlag $args; Invoke-PackageStep "05-freeze-audit-manifest" $args @($auditManifest) -Inputs @($manifestPath,$calibrationPath)
-        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$auditManifest,"--role","audit","--output-root","$cacheRoot/audit","--progress-interval",[string]$ProgressInterval)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args; Invoke-PackageStep "06-audit-feature-cache" $args @($auditCache) -Inputs @($auditManifest)
-        $args = New-Args @("-B","src/scripts/audit_l3.py","--project-root",$projectRoot,"--model-config-path",$modelConfigPath,"--calibration-path",$calibrationPath,"--l1-checkpoint-path",$l1CheckpointPath,"--l2-checkpoint-path",$l2CheckpointPath,"--l1-config-path",$l1ConfigPath,"--l2-config-path",$l2ConfigPath,"--audit-manifest-path",$auditManifest,"--audit-feature-cache-manifest-path",$auditCache,"--audit-split-name","test","--device",$Device,"--batch-size",[string]$BatchSize,"--l1-head-path",$l1HeadPath,"--l2-head-path",$l2HeadPath,"--representation-root",$representationRoot,"--product-manifest-path",$manifestPath,"--thresholds-frozen-before-access","--formal-available","--output-path",$auditedCalibrationPath)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args; Invoke-PackageStep "07-full-model-audit" $args @($auditedCalibrationPath) -Inputs @($calibrationPath,$auditManifest,$auditCache,$l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l1HeadPath,$l2HeadPath)
-        $args = New-Args @("-B","src/scripts/report_l3_audit.py","--project-root",$projectRoot,"--model-config-path",$modelConfigPath,"--calibration-path",$auditedCalibrationPath,"--l1-checkpoint-path",$l1CheckpointPath,"--l2-checkpoint-path",$l2CheckpointPath,"--l1-config-path",$l1ConfigPath,"--l2-config-path",$l2ConfigPath,"--audit-manifest-path",$auditManifest,"--audit-feature-cache-manifest-path",$auditCache,"--audit-split-name","test","--device",$Device,"--batch-size",[string]$BatchSize,"--l1-head-path",$l1HeadPath,"--l2-head-path",$l2HeadPath,"--representation-root",$representationRoot,"--output-path",$auditReportPath)
-        Add-OverwriteFlag $args; Add-ValidationFlag $args; Invoke-PackageStep "08-audit-report" $args @($auditReportPath) -Inputs @($auditedCalibrationPath,$auditManifest,$auditCache,$l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l1HeadPath,$l2HeadPath)
+        $args = New-Args @("-B","src/scripts/build_l3_cache.py","--project-root",$projectRoot,"--manifest-path",$auditManifest,"--role","audit","--progress-interval",[string]$ProgressInterval)
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args; Invoke-PackageStep "06-audit-feature-cache" $args @($auditCache) -Inputs @($auditManifest)
+        $args = New-Args @("-B","src/scripts/audit_l3.py","--project-root",$projectRoot,"--model-config-path",$modelConfigPath,"--root",$rootPosix,"--audit-split-name","test","--device",$Device,"--batch-size",[string]$BatchSize,"--thresholds-frozen-before-access","--formal-available")
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args; Add-SkipRegisterFlag $args; Invoke-PackageStep "07-full-model-audit" $args @($auditedCalibrationPath) -Inputs @($calibrationPath,$auditManifest,$auditCache,$l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l1HeadPath,$l2HeadPath)
+        $args = New-Args @("-B","src/scripts/report_l3_audit.py","--project-root",$projectRoot,"--model-config-path",$modelConfigPath,"--root",$rootPosix,"--audit-split-name","test","--device",$Device,"--batch-size",[string]$BatchSize)
+        Add-OverwriteFlag $args; Add-ValidationFlag $args; Add-EventCacheValidationFlag $args; Invoke-PackageStep "08-audit-report" $args @($auditReportPath) -Inputs @($auditedCalibrationPath,$auditManifest,$auditCache,$l1CheckpointPath,$l2CheckpointPath,$l1ConfigPath,$l2ConfigPath,$modelConfigPath,$l1HeadPath,$l2HeadPath)
     }
     if ($Stage -in @("all", "audit")) {
         $l1FormalEndpoint = Join-Path $projectRoot $l1CheckpointPath

@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import os
@@ -20,10 +20,33 @@ from typing import Any
 import torch
 
 from radar_ln3.data.paths import resolve_project_artifact_path
+from radar_ln3.data.raw_reader import sha256_file as _data_sha256_file
+from radar_ln3.data.contracts import DataError
 
 
 class CheckpointError(RuntimeError):
     """checkpoint 结构、来源或完整性错误。"""
+
+
+class _HashingWriter:
+    """Forward a sequential write while recording the exact serialized bytes."""
+
+    def __init__(self, handle: Any) -> None:
+        self.handle = handle
+        self.digest = hashlib.sha256()
+
+    def write(self, value: bytes) -> int:
+        self.digest.update(value)
+        return self.handle.write(value)
+
+    def tell(self) -> int:
+        return self.handle.tell()
+
+    def flush(self) -> None:
+        self.handle.flush()
+
+    def fileno(self) -> int:
+        return self.handle.fileno()
 
 
 def canonical_hash(value: Any) -> str:
@@ -51,14 +74,13 @@ def _json_default(value: Any) -> str:
 def sha256_file(path: str | Path) -> str:
     """以流式方式计算文件 SHA-256。"""
 
-    target = Path(path)
+    target = Path(path).resolve()
     if not target.is_file():
         raise CheckpointError(f"checkpoint 文件不存在：{target}")
-    digest = hashlib.sha256()
-    with target.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+    try:
+        return _data_sha256_file(target)
+    except (DataError, OSError) as exc:
+        raise CheckpointError(f"checkpoint 文件无法计算 SHA-256：{target}") from exc
 
 
 def state_hash(state: Mapping[str, Any]) -> str:
@@ -119,7 +141,7 @@ def _payload_equal(left: Any, right: Any) -> bool:
         return False
 
 
-def _atomic_save(target: Path, payload: Mapping[str, Any]) -> str:
+def _atomic_save(target: Path, payload: Mapping[str, Any]) -> tuple[str, str]:
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
@@ -127,14 +149,18 @@ def _atomic_save(target: Path, payload: Mapping[str, Any]) -> str:
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
-        torch.save(dict(payload), temporary)
+        with temporary.open("wb") as handle:
+            writer = _HashingWriter(handle)
+            torch.save(dict(payload), writer)
+            writer.flush()
+            serialized_hash = writer.digest.hexdigest()
         if target.exists():
             if not target.is_file():
                 raise CheckpointError(f"拒绝替换非文件 checkpoint：{target}")
             existing = _load_file(target)
             candidate = _load_file(temporary)
             if _payload_equal(existing, candidate):
-                return "reused_identical"
+                return "reused_identical", sha256_file(target)
             raise FileExistsError(f"拒绝覆盖内容不同的 checkpoint：{target}")
         # no-overwrite 写入必须使用原子创建，避免检查和替换之间的竞态覆盖。
         try:
@@ -143,9 +169,9 @@ def _atomic_save(target: Path, payload: Mapping[str, Any]) -> str:
             existing = _load_file(target)
             candidate = _load_file(temporary)
             if _payload_equal(existing, candidate):
-                return "reused_identical"
+                return "reused_identical", sha256_file(target)
             raise FileExistsError(f"拒绝覆盖内容不同的 checkpoint：{target}")
-        return "created"
+        return "created", serialized_hash
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -177,6 +203,18 @@ class Checkpoint:
     project_root: Path
     path: Path
     payload: Mapping[str, Any]
+    _file_sha256: str | None = field(default=None, repr=False, compare=False)
+    state_sha256: str | None = None
+
+    @property
+    def file_sha256(self) -> str:
+        """Return the file digest, computing it once for this checkpoint object."""
+
+        digest = self._file_sha256
+        if digest is None:
+            digest = sha256_file(self.path)
+            object.__setattr__(self, "_file_sha256", digest)
+        return digest
 
     @property
     def state(self) -> Mapping[str, torch.Tensor]:
@@ -184,7 +222,6 @@ class Checkpoint:
         if not isinstance(value, Mapping):
             raise CheckpointError(f"checkpoint 缺少 model_state：{self.path}")
         state = dict(value)
-        state_hash(state)
         return state
 
     @property
@@ -193,7 +230,7 @@ class Checkpoint:
         return None if value is None else str(value)
 
     def verify_state_hash(self) -> str:
-        actual = state_hash(self.state)
+        actual = self.state_sha256 or state_hash(self.state)
         declared = self.declared_state_hash
         if declared is not None and declared != actual:
             raise CheckpointError(f"checkpoint model_state hash 不一致：{self.path}")
@@ -206,7 +243,7 @@ class Checkpoint:
             "path": self.path.relative_to(self.project_root).as_posix(),
             "kind": str(kind),
             "file_size": int(self.path.stat().st_size),
-            "sha256": sha256_file(self.path),
+            "sha256": self.file_sha256,
             "schema_version": self.payload.get("checkpoint_schema")
             or self.payload.get("schema_version"),
         }
@@ -241,9 +278,22 @@ class Checkpoint:
                 )
         if expected_task is not None and str(payload.get("task", "")) != str(expected_task):
             raise CheckpointError("checkpoint task 不匹配")
-        result = cls(project_root=root, path=target, payload=payload)
+        state_digest = None
         if "model_state" in payload:
-            result.verify_state_hash()
+            state_value = payload.get("model_state")
+            if not isinstance(state_value, Mapping):
+                raise CheckpointError(f"checkpoint model_state 必须是对象：{target}")
+            state_digest = state_hash(state_value)
+            declared = payload.get("model_state_sha256")
+            if declared is not None and str(declared) != state_digest:
+                raise CheckpointError(f"checkpoint model_state hash 不一致：{target}")
+        result = cls(
+            project_root=root,
+            path=target,
+            payload=payload,
+            _file_sha256=None,
+            state_sha256=state_digest,
+        )
         return result
 
     @classmethod
@@ -272,10 +322,18 @@ class Checkpoint:
             raise CheckpointError(f"checkpoint 必须是 .pt 文件：{target}")
         value = dict(payload)
         state = value.get("model_state")
+        state_digest = None
         if isinstance(state, Mapping):
-            value["model_state_sha256"] = state_hash(state)
-        status = _atomic_save(target, value)
-        return cls.load(root, target), status
+            state_digest = state_hash(state)
+            value["model_state_sha256"] = state_digest
+        status, serialized_hash = _atomic_save(target, value)
+        return cls(
+            project_root=root,
+            path=target,
+            payload=value,
+            _file_sha256=serialized_hash,
+            state_sha256=state_digest,
+        ), status
 
 
 def load_model_state(model: torch.nn.Module, state: Mapping[str, Any]) -> None:

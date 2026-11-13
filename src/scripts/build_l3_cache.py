@@ -51,23 +51,24 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
         help="head-fit uses train parents including Unknown; validation uses validation; audit uses test",
     )
-    parser.add_argument(
-        "--output-root",
-        type=Path,
-        default=None,
-        help="Output directory under data/; defaults to data/cq08/cache/features/l3/<role>",
-    )
     parser.add_argument("--progress-interval", type=int, default=25)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "--skip-data-validation",
         action="store_true",
-        help="复用前置 data_index 校验结果，不重复扫描完整 TR/RD 文件",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
+    )
+    parser.add_argument(
+        "--skip-event-cache-validation",
+        action="store_true",
+        help="复用已构建的 event cache，不重复校验事件覆盖",
     )
     return parser
 
 
 def build(args: argparse.Namespace) -> dict[str, Any]:
+    from radar_ln3.artifacts import L3_FEATURE_CACHE_ROOT
+    from radar_ln3.data import load_manifest
     from radar_ln3.data.cq08 import CQ08Adapter, CQ08RawEchoProvider
     from radar_ln3.model import load_model_config
     from core.training.cache import build_feature_training_cache
@@ -78,18 +79,26 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
     split_name = "train" if role == "head-fit" else ("validation" if role == "validation" else "test")
     training_view = role != "audit"
     task_name = "l3_head_fit" if role == "head-fit" else f"l3_{role}"
-    output_root = args.output_root or Path(
-        f"data/cq08/cache/features/l3/{'head_fit' if role == 'head-fit' else role}"
+    output_root = L3_FEATURE_CACHE_ROOT / (
+        "head_fit" if role == "head-fit" else role
     )
     if isinstance(args.progress_interval, bool) or int(args.progress_interval) <= 0:
         raise ValueError("--progress-interval must be a positive integer")
 
+    verify_files = not bool(args.skip_data_validation)
+    manifest = load_manifest(
+        manifest_path,
+        root,
+        verify_files=verify_files,
+        allow_unmaterialized=False,
+    )
     config = load_model_config(root)
     adapter = CQ08Adapter(
         root,
         registered_index=True,
         manifest_path=manifest_path,
-        verify_files=not bool(args.skip_data_validation),
+        verify_files=verify_files,
+        manifest=manifest,
     )
     provider = CQ08RawEchoProvider(
         root,
@@ -120,8 +129,9 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
         require_stable_evidence=True,
         overwrite=bool(args.overwrite),
         register=False,
-        verify_files=not bool(args.skip_data_validation),
-        validate_event_cache=not bool(args.skip_data_validation),
+        manifest=manifest,
+        verify_files=verify_files,
+        validate_event_cache=not bool(args.skip_event_cache_validation),
         progress_callback=_progress,
         progress_interval=int(args.progress_interval),
     )

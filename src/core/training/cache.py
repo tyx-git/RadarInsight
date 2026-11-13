@@ -83,13 +83,14 @@ def build_training_cache(
     cache_path: str | Path = DEFAULT_CACHE_RELATIVE_PATH,
     overwrite: bool = False,
     verify_files: bool = True,
+    manifest: DatasetManifest | None = None,
     progress_callback: ProgressCallback | None = None,
     progress_interval: int = DEFAULT_PROGRESS_INTERVAL,
 ) -> dict[str, Any]:
     """构建事件引用缓存，并将其注册回总 manifest。"""
 
     root = Path(project_root).resolve()
-    manifest = load_manifest(
+    manifest = manifest or load_manifest(
         manifest_path,
         root,
         verify_files=bool(verify_files),
@@ -112,6 +113,7 @@ def build_training_cache(
         path=manifest_path,
         overwrite=overwrite,
         verify_files=bool(verify_files),
+        validate=False,
         progress_callback=progress_callback,
         progress_interval=progress_interval,
     )
@@ -225,6 +227,7 @@ def build_feature_training_cache(
             # feature cache 文件本身仍由 save_feature_cache 的 overwrite
             # 参数控制；这里需要原子更新总 manifest 的派生登记。
             overwrite=True,
+            manifest=manifest,
             feature_cache_descriptor=bundle,
             feature_cache_key=feature_cache_key,
         )
@@ -367,6 +370,7 @@ def build_feature_training_caches(
         manifest_path=manifest_path,
         # 缓存文件已在上面完成严格写入，登记阶段只更新总 manifest。
         overwrite=True,
+        manifest=manifest,
         feature_cache_descriptors=descriptors,
     )
     result["manifest_path"] = str(registered_manifest)
@@ -381,32 +385,51 @@ def load_task_feature_caches(
     manifest_path: str | Path = "src/config/manifests.json",
     feature_cache_root: str | Path = DEFAULT_FEATURE_CACHE_ROOT,
     manifest: DatasetManifest | None = None,
+    datasets: Mapping[str, CachedParentSequenceDataset] | None = None,
     validate_cache: bool = True,
+    validate_event_cache: bool | None = None,
 ) -> tuple[dict[str, FeatureCache], dict[str, FeatureCache]]:
-    """按正式 task 的 train/validation DatasetView 加载 feature cache。"""
+    """按正式 task 的 train/validation DatasetView 加载 feature cache。
+
+    ``datasets`` 提供时直接复用调用方已构造的 train/validation dataset，
+    不再重复解析事件缓存与 canonical RD。
+    """
 
     if str(task) not in {"l1", "l2"}:
         raise ValueError(f"不支持的 feature cache task：{task}")
     root = Path(project_root).resolve()
+    event_cache_validation = (
+        bool(validate_cache)
+        if validate_event_cache is None
+        else bool(validate_event_cache)
+    )
     manifest = manifest or load_manifest(
         manifest_path, root, verify_files=True, allow_unmaterialized=False
     )
-    train_dataset = build_training_dataset(
-        root,
-        task=str(task),
-        split_name="train",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_cache,
-    )
-    validation_dataset = build_training_dataset(
-        root,
-        task=str(task),
-        split_name="validation",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_cache,
-    )
+    if datasets is None:
+        train_dataset = build_training_dataset(
+            root,
+            task=str(task),
+            split_name="train",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
+        validation_dataset = build_training_dataset(
+            root,
+            task=str(task),
+            split_name="validation",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
+    else:
+        try:
+            train_dataset = datasets["train"]
+            validation_dataset = datasets["validation"]
+        except KeyError as exc:
+            raise ValueError(f"datasets 必须包含 train/validation：{exc}") from exc
+    source_hash = data_manifest_hash(manifest) if validate_cache else None
     root_path = Path(feature_cache_root)
     train_manifest = root_path / str(task) / "train" / FEATURE_CACHE_MANIFEST_NAME
     validation_manifest = root_path / str(task) / "validation" / FEATURE_CACHE_MANIFEST_NAME
@@ -414,18 +437,14 @@ def load_task_feature_caches(
         root,
         train_manifest,
         expected_view=train_dataset.view,
-        expected_source_manifest_hash=(
-            data_manifest_hash(manifest) if validate_cache else None
-        ),
+        expected_source_manifest_hash=source_hash,
         verify_integrity=validate_cache,
     )
     validation_cache = load_feature_cache_bundle(
         root,
         validation_manifest,
         expected_view=validation_dataset.view,
-        expected_source_manifest_hash=(
-            data_manifest_hash(manifest) if validate_cache else None
-        ),
+        expected_source_manifest_hash=source_hash,
         verify_integrity=validate_cache,
     )
     if validate_cache:

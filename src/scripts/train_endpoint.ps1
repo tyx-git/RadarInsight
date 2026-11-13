@@ -5,6 +5,7 @@ param(
     [ValidateSet("cuda", "cpu")][string]$Device = "cuda",
     [switch]$RebuildCache,
     [switch]$SkipDataValidation,
+    [switch]$SkipEventCacheValidation,
     [switch]$ReplaceExisting,
     [switch]$Resume,
     [ValidateRange(1, 10000)][int]$ProgressInterval = 5,
@@ -57,6 +58,7 @@ $arguments = @(
 )
 if ($RebuildCache) { $arguments += "--rebuild-cache" }
 if ($SkipDataValidation) { $arguments += "--skip-data-validation" }
+if ($SkipEventCacheValidation) { $arguments += "--skip-event-cache-validation" }
 if ($ReplaceExisting) { $arguments += "--replace-existing" }
 if ($Resume) { $arguments += "--resume" }
 if ($Overwrite) { $arguments += "--overwrite" }

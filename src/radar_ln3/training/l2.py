@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from pathlib import Path
-import random
 import time
 from typing import Any
 
@@ -12,63 +11,34 @@ import numpy as np
 import torch
 
 from radar_ln3.checkpoint import Checkpoint, canonical_hash, sha256_file
-from radar_ln3.cache import load_event_logit_anchor
+from radar_ln3.cache import CachedParentSequenceDataset, load_event_logit_anchor
 from radar_ln3.data import load_manifest
 from radar_ln3.data.contracts import DatasetManifest
 from radar_ln3.data.derived import register_product_artifacts
 from radar_ln3.data.manifest import data_manifest_hash
 from radar_ln3.features import FeatureCache
 from radar_ln3.data.contracts import RawEchoProvider
+from radar_ln3.device import resolve_device
 from radar_ln3.model import build_l2_model, load_model_config
 from radar_ln3.model.l2 import trainable_parameter_groups
-from radar_ln3.logger import log_classification_metrics
 
 from .common import (
     ModelBatchCollator,
-    _l2_inputs,
-    _l2_reference_inputs,
     build_training_dataset,
     build_training_loader,
     checkpoint_payload,
+    emit_progress,
     evaluate_l2,
     evaluate_l2_direct,
+    l2_model_inputs,
+    l2_reference_inputs,
+    seed_everything,
     train_l2_step,
     train_l2_direct_step,
 )
 
 
 ProgressCallback = Callable[[Mapping[str, Any]], None]
-
-
-def _seed(value: int) -> None:
-    random.seed(int(value))
-    np.random.seed(int(value) % (2**32))
-    torch.manual_seed(int(value))
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(int(value))
-
-
-def _device(requested: str) -> torch.device:
-    value = str(requested).lower()
-    if value == "cuda":
-        if not torch.cuda.is_available():
-            raise RuntimeError("配置要求 CUDA，但当前环境不可用")
-        return torch.device("cuda:0")
-    if value == "cpu":
-        return torch.device("cpu")
-    raise ValueError(f"不支持的训练 device：{requested}")
-
-
-def _emit(
-    progress_callback: ProgressCallback | None,
-    event: Mapping[str, Any],
-) -> None:
-    if progress_callback is not None:
-        progress_callback(event)
-    if "validation" in event:
-        log_classification_metrics(
-            event["validation"], task="l2", epoch=event["epoch"]
-        )
 
 
 def _cached_stable8_valid_event_count(
@@ -198,11 +168,14 @@ def train_l2(
     device: str = "cpu",
     arm: str = "robust_control",
     manifest: DatasetManifest | None = None,
+    train_dataset: CachedParentSequenceDataset | None = None,
+    validation_dataset: CachedParentSequenceDataset | None = None,
     progress_callback: ProgressCallback | None = None,
     raw_echo_provider: RawEchoProvider | None = None,
     train_feature_caches: Mapping[str, FeatureCache] | None = None,
     validation_feature_caches: Mapping[str, FeatureCache] | None = None,
     validate_caches: bool = True,
+    validate_event_cache: bool | None = None,
     mode: str = "residual",
     progress_interval: int = 25,
     resume: bool = False,
@@ -221,7 +194,7 @@ def train_l2(
         raise ValueError("progress_interval 必须是正整数")
     config = load_model_config(root, config_path, artifact_root=artifact_root)
     run_seed = int(config.training.seed)
-    _seed(run_seed)
+    seed_everything(run_seed)
     cache_names = set(train_feature_caches or {})
     validation_cache_names = set(validation_feature_caches or {})
     required_cache_names = {
@@ -240,6 +213,11 @@ def train_l2(
         or not 0.0 <= float(bird_precision_floor) <= 1.0
     ):
         raise ValueError("L2 Bird precision floor 必须是 [0,1] 内的有限值")
+    event_cache_validation = (
+        bool(validate_caches)
+        if validate_event_cache is None
+        else bool(validate_event_cache)
+    )
     manifest = manifest or load_manifest(
         manifest_path, root, verify_files=True, allow_unmaterialized=False
     )
@@ -249,13 +227,17 @@ def train_l2(
         if mode in {"direct", "direct_grouped"}
         else load_event_logit_anchor(root, config.artifacts.l2_baseline_anchor_path)
     )
-    train_set = build_training_dataset(
-        root,
-        task="l2",
-        split_name="train",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_caches,
+    train_set = (
+        train_dataset
+        if train_dataset is not None
+        else build_training_dataset(
+            root,
+            task="l2",
+            split_name="train",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
     )
     cached_stable8_valid_events = _cached_stable8_valid_event_count(
         train_feature_caches
@@ -269,13 +251,17 @@ def train_l2(
             "L2 train feature cache 全部没有有效 stable8 证据；"
             "请检查 raw-IQ 输入或重建 stable8 cache"
         )
-    validation_set = build_training_dataset(
-        root,
-        task="l2",
-        split_name="validation",
-        manifest_path=manifest_path,
-        manifest=manifest,
-        validate_event_cache=validate_caches,
+    validation_set = (
+        validation_dataset
+        if validation_dataset is not None
+        else build_training_dataset(
+            root,
+            task="l2",
+            split_name="validation",
+            manifest_path=manifest_path,
+            manifest=manifest,
+            validate_event_cache=event_cache_validation,
+        )
     )
     if baseline_anchor is not None:
         expected_anchor_ids = set(train_set.view.sample_ids) | set(
@@ -295,7 +281,7 @@ def train_l2(
     effective_batch_size = int(batch_size or config.training.batch_size)
     if effective_batch_size <= 0:
         raise ValueError("L2 batch_size 必须为正整数")
-    target_device = _device(device)
+    target_device = resolve_device(device)
     effective_workers = (
         (2 if target_device.type == "cuda" else 0)
         if num_workers is None
@@ -306,29 +292,16 @@ def train_l2(
     effective_pin_memory = (
         target_device.type == "cuda" if pin_memory is None else bool(pin_memory)
     )
-    clipping = {
-        "bounds": {
-            name: {"lower": bounds[0], "upper": bounds[1]}
-            for name, bounds in config.data.l2.tr_clipping_bounds.items()
-        }
-    }
-    collator_args = {
-        "task": "l2",
-        "max_rd_frames": config.data.max_rd_frames_per_point,
-        "max_sequence_length": config.data.max_sequence_length,
-        "stable_indices": config.data.l2.stable8_indices,
-        "clipping": clipping,
-        "raw_echo_provider": raw_echo_provider,
-        "stable_median": config.data.l2.stable8_median,
-        "stable_scale": config.data.l2.stable8_scale,
-        "stable_input_mode": (
-            "raw" if mode in {"direct", "direct_grouped"} else "normalized"
-        ),
-    }
+    stable_input_mode = (
+        "raw" if mode in {"direct", "direct_grouped"} else "normalized"
+    )
     train_loader = build_training_loader(
         train_set,
-        collate_fn=ModelBatchCollator(
-            **collator_args,
+        collate_fn=ModelBatchCollator.from_config(
+            config,
+            "l2",
+            stable_input_mode=stable_input_mode,
+            raw_echo_provider=raw_echo_provider,
             feature_caches=train_feature_caches,
             expected_view_hash=train_set.view.view_hash,
             baseline_anchor=baseline_anchor,
@@ -342,8 +315,11 @@ def train_l2(
     )
     validation_loader = build_training_loader(
         validation_set,
-        collate_fn=ModelBatchCollator(
-            **collator_args,
+        collate_fn=ModelBatchCollator.from_config(
+            config,
+            "l2",
+            stable_input_mode=stable_input_mode,
+            raw_echo_provider=raw_echo_provider,
             feature_caches=validation_feature_caches,
             expected_view_hash=validation_set.view.view_hash,
             baseline_anchor=baseline_anchor,
@@ -497,7 +473,7 @@ def train_l2(
     start_event["start_epoch"] = start_epoch
     if resumed_from_epoch is not None:
         start_event["resumed_from_epoch"] = resumed_from_epoch
-    _emit(progress_callback, start_event)
+    emit_progress(progress_callback, start_event, task="l2")
     baseline_reference_verified = False
     for epoch in range(start_epoch, config.training.epochs + 1):
         model.train()
@@ -514,8 +490,8 @@ def train_l2(
             batch_wait_seconds = time.perf_counter() - wait_started
             compute_started = time.perf_counter()
             if mode == "residual" and not baseline_reference_verified:
-                inputs = _l2_inputs(batch, target_device)
-                reference_inputs = _l2_reference_inputs(
+                inputs = l2_model_inputs(batch, target_device)
+                reference_inputs = l2_reference_inputs(
                     batch, target_device, base_inputs=inputs
                 )
                 anchor = batch["baseline_logits"].to(
@@ -540,13 +516,14 @@ def train_l2(
                         f"max_abs_error={max_error:.8g}，请重建 baseline anchor"
                     )
                 baseline_reference_verified = True
-                _emit(
+                emit_progress(
                     progress_callback,
                     {
                         "stage": "l2_anchor_verified",
                         "max_abs_error": max_error,
                         "tolerance": 1.0e-5,
                     },
+                    task="l2",
                 )
             if mode == "residual":
                 epoch_stable8_valid_events += int(
@@ -587,7 +564,7 @@ def train_l2(
                 )
             losses.append(loss)
             if step % int(progress_interval) == 0 or step == len(train_loader):
-                _emit(
+                emit_progress(
                     progress_callback,
                     {
                         "stage": "l2_step",
@@ -604,6 +581,7 @@ def train_l2(
                         },
                         "prefix_event_count": prefix_event_count,
                     },
+                    task="l2",
                 )
         if mode == "residual" and epoch_stable8_valid_events == 0:
             raise ValueError(
@@ -663,7 +641,7 @@ def train_l2(
         if best_rank is None or rank > best_rank:
             best_rank = rank
             best_payload = payload
-        _emit(progress_callback, {"stage": "l2_epoch", **record, "elapsed_seconds": time.perf_counter() - started})
+        emit_progress(progress_callback, {"stage": "l2_epoch", **record, "elapsed_seconds": time.perf_counter() - started}, task="l2")
     if best_payload is None:
         raise RuntimeError("L2 训练没有产生 checkpoint")
     if bird_precision_floor is not None:
@@ -752,7 +730,7 @@ def train_l2(
         "test_payload_access_count": 0,
         "elapsed_seconds": time.perf_counter() - started,
     }
-    _emit(progress_callback, {"stage": "l2_complete", **summary["checkpoint"], "selected_epoch": summary["selected_epoch"]})
+    emit_progress(progress_callback, {"stage": "l2_complete", **summary["checkpoint"], "selected_epoch": summary["selected_epoch"]}, task="l2")
     return summary
 
 

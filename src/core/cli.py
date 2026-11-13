@@ -7,13 +7,17 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from radar_ln3.data.cq08 import CQ08Adapter
 from radar_ln3.data.index import build_manifest, write_manifest
-from radar_ln3.data.contracts import DataError
-from radar_ln3.data.manifest import DEFAULT_PROGRESS_INTERVAL, load_manifest
+from radar_ln3.data.contracts import DataError, DataIntegrityError
+from radar_ln3.data.manifest import (
+    DEFAULT_PROGRESS_INTERVAL,
+    canonical_json_hash,
+)
 from radar_ln3.logger import LoggerError, close_logging, configure_logging, get_logger
 from core.training.cache import build_training_cache
 
@@ -282,14 +286,9 @@ def handle_raw_data(args: argparse.Namespace) -> Path:
         project_root,
         path=args.manifest_path,
         overwrite=bool(args.overwrite),
-        progress_callback=_print_progress,
-        progress_interval=DEFAULT_PROGRESS_INTERVAL,
-    )
-    checked = load_manifest(
-        target,
-        project_root,
+        # build_manifest 已完成唯一一次完整 TR/RD 文件校验与路径边界校验。
         verify_files=True,
-        allow_unmaterialized=False,
+        validate=False,
         progress_callback=_print_progress,
         progress_interval=DEFAULT_PROGRESS_INTERVAL,
     )
@@ -298,14 +297,19 @@ def handle_raw_data(args: argparse.Namespace) -> Path:
         manifest_path=args.manifest_path,
         cache_path=args.cache_path,
         overwrite=bool(args.overwrite),
-        # sidecar 写出后的 checked manifest 已完成唯一一次完整 TR/RD
-        # 文件校验；cache 登记阶段只更新 event-source-cache descriptor。
+        # 复用刚完成校验的 manifest；cache 登记阶段只更新 descriptor。
+        manifest=manifest,
         verify_files=False,
         progress_callback=_print_progress,
         progress_interval=DEFAULT_PROGRESS_INTERVAL,
     )
     target = Path(cache_result["manifest_path"]).resolve()
+    checked = manifest
     checked.audit["cache"] = dict(cache_result["cache"])
+    written = json.loads(target.read_text(encoding="utf-8"))
+    declared_hash = written.pop("manifest_sha256", None)
+    if declared_hash != canonical_json_hash(written):
+        raise DataIntegrityError(f"写入后的 manifest hash 不一致：{target}")
     tr_parts = checked.tr_index.get("parts") or []
     rd_parts = checked.rd_index.get("parts") or []
     logger.info(
@@ -315,7 +319,7 @@ def handle_raw_data(args: argparse.Namespace) -> Path:
         f"RD_index={rd_parts[0].get('path') if rd_parts else ''} "
         f"TR={len(checked.tr_records)} "
         f"RD_frames={int(checked.rd_index.get('record_count', 0))} "
-        f"pairs={len(checked.pair_records)} "
+        f"pairs={len(checked.tr_records)} "
         f"excluded={int(checked.audit.get('excluded_parent_count', 0))} "
         f"cache={checked.audit.get('cache', {}).get('path', '')}"
     )

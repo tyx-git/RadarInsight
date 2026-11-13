@@ -5,9 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import replace
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -16,28 +14,7 @@ SRC_ROOT = Path(__file__).resolve().parents[1]
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-
-def _atomic_json(path: Path, payload: dict[str, Any], *, overwrite: bool) -> None:
-    encoded = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode(
-        "utf-8"
-    )
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and not overwrite:
-        if path.read_bytes() == encoded:
-            return
-        raise FileExistsError(f"refusing to overwrite different file: {path}")
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+from radar_ln3.data.atomic import write_json  # noqa: E402
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -51,18 +28,18 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--calibration-path",
         type=Path,
-        default=Path("artifacts/radar_ln3/l3/radar_ln3_calibration.json"),
+        default=Path("artifacts/radar_ln3/l3/radar_ln3_calibration.exploratory.json"),
     )
     parser.add_argument(
         "--output-manifest-path",
         type=Path,
-        default=Path("src/config/radar_ln3_audit_manifest.json"),
+        default=Path("artifacts/radar_ln3/l3/radar_ln3_audit_manifest.json"),
     )
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument(
         "--skip-data-validation",
         action="store_true",
-        help="复用前置 data_index 校验结果，不重复扫描完整 TR/RD 文件",
+        help="跳过数据文件 size/hash 校验（verify_files=False）；manifest 结构与事件路径边界校验仍会执行",
     )
     return parser
 
@@ -97,8 +74,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "python src/scripts/calibrate_l3.py "
             "--project-root $root "
             "--manifest-path src/config/manifests.json "
-            "--feature-cache-manifest-path "
-            "data/cq08/cache/features/l3/validation/feature-cache-manifest.json "
+            "--root artifacts/radar_ln3 "
             "--device cuda --batch-size 2 --overwrite"
         ) from exc
     source = load_manifest(
@@ -152,10 +128,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "python src/scripts/calibrate_l3.py "
             "--project-root $root "
             "--manifest-path src/config/manifests.json "
-            "--feature-cache-manifest-path "
-            "data/cq08/cache/features/l3/validation/feature-cache-manifest.json "
-            "--device cuda --batch-size 2 "
-            "--minimum-audit-unknown-support 16 --overwrite"
+            "--root artifacts/radar_ln3 "
+            "--device cuda --batch-size 2 --overwrite"
         )
 
     payload = json.loads(source_path.read_text(encoding="utf-8"))
@@ -177,18 +151,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     payload["audit"] = audit
     payload.pop("manifest_sha256", None)
     payload["manifest_sha256"] = canonical_json_hash(payload)
-    _atomic_json(output_path, payload, overwrite=bool(args.overwrite))
-    audit_manifest = load_manifest(
+    write_json(
         output_path,
-        root,
-        verify_files=not bool(args.skip_data_validation),
-        allow_unmaterialized=False,
+        payload,
+        overwrite=bool(args.overwrite),
+        label="审计 manifest",
     )
+    # 审计 manifest 是刚写入的同一份 payload（数据引用已在上面校验过），
+    # 不再重新装载 157 MB sidecar；返回字段直接由 payload 计算。
     return {
         "path": str(output_path.relative_to(root).as_posix()),
         "source_data_manifest_sha256": source_hash,
-        "audit_data_manifest_sha256": data_manifest_hash(audit_manifest),
-        "manifest_sha256": audit_manifest.manifest_sha256,
+        "audit_data_manifest_sha256": data_manifest_hash(payload),
+        "manifest_sha256": str(payload["manifest_sha256"]),
         "parent_count": len(parent_ids),
         "unknown_parent_support": unknown_support,
     }

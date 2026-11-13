@@ -21,6 +21,7 @@ from radar_ln3.checkpoint import Checkpoint, canonical_hash, sha256_file
 from radar_ln3.data import DatasetManifest, load_manifest
 from radar_ln3.data.manifest import data_manifest_hash
 from radar_ln3.data.paths import resolve_project_artifact_path, resolve_project_path
+from radar_ln3.device import resolve_device
 from radar_ln3.features import (
     FeatureCache,
     build_model_batch,
@@ -41,28 +42,27 @@ from radar_ln3.model import (
     build_profile_knownness_features,
     load_model_config,
     knownness_representation_contract,
+    ModelConfig,
 )
 
 from .l3 import (
-    _l1_inputs,
-    _l2_inputs,
-    _l2_reference_inputs,
     _load_endpoint_models,
 )
 from radar_ln3.cache import CachedParentSequenceDataset
 from radar_ln3.logger import log_classification_metrics
-from .common import _metrics
-
-
-HEAD_LABELS = (
-    "DroneTarget",
-    "BirdTarget",
-    "BalloonTarget",
-    "ClutterTarget",
-    "UnknownTarget",
+from .common import (
+    L2_LABELS,
+    classification_metrics,
+    l1_model_inputs,
+    l2_model_inputs,
+    l2_reference_inputs,
+    model_batch_kwargs,
 )
+
+
+HEAD_LABELS = (*L2_LABELS, "ClutterTarget", "UnknownTarget")
 L1_ROUTES = ("target", "clutter")
-L2_ROUTES = ("DroneTarget", "BirdTarget", "BalloonTarget")
+L2_ROUTES = L2_LABELS
 EXTRA_FEATURE_DIM = 32
 MICRO_DOPPLER_EVIDENCE_SUMMARY_DIM = 47
 REPRESENTATION_CACHE_SCHEMA = "RADAR-LN3-ENDPOINT-REPRESENTATION-V5"
@@ -132,29 +132,6 @@ class FrozenEndpointRepresentation:
 
 
 @dataclass(frozen=True)
-class FrozenEndpointEventEvidence:
-    """冻结 endpoint 的逐事件分类 logits。
-
-    该对象只用于探索性 L3 回放；knownness head 仍复用同一份 frozen
-    representation，避免为每个事件重复构造主干状态。
-    """
-
-    representation: FrozenEndpointRepresentation
-    sequence_logits: torch.Tensor
-
-    def __post_init__(self) -> None:
-        if (
-            self.sequence_logits.ndim != 3
-            or self.sequence_logits.shape[0] != len(self.representation.parent_ids)
-            or self.sequence_logits.shape[1] != self.representation.representation.shape[1]
-            or self.sequence_logits.shape[2] != (2 if self.representation.task == "l1" else 3)
-            or not self.sequence_logits.is_floating_point()
-            or not torch.isfinite(self.sequence_logits).all()
-        ):
-            raise ValueError("frozen event evidence logits shape/value 无效")
-
-
-@dataclass(frozen=True)
 class _EndpointRepresentationBatch:
     representation: torch.Tensor
     profile_representation: torch.Tensor | None
@@ -163,14 +140,6 @@ class _EndpointRepresentationBatch:
     parent_ids: list[str]
     label_names: list[str]
     bird_evidence_representation: torch.Tensor | None
-    sequence_logits: torch.Tensor | None
-
-
-def _device(value: str | torch.device) -> torch.device:
-    target = torch.device(str(value))
-    if target.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("knownness head 配置要求 CUDA，但当前环境不可用")
-    return target
 
 
 def _epoch_permutation(
@@ -195,16 +164,17 @@ def _epoch_permutation(
 
 def _feature_caches(
     root: Path,
-    manifest: DatasetManifest,
     dataset: CachedParentSequenceDataset,
     path: str | Path,
+    *,
+    source_manifest_hash: str,
 ) -> tuple[dict[str, FeatureCache], str]:
     target = resolve_project_path(root, path, must_exist=True)
     caches = load_feature_cache_bundle(
         root,
         target,
         expected_view=dataset.view,
-        expected_source_manifest_hash=data_manifest_hash(manifest),
+        expected_source_manifest_hash=source_manifest_hash,
         verify_integrity=True,
     )
     return caches, sha256_file(target)
@@ -326,20 +296,20 @@ def _endpoint_representation(
     caches: Mapping[str, FeatureCache],
     config: Any,
     device: torch.device,
-    return_event_outputs: bool = False,
 ) -> _EndpointRepresentationBatch:
     if task == "l1":
         model_batch = build_model_batch(
             sequences,
-            task="l1",
-            max_rd_frames=config.data.max_rd_frames_per_point,
-            max_sequence_length=config.data.max_sequence_length,
+            **model_batch_kwargs(
+                config,
+                "l1",
+                allow_unmapped_labels=True,
+                pad_to_max_sequence_length=True,
+            ),
             feature_caches=caches,
-            allow_unmapped_labels=True,
-            pad_to_max_sequence_length=True,
         )
         output = l1(
-            base_inputs=_l1_inputs(model_batch, device),
+            base_inputs=l1_model_inputs(model_batch, device),
             observation_increment_values=model_batch["observation_increment_values"].to(device=device),
             return_representation=True,
         )
@@ -351,28 +321,22 @@ def _endpoint_representation(
     else:
         model_batch = build_model_batch(
             sequences,
-            task="l2",
-            max_rd_frames=config.data.max_rd_frames_per_point,
-            max_sequence_length=config.data.max_sequence_length,
-            stable_median=np.asarray(config.data.l2.stable8_median, dtype=np.float32),
-            stable_scale=np.asarray(config.data.l2.stable8_scale, dtype=np.float32),
-            stable_indices=config.data.l2.stable8_indices,
-            clipping={
-                "bounds": {
-                    name: {"lower": bounds[0], "upper": bounds[1]}
-                    for name, bounds in config.data.l2.tr_clipping_bounds.items()
-                }
-            },
+            **model_batch_kwargs(
+                config,
+                "l2",
+                stable_input_mode=(
+                    "raw" if l2.mode in {"direct", "direct_grouped"} else "normalized"
+                ),
+                allow_unmapped_labels=True,
+                pad_to_max_sequence_length=True,
+            ),
             feature_caches=caches,
-            stable_input_mode=("raw" if l2.mode in {"direct", "direct_grouped"} else "normalized"),
-            allow_unmapped_labels=True,
-            pad_to_max_sequence_length=True,
         )
-        inputs = _l2_inputs(model_batch, device)
+        inputs = l2_model_inputs(model_batch, device)
         if l2.mode in {"direct", "direct_grouped"}:
             output = l2.direct_logits(base_inputs=inputs, return_representation=True)
         else:
-            reference_inputs = _l2_reference_inputs(model_batch, inputs, device=device)
+            reference_inputs = l2_reference_inputs(model_batch, device, base_inputs=inputs)
             anchor = l2.frozen_reference_logits(base_inputs=reference_inputs).detach().clone()
             anchor = anchor.masked_fill(inputs["tr_padding_mask"].unsqueeze(-1), 0.0)
             output = l2(
@@ -446,9 +410,6 @@ def _endpoint_representation(
         bird_evidence_representation=(
             bird_evidence.detach().cpu() if bird_evidence is not None else None
         ),
-        sequence_logits=(
-            output["sequence_logits"].detach().cpu() if return_event_outputs else None
-        ),
     )
 
 
@@ -471,55 +432,87 @@ def materialize_frozen_endpoint_representation(
     l2_checkpoint_path: str | Path | None = None,
     l1_config_path: str | Path | None = None,
     l2_config_path: str | Path | None = None,
-    return_event_outputs: bool = False,
-) -> FrozenEndpointRepresentation | FrozenEndpointEventEvidence:
+    manifest: DatasetManifest | None = None,
+    config: ModelConfig | None = None,
+    feature_caches: Mapping[str, FeatureCache] | None = None,
+    feature_cache_sha256: str | None = None,
+    manifest_sha256: str | None = None,
+    endpoint_sha256: Mapping[str, str] | None = None,
+    dataset: CachedParentSequenceDataset | None = None,
+    endpoint_models: tuple[torch.nn.Module, torch.nn.Module, Checkpoint, Checkpoint] | None = None,
+) -> FrozenEndpointRepresentation:
     if task not in {"l1", "l2"}:
         raise ValueError("materialize task 必须为 l1 或 l2")
     root = Path(project_root).resolve()
-    target_device = _device(device)
-    config = load_model_config(root, model_config_path)
-    manifest = load_manifest(
+    target_device = resolve_device(device)
+    config = config or load_model_config(root, model_config_path)
+    manifest = manifest or load_manifest(
         root / manifest_path,
         root,
         verify_files=bool(verify_files),
         allow_unmaterialized=False,
     )
-    dataset = CachedParentSequenceDataset(
-        root,
-        manifest_path=manifest_path,
-        manifest=manifest,
-        split_name=split_name,
-        include_unknown=True,
-        training_view=bool(training_view),
-        allowed_labels=None,
-        task_name=(
-            "l3_head_fit"
-            if allow_unknown_head_training
-            else ("l3_audit" if split_name == "test" else f"l3_{split_name}")
-        ),
-        allow_unknown_head_training=allow_unknown_head_training,
-        validate_event_cache=validate_event_cache,
-    )
+    if dataset is None:
+        dataset = CachedParentSequenceDataset(
+            root,
+            manifest_path=manifest_path,
+            manifest=manifest,
+            split_name=split_name,
+            include_unknown=True,
+            training_view=bool(training_view),
+            allowed_labels=None,
+            task_name=(
+                "l3_head_fit"
+                if allow_unknown_head_training
+                else ("l3_audit" if split_name == "test" else f"l3_{split_name}")
+            ),
+            allow_unknown_head_training=allow_unknown_head_training,
+            validate_event_cache=validate_event_cache,
+        )
+    elif validate_event_cache and not dataset.event_cache_validated:
+        dataset.validate_event_cache()
+    view_sample_ids = set(dataset.view.sample_ids)
     selected_labels = {
         str(record["label_name"])
         for record in manifest.tr_records
-        if str(record["sample_id"]) in set(dataset.view.sample_ids)
+        if str(record["sample_id"]) in view_sample_ids
     }
     if selected_labels - set(HEAD_LABELS):
         raise ValueError(f"knownness view 含未登记标签：{sorted(selected_labels - set(HEAD_LABELS))}")
-    caches, cache_hash = _feature_caches(root, manifest, dataset, feature_cache_manifest_path)
-    from radar_ln3.training.l3 import _load_endpoint_models
-
-    l1, l2, l1_checkpoint, l2_checkpoint = _load_endpoint_models(
-        root,
-        device=target_device,
-        config=config,
-        source_manifest_sha256=(data_manifest_hash(manifest) if require_training_manifest_match else None),
-        l1_checkpoint_path=l1_checkpoint_path,
-        l2_checkpoint_path=l2_checkpoint_path,
-        l1_config_path=l1_config_path,
-        l2_config_path=l2_config_path,
-    )
+    expected_source_hash = str(manifest_sha256 or data_manifest_hash(manifest))
+    if feature_caches is None:
+        caches, cache_hash = _feature_caches(
+            root,
+            dataset,
+            feature_cache_manifest_path,
+            source_manifest_hash=expected_source_hash,
+        )
+    else:
+        caches = dict(feature_caches)
+        cache_hash = str(feature_cache_sha256 or "")
+        if not cache_hash:
+            raise ValueError("复用 feature cache 时必须提供 feature_cache_sha256")
+    for feature_name, cache in caches.items():
+        descriptor = cache.descriptor
+        if descriptor.source_manifest_hash != expected_source_hash:
+            raise ValueError(f"feature cache source manifest hash 不匹配：{feature_name}")
+        if descriptor.view_name != dataset.view.view_name or descriptor.view_hash != dataset.view.view_hash:
+            raise ValueError(f"feature cache view 不匹配：{feature_name}")
+        if tuple(cache.sample_ids) != tuple(dataset.view.sample_ids):
+            raise ValueError(f"feature cache sample_id 顺序不匹配：{feature_name}")
+    if endpoint_models is None:
+        from radar_ln3.training.l3 import _load_endpoint_models
+        endpoint_models = _load_endpoint_models(
+            root,
+            device=target_device,
+            config=config,
+            source_manifest_sha256=(expected_source_hash if require_training_manifest_match else None),
+            l1_checkpoint_path=l1_checkpoint_path,
+            l2_checkpoint_path=l2_checkpoint_path,
+            l1_config_path=l1_config_path,
+            l2_config_path=l2_config_path,
+        )
+    l1, l2, l1_checkpoint, l2_checkpoint = endpoint_models
     loader = DataLoader(
         dataset,
         batch_size=int(batch_size),
@@ -532,7 +525,6 @@ def materialize_frozen_endpoint_representation(
     bird_evidence: list[torch.Tensor] = []
     masks: list[torch.Tensor] = []
     endpoint_logits: list[torch.Tensor] = []
-    sequence_logits: list[torch.Tensor] = []
     parent_ids: list[str] = []
     labels: list[str] = []
     with torch.inference_mode():
@@ -545,7 +537,6 @@ def materialize_frozen_endpoint_representation(
                 caches=caches,
                 config=config,
                 device=target_device,
-                return_event_outputs=return_event_outputs,
             )
             reps.append(endpoint_result.representation)
             if endpoint_result.profile_representation is not None:
@@ -556,8 +547,6 @@ def materialize_frozen_endpoint_representation(
             endpoint_logits.append(endpoint_result.endpoint_logits)
             parent_ids.extend(endpoint_result.parent_ids)
             labels.extend(endpoint_result.label_names)
-            if endpoint_result.sequence_logits is not None:
-                sequence_logits.append(endpoint_result.sequence_logits)
     if not reps:
         raise ValueError("knownness representation 为空")
     representation = torch.cat(reps, dim=0)
@@ -566,10 +555,13 @@ def materialize_frozen_endpoint_representation(
     padding = torch.cat(masks, dim=0)
     endpoint_logits_tensor = torch.cat(endpoint_logits, dim=0)
     lengths = (~padding).long().sum(dim=1)
-    endpoint_hash = {
-        "l1": sha256_file(l1_checkpoint.path),
-        "l2": sha256_file(l2_checkpoint.path),
-    }
+    if endpoint_sha256 is None:
+        endpoint_hash = {
+            "l1": l1_checkpoint.file_sha256,
+            "l2": l2_checkpoint.file_sha256,
+        }
+    else:
+        endpoint_hash = dict(endpoint_sha256)
     representation = FrozenEndpointRepresentation(
         task=task,
         parent_ids=tuple(parent_ids),
@@ -579,18 +571,13 @@ def materialize_frozen_endpoint_representation(
         lengths=lengths,
         profile_representation=profile_representation,
         bird_evidence_representation=bird_evidence_representation,
-        source_manifest_sha256=data_manifest_hash(manifest),
+        source_manifest_sha256=expected_source_hash,
         endpoint_sha256=endpoint_hash,
         feature_cache_manifest_sha256=cache_hash,
         view_hash=dataset.view.view_hash,
         endpoint_logits=endpoint_logits_tensor,
         test_payload_access_count=(len(dataset) if dataset.view.split_name == "test" else 0),
     )
-    if return_event_outputs:
-        return FrozenEndpointEventEvidence(
-            representation=representation,
-            sequence_logits=torch.cat(sequence_logits, dim=0),
-        )
     return representation
 
 
@@ -626,6 +613,7 @@ def save_frozen_endpoint_representation(
     config: Any,
     output_path: str | Path,
     overwrite: bool = False,
+    config_sha256: str | None = None,
 ) -> Path:
     """保存可复用的 endpoint representation 和完整 provenance。"""
 
@@ -642,6 +630,17 @@ def save_frozen_endpoint_representation(
     )
     if int(representation.representation.shape[-1]) != sum(contract["dimensions"].values()):
         raise ValueError("endpoint representation 与 contract 输入宽度不一致")
+    if target.exists() and not overwrite:
+        existing = load_frozen_endpoint_representation(root, target)
+        if (
+            existing.parent_ids == representation.parent_ids
+            and existing.view_hash == representation.view_hash
+            and dict(existing.endpoint_sha256) == dict(representation.endpoint_sha256)
+            and existing.source_manifest_sha256 == representation.source_manifest_sha256
+            and existing.feature_cache_manifest_sha256 == representation.feature_cache_manifest_sha256
+        ):
+            return target
+        raise FileExistsError(f"拒绝覆盖不同的 endpoint representation：{target}")
     tensors = {
         "representation": representation.representation.detach().cpu().contiguous(),
         "padding_mask": representation.padding_mask.detach().cpu().contiguous(),
@@ -655,7 +654,7 @@ def save_frozen_endpoint_representation(
     metadata = {
         "schema_version": REPRESENTATION_CACHE_SCHEMA,
         "task": representation.task,
-        "config_sha256": sha256_file(config.path),
+        "config_sha256": str(config_sha256 or sha256_file(config.path)),
         "source_manifest_sha256": representation.source_manifest_sha256,
         "endpoint_sha256": dict(representation.endpoint_sha256),
         "feature_cache_manifest_sha256": representation.feature_cache_manifest_sha256,
@@ -673,17 +672,6 @@ def save_frozen_endpoint_representation(
         "metadata": sealed,
         "tensors": tensors,
     }
-    if target.exists() and not overwrite:
-        existing = load_frozen_endpoint_representation(root, target)
-        if (
-            existing.parent_ids == representation.parent_ids
-            and existing.view_hash == representation.view_hash
-            and dict(existing.endpoint_sha256) == dict(representation.endpoint_sha256)
-            and existing.source_manifest_sha256 == representation.source_manifest_sha256
-            and existing.feature_cache_manifest_sha256 == representation.feature_cache_manifest_sha256
-        ):
-            return target
-        raise FileExistsError(f"拒绝覆盖不同的 endpoint representation：{target}")
     temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
     torch.save(payload, temporary)
     os.replace(temporary, target)
@@ -876,7 +864,7 @@ def _knownness_metrics(task: str, labels: Sequence[str], scores: np.ndarray) -> 
         "per_route": per_route,
         # 拒识是 knownness 的实际输出；Unknown 误接受也计入对应 route 的 FP。
         # 此诊断固定使用 0.5，不改变 operating point 拟合或 checkpoint 选择。
-        "per_class": _metrics(
+        "per_class": classification_metrics(
             np.where(accepted, route_ids, len(route_names)),
             expected_ids,
             (*route_names, "rejected"),
@@ -989,7 +977,7 @@ def _train_knownness_head(
 ) -> dict[str, Any]:
     if task == "l2" and (fit.profile_representation is None or validation.profile_representation is None):
         raise ValueError("L2 profile residual requires profile representation")
-    target_device = _device(device)
+    target_device = resolve_device(device)
     random.seed(int(seed))
     np.random.seed(int(seed) % (2**32))
     torch.manual_seed(int(seed))
@@ -1453,7 +1441,6 @@ def _train_knownness_head(
             model.profile_branch.load_state_dict(profile_best_state, strict=True)
     contract = model.model_contract()
     body = {
-        "checkpoint_schema": KNOWNNESS_HEAD_SCHEMA,
         "schema_version": KNOWNNESS_HEAD_SCHEMA,
         "task": f"l3_knownness_{task}",
         "head_task": task,
@@ -1652,6 +1639,8 @@ def train_l3_knownness_head(
         l1_selection_mode=l1_selection_mode,
         progress_callback=progress_callback,
     )
+
+
 def load_l3_knownness_head(
     project_root: str | Path,
     path: str | Path,
@@ -1659,11 +1648,9 @@ def load_l3_knownness_head(
     task: str,
     expected_endpoint_sha256: str | None = None,
     expected_config_sha256: str | None = None,
+    _checkpoint: Checkpoint | None = None,
 ) -> tuple[TemporalKnownnessHead | ProfileResidualKnownnessHead, Checkpoint]:
-    checkpoint = Checkpoint.load(
-        project_root,
-        path,
-    )
+    checkpoint = _checkpoint or Checkpoint.load(project_root, path)
     payload = checkpoint.payload
     if payload.get("head_task") != task or payload.get("task") != f"l3_knownness_{task}":
         raise ValueError("knownness head task 不匹配")
@@ -1763,22 +1750,34 @@ def score_frozen_endpoint_representation(
     path: str | Path,
     config_path: str | Path = "src/config/model.json",
     device: str | torch.device | None = None,
+    config: ModelConfig | None = None,
+    config_sha256: str | None = None,
+    checkpoint: Checkpoint | None = None,
+    model: TemporalKnownnessHead | ProfileResidualKnownnessHead | None = None,
 ) -> tuple[np.ndarray, str]:
     """在冻结表示上计算 parent-final route knownness。"""
 
     root = Path(project_root).resolve()
-    config = load_model_config(root, config_path)
-    model, checkpoint = load_l3_knownness_head(
-        root,
-        path,
-        task=representation.task,
-        expected_endpoint_sha256=representation.endpoint_sha256[representation.task],
-        expected_config_sha256=sha256_file(config.path),
-    )
+    config = config or load_model_config(root, config_path)
+    if model is None and checkpoint is None:
+        model, checkpoint = load_l3_knownness_head(
+            root,
+            path,
+            task=representation.task,
+            expected_endpoint_sha256=representation.endpoint_sha256[representation.task],
+            expected_config_sha256=str(config_sha256 or sha256_file(config.path)),
+        )
+    elif model is None:
+        model, _ = load_l3_knownness_head(
+            root, path, task=representation.task,
+            expected_endpoint_sha256=representation.endpoint_sha256[representation.task],
+            expected_config_sha256=config_sha256,
+            _checkpoint=checkpoint,
+        )
     target_device = (
         next(model.parameters()).device
         if device is None
-        else _device(device)
+        else resolve_device(device)
     )
     model = model.to(device=target_device)
     with torch.inference_mode():
@@ -1806,65 +1805,13 @@ def score_frozen_endpoint_representation(
         ]
         if representation.task == "l2" and rows.shape[-1] == 1:
             rows = rows.expand(-1, len(L2_ROUTES))
-    return rows.detach().cpu().numpy().astype(np.float64), sha256_file(checkpoint.path)
-
-
-def score_frozen_endpoint_event_evidence(
-    evidence: FrozenEndpointEventEvidence,
-    *,
-    project_root: str | Path,
-    path: str | Path,
-    config_path: str | Path = "src/config/model.json",
-    device: str | torch.device | None = None,
-) -> tuple[np.ndarray, str]:
-    """计算冻结 endpoint 每个 causal event 的 knownness route 分数。"""
-
-    root = Path(project_root).resolve()
-    config = load_model_config(root, config_path)
-    model, checkpoint = load_l3_knownness_head(
-        root,
-        path,
-        task=evidence.representation.task,
-        expected_endpoint_sha256=evidence.representation.endpoint_sha256[evidence.representation.task],
-        expected_config_sha256=sha256_file(config.path),
-    )
-    target_device = next(model.parameters()).device if device is None else _device(device)
-    model = model.to(device=target_device)
-    rep = evidence.representation
-    with torch.inference_mode():
-        features = rep.representation.to(device=target_device)
-        padding = rep.padding_mask.to(device=target_device)
-        if isinstance(model, ProfileResidualKnownnessHead):
-            if rep.profile_representation is None:
-                raise ValueError("profile event knownness scoring 缺少 profile representation")
-            if isinstance(model, BirdProfileResidualEvidenceFusionKnownnessHead):
-                if rep.bird_evidence_representation is None:
-                    raise ValueError("V5 Bird head 缺少 micro-doppler evidence representation")
-                output = model(
-                    features,
-                    rep.profile_representation.to(device=target_device),
-                    padding,
-                    rep.bird_evidence_representation.to(device=target_device),
-                )
-            else:
-                output = model(
-                    features,
-                    rep.profile_representation.to(device=target_device),
-                    padding,
-                )
-        elif isinstance(model, TemporalKnownnessHead):
-            output = model(features, padding)
-        else:
-            raise TypeError("不支持的 knownness head 类型")
-        scores = output["route_probabilities"]
-        if evidence.representation.task == "l2" and scores.shape[-1] == 1:
-            scores = scores.expand(-1, -1, len(L2_ROUTES))
-    return scores.detach().cpu().numpy().astype(np.float64), sha256_file(checkpoint.path)
+    if checkpoint is None:
+        raise ValueError("knownness scoring 缺少 checkpoint")
+    return rows.detach().cpu().numpy().astype(np.float64), checkpoint.file_sha256
 
 
 __all__ = [
     "FrozenEndpointRepresentation",
-    "FrozenEndpointEventEvidence",
     "HEAD_LABELS",
     "L1_ROUTES",
     "L2_ROUTES",
@@ -1877,6 +1824,5 @@ __all__ = [
     "materialize_frozen_endpoint_representation",
     "save_frozen_endpoint_representation",
     "score_frozen_endpoint_representation",
-    "score_frozen_endpoint_event_evidence",
     "train_l3_knownness_head",
 ]

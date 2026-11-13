@@ -175,13 +175,13 @@ def test_train_l3_uses_formal_bundle_without_touching_historical_tmp(l3_sandbox)
     assert (root / "artifacts/radar_ln3/pipeline/l3").is_dir()
 
 
-def test_train_l3_resume_rejects_training_parameter_change(l3_sandbox) -> None:
+def test_train_l3_resume_rejects_execution_parameter_change(l3_sandbox) -> None:
     root, state = l3_sandbox
     before = state.read_bytes()
-    result = _run_l3(root, "-Epochs", "31")
+    result = _run_l3(root, "-BatchSize", "9")
     output = result.stdout + result.stderr
     assert result.returncode != 0
-    assert "续跑参数不一致：epochs" in output
+    assert "续跑参数不一致：batch_size" in output
     assert state.read_bytes() == before
 
 
@@ -199,12 +199,14 @@ def test_train_l3_retrains_heads_when_endpoint_binding_changes(l3_sandbox) -> No
     (root / "src/scripts/train_l3_heads.py").write_text(
         "import argparse\n"
         "from pathlib import Path\n"
-        "p=argparse.ArgumentParser(); p.add_argument('--project-root',type=Path); p.add_argument('--output-root',type=Path); p.add_argument('--representation-root',type=Path); a,_=p.parse_known_args()\n"
+        "p=argparse.ArgumentParser(); p.add_argument('--project-root',type=Path); p.add_argument('--root',type=Path,default=Path('artifacts/radar_ln3')); a,_=p.parse_known_args()\n"
         "root=a.project_root\n"
+        "heads=root/a.root/'l3'/'heads'\n"
+        "representations=root/a.root/'l3'/'representations'\n"
         "for name in ('l1-knownness.pt','l2-knownness.pt','l1-knownness-summary.json','l2-knownness-summary.json'):\n"
-        " q=root/a.output_root/name; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('output',encoding='utf-8')\n"
+        " q=heads/name; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('output',encoding='utf-8')\n"
         "for name in ('l1-train.pt','l1-validation.pt','l2-train.pt','l2-validation.pt'):\n"
-        " q=root/a.representation_root/name; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('representation',encoding='utf-8')\n",
+        " q=representations/name; q.parent.mkdir(parents=True,exist_ok=True); q.write_text('representation',encoding='utf-8')\n",
         encoding="utf-8",
     )
     first = _run_l3(root, stage="heads")
@@ -248,6 +250,13 @@ def test_train_l3_reset_waits_for_formal_pipeline_lock(l3_sandbox) -> None:
     assert lock.read_text(encoding="utf-8") == str(os.getpid())
 
 
+def test_train_l3_exposes_skip_register_switch() -> None:
+    text = (_L3_SOURCE_ROOT / "scripts/trainL3.ps1").read_text(encoding="utf-8")
+    assert "[switch]$SkipRegister" in text
+    assert text.count("Add-SkipRegisterFlag $args") == 2
+    assert text.count('"--skip-register"') == 1
+
+
 def test_resumable_step_accepts_verified_reused_outputs(tmp_path: Path) -> None:
     pwsh = shutil.which("pwsh")
     if pwsh is None:
@@ -276,4 +285,5 @@ def test_resumable_step_accepts_verified_reused_outputs(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     script = (_L3_SOURCE_ROOT / "scripts/train.ps1").read_text(encoding="utf-8")
-    assert ') -Outputs @("data/cq08/cache/l2-baseline-anchor.pt") -Inputs @("src/config/manifests.json") -AllowExistingOutputs' in script
+    assert 'Invoke-ResumableStep -Name "l2_baseline_anchor" -Executable $PythonPath -Arguments $anchorArguments' in script
+    assert '-Outputs @("data/cq08/cache/l2-baseline-anchor.pt") -Inputs @("src/config/manifests.json") -AllowExistingOutputs' in script

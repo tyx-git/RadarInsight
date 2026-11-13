@@ -50,15 +50,15 @@ class DataSplitError(DataError):
     """parent 级 split 缺失、不完整或跨越边界。"""
 
 
-def _json_value(value: Any) -> Any:
+def json_value(value: Any) -> Any:
     if isinstance(value, np.ndarray):
         return value.tolist()
     if isinstance(value, np.generic):
         return value.item()
     if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
+        return {str(key): json_value(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
+        return [json_value(item) for item in value]
     return value
 
 
@@ -83,7 +83,7 @@ class DatasetRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return _json_value(asdict(self))
+        return json_value(asdict(self))
 
 
 @dataclass(frozen=True)
@@ -106,7 +106,7 @@ class ParentRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return _json_value(asdict(self))
+        return json_value(asdict(self))
 
 
 @dataclass(frozen=True)
@@ -131,23 +131,7 @@ class ModalityRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return _json_value(asdict(self))
-
-
-@dataclass(frozen=True)
-class PairRecord:
-    """单个事件 TR 与 RD 记录之间可审计的关系。"""
-
-    sample_id: str
-    parent_sample_id: str
-    tr_available: bool
-    rd_available: bool
-    tr_record_index: int
-    rd_record_index: int
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return _json_value(asdict(self))
+        return json_value(asdict(self))
 
 
 @dataclass(frozen=True)
@@ -333,7 +317,6 @@ class DatasetManifest:
     split: dict[str, Any]
     tr_records: list[dict[str, Any]]
     rd_records: list[dict[str, Any]]
-    pair_records: list[dict[str, Any]]
     tr_index: dict[str, Any] = field(default_factory=dict)
     rd_index: dict[str, Any] = field(default_factory=dict)
     pairing: dict[str, Any] = field(default_factory=dict)
@@ -346,13 +329,13 @@ class DatasetManifest:
             "schema_version": self.schema_version,
             "dataset": self.dataset,
             "data_root": self.data_root,
-            "source_policy": _json_value(self.source_policy),
-            "split": _json_value(self.split),
-            "TR": _json_value(self.tr_index),
-            "RD": _json_value(self.rd_index),
-            "pairing": _json_value(self.pairing),
-            "audit": _json_value(self.audit),
-            **(_json_value(self.registries) if self.registries else {}),
+            "source_policy": json_value(self.source_policy),
+            "split": json_value(self.split),
+            "TR": json_value(self.tr_index),
+            "RD": json_value(self.rd_index),
+            "pairing": json_value(self.pairing),
+            "audit": json_value(self.audit),
+            **(json_value(self.registries) if self.registries else {}),
             **({"manifest_sha256": self.manifest_sha256} if self.manifest_sha256 else {}),
         }
 
@@ -364,7 +347,7 @@ def record_to_dict(record: Any) -> dict[str, Any]:
     if hasattr(record, "to_dict"):
         return record.to_dict()
     if isinstance(record, Mapping):
-        return _json_value(dict(record))
+        return json_value(dict(record))
     raise TypeError(f"不支持的 record 类型：{type(record).__name__}")
 
 
@@ -382,7 +365,6 @@ __all__ = [
     "ParentRecord",
     "EventRecord",
     "ModalityRecord",
-    "PairRecord",
     "SplitAssignment",
     "ParentData",
     "EventData",
@@ -393,4 +375,5 @@ __all__ = [
     "DatasetView",
     "DatasetManifest",
     "record_to_dict",
+    "json_value",
 ]
