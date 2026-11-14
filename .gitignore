@@ -20,6 +20,7 @@ OriData/
 tmp/*
 todos.md
 **.md
+!/README.md
 src-v3/smoke/*
 **.pt
 !.dvc
