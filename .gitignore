@@ -1,5 +1,4 @@
 .venv/
-.agents/
 __pycache__/
 *.py[cod]
 *.pyo
@@ -10,6 +9,8 @@ __pycache__/
 Thumbs.db
 .DS_Store
 .vscode/
+config/*
+experiments/*
 artifacts/
 data/*
 reports/
@@ -18,21 +19,14 @@ tools/
 logs/
 OriData/
 tmp/*
-todos.md
 **.md
 !/README.md
-src-v3/smoke/*
 **.pt
 !.dvc
 **.png
 **.jpg
 .dvcignore
 calkit.yaml
-src.zip
 .dvc/
 docx/
-.workbuddy-ai/
 outputs/
-src-v3/v28/calibration/features/archive/
-src-v3/v28/manifests/archive
-src-v3/v28_experiments/
